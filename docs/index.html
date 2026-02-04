@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Melampo: Next-Gen Diagnostic AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #0f4c75;
+            --secondary: #4282b8;
+            --accent: #bbe1fa;
+            --text: #1b262c;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --code-bg: #f0f4f8;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Language Switcher Style */
+        .lang-switch {
+            text-align: right;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            font-size: 0.9em;
+            border-bottom: 1px solid #ddd;
+        }
+        .lang-switch a {
+            text-decoration: none;
+            color: var(--primary);
+            font-weight: bold;
+            margin-left: 15px;
+        }
+        .lang-switch a:hover {
+            text-decoration: underline;
+        }
+        .lang-switch span.active {
+            color: #333;
+            background-color: #eeffee;
+            margin-left: 15px;
+            cursor: default;
+        }
+
+        /* Header Styles */
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3em;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            font-weight: 300;
+            opacity: 0.9;
+            margin-top: 0;
+        }
+
+        .meta-info {
+            margin-top: 20px;
+            font-size: 0.9em;
+            background: rgba(255,255,255,0.1);
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        /* Content Styles */
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: var(--primary);
+            border-left: 5px solid var(--secondary);
+            padding-left: 15px;
+            margin-top: 50px;
+            font-size: 1.8em;
+        }
+
+        h3 {
+            color: var(--secondary);
+            margin-top: 30px;
+            font-weight: 700;
+        }
+
+        p {
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+
+        .highlight-box {
+            background: linear-gradient(to right, #eef2f3, #e0eafc);
+            border-left: 4px solid var(--primary);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+
+        /* Diagram Styles (CSS Flowcharts) */
+        .diagram-container {
+            background: #fafafa;
+            border: 1px dashed #ccc;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 30px 0;
+            overflow-x: auto;
+            text-align: center;
+        }
+
+        .flow-step {
+            display: inline-block;
+            background: white;
+            border: 2px solid var(--secondary);
+            color: var(--primary);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            position: relative;
+            margin: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            min-width: 120px;
+        }
+
+        .flow-arrow {
+            display: inline-block;
+            font-size: 20px;
+            color: var(--text);
+            vertical-align: middle;
+            margin: 0 5px;
+        }
+
+        .flow-group {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 10px;
+            display: inline-block;
+            background: #f9f9f9;
+            margin: 10px;
+            vertical-align: top;
+        }
+
+        .flow-label {
+            display: block;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.95em;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead tr {
+            background-color: var(--primary);
+            color: #ffffff;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+
+        tbody tr:last-of-type {
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Technical Equation Block */
+        .tech-block {
+            background-color: var(--code-bg);
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #333;
+            border: 1px solid #d1d9e6;
+        }
+
+        ul.feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        ul.feature-list li {
+            padding-left: 20px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        ul.feature-list li::before {
+            content: "•";
+            color: var(--secondary);
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .author {
+            padding: 20px 40px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #eee;
+        }
+
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <div class="lang-switch">
+        <span class="active">🇺🇸 English</span>
+        <a href="index_ita.html">🇮🇹 Italiano</a>
+    </div>
+
+    <header>
+        <h1>PROJECT MELAMPO</h1>
+        <h2 style="color: #E28282">FROM ATTENTION TO INTUITION</h2>
+        <div class="subtitle">Hybrid Diagnostic Framework: Neuro-Quantum Artificial Intelligence</div>
+        <div class="meta-info">Medical AI, Computational Neuroscience, Quantum Cognition</div>
+        <div class="meta-info">Scope: Multimodal Differential Diagnosis &bull; Focus: Attention & Synthetic Intuition</div>
+    </header>
+    
+   <div class="author">
+        <strong>Author:</strong> <a href="https://www.chandra.it" title="Francesco Lattari homepage" target="_blank">Francesco Lattari
+</a> and Project Melampo Research Team<br>
+    </div>
+    
+    <div class="content">
+
+        <div class="highlight-box">
+            <strong>Synthetic Vision:</strong> Melampo transcends simple medical image classification. It integrates rigorous data analysis (Attention) with a simulation of higher cognitive processes (Intuition), using quantum logic to manage uncertainty and generative models for synthetic imagination.
+        </div>
+
+        <h2>1. Input Architecture: The Hybrid Paradigm</h2>
+        <p>The traditional approach to multimodal diagnosis often suffers from a disconnection between visual and semantic features. Melampo solves this problem through a three-stage architecture that evolves the concept of fusion.</p>
+
+        <h3>1.1 Evolution of Extraction Models</h3>
+        <p>To overcome the limitations of standard CNNs (local receptive field) and RNNs (difficulty with long temporal sequences), we adopt:</p>
+        <ul class="feature-list">
+            <li><strong>Volumetric Images (CT/MRI):</strong> Utilizing <strong>3D Swin Transformers</strong>. Unlike CNNs, they use shifted windows to compute attention, allowing the correlation of a nodule in the lower lobe with a distant lymphadenopathy in the mediastinum.</li>
+            <li><strong>Text (Reports/Findings):</strong> Utilizing <strong>Domain-Specific LLMs (e.g., Med-PaLM 2 or fine-tuned BioBERT)</strong>. These models do not just extract keywords but comprehend negation, uncertainty ("probable", "compatible with"), and temporality.</li>
+        </ul>
+
+        <h3>1.2 Fusion Pipeline: Flowchart</h3>
+        <p>The following diagram illustrates the logical flow from data ingestion to feature fusion.</p>
+
+        <div class="diagram-container">
+            <div class="flow-label">PHASE 1: INGESTION & PROCESSING</div>
+            <div class="flow-group">
+                <strong>Visual Input</strong><br>(CT, MRI)<br>
+                <span style="font-size:20px">⬇</span><br>
+                <div class="flow-step">3D Swin Transformer</div>
+            </div>
+            <span class="flow-arrow">+</span>
+            <div class="flow-group">
+                <strong>Textual Input</strong><br>(Anamnesis, Report)<br>
+                <span style="font-size:20px">⬇</span><br>
+                <div class="flow-step">Medical LLM (Encoder)</div>
+            </div>
+            
+            <br><span style="font-size:30px; color: var(--primary);">⬇</span><br>
+            
+            <div class="flow-label">PHASE 2: ALIGNMENT & ATTENTION</div>
+            <div class="flow-step" style="background: var(--code-bg); width: 80%;">
+                <strong>Cross-Modal Attention Layer</strong><br>
+                <small>Text acts as a Query (Q) to focus attention on image regions (Key/Value)</small>
+            </div>
+
+            <br><span style="font-size:30px; color: var(--primary);">⬇</span><br>
+
+            <div class="flow-label">PHASE 3: SYNTHESIS</div>
+            <div class="flow-step" style="border-color: #e67e22; color: #d35400;">
+                <strong>Late Fusion & Classifier</strong><br>
+                Weighted vector combination
+            </div>
+        </div>
+
+        <p><strong>Key Advantage:</strong> Multimodal attention (Phase 2) allows for interpretability. We can generate <em>Heatmaps</em> showing exactly which pixels triggered the diagnosis in relation to which phrase in the report.</p>
+
+        <h2>2. Training Strategy: Neural Plasticity</h2>
+        <p>Melampo must learn like a medical resident: rapidly and without forgetting basic concepts. We combine three key algorithms:</p>
+
+        <div class="tech-block">
+            <strong>Training Technology Stack:</strong>
+            <ul>
+                <li><strong>MAML (Model-Agnostic Meta-Learning):</strong> Initializes model weights in a "strategic" position in the function space, allowing adaptation to new pathologies with very few examples (Few-Shot Learning).</li>
+                <li><strong>Prototypical Networks:</strong> Creates a metric space where each disease is a "centroid". Diagnosis occurs by Euclidean distance from the prototype, not by binary classification.</li>
+                <li><strong>EWC (Elastic Weight Consolidation):</strong> Calculates the importance of each synapse (parameter) for past tasks. If a parameter is crucial for diagnosing pneumonia, it is "frozen" while learning to diagnose COVID-19.</li>
+            </ul>
+        </div>
+
+        <h2>3. Innovation: The Quantum Intuition Engine</h2>
+        <p>Overcoming deterministic logic to embrace biological complexity Attention-Abstraction-Intuition through <strong>Quantum Cognition</strong>.</p>
+        
+        
+           
+        <p>The MAML (Model-Agnostic Meta-Learning) algorithm does not learn a task, but <em>learns to learn</em>. It finds a set of parameters $\theta$ that are sensitive to task changes, such that small gradient steps on a new task $T_i$ produce large improvements.</p>
+        <div class="equation">
+            $$ \theta' = \theta - \alpha \nabla_\theta \mathcal{L}_{T_i}(f_\theta) $$
+            $$ \theta \leftarrow \theta - \beta \nabla_\theta \sum_{T_i \sim p(T)} \mathcal{L}_{T_i}(f_{\theta'}) $$
+        </div>
+        <p>Application in Melampo: The model is pre-trained on thousands of "dummy" tasks (e.g., distinguishing pneumonia from edema, fracture from dislocation) so that its weights are in a state of "unstable equilibrium," ready to slide quickly toward the correct solution as soon as a new rare pathology is presented (Few-Shot).</p>
+    
+        <h3>Prototypical Networks in Metric Space</h3>
+        <p>
+            Instead of classifying via linear layers, Melampo projects data into a metric space where classification is based on Euclidean distance (or cosine similarity) from class "Prototypes" $c_k$.
+        </p>
+        <div class="equation">
+            $$ c_k = \frac{1}{|S_k|} \sum_{(x_i, y_i) \in S_k} f_\phi(x_i) $$
+        </div>
+        <p>
+            This approach is fundamental for <strong>interpretability</strong>: we can visualize where the patient falls in the vector space relative to the "Healthy" prototype and the "Pathological" prototype.
+        </p>
+    
+        <h3>Elastic Weight Consolidation (EWC) for Long-Term Memory</h3>
+        <p>
+            To prevent learning new pathologies from overwriting old ones (catastrophic forgetting), EWC introduces a penalty based on the Fisher Information Matrix $F$.
+        </p>
+        <div class="equation">
+            $$ \mathcal{L}(\theta) = \mathcal{L}_B(\theta) + \sum_i \frac{\lambda}{2} F_i (\theta_i - \theta_{A,i}^*)^2 $$
+        </div>
+        <p>
+            Parameters important for past tasks (high $F_i$) are "frozen" (high penalty for change), while irrelevant ones remain plastic. This biologically simulates the <strong>myelination</strong> of consolidated neural connections.
+        </p>
+    
+        <h2>The Core Innovation: The Synthetic Intuition Engine</h2>
+        <p>
+            Melampo's true revolution lies in the module that operates alongside logical reasoning: the <strong>Neuro-Quantum Intuition Generator</strong>.
+        </p>
+    
+        <h3>Knowledge Representation: Vectors and Graphs</h3>
+        <p>
+            We use <strong>AI-Native Vector Databases</strong> (such as Weaviate or Milvus) integrated with <strong>Knowledge Graphs</strong>.
+            <br>
+            "Abstract Objects" (e.g., "Inflammation", "Acute Pain", "Fear") are not simple labels but complex vector embeddings generated by LLMs. These nodes are linked in a semantic graph representing human physiology and pathology.
+        </p>
+    
+        <h3>The "Offline" Phase (Dreaming): Graph Convolutional Attention</h3>
+        <p>
+            Simulating REM sleep, during system inactivity, an unsupervised <strong>Graph Convolutional Network (GCN)</strong> process is activated.
+            <br>
+            The system reviews recent experiences (clinical cases) and attempts to reorganize the knowledge graph, creating new connections (edges) between distant concepts. This is where intuition is born: the system might autonomously link a specific visual pattern to an abstract concept like "immune resistance" based on latent correlations not explicit in supervised training.
+        </p>
+    
+        <h3>Quantum Dynamics and Variable Action Potentials</h3>
+        <p>
+            To model uncertainty and intuition, we abandon binary logic for <strong>Quantum Cognition</strong>.
+        </p>
+    
+        <h4>The Diagnostic Wave Function ($\Psi$)</h4>
+        <p>
+            The patient's state is represented as a superposition of health states in a Hilbert space:
+        </p>
+        <div class="equation">
+            $$ |\Psi_{patient}\rangle = \alpha |Healthy\rangle + \beta |Neoplasia\rangle + \gamma |Infection\rangle + \dots $$
+        </div>
+        <p>
+            The coefficients $\alpha, \beta, \gamma$ are complex numbers whose squared modulus represents classical probability, but their phase represents interference between concepts.
+        </p>
+    
+        <h4>Heisenberg Function and Uncertainty</h4>
+        <p>
+            We apply the generalized uncertainty principle to the diagnostic domain. We define two non-commuting observables: <em>Localization</em> (Precise anatomical detail) and <em>Etiology</em> (Abstract systemic cause).
+            <br>
+            Improving precision on localization (via focused CNN) increases uncertainty on systemic etiology (holistic view), and vice versa. Melampo dynamically balances these two magnitudes.
+        </p>
+    
+        <h4>Modulation via Synthetic Neurotransmitters</h4>
+        <p>
+            Processing in the spatiotemporal tensor is regulated by dynamic hyperparameters simulating neurotransmitters, influencing the "temperature" of the wave function collapse:
+        </p>
+        <ul>
+            <li><strong>Dopamine ($\delta$):</strong> Modulates the Learning Rate based on predictive success (Reinforcement Learning). High confidence in a correct diagnosis strengthens artificial synaptic connections.</li>
+            <li><strong>Noradrenaline ($\eta$):</strong> Regulates selective attention (width of the attention window in Transformers). High noradrenaline = narrow focus on details; Low noradrenaline = broad and creative exploration (intuition).</li>
+            <li><strong>Serotonin ($\sigma$):</strong> Acts as a stability regulator (parameter $\lambda$ in EWC), preventing overreaction to noisy data (model hallucinations).</li>
+        </ul>
+    
+        <div class="figure-placeholder">
+            
+            <br><em>Fig. 3: Collapse of the Diagnostic Wave Function modulated by Synthetic Neurotransmitters.</em>
+        </div>
+    
+        <h3>The Collapse and Intuition</h3>
+        <p>
+            The final output is not a simple softmax probability. It is the result of the <strong>wave function collapse</strong> triggered by observation (the input of clinical data).
+            <br>
+            Intuition emerges when the system, thanks to the "Dreaming" phase and Noradrenaline modulation (low, high entropy), collapses the wave function towards a state that was not statistically the most probable in the linear model, but is energetically favorable considering the global graph of abstract concepts.
+        </p>
+    
+        <h3>3.1 Knowledge Graphs and Tensor Spaces</h3>
+        <p>"Descriptive objects" (pain, fear, inflammation) are mapped into a <strong>Vector Database (e.g., Milvus/Weaviate)</strong> structured as a Knowledge Graph. Each node possesses semantic attributes and latent connections.</p>
+
+        <h3>3.2 The Diagnostic Wave Function</h3>
+        <p>In tensor space, diagnosis is not a fixed point but a superposition of states:</p>
+        <div class="tech-block" style="text-align: center;">
+            $$ |\Psi\rangle = \alpha |Pathology_A\rangle + \beta |Pathology_B\rangle + \gamma |Healthy\rangle $$
+        </div>
+        <p><strong>Intuition</strong> is modeled as the collapse of this wave function, guided not only by data (evidence) but by "Synthetic Neurotransmitters" (dynamic hyperparameters):</p>
+        <ul>
+            <li><strong>Simulated Dopamine:</strong> Increases the weight of connections that led to confirmed diagnoses in the past (Reinforcement Learning).</li>
+            <li><strong>Temperature (Entropy):</strong> Simulates states of "high creativity" (novel connections between symptoms) vs "high focus" (rigid adherence to protocols).</li>
+        </ul>
+
+        <h2>4. Generative Self-Learning: The Machine's "Dream"</h2>
+        <p>To complete the cognitive cycle, Melampo uses generative models. These models perform two crucial functions: <strong>Data Augmentation</strong> (creating examples of rare diseases) and <strong>Knowledge Consolidation</strong> (offline simulation or "dreaming").</p>
+
+        <h3>4.1 Generative Models Compared</h3>
+        <p>We integrate two families of generative architectures for distinct purposes:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>GAN (Generative Adversarial Networks)</th>
+                    <th>VAE (Variational Autoencoders)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Functional Principle</strong></td>
+                    <td>Competition (Minimax Game) between a <em>Generator</em> (forger) and a <em>Discriminator</em> (police).</td>
+                    <td>Probabilistic compression: encodes input into a latent space (Gaussian distribution) and reconstructs it.</td>
+                </tr>
+                <tr>
+                    <td><strong>Role in Melampo</strong></td>
+                    <td><strong>Synthetic Data Generation:</strong> Creating ultra-realistic images of rare pathologies to balance the training dataset.</td>
+                    <td><strong>Abstraction & Intuition:</strong> Learning the latent structure of data (the "concept" of disease) to detect anomalies (out-of-distribution detection).</td>
+                </tr>
+                <tr>
+                    <td><strong>Output Quality</strong></td>
+                    <td>Sharp and realistic images, but unstable training (Mode Collapse).</td>
+                    <td>Slightly blurrier images, but continuous and navigable latent space representation.</td>
+                </tr>
+                <tr>
+                    <td><strong>Key Formula</strong></td>
+                    <td>$$ \min_G \max_D V(D, G) $$</td>
+                    <td>$$ \mathcal{L} = \mathbb{E}[\log p(x|z)] - D_{KL}(q(z|x)||p(z)) $$</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>4.2 Application: The "Dream-Analysis" Cycle</h3>
+        <p>During periods of inactivity, the VAE reprocesses difficult cases by navigating the latent space, looking for hidden connections between vectors (e.g., correlating a specific lung texture with an anomalous clinical course). GANs are then used to "visualize" these hypotheses, creating synthetic scenarios that are submitted to the main classifier to reinforce its robustness.</p>
+
+        <hr style="border: 0; height: 1px; background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0)); margin: 40px 0;">
+        
+        <h3 style="text-align: center;">Conclusions and Next Steps</h3>
+        <p>Melampo represents the evolution from <em>Computer Aided Detection</em> (CAD) to <strong>Computer Aided Intuition</strong> (CAI). By integrating the geometric exactness of Swin Transformers, the semantic flexibility of Knowledge Graphs, and the probabilistic creativity of Generative Models (VAE/GAN), we propose a system capable of assisting the radiologist not as a tool, but as a cognitive partner.</p>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <em style="color: #666;">Project Melampo - Internal Research Review</em>
+        </div>
+        <div style="margin-top: 60px; padding-top: 20px; border-top: 2px solid #eee;">
+            <h2 style="font-size: 1.5em; border-left: none; padding-left: 0; color: #2c3e50;">📚 Scientific Bibliography and References</h2>
+            <p style="font-size: 0.9em; color: #666;">
+                The framework, bibliography, papers, and sources:
+            </p>
+
+            <div style="background-color: #fcfcfc; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                
+                <h4 style="margin-top: 0; color: #0f4c75;">1. Multimodal Architecture & Vision (Swin & LLM)</h4>
+                <ul style="font-size: 0.9em; line-height: 1.6; color: #444;">
+                    <li><strong>Liu, Z., et al. (2021).</strong> "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows". <em>Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)</em>. <br><span style="color: #888;">(Basis for volumetric medical image analysis in Melampo).</span></li>
+                    <li><strong>Singhal, K., et al. (2023).</strong> "Large Language Models Encode Clinical Knowledge" (Med-PaLM). <em>Nature</em>. <br><span style="color: #888;">(Reference for advanced medical textual encoder).</span></li>
+                    <li><strong>Radford, A., et al. (2021).</strong> "Learning Transferable Visual Models From Natural Language Supervision" (CLIP). <em>OpenAI</em>. <br><span style="color: #888;">(Foundations for vector alignment between text and image).</span></li>
+                </ul>
+
+                <h4 style="color: #0f4c75;">2. Meta-Learning & Continual Learning (MAML, ProtoNets, EWC)</h4>
+                <ul style="font-size: 0.9em; line-height: 1.6; color: #444;">
+                    <li><strong>Finn, C., Abbeel, P., & Levine, S. (2017).</strong> "Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks" (MAML). <em>International Conference on Machine Learning (ICML)</em>.</li>
+                    <li><strong>Snell, J., Swersky, K., & Zemel, R. (2017).</strong> "Prototypical Networks for Few-shot Learning". <em>Advances in Neural Information Processing Systems (NIPS)</em>.</li>
+                    <li><strong>Kirkpatrick, J., et al. (2017).</strong> "Overcoming catastrophic forgetting in neural networks" (EWC). <em>Proceedings of the National Academy of Sciences (PNAS)</em>. <br><span style="color: #888;">(Key technology for memory plasticity in Melampo).</span></li>
+                </ul>
+
+                <h4 style="color: #0f4c75;">3. Generative Models (GAN & VAE)</h4>
+                <ul style="font-size: 0.9em; line-height: 1.6; color: #444;">
+                    <li><strong>Goodfellow, I., et al. (2014).</strong> "Generative Adversarial Nets". <em>Advances in Neural Information Processing Systems</em>.</li>
+                    <li><strong>Kingma, D. P., & Welling, M. (2014).</strong> "Auto-Encoding Variational Bayes" (VAE). <em>ICLR</em>.</li>
+                    <li><strong>Yi, X., Walia, E., & Babyn, P. (2019).</strong> "Generative adversarial networks in medical imaging: A review". <em>Medical Image Analysis</em>.</li>
+                </ul>
+
+                <h4 style="color: #0f4c75;">4. Quantum Cognition & Intuition Theory</h4>
+                <ul style="font-size: 0.9em; line-height: 1.6; color: #444;">
+                    <li><strong>Busemeyer, J. R., & Bruza, P. D. (2012).</strong> "Quantum Models of Cognition and Decision". <em>Cambridge University Press</em>. <br><span style="color: #888;">(Sacred text for applying quantum probability to human/artificial decision processes).</span></li>
+                    <li><strong>Aerts, D. (2009).</strong> "Quantum structure in cognition". <em>Journal of Mathematical Psychology</em>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <footer style="background-color: #1b262c; color: #ffffff; text-align: center; padding: 40px 20px; border-top: 4px solid var(--secondary);">
+        <p style="margin: 0; font-weight: 300; letter-spacing: 1px; font-size: 0.9em; opacity: 0.8;"><span style="display: inline-block; width: 100%; text-align: center;font-weight:bold;">
+            © PROJECT MELAMPO | FROM ATTENTION TO INTUITION</span><br><span style="display: inline-block; width: 100%; text-align: center;">RESEARCH CLINICAL DEVELOPMENT</span>
+        </p>
+        <p style="margin: 10px 0 0; font-size: 1.1em;">
+            Contact: 
+            <a href="mailto:flattari@chandra.it" style="color: var(--accent); text-decoration: none; font-weight: 700; border-bottom: 1px dotted var(--accent);">
+                flattari@chandra.it
+            </a>
+        </p>
+        <div style="margin-top: 20px; font-size: 0.8em; color: var(--accent); opacity: 0.6;">
+            Neuro-Quantum Artificial Intelligence Framework
+        </div>
+    </footer>
+</div>
+
+</body>
+</html>

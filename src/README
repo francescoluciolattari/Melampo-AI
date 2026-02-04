@@ -1,0 +1,69 @@
+# 🐕 PROJECT MELAMPO
+### From Attention to Intuition: A Neuro-Quantum Framework for Differential Diagnosis
+
+![Status](https://img.shields.io/badge/Status-Deep_Research-purple)
+![Architecture](https://img.shields.io/badge/Arch-Neuro_Quantum_Hybrid-blue)
+![Medical](https://img.shields.io/badge/Domain-Radiology_&_Pathology-red)
+
+**Melampo** is not just a classifier. It is a **Cognitive Architecture** designed to simulate the clinical reasoning process, bridging the gap between rigorous data analysis (Attention) and expert hunches (Intuition).
+
+It introduces the concept of **"Computer-Aided Intuition" (CAI)** using a hybrid brain-like structure.
+
+---
+
+## 🧠 The Architecture: A2A (Area-to-Area)
+
+Melampo simulates a biological brain with distinct functional areas connected via a global workspace.
+
+### 1. Sensory Cortex (Ingestion & Attention)
+* **Vision (The Eyes):** Utilizes **SwinUNETR (Monai)** for 3D Volumetric analysis (CT/MRI), preserving spatial depth often lost in standard CNNs.
+* **Language (The Ears):** Integrating **BioMistral/Med-PaLM** adapters to understand nuance in medical reports (negation, uncertainty).
+* **Fusion:** Late Fusion with **Cross-Modal Attention**, allowing text to "query" specific regions of the 3D volume.
+
+### 2. Plastic Memory (Learning & Retention)
+* **MAML (Meta-Learning):** The model "learns to learn," initializing weights to adapt to new pathologies with few-shot examples.
+* **Prototypical Networks:** Diagnosis happens in a metric space by calculating distance to disease "Prototypes," not via binary classification.
+* **EWC (Elastic Weight Consolidation):** Prevents catastrophic forgetting, simulating synaptic consolidation.
+
+### 3. The Intuition Engine (Quantum Cognition)
+Standard AI uses binary logic. Melampo uses **Quantum Probability**:
+* **Wave Function ($|\Psi\rangle$):** The patient's state is a superposition of potential diagnoses in a Complex Hilbert Space.
+* **Interference:** Symptoms and findings interfere constructively or destructively based on the Hamiltonian matrix (Knowledge Graph).
+* **Neurotransmitters:** The collapse of the wave function is modulated by synthetic neuro-parameters:
+    * **Noradrenaline:** Controls "Temperature" (Focus vs. Exploration).
+    * **Dopamine:** Reinforces confidence based on past rewards.
+
+### 4. Dreaming Phase (Generative Offline Processing)
+During inactivity, Melampo activates **VAE (Variational Autoencoders)** and **GCN (Graph Convolutional Networks)** to:
+* Replay difficult cases (Reconsolidation).
+* Generate synthetic scenarios (Data Augmentation).
+* Create new connections in the Vector Knowledge Graph (Insight generation).
+
+---
+
+## 📂 Repository Structure
+
+```text
+src/
+├── models/
+│   ├── sensory_cortex.py    # SwinUNETR + LLM Adapter + Fusion
+│   └── quantum_intuition.py # Complex-valued Quantum Layer
+├── training/
+│   ├── maml_trainer.py      # Meta-Learning Loop
+│   └── ewc_loss.py          # Fisher Matrix calculation
+├── dreaming/
+│   └── generative_sleep.py  # VAE + GCN logic
+├── inference/
+│   └── diagnose.py          # The clinical pipeline
+└── config.py                # Hyperparameters
+
+🚀 Roadmap & Development
+We are aiming for "Best-in-Class" implementation, disregarding hardware constraints.
+
+[x] Core Philosophy: Attention to Intuition defined.
+
+[ ] Phase 1: Implementation of SwinUNETR backbone.
+
+[ ] Phase 2: Integration of Vector Database (Weaviate) for Concept storage.
+
+[ ] Phase 3: Development of the Quantum-Probability Layer.
