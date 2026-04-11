@@ -2,7 +2,7 @@
 Project Melampo: From Attention to Intuition.
 Application: Neuro-Quantum Artificial Intelligence Framework for Medical Diagnosis
 
-# 🐕 Project Melampo: From Attention to Intuition
+# 🗿 Project Melampo: From Attention to Intuition
 ### Neuro-Quantum Artificial Intelligence Framework for Medical Diagnosis
 
 ![Status](https://img.shields.io/badge/Status-Research_Preview-blue)
@@ -17,7 +17,7 @@ By integrating **3D Swin Transformers** for volumetric analysis, **LLMs** for se
 
 ---
 
-## 🧠 Core Architecture
+## 🦣 Core Architecture
 
 Melampo operates on a hybrid neuro-quantum paradigm:
 
