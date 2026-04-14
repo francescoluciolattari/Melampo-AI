@@ -1,0 +1,3 @@
+# Minimal baseline requirements for Project Melampo scaffold
+# Add framework-specific dependencies as implementation progresses.
+
