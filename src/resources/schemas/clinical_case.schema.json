@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MelampoClinicalCase",
+  "type": "object",
+  "required": ["case_id"],
+  "properties": {
+    "case_id": {"type": "string"},
+    "patient_id": {"type": ["string", "null"]},
+    "report_text": {"type": "string"},
+    "ehr_text": {"type": "string"}
+  }
+}
