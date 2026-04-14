@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MelampoDifferentialResult",
+  "type": "object",
+  "required": ["case_id", "abstain"],
+  "properties": {
+    "case_id": {"type": "string"},
+    "abstain": {"type": "boolean"},
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "score"],
+        "properties": {
+          "label": {"type": "string"},
+          "score": {"type": "number"}
+        }
+      }
+    }
+  }
+}
