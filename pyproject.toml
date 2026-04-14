@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "melampo"
+version = "0.1.0"
+description = "Project Melampo baseline scaffold for multimodal clinical intuition research"
+readme = "src/README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Francesco Lattari e altri" }
+]
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["melampo*"]
