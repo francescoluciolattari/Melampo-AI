@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MelampoServiceContract",
+  "type": "object",
+  "required": ["name", "provider", "protocol"],
+  "properties": {
+    "name": {"type": "string"},
+    "provider": {"type": "string"},
+    "protocol": {"type": "string"}
+  }
+}
