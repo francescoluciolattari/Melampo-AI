@@ -12,8 +12,10 @@ class IntuitionEngine:
     def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None) -> dict:
         area_signals = area_signals or {}
         rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
+        alternative_hypotheses = dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else []
         contradiction_rehearsal = bool(rehearsal_profile.get("contradiction_rehearsal", False))
         revision_bias = rehearsal_profile.get("revision_bias", "exploratory")
+        post_error_adjustment = rehearsal_profile.get("post_error_adjustment", "stabilize_primary")
 
         inductive_candidates = [
             {
@@ -39,19 +41,19 @@ class IntuitionEngine:
             convergence_score = 0.0
             conflict_score = 0.0
 
-        if inductive_candidates:
-            if contradiction_rehearsal and len(inductive_candidates) > 1:
-                intuition = inductive_candidates[1]["label"]
-            elif revision_bias == "conservative" and len(inductive_candidates) > 1:
-                intuition = inductive_candidates[1]["label"]
-            elif convergence_score >= 0.5:
-                intuition = inductive_candidates[0]["label"]
-            elif len(inductive_candidates) > 1:
-                intuition = inductive_candidates[1]["label"]
-            else:
-                intuition = inductive_candidates[0]["label"]
+        rapid_intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
+        rational_revision = inductive_candidates[1]["label"] if len(inductive_candidates) > 1 else rapid_intuition
+        contradiction_revision = alternative_hypotheses[0]["label"] if alternative_hypotheses else rational_revision
+
+        if contradiction_rehearsal or post_error_adjustment == "re-rank_alternatives":
+            intuition = contradiction_revision
+            reasoning_mode = "contradiction_revision"
+        elif revision_bias == "conservative" or conflict_score > 0.5:
+            intuition = rational_revision
+            reasoning_mode = "rational_revision"
         else:
-            intuition = "no_candidate"
+            intuition = rapid_intuition
+            reasoning_mode = "rapid_intuition"
 
         deductive_filter = {
             "kept": len(inductive_candidates),
@@ -63,6 +65,8 @@ class IntuitionEngine:
             "conflict_score": conflict_score,
             "contradiction_rehearsal": contradiction_rehearsal,
             "revision_bias": revision_bias,
+            "post_error_adjustment": post_error_adjustment,
+            "reasoning_mode": reasoning_mode,
         }
         if quantum_allowed:
             dream_mode = "none"
@@ -81,6 +85,7 @@ class IntuitionEngine:
                     "conflict_score": conflict_score,
                     "contradiction_rehearsal": contradiction_rehearsal,
                     "revision_bias": revision_bias,
+                    "reasoning_mode": reasoning_mode,
                 },
             )
         else:
@@ -92,10 +97,15 @@ class IntuitionEngine:
                 "conflict_score": conflict_score,
                 "contradiction_rehearsal": contradiction_rehearsal,
                 "revision_bias": revision_bias,
+                "reasoning_mode": reasoning_mode,
             }
         return {
             "intuition": intuition,
+            "rapid_intuition": rapid_intuition,
+            "rational_revision": rational_revision,
+            "contradiction_revision": contradiction_revision,
             "inductive_candidates": inductive_candidates,
+            "dream_alternatives": alternative_hypotheses,
             "deductive_filter": deductive_filter,
             "belief_update": belief_update,
             "area_signals": area_signals,
@@ -115,4 +125,6 @@ class IntuitionEngine:
             "conflict_score": deductive.get("conflict_score", 0.0),
             "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),
             "revision_bias": deductive.get("revision_bias", "exploratory"),
+            "post_error_adjustment": deductive.get("post_error_adjustment", "stabilize_primary"),
+            "reasoning_mode": deductive.get("reasoning_mode", "rapid_intuition"),
         }
