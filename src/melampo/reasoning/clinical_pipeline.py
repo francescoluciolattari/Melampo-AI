@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from ..areas.case_context_area import CaseContextArea
+from ..areas.language_listening_area import LanguageListeningArea
+from ..areas.visual_diagnostic_area import VisualDiagnosticArea
 from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.retriever import MemoryRetriever
 from ..models.abstention import AbstentionPolicy
@@ -58,6 +61,9 @@ class ClinicalInferencePipeline:
             belief_layer=QuantumBeliefLayer(),
         )
         intuition_engine = IntuitionEngine(belief_layer=QuantumBeliefLayer())
+        visual_area = VisualDiagnosticArea()
+        language_area = LanguageListeningArea()
+        context_area = CaseContextArea()
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
@@ -84,11 +90,35 @@ class ClinicalInferencePipeline:
             coherence=0.9,
             risk=0.1,
         )
+
+        area_signals = {
+            "visual_diagnostic": visual_area.integrate(
+                volume_features=volume_features,
+                pathology_features=pathology_features,
+                patient_visual=payload.get("patient_visual", {}),
+                labs_snapshot=payload.get("labs_snapshot", {}),
+            ),
+            "language_listening": language_area.integrate(
+                report_text=case.report_text,
+                ehr_text=case.ehr_text,
+                patient_complaints=payload.get("patient_complaints", ""),
+                voice_features=payload.get("voice_features", {}),
+            ),
+            "case_context": context_area.integrate(
+                {
+                    "demographics": case.demographics,
+                    "provenance": case.provenance,
+                    "bundle_keys": list(bundle.keys()),
+                }
+            ),
+        }
+
         intuition = intuition_engine.infer(
             case_id=case.case_id,
             ranked_evidence=ranked_evidence,
             dream=dream,
             quantum_allowed=quantum_allowed,
+            area_signals=area_signals,
         )
         evidence = [
             {"source": "bundle", "kind": "bundle_keys", "value": list(bundle.keys())},
@@ -104,7 +134,7 @@ class ClinicalInferencePipeline:
             risk=0.2,
             uncertainty=0.1,
         )
-        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition})
+        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals})
         return {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),
@@ -114,6 +144,7 @@ class ClinicalInferencePipeline:
             "fused": fused,
             "retrieval": retrieval,
             "ranked_evidence": ranked_evidence,
+            "area_signals": area_signals,
             "services": resolved,
             "intuition": intuition,
             "coordinated": coordinated,
