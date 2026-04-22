@@ -11,6 +11,10 @@ class IntuitionEngine:
 
     def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None) -> dict:
         area_signals = area_signals or {}
+        rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
+        contradiction_rehearsal = bool(rehearsal_profile.get("contradiction_rehearsal", False))
+        revision_bias = rehearsal_profile.get("revision_bias", "exploratory")
+
         inductive_candidates = [
             {
                 "label": f"candidate_{index + 1}",
@@ -36,7 +40,11 @@ class IntuitionEngine:
             conflict_score = 0.0
 
         if inductive_candidates:
-            if convergence_score >= 0.5:
+            if contradiction_rehearsal and len(inductive_candidates) > 1:
+                intuition = inductive_candidates[1]["label"]
+            elif revision_bias == "conservative" and len(inductive_candidates) > 1:
+                intuition = inductive_candidates[1]["label"]
+            elif convergence_score >= 0.5:
                 intuition = inductive_candidates[0]["label"]
             elif len(inductive_candidates) > 1:
                 intuition = inductive_candidates[1]["label"]
@@ -53,6 +61,8 @@ class IntuitionEngine:
             "top_areas": top_areas,
             "convergence_score": convergence_score,
             "conflict_score": conflict_score,
+            "contradiction_rehearsal": contradiction_rehearsal,
+            "revision_bias": revision_bias,
         }
         if quantum_allowed:
             dream_mode = "none"
@@ -69,6 +79,8 @@ class IntuitionEngine:
                     "top_areas": top_areas,
                     "convergence_score": convergence_score,
                     "conflict_score": conflict_score,
+                    "contradiction_rehearsal": contradiction_rehearsal,
+                    "revision_bias": revision_bias,
                 },
             )
         else:
@@ -78,6 +90,8 @@ class IntuitionEngine:
                 "top_areas": top_areas,
                 "convergence_score": convergence_score,
                 "conflict_score": conflict_score,
+                "contradiction_rehearsal": contradiction_rehearsal,
+                "revision_bias": revision_bias,
             }
         return {
             "intuition": intuition,
@@ -99,4 +113,6 @@ class IntuitionEngine:
             "top_areas": deductive.get("top_areas", []),
             "convergence_score": deductive.get("convergence_score", 0.0),
             "conflict_score": deductive.get("conflict_score", 0.0),
+            "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),
+            "revision_bias": deductive.get("revision_bias", "exploratory"),
         }
