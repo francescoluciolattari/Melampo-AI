@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.retriever import MemoryRetriever
 from ..models.abstention import AbstentionPolicy
+from ..models.evidence_ranker import EvidenceRanker
 from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..models.risk_gate import RiskGate
 from ..orchestration.runtime_services import RuntimeServices
@@ -40,6 +41,7 @@ class ClinicalInferencePipeline:
 
         runtime_services = RuntimeServices.build(config=getattr(self.metacognition, "config", object()), logger=self.logger)
         retriever = MemoryRetriever()
+        evidence_ranker = EvidenceRanker()
         coordinator = PipelineCoordinator(
             differential_engine=DifferentialEngine(),
             policy_stack=PolicyStack(
@@ -72,13 +74,15 @@ class ClinicalInferencePipeline:
             }
         )
         retrieval = retriever.retrieve(case.report_text or case.ehr_text or case.case_id)
+        ranked_evidence = evidence_ranker.rank(retrieval["evidence"])
         resolved = runtime_services.resolve("volume_encoder")
         evidence = [
-            f"bundle:{','.join(bundle.keys())}",
-            f"retrieval:{retrieval['status']}",
-            f"fusion:{fused.get('engine', fused.get('provider', 'none'))}",
-            f"service:{resolved['service'].get('provider', 'none')}",
+            {"source": "bundle", "kind": "bundle_keys", "value": list(bundle.keys())},
+            {"source": "retrieval", "kind": retrieval["status"], "value": retrieval["evidence_count"]},
+            {"source": "fusion", "kind": "engine", "value": fused.get("engine", fused.get("provider", "none"))},
+            {"source": "service", "kind": "provider", "value": resolved["service"].get("provider", "none")},
         ]
+        evidence.extend(ranked_evidence)
         coordinated = coordinator.run(
             case_id=case.case_id,
             evidence=evidence,
@@ -100,6 +104,7 @@ class ClinicalInferencePipeline:
             "pathology_features": pathology_features,
             "fused": fused,
             "retrieval": retrieval,
+            "ranked_evidence": ranked_evidence,
             "services": resolved,
             "coordinated": coordinated,
             "critique": critique_result,
