@@ -88,7 +88,15 @@ class ClinicalInferencePipeline:
         resolved = runtime_services.resolve("volume_encoder")
         quantum_allowed = quantum_gate.allow(contextuality_score=0.7)
         dream = dream_trainer.run(
-            case_context={"case_id": case.case_id, "bundle_keys": list(bundle.keys())},
+            case_context={
+                "case_id": case.case_id,
+                "bundle_keys": list(bundle.keys()),
+                "demographics": case.demographics,
+                "provenance": case.provenance,
+                "report_text": case.report_text,
+                "patient_complaints": payload.get("patient_complaints", ""),
+                "exposures": payload.get("exposures", {}),
+            },
             coherence=0.9,
             risk=0.1,
         )
@@ -141,7 +149,7 @@ class ClinicalInferencePipeline:
             risk=0.2,
             uncertainty=0.1,
         )
-        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals})
+        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "dream": dream})
         return {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),
