@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ..areas.case_context_area import CaseContextArea
+from ..areas.epidemiology_area import EpidemiologyArea
 from ..areas.language_listening_area import LanguageListeningArea
 from ..areas.visual_diagnostic_area import VisualDiagnosticArea
 from ..evaluation.quantum_gate import QuantumResearchGate
@@ -64,6 +65,7 @@ class ClinicalInferencePipeline:
         visual_area = VisualDiagnosticArea()
         language_area = LanguageListeningArea()
         context_area = CaseContextArea()
+        epidemiology_area = EpidemiologyArea()
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
@@ -110,6 +112,11 @@ class ClinicalInferencePipeline:
                     "provenance": case.provenance,
                     "bundle_keys": list(bundle.keys()),
                 }
+            ),
+            "epidemiology": epidemiology_area.integrate(
+                demographics=case.demographics,
+                provenance=case.provenance,
+                exposures=payload.get("exposures", {}),
             ),
         }
 
