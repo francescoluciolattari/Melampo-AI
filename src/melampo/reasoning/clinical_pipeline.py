@@ -12,6 +12,7 @@ from ..training.dream_trainer import DreamTrainer
 from ..training.replay_filter import ReplayFilter
 from .differential_engine import DifferentialEngine
 from .escalation import EscalationPolicy
+from .intuition_engine import IntuitionEngine
 from .pipeline_coordinator import PipelineCoordinator
 from .policy_stack import PolicyStack
 
@@ -56,6 +57,7 @@ class ClinicalInferencePipeline:
             sampler=CounterfactualSampler(),
             belief_layer=QuantumBeliefLayer(),
         )
+        intuition_engine = IntuitionEngine(belief_layer=QuantumBeliefLayer())
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
@@ -76,11 +78,24 @@ class ClinicalInferencePipeline:
         retrieval = retriever.retrieve(case.report_text or case.ehr_text or case.case_id)
         ranked_evidence = evidence_ranker.rank(retrieval["evidence"])
         resolved = runtime_services.resolve("volume_encoder")
+        quantum_allowed = quantum_gate.allow(contextuality_score=0.7)
+        dream = dream_trainer.run(
+            case_context={"case_id": case.case_id, "bundle_keys": list(bundle.keys())},
+            coherence=0.9,
+            risk=0.1,
+        )
+        intuition = intuition_engine.infer(
+            case_id=case.case_id,
+            ranked_evidence=ranked_evidence,
+            dream=dream,
+            quantum_allowed=quantum_allowed,
+        )
         evidence = [
             {"source": "bundle", "kind": "bundle_keys", "value": list(bundle.keys())},
             {"source": "retrieval", "kind": retrieval["status"], "value": retrieval["evidence_count"]},
             {"source": "fusion", "kind": "engine", "value": fused.get("engine", fused.get("provider", "none"))},
             {"source": "service", "kind": "provider", "value": resolved["service"].get("provider", "none")},
+            {"source": "intuition", "kind": "candidate", "value": intuition_engine.summarize_for_trace(intuition)},
         ]
         evidence.extend(ranked_evidence)
         coordinated = coordinator.run(
@@ -89,13 +104,7 @@ class ClinicalInferencePipeline:
             risk=0.2,
             uncertainty=0.1,
         )
-        critique_result = self.critique.review({"coordinated": coordinated})
-        quantum_allowed = quantum_gate.allow(contextuality_score=0.7)
-        dream = dream_trainer.run(
-            case_context={"case_id": case.case_id, "bundle_keys": list(bundle.keys())},
-            coherence=0.9,
-            risk=0.1,
-        )
+        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition})
         return {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),
@@ -106,6 +115,7 @@ class ClinicalInferencePipeline:
             "retrieval": retrieval,
             "ranked_evidence": ranked_evidence,
             "services": resolved,
+            "intuition": intuition,
             "coordinated": coordinated,
             "critique": critique_result,
             "quantum_allowed": quantum_allowed,
