@@ -35,7 +35,11 @@ def test_area_signals_feed_intuition_engine():
     assert payload["intuition"] in ["candidate_1", "candidate_2", "case-2_alt_1"]
     assert payload["rapid_intuition"] == "candidate_1"
     assert payload["deductive_filter"]["reasoning_mode"] in ["rapid_intuition", "rational_revision", "contradiction_revision"]
+    assert len(payload["candidate_scores"]) == 3
+    assert payload["candidate_scores"][0]["score"] >= payload["candidate_scores"][1]["score"]
     assert "epidemiology" in payload["area_signals"]
     assert payload["deductive_filter"]["top_areas"]
     assert payload["deductive_filter"]["convergence_score"] >= 0.0
     assert payload["deductive_filter"]["conflict_score"] >= 0.0
+    assert payload["deductive_filter"]["area_pair_bonus"] >= 0.0
+    assert payload["deductive_filter"]["disagreement_penalty"] >= 0.0
