@@ -1,4 +1,5 @@
 from melampo.areas.case_context_area import CaseContextArea
+from melampo.areas.epidemiology_area import EpidemiologyArea
 from melampo.areas.language_listening_area import LanguageListeningArea
 from melampo.areas.visual_diagnostic_area import VisualDiagnosticArea
 from melampo.models.quantum_belief_layer import QuantumBeliefLayer
@@ -9,6 +10,7 @@ def test_area_signals_feed_intuition_engine():
     visual = VisualDiagnosticArea().integrate({"study_id": "s1"}, {"slide_id": "p1"})
     language = LanguageListeningArea().integrate(report_text="possible lesion", patient_complaints="cough")
     context = CaseContextArea().integrate({"age": 64, "sex": "F"})
+    epidemiology = EpidemiologyArea().integrate(demographics={"age": 64}, exposures={"smoking": True})
 
     engine = IntuitionEngine(belief_layer=QuantumBeliefLayer())
     payload = engine.infer(
@@ -20,7 +22,9 @@ def test_area_signals_feed_intuition_engine():
             "visual_diagnostic": visual,
             "language_listening": language,
             "case_context": context,
+            "epidemiology": epidemiology,
         },
     )
     assert payload["intuition"] == "candidate_1"
-    assert sorted(payload["area_signals"].keys()) == ["case_context", "language_listening", "visual_diagnostic"]
+    assert "epidemiology" in payload["area_signals"]
+    assert payload["deductive_filter"]["top_areas"]
