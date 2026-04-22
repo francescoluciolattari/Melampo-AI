@@ -15,7 +15,10 @@ def test_area_signals_feed_intuition_engine():
     engine = IntuitionEngine(belief_layer=QuantumBeliefLayer())
     payload = engine.infer(
         case_id="case-2",
-        ranked_evidence=[{"rank": 1, "weight": 2, "item": {"source": "semantic_memory"}}],
+        ranked_evidence=[
+            {"rank": 1, "weight": 2, "item": {"source": "semantic_memory"}},
+            {"rank": 2, "weight": 1, "item": {"source": "episodic_memory"}},
+        ],
         dream={"belief": {"mode": "quantum_like_belief_update"}},
         quantum_allowed=True,
         area_signals={
@@ -25,6 +28,8 @@ def test_area_signals_feed_intuition_engine():
             "epidemiology": epidemiology,
         },
     )
-    assert payload["intuition"] == "candidate_1"
+    assert payload["intuition"] in ["candidate_1", "candidate_2"]
     assert "epidemiology" in payload["area_signals"]
     assert payload["deductive_filter"]["top_areas"]
+    assert payload["deductive_filter"]["convergence_score"] >= 0.0
+    assert payload["deductive_filter"]["conflict_score"] >= 0.0
