@@ -15,3 +15,5 @@ def test_dream_trainer_runs():
     assert result["belief"]["mode"] == "quantum_like_belief_update"
     assert "rehearsal_profile" in result
     assert result["rehearsal_profile"]["revision_bias"] in ["exploratory", "conservative"]
+    assert result["rehearsal_profile"]["post_error_adjustment"] in ["re-rank_alternatives", "stabilize_primary"]
+    assert len(result["alternative_hypotheses"]) == 2
