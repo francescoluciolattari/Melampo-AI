@@ -9,6 +9,8 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert "area_signals" in result
     assert sorted(result["area_signals"].keys()) == ["case_context", "epidemiology", "language_listening", "visual_diagnostic"]
     assert result["intuition"]["deductive_filter"]["top_areas"]
+    assert result["intuition"]["deductive_filter"]["convergence_score"] >= 0.0
+    assert result["intuition"]["deductive_filter"]["conflict_score"] >= 0.0
     assert "intuition" in result
     assert "coordinated" in result
     assert "dream" in result
