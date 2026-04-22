@@ -25,12 +25,34 @@ class IntuitionEngine:
             area_ranking.append({"area": name, "weight": signal_size})
         area_ranking.sort(key=lambda item: item["weight"], reverse=True)
         top_areas = [item["area"] for item in area_ranking[:2]]
+
+        if area_ranking:
+            top_weight = area_ranking[0]["weight"]
+            second_weight = area_ranking[1]["weight"] if len(area_ranking) > 1 else 0
+            convergence_score = round(second_weight / max(top_weight, 1), 3)
+            conflict_score = round((top_weight - second_weight) / max(top_weight, 1), 3)
+        else:
+            convergence_score = 0.0
+            conflict_score = 0.0
+
+        if inductive_candidates:
+            if convergence_score >= 0.5:
+                intuition = inductive_candidates[0]["label"]
+            elif len(inductive_candidates) > 1:
+                intuition = inductive_candidates[1]["label"]
+            else:
+                intuition = inductive_candidates[0]["label"]
+        else:
+            intuition = "no_candidate"
+
         deductive_filter = {
             "kept": len(inductive_candidates),
             "rejected": max(len(ranked_evidence) - len(inductive_candidates), 0),
             "criterion": "top_ranked_grounded_evidence",
             "active_areas": sorted(area_signals.keys()),
             "top_areas": top_areas,
+            "convergence_score": convergence_score,
+            "conflict_score": conflict_score,
         }
         if quantum_allowed:
             dream_mode = "none"
@@ -45,11 +67,18 @@ class IntuitionEngine:
                     "quantum_allowed": quantum_allowed,
                     "area_count": len(area_signals),
                     "top_areas": top_areas,
+                    "convergence_score": convergence_score,
+                    "conflict_score": conflict_score,
                 },
             )
         else:
-            belief_update = {"mode": "classical_only", "area_count": len(area_signals), "top_areas": top_areas}
-        intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
+            belief_update = {
+                "mode": "classical_only",
+                "area_count": len(area_signals),
+                "top_areas": top_areas,
+                "convergence_score": convergence_score,
+                "conflict_score": conflict_score,
+            }
         return {
             "intuition": intuition,
             "inductive_candidates": inductive_candidates,
@@ -61,10 +90,13 @@ class IntuitionEngine:
 
     def summarize_for_trace(self, intuition_payload: dict) -> dict:
         area_signals = intuition_payload.get("area_signals", {})
+        deductive = intuition_payload.get("deductive_filter", {})
         return {
             "intuition": intuition_payload.get("intuition", "none"),
             "candidate_count": len(intuition_payload.get("inductive_candidates", [])),
             "belief_mode": intuition_payload.get("belief_update", {}).get("mode", "none"),
             "active_areas": sorted(area_signals.keys()),
-            "top_areas": intuition_payload.get("deductive_filter", {}).get("top_areas", []),
+            "top_areas": deductive.get("top_areas", []),
+            "convergence_score": deductive.get("convergence_score", 0.0),
+            "conflict_score": deductive.get("conflict_score", 0.0),
         }
