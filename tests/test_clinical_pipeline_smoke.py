@@ -13,7 +13,10 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["intuition"]["deductive_filter"]["conflict_score"] >= 0.0
     assert result["intuition"]["deductive_filter"]["revision_bias"] in ["exploratory", "conservative"]
     assert isinstance(result["intuition"]["deductive_filter"]["contradiction_rehearsal"], bool)
+    assert result["intuition"]["deductive_filter"]["reasoning_mode"] in ["rapid_intuition", "rational_revision", "contradiction_revision"]
+    assert result["intuition"]["rapid_intuition"] == "candidate_1"
     assert "intuition" in result
     assert "coordinated" in result
     assert "dream" in result
     assert "rehearsal_profile" in result["dream"]
+    assert len(result["dream"]["alternative_hypotheses"]) == 2
