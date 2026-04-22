@@ -11,6 +11,9 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["intuition"]["deductive_filter"]["top_areas"]
     assert result["intuition"]["deductive_filter"]["convergence_score"] >= 0.0
     assert result["intuition"]["deductive_filter"]["conflict_score"] >= 0.0
+    assert result["intuition"]["deductive_filter"]["revision_bias"] in ["exploratory", "conservative"]
+    assert isinstance(result["intuition"]["deductive_filter"]["contradiction_rehearsal"], bool)
     assert "intuition" in result
     assert "coordinated" in result
     assert "dream" in result
+    assert "rehearsal_profile" in result["dream"]
