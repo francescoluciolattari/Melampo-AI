@@ -41,19 +41,34 @@ class IntuitionEngine:
             convergence_score = 0.0
             conflict_score = 0.0
 
+        area_pair_bonus = 0.0
+        top_area_pair = tuple(sorted(top_areas))
+        if top_area_pair == ("language_listening", "visual_diagnostic"):
+            area_pair_bonus = 0.2
+        elif top_area_pair == ("epidemiology", "visual_diagnostic"):
+            area_pair_bonus = 0.15
+        elif top_area_pair == ("case_context", "language_listening"):
+            area_pair_bonus = 0.1
+
+        disagreement_penalty = round(max(conflict_score - 0.4, 0.0), 3)
+
         rapid_intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
         rational_revision = inductive_candidates[1]["label"] if len(inductive_candidates) > 1 else rapid_intuition
         contradiction_revision = alternative_hypotheses[0]["label"] if alternative_hypotheses else rational_revision
 
-        if contradiction_rehearsal or post_error_adjustment == "re-rank_alternatives":
-            intuition = contradiction_revision
-            reasoning_mode = "contradiction_revision"
-        elif revision_bias == "conservative" or conflict_score > 0.5:
-            intuition = rational_revision
-            reasoning_mode = "rational_revision"
-        else:
-            intuition = rapid_intuition
-            reasoning_mode = "rapid_intuition"
+        rapid_score = round((inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0) + area_pair_bonus + convergence_score - disagreement_penalty, 3)
+        rational_score = round((inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0) + conflict_score + (0.2 if revision_bias == "conservative" else 0.0), 3)
+        contradiction_score = round((1.0 if contradiction_rehearsal else 0.0) + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0) + (0.1 * len(alternative_hypotheses)), 3)
+
+        candidate_scores = [
+            {"mode": "rapid_intuition", "label": rapid_intuition, "score": rapid_score},
+            {"mode": "rational_revision", "label": rational_revision, "score": rational_score},
+            {"mode": "contradiction_revision", "label": contradiction_revision, "score": contradiction_score},
+        ]
+        candidate_scores.sort(key=lambda item: item["score"], reverse=True)
+        selected = candidate_scores[0] if candidate_scores else {"mode": "rapid_intuition", "label": "no_candidate", "score": 0.0}
+        intuition = selected["label"]
+        reasoning_mode = selected["mode"]
 
         deductive_filter = {
             "kept": len(inductive_candidates),
@@ -63,6 +78,8 @@ class IntuitionEngine:
             "top_areas": top_areas,
             "convergence_score": convergence_score,
             "conflict_score": conflict_score,
+            "area_pair_bonus": area_pair_bonus,
+            "disagreement_penalty": disagreement_penalty,
             "contradiction_rehearsal": contradiction_rehearsal,
             "revision_bias": revision_bias,
             "post_error_adjustment": post_error_adjustment,
@@ -83,6 +100,8 @@ class IntuitionEngine:
                     "top_areas": top_areas,
                     "convergence_score": convergence_score,
                     "conflict_score": conflict_score,
+                    "area_pair_bonus": area_pair_bonus,
+                    "disagreement_penalty": disagreement_penalty,
                     "contradiction_rehearsal": contradiction_rehearsal,
                     "revision_bias": revision_bias,
                     "reasoning_mode": reasoning_mode,
@@ -95,6 +114,8 @@ class IntuitionEngine:
                 "top_areas": top_areas,
                 "convergence_score": convergence_score,
                 "conflict_score": conflict_score,
+                "area_pair_bonus": area_pair_bonus,
+                "disagreement_penalty": disagreement_penalty,
                 "contradiction_rehearsal": contradiction_rehearsal,
                 "revision_bias": revision_bias,
                 "reasoning_mode": reasoning_mode,
@@ -104,6 +125,7 @@ class IntuitionEngine:
             "rapid_intuition": rapid_intuition,
             "rational_revision": rational_revision,
             "contradiction_revision": contradiction_revision,
+            "candidate_scores": candidate_scores,
             "inductive_candidates": inductive_candidates,
             "dream_alternatives": alternative_hypotheses,
             "deductive_filter": deductive_filter,
@@ -123,6 +145,8 @@ class IntuitionEngine:
             "top_areas": deductive.get("top_areas", []),
             "convergence_score": deductive.get("convergence_score", 0.0),
             "conflict_score": deductive.get("conflict_score", 0.0),
+            "area_pair_bonus": deductive.get("area_pair_bonus", 0.0),
+            "disagreement_penalty": deductive.get("disagreement_penalty", 0.0),
             "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),
             "revision_bias": deductive.get("revision_bias", "exploratory"),
             "post_error_adjustment": deductive.get("post_error_adjustment", "stabilize_primary"),
