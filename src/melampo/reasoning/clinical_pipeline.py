@@ -154,6 +154,9 @@ class ClinicalInferencePipeline:
             evidence=evidence,
             risk=0.2,
             uncertainty=0.1,
+            intuition=intuition,
+            dream=dream,
+            area_dynamics=area_dynamics,
         )
         critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "area_dynamics": area_dynamics, "dream": dream})
         return {
