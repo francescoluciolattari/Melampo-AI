@@ -17,6 +17,7 @@ def test_differential_engine_counts_evidence():
     )
     assert result["evidence_count"] == 2
     assert result["hypotheses"][0]["label"] == "candidate_1"
+    assert result["hypotheses"][0]["hypothesis_type"] == "primary_hypothesis"
     assert result["mismatch_score"] == 0.3
     assert result["hypotheses"][0]["support_signals"]
     assert result["support_profiles"]
