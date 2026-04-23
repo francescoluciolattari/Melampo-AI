@@ -25,6 +25,8 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert len(result["intuition"]["candidate_scores"]) == 3
     assert "coordinated" in result
     assert result["coordinated"]["differential"]["hypotheses"]
+    assert result["coordinated"]["differential"]["recommended_tests"]
+    assert result["coordinated"]["differential"]["hypotheses"][0]["support_signals"]
     assert "critique" in result
     assert result["critique"]["status"] == "reviewed"
     assert result["critique"]["suggestions"]
