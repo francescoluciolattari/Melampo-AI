@@ -27,9 +27,16 @@ class DifferentialEngine:
         support_profiles = signals["support_profiles"]
         contradiction_profiles = signals["contradiction_profiles"]
 
+        primary_type = "primary_hypothesis"
+        if reasoning_mode == "rational_revision":
+            primary_type = "revision_hypothesis"
+        elif reasoning_mode == "contradiction_revision":
+            primary_type = "contradiction_revision_hypothesis"
+
         hypotheses = [
             {
                 "label": top_candidate.get("label", "working_hypothesis"),
+                "hypothesis_type": primary_type,
                 "score": round(float(top_candidate.get("score", 0.7)) + coherence_score * 0.1 + signals["support_strength"] * 0.02, 3),
                 "support": len(evidence),
                 "source": "intuition_engine",
@@ -41,9 +48,15 @@ class DifferentialEngine:
         ]
 
         for index, alt in enumerate(alternatives[:3]):
+            hypothesis_type = "revision_alternative"
+            if alt.get("kind") == "mismatch_resolution":
+                hypothesis_type = "mismatch_resolution"
+            elif alt.get("kind") == "contradiction_revision":
+                hypothesis_type = "contradiction_revision_alternative"
             hypotheses.append(
                 {
                     "label": alt.get("label", f"alternative_{index + 1}"),
+                    "hypothesis_type": hypothesis_type,
                     "score": round(0.4 + mismatch_score * 0.1 - index * 0.05 + signals["contradiction_strength"] * 0.01, 3),
                     "support": max(len(evidence) - index - 1, 0),
                     "source": alt.get("kind", "dream_alternative"),
@@ -58,6 +71,7 @@ class DifferentialEngine:
             hypotheses.append(
                 {
                     "label": "alternative_hypothesis",
+                    "hypothesis_type": "fallback_alternative",
                     "score": round(0.3 + mismatch_score * 0.05, 3),
                     "support": max(len(evidence) - 1, 0),
                     "source": "fallback_alternative",
