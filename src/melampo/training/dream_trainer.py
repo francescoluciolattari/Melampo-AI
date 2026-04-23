@@ -22,13 +22,17 @@ class DreamTrainer:
         exposures = case_context.get("exposures", {})
         report_text = case_context.get("report_text", "")
         patient_complaints = case_context.get("patient_complaints", "")
+        area_dynamics = case_context.get("area_dynamics", {})
+        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
+        coherence_pairs = area_dynamics.get("coherence_pairs", [])
 
         rehearsal_profile = {
             "rare_case_hint": bool(accepted and len(bundle_keys) <= 2),
             "boundary_case_hint": bool(coherence < 0.95 and risk <= 0.15),
-            "contradiction_rehearsal": bool(not accepted or risk > 0.2),
-            "revision_bias": "conservative" if risk > 0.15 else "exploratory",
-            "post_error_adjustment": "re-rank_alternatives" if (not accepted or risk > 0.2) else "stabilize_primary",
+            "contradiction_rehearsal": bool((not accepted) or risk > 0.2 or mismatch_score > 0.6),
+            "revision_bias": "conservative" if (risk > 0.15 or mismatch_score > 0.4) else "exploratory",
+            "post_error_adjustment": "re-rank_alternatives" if ((not accepted) or risk > 0.2 or mismatch_score > 0.6) else "stabilize_primary",
+            "coherence_guidance": "multimodal_support" if coherence_pairs else "single_stream",
         }
 
         alternative_hypotheses = [
@@ -51,6 +55,14 @@ class DreamTrainer:
                     "focus": "multi_area_recheck",
                 }
             )
+        if mismatch_score > 0.6:
+            alternative_hypotheses.append(
+                {
+                    "label": f"{base_label}_alt_4",
+                    "kind": "mismatch_resolution",
+                    "focus": "cross_area_alignment",
+                }
+            )
 
         belief = self.belief_layer.update(
             prior={"accepted": accepted},
@@ -58,6 +70,7 @@ class DreamTrainer:
                 "sampled": sampled,
                 "rehearsal_profile": rehearsal_profile,
                 "alternative_hypotheses": alternative_hypotheses,
+                "area_dynamics": area_dynamics,
             },
         )
         return {
