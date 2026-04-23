@@ -14,6 +14,7 @@ from ..orchestration.runtime_services import RuntimeServices
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.dream_trainer import DreamTrainer
 from ..training.replay_filter import ReplayFilter
+from .area_coherence import AreaCoherenceAnalyzer
 from .differential_engine import DifferentialEngine
 from .escalation import EscalationPolicy
 from .intuition_engine import IntuitionEngine
@@ -66,6 +67,7 @@ class ClinicalInferencePipeline:
         language_area = LanguageListeningArea()
         context_area = CaseContextArea()
         epidemiology_area = EpidemiologyArea()
+        area_coherence = AreaCoherenceAnalyzer()
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
@@ -87,19 +89,6 @@ class ClinicalInferencePipeline:
         ranked_evidence = evidence_ranker.rank(retrieval["evidence"])
         resolved = runtime_services.resolve("volume_encoder")
         quantum_allowed = quantum_gate.allow(contextuality_score=0.7)
-        dream = dream_trainer.run(
-            case_context={
-                "case_id": case.case_id,
-                "bundle_keys": list(bundle.keys()),
-                "demographics": case.demographics,
-                "provenance": case.provenance,
-                "report_text": case.report_text,
-                "patient_complaints": payload.get("patient_complaints", ""),
-                "exposures": payload.get("exposures", {}),
-            },
-            coherence=0.9,
-            risk=0.1,
-        )
 
         area_signals = {
             "visual_diagnostic": visual_area.integrate(
@@ -127,6 +116,22 @@ class ClinicalInferencePipeline:
                 exposures=payload.get("exposures", {}),
             ),
         }
+        area_dynamics = area_coherence.analyze(area_signals)
+
+        dream = dream_trainer.run(
+            case_context={
+                "case_id": case.case_id,
+                "bundle_keys": list(bundle.keys()),
+                "demographics": case.demographics,
+                "provenance": case.provenance,
+                "report_text": case.report_text,
+                "patient_complaints": payload.get("patient_complaints", ""),
+                "exposures": payload.get("exposures", {}),
+                "area_dynamics": area_dynamics,
+            },
+            coherence=0.9,
+            risk=0.1,
+        )
 
         intuition = intuition_engine.infer(
             case_id=case.case_id,
@@ -134,6 +139,7 @@ class ClinicalInferencePipeline:
             dream=dream,
             quantum_allowed=quantum_allowed,
             area_signals=area_signals,
+            area_dynamics=area_dynamics,
         )
         evidence = [
             {"source": "bundle", "kind": "bundle_keys", "value": list(bundle.keys())},
@@ -149,7 +155,7 @@ class ClinicalInferencePipeline:
             risk=0.2,
             uncertainty=0.1,
         )
-        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "dream": dream})
+        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "area_dynamics": area_dynamics, "dream": dream})
         return {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),
@@ -160,6 +166,7 @@ class ClinicalInferencePipeline:
             "retrieval": retrieval,
             "ranked_evidence": ranked_evidence,
             "area_signals": area_signals,
+            "area_dynamics": area_dynamics,
             "services": resolved,
             "intuition": intuition,
             "coordinated": coordinated,
