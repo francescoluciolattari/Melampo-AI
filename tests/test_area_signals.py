@@ -3,6 +3,7 @@ from melampo.areas.epidemiology_area import EpidemiologyArea
 from melampo.areas.language_listening_area import LanguageListeningArea
 from melampo.areas.visual_diagnostic_area import VisualDiagnosticArea
 from melampo.models.quantum_belief_layer import QuantumBeliefLayer
+from melampo.reasoning.area_coherence import AreaCoherenceAnalyzer
 from melampo.reasoning.intuition_engine import IntuitionEngine
 
 
@@ -11,6 +12,13 @@ def test_area_signals_feed_intuition_engine():
     language = LanguageListeningArea().integrate(report_text="possible lesion", patient_complaints="cough")
     context = CaseContextArea().integrate({"age": 64, "sex": "F"})
     epidemiology = EpidemiologyArea().integrate(demographics={"age": 64}, exposures={"smoking": True})
+    area_signals = {
+        "visual_diagnostic": visual,
+        "language_listening": language,
+        "case_context": context,
+        "epidemiology": epidemiology,
+    }
+    area_dynamics = AreaCoherenceAnalyzer().analyze(area_signals)
 
     engine = IntuitionEngine(belief_layer=QuantumBeliefLayer())
     payload = engine.infer(
@@ -25,12 +33,8 @@ def test_area_signals_feed_intuition_engine():
             "alternative_hypotheses": [{"label": "case-2_alt_1"}, {"label": "case-2_alt_2"}],
         },
         quantum_allowed=True,
-        area_signals={
-            "visual_diagnostic": visual,
-            "language_listening": language,
-            "case_context": context,
-            "epidemiology": epidemiology,
-        },
+        area_signals=area_signals,
+        area_dynamics=area_dynamics,
     )
     assert payload["intuition"] in ["candidate_1", "candidate_2", "case-2_alt_1"]
     assert payload["rapid_intuition"] == "candidate_1"
@@ -41,5 +45,7 @@ def test_area_signals_feed_intuition_engine():
     assert payload["deductive_filter"]["top_areas"]
     assert payload["deductive_filter"]["convergence_score"] >= 0.0
     assert payload["deductive_filter"]["conflict_score"] >= 0.0
+    assert payload["deductive_filter"]["coherence_score"] >= 0.0
+    assert payload["deductive_filter"]["mismatch_score"] >= 0.0
     assert payload["deductive_filter"]["area_pair_bonus"] >= 0.0
     assert payload["deductive_filter"]["disagreement_penalty"] >= 0.0
