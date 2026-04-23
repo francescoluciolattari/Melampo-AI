@@ -24,6 +24,8 @@ class DifferentialEngine:
         signals = self.support_analyzer.analyze(evidence=evidence, intuition=intuition, dream=dream, area_dynamics=area_dynamics)
         support_signals = signals["support_signals"]
         contradiction_signals = signals["contradiction_signals"]
+        support_profiles = signals["support_profiles"]
+        contradiction_profiles = signals["contradiction_profiles"]
 
         hypotheses = [
             {
@@ -33,6 +35,8 @@ class DifferentialEngine:
                 "source": "intuition_engine",
                 "support_signals": support_signals[:4],
                 "contradiction_signals": contradiction_signals[:3],
+                "support_profile_classes": [item["class"] for item in support_profiles[:3]],
+                "contradiction_profile_classes": [item["class"] for item in contradiction_profiles[:3]],
             }
         ]
 
@@ -45,6 +49,8 @@ class DifferentialEngine:
                     "source": alt.get("kind", "dream_alternative"),
                     "support_signals": [f"dream:{alt.get('focus', 'unknown')}"] + support_signals[:1],
                     "contradiction_signals": contradiction_signals[:3],
+                    "support_profile_classes": [item["class"] for item in support_profiles[:2]],
+                    "contradiction_profile_classes": [item["class"] for item in contradiction_profiles[:3]],
                 }
             )
 
@@ -57,16 +63,21 @@ class DifferentialEngine:
                     "source": "fallback_alternative",
                     "support_signals": support_signals[:2],
                     "contradiction_signals": contradiction_signals[:2],
+                    "support_profile_classes": [item["class"] for item in support_profiles[:2]],
+                    "contradiction_profile_classes": [item["class"] for item in contradiction_profiles[:2]],
                 }
             )
 
         recommended_tests = []
-        if mismatch_score > 0.5:
+        contradiction_classes = {item["class"] for item in contradiction_profiles}
+        if "useful_contradiction" in contradiction_classes:
             recommended_tests.append("recheck multimodal alignment")
         if coherence_score < 0.5:
             recommended_tests.append("expand corroborating evidence")
         if reasoning_mode == "contradiction_revision":
             recommended_tests.append("review alternative hypotheses")
+        if "weak_contradiction" in contradiction_classes:
+            recommended_tests.append("monitor boundary conditions")
         if not recommended_tests:
             recommended_tests.append("continue standard differential refinement")
 
@@ -78,6 +89,8 @@ class DifferentialEngine:
             "reasoning_mode": reasoning_mode,
             "support_strength": signals["support_strength"],
             "contradiction_strength": signals["contradiction_strength"],
+            "support_profiles": support_profiles,
+            "contradiction_profiles": contradiction_profiles,
             "hypotheses": hypotheses,
             "recommended_tests": recommended_tests,
         }
