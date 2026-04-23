@@ -9,13 +9,16 @@ class IntuitionEngine:
 
     belief_layer: QuantumBeliefLayer
 
-    def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None) -> dict:
+    def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None, area_dynamics: dict | None = None) -> dict:
         area_signals = area_signals or {}
+        area_dynamics = area_dynamics or {}
         rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
         alternative_hypotheses = dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else []
         contradiction_rehearsal = bool(rehearsal_profile.get("contradiction_rehearsal", False))
         revision_bias = rehearsal_profile.get("revision_bias", "exploratory")
         post_error_adjustment = rehearsal_profile.get("post_error_adjustment", "stabilize_primary")
+        coherence_score_ext = float(area_dynamics.get("coherence_score", 0.0))
+        mismatch_score_ext = float(area_dynamics.get("mismatch_score", 0.0))
 
         inductive_candidates = [
             {
@@ -49,16 +52,17 @@ class IntuitionEngine:
             area_pair_bonus = 0.15
         elif top_area_pair == ("case_context", "language_listening"):
             area_pair_bonus = 0.1
+        area_pair_bonus = round(area_pair_bonus + (0.1 * coherence_score_ext), 3)
 
-        disagreement_penalty = round(max(conflict_score - 0.4, 0.0), 3)
+        disagreement_penalty = round(max(conflict_score - 0.4, 0.0) + mismatch_score_ext * 0.1, 3)
 
         rapid_intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
         rational_revision = inductive_candidates[1]["label"] if len(inductive_candidates) > 1 else rapid_intuition
         contradiction_revision = alternative_hypotheses[0]["label"] if alternative_hypotheses else rational_revision
 
         rapid_score = round((inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0) + area_pair_bonus + convergence_score - disagreement_penalty, 3)
-        rational_score = round((inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0) + conflict_score + (0.2 if revision_bias == "conservative" else 0.0), 3)
-        contradiction_score = round((1.0 if contradiction_rehearsal else 0.0) + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0) + (0.1 * len(alternative_hypotheses)), 3)
+        rational_score = round((inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0) + conflict_score + (0.2 if revision_bias == "conservative" else 0.0) + mismatch_score_ext * 0.1, 3)
+        contradiction_score = round((1.0 if contradiction_rehearsal else 0.0) + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0) + (0.1 * len(alternative_hypotheses)) + mismatch_score_ext * 0.2, 3)
 
         candidate_scores = [
             {"mode": "rapid_intuition", "label": rapid_intuition, "score": rapid_score},
@@ -78,6 +82,8 @@ class IntuitionEngine:
             "top_areas": top_areas,
             "convergence_score": convergence_score,
             "conflict_score": conflict_score,
+            "coherence_score": coherence_score_ext,
+            "mismatch_score": mismatch_score_ext,
             "area_pair_bonus": area_pair_bonus,
             "disagreement_penalty": disagreement_penalty,
             "contradiction_rehearsal": contradiction_rehearsal,
@@ -100,6 +106,8 @@ class IntuitionEngine:
                     "top_areas": top_areas,
                     "convergence_score": convergence_score,
                     "conflict_score": conflict_score,
+                    "coherence_score": coherence_score_ext,
+                    "mismatch_score": mismatch_score_ext,
                     "area_pair_bonus": area_pair_bonus,
                     "disagreement_penalty": disagreement_penalty,
                     "contradiction_rehearsal": contradiction_rehearsal,
@@ -114,6 +122,8 @@ class IntuitionEngine:
                 "top_areas": top_areas,
                 "convergence_score": convergence_score,
                 "conflict_score": conflict_score,
+                "coherence_score": coherence_score_ext,
+                "mismatch_score": mismatch_score_ext,
                 "area_pair_bonus": area_pair_bonus,
                 "disagreement_penalty": disagreement_penalty,
                 "contradiction_rehearsal": contradiction_rehearsal,
@@ -132,6 +142,7 @@ class IntuitionEngine:
             "belief_update": belief_update,
             "area_signals": area_signals,
             "area_ranking": area_ranking,
+            "area_dynamics": area_dynamics,
         }
 
     def summarize_for_trace(self, intuition_payload: dict) -> dict:
@@ -145,6 +156,8 @@ class IntuitionEngine:
             "top_areas": deductive.get("top_areas", []),
             "convergence_score": deductive.get("convergence_score", 0.0),
             "conflict_score": deductive.get("conflict_score", 0.0),
+            "coherence_score": deductive.get("coherence_score", 0.0),
+            "mismatch_score": deductive.get("mismatch_score", 0.0),
             "area_pair_bonus": deductive.get("area_pair_bonus", 0.0),
             "disagreement_penalty": deductive.get("disagreement_penalty", 0.0),
             "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),
