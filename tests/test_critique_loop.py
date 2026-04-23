@@ -19,7 +19,11 @@ def test_critique_loop_flags_mismatch_and_revision():
                     "contradiction_profiles": [
                         {"class": "useful_contradiction"},
                         {"class": "spurious_conflict"},
-                    ]
+                    ],
+                    "recommended_actions": [
+                        {"category": "multimodal_reconciliation", "label": "recheck multimodal alignment"},
+                        {"category": "disambiguation_test", "label": "review alternative hypotheses"},
+                    ],
                 },
             },
         }
@@ -30,3 +34,5 @@ def test_critique_loop_flags_mismatch_and_revision():
     assert "useful_contradiction_detected" in result["warnings"]
     assert "possible_spurious_conflict" in result["warnings"]
     assert result["suggestions"]
+    assert result["prioritized_actions"]
+    assert result["prioritized_actions"][0]["priority"] == "high"
