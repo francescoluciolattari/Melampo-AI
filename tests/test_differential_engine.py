@@ -25,4 +25,6 @@ def test_differential_engine_counts_evidence():
     assert result["contradiction_profiles"]
     assert result["support_strength"] >= 0.0
     assert result["contradiction_strength"] >= 0.0
+    assert result["recommended_actions"]
+    assert result["recommended_actions"][0]["category"] in ["confirmation_test", "disambiguation_test", "multimodal_reconciliation"]
     assert result["recommended_tests"]
