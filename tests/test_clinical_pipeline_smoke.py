@@ -27,6 +27,8 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["coordinated"]["differential"]["hypotheses"]
     assert result["coordinated"]["differential"]["hypotheses"][0]["hypothesis_type"] in ["primary_hypothesis", "revision_hypothesis", "contradiction_revision_hypothesis"]
     assert result["coordinated"]["differential"]["hypotheses"][0]["hypothesis_domain"] in ["multimodal_led", "imaging_led", "language_led", "epidemiology_led", "mismatch_resolution_led"]
+    assert result["coordinated"]["differential"]["recommended_actions"]
+    assert result["coordinated"]["differential"]["recommended_actions"][0]["category"] in ["confirmation_test", "disambiguation_test", "multimodal_reconciliation"]
     assert result["coordinated"]["differential"]["recommended_tests"]
     assert result["coordinated"]["differential"]["hypotheses"][0]["support_signals"]
     assert result["coordinated"]["differential"]["support_profiles"]
