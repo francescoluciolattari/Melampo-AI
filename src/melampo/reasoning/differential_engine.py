@@ -21,33 +21,48 @@ class DifferentialEngine:
             return "mismatch_resolution_led"
         return "multimodal_led"
 
-    def _recommended_tests_for_domain(self, domain: str, contradiction_classes: set[str], coherence_score: float, reasoning_mode: str) -> list[str]:
-        tests = []
+    def _recommended_actions_for_domain(self, domain: str, contradiction_classes: set[str], coherence_score: float, reasoning_mode: str) -> list[dict]:
+        actions = []
         if domain == "imaging_led":
-            tests.extend(["repeat targeted imaging review", "correlate imaging with structured report findings"])
+            actions.extend([
+                {"category": "confirmation_test", "label": "repeat targeted imaging review"},
+                {"category": "multimodal_reconciliation", "label": "correlate imaging with structured report findings"},
+            ])
         elif domain == "language_led":
-            tests.extend(["reassess symptom chronology", "clarify narrative inconsistencies"])
+            actions.extend([
+                {"category": "disambiguation_test", "label": "reassess symptom chronology"},
+                {"category": "disambiguation_test", "label": "clarify narrative inconsistencies"},
+            ])
         elif domain == "epidemiology_led":
-            tests.extend(["review exposure history", "check prevalence-guided differential filters"])
+            actions.extend([
+                {"category": "confirmation_test", "label": "review exposure history"},
+                {"category": "disambiguation_test", "label": "check prevalence-guided differential filters"},
+            ])
         elif domain == "mismatch_resolution_led":
-            tests.extend(["cross-check modality agreement", "request multimodal reconciliation review"])
+            actions.extend([
+                {"category": "multimodal_reconciliation", "label": "cross-check modality agreement"},
+                {"category": "multimodal_reconciliation", "label": "request multimodal reconciliation review"},
+            ])
         else:
-            tests.append("expand corroborating evidence")
+            actions.append({"category": "confirmation_test", "label": "expand corroborating evidence"})
 
         if "useful_contradiction" in contradiction_classes:
-            tests.append("recheck multimodal alignment")
+            actions.append({"category": "multimodal_reconciliation", "label": "recheck multimodal alignment"})
         if coherence_score < 0.5:
-            tests.append("expand corroborating evidence")
+            actions.append({"category": "confirmation_test", "label": "expand corroborating evidence"})
         if reasoning_mode == "contradiction_revision":
-            tests.append("review alternative hypotheses")
+            actions.append({"category": "disambiguation_test", "label": "review alternative hypotheses"})
         if "weak_contradiction" in contradiction_classes:
-            tests.append("monitor boundary conditions")
+            actions.append({"category": "disambiguation_test", "label": "monitor boundary conditions"})
 
         deduped = []
-        for item in tests:
-            if item not in deduped:
+        seen = set()
+        for item in actions:
+            key = (item["category"], item["label"])
+            if key not in seen:
                 deduped.append(item)
-        return deduped or ["continue standard differential refinement"]
+                seen.add(key)
+        return deduped or [{"category": "confirmation_test", "label": "continue standard differential refinement"}]
 
     def rank(self, evidence: list, intuition: dict | None = None, dream: dict | None = None, area_dynamics: dict | None = None) -> dict:
         intuition = intuition or {}
@@ -128,7 +143,8 @@ class DifferentialEngine:
                 }
             )
 
-        recommended_tests = self._recommended_tests_for_domain(primary_domain, contradiction_classes, coherence_score, reasoning_mode)
+        recommended_actions = self._recommended_actions_for_domain(primary_domain, contradiction_classes, coherence_score, reasoning_mode)
+        recommended_tests = [item["label"] for item in recommended_actions]
 
         return {
             "status": "grounded_differential_ready",
@@ -141,5 +157,6 @@ class DifferentialEngine:
             "support_profiles": support_profiles,
             "contradiction_profiles": contradiction_profiles,
             "hypotheses": hypotheses,
+            "recommended_actions": recommended_actions,
             "recommended_tests": recommended_tests,
         }
