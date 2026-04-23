@@ -23,8 +23,11 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["intuition"]["deductive_filter"]["reasoning_mode"] in ["rapid_intuition", "rational_revision", "contradiction_revision"]
     assert result["intuition"]["rapid_intuition"] == "candidate_1"
     assert len(result["intuition"]["candidate_scores"]) == 3
-    assert "intuition" in result
     assert "coordinated" in result
+    assert result["coordinated"]["differential"]["hypotheses"]
+    assert "critique" in result
+    assert result["critique"]["status"] == "reviewed"
+    assert result["critique"]["suggestions"]
     assert "dream" in result
     assert "rehearsal_profile" in result["dream"]
     assert len(result["dream"]["alternative_hypotheses"]) >= 2
