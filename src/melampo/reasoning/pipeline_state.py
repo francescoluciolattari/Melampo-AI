@@ -12,3 +12,14 @@ class PipelineState:
     risk: float = 0.0
     abstain: bool = False
     escalate: bool = False
+
+    def summary(self) -> dict:
+        return {
+            "case_id": self.case_id,
+            "evidence_count": len(self.evidence),
+            "hypothesis_count": len(self.hypotheses),
+            "risk": self.risk,
+            "uncertainty": self.uncertainty,
+            "abstain": self.abstain,
+            "escalate": self.escalate,
+        }
