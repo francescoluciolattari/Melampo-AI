@@ -43,6 +43,9 @@ def test_area_coherence_and_pipeline_coordinator_emit_richer_metadata():
         area_dynamics=dynamics,
     )
     assert result["differential"]["hypotheses"]
+    assert result["state_summary"]["evidence_count"] == 1
+    assert result["state_summary"]["hypothesis_count"] >= 1
     assert any(step.startswith("reasoning_mode:") for step in result["trace"])
     assert any(step.startswith("top_domain:") for step in result["trace"])
     assert any(step.startswith("recommended_actions:") for step in result["trace"])
+    assert any(step.startswith("policy_band:") for step in result["trace"])
