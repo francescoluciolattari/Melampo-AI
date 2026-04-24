@@ -14,23 +14,23 @@ class PolicyStack:
     escalation: EscalationPolicy
 
     def evaluate(self, risk: float, uncertainty: float) -> dict:
-        abstain = self.abstention.should_abstain(uncertainty)
-        allow = self.risk_gate.allow(risk)
+        abstention = self.abstention.assess(uncertainty)
+        risk_gate = self.risk_gate.assess(risk)
         escalation = self.escalation.decide(risk=risk, uncertainty=uncertainty)
         reasons = []
-        if abstain:
-            reasons.append("abstention_triggered")
-        if not allow:
-            reasons.append("risk_gate_blocked")
+        reasons.extend(abstention.get("reasons", []))
+        reasons.extend(risk_gate.get("reasons", []))
         reasons.extend(escalation.get("reasons", []))
-        decision_band = "blocked" if (abstain or not allow) else "guarded" if escalation.get("escalate", False) else "clear"
+        decision_band = "blocked" if (abstention["abstain"] or not risk_gate["allow"]) else "guarded" if escalation.get("escalate", False) else "clear"
         return {
-            "abstain": abstain,
-            "allow": allow,
+            "abstain": abstention["abstain"],
+            "allow": risk_gate["allow"],
             "escalate": escalation["escalate"],
             "risk": risk,
             "uncertainty": uncertainty,
             "reasons": reasons,
             "decision_band": decision_band,
             "escalation_level": escalation.get("level", "low"),
+            "abstention_assessment": abstention,
+            "risk_assessment": risk_gate,
         }
