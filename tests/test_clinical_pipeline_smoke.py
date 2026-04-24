@@ -39,5 +39,7 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["critique"]["prioritized_actions"]
     assert result["critique"]["prioritized_actions"][0]["priority"] in ["high", "medium"]
     assert "dream" in result
+    assert "filter_assessment" in result["dream"]
+    assert result["dream"]["filter_assessment"]["replay_mode"] in ["stabilizing_replay", "boundary_replay", "corrective_replay"]
     assert "rehearsal_profile" in result["dream"]
     assert len(result["dream"]["alternative_hypotheses"]) >= 2
