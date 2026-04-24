@@ -22,20 +22,23 @@ class PipelineCoordinator:
         action_count = len(differential.get("recommended_actions", []))
         mismatch_score = float(differential.get("mismatch_score", 0.0))
 
-        trace = DecisionTrace()
-        trace.add(f"case:{case_id}")
-        trace.add(f"evidence_count:{len(evidence)}")
-        trace.add(f"policy:{policy}")
-        trace.add(f"reasoning_mode:{reasoning_mode}")
-        trace.add(f"differential_top:{top_hypothesis['label']}")
-        trace.add(f"top_domain:{top_hypothesis.get('hypothesis_domain', 'multimodal_led')}")
-        trace.add(f"recommended_actions:{action_count}")
-        trace.add(f"mismatch_score:{mismatch_score}")
-
+        state.hypotheses = list(differential.get("hypotheses", []))
         state.abstain = policy["abstain"]
         state.escalate = policy["escalate"]
+
+        trace = DecisionTrace()
+        trace.add_kv("case", case_id)
+        trace.add_kv("evidence_count", len(evidence))
+        trace.add_kv("policy_band", policy.get("decision_band", "clear"))
+        trace.add_kv("reasoning_mode", reasoning_mode)
+        trace.add_kv("differential_top", top_hypothesis["label"])
+        trace.add_kv("top_domain", top_hypothesis.get("hypothesis_domain", "multimodal_led"))
+        trace.add_kv("recommended_actions", action_count)
+        trace.add_kv("mismatch_score", mismatch_score)
+
         return {
             "state": state,
+            "state_summary": state.summary(),
             "differential": differential,
             "policy": policy,
             "trace": trace.dump(),
