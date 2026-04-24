@@ -10,5 +10,8 @@ class DecisionTrace:
     def add(self, item: str) -> None:
         self.steps.append(item)
 
+    def add_kv(self, key: str, value) -> None:
+        self.steps.append(f"{key}:{value}")
+
     def dump(self) -> list:
         return list(self.steps)
