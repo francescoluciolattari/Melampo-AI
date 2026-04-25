@@ -20,4 +20,12 @@ class RuntimeServices:
     def resolve(self, task_name: str) -> dict:
         route = self.router.pick(task_name)
         service = self.registry.get(task_name)
-        return {"route": route, "service": service}
+        available = bool(service)
+        return {
+            "task": task_name,
+            "route": route,
+            "service": service,
+            "available": available,
+            "protocol": service.get("protocol", route.get("protocol_hint", "service")) if isinstance(service, dict) else route.get("protocol_hint", "service"),
+            "resolution_mode": "direct_registry_match" if available else "router_only",
+        }
