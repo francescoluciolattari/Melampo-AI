@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .support_contradiction import SupportContradictionAnalyzer
 
@@ -7,7 +7,7 @@ from .support_contradiction import SupportContradictionAnalyzer
 class DifferentialEngine:
     """Baseline differential engine using evidence, intuition, dream alternatives, and area dynamics."""
 
-    support_analyzer: SupportContradictionAnalyzer = SupportContradictionAnalyzer()
+    support_analyzer: SupportContradictionAnalyzer = field(default_factory=SupportContradictionAnalyzer)
 
     def _infer_domain(self, support_signals: list, source: str, hypothesis_type: str) -> str:
         joined = " ".join(support_signals)
