@@ -15,6 +15,7 @@ dependencies = []
 
 [project.scripts]
 melampo-prototype = "melampo.cli:main"
+melampo-prototype-cxr = "melampo.cli:main_cxr"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
