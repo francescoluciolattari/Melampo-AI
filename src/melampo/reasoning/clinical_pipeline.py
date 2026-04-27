@@ -71,11 +71,16 @@ class ClinicalInferencePipeline:
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
-            first_study_id = case.imaging[0].study_id
-            volume_features = self.volume_encoder.encode(first_study_id)
+            first_study = case.imaging[0]
+            first_study_id = first_study.study_id
+            volume_features = self.volume_encoder.encode(
+                first_study_id,
+                series_paths=list(first_study.series_paths),
+                metadata=dict(first_study.metadata),
+            )
             pathology_features = self.pathology_encoder.encode(first_study_id)
         else:
-            volume_features = {"study_id": "none"}
+            volume_features = {"study_id": "none", "series_paths": [], "image_count": 0, "has_local_images": False}
             pathology_features = {"slide_id": "none"}
 
         fused = self.fusion.fuse(
