@@ -1,6 +1,6 @@
 import json
 
-from melampo.cli import main, main_cxr
+from melampo.cli import main, main_cxr, main_openi
 
 
 def test_cli_runs_prototype_case_without_raw_output(tmp_path, capsys):
@@ -46,4 +46,15 @@ def test_cxr_cli_runs_metadata_csv_without_raw_output(capsys):
     assert output["status"] == "completed"
     assert output["case_count"] == 1
     assert output["results"][0]["case_id"] == "cxr14-synthetic_000001"
+    assert "raw_result" not in output["results"][0]
+
+
+def test_openi_cli_runs_metadata_csv_without_raw_output(capsys):
+    exit_code = main_openi(["examples/openi_metadata_sample.csv", "--limit", "1"])
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert exit_code == 0
+    assert output["status"] == "completed"
+    assert output["case_count"] == 1
+    assert output["results"][0]["case_id"] == "openi-synthetic-openi-001"
     assert "raw_result" not in output["results"][0]
