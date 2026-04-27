@@ -1,19 +1,22 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .local_imaging_provider import LocalImagingFeatureProvider
+
 
 @dataclass
 class VolumeEncoder:
     """Future-facing imaging encoder adapter.
 
-    The current implementation is intentionally provider-neutral: it carries
-    local image/DICOM paths and exposes readiness/capability metadata. A real
-    provider can later be attached behind the same interface without changing
-    the clinical pipeline, CLI, or open-data loaders.
+    The current implementation carries local image/DICOM paths, extracts
+    technical local-imaging features, and exposes readiness/capability metadata.
+    A real radiology/DICOM provider can later be attached behind the same
+    interface without changing the clinical pipeline, CLI, or open-data loaders.
     """
 
     provider: str = "api_for_service_volume_encoder"
     provider_strategy: str = "future_multimodal_imaging_adapter"
+    local_provider: LocalImagingFeatureProvider = field(default_factory=LocalImagingFeatureProvider)
     preferred_future_models: list[str] = field(
         default_factory=lambda: [
             "specialized_radiology_vision_language_model",
@@ -40,6 +43,12 @@ class VolumeEncoder:
         metadata = metadata or {}
         input_kind = self._infer_input_kind(series_paths, metadata)
         has_local_images = bool(series_paths)
+        local_features = self.local_provider.extract(
+            study_id=study_id,
+            series_paths=series_paths,
+            metadata=metadata,
+            input_kind=input_kind,
+        )
         encoder_ready = has_local_images and self.provider_strategy != "metadata_only"
         return {
             "provider": self.provider,
@@ -53,9 +62,11 @@ class VolumeEncoder:
             "preferred_future_models": list(self.preferred_future_models),
             "encoder_ready": encoder_ready,
             "real_pixel_inference": False,
+            "local_features": local_features,
+            "routing_hint": local_features.get("routing_hint", "metadata_only_review"),
             "metadata": metadata,
             "notes": [
-                "Current adapter carries image paths and metadata through the pipeline.",
+                "Current adapter carries image paths and extracts technical local-imaging features.",
                 "Attach a real radiology/DICOM provider behind this interface for pixel-level inference.",
             ],
         }
