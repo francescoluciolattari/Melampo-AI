@@ -26,6 +26,17 @@ The goal is to support future consolidation work without touching the stabilized
 | `src/melampo/reasoning/escalation.py` | Canonical support | Escalation helper | Now returns reasons and escalation level, but remains intentionally lightweight. | Keep and refine only if escalation paths become more granular. |
 | `src/melampo/reasoning/decision_trace.py` | Canonical support | Audit trace helper | Minimal by design; now supports key-value trace entries. | Keep lightweight and avoid turning it into a second state container. |
 | `src/melampo/reasoning/pipeline_state.py` | Canonical support | Shared runtime state | Still intentionally small, but now exposes a summary helper. | Keep as lightweight runtime state and avoid embedding reasoning logic here. |
+| `src/melampo/evaluation/quantum_gate.py` | Canonical support | Structured quantum-like path gate | Now emits allow, margin, level, and reasons. | Keep as the only gate for optional quantum-like evaluation paths. |
+
+### Canonical orchestration and registry modules
+
+| Module | Classification | Current status | Main issue | Next consolidation action |
+|---|---|---|---|---|
+| `src/melampo/orchestration/contracts.py` | Canonical support | Service contract metadata | Now includes name, provider, protocol, and role. | Keep as the canonical service contract description layer. |
+| `src/melampo/orchestration/service_registry.py` | Canonical support | In-memory service registry | Now stores role metadata and exposes a registry summary. | Keep lightweight and avoid embedding routing semantics here. |
+| `src/melampo/orchestration/bootstrap.py` | Canonical support | Baseline service contract inventory | Now exposes a contract inventory before building the registry. | Keep as the single baseline registry bootstrap. |
+| `src/melampo/orchestration/model_router.py` | Canonical support | Static research router | Now emits protocol hints and routing mode. | Keep simple until dynamic model routing is introduced. |
+| `src/melampo/orchestration/runtime_services.py` | Canonical support | Runtime service resolution layer | Now returns availability, protocol, and resolution mode. | Keep as the canonical runtime-service resolution facade. |
 
 ### Canonical dream and replay branch
 
@@ -59,7 +70,7 @@ The goal is to support future consolidation work without touching the stabilized
 | `src/melampo/models/risk_gate.py` | Canonical support | Structured risk assessment | Now returns reasons, band, and margin. | Keep and refine only if risk gating becomes domain-specific. |
 | `src/melampo/models/quantum_belief_layer.py` | Canonical support | Contextual belief-update metadata layer | Now exposes contextuality, interference, and belief shift, but remains a lightweight research formalism. | Keep as the single quantum-like belief layer and expand here instead of duplicating belief-update logic. |
 
-## Modules to treat as “research scaffold but acceptable”
+## Modules to treat as research scaffold but acceptable
 
 These modules are already part of the canonical core, but should still be treated as research scaffolds rather than production-complete implementations:
 - `intuition_engine.py`
@@ -69,27 +80,30 @@ These modules are already part of the canonical core, but should still be treate
 - `quantum_belief_layer.py`
 - `retriever.py`
 - `evidence_ranker.py`
+- `model_router.py`
+- `runtime_services.py`
 
 The right strategy is to evolve these files in place, not to create sibling replacements.
 
 ## Consolidation priorities
 
-### Priority 1 — Preserve and strengthen the canonical chain
+### Priority 1 - Preserve and strengthen the canonical chain
 Future reasoning changes should converge into this path:
 
 `clinical_pipeline -> intuition_engine -> differential_engine -> critique_loop`
 
-### Priority 2 — Avoid parallel reasoning entrypoints
-If a new experiment duplicates intuition, support/contradiction, differential ranking, critique behavior, or dream replay behavior, it should be folded back into the canonical modules above instead of creating sibling pipelines.
+### Priority 2 - Avoid parallel reasoning entrypoints
+If a new experiment duplicates intuition, support/contradiction, differential ranking, critique behavior, dream replay behavior, or service orchestration behavior, it should be folded back into the canonical modules above instead of creating sibling pipelines.
 
-### Priority 3 — Strengthen helpers before expanding architecture
+### Priority 3 - Strengthen helpers before expanding architecture
 The most useful next technical work is not adding more top-level abstractions, but improving the existing helpers:
 - `retriever`
 - `evidence_ranker`
 - selected area modules
 - dream generation curriculum
 - policy semantics
+- runtime service contracts
 - calibration of intuition/differential weights
 
-### Priority 4 — Treat this package as the stable research core
+### Priority 4 - Treat this package as the stable research core
 The current `src/melampo/` core is coherent enough to be treated as the main project spine. Future cleanup should start from this map and only remove or merge modules when they clearly duplicate the canonical core above.
