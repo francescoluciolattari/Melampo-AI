@@ -1,0 +1,3 @@
+Image Index,Finding Labels,Follow-up #,Patient ID,Patient Age,Patient Gender,View Position
+synthetic_000001.png,Nodule|Infiltration,1,synthetic-patient-001,64,M,PA
+synthetic_000002.png,No Finding,1,synthetic-patient-002,52,F,AP
