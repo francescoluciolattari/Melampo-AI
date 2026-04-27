@@ -1,0 +1,38 @@
+{
+  "case_id": "open-synthetic-cxr-001",
+  "patient_id": "synthetic-patient-001",
+  "demographics": {
+    "age": 64,
+    "sex": "unknown_or_synthetic"
+  },
+  "report_text": "Synthetic chest X-ray case inspired by open radiology datasets: possible pulmonary opacity in the right lower zone. No pleural effusion described.",
+  "ehr_text": "Synthetic research example only. Persistent cough and mild weight loss are mentioned for prototype testing.",
+  "patient_complaints": "Persistent cough and fatigue. This is synthetic text for prototype testing.",
+  "observations": [
+    {
+      "code": "synthetic_crp",
+      "value": 12,
+      "unit": "mg/L",
+      "source": "synthetic_example"
+    }
+  ],
+  "imaging": [
+    {
+      "study_id": "synthetic-cxr-study-001",
+      "modality": "CR",
+      "series_paths": [],
+      "metadata": {
+        "source_dataset_style": "NIH ChestX-ray14 / Open-i compatible example",
+        "note": "No real image is bundled in this repository. Add local paths only after downloading open data according to dataset terms."
+      }
+    }
+  ],
+  "provenance": {
+    "source": "synthetic_open_data_compatible_example",
+    "contains_real_patient_data": false,
+    "intended_use": "CLI and prototype smoke testing"
+  },
+  "exposures": {
+    "smoking_history": "synthetic_unknown"
+  }
+}
