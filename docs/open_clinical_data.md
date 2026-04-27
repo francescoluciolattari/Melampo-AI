@@ -5,13 +5,28 @@ The repository must not store real patient data, downloaded DICOM files, or rest
 
 ## Safe default
 
-Use the synthetic example first:
+Use the synthetic JSON example first:
 
 ```bash
 melampo-prototype examples/open_clinical_case_chest_xray_synthetic.json --runtime-profile local_research
 ```
 
 The example is synthetic and contains no real patient data.
+
+## ChestX-ray14-style CSV workflow
+
+Use the synthetic CSV metadata fixture to test the metadata loader and prototype runner:
+
+```bash
+melampo-prototype-cxr examples/chestxray14_metadata_sample.csv --limit 1 --runtime-profile local_research
+```
+
+The command reads ChestX-ray14-style metadata, converts each row into a Melampo payload, runs the prototype, and prints JSON output.
+It does not download or bundle images. If local images are available after accepting dataset terms, pass an image root:
+
+```bash
+melampo-prototype-cxr path/to/Data_Entry_2017.csv --limit 5 --image-root /local/path/to/images
+```
 
 ## Dataset catalog
 
