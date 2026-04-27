@@ -1,0 +1,3 @@
+uid,image,indication,findings,impression,problems
+synthetic-openi-001,synthetic_openi_000001.png,cough and fever,Right lower lobe opacity is described,Possible pneumonia,pneumonia|opacity
+synthetic-openi-002,synthetic_openi_000002.png,screening,No acute cardiopulmonary abnormality,No acute finding,normal
