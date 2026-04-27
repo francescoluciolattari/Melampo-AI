@@ -19,6 +19,29 @@ def _load_payload(path: str) -> dict[str, Any]:
     return data
 
 
+def _attach_image_paths(payload: dict[str, Any], image_paths: list[str] | None) -> dict[str, Any]:
+    if not image_paths:
+        return payload
+    updated = dict(payload)
+    imaging = list(updated.get("imaging", []))
+    if imaging:
+        first = dict(imaging[0])
+        existing = list(first.get("series_paths", []))
+        first["series_paths"] = existing + list(image_paths)
+        imaging[0] = first
+    else:
+        imaging = [
+            {
+                "study_id": f"local-image-study-{updated.get('case_id', 'unknown')}",
+                "modality": "CR",
+                "series_paths": list(image_paths),
+                "metadata": {"source": "cli_image_path"},
+            }
+        ]
+    updated["imaging"] = imaging
+    return updated
+
+
 def _strip_raw(result: dict, include_raw: bool) -> dict:
     if include_raw or "raw_result" not in result:
         return result
@@ -46,6 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="local_research",
         choices=["local_research", "remote_research"],
         help="Runtime profile to use for the prototype run.",
+    )
+    parser.add_argument(
+        "--image-path",
+        action="append",
+        default=None,
+        help="Optional local image path to attach to the first imaging study. May be repeated.",
     )
     parser.add_argument(
         "--include-raw",
@@ -97,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     payload = _load_payload(args.input_json)
+    payload = _attach_image_paths(payload, args.image_path)
     result = run_prototype_case(payload, runtime_profile=args.runtime_profile)
     result = _strip_raw(result, include_raw=args.include_raw)
     print(json.dumps(result, indent=2, sort_keys=True, default=str))
