@@ -28,6 +28,21 @@ It does not download or bundle images. If local images are available after accep
 melampo-prototype-cxr path/to/Data_Entry_2017.csv --limit 5 --image-root /local/path/to/images
 ```
 
+## Open-i / Indiana-style CSV workflow
+
+Use the synthetic Open-i-style metadata fixture to test paired report/image metadata conversion:
+
+```bash
+melampo-prototype-openi examples/openi_metadata_sample.csv --limit 1 --runtime-profile local_research
+```
+
+The command reads Open-i / Indiana-style report metadata, converts each row into a Melampo payload, runs the prototype, and prints JSON output.
+It does not download, bundle, or redistribute reports or images. If local images are available after checking source terms, pass an image root:
+
+```bash
+melampo-prototype-openi path/to/openi_metadata.csv --limit 5 --image-root /local/path/to/images
+```
+
 ## Dataset catalog
 
 The code catalog is available in:
