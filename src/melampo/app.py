@@ -29,6 +29,13 @@ class MelampoRuntime:
     pipeline: ClinicalInferencePipeline
     validator: ValidationMatrix
 
+    def describe(self) -> dict:
+        return {
+            "config": self.config.describe(),
+            "pipeline": self.pipeline.__class__.__name__,
+            "validator": self.validator.summarize(),
+        }
+
 
 def build_default_runtime(config: RuntimeConfig | None = None) -> MelampoRuntime:
     """Assemble the default research runtime for Melampo."""
