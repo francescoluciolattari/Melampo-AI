@@ -13,6 +13,15 @@ class ServiceConfig:
     timeout_seconds: int = 30
     enabled: bool = True
 
+    def describe(self) -> dict:
+        return {
+            "provider": self.provider,
+            "endpoint_configured": self.endpoint is not None,
+            "api_key_env": self.api_key_env,
+            "timeout_seconds": self.timeout_seconds,
+            "enabled": self.enabled,
+        }
+
 
 @dataclass(slots=True)
 class RuntimeConfig:
@@ -24,10 +33,27 @@ class RuntimeConfig:
     abstention_threshold: float = 0.65
     risk_threshold: float = 0.35
     calibration_bin_count: int = 15
+    runtime_profile: str = "local_research"
     service_registry: Dict[str, ServiceConfig] = field(default_factory=dict)
 
+    def describe(self) -> dict:
+        enabled = {name: service.describe() for name, service in self.service_registry.items() if service.enabled}
+        disabled = {name: service.describe() for name, service in self.service_registry.items() if not service.enabled}
+        return {
+            "project_name": self.project_name,
+            "environment": self.environment,
+            "runtime_profile": self.runtime_profile,
+            "allow_remote_models": self.allow_remote_models,
+            "abstention_threshold": self.abstention_threshold,
+            "risk_threshold": self.risk_threshold,
+            "calibration_bin_count": self.calibration_bin_count,
+            "enabled_services": enabled,
+            "disabled_services": disabled,
+            "service_count": len(self.service_registry),
+        }
 
-def build_default_config() -> RuntimeConfig:
+
+def build_default_config(runtime_profile: str = "local_research", allow_remote_models: bool = False) -> RuntimeConfig:
     """Build a default runtime config with explicit placeholder services."""
     placeholders = {
         "volume_encoder": ServiceConfig(provider="api_for_service_volume_encoder"),
@@ -43,4 +69,11 @@ def build_default_config() -> RuntimeConfig:
         "a2a_router": ServiceConfig(provider="api_for_service_a2a_router"),
         "theoretical_quantum": ServiceConfig(provider="api_for_service_theoretical_quantum_module", enabled=False),
     }
-    return RuntimeConfig(service_registry=placeholders)
+    if runtime_profile == "remote_research":
+        allow_remote_models = True
+        placeholders["theoretical_quantum"].enabled = True
+    return RuntimeConfig(
+        runtime_profile=runtime_profile,
+        allow_remote_models=allow_remote_models,
+        service_registry=placeholders,
+    )
