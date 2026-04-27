@@ -13,6 +13,25 @@ melampo-prototype examples/open_clinical_case_chest_xray_synthetic.json --runtim
 
 The example is synthetic and contains no real patient data.
 
+## Adding local images to JSON payloads
+
+For a single JSON case, attach one or more local image paths without editing the JSON file:
+
+```bash
+melampo-prototype examples/open_clinical_case_chest_xray_synthetic.json \
+  --image-path /local/path/image_001.png \
+  --image-path /local/path/image_002.png \
+  --include-raw
+```
+
+The paths are inserted into the first imaging study as `series_paths` and are carried through `volume_features` as:
+
+- `series_paths`
+- `image_count`
+- `has_local_images`
+
+The prototype currently carries image paths and metadata. It does not yet perform real pixel/DICOM inference unless a real image encoder service is connected later.
+
 ## ChestX-ray14-style CSV workflow
 
 Use the synthetic CSV metadata fixture to test the metadata loader and prototype runner:
