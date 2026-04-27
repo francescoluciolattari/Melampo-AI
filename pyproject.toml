@@ -13,6 +13,9 @@ authors = [
 ]
 dependencies = []
 
+[project.scripts]
+melampo-prototype = "melampo.cli:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
