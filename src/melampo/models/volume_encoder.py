@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .imaging_provider_selector import ImagingProviderSelector
 from .local_imaging_provider import LocalImagingFeatureProvider
 
 
@@ -10,15 +11,17 @@ class VolumeEncoder:
     """Future-facing imaging encoder adapter.
 
     The current implementation carries local image/DICOM paths, extracts
-    technical local-imaging features, and exposes readiness/capability metadata.
-    A real radiology/DICOM provider can later be attached behind the same
-    interface without changing the clinical pipeline, CLI, or open-data loaders.
+    technical local-imaging features, selects an imaging provider family from
+    runtime strategy, and exposes readiness/capability metadata. A real
+    radiology/DICOM provider can later be attached behind the same interface
+    without changing the clinical pipeline, CLI, or open-data loaders.
     """
 
     config: Any | None = None
     provider: str = "api_for_service_volume_encoder"
     provider_strategy: str = "local_metadata"
     local_provider: LocalImagingFeatureProvider = field(default_factory=LocalImagingFeatureProvider)
+    provider_selector: ImagingProviderSelector = field(default_factory=ImagingProviderSelector)
     preferred_future_models: list[str] = field(
         default_factory=lambda: [
             "specialized_radiology_vision_language_model",
@@ -62,6 +65,7 @@ class VolumeEncoder:
         metadata = metadata or {}
         input_kind = self._infer_input_kind(series_paths, metadata)
         has_local_images = bool(series_paths)
+        provider_selection = self.provider_selector.select(strategy=self.provider_strategy, input_kind=input_kind)
         local_features = self.local_provider.extract(
             study_id=study_id,
             series_paths=series_paths,
@@ -69,9 +73,11 @@ class VolumeEncoder:
             input_kind=input_kind,
         )
         encoder_ready = has_local_images and self.provider_strategy != "metadata_only"
+        selection_description = provider_selection.describe()
         return {
             "provider": self.provider,
             "provider_strategy": self.provider_strategy,
+            "provider_selection": selection_description,
             "provider_readiness": self._provider_readiness(has_local_images),
             "study_id": study_id,
             "series_paths": series_paths,
@@ -81,12 +87,15 @@ class VolumeEncoder:
             "supported_modalities": list(self.supported_modalities),
             "preferred_future_models": list(self.preferred_future_models),
             "encoder_ready": encoder_ready,
-            "real_pixel_inference": self.provider_strategy in {"local_pixels", "remote_radiology_vlm", "remote_dicom_3d", "hybrid_multimodal"},
+            "real_pixel_inference": selection_description["real_pixel_inference"],
+            "requires_remote": selection_description["requires_remote"],
+            "readiness_requirement": selection_description["readiness_requirement"],
             "local_features": local_features,
             "routing_hint": local_features.get("routing_hint", "metadata_only_review"),
             "metadata": metadata,
             "notes": [
                 "Current adapter carries image paths and extracts technical local-imaging features.",
+                "Provider selection is strategy-aware but external pixel/DICOM inference is not yet implemented.",
                 "Attach a real radiology/DICOM provider behind this interface for validated pixel-level inference.",
             ],
         }
