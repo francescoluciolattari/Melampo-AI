@@ -9,6 +9,14 @@ from .datasets.chestxray14_loader import ChestXray14CsvLoader
 from .datasets.openi_loader import OpenIReportCsvLoader
 from .prototype import run_prototype_case
 
+IMAGING_STRATEGIES = [
+    "local_metadata",
+    "local_pixels",
+    "remote_radiology_vlm",
+    "remote_dicom_3d",
+    "hybrid_multimodal",
+]
+
 
 def _load_payload(path: str) -> dict[str, Any]:
     payload_path = Path(path)
@@ -50,15 +58,24 @@ def _strip_raw(result: dict, include_raw: bool) -> dict:
     return stripped
 
 
-def _run_payloads(payloads: list[dict], runtime_profile: str, include_raw: bool) -> tuple[int, list[dict]]:
+def _run_payloads(payloads: list[dict], runtime_profile: str, include_raw: bool, imaging_strategy: str | None = None) -> tuple[int, list[dict]]:
     results = []
     exit_code = 0
     for payload in payloads:
-        result = run_prototype_case(payload, runtime_profile=runtime_profile)
+        result = run_prototype_case(payload, runtime_profile=runtime_profile, imaging_strategy=imaging_strategy)
         if result.get("status") != "completed":
             exit_code = 2
         results.append(_strip_raw(result, include_raw=include_raw))
     return exit_code, results
+
+
+def _add_imaging_strategy_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--imaging-strategy",
+        default=None,
+        choices=IMAGING_STRATEGIES,
+        help="Optional imaging provider strategy override.",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["local_research", "remote_research"],
         help="Runtime profile to use for the prototype run.",
     )
+    _add_imaging_strategy_argument(parser)
     parser.add_argument(
         "--image-path",
         action="append",
@@ -93,6 +111,7 @@ def build_cxr_parser() -> argparse.ArgumentParser:
         choices=["local_research", "remote_research"],
         help="Runtime profile to use for the prototype run.",
     )
+    _add_imaging_strategy_argument(parser)
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of CSV rows to process.")
     parser.add_argument("--image-root", default=None, help="Optional local image root used to build series_paths.")
     parser.add_argument(
@@ -112,6 +131,7 @@ def build_openi_parser() -> argparse.ArgumentParser:
         choices=["local_research", "remote_research"],
         help="Runtime profile to use for the prototype run.",
     )
+    _add_imaging_strategy_argument(parser)
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of CSV rows to process.")
     parser.add_argument("--image-root", default=None, help="Optional local image root used to build series_paths.")
     parser.add_argument(
@@ -127,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     payload = _load_payload(args.input_json)
     payload = _attach_image_paths(payload, args.image_path)
-    result = run_prototype_case(payload, runtime_profile=args.runtime_profile)
+    result = run_prototype_case(payload, runtime_profile=args.runtime_profile, imaging_strategy=args.imaging_strategy)
     result = _strip_raw(result, include_raw=args.include_raw)
     print(json.dumps(result, indent=2, sort_keys=True, default=str))
     return 0 if result.get("status") == "completed" else 2
@@ -138,11 +158,17 @@ def main_cxr(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     loader = ChestXray14CsvLoader(image_root=args.image_root)
     payloads = loader.load_csv(args.input_csv, limit=args.limit)
-    exit_code, results = _run_payloads(payloads, runtime_profile=args.runtime_profile, include_raw=args.include_raw)
+    exit_code, results = _run_payloads(
+        payloads,
+        runtime_profile=args.runtime_profile,
+        include_raw=args.include_raw,
+        imaging_strategy=args.imaging_strategy,
+    )
     output = {
         "status": "completed" if exit_code == 0 else "completed_with_errors",
         "input_csv": args.input_csv,
         "runtime_profile": args.runtime_profile,
+        "imaging_strategy": args.imaging_strategy,
         "case_count": len(results),
         "results": results,
     }
@@ -155,11 +181,17 @@ def main_openi(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     loader = OpenIReportCsvLoader(image_root=args.image_root)
     payloads = loader.load_csv(args.input_csv, limit=args.limit)
-    exit_code, results = _run_payloads(payloads, runtime_profile=args.runtime_profile, include_raw=args.include_raw)
+    exit_code, results = _run_payloads(
+        payloads,
+        runtime_profile=args.runtime_profile,
+        include_raw=args.include_raw,
+        imaging_strategy=args.imaging_strategy,
+    )
     output = {
         "status": "completed" if exit_code == 0 else "completed_with_errors",
         "input_csv": args.input_csv,
         "runtime_profile": args.runtime_profile,
+        "imaging_strategy": args.imaging_strategy,
         "case_count": len(results),
         "results": results,
     }
