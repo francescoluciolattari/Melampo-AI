@@ -50,6 +50,37 @@ def test_cli_attaches_local_image_paths_with_raw_output(tmp_path, capsys):
     assert str(image_path) in output["raw_result"]["volume_features"]["series_paths"]
 
 
+def test_cli_passes_imaging_strategy_to_volume_encoder(tmp_path, capsys):
+    payload_path = tmp_path / "case.json"
+    image_path = tmp_path / "image.png"
+    image_path.write_text("synthetic image placeholder", encoding="utf-8")
+    payload_path.write_text(
+        json.dumps(
+            {
+                "case_id": "case-cli-strategy-001",
+                "report_text": "possible pulmonary lesion",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main([
+        str(payload_path),
+        "--image-path",
+        str(image_path),
+        "--imaging-strategy",
+        "remote_radiology_vlm",
+        "--include-raw",
+    ])
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    volume = output["raw_result"]["volume_features"]
+    assert exit_code == 0
+    assert volume["provider_strategy"] == "remote_radiology_vlm"
+    assert volume["provider_selection"]["provider_kind"] == "remote_projection_radiology_vlm"
+    assert volume["remote_result"]["fallback_required"] is True
+
+
 def test_cli_returns_nonzero_for_invalid_payload(tmp_path, capsys):
     payload_path = tmp_path / "invalid.json"
     payload_path.write_text(json.dumps({"report_text": "missing id"}), encoding="utf-8")
