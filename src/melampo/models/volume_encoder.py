@@ -4,6 +4,7 @@ from typing import Any
 
 from .imaging_provider_selector import ImagingProviderSelector
 from .local_imaging_provider import LocalImagingFeatureProvider
+from .remote_imaging_provider import RemoteImagingProviderClient
 
 
 @dataclass
@@ -12,9 +13,10 @@ class VolumeEncoder:
 
     The current implementation carries local image/DICOM paths, extracts
     technical local-imaging features, selects an imaging provider family from
-    runtime strategy, and exposes readiness/capability metadata. A real
-    radiology/DICOM provider can later be attached behind the same interface
-    without changing the clinical pipeline, CLI, or open-data loaders.
+    runtime strategy, prepares a remote-provider request when required, and
+    exposes readiness/capability metadata. A real radiology/DICOM provider can
+    later be attached behind the same interface without changing the clinical
+    pipeline, CLI, or open-data loaders.
     """
 
     config: Any | None = None
@@ -22,6 +24,7 @@ class VolumeEncoder:
     provider_strategy: str = "local_metadata"
     local_provider: LocalImagingFeatureProvider = field(default_factory=LocalImagingFeatureProvider)
     provider_selector: ImagingProviderSelector = field(default_factory=ImagingProviderSelector)
+    remote_client: RemoteImagingProviderClient | None = None
     preferred_future_models: list[str] = field(
         default_factory=lambda: [
             "specialized_radiology_vision_language_model",
@@ -33,12 +36,25 @@ class VolumeEncoder:
     supported_modalities: tuple[str, ...] = ("CR", "DX", "CT", "MR", "US", "PT", "DICOM")
 
     def __post_init__(self) -> None:
+        endpoint = None
+        timeout_seconds = 30
+        enabled = False
         if self.config is not None:
             self.provider_strategy = getattr(self.config, "imaging_provider_strategy", self.provider_strategy)
             service_registry = getattr(self.config, "service_registry", {})
             volume_service = service_registry.get("volume_encoder") if isinstance(service_registry, dict) else None
             if volume_service is not None:
                 self.provider = getattr(volume_service, "provider", self.provider)
+                endpoint = getattr(volume_service, "endpoint", None)
+                timeout_seconds = int(getattr(volume_service, "timeout_seconds", 30))
+                enabled = bool(getattr(volume_service, "enabled", False))
+        if self.remote_client is None:
+            self.remote_client = RemoteImagingProviderClient(
+                provider_name=self.provider,
+                endpoint=endpoint,
+                timeout_seconds=timeout_seconds,
+                enabled=enabled,
+            )
 
     def _infer_input_kind(self, series_paths: list[str], metadata: dict) -> str:
         modality = str(metadata.get("modality", metadata.get("Modality", ""))).upper()
@@ -66,14 +82,22 @@ class VolumeEncoder:
         input_kind = self._infer_input_kind(series_paths, metadata)
         has_local_images = bool(series_paths)
         provider_selection = self.provider_selector.select(strategy=self.provider_strategy, input_kind=input_kind)
+        selection_description = provider_selection.describe()
         local_features = self.local_provider.extract(
             study_id=study_id,
             series_paths=series_paths,
             metadata=metadata,
             input_kind=input_kind,
         )
+        remote_result = None
+        if selection_description["requires_remote"]:
+            remote_result = self.remote_client.infer(
+                study_id=study_id,
+                series_paths=series_paths,
+                metadata=metadata,
+                provider_selection=selection_description,
+            )
         encoder_ready = has_local_images and self.provider_strategy != "metadata_only"
-        selection_description = provider_selection.describe()
         return {
             "provider": self.provider,
             "provider_strategy": self.provider_strategy,
@@ -91,11 +115,13 @@ class VolumeEncoder:
             "requires_remote": selection_description["requires_remote"],
             "readiness_requirement": selection_description["readiness_requirement"],
             "local_features": local_features,
+            "remote_result": remote_result,
+            "fallback_mode": "remote_stub_to_local_features" if remote_result and remote_result.get("fallback_required") else "local_features_only",
             "routing_hint": local_features.get("routing_hint", "metadata_only_review"),
             "metadata": metadata,
             "notes": [
                 "Current adapter carries image paths and extracts technical local-imaging features.",
-                "Provider selection is strategy-aware but external pixel/DICOM inference is not yet implemented.",
+                "Remote provider contract is prepared but network inference is not implemented in this research stub.",
                 "Attach a real radiology/DICOM provider behind this interface for validated pixel-level inference.",
             ],
         }
