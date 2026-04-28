@@ -22,6 +22,8 @@ def test_volume_encoder_exposes_future_facing_imaging_adapter_metadata(tmp_path)
     assert result["encoder_ready"] is True
     assert result["real_pixel_inference"] is False
     assert result["requires_remote"] is False
+    assert result["remote_result"] is None
+    assert result["fallback_mode"] == "local_features_only"
     assert result["routing_hint"] == "route_to_projection_radiology_provider"
     assert result["local_features"]["local_readiness"] == "ready"
     assert result["local_features"]["existing_path_count"] == 1
@@ -56,6 +58,9 @@ def test_volume_encoder_reads_imaging_strategy_from_runtime_config(tmp_path):
     assert result["provider_readiness"] == "remote_provider_configured"
     assert result["requires_remote"] is True
     assert result["real_pixel_inference"] is True
+    assert result["remote_result"]["status"] == "not_called"
+    assert result["remote_result"]["fallback_required"] is True
+    assert result["fallback_mode"] == "remote_stub_to_local_features"
 
 
 def test_imaging_provider_selector_routes_future_strategies():
