@@ -34,6 +34,7 @@ class RuntimeConfig:
     risk_threshold: float = 0.35
     calibration_bin_count: int = 15
     runtime_profile: str = "local_research"
+    imaging_provider_strategy: str = "local_metadata"
     service_registry: Dict[str, ServiceConfig] = field(default_factory=dict)
 
     def describe(self) -> dict:
@@ -44,6 +45,7 @@ class RuntimeConfig:
             "environment": self.environment,
             "runtime_profile": self.runtime_profile,
             "allow_remote_models": self.allow_remote_models,
+            "imaging_provider_strategy": self.imaging_provider_strategy,
             "abstention_threshold": self.abstention_threshold,
             "risk_threshold": self.risk_threshold,
             "calibration_bin_count": self.calibration_bin_count,
@@ -53,7 +55,7 @@ class RuntimeConfig:
         }
 
 
-def build_default_config(runtime_profile: str = "local_research", allow_remote_models: bool = False) -> RuntimeConfig:
+def build_default_config(runtime_profile: str = "local_research", allow_remote_models: bool = False, imaging_provider_strategy: str | None = None) -> RuntimeConfig:
     """Build a default runtime config with explicit placeholder services."""
     placeholders = {
         "volume_encoder": ServiceConfig(provider="api_for_service_volume_encoder"),
@@ -69,11 +71,15 @@ def build_default_config(runtime_profile: str = "local_research", allow_remote_m
         "a2a_router": ServiceConfig(provider="api_for_service_a2a_router"),
         "theoretical_quantum": ServiceConfig(provider="api_for_service_theoretical_quantum_module", enabled=False),
     }
+    if imaging_provider_strategy is None:
+        imaging_provider_strategy = "local_metadata"
     if runtime_profile == "remote_research":
         allow_remote_models = True
+        imaging_provider_strategy = "hybrid_multimodal" if imaging_provider_strategy == "local_metadata" else imaging_provider_strategy
         placeholders["theoretical_quantum"].enabled = True
     return RuntimeConfig(
         runtime_profile=runtime_profile,
         allow_remote_models=allow_remote_models,
+        imaging_provider_strategy=imaging_provider_strategy,
         service_registry=placeholders,
     )
