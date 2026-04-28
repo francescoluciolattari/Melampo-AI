@@ -38,8 +38,13 @@ class ClinicalPrototypeRunner:
     validator: PrototypeInputValidator = field(default_factory=PrototypeInputValidator)
 
     @classmethod
-    def from_profile(cls, runtime_profile: str = "local_research") -> "ClinicalPrototypeRunner":
-        return cls(config=build_default_config(runtime_profile=runtime_profile))
+    def from_profile(cls, runtime_profile: str = "local_research", imaging_strategy: str | None = None) -> "ClinicalPrototypeRunner":
+        return cls(
+            config=build_default_config(
+                runtime_profile=runtime_profile,
+                imaging_provider_strategy=imaging_strategy,
+            )
+        )
 
     def run_case(self, payload: Mapping[str, Any]) -> dict:
         validation = self.validator.validate(payload)
@@ -71,7 +76,10 @@ class ClinicalPrototypeRunner:
         }
 
 
-def run_prototype_case(payload: Mapping[str, Any], runtime_profile: str = "local_research") -> dict:
+def run_prototype_case(payload: Mapping[str, Any], runtime_profile: str = "local_research", imaging_strategy: str | None = None) -> dict:
     """Run one clinical research prototype case using the requested runtime profile."""
 
-    return ClinicalPrototypeRunner.from_profile(runtime_profile=runtime_profile).run_case(payload)
+    return ClinicalPrototypeRunner.from_profile(
+        runtime_profile=runtime_profile,
+        imaging_strategy=imaging_strategy,
+    ).run_case(payload)
