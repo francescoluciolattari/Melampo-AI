@@ -1,9 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from .neuro_dynamics import NeuroDynamicMetrics
 
 
 @dataclass
 class AreaCoherenceAnalyzer:
-    """Compute lightweight coherence and mismatch signals across functional areas."""
+    """Compute coherence, mismatch, and neuro-inspired interaction metrics across functional areas."""
+
+    metrics: NeuroDynamicMetrics = field(default_factory=NeuroDynamicMetrics)
 
     COHERENT_PAIRS = {
         ("language_listening", "visual_diagnostic"),
@@ -12,7 +16,7 @@ class AreaCoherenceAnalyzer:
         ("case_context", "epidemiology"),
     }
 
-    def analyze(self, area_signals: dict) -> dict:
+    def analyze(self, area_signals: dict, dream_pressure: float = 0.0) -> dict:
         names = sorted(area_signals.keys())
         coherence_pairs = []
         mismatch_pairs = []
@@ -47,6 +51,13 @@ class AreaCoherenceAnalyzer:
                     })
         coherence_score = round((len(coherence_pairs) / max(len(names), 1)) + total_salience * 0.05, 3)
         mismatch_score = round((len(mismatch_pairs) / max(len(names), 1)), 3)
+        neuro_dynamic_metrics = self.metrics.compute(
+            pair_profiles=pair_profiles,
+            coherence_score=coherence_score,
+            mismatch_score=mismatch_score,
+            total_salience=total_salience,
+            dream_pressure=dream_pressure,
+        )
         return {
             "coherence_pairs": coherence_pairs,
             "mismatch_pairs": mismatch_pairs,
@@ -54,4 +65,8 @@ class AreaCoherenceAnalyzer:
             "coherence_score": coherence_score,
             "mismatch_score": mismatch_score,
             "total_salience": round(total_salience, 3),
+            "neuro_dynamic_metrics": neuro_dynamic_metrics,
+            "pi_score": neuro_dynamic_metrics["pi_score"],
+            "prediction_error": neuro_dynamic_metrics["prediction_error"],
+            "precision_weighted_coherence": neuro_dynamic_metrics["precision_weighted_coherence"],
         }
