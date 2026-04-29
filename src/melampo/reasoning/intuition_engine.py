@@ -12,6 +12,15 @@ class IntuitionEngine:
     def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None, area_dynamics: dict | None = None) -> dict:
         area_signals = area_signals or {}
         area_dynamics = area_dynamics or {}
+        neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
+        pi_score = float(area_dynamics.get("pi_score", neuro_metrics.get("pi_score", 0.0)))
+        prediction_error = float(area_dynamics.get("prediction_error", neuro_metrics.get("prediction_error", 0.0)))
+        precision_weighted_coherence = float(area_dynamics.get("precision_weighted_coherence", neuro_metrics.get("precision_weighted_coherence", 0.0)))
+        deductive_gate = float(neuro_metrics.get("deductive_gate", 0.0))
+        revision_pressure = float(neuro_metrics.get("revision_pressure", 0.0))
+        intuition_gain = float(neuro_metrics.get("intuition_gain", 1.0))
+        bias_suppression_score = float(neuro_metrics.get("bias_suppression_score", 0.0))
+
         rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
         alternative_hypotheses = dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else []
         contradiction_rehearsal = bool(rehearsal_profile.get("contradiction_rehearsal", False))
@@ -31,7 +40,9 @@ class IntuitionEngine:
         area_ranking = []
         for name, payload in area_signals.items():
             signal_size = len(payload) if isinstance(payload, dict) else 1
-            area_ranking.append({"area": name, "weight": signal_size})
+            signal_count = int(payload.get("signal_count", signal_size)) if isinstance(payload, dict) else signal_size
+            salience = float(payload.get("salience_score", 0.0)) if isinstance(payload, dict) else 0.0
+            area_ranking.append({"area": name, "weight": signal_size + signal_count + salience})
         area_ranking.sort(key=lambda item: item["weight"], reverse=True)
         top_areas = [item["area"] for item in area_ranking[:2]]
 
@@ -52,17 +63,17 @@ class IntuitionEngine:
             area_pair_bonus = 0.15
         elif top_area_pair == ("case_context", "language_listening"):
             area_pair_bonus = 0.1
-        area_pair_bonus = round(area_pair_bonus + (0.1 * coherence_score_ext), 3)
+        area_pair_bonus = round(area_pair_bonus + (0.1 * coherence_score_ext) + (0.15 * pi_score), 3)
 
-        disagreement_penalty = round(max(conflict_score - 0.4, 0.0) + mismatch_score_ext * 0.1, 3)
+        disagreement_penalty = round(max(conflict_score - 0.4, 0.0) + mismatch_score_ext * 0.1 + prediction_error * 0.2, 3)
 
         rapid_intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
         rational_revision = inductive_candidates[1]["label"] if len(inductive_candidates) > 1 else rapid_intuition
         contradiction_revision = alternative_hypotheses[0]["label"] if alternative_hypotheses else rational_revision
 
-        rapid_score = round((inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0) + area_pair_bonus + convergence_score - disagreement_penalty, 3)
-        rational_score = round((inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0) + conflict_score + (0.2 if revision_bias == "conservative" else 0.0) + mismatch_score_ext * 0.1, 3)
-        contradiction_score = round((1.0 if contradiction_rehearsal else 0.0) + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0) + (0.1 * len(alternative_hypotheses)) + mismatch_score_ext * 0.2, 3)
+        rapid_score = round(((inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0) + area_pair_bonus + convergence_score + deductive_gate + bias_suppression_score * 0.1 - disagreement_penalty) * intuition_gain, 3)
+        rational_score = round((inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0) + conflict_score + (0.2 if revision_bias == "conservative" else 0.0) + mismatch_score_ext * 0.1 + revision_pressure * 0.2 + precision_weighted_coherence * 0.1, 3)
+        contradiction_score = round((1.0 if contradiction_rehearsal else 0.0) + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0) + (0.1 * len(alternative_hypotheses)) + mismatch_score_ext * 0.2 + prediction_error * 0.35, 3)
 
         candidate_scores = [
             {"mode": "rapid_intuition", "label": rapid_intuition, "score": rapid_score},
@@ -77,13 +88,20 @@ class IntuitionEngine:
         deductive_filter = {
             "kept": len(inductive_candidates),
             "rejected": max(len(ranked_evidence) - len(inductive_candidates), 0),
-            "criterion": "top_ranked_grounded_evidence",
+            "criterion": "top_ranked_grounded_evidence_with_neuro_dynamic_modulation",
             "active_areas": sorted(area_signals.keys()),
             "top_areas": top_areas,
             "convergence_score": convergence_score,
             "conflict_score": conflict_score,
             "coherence_score": coherence_score_ext,
             "mismatch_score": mismatch_score_ext,
+            "pi_score": pi_score,
+            "prediction_error": prediction_error,
+            "precision_weighted_coherence": precision_weighted_coherence,
+            "deductive_gate": deductive_gate,
+            "revision_pressure": revision_pressure,
+            "intuition_gain": intuition_gain,
+            "bias_suppression_score": bias_suppression_score,
             "area_pair_bonus": area_pair_bonus,
             "disagreement_penalty": disagreement_penalty,
             "contradiction_rehearsal": contradiction_rehearsal,
@@ -108,6 +126,11 @@ class IntuitionEngine:
                     "conflict_score": conflict_score,
                     "coherence_score": coherence_score_ext,
                     "mismatch_score": mismatch_score_ext,
+                    "pi_score": pi_score,
+                    "prediction_error": prediction_error,
+                    "precision_weighted_coherence": precision_weighted_coherence,
+                    "conflict_load": neuro_metrics.get("conflict_load", 0.0),
+                    "neuro_dynamic_metrics": neuro_metrics,
                     "area_pair_bonus": area_pair_bonus,
                     "disagreement_penalty": disagreement_penalty,
                     "contradiction_rehearsal": contradiction_rehearsal,
@@ -124,6 +147,9 @@ class IntuitionEngine:
                 "conflict_score": conflict_score,
                 "coherence_score": coherence_score_ext,
                 "mismatch_score": mismatch_score_ext,
+                "pi_score": pi_score,
+                "prediction_error": prediction_error,
+                "precision_weighted_coherence": precision_weighted_coherence,
                 "area_pair_bonus": area_pair_bonus,
                 "disagreement_penalty": disagreement_penalty,
                 "contradiction_rehearsal": contradiction_rehearsal,
@@ -158,6 +184,10 @@ class IntuitionEngine:
             "conflict_score": deductive.get("conflict_score", 0.0),
             "coherence_score": deductive.get("coherence_score", 0.0),
             "mismatch_score": deductive.get("mismatch_score", 0.0),
+            "pi_score": deductive.get("pi_score", 0.0),
+            "prediction_error": deductive.get("prediction_error", 0.0),
+            "precision_weighted_coherence": deductive.get("precision_weighted_coherence", 0.0),
+            "deductive_gate": deductive.get("deductive_gate", 0.0),
             "area_pair_bonus": deductive.get("area_pair_bonus", 0.0),
             "disagreement_penalty": deductive.get("disagreement_penalty", 0.0),
             "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),
