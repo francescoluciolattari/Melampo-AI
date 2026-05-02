@@ -39,18 +39,31 @@ Melampo should borrow architectural patterns from advanced enterprise AI and RAG
 
 ### Vector memory backend
 
-Recommended production backend: **Milvus/Zilliz**.
+Recommended production backend: **Weaviate**.
 
 Reasoning:
-- Melampo needs multimodal memory, not only text retrieval.
-- It needs real-time upserts for post-training memory.
-- It needs metadata filtering, hybrid search, reranking and future multi-vector fields for text, image, report, epidemiology and case-trace embeddings.
-- The repository now includes a dependency-free local fallback in `src/melampo/memory/vector_memory.py` so tests and offline prototyping remain stable.
+- Melampo prioritizes semantic knowledge, object-property relations, ontology-like clinical structure and multimodal context over raw vector throughput alone.
+- Clinical reasoning needs explicit relationships: a symptom can suggest multiple pathologies, a pathology can have many symptoms, a case can link reports, images, risk factors, epidemiology and differential hypotheses.
+- Weaviate's object-property model is better aligned with a clinical semantic memory where vectors, properties and references remain attached to the same searchable objects.
+- Melampo can store radiology image vectors, report text vectors, patient/context properties and ontology references such as SNOMED-like identifiers in one governed semantic object graph.
+- The repository includes a dependency-free local fallback in `src/melampo/memory/vector_memory.py` so tests and offline prototyping remain stable while the production adapter evolves.
 
 Alternative candidates:
+- Milvus/Zilliz: excellent for high-scale vector and hybrid-search workloads where throughput and multi-vector performance dominate over object-property ontology modeling.
 - Qdrant: excellent developer ergonomics and filtering; strong alternative for smaller deployments.
-- Weaviate: strong schema and hybrid-search ecosystem.
 - pgvector: useful when enterprise constraints require PostgreSQL-first deployments.
+
+### Target semantic schema
+
+The target Weaviate-style schema should evolve around object classes such as:
+
+- `Symptom`: name, description, SNOMED-like code, findings, linked pathologies.
+- `Pathology`: name, description, ontology code, symptoms, imaging patterns, risk factors.
+- `ClinicalCase`: case id, demographics, symptoms, reports, images, differential hypotheses.
+- `ImagingStudy`: modality, study id, image vectors, findings, linked case.
+- `ClinicalDocument`: source, section, text vector, mentioned symptoms and pathologies.
+
+This is intentionally more than vector search: it is semantic clinical memory. In medicine, a vector without context is risky; the memory layer should retrieve meaning, relationships and provenance together.
 
 ### Document processing backend
 
@@ -72,7 +85,7 @@ Recommended pattern: use Melampo's own `VectorMemoryStore` and `ClinicalDocument
 
 Reasoning:
 - Melampo's core must not depend on one RAG framework.
-- LlamaIndex/Haystack can be excellent integration layers, but clinical governance requires Melampo-owned provenance and promotion states.
+- LlamaIndex/Haystack can be excellent integration layers, but clinical governance requires Melampo-owned provenance, object relations and promotion states.
 
 ## Neuro-dynamic evolution
 
@@ -121,13 +134,14 @@ Promotion must never be automatic into clinical truth. A promoted dream trace sh
 ## Next engineering tasks
 
 1. Add unit tests for `NeuroDynamicMetrics`, `AreaCoherenceAnalyzer`, `IntuitionEngine`, `DreamTrainer` and `VectorMemoryStore`.
-2. Add a Milvus adapter behind the current vector-memory interface.
-3. Add a Docling adapter behind `ClinicalDocumentProcessor`.
-4. Add a curation workflow: document ingestion -> chunking -> embedding -> vector upsert -> retrieval -> evidence ranking -> audit trace.
-5. Add outcome feedback ingestion for reviewed cases.
-6. Add scheduled low-activity dream replay jobs with promotion guardrails.
-7. Add CI for linting, tests and package installation.
-8. Add formal model cards and dataset cards for every embedding/model backend.
+2. Add a Weaviate adapter behind the current vector-memory interface.
+3. Add an ontology schema bootstrap for Symptom, Pathology, ClinicalCase, ImagingStudy and ClinicalDocument objects.
+4. Add a Docling adapter behind `ClinicalDocumentProcessor`.
+5. Add a curation workflow: document ingestion -> chunking -> semantic object creation -> vector/object upsert -> retrieval -> evidence ranking -> audit trace.
+6. Add outcome feedback ingestion for reviewed cases.
+7. Add scheduled low-activity dream replay jobs with promotion guardrails.
+8. Add CI for linting, tests and package installation.
+9. Add formal model cards and dataset cards for every embedding/model backend.
 
 ## Enterprise-grade definition for Melampo
 
