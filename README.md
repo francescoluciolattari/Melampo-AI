@@ -70,21 +70,40 @@ The repository currently includes:
 - Confidence calibration evaluator.
 - CLI commands and CI workflow.
 
-## CLI commands
+## Installation profiles
+
+Melampo keeps the core scaffold lightweight and moves heavy research/enterprise dependencies into optional extras. Three requirements files are provided:
+
+```bash
+# Baseline development and CI profile
+python -m pip install -r requirements.txt
+
+# Research profile: dev + clinical metadata + Docling + Weaviate retrieval + visualization
+python -m pip install -r requirements-research.txt
+
+# Full enterprise profile: all optional research, imaging, ML, API, quantum and visualization extras
+python -m pip install -r requirements-enterprise.txt
+```
+
+Equivalent direct editable installs:
 
 ```bash
 pip install -e .[dev]
+pip install -e .[dev,clinical,document,retrieval,viz]
+pip install -e .[enterprise]
+```
+
+The enterprise profile may require platform-specific CPU/GPU choices for PyTorch, imaging and scientific-computing wheels.
+
+## CLI commands
+
+```bash
+pip install -r requirements.txt
 pytest -q
 
 melampo-prototype examples/prototype_case.json
 melampo-decision-record
 melampo-weaviate-schema
-```
-
-Optional extras are available for enterprise/research integrations:
-
-```bash
-pip install -e .[enterprise]
 ```
 
 ## Documentation map
