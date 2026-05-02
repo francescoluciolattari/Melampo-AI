@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Melampo Documentation</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; max-width: 960px; margin: 3rem auto; padding: 0 1.5rem; color: #1f2937; }
+    h1, h2 { color: #111827; }
+    code { background: #f3f4f6; padding: 0.1rem 0.25rem; border-radius: 0.25rem; }
+    .warning { border-left: 4px solid #b45309; background: #fffbeb; padding: 1rem; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Project Melampo Documentation</h1>
+  <p><strong>From Attention to Intuition</strong> — enterprise-grade research scaffold for multimodal, multimodel clinical intuition.</p>
+
+  <div class="warning">
+    <strong>Safety boundary:</strong> Melampo is a research scaffold. It is not a validated medical device and must not be used for autonomous clinical diagnosis or patient-care decisions without formal validation, regulatory review and human specialist oversight.
+  </div>
+
+  <h2>Start here</h2>
+  <ul>
+    <li><a href="../README.md">Project overview</a></li>
+    <li><a href="architecture.md">Current architecture</a></li>
+    <li><a href="final_treatise_decision_record.md">Final treatise decision record</a></li>
+  </ul>
+
+  <h2>Enterprise AI / RAG direction</h2>
+  <ul>
+    <li><a href="enterprise_ai_rag_evolution.md">Enterprise AI/RAG evolution plan</a></li>
+    <li><a href="core_consolidation_map.md">Core consolidation map</a></li>
+  </ul>
+
+  <h2>Validation and governance</h2>
+  <ul>
+    <li><a href="validation/clinical_benchmarking_and_prospective_validation.md">Clinical benchmarking, prospective validation and calibration</a></li>
+    <li><a href="model_cards/melampo_model_stack_card.md">Model stack card</a></li>
+    <li><a href="dataset_cards/clinical_memory_dataset_card.md">Clinical memory dataset card</a></li>
+  </ul>
+
+  <h2>Current implementation anchors</h2>
+  <ul>
+    <li><code>src/melampo/reasoning/diagnostic_orchestrator.py</code></li>
+    <li><code>src/melampo/orchestration/model_capability_registry.py</code></li>
+    <li><code>src/melampo/memory/weaviate_schema.py</code></li>
+    <li><code>src/melampo/evaluation/clinical_benchmark.py</code></li>
+    <li><code>src/melampo/evaluation/prospective_validation.py</code></li>
+    <li><code>src/melampo/evaluation/calibration.py</code></li>
+  </ul>
+</body>
+</html>
