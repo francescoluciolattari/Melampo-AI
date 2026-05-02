@@ -15,6 +15,7 @@ from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.dream_trainer import DreamTrainer
 from ..training.replay_filter import ReplayFilter
 from .area_coherence import AreaCoherenceAnalyzer
+from .diagnostic_orchestrator import MelampoDiagnosticOrchestrator
 from .differential_engine import DifferentialEngine
 from .escalation import EscalationPolicy
 from .intuition_engine import IntuitionEngine
@@ -68,6 +69,7 @@ class ClinicalInferencePipeline:
         context_area = CaseContextArea()
         epidemiology_area = EpidemiologyArea()
         area_coherence = AreaCoherenceAnalyzer()
+        diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
@@ -164,7 +166,7 @@ class ClinicalInferencePipeline:
             area_dynamics=area_dynamics,
         )
         critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "area_dynamics": area_dynamics, "dream": dream})
-        return {
+        pipeline_result = {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),
             "text_features": text_features,
@@ -182,3 +184,5 @@ class ClinicalInferencePipeline:
             "quantum_allowed": quantum_allowed,
             "dream": dream,
         }
+        pipeline_result["diagnostic_result"] = diagnostic_orchestrator.orchestrate(pipeline_result)
+        return pipeline_result
