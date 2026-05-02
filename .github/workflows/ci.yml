@@ -7,9 +7,11 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  smoke:
+    name: Enterprise smoke (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
@@ -26,9 +28,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[dev]
 
-      - name: Run tests
+      - name: Validate import boundaries
         run: |
-          pytest -q
+          python - <<'PY'
+          import melampo
+          from melampo.cli import main_decision_record, main_weaviate_schema
+          from melampo.orchestration.model_capability_registry import ModelCapabilityRegistry
+          from melampo.memory.weaviate_schema import MelampoWeaviateSchema
+          assert "build_default_runtime" in melampo.__all__
+          assert ModelCapabilityRegistry.build_default().decision_record()["final_diagnostic_authority"] == "MelampoDiagnosticOrchestrator"
+          assert "ClinicalCase" in MelampoWeaviateSchema().class_names()
+          PY
+
+      - name: Run enterprise smoke tests
+        run: |
+          pytest -q \
+            tests/test_enterprise_orchestration.py \
+            tests/test_enterprise_adapters.py \
+            tests/test_validation_primitives.py
 
       - name: Validate enterprise CLI commands
         run: |
