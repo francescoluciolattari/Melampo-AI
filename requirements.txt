@@ -1,3 +1,10 @@
-# Minimal baseline requirements for Project Melampo scaffold
-# Add framework-specific dependencies as implementation progresses.
+# Project Melampo baseline requirements
+#
+# This file installs the editable package plus development/test tooling only.
+# The core scaffold intentionally keeps heavy AI, imaging, RAG, API and quantum
+# dependencies optional through pyproject.toml extras.
+#
+# Usage:
+#   python -m pip install -r requirements.txt
 
+-e .[dev]
