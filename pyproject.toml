@@ -30,9 +30,12 @@ document = [
   "docling>=2.0",
 ]
 retrieval = [
-  "pymilvus>=2.4",
+  "weaviate-client>=4.5",
   "faiss-cpu>=1.8",
   "sentence-transformers>=2.6",
+]
+retrieval-milvus = [
+  "pymilvus>=2.4",
 ]
 imaging = [
   "pydicom>=2.4",
@@ -75,7 +78,7 @@ enterprise = [
   "pydantic-settings>=2.2",
   "PyYAML>=6.0",
   "docling>=2.0",
-  "pymilvus>=2.4",
+  "weaviate-client>=4.5",
   "faiss-cpu>=1.8",
   "sentence-transformers>=2.6",
   "pydicom>=2.4",
