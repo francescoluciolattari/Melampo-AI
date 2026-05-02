@@ -108,6 +108,8 @@ enterprise = [
 melampo-prototype = "melampo.cli:main"
 melampo-prototype-cxr = "melampo.cli:main_cxr"
 melampo-prototype-openi = "melampo.cli:main_openi"
+melampo-weaviate-schema = "melampo.cli:main_weaviate_schema"
+melampo-decision-record = "melampo.cli:main_decision_record"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
