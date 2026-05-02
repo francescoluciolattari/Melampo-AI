@@ -22,7 +22,7 @@ def _text_embedding(text: str, dimensions: int = 128) -> list[float]:
 
     This is intentionally simple and dependency-free. Production deployments
     should replace it with a governed multimodal embedding provider while
-    preserving the same document contract.
+    preserving the same document/object contract.
     """
 
     buckets = [0.0 for _ in range(dimensions)]
@@ -64,15 +64,17 @@ class VectorMemoryRecord:
     def as_evidence(self, score: float, rank: int) -> dict[str, Any]:
         return {
             "source": "vector_memory",
-            "kind": "multimodal_rag_hit",
+            "kind": "object_property_rag_hit",
             "value": self.text[:500],
-            "route": "post_training_memory_recall",
+            "route": "post_training_semantic_memory_recall",
             "focus": self.metadata.get("focus", "multimodal_context"),
             "grounding_score": score,
             "rank": rank,
             "record_id": self.record_id,
             "modality": self.modality,
             "learning_status": self.learning_status,
+            "ontology_refs": self.metadata.get("ontology_refs", []),
+            "relations": self.metadata.get("relations", []),
             "metadata": self.metadata,
         }
 
@@ -89,29 +91,44 @@ class HashingEmbeddingModel:
 
 @dataclass(slots=True)
 class InMemoryVectorStore:
-    """Provider-neutral vector memory substrate for RAG and continuous learning.
+    """Provider-neutral semantic vector memory for RAG and continuous learning.
 
-    Recommended production backend: Milvus/Zilliz because Melampo needs
-    multimodal, multi-vector and hybrid search, metadata filtering, reranking,
-    and scalable real-time upserts. The in-memory implementation is a safe
-    dependency-free fallback used for tests, local research and air-gapped
-    prototyping.
+    Recommended production backend: Weaviate. Melampo prioritizes semantic
+    knowledge, ontology-aware object-property relations, clinical context, and
+    multimodal objects where text, image vectors, patient properties and
+    SNOMED-like hierarchy references must remain connected in one searchable
+    object graph. The in-memory implementation is a safe dependency-free
+    fallback used for tests, local research and air-gapped prototyping.
     """
 
     embedding_model: HashingEmbeddingModel = field(default_factory=HashingEmbeddingModel)
     backend: str = "local_in_memory"
-    recommended_enterprise_backend: str = "milvus_or_zilliz_multi_vector_hybrid_search"
-    collection_name: str = "melampo_multimodal_clinical_memory"
+    recommended_enterprise_backend: str = "weaviate_object_property_semantic_graph_rag"
+    collection_name: str = "melampo_semantic_clinical_memory"
     records: dict[str, VectorMemoryRecord] = field(default_factory=dict)
     update_log: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def enterprise_default(cls) -> "InMemoryVectorStore":
         return cls(
-            backend="milvus_or_zilliz_recommended_with_local_fallback",
-            recommended_enterprise_backend="milvus_or_zilliz_multi_vector_hybrid_search",
-            collection_name="melampo_multimodal_clinical_memory",
+            backend="weaviate_recommended_with_local_fallback",
+            recommended_enterprise_backend="weaviate_object_property_semantic_graph_rag",
+            collection_name="melampo_semantic_clinical_memory",
         )
+
+    def ontology_schema_hint(self) -> dict[str, Any]:
+        """Return the target Weaviate-style object-property schema concept."""
+        return {
+            "backend": "Weaviate",
+            "classes": {
+                "Symptom": ["name", "description", "snomed_code", "hasFinding", "suggestsPathology"],
+                "Pathology": ["name", "description", "snomed_code", "hasSymptom", "hasImagingPattern", "hasRiskFactor"],
+                "ClinicalCase": ["case_id", "demographics", "hasSymptom", "hasReport", "hasImage", "hasDifferential"],
+                "ImagingStudy": ["study_id", "modality", "image_vector", "hasFinding", "belongsToCase"],
+                "ClinicalDocument": ["source", "section", "text_vector", "mentionsSymptom", "mentionsPathology"],
+            },
+            "rationale": "preserve semantic relations and clinical context together with vectors",
+        }
 
     def upsert_text(self, record_id: str, text: str, metadata: dict | None = None, source: str = "unknown", learning_status: str = "candidate") -> dict:
         record = self.upsert(
@@ -146,6 +163,8 @@ class InMemoryVectorStore:
             "modality": modality,
             "source": source,
             "learning_status": record.learning_status,
+            "ontology_refs": metadata.get("ontology_refs", []),
+            "relation_count": len(metadata.get("relations", [])) if isinstance(metadata.get("relations", []), list) else 0,
             "metadata_keys": sorted(metadata.keys()),
             "timestamp": now,
         })
@@ -192,6 +211,7 @@ class InMemoryVectorStore:
             "hits": hits,
             "backend": self.backend,
             "embedding_model": "local_deterministic_fallback",
+            "target_backend": "Weaviate object-property semantic graph RAG",
         }
 
     def promote(self, record_id: str, reason: str) -> dict:
@@ -221,6 +241,9 @@ class InMemoryVectorStore:
                 "case_id": case_id,
                 "focus": "multimodal_context",
                 "memory_role": "post_training_case_trace",
+                "relations": [
+                    {"from": f"case:{case_id}", "predicate": "hasClinicalTrace", "to": "clinical_pipeline_result"},
+                ],
             },
             modality="multimodal_case_trace",
             source="clinical_pipeline",
@@ -241,6 +264,8 @@ class InMemoryVectorStore:
             "embedding_dimensions": self.embedding_model.dimensions,
             "supports_real_time_updates": True,
             "supports_multimodal_metadata": True,
+            "supports_object_property_semantics": True,
+            "supports_ontology_relation_metadata": True,
             "fallback_mode": "dependency_free_in_memory",
         }
 
