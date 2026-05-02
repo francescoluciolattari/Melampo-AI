@@ -1,0 +1,13 @@
+# Project Melampo enterprise requirements
+#
+# Installs the editable package with all optional enterprise/research extras:
+# development tooling, clinical metadata support, Docling, Weaviate retrieval,
+# imaging, ML, API, quantum research and visualization dependencies.
+#
+# This profile can be large and may require platform-specific wheels or GPU/CPU
+# choices for PyTorch and medical-imaging libraries.
+#
+# Usage:
+#   python -m pip install -r requirements-enterprise.txt
+
+-e .[enterprise]
