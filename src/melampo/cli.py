@@ -7,6 +7,8 @@ from typing import Any
 
 from .datasets.chestxray14_loader import ChestXray14CsvLoader
 from .datasets.openi_loader import OpenIReportCsvLoader
+from .memory.weaviate_adapter import WeaviateAdapterConfig, WeaviateSemanticMemoryAdapter
+from .orchestration.model_capability_registry import ModelCapabilityRegistry
 from .prototype import run_prototype_case
 
 IMAGING_STRATEGIES = [
@@ -142,6 +144,28 @@ def build_openi_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_weaviate_schema_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Inspect or prepare Melampo's Weaviate semantic-memory schema.")
+    parser.add_argument("--endpoint", default=None, help="Optional Weaviate endpoint. No network call is made unless --execute is passed.")
+    parser.add_argument("--api-key-env", default=None, help="Optional environment variable name containing the Weaviate API key.")
+    parser.add_argument("--execute", action="store_true", help="Attempt live schema materialization. Requires an infrastructure subclass in production.")
+    parser.add_argument("--output", default=None, help="Optional path to write schema JSON.")
+    return parser
+
+
+def build_decision_record_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Print Melampo's enterprise model decision record.")
+    parser.add_argument("--output", default=None, help="Optional path to write decision record JSON.")
+    return parser
+
+
+def _emit_json(payload: dict[str, Any], output_path: str | None = None) -> None:
+    text = json.dumps(payload, indent=2, sort_keys=True, default=str)
+    if output_path:
+        Path(output_path).write_text(text + "\n", encoding="utf-8")
+    print(text)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -197,6 +221,30 @@ def main_openi(argv: list[str] | None = None) -> int:
     }
     print(json.dumps(output, indent=2, sort_keys=True, default=str))
     return exit_code
+
+
+def main_weaviate_schema(argv: list[str] | None = None) -> int:
+    parser = build_weaviate_schema_parser()
+    args = parser.parse_args(argv)
+    adapter = WeaviateSemanticMemoryAdapter(
+        config=WeaviateAdapterConfig(
+            endpoint=args.endpoint,
+            api_key_env=args.api_key_env,
+            enabled=bool(args.execute),
+            dry_run=not bool(args.execute),
+        )
+    )
+    payload = adapter.materialize_schema() if args.execute else adapter.prepare_schema_materialization()
+    _emit_json(payload, output_path=args.output)
+    return 0
+
+
+def main_decision_record(argv: list[str] | None = None) -> int:
+    parser = build_decision_record_parser()
+    args = parser.parse_args(argv)
+    payload = ModelCapabilityRegistry.build_default().decision_record()
+    _emit_json(payload, output_path=args.output)
+    return 0
 
 
 if __name__ == "__main__":
