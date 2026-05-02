@@ -1,0 +1,11 @@
+# Project Melampo research requirements
+#
+# Installs the editable package with development tools, clinical metadata
+# support, document ingestion, semantic retrieval and visualization.
+# This profile is suitable for research notebooks, validation scaffolds and
+# local RAG/document experiments without installing the full imaging/ML stack.
+#
+# Usage:
+#   python -m pip install -r requirements-research.txt
+
+-e .[dev,clinical,document,retrieval,viz]
