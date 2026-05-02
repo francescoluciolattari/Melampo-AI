@@ -4,9 +4,15 @@ This index links the current documentation set for Project Melampo's enterprise-
 
 ## Start here
 
-- [`../README.md`](../README.md) - project overview, architecture, CLI and roadmap.
+- [`../README.md`](../README.md) - project overview, architecture, installation profiles, CLI and roadmap.
 - [`architecture.md`](architecture.md) - current architecture and module responsibilities.
 - [`final_treatise_decision_record.md`](final_treatise_decision_record.md) - canonical decisions for the final treatise.
+
+## Installation profiles
+
+- [`../requirements.txt`](../requirements.txt) - baseline development and CI profile: `-e .[dev]`.
+- [`../requirements-research.txt`](../requirements-research.txt) - research profile: development, clinical metadata, document ingestion, retrieval and visualization.
+- [`../requirements-enterprise.txt`](../requirements-enterprise.txt) - full enterprise profile: all optional research, imaging, ML, API, quantum and visualization extras.
 
 ## Enterprise AI / RAG direction
 
