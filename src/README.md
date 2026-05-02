@@ -13,6 +13,31 @@ The source tree preserves the original Melampo vision while adding explicit prov
 5. **Typed and auditable outputs**: every major module emits structured dictionaries with provenance, limitations and governance metadata.
 6. **Research-safe expansion**: optional theoretical-quantum and external-provider paths remain isolated behind interfaces.
 
+## Installation profiles
+
+Use the profile that matches the work being performed:
+
+```bash
+# Baseline scaffold, tests and CI
+python -m pip install -r requirements.txt
+
+# Research profile: clinical metadata, document ingestion, Weaviate retrieval and visualization
+python -m pip install -r requirements-research.txt
+
+# Full enterprise profile: all optional imaging, ML, API, quantum and visualization extras
+python -m pip install -r requirements-enterprise.txt
+```
+
+The same profiles map to `pyproject.toml` extras:
+
+```bash
+pip install -e .[dev]
+pip install -e .[dev,clinical,document,retrieval,viz]
+pip install -e .[enterprise]
+```
+
+The full enterprise profile may require platform-specific wheels or GPU/CPU choices for PyTorch and medical-imaging dependencies.
+
 ## Canonical flow
 
 ```text
