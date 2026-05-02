@@ -35,6 +35,31 @@ External models such as Pillar-0, Gemma 4, Claude-style critics, Weaviate and Do
 
 Final research output authority belongs to `MelampoDiagnosticOrchestrator`.
 
+## Installation profiles
+
+Use the smallest profile that supports the change being developed:
+
+```bash
+# Baseline scaffold, tests and CI
+python -m pip install -r requirements.txt
+
+# Research profile: clinical metadata, document ingestion, Weaviate retrieval and visualization
+python -m pip install -r requirements-research.txt
+
+# Full enterprise profile: all optional imaging, ML, API, quantum and visualization extras
+python -m pip install -r requirements-enterprise.txt
+```
+
+The requirements files map to `pyproject.toml` extras:
+
+```bash
+pip install -e .[dev]
+pip install -e .[dev,clinical,document,retrieval,viz]
+pip install -e .[enterprise]
+```
+
+The full enterprise profile can be large and may require platform-specific CPU/GPU wheels.
+
 ## High-priority contribution areas
 
 ### 1. Enterprise-safe model adapters
@@ -110,22 +135,26 @@ Any architectural change should update relevant documentation:
 - `docs/final_treatise_decision_record.md`
 - model cards or dataset cards when applicable
 
+Dependency changes should update:
+
+- `pyproject.toml`
+- `requirements.txt`
+- `requirements-research.txt`
+- `requirements-enterprise.txt`
+- installation notes in `README.md` and `src/README.md`
+
 ## Testing
 
-Run:
+Run the baseline profile:
 
 ```bash
-pip install -e .[dev]
+python -m pip install -r requirements.txt
 pytest -q
 melampo-decision-record
 melampo-weaviate-schema
 ```
 
-Optional enterprise dependencies may be installed with:
-
-```bash
-pip install -e .[enterprise]
-```
+For research and enterprise integrations, install the corresponding profile before running integration-specific tests.
 
 ## Pull request checklist
 
@@ -136,6 +165,7 @@ Before opening a pull request, confirm:
 - [ ] clinical safety language remains accurate;
 - [ ] external models are not treated as final arbiters;
 - [ ] provenance and limitations are preserved;
+- [ ] dependency profiles are updated when dependencies change;
 - [ ] tests were added or updated;
 - [ ] documentation was updated;
 - [ ] CLI behavior remains backward compatible.
