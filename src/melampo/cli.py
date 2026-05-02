@@ -5,12 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .datasets.chestxray14_loader import ChestXray14CsvLoader
-from .datasets.openi_loader import OpenIReportCsvLoader
-from .memory.weaviate_adapter import WeaviateAdapterConfig, WeaviateSemanticMemoryAdapter
-from .orchestration.model_capability_registry import ModelCapabilityRegistry
-from .prototype import run_prototype_case
-
 IMAGING_STRATEGIES = [
     "local_metadata",
     "local_pixels",
@@ -61,6 +55,8 @@ def _strip_raw(result: dict, include_raw: bool) -> dict:
 
 
 def _run_payloads(payloads: list[dict], runtime_profile: str, include_raw: bool, imaging_strategy: str | None = None) -> tuple[int, list[dict]]:
+    from .prototype import run_prototype_case
+
     results = []
     exit_code = 0
     for payload in payloads:
@@ -167,6 +163,8 @@ def _emit_json(payload: dict[str, Any], output_path: str | None = None) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .prototype import run_prototype_case
+
     parser = build_parser()
     args = parser.parse_args(argv)
     payload = _load_payload(args.input_json)
@@ -178,6 +176,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def main_cxr(argv: list[str] | None = None) -> int:
+    from .datasets.chestxray14_loader import ChestXray14CsvLoader
+
     parser = build_cxr_parser()
     args = parser.parse_args(argv)
     loader = ChestXray14CsvLoader(image_root=args.image_root)
@@ -201,6 +201,8 @@ def main_cxr(argv: list[str] | None = None) -> int:
 
 
 def main_openi(argv: list[str] | None = None) -> int:
+    from .datasets.openi_loader import OpenIReportCsvLoader
+
     parser = build_openi_parser()
     args = parser.parse_args(argv)
     loader = OpenIReportCsvLoader(image_root=args.image_root)
@@ -224,6 +226,8 @@ def main_openi(argv: list[str] | None = None) -> int:
 
 
 def main_weaviate_schema(argv: list[str] | None = None) -> int:
+    from .memory.weaviate_adapter import WeaviateAdapterConfig, WeaviateSemanticMemoryAdapter
+
     parser = build_weaviate_schema_parser()
     args = parser.parse_args(argv)
     adapter = WeaviateSemanticMemoryAdapter(
@@ -240,6 +244,8 @@ def main_weaviate_schema(argv: list[str] | None = None) -> int:
 
 
 def main_decision_record(argv: list[str] | None = None) -> int:
+    from .orchestration.model_capability_registry import ModelCapabilityRegistry
+
     parser = build_decision_record_parser()
     args = parser.parse_args(argv)
     payload = ModelCapabilityRegistry.build_default().decision_record()
