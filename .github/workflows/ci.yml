@@ -46,7 +46,8 @@ jobs:
             tests/test_enterprise_orchestration.py \
             tests/test_enterprise_adapters.py \
             tests/test_validation_primitives.py \
-            tests/test_phase1_p0_core_alignment.py
+            tests/test_phase1_p0_core_alignment.py \
+            tests/test_phase2_enterprise_rag.py
 
       - name: Validate enterprise CLI commands
         run: |
