@@ -5,6 +5,23 @@ from dataclasses import dataclass
 class SupportContradictionAnalyzer:
     """Build lightweight support and contradiction signals from evidence and area dynamics."""
 
+    GROUNDED_SUPPORT_SOURCES = {
+        "bundle",
+        "retrieval",
+        "fusion",
+        "service",
+        "semantic_memory",
+        "vector_memory",
+        "weaviate",
+        "knowledge_graph",
+        "clinical_document_processor",
+    }
+
+    def _payload(self, item: dict) -> dict:
+        if isinstance(item, dict) and isinstance(item.get("item"), dict):
+            return item["item"]
+        return item if isinstance(item, dict) else {}
+
     def analyze(self, evidence: list, intuition: dict | None = None, dream: dict | None = None, area_dynamics: dict | None = None) -> dict:
         intuition = intuition or {}
         dream = dream or {}
@@ -15,27 +32,37 @@ class SupportContradictionAnalyzer:
         coherence_score = float(area_dynamics.get("coherence_score", 0.0))
         mismatch_pairs = area_dynamics.get("mismatch_pairs", [])
         coherence_pairs = area_dynamics.get("coherence_pairs", [])
+        neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
+        mismatch_index = float(neuro_metrics.get("mismatch_index", mismatch_score))
         rehearsal_profile = dream.get("rehearsal_profile", {})
 
         support_profiles = []
         contradiction_profiles = []
 
         for item in evidence:
-            if not isinstance(item, dict):
+            payload = self._payload(item)
+            if not payload:
                 continue
-            source = item.get("source", "unknown")
-            kind = item.get("kind", "signal")
-            if source in ["bundle", "retrieval", "fusion", "service"]:
+            source = payload.get("source", "unknown")
+            kind = payload.get("kind", "signal")
+            grounding_score = float(payload.get("grounding_score", 0.5))
+            if source in self.GROUNDED_SUPPORT_SOURCES:
                 support_profiles.append({
                     "label": f"{source}:{kind}",
                     "class": "grounded_support",
-                    "strength": 0.2,
+                    "strength": round(0.15 + min(grounding_score, 1.0) * 0.18, 3),
                 })
             if source == "intuition" and reasoning_mode == "contradiction_revision":
                 contradiction_profiles.append({
                     "label": "intuition:contradiction_revision",
                     "class": "useful_contradiction",
                     "strength": 0.4,
+                })
+            if payload.get("contradiction_score", 0.0):
+                contradiction_profiles.append({
+                    "label": f"{source}:explicit_contradiction",
+                    "class": "useful_contradiction",
+                    "strength": round(min(float(payload.get("contradiction_score", 0.0)), 1.0) * 0.4, 3),
                 })
 
         if coherence_score > 0.4:
@@ -53,7 +80,8 @@ class SupportContradictionAnalyzer:
                 "strength": 0.25,
             })
 
-        if mismatch_score > 0.6:
+        effective_mismatch = max(mismatch_score, mismatch_index)
+        if effective_mismatch > 0.6:
             contradiction_profiles.append({
                 "label": "areas:high_mismatch",
                 "class": "useful_contradiction",
@@ -65,7 +93,7 @@ class SupportContradictionAnalyzer:
                     "class": "useful_contradiction",
                     "strength": 0.35,
                 })
-        elif mismatch_score > 0.3:
+        elif effective_mismatch > 0.3:
             contradiction_profiles.append({
                 "label": "areas:moderate_mismatch",
                 "class": "weak_contradiction",

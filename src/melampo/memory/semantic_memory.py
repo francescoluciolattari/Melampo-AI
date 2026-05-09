@@ -6,7 +6,7 @@ from .vector_memory import InMemoryVectorStore
 @dataclass
 class SemanticMemoryStore:
     documents: list = field(default_factory=list)
-    vector_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore)
+    vector_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore.enterprise_default)
 
     def add_document(self, item: dict) -> None:
         self.documents.append(item)

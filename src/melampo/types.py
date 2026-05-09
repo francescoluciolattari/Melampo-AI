@@ -13,6 +13,32 @@ class Modality(str, Enum):
     REPORT_TEXT = "report_text"
     LABS = "labs"
     DEMOGRAPHICS = "demographics"
+    CR = "CR"
+    DX = "DX"
+    XR = "XR"
+    CT = "CT"
+    MR = "MR"
+    US = "US"
+    PT = "PT"
+    DICOM = "DICOM"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            aliases = {
+                "CHEST_XRAY": "CR",
+                "CXR": "CR",
+                "XRAY": "XR",
+                "X_RAY": "XR",
+                "MRI": "MR",
+                "PET": "PT",
+            }
+            normalized = aliases.get(normalized, normalized)
+            for member in cls:
+                if member.value == normalized or member.name == normalized:
+                    return member
+        return None
 
 
 class SyntheticCaseType(str, Enum):

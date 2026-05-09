@@ -45,21 +45,10 @@ class AreaInteractionPrior:
 class NeuroDynamicMetrics:
     """Neuro-inspired interaction metrics for Melampo functional areas.
 
-    The model converts area salience and pairwise coherence/mismatch into
-    explicit, auditable signals used by intuition, dream replay, differential
-    ranking, and belief update:
-
-    - pi_score: predictive-inference quality score.
-    - precision_weighted_coherence: coherence weighted by signal precision.
-    - prediction_error: mismatch load after area-prior modulation.
-    - conflict_load: residual unresolved cross-area conflict.
-    - deductive_gate: strength of slow, controlled, evidence-preserving thought.
-    - revision_pressure: pressure to re-rank alternatives and trigger dream replay.
-    - bias_suppression_score: proxy for inhibition of noisy or biased candidates.
-
-    This is a computational abstraction for research software. It must not be
-    interpreted as a validated biological or clinical model without empirical
-    calibration, prospective testing, and medical governance.
+    Phase-1/P0 upgrade: pair profiles may now include dynamic agreement,
+    contradiction and missing-evidence scores. These values modulate the
+    excitatory/mismatch masses instead of relying only on a static coherent vs
+    mismatch label.
     """
 
     precision_gain: float = 0.6
@@ -95,7 +84,7 @@ class NeuroDynamicMetrics:
             mismatch_sensitivity=0.5,
             rationale="demographics and exposure priors constrain prevalence reasoning",
         ),
-        ("language_listening", "epidemiology"): AreaInteractionPrior(
+        ("epidemiology", "language_listening"): AreaInteractionPrior(
             excitatory_weight=0.1,
             inhibitory_weight=0.04,
             expected_precision=0.64,
@@ -164,25 +153,40 @@ class NeuroDynamicMetrics:
             salience = _safe_float(profile.get("pair_salience", 0.0))
             signals = _safe_int(profile.get("pair_signal_count", 0))
             status = profile.get("status", "mismatch")
+            agreement_score = _clamp(_safe_float(profile.get("agreement_score", 1.0 if status == "coherent" else 0.0)))
+            contradiction_score = _clamp(_safe_float(profile.get("contradiction_score", 1.0 if status != "coherent" else 0.0)))
+            missing_evidence_score = _clamp(_safe_float(profile.get("missing_evidence_score", 0.0)))
+            dynamic_mismatch_score = _clamp(
+                _safe_float(
+                    profile.get(
+                        "dynamic_mismatch_score",
+                        max(contradiction_score, missing_evidence_score * 0.6, (1.0 - agreement_score) * 0.35),
+                    )
+                )
+            )
             normalized_salience = _clamp(salience / max(total_salience + 1.0, 1.0))
-            expected_precision_mass += prior.expected_precision * normalized_salience
-            mismatch_sensitivity_mass += prior.mismatch_sensitivity * normalized_salience
+            expected_precision_mass += prior.expected_precision * normalized_salience * (0.55 + agreement_score * 0.45)
+            mismatch_sensitivity_mass += prior.mismatch_sensitivity * normalized_salience * (0.45 + dynamic_mismatch_score * 0.55)
 
             if status == "coherent":
-                coherent_salience += salience * (1.0 + prior.excitatory_weight)
+                coherent_salience += salience * (1.0 + prior.excitatory_weight) * (0.45 + agreement_score * 0.55)
                 coherent_signal_count += signals
-                excitatory_mass += prior.excitatory_weight * normalized_salience
-                coupling_score = _clamp(normalized_salience + prior.excitatory_weight + prior.expected_precision * 0.1)
+                excitatory_mass += prior.excitatory_weight * normalized_salience * (0.5 + agreement_score * 0.5)
+                coupling_score = _clamp(normalized_salience + prior.excitatory_weight + prior.expected_precision * 0.1 + agreement_score * 0.2)
             else:
-                mismatch_salience += salience * (1.0 + prior.mismatch_sensitivity)
+                mismatch_salience += salience * (1.0 + prior.mismatch_sensitivity) * (0.55 + dynamic_mismatch_score * 0.45)
                 mismatch_signal_count += signals
-                inhibitory_mass += prior.inhibitory_weight * normalized_salience
-                coupling_score = _clamp(normalized_salience - prior.mismatch_sensitivity * 0.2)
+                inhibitory_mass += prior.inhibitory_weight * normalized_salience * (0.5 + dynamic_mismatch_score * 0.5)
+                coupling_score = _clamp(normalized_salience - prior.mismatch_sensitivity * 0.15 - dynamic_mismatch_score * 0.2)
 
             interaction_profiles.append({
                 "pair": list(pair),
                 "status": status,
                 "coupling_score": round(coupling_score, 3),
+                "agreement_score": round(agreement_score, 3),
+                "contradiction_score": round(contradiction_score, 3),
+                "missing_evidence_score": round(missing_evidence_score, 3),
+                "dynamic_mismatch_score": round(dynamic_mismatch_score, 3),
                 "expected_precision": prior.expected_precision,
                 "mismatch_sensitivity": prior.mismatch_sensitivity,
                 "rationale": prior.rationale,
@@ -260,5 +264,6 @@ class NeuroDynamicMetrics:
             "mismatch_signal_count": mismatch_signal_count,
             "interaction_profiles": interaction_profiles,
             "area_state": area_state,
-            "interpretation": "computational_abstraction_not_literal_neurobiology_or_clinical_validation",
+            "interpretation": "computational_abstraction_not_literal_neurobiology",
+            "clinical_validation_status": "research_scaffold_not_clinically_validated",
         }

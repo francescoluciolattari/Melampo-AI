@@ -80,11 +80,14 @@ class IntuitionEngine:
         area_pair_bonus = round(area_pair_bonus + (0.08 * coherence_score_ext) + (0.12 * pi_score) + convergence_index * 0.18, 3)
 
         disagreement_penalty = round(
-            max(conflict_score - 0.4, 0.0)
-            + mismatch_score_ext * 0.08
-            + prediction_error * 0.18
-            + mismatch_index * 0.22
-            - inhibitory_control * 0.1,
+            max(
+                0.0,
+                max(conflict_score - 0.4, 0.0)
+                + mismatch_score_ext * 0.08
+                + prediction_error * 0.18
+                + mismatch_index * 0.22
+                - inhibitory_control * 0.1,
+            ),
             3,
         )
 
