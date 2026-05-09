@@ -87,6 +87,8 @@ class DreamTrainer:
         )
         auto_evolution_plan = {
             "status": "candidate" if auto_evolution_candidate else "hold_for_more_evidence",
+            "learning_status": "candidate",
+            "promotion_state": "requires_validation",
             "promotion_guardrails": [
                 "requires rational-control validation",
                 "requires provenance and source labeling",
@@ -99,6 +101,9 @@ class DreamTrainer:
                 "retain contradictions as diagnostic safeguards instead of deleting them",
             ],
             "candidate_score": round(pi_score * 0.35 + convergence_index * 0.3 + dream_plasticity * 0.2 - risk * 0.15, 3),
+            "rational_control_required": True,
+            "human_review_before_clinical_use": True,
+            "synthetic_candidate_not_clinical_truth": True,
         }
 
         belief = self.belief_layer.update(

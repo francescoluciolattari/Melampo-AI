@@ -6,6 +6,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
+from .learning_status import normalize_learning_status, validate_learning_transition
+
 
 def _stable_id(text: str, namespace: str = "melampo") -> str:
     digest = hashlib.sha256(f"{namespace}:{text}".encode("utf-8")).hexdigest()
@@ -145,6 +147,9 @@ class InMemoryVectorStore:
         record_id = metadata.get("record_id") or _stable_id(text=text, namespace=self.collection_name)
         now = time.time()
         previous = self.records.get(record_id)
+        requested_status = normalize_learning_status(learning_status)
+        if previous and previous.learning_status == "promoted" and requested_status != "retired":
+            requested_status = "promoted"
         record = VectorMemoryRecord(
             record_id=record_id,
             text=text,
@@ -152,7 +157,7 @@ class InMemoryVectorStore:
             metadata=metadata,
             modality=modality,
             source=source,
-            learning_status=previous.learning_status if previous and previous.learning_status == "promoted" else learning_status,
+            learning_status=requested_status,
             created_at=previous.created_at if previous else now,
             updated_at=now,
         )
@@ -214,13 +219,50 @@ class InMemoryVectorStore:
             "target_backend": "Weaviate object-property semantic graph RAG",
         }
 
-    def promote(self, record_id: str, reason: str) -> dict:
+    def transition_status(self, record_id: str, target_status: str, reason: str, evidence: dict[str, Any] | None = None) -> dict:
         record = self.records[record_id]
-        record.learning_status = "promoted"
-        record.metadata = {**record.metadata, "promotion_reason": reason}
-        record.updated_at = time.time()
-        self.update_log.append({"event": "promote", "record_id": record_id, "reason": reason, "timestamp": record.updated_at})
-        return record.describe()
+        transition = validate_learning_transition(record.learning_status, target_status, evidence=evidence or {})
+        now = time.time()
+        if not transition.allowed:
+            self.update_log.append({
+                "event": "transition_rejected",
+                "record_id": record_id,
+                "target_status": target_status,
+                "reason": reason,
+                "transition": transition.as_dict(),
+                "timestamp": now,
+            })
+            return {"status": "rejected", "record": record.describe(), "transition": transition.as_dict()}
+        record.learning_status = transition.target
+        record.metadata = {**record.metadata, "status_transition_reason": reason}
+        record.updated_at = now
+        self.update_log.append({
+            "event": "transition_status",
+            "record_id": record_id,
+            "target_status": transition.target,
+            "reason": reason,
+            "timestamp": now,
+        })
+        return {"status": "completed", "record": record.describe(), "transition": transition.as_dict()}
+
+    def promote(self, record_id: str, reason: str) -> dict:
+        result = self.transition_status(
+            record_id=record_id,
+            target_status="promoted",
+            reason=reason,
+            evidence={
+                "rational_control_validation": True,
+                "provenance_available": True,
+                "clinical_deployment": False,
+            },
+        )
+        return result["record"]
+
+    def reject(self, record_id: str, reason: str) -> dict:
+        return self.transition_status(record_id=record_id, target_status="rejected", reason=reason)["record"]
+
+    def mark_needs_review(self, record_id: str, reason: str) -> dict:
+        return self.transition_status(record_id=record_id, target_status="needs_review", reason=reason)["record"]
 
     def consolidate_case(self, case_payload: dict[str, Any], result: dict[str, Any] | None = None) -> dict[str, Any]:
         result = result or {}
@@ -266,6 +308,7 @@ class InMemoryVectorStore:
             "supports_multimodal_metadata": True,
             "supports_object_property_semantics": True,
             "supports_ontology_relation_metadata": True,
+            "supports_governed_learning_status_transitions": True,
             "fallback_mode": "dependency_free_in_memory",
         }
 
