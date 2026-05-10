@@ -4,7 +4,6 @@
 **Enterprise-grade research scaffold for multimodal, multimodel clinical intuition**
 
 ![Status](https://img.shields.io/badge/Status-Research_Scaffold-blue)
-![License](https://img.shields.io/badge/License-Apache_2.0-green)
 ![Focus](https://img.shields.io/badge/Focus-Medical_AI_%7C_RAG_%7C_Intuition-purple)
 
 Project Melampo is an experimental open-source research framework designed to evolve Computer-Aided Diagnosis (CAD) into **Computer-Aided Intuition (CAI)**.
@@ -137,9 +136,25 @@ melampo-weaviate-schema
 
 We welcome contributors in medical imaging, clinical NLP, RAG, ontologies, validation, computational neuroscience, safety engineering and research infrastructure. See `CONTRIBUTING.md`.
 
-## License
+## ⚖️ License
 
-This repository is licensed under the Apache License, Version 2.0. See `LICENSE`.
+This project is licensed under the **Business Source License 1.1 (BSL 1.1)**.
+
+### How this works:
+*   **Non-Commercial Use**: You are free to use, modify, and redistribute this software for personal, educational, or non-profit projects.
+*   **Commercial Use**: Any use for commercial purposes (production environments, selling the software, etc.) is prohibited until the **Change Date** unless a specific agreement is made with the author.
+*   **Future Open Source**: On **May 1, 2029**, this project will automatically transition to the **Apache License 2.0**, becoming fully Open Source.
+
+### ✍️ Attribution
+If you use this software, you must retain the original copyright notice and credit **Francesco Lattari** as the author.
+
+### 💼 Commercial Inquiries
+If you wish to use this project for commercial purposes before May 2029, please contact the author to discuss a commercial license:
+*   **Author**: Francesco Lattari
+*   **Contact**: [Inserisci qui la tua Email o Link profilo GitHub/LinkedIn]
+*   
+
+See `LICENSE`.
 
 ## Contact
 
