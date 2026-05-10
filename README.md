@@ -151,7 +151,7 @@ If you use this software, you must retain the original copyright notice and cred
 ### 💼 Commercial Inquiries
 If you wish to use this project for commercial purposes before May 2029, please contact the author to discuss a commercial license:
 *   **Author**: Francesco Lattari
-*   **Contact**: [Inserisci qui la tua Email o Link profilo GitHub/LinkedIn]
+*   **Contact**: [flattari@chandra.it](mailto:flattari@chandra.it)
 *   
 
 See `LICENSE`.
