@@ -6,6 +6,7 @@ This index links the current documentation set for Project Melampo's enterprise-
 
 - [`../README.md`](../README.md) - project overview, architecture, installation profiles, CLI and roadmap.
 - [`architecture.md`](architecture.md) - current architecture and module responsibilities.
+- [`architecture_consistency_matrix.md`](architecture_consistency_matrix.md) - theory/document/code alignment and enterprise constraints.
 - [`final_treatise_decision_record.md`](final_treatise_decision_record.md) - canonical decisions for the final treatise.
 
 ## Installation profiles

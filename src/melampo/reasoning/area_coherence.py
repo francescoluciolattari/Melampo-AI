@@ -299,4 +299,10 @@ class AreaCoherenceAnalyzer:
             "deductive_gate": neuro_dynamic_metrics["deductive_gate"],
             "revision_pressure": neuro_dynamic_metrics["revision_pressure"],
             "dream_plasticity": neuro_dynamic_metrics["dream_plasticity"],
+            "interdependence_index": neuro_dynamic_metrics["interdependence_index"],
+            "evidence_integration_score": neuro_dynamic_metrics["evidence_integration_score"],
+            "noise_suppression_score": neuro_dynamic_metrics["noise_suppression_score"],
+            "action_potential_gate": neuro_dynamic_metrics["action_potential_gate"],
+            "deep_inference_score": neuro_dynamic_metrics["deep_inference_score"],
+            "deductive_stability": neuro_dynamic_metrics["deductive_stability"],
         }

@@ -110,6 +110,7 @@ melampo-weaviate-schema
 - `docs/final_treatise_decision_record.md` - canonical decisions for the final treatise.
 - `docs/enterprise_ai_rag_evolution.md` - enterprise AI/RAG evolution plan.
 - `docs/architecture.md` - current architecture overview.
+- `docs/architecture_consistency_matrix.md` - theory/document/code alignment and enterprise constraints.
 - `docs/core_consolidation_map.md` - canonical core module map.
 - `docs/validation/clinical_benchmarking_and_prospective_validation.md` - benchmark, prospective validation and calibration plan.
 - `docs/model_cards/melampo_model_stack_card.md` - model stack card.

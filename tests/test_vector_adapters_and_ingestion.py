@@ -1,4 +1,3 @@
-from pathlib import Path
 
 from melampo.ingestion.text_document_ingestion import TextDocumentIngestor
 from melampo.memory.qdrant_adapter import QdrantVectorMemoryAdapter

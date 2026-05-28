@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from monai.networks.nets import SwinUNETR
-from transformers import AutoModel, AutoConfig
 
 class SensoryCortex(nn.Module):
     """

@@ -14,6 +14,7 @@ from ..models.evidence_ranker import EvidenceRanker
 from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..models.risk_gate import RiskGate
 from ..orchestration.runtime_services import RuntimeServices
+from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.dream_trainer import DreamTrainer
 from ..training.replay_filter import ReplayFilter
@@ -164,6 +165,7 @@ class ClinicalInferencePipeline:
         epidemiology_area = EpidemiologyArea()
         area_coherence = AreaCoherenceAnalyzer()
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
+        specialist_runtime = SpecialistRuntime(registry=diagnostic_orchestrator.registry)
 
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
@@ -201,6 +203,20 @@ class ClinicalInferencePipeline:
         ranked_evidence = evidence_ranker.rank(retrieval["evidence"])
         resolved = runtime_services.resolve("volume_encoder")
         quantum_allowed = quantum_gate.allow(contextuality_score=0.7)
+        radiology_specialist_signal = specialist_runtime.radiology_signal(
+            study_id=str(volume_features.get("study_id", "none")),
+            series_paths=list(volume_features.get("series_paths", [])),
+            metadata=dict(volume_features.get("metadata", {})) if isinstance(volume_features.get("metadata", {}), dict) else {},
+        )
+        grounded_text_specialist_signal = specialist_runtime.grounded_text_signal(
+            case_id=case.case_id,
+            text=query_text,
+            grounding={
+                "retrieval": retrieval,
+                "ranked_evidence": ranked_evidence[:5],
+                "case_provenance": case.provenance,
+            },
+        )
 
         area_signals = {
             "visual_diagnostic": visual_area.integrate(
@@ -208,12 +224,14 @@ class ClinicalInferencePipeline:
                 pathology_features=pathology_features,
                 patient_visual=payload.get("patient_visual", {}),
                 labs_snapshot=payload.get("labs_snapshot", {}),
+                specialist_signal=radiology_specialist_signal,
             ),
             "language_listening": language_area.integrate(
                 report_text=case.report_text,
                 ehr_text=case.ehr_text,
                 patient_complaints=payload.get("patient_complaints", ""),
                 voice_features=payload.get("voice_features", {}),
+                specialist_signal=grounded_text_specialist_signal,
             ),
             "case_context": context_area.integrate(
                 {
@@ -291,6 +309,10 @@ class ClinicalInferencePipeline:
             "area_signals": area_signals,
             "area_dynamics": area_dynamics,
             "governance_scores": governance_scores,
+            "specialist_signals": {
+                "radiology": radiology_specialist_signal,
+                "grounded_text": grounded_text_specialist_signal,
+            },
             "services": resolved,
             "intuition": intuition,
             "coordinated": coordinated,
@@ -299,4 +321,14 @@ class ClinicalInferencePipeline:
             "dream": dream,
         }
         pipeline_result["diagnostic_result"] = diagnostic_orchestrator.orchestrate(pipeline_result)
+        external_critique = specialist_runtime.external_critique(
+            diagnostic_result=pipeline_result["diagnostic_result"],
+            literature_context={
+                "retrieval": retrieval,
+                "ranked_evidence": ranked_evidence,
+            },
+        )
+        pipeline_result["external_critique"] = external_critique
+        pipeline_result["diagnostic_result"]["external_critique"] = external_critique
+        pipeline_result["diagnostic_result"]["audit_trace"]["external_critic_is_final_arbiter"] = False
         return pipeline_result

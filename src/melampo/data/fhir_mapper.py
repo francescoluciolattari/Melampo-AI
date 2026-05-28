@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import List
 
 from ..clinical.schemas import FHIRResourceEnvelope
 from ..types import CaseContext

@@ -33,12 +33,37 @@ class QuantumBeliefLayer:
         )
         prediction_error = float(context.get("prediction_error", neuro.get("prediction_error", 0.0)))
         conflict_load = float(context.get("conflict_load", neuro.get("conflict_load", 0.0)))
+        interdependence_index = float(context.get("interdependence_index", neuro.get("interdependence_index", 0.0)))
+        evidence_integration_score = float(context.get("evidence_integration_score", neuro.get("evidence_integration_score", 0.0)))
+        noise_suppression_score = float(context.get("noise_suppression_score", neuro.get("noise_suppression_score", 0.0)))
+        action_potential_gate = float(context.get("action_potential_gate", neuro.get("action_potential_gate", 0.0)))
+        deep_inference_score = float(context.get("deep_inference_score", neuro.get("deep_inference_score", 0.0)))
+        deductive_stability = float(context.get("deductive_stability", neuro.get("deductive_stability", 0.0)))
         contextuality_score = round(self.context_weight * max(context_size, 1) / max(prior_size + context_size, 1), 3)
         interference_score = round(self.interference_weight * max(context_size - prior_size, 0) / max(context_size, 1), 3)
-        precision_modulation = round(_clamp(pi_score * self.precision_weight + precision_weighted_coherence * 0.15), 3)
+        precision_modulation = round(
+            _clamp(
+                pi_score * self.precision_weight
+                + precision_weighted_coherence * 0.15
+                + evidence_integration_score * 0.12
+                + action_potential_gate * 0.08
+            ),
+            3,
+        )
         conflict_modulation = round(_clamp(prediction_error * self.conflict_weight + conflict_load * 0.15), 3)
-        belief_shift = round(_clamp(contextuality_score + interference_score + precision_modulation - conflict_modulation), 3)
-        belief_stability = round(_clamp(1.0 - conflict_modulation + precision_modulation * 0.5), 3)
+        inhibitory_modulation = round(_clamp(noise_suppression_score * 0.18 + deductive_stability * 0.12), 3)
+        belief_shift = round(
+            _clamp(
+                contextuality_score
+                + interference_score
+                + precision_modulation
+                + interdependence_index * 0.10
+                + deep_inference_score * 0.08
+                - conflict_modulation
+            ),
+            3,
+        )
+        belief_stability = round(_clamp(1.0 - conflict_modulation + precision_modulation * 0.5 + inhibitory_modulation), 3)
         return {
             "prior": prior,
             "context": context,
@@ -50,6 +75,13 @@ class QuantumBeliefLayer:
             "interference_score": interference_score,
             "precision_modulation": precision_modulation,
             "conflict_modulation": conflict_modulation,
+            "inhibitory_modulation": inhibitory_modulation,
+            "interdependence_index": round(interdependence_index, 3),
+            "evidence_integration_score": round(evidence_integration_score, 3),
+            "noise_suppression_score": round(noise_suppression_score, 3),
+            "action_potential_gate": round(action_potential_gate, 3),
+            "deep_inference_score": round(deep_inference_score, 3),
+            "deductive_stability": round(deductive_stability, 3),
             "belief_shift": belief_shift,
             "belief_stability": belief_stability,
             "pi_score": round(pi_score, 3),

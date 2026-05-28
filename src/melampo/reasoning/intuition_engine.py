@@ -33,6 +33,13 @@ class IntuitionEngine:
         bias_suppression_score = _float_metric(neuro_metrics, "bias_suppression_score")
         candidate_temperature = _float_metric(neuro_metrics, "candidate_temperature", 1.0)
         belief_update_rate = _float_metric(neuro_metrics, "belief_update_rate")
+        interdependence_index = _float_metric(neuro_metrics, "interdependence_index")
+        evidence_integration_score = _float_metric(neuro_metrics, "evidence_integration_score")
+        noise_suppression_score = _float_metric(neuro_metrics, "noise_suppression_score")
+        action_potential_gate = _float_metric(neuro_metrics, "action_potential_gate")
+        synaptic_plasticity_index = _float_metric(neuro_metrics, "synaptic_plasticity_index")
+        deep_inference_score = _float_metric(neuro_metrics, "deep_inference_score")
+        deductive_stability = _float_metric(neuro_metrics, "deductive_stability")
 
         rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
         alternative_hypotheses = dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else []
@@ -77,7 +84,15 @@ class IntuitionEngine:
             area_pair_bonus = 0.15
         elif top_area_pair == ("case_context", "language_listening"):
             area_pair_bonus = 0.1
-        area_pair_bonus = round(area_pair_bonus + (0.08 * coherence_score_ext) + (0.12 * pi_score) + convergence_index * 0.18, 3)
+        area_pair_bonus = round(
+            area_pair_bonus
+            + (0.08 * coherence_score_ext)
+            + (0.12 * pi_score)
+            + convergence_index * 0.18
+            + interdependence_index * 0.12
+            + evidence_integration_score * 0.10,
+            3,
+        )
 
         disagreement_penalty = round(
             max(
@@ -86,7 +101,9 @@ class IntuitionEngine:
                 + mismatch_score_ext * 0.08
                 + prediction_error * 0.18
                 + mismatch_index * 0.22
-                - inhibitory_control * 0.1,
+                - inhibitory_control * 0.1
+                - noise_suppression_score * 0.12
+                - deductive_stability * 0.08,
             ),
             3,
         )
@@ -98,9 +115,49 @@ class IntuitionEngine:
         first_support = float(inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0)
         second_support = float(inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0)
         temperature_damping = max(candidate_temperature, 0.35)
-        rapid_score = round(((first_support + area_pair_bonus + convergence_score + deductive_gate + bias_suppression_score * 0.18 + pi_score * 0.2 - disagreement_penalty) * intuition_gain) / temperature_damping, 3)
-        rational_score = round(second_support + conflict_score + (0.2 if revision_bias == "conservative" else 0.0) + mismatch_score_ext * 0.08 + revision_pressure * 0.25 + precision_weighted_coherence * 0.12 + deductive_gate * 0.15, 3)
-        contradiction_score = round((1.0 if contradiction_rehearsal else 0.0) + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0) + (0.1 * len(alternative_hypotheses)) + mismatch_score_ext * 0.18 + prediction_error * 0.3 + mismatch_index * 0.25 + dream_plasticity * 0.2, 3)
+        rapid_score = round(
+            (
+                (
+                    first_support
+                    + area_pair_bonus
+                    + convergence_score
+                    + deductive_gate
+                    + action_potential_gate * 0.16
+                    + deep_inference_score * 0.14
+                    + bias_suppression_score * 0.18
+                    + pi_score * 0.2
+                    - disagreement_penalty
+                )
+                * intuition_gain
+            )
+            / temperature_damping,
+            3,
+        )
+        rational_score = round(
+            second_support
+            + conflict_score
+            + (0.2 if revision_bias == "conservative" else 0.0)
+            + mismatch_score_ext * 0.08
+            + revision_pressure * 0.20
+            + precision_weighted_coherence * 0.12
+            + deductive_gate * 0.15
+            + evidence_integration_score * 0.18
+            + interdependence_index * 0.12
+            + deductive_stability * 0.10,
+            3,
+        )
+        contradiction_score = round(
+            (1.0 if contradiction_rehearsal else 0.0)
+            + (0.3 if post_error_adjustment == "re-rank_alternatives" else 0.0)
+            + (0.1 * len(alternative_hypotheses))
+            + mismatch_score_ext * 0.18
+            + prediction_error * 0.3
+            + mismatch_index * 0.25
+            + dream_plasticity * 0.16
+            + synaptic_plasticity_index * 0.10
+            - noise_suppression_score * 0.12,
+            3,
+        )
 
         candidate_scores = [
             {"mode": "rapid_intuition", "label": rapid_intuition, "score": rapid_score},
@@ -135,6 +192,13 @@ class IntuitionEngine:
             "candidate_temperature": candidate_temperature,
             "belief_update_rate": belief_update_rate,
             "bias_suppression_score": bias_suppression_score,
+            "interdependence_index": interdependence_index,
+            "evidence_integration_score": evidence_integration_score,
+            "noise_suppression_score": noise_suppression_score,
+            "action_potential_gate": action_potential_gate,
+            "synaptic_plasticity_index": synaptic_plasticity_index,
+            "deep_inference_score": deep_inference_score,
+            "deductive_stability": deductive_stability,
             "area_pair_bonus": area_pair_bonus,
             "disagreement_penalty": disagreement_penalty,
             "contradiction_rehearsal": contradiction_rehearsal,
@@ -160,6 +224,13 @@ class IntuitionEngine:
             "belief_update_rate": belief_update_rate,
             "candidate_temperature": candidate_temperature,
             "conflict_load": neuro_metrics.get("conflict_load", 0.0),
+            "interdependence_index": interdependence_index,
+            "evidence_integration_score": evidence_integration_score,
+            "noise_suppression_score": noise_suppression_score,
+            "action_potential_gate": action_potential_gate,
+            "synaptic_plasticity_index": synaptic_plasticity_index,
+            "deep_inference_score": deep_inference_score,
+            "deductive_stability": deductive_stability,
             "neuro_dynamic_metrics": neuro_metrics,
             "area_pair_bonus": area_pair_bonus,
             "disagreement_penalty": disagreement_penalty,
@@ -216,6 +287,12 @@ class IntuitionEngine:
             "dream_plasticity": deductive.get("dream_plasticity", 0.0),
             "candidate_temperature": deductive.get("candidate_temperature", 1.0),
             "belief_update_rate": deductive.get("belief_update_rate", 0.0),
+            "interdependence_index": deductive.get("interdependence_index", 0.0),
+            "evidence_integration_score": deductive.get("evidence_integration_score", 0.0),
+            "noise_suppression_score": deductive.get("noise_suppression_score", 0.0),
+            "action_potential_gate": deductive.get("action_potential_gate", 0.0),
+            "deep_inference_score": deductive.get("deep_inference_score", 0.0),
+            "deductive_stability": deductive.get("deductive_stability", 0.0),
             "area_pair_bonus": deductive.get("area_pair_bonus", 0.0),
             "disagreement_penalty": deductive.get("disagreement_penalty", 0.0),
             "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),

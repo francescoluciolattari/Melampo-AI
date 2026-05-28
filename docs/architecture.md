@@ -50,8 +50,10 @@ Outputs
 
 - `src/melampo/reasoning/clinical_pipeline.py`
 - `src/melampo/reasoning/diagnostic_orchestrator.py`
+- `src/melampo/reasoning/diagnostic_result.py`
 - `src/melampo/reasoning/pipeline_coordinator.py`
 - `src/melampo/orchestration/model_capability_registry.py`
+- `src/melampo/orchestration/specialist_runtime.py`
 - `src/melampo/orchestration/runtime_services.py`
 
 ### Functional areas
@@ -101,6 +103,43 @@ Outputs
 | Semantic memory and ontology RAG | Weaviate | Primary object-property memory backend |
 | Document intelligence | Docling | Recommended parser with plain-text fallback |
 | Final controller | MelampoDiagnosticOrchestrator | Final research authority inside the scaffold |
+
+## Specialist runtime wiring
+
+Melampo separates model-capability decisions from model execution.
+
+- `ModelCapabilityRegistry` records the intended role, modality, area, strengths, limitations and clinical authority of each model or service.
+- `SpecialistRuntime` connects the registry to safe adapters for Pillar-0, Gemma 4 and Claude-style critique.
+- All specialist adapters are disabled by default.
+- No hidden network calls are allowed.
+- Specialist outputs enter Melampo as structured signals and claims.
+- `MelampoDiagnosticOrchestrator` remains the only final research diagnostic authority.
+
+The specialist path is:
+
+```text
+ModelCapabilityRegistry
+  -> SpecialistRuntime
+  -> safe specialist adapter
+  -> SpecialistModelResponse
+  -> functional area signal
+  -> area coherence / intuition / differential / policy
+  -> MelampoDiagnosticOrchestrator
+```
+
+External models can add evidence, uncertainty, critique and missing-evidence signals. They cannot directly assign the final result label.
+
+## Typed diagnostic result
+
+The final diagnostic output is represented by a typed `DiagnosticResult` contract before being serialized as a dictionary. This preserves backward compatibility while making the enterprise API auditable and testable.
+
+The final result includes schema version, case id, result label, top hypothesis, differential hypotheses, intuition summary, Melampo neuro-dynamic metrics, support bundle, policy decision, critique, dream/replay summary, model capability decision record, audit trace and a persistent clinical warning.
+
+## Neuro-dynamic coherence and mismatch metrics
+
+Area interactions are scored through explicit coherence/mismatch dynamics: semantic overlap, claim polarity, missing evidence, precision-weighted agreement, contradiction, uncertainty and expected area-pair priors. The resulting neuro-inspired metrics include PI score, prediction error, convergence, mismatch, inhibitory control, interdependence, evidence integration, noise suppression, action-potential-like gating, deep inference and belief-update rate. These values modulate the intuitive candidate and contextual belief update without converting intuition into final diagnosis.
+
+The terminology is intentionally bounded: these are computational abstractions inspired by predictive processing and active inference, not literal neurobiological measurements or validated clinical biomarkers.
 
 ## Data and memory model
 

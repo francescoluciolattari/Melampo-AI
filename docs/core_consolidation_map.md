@@ -10,6 +10,7 @@ Future reasoning changes should converge into this chain:
 
 ```text
 clinical_pipeline
+  -> specialist_runtime / safe adapters
   -> area_coherence / neuro_dynamics
   -> dream_trainer
   -> intuition_engine
@@ -23,6 +24,7 @@ clinical_pipeline
 | `src/melampo/app.py` | Canonical | Runtime entrypoint | Runtime assembly is clear, but many components are still wired as generic objects rather than persistent typed service contracts. | Keep as canonical entrypoint and gradually tighten dependency injection. |
 | `src/melampo/reasoning/clinical_pipeline.py` | Canonical | Main end-to-end reasoning flow | Now returns `diagnostic_result`, but helper construction still happens inside `run()`. | Keep canonical and later move helper construction into runtime assembly. |
 | `src/melampo/reasoning/diagnostic_orchestrator.py` | Canonical | Final research diagnostic controller | New module; policy thresholds are still early defaults. | Keep as the only final orchestration authority and calibrate thresholds with validation data. |
+| `src/melampo/reasoning/diagnostic_result.py` | Canonical support | Typed final research diagnostic result serialized back to dict for compatibility. | Schema is v1 and should remain backward compatible. | Extend by versioning, not by ad-hoc result dictionaries. |
 | `src/melampo/reasoning/intuition_engine.py` | Canonical | Main intuition core | Neuro-dynamic modulation is in place, but scoring remains heuristic until calibrated. | Evolve scoring here; avoid parallel intuition engines. |
 | `src/melampo/reasoning/differential_engine.py` | Canonical | Main differential core | Supports hypotheses, domains, actions, support and contradiction metadata, but domain/test generation remains lightweight. | Expand typed action logic here rather than creating a sibling differential engine. |
 | `src/melampo/reasoning/critique_loop.py` | Canonical | Main critique layer | Warnings and priorities exist, but critique still depends heavily on upstream heuristics. | Keep as canonical critique layer; plug optional Claude-style critic behind this path. |
@@ -33,7 +35,7 @@ clinical_pipeline
 | Module | Classification | Current status | Main issue | Next consolidation action |
 |---|---|---|---|---|
 | `src/melampo/reasoning/area_coherence.py` | Canonical support | Inter-area dynamics analyzer | Emits pair profiles, total salience and neuro metrics. | Keep centralized and expand pair semantics here. |
-| `src/melampo/reasoning/neuro_dynamics.py` | Canonical support | Computes PI score, mismatch, convergence, prediction error, inhibition and belief-update signals. | Metrics remain computational abstractions and require calibration. | Keep as the canonical neuro-dynamic metric layer. |
+| `src/melampo/reasoning/neuro_dynamics.py` | Canonical support | Computes PI score, mismatch, convergence, prediction error, inhibition, interdependence, action-potential-like gate, deep inference and belief-update signals. | Metrics remain computational abstractions and require calibration. | Keep as the canonical neuro-dynamic metric layer. |
 | `src/melampo/reasoning/policy_stack.py` | Canonical support | Structured policy layer | Decision semantics remain threshold-driven. | Expand policy semantics without duplicating final orchestration. |
 | `src/melampo/reasoning/escalation.py` | Canonical support | Escalation helper | Lightweight by design. | Refine only if escalation paths become more granular. |
 | `src/melampo/reasoning/decision_trace.py` | Canonical support | Audit trace helper | Minimal by design. | Keep lightweight. |
@@ -45,6 +47,7 @@ clinical_pipeline
 | Module | Classification | Current status | Main issue | Next consolidation action |
 |---|---|---|---|---|
 | `src/melampo/orchestration/model_capability_registry.py` | Canonical | Enterprise model capability registry | Records Pillar-0, Gemma 4, Claude, Weaviate and Docling roles. | Keep as canonical model-decision registry and update when model strategy changes. |
+| `src/melampo/orchestration/specialist_runtime.py` | Canonical support | Governed bridge between model capability registry and safe specialist adapters. | Live backends remain disabled by default. | Keep as the single specialist-model wiring point; do not call specialist adapters directly from unrelated modules. |
 | `src/melampo/orchestration/contracts.py` | Canonical support | Service contract metadata | Includes name, provider, protocol and role. | Keep as service contract description layer. |
 | `src/melampo/orchestration/service_registry.py` | Canonical support | In-memory service registry | Stores role metadata and registry summary. | Keep lightweight and avoid embedding routing semantics here. |
 | `src/melampo/orchestration/bootstrap.py` | Canonical support | Baseline service contract inventory | Exposes contract inventory before registry construction. | Keep as baseline registry bootstrap. |

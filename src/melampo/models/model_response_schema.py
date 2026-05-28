@@ -27,6 +27,8 @@ class ClinicalClaim:
     ontology_refs: list[str] = field(default_factory=list)
     evidence_refs: list[str] = field(default_factory=list)
     source_area: str | None = None
+    provenance: dict[str, Any] = field(default_factory=dict)
+    limitations: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +41,8 @@ class ClinicalClaim:
             "ontology_refs": list(self.ontology_refs),
             "evidence_refs": list(self.evidence_refs),
             "source_area": self.source_area,
+            "provenance": dict(self.provenance),
+            "limitations": list(self.limitations),
         }
 
 

@@ -240,6 +240,54 @@ class NeuroDynamicMetrics:
         bias_suppression_score = _clamp(inhibitory_control * 0.65 + signal_precision * 0.2 + prior_precision * 0.15 - mismatch_index * 0.15)
         candidate_temperature = _clamp(1.0 - deductive_gate * 0.25 + revision_pressure * 0.35, 0.35, 1.5)
         belief_update_rate = _clamp(pi_score * 0.45 + dream_plasticity * 0.25 + convergence_index * 0.2 - conflict_load * 0.2)
+        interdependence_index = _clamp(
+            cross_area_synchrony * 0.30
+            + prior_precision * 0.24
+            + mean_area_precision * 0.18
+            + signal_precision * 0.16
+            + excitatory_mass * 0.22
+            - mismatch_index * 0.12
+        )
+        evidence_integration_score = _clamp(
+            precision_weighted_coherence * 0.30
+            + convergence_index * 0.25
+            + signal_precision * 0.20
+            + prior_precision * 0.15
+            - prediction_error * 0.15
+        )
+        noise_suppression_score = _clamp(
+            inhibitory_control * 0.42
+            + bias_suppression_score * 0.30
+            + signal_precision * 0.16
+            + prior_precision * 0.12
+            - mismatch_index * 0.16
+        )
+        action_potential_gate = _clamp(
+            (deductive_gate * 0.35 + pi_score * 0.25 + inhibitory_control * 0.20 + evidence_integration_score * 0.20)
+            - (prediction_error * 0.20 + mismatch_index * 0.18)
+        )
+        deep_inference_score = _clamp(
+            deductive_gate * 0.30
+            + evidence_integration_score * 0.25
+            + noise_suppression_score * 0.20
+            + interdependence_index * 0.15
+            + action_potential_gate * 0.10
+            - prediction_error * 0.12
+        )
+        deductive_stability = _clamp(
+            deep_inference_score * 0.42
+            + inhibitory_control * 0.24
+            + noise_suppression_score * 0.20
+            + convergence_index * 0.14
+            - revision_pressure * 0.20
+        )
+        synaptic_plasticity_index = _clamp(
+            dream_plasticity * 0.30
+            + revision_pressure * 0.22
+            + belief_update_rate * 0.20
+            + (1.0 - deductive_stability) * 0.16
+            + action_potential_gate * 0.12
+        )
 
         return {
             "pi_score": round(pi_score, 3),
@@ -260,6 +308,13 @@ class NeuroDynamicMetrics:
             "bias_suppression_score": round(bias_suppression_score, 3),
             "candidate_temperature": round(candidate_temperature, 3),
             "belief_update_rate": round(belief_update_rate, 3),
+            "interdependence_index": round(interdependence_index, 3),
+            "evidence_integration_score": round(evidence_integration_score, 3),
+            "noise_suppression_score": round(noise_suppression_score, 3),
+            "action_potential_gate": round(action_potential_gate, 3),
+            "synaptic_plasticity_index": round(synaptic_plasticity_index, 3),
+            "deep_inference_score": round(deep_inference_score, 3),
+            "deductive_stability": round(deductive_stability, 3),
             "coherent_signal_count": coherent_signal_count,
             "mismatch_signal_count": mismatch_signal_count,
             "interaction_profiles": interaction_profiles,
