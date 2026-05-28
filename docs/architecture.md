@@ -78,6 +78,7 @@ Outputs
 - `src/melampo/memory/weaviate_schema.py`
 - `src/melampo/memory/weaviate_adapter.py`
 - `src/melampo/memory/retriever.py`
+- `src/melampo/memory/visual_imprint.py`
 
 ### Document processing
 
@@ -141,6 +142,12 @@ Area interactions are scored through explicit coherence/mismatch dynamics: seman
 
 The terminology is intentionally bounded: these are computational abstractions inspired by predictive processing and active inference, not literal neurobiological measurements or validated clinical biomarkers.
 
+## Visual imprint semantic layer and dream morphing
+
+Melampo now models a visual recognition imprint as a governed matrix footprint or embedding associated with a semantic visual concept in the selected object-property memory backend. The target Weaviate schema includes `VisualConcept` and `VisualRecognitionImprint` classes so image-derived signatures, semantic concepts, imaging studies, findings and pathologies can remain linked in one auditable graph.
+
+During dream/replay, `VisualImprintMorpher` performs inferential semantic matrix morphing between imprints that refer to the same semantic concept either totally (`ground glass opacity` ↔ `ground glass opacity`) or partially (`ground glass opacity` ↔ `peripheral opacity pattern`). The function estimates semantic relation strength from shared concept terms and ontology references, builds a concept-bridge vector, then combines matrix-footprint interpolation with semantic overlap, source/target similarity, prediction error, dream plasticity and action-potential-like gating. The morphed footprint is compared with diagnostic visual imprints to generate candidate-only intuitive links for review. It does not synthesize clinical images, does not perform hidden network calls and does not promote correlations to clinical truth. The belief update can use the resulting visual morph coherence and visual prediction link score as additional quantum-like contextual modulation.
+
 ## Data and memory model
 
 The semantic memory target is an object-property clinical graph:
@@ -150,6 +157,8 @@ The semantic memory target is an object-property clinical graph:
 - `ClinicalCase`
 - `ImagingStudy`
 - `ImagingFinding`
+- `VisualConcept`
+- `VisualRecognitionImprint`
 - `ClinicalDocument`
 - `EpidemiologicalFactor`
 

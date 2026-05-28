@@ -70,6 +70,7 @@ clinical_pipeline
 | `src/melampo/memory/weaviate_schema.py` | Canonical | Weaviate object-property schema contract | Schema is not automatically materialized by core. | Keep canonical schema and implement infra-specific subclass for live materialization. |
 | `src/melampo/memory/weaviate_adapter.py` | Canonical support | Safe Weaviate adapter boundary | Live calls deliberately require infrastructure subclass. | Keep no-hidden-network-call rule. |
 | `src/melampo/memory/retriever.py` | Canonical support | Grounded retrieval helper | Retrieval remains structural and not yet knowledge-rich. | Strengthen grounding quality before adding more retrieval abstractions. |
+| `src/melampo/memory/visual_imprint.py` | Canonical support | Governed visual recognition imprints, semantic concept association and inferential dream-safe matrix morphing over total or partial semantic overlap. | Deterministic local scaffold; real visual embeddings require governed providers and validation. | Keep as the single visual-imprint contract feeding dream/replay and object-property memory. |
 | `src/melampo/models/evidence_ranker.py` | Canonical support | Ranked evidence helper | Heuristic and not calibrated. | Improve ranking quality here. |
 
 ## Canonical document and specialist adapter modules

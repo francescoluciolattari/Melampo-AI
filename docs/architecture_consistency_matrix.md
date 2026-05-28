@@ -21,11 +21,12 @@ safety boundary.
 | Gemma 4 grounded text reasoning | `docs/final_treatise_decision_record.md` | `Gemma4ClinicalReasoningAdapter`, `SpecialistRuntime`, `LanguageListeningArea` | contract-only | Must be grounded by retrieval context |
 | Claude-style external critic | `docs/final_treatise_decision_record.md` | `ClaudeCritiqueAdapter`, `SpecialistRuntime` | contract-only | External critic only, cannot override final result |
 | Weaviate semantic object-property memory | `docs/architecture.md` | `MelampoWeaviateSchema`, `WeaviateEnterpriseMemoryAdapter` | local-fallback | Provenance, learning status and license metadata required |
+| Visual semantic imprint memory | `docs/architecture.md` | `visual_imprint.py`, `VisualConcept`, `VisualRecognitionImprint` | implemented scaffold | Imprints are candidate-only recognition footprints; morphing supports total or partial semantic overlap, not clinical images or diagnoses |
 | Docling document intelligence | `docs/final_treatise_decision_record.md` | `document_processing.py` | contract/local-fallback | Parser is not reasoner |
 | Functional areas | `docs/architecture.md` | `areas/*` | implemented | Areas emit structured signals, not final diagnoses |
 | Area coherence and mismatch | `docs/neuro_vector_evolution_strategy.md` | `area_coherence.py`, `neuro_dynamics.py` | implemented | Dynamic coherence/mismatch must stay inspectable |
 | Intuition | `docs/final_treatise_decision_record.md` | `intuition_engine.py`, `clinical_pipeline.py` | implemented scaffold | Intuition is non-final candidate generation |
-| Dream/replay | `docs/dream_self_evolution_governance.md` | `dream_trainer.py` | implemented scaffold | Dream outputs are candidate-only |
+| Dream/replay | `docs/dream_self_evolution_governance.md` | `dream_trainer.py`, `VisualImprintMorpher` | implemented scaffold | Dream outputs and visual morph links are candidate-only |
 | Differential reasoning | `docs/core_consolidation_map.md` | `differential_engine.py` | implemented scaffold | Requires support/contradiction metadata |
 | Policy, abstention and escalation | `docs/architecture.md` | `policy_stack.py`, `abstention.py`, `risk_gate.py`, `diagnostic_orchestrator.py` | implemented | Thresholds require calibration |
 | Validation and calibration | `docs/validation/*` | `evaluation/*` | validation-required | No clinical deployment without formal validation |

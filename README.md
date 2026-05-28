@@ -59,11 +59,11 @@ The repository currently includes:
 - End-to-end `ClinicalInferencePipeline`.
 - `MelampoDiagnosticOrchestrator` final controller.
 - `ModelCapabilityRegistry` for Pillar-0, Gemma 4, Claude, Weaviate and Docling roles.
-- Weaviate schema and adapter contracts.
+- Weaviate schema and adapter contracts, including visual recognition imprint objects linked to semantic concepts.
 - Specialist adapter contracts for Pillar-0, Gemma 4 and Claude.
 - Docling-aware document processing contract with plain-text fallback.
 - Neuro-dynamic metrics, `pi_score`, convergence, mismatch, prediction error and belief-update signals.
-- Dream branch auto-evolution guardrails.
+- Dream branch auto-evolution guardrails and candidate-only inferential visual imprint morphing over total or partial semantic concept overlap.
 - Retrospective clinical benchmark primitives.
 - Prospective validation registry primitives.
 - Confidence calibration evaluator.

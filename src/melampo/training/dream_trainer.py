@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .counterfactual_sampler import CounterfactualSampler
 from .replay_filter import ReplayFilter
 from ..models.quantum_belief_layer import QuantumBeliefLayer
+from ..memory.visual_imprint import VisualImprintMorpher
 
 
 @dataclass
@@ -12,6 +13,7 @@ class DreamTrainer:
     replay_filter: ReplayFilter
     sampler: CounterfactualSampler
     belief_layer: QuantumBeliefLayer
+    visual_morpher: VisualImprintMorpher = field(default_factory=VisualImprintMorpher)
 
     def run(self, case_context: dict, coherence: float, risk: float) -> dict:
         filter_assessment = self.replay_filter.assess(coherence=coherence, risk=risk)
@@ -32,6 +34,16 @@ class DreamTrainer:
         dream_plasticity = float(neuro_metrics.get("dream_plasticity", 0.0))
         pi_score = float(neuro_metrics.get("pi_score", area_dynamics.get("pi_score", 0.0)))
         variant_focus = sampled.get("variant_focus", "context")
+        visual_imprints = list(case_context.get("visual_imprints", [])) if isinstance(case_context.get("visual_imprints", []), list) else []
+        concept_memory_imprints = list(case_context.get("concept_memory_imprints", [])) if isinstance(case_context.get("concept_memory_imprints", []), list) else []
+        diagnostic_visual_imprints = list(case_context.get("diagnostic_visual_imprints", visual_imprints)) if isinstance(case_context.get("diagnostic_visual_imprints", visual_imprints), list) else visual_imprints
+        visual_morphing = self.visual_morpher.dream_morph(
+            concept_imprints=concept_memory_imprints + visual_imprints,
+            diagnostic_imprints=diagnostic_visual_imprints,
+            area_dynamics=area_dynamics,
+        )
+        visual_morph_gain = float(visual_morphing.get("visual_morph_intuition_gain", 0.0))
+        visual_prediction_link_score = float(visual_morphing.get("visual_prediction_link_score", 0.0))
 
         rehearsal_profile = {
             "rare_case_hint": bool(accepted and len(bundle_keys) <= 2),
@@ -47,6 +59,9 @@ class DreamTrainer:
             "convergence_index": convergence_index,
             "revision_pressure": revision_pressure,
             "pi_score": pi_score,
+            "visual_morphing_active": bool(visual_morphing.get("morph_count", 0)),
+            "visual_morph_intuition_gain": round(visual_morph_gain, 3),
+            "visual_prediction_link_score": round(visual_prediction_link_score, 3),
         }
 
         alternative_hypotheses = [
@@ -77,6 +92,16 @@ class DreamTrainer:
                     "focus": "cross_area_alignment",
                 }
             )
+        if visual_prediction_link_score >= 0.45:
+            alternative_hypotheses.append(
+                {
+                    "label": f"{base_label}_visual_morph_link",
+                    "kind": "visual_semantic_morph_correlation",
+                    "focus": "visual_diagnostic",
+                    "score": round(visual_prediction_link_score, 3),
+                    "requires_review": True,
+                }
+            )
 
         auto_evolution_candidate = bool(
             accepted
@@ -100,7 +125,7 @@ class DreamTrainer:
                 "generate counterfactual variants around unresolved mismatch",
                 "retain contradictions as diagnostic safeguards instead of deleting them",
             ],
-            "candidate_score": round(pi_score * 0.35 + convergence_index * 0.3 + dream_plasticity * 0.2 - risk * 0.15, 3),
+            "candidate_score": round(pi_score * 0.32 + convergence_index * 0.27 + dream_plasticity * 0.18 + visual_morph_gain * 0.08 - risk * 0.15, 3),
             "rational_control_required": True,
             "human_review_before_clinical_use": True,
             "synthetic_candidate_not_clinical_truth": True,
@@ -115,6 +140,10 @@ class DreamTrainer:
                 "alternative_hypotheses": alternative_hypotheses,
                 "area_dynamics": area_dynamics,
                 "auto_evolution_plan": auto_evolution_plan,
+                "visual_morphing": visual_morphing,
+                "visual_morph_intuition_gain": visual_morph_gain,
+                "visual_prediction_link_score": visual_prediction_link_score,
+                "neuro_dynamic_metrics": neuro_metrics,
             },
         )
         return {
@@ -124,5 +153,6 @@ class DreamTrainer:
             "rehearsal_profile": rehearsal_profile,
             "alternative_hypotheses": alternative_hypotheses,
             "auto_evolution_plan": auto_evolution_plan,
+            "visual_morphing": visual_morphing,
             "belief": belief,
         }

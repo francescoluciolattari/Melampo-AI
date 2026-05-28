@@ -127,6 +127,8 @@ class InMemoryVectorStore:
                 "Pathology": ["name", "description", "snomed_code", "hasSymptom", "hasImagingPattern", "hasRiskFactor"],
                 "ClinicalCase": ["case_id", "demographics", "hasSymptom", "hasReport", "hasImage", "hasDifferential"],
                 "ImagingStudy": ["study_id", "modality", "image_vector", "hasFinding", "belongsToCase"],
+                "VisualConcept": ["name", "ontology_refs", "hasImprint", "supportsFinding", "supportsPathology"],
+                "VisualRecognitionImprint": ["semantic_concept", "matrix_signature_hash", "recognition_matrix_vector", "variantOf", "derivedFromStudy"],
                 "ClinicalDocument": ["source", "section", "text_vector", "mentionsSymptom", "mentionsPathology"],
             },
             "rationale": "preserve semantic relations and clinical context together with vectors",

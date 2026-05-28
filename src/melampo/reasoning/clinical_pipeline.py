@@ -9,6 +9,7 @@ from ..areas.language_listening_area import LanguageListeningArea
 from ..areas.visual_diagnostic_area import VisualDiagnosticArea
 from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.retriever import MemoryRetriever
+from ..memory.visual_imprint import VisualImprintBuilder
 from ..models.abstention import AbstentionPolicy
 from ..models.evidence_ranker import EvidenceRanker
 from ..models.quantum_belief_layer import QuantumBeliefLayer
@@ -246,6 +247,10 @@ class ClinicalInferencePipeline:
                 exposures=payload.get("exposures", {}),
             ),
         }
+        visual_imprints = VisualImprintBuilder().from_visual_area(
+            signal=area_signals["visual_diagnostic"],
+            volume_features=volume_features,
+        )
         area_dynamics = area_coherence.analyze(area_signals)
         governance_scores = _derive_governance_scores(
             payload=payload,
@@ -266,6 +271,9 @@ class ClinicalInferencePipeline:
                 "exposures": payload.get("exposures", {}),
                 "area_dynamics": area_dynamics,
                 "governance_scores": governance_scores,
+                "visual_imprints": visual_imprints,
+                "diagnostic_visual_imprints": visual_imprints,
+                "concept_memory_imprints": payload.get("concept_memory_imprints", []),
             },
             coherence=governance_scores["dream_coherence"],
             risk=governance_scores["risk"],
@@ -309,6 +317,7 @@ class ClinicalInferencePipeline:
             "area_signals": area_signals,
             "area_dynamics": area_dynamics,
             "governance_scores": governance_scores,
+            "visual_imprints": visual_imprints,
             "specialist_signals": {
                 "radiology": radiology_specialist_signal,
                 "grounded_text": grounded_text_specialist_signal,

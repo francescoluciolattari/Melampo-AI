@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from .vector_memory import InMemoryVectorStore
+from .visual_imprint import VisualRecognitionImprint
 from .weaviate_schema import MelampoWeaviateSchema, WeaviateClassSchema
 
 
@@ -472,6 +473,62 @@ class WeaviateEnterpriseMemoryAdapter(WeaviateSemanticMemoryAdapter):
             })
         hits.sort(key=lambda item: item["score_final"], reverse=True)
         return {**result, "operation": "multi_vector_search", "target_vectors": target_vectors, "hits": hits[:limit]}
+
+    def upsert_visual_imprint(self, imprint_payload: dict[str, Any]) -> dict[str, Any]:
+        imprint = VisualRecognitionImprint.from_payload(imprint_payload)
+        imprint_dict = imprint.as_dict()
+        concept_id = str(imprint_dict["semantic_concept"]).replace(" ", "_")
+        concept_properties = {
+            "name": imprint_dict["semantic_concept"],
+            "description": f"Visual concept associated with recognition imprints for {imprint_dict['semantic_concept']}",
+            "ontology_refs": imprint_payload.get("ontology_refs", []),
+            "learning_status": imprint_dict["learning_status"],
+        }
+        concept_result = self.upsert_object(
+            class_name="VisualConcept",
+            object_id=f"visual_concept:{concept_id}",
+            properties=concept_properties,
+            references=[],
+            vectors={"visual_concept_text_vector": self.fallback_store.embedding_model.embed(imprint_dict["semantic_concept"])},
+        )
+        references = [
+            {
+                "name": "representsConcept",
+                "target": f"visual_concept:{concept_id}",
+                "target_class": "VisualConcept",
+            }
+        ]
+        if imprint.source_object_id and imprint.source_object_id != "unknown":
+            references.append({"name": "derivedFromStudy", "target": imprint.source_object_id, "target_class": "ImagingStudy"})
+        imprint_result = self.upsert_object(
+            class_name="VisualRecognitionImprint",
+            object_id=imprint.imprint_id,
+            properties={
+                **imprint_dict,
+                "provenance": {
+                    **imprint_dict.get("provenance", {}),
+                    "hidden_network_call": False,
+                    "stored_as": "semantic_visual_imprint",
+                },
+            },
+            references=references,
+            vectors={
+                "recognition_matrix_vector": imprint.vector,
+                "semantic_concept_vector": self.fallback_store.embedding_model.embed(imprint.semantic_concept),
+            },
+        )
+        return {
+            "status": "completed" if imprint_result.get("status") == "stored_in_local_object_graph" else imprint_result.get("status"),
+            "operation": "upsert_visual_imprint",
+            "concept_result": concept_result,
+            "imprint_result": imprint_result,
+            "imprint": imprint_dict,
+            "governance": {
+                "hidden_network_call": False,
+                "semantic_object_imprint_association": True,
+                "clinical_warning": "Visual imprint memory is research-only and not a validated diagnosis.",
+            },
+        }
 
     def graph_expand(self, object_key: str, depth: int = 1) -> dict[str, Any]:
         frontier = {object_key}

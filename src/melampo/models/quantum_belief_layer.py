@@ -39,6 +39,10 @@ class QuantumBeliefLayer:
         action_potential_gate = float(context.get("action_potential_gate", neuro.get("action_potential_gate", 0.0)))
         deep_inference_score = float(context.get("deep_inference_score", neuro.get("deep_inference_score", 0.0)))
         deductive_stability = float(context.get("deductive_stability", neuro.get("deductive_stability", 0.0)))
+        visual_morphing = context.get("visual_morphing", {}) if isinstance(context.get("visual_morphing", {}), dict) else {}
+        visual_morph_intuition_gain = float(context.get("visual_morph_intuition_gain", visual_morphing.get("visual_morph_intuition_gain", 0.0)) or 0.0)
+        visual_prediction_link_score = float(context.get("visual_prediction_link_score", visual_morphing.get("visual_prediction_link_score", 0.0)) or 0.0)
+        visual_morph_coherence = float(visual_morphing.get("visual_morph_coherence", visual_prediction_link_score) or 0.0)
         contextuality_score = round(self.context_weight * max(context_size, 1) / max(prior_size + context_size, 1), 3)
         interference_score = round(self.interference_weight * max(context_size - prior_size, 0) / max(context_size, 1), 3)
         precision_modulation = round(
@@ -47,6 +51,7 @@ class QuantumBeliefLayer:
                 + precision_weighted_coherence * 0.15
                 + evidence_integration_score * 0.12
                 + action_potential_gate * 0.08
+                + visual_morph_coherence * 0.06
             ),
             3,
         )
@@ -59,6 +64,8 @@ class QuantumBeliefLayer:
                 + precision_modulation
                 + interdependence_index * 0.10
                 + deep_inference_score * 0.08
+                + visual_morph_intuition_gain * 0.08
+                + visual_prediction_link_score * 0.06
                 - conflict_modulation
             ),
             3,
@@ -82,6 +89,9 @@ class QuantumBeliefLayer:
             "action_potential_gate": round(action_potential_gate, 3),
             "deep_inference_score": round(deep_inference_score, 3),
             "deductive_stability": round(deductive_stability, 3),
+            "visual_morph_intuition_gain": round(visual_morph_intuition_gain, 3),
+            "visual_prediction_link_score": round(visual_prediction_link_score, 3),
+            "visual_morph_coherence": round(visual_morph_coherence, 3),
             "belief_shift": belief_shift,
             "belief_stability": belief_stability,
             "pi_score": round(pi_score, 3),

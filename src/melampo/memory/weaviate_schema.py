@@ -135,6 +135,45 @@ class MelampoWeaviateSchema:
                 named_vectors=("finding_text_vector", "finding_visual_vector"),
             ),
             WeaviateClassSchema(
+                name="VisualConcept",
+                description="Governed semantic visual concept linking clinical meaning to recognition-matrix imprints.",
+                properties=(
+                    WeaviateProperty("name", "text", "Human-readable visual concept or normalized finding name."),
+                    WeaviateProperty("description", "text", "Semantic description of the visual concept."),
+                    WeaviateProperty("ontology_refs", "text[]", "Ontology references or controlled vocabulary IDs."),
+                    WeaviateProperty("learning_status", "text", "candidate, promoted, rejected, needs_review or retired."),
+                ),
+                references=(
+                    WeaviateReference("hasImprint", "VisualRecognitionImprint", "Recognition-matrix imprints associated with this concept."),
+                    WeaviateReference("supportsFinding", "ImagingFinding", "Imaging findings semantically supported by this visual concept."),
+                    WeaviateReference("supportsPathology", "Pathology", "Pathologies potentially linked through reviewed evidence."),
+                ),
+                named_vectors=("visual_concept_text_vector", "visual_concept_context_vector"),
+            ),
+            WeaviateClassSchema(
+                name="VisualRecognitionImprint",
+                description="Image-recognition matrix footprint, embedding or feature signature linked to a semantic visual concept.",
+                properties=(
+                    WeaviateProperty("imprint_id", "text", "Stable imprint identifier."),
+                    WeaviateProperty("semantic_concept", "text", "Normalized semantic concept represented by the imprint."),
+                    WeaviateProperty("variant_label", "text", "Observed, retrieved, morphed or reviewed variant label."),
+                    WeaviateProperty("matrix_signature_hash", "text", "Hash of the recognition-matrix footprint or embedding."),
+                    WeaviateProperty("source_object_id", "text", "Source image, study, finding, concept or morph object identifier."),
+                    WeaviateProperty("modality", "text", "CT, MRI, XR, pathology, multimodal or unknown."),
+                    WeaviateProperty("salience", "number", "Signal salience or reviewed score."),
+                    WeaviateProperty("uncertainty", "number", "Uncertainty score."),
+                    WeaviateProperty("provenance", "object", "Source, license, transformation and governance metadata."),
+                    WeaviateProperty("learning_status", "text", "candidate, promoted, rejected, needs_review or retired."),
+                ),
+                references=(
+                    WeaviateReference("representsConcept", "VisualConcept", "Semantic visual concept represented by this imprint."),
+                    WeaviateReference("variantOf", "VisualRecognitionImprint", "Parent or related imprint variant."),
+                    WeaviateReference("derivedFromStudy", "ImagingStudy", "Imaging study from which the imprint was derived."),
+                    WeaviateReference("derivedFromFinding", "ImagingFinding", "Finding from which the imprint was derived."),
+                ),
+                named_vectors=("recognition_matrix_vector", "semantic_concept_vector", "morphed_imprint_vector"),
+            ),
+            WeaviateClassSchema(
                 name="ClinicalDocument",
                 description="Literature, guideline, report or clinical document chunk with provenance.",
                 properties=(
