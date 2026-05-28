@@ -160,9 +160,17 @@ class ClinicalDocumentProcessor:
         redactions: list[str] = []
         if not self.redact_phi:
             return text, redactions
-        redacted = _EMAIL_RE.sub(lambda _: redactions.append("email") or "[REDACTED_EMAIL]", text)
-        redacted = _PHONE_RE.sub(lambda _: redactions.append("phone") or "[REDACTED_PHONE]", redacted)
-        redacted = _DATE_RE.sub(lambda _: redactions.append("date") or "[REDACTED_DATE]", redacted)
+
+        def mark(label: str, replacement: str):
+            def replace(_: re.Match[str]) -> str:
+                redactions.append(label)
+                return replacement
+
+            return replace
+
+        redacted = _EMAIL_RE.sub(mark("email", "[REDACTED_EMAIL]"), text)
+        redacted = _PHONE_RE.sub(mark("phone", "[REDACTED_PHONE]"), redacted)
+        redacted = _DATE_RE.sub(mark("date", "[REDACTED_DATE]"), redacted)
         return redacted, redactions
 
     def extract_clinical_entities(self, text: str) -> dict[str, Any]:
@@ -278,7 +286,8 @@ class ClinicalDocumentProcessor:
         docling_result = self.load_with_docling(path) if prefer_docling else {"status": "not_requested"}
         if docling_result.get("status") == "completed":
             text = str(docling_result.get("text", ""))
-            parser_metadata = dict(docling_result.get("metadata", {}))
+            raw_metadata: Any = docling_result.get("metadata", {})
+            parser_metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
             chunks = self.chunk_text(text=text, source_path=str(path), metadata={**metadata, **parser_metadata})
             return {
                 "status": "completed",

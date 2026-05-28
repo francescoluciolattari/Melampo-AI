@@ -32,7 +32,8 @@ def _safe_int(value: Any, default: int = 0) -> int:
 
 
 def _canonical_pair(first: str, second: str) -> tuple[str, str]:
-    return tuple(sorted((first, second)))
+    left, right = sorted((first, second))
+    return left, right
 
 
 def _tokens_from_text(text: str) -> set[str]:
@@ -112,11 +113,11 @@ class AreaCoherenceAnalyzer:
                 terms.update(self._collect_terms(item, depth + 1))
             return terms
         if isinstance(value, dict):
-            terms: set[str] = set()
+            dict_terms: set[str] = set()
             for key, item in value.items():
                 key_text = str(key).casefold()
                 if key_text not in {"metadata", "provenance", "source_path", "series_paths"}:
-                    terms.update(_tokens_from_text(key_text))
+                    dict_terms.update(_tokens_from_text(key_text))
                 if key_text in {
                     "area",
                     "focus",
@@ -142,8 +143,8 @@ class AreaCoherenceAnalyzer:
                     "patient_visual",
                     "labs_snapshot",
                 }:
-                    terms.update(self._collect_terms(item, depth + 1))
-            return terms
+                    dict_terms.update(self._collect_terms(item, depth + 1))
+            return dict_terms
         return _tokens_from_text(str(value))
 
     def _claim_terms(self, payload: dict[str, Any]) -> set[str]:

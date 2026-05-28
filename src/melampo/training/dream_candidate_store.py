@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from threading import RLock
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -69,6 +70,7 @@ class DreamCandidateStore:
 
     records: dict[str, DreamCandidateRecord] = field(default_factory=dict)
     audit_log: list[dict[str, Any]] = field(default_factory=list)
+    _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
     def create_candidate(
         self,
@@ -90,72 +92,79 @@ class DreamCandidateStore:
             learning_status=normalize_learning_status(learning_status),
             audit=[{"event": "candidate_created", "timestamp": created_at, "source": source}],
         )
-        self.records[candidate_id] = record
-        self.audit_log.append({"event": "candidate_created", "candidate_id": candidate_id, "timestamp": created_at})
+        with self._lock:
+            self.records[candidate_id] = record
+            self.audit_log.append({"event": "candidate_created", "candidate_id": candidate_id, "timestamp": created_at})
         return record
 
     def get(self, candidate_id: str) -> DreamCandidateRecord:
-        return self.records[candidate_id]
+        with self._lock:
+            return self.records[candidate_id]
 
     def list_by_status(self, statuses: Iterable[str] | None = None) -> list[DreamCandidateRecord]:
         normalized = {normalize_learning_status(status) for status in statuses} if statuses else set()
-        records = list(self.records.values())
+        with self._lock:
+            records = list(self.records.values())
         if normalized:
             records = [record for record in records if record.learning_status in normalized]
         records.sort(key=lambda item: item.created_at)
         return records
 
     def attach_validation(self, candidate_id: str, validation: dict[str, Any]) -> dict[str, Any]:
-        record = self.records[candidate_id]
-        record.validation = validation
-        event = {"event": "validation_attached", "candidate_id": candidate_id, "timestamp": time.time(), "status": validation.get("status")}
-        record.audit.append(event)
-        self.audit_log.append(event)
-        return record.as_dict()
+        with self._lock:
+            record = self.records[candidate_id]
+            record.validation = validation
+            event = {"event": "validation_attached", "candidate_id": candidate_id, "timestamp": time.time(), "status": validation.get("status")}
+            record.audit.append(event)
+            self.audit_log.append(event)
+            return record.as_dict()
 
     def attach_promotion_decision(self, candidate_id: str, decision: dict[str, Any]) -> dict[str, Any]:
-        record = self.records[candidate_id]
-        record.promotion_decision = decision
-        target_status = normalize_learning_status(decision.get("target_learning_status", record.learning_status))
-        transition = validate_learning_transition(
-            current=record.learning_status,
-            target=target_status,
-            evidence={
-                "rational_control_validation": bool((record.validation or {}).get("allowed_for_promotion", False)),
-                "provenance_available": bool((record.validation or {}).get("observed", {}).get("provenance_available", False)),
-                "clinical_deployment": False,
-            },
-        )
-        if transition.allowed:
-            record.learning_status = target_status
-        else:
-            decision = {**decision, "transition_rejected": transition.as_dict()}
+        with self._lock:
+            record = self.records[candidate_id]
             record.promotion_decision = decision
-        event = {
-            "event": "promotion_decision_attached",
-            "candidate_id": candidate_id,
-            "timestamp": time.time(),
-            "target_learning_status": target_status,
-            "transition_allowed": transition.allowed,
-        }
-        record.audit.append(event)
-        self.audit_log.append(event)
-        return record.as_dict()
+            target_status = normalize_learning_status(decision.get("target_learning_status", record.learning_status))
+            transition = validate_learning_transition(
+                current=record.learning_status,
+                target=target_status,
+                evidence={
+                    "rational_control_validation": bool((record.validation or {}).get("allowed_for_promotion", False)),
+                    "provenance_available": bool((record.validation or {}).get("observed", {}).get("provenance_available", False)),
+                    "clinical_deployment": False,
+                },
+            )
+            if transition.allowed:
+                record.learning_status = target_status
+            else:
+                decision = {**decision, "transition_rejected": transition.as_dict()}
+                record.promotion_decision = decision
+            event = {
+                "event": "promotion_decision_attached",
+                "candidate_id": candidate_id,
+                "timestamp": time.time(),
+                "target_learning_status": target_status,
+                "transition_allowed": transition.allowed,
+            }
+            record.audit.append(event)
+            self.audit_log.append(event)
+            return record.as_dict()
 
     def attach_outcome_feedback(self, candidate_id: str, feedback: dict[str, Any]) -> dict[str, Any]:
-        record = self.records[candidate_id]
-        feedback = {**feedback, "attached_at": time.time()}
-        record.outcome_feedback.append(feedback)
-        event = {"event": "outcome_feedback_attached", "candidate_id": candidate_id, "timestamp": feedback["attached_at"]}
-        record.audit.append(event)
-        self.audit_log.append(event)
-        return record.as_dict()
+        with self._lock:
+            record = self.records[candidate_id]
+            feedback = {**feedback, "attached_at": time.time()}
+            record.outcome_feedback.append(feedback)
+            event = {"event": "outcome_feedback_attached", "candidate_id": candidate_id, "timestamp": feedback["attached_at"]}
+            record.audit.append(event)
+            self.audit_log.append(event)
+            return record.as_dict()
 
     def export_memory_documents(self, statuses: Iterable[str] | None = None) -> list[dict[str, Any]]:
         return [record.to_memory_document() for record in self.list_by_status(statuses=statuses)]
 
     def save_jsonl(self, path: str | Path) -> None:
-        rows = [json.dumps(record.as_dict(), sort_keys=True, default=str) for record in self.records.values()]
+        with self._lock:
+            rows = [json.dumps(record.as_dict(), sort_keys=True, default=str) for record in self.records.values()]
         Path(path).write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
 
     @classmethod

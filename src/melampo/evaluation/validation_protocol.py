@@ -33,6 +33,8 @@ class ValidationEndpoint:
     def evaluate(self, observed: dict[str, Any]) -> dict[str, Any]:
         value = observed.get(self.metric)
         try:
+            if value is None:
+                raise TypeError("missing metric")
             numeric_value = float(value)
         except (TypeError, ValueError):
             return {"name": self.name, "status": "missing", "metric": self.metric, "observed": value, "required": self.required}

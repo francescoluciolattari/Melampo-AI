@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
@@ -36,6 +37,12 @@ class ModelClientConfig:
     allow_remote: bool = False
     local_command: list[str] = field(default_factory=list)
     mock_payload: dict[str, Any] = field(default_factory=dict)
+    allow_local_subprocess: bool = False
+    allowed_command_prefixes: list[str] = field(default_factory=list)
+    allowed_endpoint_hosts: list[str] = field(default_factory=list)
+    max_stdout_bytes: int = 1_000_000
+    max_stderr_bytes: int = 100_000
+    redact_sensitive_payload_keys: bool = True
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -47,6 +54,12 @@ class ModelClientConfig:
             "allow_remote": self.allow_remote,
             "local_command_configured": bool(self.local_command),
             "mock_configured": bool(self.mock_payload),
+            "allow_local_subprocess": self.allow_local_subprocess,
+            "allowed_command_prefixes": list(self.allowed_command_prefixes),
+            "allowed_endpoint_hosts": list(self.allowed_endpoint_hosts),
+            "max_stdout_bytes": self.max_stdout_bytes,
+            "max_stderr_bytes": self.max_stderr_bytes,
+            "redact_sensitive_payload_keys": self.redact_sensitive_payload_keys,
         }
 
 
@@ -58,8 +71,50 @@ class SafeModelClient:
     config: ModelClientConfig = field(default_factory=ModelClientConfig)
     trace: ModelExecutionTrace = field(default_factory=ModelExecutionTrace)
 
+    def _audit_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not self.config.redact_sensitive_payload_keys:
+            return payload
+        sensitive_terms = ("password", "secret", "token", "api_key", "apikey", "authorization")
+
+        def redact_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
+            redacted: dict[str, Any] = {}
+            for key, value in mapping.items():
+                if any(term in str(key).casefold() for term in sensitive_terms):
+                    redacted[str(key)] = "[REDACTED]"
+                elif isinstance(value, dict):
+                    redacted[str(key)] = redact_mapping(value)
+                else:
+                    redacted[str(key)] = value
+            return redacted
+
+        return redact_mapping(payload)
+
+    def _endpoint_allowed(self) -> tuple[bool, str | None]:
+        if not self.config.endpoint:
+            return False, "endpoint_missing"
+        parsed = urllib.parse.urlparse(self.config.endpoint)
+        host = parsed.hostname or ""
+        if parsed.scheme != "https" and host not in {"localhost", "127.0.0.1", "::1"}:
+            return False, "endpoint_must_be_https_or_loopback"
+        if self.config.allowed_endpoint_hosts and host not in set(self.config.allowed_endpoint_hosts):
+            return False, "endpoint_host_not_allowlisted"
+        return True, None
+
+    def _local_command_allowed(self) -> tuple[bool, str | None]:
+        if not self.config.local_command:
+            return False, "local_command_missing"
+        if not self.config.allow_local_subprocess:
+            return False, "local_subprocess_not_allowed"
+        executable = self.config.local_command[0]
+        if self.config.allowed_command_prefixes and not any(
+            executable == prefix or executable.startswith(f"{prefix}/") for prefix in self.config.allowed_command_prefixes
+        ):
+            return False, "local_command_not_allowlisted"
+        return True, None
+
     def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
         request_id = _request_id(self.provider, self.model_name, self.role, payload)
+        audit_payload = self._audit_payload(payload)
         hidden_network_call = False
         record = self.trace.start(
             provider=self.provider,
@@ -68,7 +123,7 @@ class SafeModelClient:
             mode=self.config.mode,
             request_id=request_id,
             hidden_network_call=False,
-            metadata={"config": self.config.describe()},
+            metadata={"config": self.config.describe(), "payload": audit_payload},
         )
 
         if not self.config.enabled or self.config.mode == "disabled":
@@ -77,7 +132,7 @@ class SafeModelClient:
                 "status": "not_called",
                 "request_id": request_id,
                 "mode": self.config.mode,
-                "payload": payload,
+                "payload": audit_payload,
                 "trace": record.as_dict(),
                 "reason": "model_disabled_or_mode_disabled",
             }
@@ -88,7 +143,7 @@ class SafeModelClient:
                 "status": "request_prepared",
                 "request_id": request_id,
                 "mode": "dry_run",
-                "payload": payload,
+                "payload": audit_payload,
                 "trace": record.as_dict(),
                 "hidden_network_call": False,
             }
@@ -100,22 +155,24 @@ class SafeModelClient:
                 "status": str(response.get("status", "completed")),
                 "request_id": request_id,
                 "mode": "mock",
-                "payload": payload,
+                "payload": audit_payload,
                 "response": response,
                 "trace": record.as_dict(),
                 "hidden_network_call": False,
             }
 
         if self.config.mode == "http_json":
-            if not self.config.allow_remote or not self.config.endpoint:
-                record.finish("blocked", error="remote_execution_not_allowed_or_endpoint_missing")
+            endpoint_allowed, endpoint_reason = self._endpoint_allowed()
+            if not self.config.allow_remote or not endpoint_allowed:
+                reason = "remote_execution_not_allowed_or_endpoint_missing" if not self.config.allow_remote else str(endpoint_reason)
+                record.finish("blocked", error=reason)
                 return {
                     "status": "blocked",
                     "request_id": request_id,
                     "mode": "http_json",
-                    "payload": payload,
+                    "payload": audit_payload,
                     "trace": record.as_dict(),
-                    "reason": "remote_execution_not_allowed_or_endpoint_missing",
+                    "reason": reason,
                     "hidden_network_call": False,
                 }
             hidden_network_call = False  # explicit, not hidden: allowed by config below
@@ -123,15 +180,16 @@ class SafeModelClient:
             return self._execute_http_json(payload=payload, request_id=request_id, record=record)
 
         if self.config.mode == "local_subprocess":
-            if not self.config.local_command:
-                record.finish("blocked", error="local_command_missing")
+            command_allowed, command_reason = self._local_command_allowed()
+            if not command_allowed:
+                record.finish("blocked", error=str(command_reason))
                 return {
                     "status": "blocked",
                     "request_id": request_id,
                     "mode": "local_subprocess",
-                    "payload": payload,
+                    "payload": audit_payload,
                     "trace": record.as_dict(),
-                    "reason": "local_command_missing",
+                    "reason": command_reason,
                 }
             return self._execute_local_subprocess(payload=payload, request_id=request_id, record=record)
 
@@ -140,7 +198,7 @@ class SafeModelClient:
             "status": "blocked",
             "request_id": request_id,
             "mode": self.config.mode,
-            "payload": payload,
+            "payload": audit_payload,
             "trace": record.as_dict(),
             "reason": "unknown_model_client_mode",
         }
@@ -184,7 +242,7 @@ class SafeModelClient:
                 "status": str(response_payload.get("status", "completed")),
                 "request_id": request_id,
                 "mode": "http_json",
-                "payload": payload,
+                "payload": self._audit_payload(payload),
                 "response": response_payload,
                 "trace": record.as_dict(),
                 "hidden_network_call": False,
@@ -195,7 +253,7 @@ class SafeModelClient:
                 "status": "failed",
                 "request_id": request_id,
                 "mode": "http_json",
-                "payload": payload,
+                "payload": self._audit_payload(payload),
                 "trace": record.as_dict(),
                 "error": str(exc),
                 "hidden_network_call": False,
@@ -212,23 +270,25 @@ class SafeModelClient:
                 check=False,
             )
             if completed.returncode != 0:
-                record.finish("failed", error=completed.stderr[:500])
+                stderr = completed.stderr[: self.config.max_stderr_bytes]
+                record.finish("failed", error=stderr[:500])
                 return {
                     "status": "failed",
                     "request_id": request_id,
                     "mode": "local_subprocess",
-                    "payload": payload,
+                    "payload": self._audit_payload(payload),
                     "trace": record.as_dict(),
-                    "stderr": completed.stderr,
+                    "stderr": stderr,
                     "returncode": completed.returncode,
                 }
-            response_payload = json.loads(completed.stdout or "{}")
+            stdout = completed.stdout[: self.config.max_stdout_bytes]
+            response_payload = json.loads(stdout or "{}")
             record.finish(str(response_payload.get("status", "completed")))
             return {
                 "status": str(response_payload.get("status", "completed")),
                 "request_id": request_id,
                 "mode": "local_subprocess",
-                "payload": payload,
+                "payload": self._audit_payload(payload),
                 "response": response_payload,
                 "trace": record.as_dict(),
                 "hidden_network_call": False,
@@ -239,7 +299,7 @@ class SafeModelClient:
                 "status": "failed",
                 "request_id": request_id,
                 "mode": "local_subprocess",
-                "payload": payload,
+                "payload": self._audit_payload(payload),
                 "trace": record.as_dict(),
                 "error": str(exc),
             }

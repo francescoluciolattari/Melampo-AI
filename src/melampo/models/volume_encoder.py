@@ -90,7 +90,7 @@ class VolumeEncoder:
             input_kind=input_kind,
         )
         remote_result = None
-        if selection_description["requires_remote"]:
+        if selection_description["requires_remote"] and self.remote_client is not None:
             remote_result = self.remote_client.infer(
                 study_id=study_id,
                 series_paths=series_paths,

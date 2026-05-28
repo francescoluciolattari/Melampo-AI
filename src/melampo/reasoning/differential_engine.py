@@ -1,6 +1,14 @@
 from dataclasses import dataclass, field
+from typing import Any
 
 from .support_contradiction import SupportContradictionAnalyzer
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 @dataclass
@@ -95,7 +103,7 @@ class DifferentialEngine:
                 "label": top_candidate.get("label", "working_hypothesis"),
                 "hypothesis_type": primary_type,
                 "hypothesis_domain": primary_domain,
-                "score": round(float(top_candidate.get("score", 0.7)) + coherence_score * 0.1 + signals["support_strength"] * 0.02, 3),
+                "score": round(_safe_float(top_candidate.get("score", 0.7), 0.7) + coherence_score * 0.1 + signals["support_strength"] * 0.02, 3),
                 "support": len(evidence),
                 "source": "intuition_engine",
                 "support_signals": support_signals[:4],

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from ..areas.case_context_area import CaseContextArea
 from ..areas.epidemiology_area import EpidemiologyArea
@@ -19,6 +19,7 @@ from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.dream_trainer import DreamTrainer
 from ..training.replay_filter import ReplayFilter
+from ..types import CaseContext
 from .area_coherence import AreaCoherenceAnalyzer
 from .diagnostic_orchestrator import MelampoDiagnosticOrchestrator
 from .differential_engine import DifferentialEngine
@@ -27,6 +28,26 @@ from .intuition_engine import IntuitionEngine
 from .pipeline_coordinator import PipelineCoordinator
 from .policy_stack import PolicyStack
 
+
+
+class IngestionProtocol(Protocol):
+    def from_payload(self, payload: dict) -> CaseContext: ...
+
+
+class NormalizerProtocol(Protocol):
+    def to_fhir_bundle(self, case: CaseContext) -> dict[str, Any]: ...
+
+
+class EncoderProtocol(Protocol):
+    def encode(self, *args: Any, **kwargs: Any) -> dict[str, Any]: ...
+
+
+class FusionProtocol(Protocol):
+    def fuse(self, inputs: dict[str, Any]) -> dict[str, Any]: ...
+
+
+class CritiqueProtocol(Protocol):
+    def review(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, value))
@@ -121,18 +142,18 @@ def _derive_governance_scores(
 
 @dataclass
 class ClinicalInferencePipeline:
-    ingestion: object
-    normalizer: object
+    ingestion: IngestionProtocol
+    normalizer: NormalizerProtocol
     router: object
-    volume_encoder: object
-    pathology_encoder: object
-    text_encoder: object
-    fusion: object
+    volume_encoder: EncoderProtocol
+    pathology_encoder: EncoderProtocol
+    text_encoder: EncoderProtocol
+    fusion: FusionProtocol
     episodic_memory: object
     semantic_memory: object
     knowledge_graph: object
     workspace: object
-    critique: object
+    critique: CritiqueProtocol
     metacognition: object
     quantum_layer: object
     replay_engine: object

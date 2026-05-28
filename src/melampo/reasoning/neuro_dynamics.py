@@ -101,8 +101,9 @@ class NeuroDynamicMetrics:
     })
 
     def _prior_for(self, pair: tuple[str, str]) -> AreaInteractionPrior:
+        left, right = sorted(pair)
         return self.area_priors.get(
-            tuple(sorted(pair)),
+            (left, right),
             AreaInteractionPrior(
                 excitatory_weight=0.05,
                 inhibitory_weight=0.05,

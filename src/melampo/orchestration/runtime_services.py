@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from .bootstrap import RegistryBootstrap
 from .model_router import ModelRouter
@@ -9,7 +10,7 @@ class RuntimeServices:
     """Assemble routing and service registry for runtime use."""
 
     router: ModelRouter
-    registry: object
+    registry: Any
 
     @classmethod
     def build(cls, config: object, logger: object):

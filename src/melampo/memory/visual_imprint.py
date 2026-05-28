@@ -237,6 +237,9 @@ class VisualImprintMorpher:
     interpolation_alpha: float = 0.5
     min_similarity: float = 0.35
     min_semantic_overlap: float = 0.34
+    max_pairs: int = 512
+    return_vectors: bool = True
+    allowed_learning_statuses: tuple[str, ...] = ("candidate", "needs_review", "promoted")
 
     def _as_imprints(self, payloads: list[dict[str, Any]] | None) -> list[VisualRecognitionImprint]:
         return [VisualRecognitionImprint.from_payload(payload) for payload in payloads or [] if isinstance(payload, dict)]
@@ -248,8 +251,16 @@ class VisualImprintMorpher:
         area_dynamics: dict[str, Any] | None = None,
         limit: int = 6,
     ) -> dict[str, Any]:
-        source_imprints = self._as_imprints(concept_imprints)
-        diagnostic = self._as_imprints(diagnostic_imprints) or source_imprints
+        source_imprints = [
+            imprint
+            for imprint in self._as_imprints(concept_imprints)
+            if imprint.learning_status in set(self.allowed_learning_statuses)
+        ]
+        diagnostic = [
+            imprint
+            for imprint in self._as_imprints(diagnostic_imprints)
+            if imprint.learning_status in set(self.allowed_learning_statuses)
+        ] or source_imprints
         area_dynamics = area_dynamics if isinstance(area_dynamics, dict) else {}
         neuro = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics.get("neuro_dynamic_metrics", {}), dict) else {}
         pi_score = _safe_float(neuro.get("pi_score", area_dynamics.get("pi_score", 0.0)))
@@ -261,8 +272,16 @@ class VisualImprintMorpher:
         morphs: list[dict[str, Any]] = []
         semantic_links: list[dict[str, Any]] = []
         alpha_base = _clamp(self.interpolation_alpha + (dream_plasticity - mismatch_index) * 0.1, 0.2, 0.8)
+        evaluated_pair_count = 0
+        pair_budget_exhausted = False
         for left_index, left in enumerate(source_imprints):
+            if pair_budget_exhausted:
+                break
             for right in source_imprints[left_index + 1 :]:
+                if evaluated_pair_count >= max(self.max_pairs, 0):
+                    pair_budget_exhausted = True
+                    break
+                evaluated_pair_count += 1
                 relation = _semantic_relation(left, right)
                 semantic_relation_score = float(relation["score"])
                 if semantic_relation_score < self.min_semantic_overlap:
@@ -296,7 +315,7 @@ class VisualImprintMorpher:
                 target_similarity = _cosine(morphed_vector, best_target.vector) if best_target else 0.0
                 target_relation = _semantic_relation(left, best_target) if best_target else {"score": 0.0, "match_type": "none", "shared_terms": [], "shared_ontology_refs": []}
                 right_target_relation = _semantic_relation(right, best_target) if best_target else {"score": 0.0}
-                target_semantic_score = max(float(target_relation.get("score", 0.0)), float(right_target_relation.get("score", 0.0)))
+                target_semantic_score = max(_safe_float(target_relation.get("score", 0.0)), _safe_float(right_target_relation.get("score", 0.0)))
                 inference_weight = _clamp(
                     semantic_relation_score * 0.30
                     + target_semantic_score * 0.22
@@ -352,10 +371,11 @@ class VisualImprintMorpher:
                     "intuitive_link_score": round(intuitive_link_score, 3),
                     "matrix_signature_hash": _hash_vector(morphed_vector),
                     "concept_bridge_hash": _hash_vector(bridge_vector),
-                    "vector": morphed_vector,
                     "learning_status": "candidate",
                     "clinical_status": "research_hypothesis_only",
                 }
+                if self.return_vectors:
+                    morph["vector"] = morphed_vector
                 morphs.append(morph)
                 if intuitive_link_score >= self.min_similarity:
                     semantic_links.append({
@@ -378,6 +398,9 @@ class VisualImprintMorpher:
             "source_imprint_count": len(source_imprints),
             "diagnostic_imprint_count": len(diagnostic),
             "morph_count": len(morphs),
+            "evaluated_pair_count": evaluated_pair_count,
+            "pair_budget_exhausted": pair_budget_exhausted,
+            "max_pairs": self.max_pairs,
             "visual_morph_candidates": morphs[:limit],
             "semantic_links": semantic_links[:limit],
             "visual_morph_coherence": round(top_score, 3),
@@ -398,6 +421,8 @@ class VisualImprintMorpher:
                 "hidden_network_call": False,
                 "does_not_generate_clinical_images": True,
                 "morphs_total_or_partial_semantic_concepts": True,
+                "pair_budget_enforced": True,
+                "return_vectors": self.return_vectors,
                 "synthetic_morphs_are_candidate_only": True,
                 "automatic_clinical_promotion_allowed": False,
                 "human_review_before_clinical_use": True,

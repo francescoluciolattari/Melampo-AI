@@ -77,7 +77,7 @@ class OpenIReportCsvLoader:
         }
 
     def load_csv(self, csv_path: str | Path, limit: int | None = None) -> list[dict]:
-        payloads = []
+        payloads: list[dict] = []
         with Path(csv_path).open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             for index, row in enumerate(reader):

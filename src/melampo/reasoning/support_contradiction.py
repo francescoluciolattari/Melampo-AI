@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -36,8 +37,8 @@ class SupportContradictionAnalyzer:
         mismatch_index = float(neuro_metrics.get("mismatch_index", mismatch_score))
         rehearsal_profile = dream.get("rehearsal_profile", {})
 
-        support_profiles = []
-        contradiction_profiles = []
+        support_profiles: list[dict[str, Any]] = []
+        contradiction_profiles: list[dict[str, Any]] = []
 
         for item in evidence:
             payload = self._payload(item)
@@ -115,8 +116,8 @@ class SupportContradictionAnalyzer:
 
         support_signals = [item["label"] for item in support_profiles]
         contradiction_signals = [item["label"] for item in contradiction_profiles]
-        support_strength = round(sum(item["strength"] for item in support_profiles), 3)
-        contradiction_strength = round(sum(item["strength"] for item in contradiction_profiles), 3)
+        support_strength = round(sum(float(item.get("strength", 0.0) or 0.0) for item in support_profiles), 3)
+        contradiction_strength = round(sum(float(item.get("strength", 0.0) or 0.0) for item in contradiction_profiles), 3)
 
         return {
             "support_profiles": support_profiles,

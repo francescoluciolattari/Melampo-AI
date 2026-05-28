@@ -7,6 +7,13 @@ from ..orchestration.model_capability_registry import ModelCapabilityRegistry
 from .diagnostic_result import DiagnosticResult, DreamSummary, IntuitionSummary, MelampoMetrics
 
 
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _safe_get(payload: dict[str, Any], path: tuple[str, ...], default: Any = None) -> Any:
     cursor: Any = payload
     for key in path:
@@ -30,9 +37,9 @@ class DiagnosticOrchestratorPolicy:
         neuro = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
         coordinated = pipeline_result.get("coordinated", {})
         policy = coordinated.get("policy", {}) if isinstance(coordinated, dict) else {}
-        pi_score = float(area_dynamics.get("pi_score", neuro.get("pi_score", 0.0))) if isinstance(area_dynamics, dict) else 0.0
-        mismatch_index = float(neuro.get("mismatch_index", area_dynamics.get("mismatch_score", 0.0))) if isinstance(area_dynamics, dict) else 1.0
-        uncertainty = float(_safe_get(coordinated, ("state_summary", "uncertainty"), 0.0) or 0.0)
+        pi_score = _safe_float(area_dynamics.get("pi_score", neuro.get("pi_score", 0.0))) if isinstance(area_dynamics, dict) else 0.0
+        mismatch_index = _safe_float(neuro.get("mismatch_index", area_dynamics.get("mismatch_score", 0.0)), 1.0) if isinstance(area_dynamics, dict) else 1.0
+        uncertainty = _safe_float(_safe_get(coordinated, ("state_summary", "uncertainty"), 0.0))
         policy_abstain = bool(policy.get("abstain", False))
         policy_escalate = bool(policy.get("escalate", False))
         reasons = []
@@ -130,8 +137,8 @@ class MelampoDiagnosticOrchestrator:
             deductive_stability=neuro.get("deductive_stability", 0.0),
         )
         result = DiagnosticResult(
-            case_id=pipeline_result.get("case_id", "unknown_case"),
-            result_label=result_label,
+            case_id=str(pipeline_result.get("case_id", "unknown_case")),
+            result_label=str(result_label),
             top_hypothesis=top_hypothesis,
             differential=hypotheses,
             intuition=IntuitionSummary(

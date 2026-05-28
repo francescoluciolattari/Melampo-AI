@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any, Protocol
 
 from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.retriever import MemoryRetriever
@@ -9,12 +10,21 @@ from ..training.replay_filter import ReplayFilter
 from ..models.quantum_belief_layer import QuantumBeliefLayer
 from .critique_loop import CritiqueLoop
 from .pipeline_coordinator import PipelineCoordinator
+from ..types import CaseContext
 
+
+
+class IngestionProtocol(Protocol):
+    def from_payload(self, payload: dict) -> CaseContext: ...
+
+
+class NormalizerProtocol(Protocol):
+    def to_fhir_bundle(self, case: CaseContext) -> dict[str, Any]: ...
 
 @dataclass
 class RefinedClinicalInferencePipeline:
-    ingestion: object
-    normalizer: object
+    ingestion: IngestionProtocol
+    normalizer: NormalizerProtocol
     runtime_services: RuntimeServices
     retriever: MemoryRetriever
     coordinator: PipelineCoordinator
@@ -57,7 +67,7 @@ class RefinedClinicalInferencePipeline:
         }
 
 
-def build_default_refined_pipeline(ingestion: object, normalizer: object, runtime_services: RuntimeServices, coordinator: PipelineCoordinator, critique: CritiqueLoop) -> RefinedClinicalInferencePipeline:
+def build_default_refined_pipeline(ingestion: IngestionProtocol, normalizer: NormalizerProtocol, runtime_services: RuntimeServices, coordinator: PipelineCoordinator, critique: CritiqueLoop) -> RefinedClinicalInferencePipeline:
     return RefinedClinicalInferencePipeline(
         ingestion=ingestion,
         normalizer=normalizer,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 import time
+from threading import RLock
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
@@ -109,6 +110,7 @@ class InMemoryVectorStore:
     collection_name: str = "melampo_semantic_clinical_memory"
     records: dict[str, VectorMemoryRecord] = field(default_factory=dict)
     update_log: list[dict[str, Any]] = field(default_factory=list)
+    _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
     @classmethod
     def enterprise_default(cls) -> "InMemoryVectorStore":
@@ -148,34 +150,36 @@ class InMemoryVectorStore:
         metadata = metadata or {}
         record_id = metadata.get("record_id") or _stable_id(text=text, namespace=self.collection_name)
         now = time.time()
-        previous = self.records.get(record_id)
-        requested_status = normalize_learning_status(learning_status)
-        if previous and previous.learning_status == "promoted" and requested_status != "retired":
-            requested_status = "promoted"
-        record = VectorMemoryRecord(
-            record_id=record_id,
-            text=text,
-            dense_vector=self.embedding_model.embed(text),
-            metadata=metadata,
-            modality=modality,
-            source=source,
-            learning_status=requested_status,
-            created_at=previous.created_at if previous else now,
-            updated_at=now,
-        )
-        self.records[record_id] = record
-        self.update_log.append({
-            "event": "upsert",
-            "record_id": record_id,
-            "modality": modality,
-            "source": source,
-            "learning_status": record.learning_status,
-            "ontology_refs": metadata.get("ontology_refs", []),
-            "relation_count": len(metadata.get("relations", [])) if isinstance(metadata.get("relations", []), list) else 0,
-            "metadata_keys": sorted(metadata.keys()),
-            "timestamp": now,
-        })
-        return record
+        dense_vector = self.embedding_model.embed(text)
+        with self._lock:
+            previous = self.records.get(record_id)
+            requested_status = normalize_learning_status(learning_status)
+            if previous and previous.learning_status == "promoted" and requested_status != "retired":
+                requested_status = "promoted"
+            record = VectorMemoryRecord(
+                record_id=record_id,
+                text=text,
+                dense_vector=dense_vector,
+                metadata=metadata,
+                modality=modality,
+                source=source,
+                learning_status=requested_status,
+                created_at=previous.created_at if previous else now,
+                updated_at=now,
+            )
+            self.records[record_id] = record
+            self.update_log.append({
+                "event": "upsert",
+                "record_id": record_id,
+                "modality": modality,
+                "source": source,
+                "learning_status": record.learning_status,
+                "ontology_refs": metadata.get("ontology_refs", []),
+                "relation_count": len(metadata.get("relations", [])) if isinstance(metadata.get("relations", []), list) else 0,
+                "metadata_keys": sorted(metadata.keys()),
+                "timestamp": now,
+            })
+            return record
 
     def upsert_many(self, documents: Iterable[dict[str, Any]]) -> list[VectorMemoryRecord]:
         return [
@@ -194,7 +198,9 @@ class InMemoryVectorStore:
         query_vector = self.embedding_model.embed(query)
         statuses = set(required_status or [])
         scored = []
-        for record in self.records.values():
+        with self._lock:
+            records = list(self.records.values())
+        for record in records:
             if statuses and record.learning_status not in statuses:
                 continue
             if any(record.metadata.get(key) != value for key, value in filters.items()):
@@ -222,30 +228,31 @@ class InMemoryVectorStore:
         }
 
     def transition_status(self, record_id: str, target_status: str, reason: str, evidence: dict[str, Any] | None = None) -> dict:
-        record = self.records[record_id]
-        transition = validate_learning_transition(record.learning_status, target_status, evidence=evidence or {})
-        now = time.time()
-        if not transition.allowed:
+        with self._lock:
+            record = self.records[record_id]
+            transition = validate_learning_transition(record.learning_status, target_status, evidence=evidence or {})
+            now = time.time()
+            if not transition.allowed:
+                self.update_log.append({
+                    "event": "transition_rejected",
+                    "record_id": record_id,
+                    "target_status": target_status,
+                    "reason": reason,
+                    "transition": transition.as_dict(),
+                    "timestamp": now,
+                })
+                return {"status": "rejected", "record": record.describe(), "transition": transition.as_dict()}
+            record.learning_status = transition.target
+            record.metadata = {**record.metadata, "status_transition_reason": reason}
+            record.updated_at = now
             self.update_log.append({
-                "event": "transition_rejected",
+                "event": "transition_status",
                 "record_id": record_id,
-                "target_status": target_status,
+                "target_status": transition.target,
                 "reason": reason,
-                "transition": transition.as_dict(),
                 "timestamp": now,
             })
-            return {"status": "rejected", "record": record.describe(), "transition": transition.as_dict()}
-        record.learning_status = transition.target
-        record.metadata = {**record.metadata, "status_transition_reason": reason}
-        record.updated_at = now
-        self.update_log.append({
-            "event": "transition_status",
-            "record_id": record_id,
-            "target_status": transition.target,
-            "reason": reason,
-            "timestamp": now,
-        })
-        return {"status": "completed", "record": record.describe(), "transition": transition.as_dict()}
+            return {"status": "completed", "record": record.describe(), "transition": transition.as_dict()}
 
     def promote(self, record_id: str, reason: str) -> dict:
         result = self.transition_status(
@@ -297,13 +304,15 @@ class InMemoryVectorStore:
 
     def describe(self) -> dict:
         statuses: dict[str, int] = {}
-        for record in self.records.values():
+        with self._lock:
+            records = list(self.records.values())
+        for record in records:
             statuses[record.learning_status] = statuses.get(record.learning_status, 0) + 1
         return {
             "backend": self.backend,
             "recommended_enterprise_backend": self.recommended_enterprise_backend,
             "collection_name": self.collection_name,
-            "record_count": len(self.records),
+            "record_count": len(records),
             "status_counts": statuses,
             "embedding_dimensions": self.embedding_model.dimensions,
             "supports_real_time_updates": True,

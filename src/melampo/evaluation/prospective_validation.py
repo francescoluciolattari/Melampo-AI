@@ -87,7 +87,8 @@ class ProspectiveValidationRegistry:
         rows = []
         for prediction in completed:
             result_label = str(prediction.diagnostic_result.get("result_label", "")).strip().lower()
-            accepted_labels = [str(label).strip().lower() for label in prediction.outcome.get("accepted_labels", [])]
+            outcome = prediction.outcome or {}
+            accepted_labels = [str(label).strip().lower() for label in outcome.get("accepted_labels", [])]
             correct = bool(result_label and result_label in accepted_labels)
             rows.append(
                 {

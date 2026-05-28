@@ -148,6 +148,17 @@ Melampo now models a visual recognition imprint as a governed matrix footprint o
 
 During dream/replay, `VisualImprintMorpher` performs inferential semantic matrix morphing between imprints that refer to the same semantic concept either totally (`ground glass opacity` ↔ `ground glass opacity`) or partially (`ground glass opacity` ↔ `peripheral opacity pattern`). The function estimates semantic relation strength from shared concept terms and ontology references, builds a concept-bridge vector, then combines matrix-footprint interpolation with semantic overlap, source/target similarity, prediction error, dream plasticity and action-potential-like gating. The morphed footprint is compared with diagnostic visual imprints to generate candidate-only intuitive links for review. It does not synthesize clinical images, does not perform hidden network calls and does not promote correlations to clinical truth. The belief update can use the resulting visual morph coherence and visual prediction link score as additional quantum-like contextual modulation.
 
+
+## Enterprise hardening added
+
+The current core applies additional enterprise hardening controls:
+
+- `SafeModelClient` redacts sensitive payload keys in returned payloads and execution traces, blocks non-HTTPS remote endpoints except loopback, supports endpoint host allowlists, and requires explicit opt-in before local subprocess execution.
+- Local in-memory stores used by research and fallback paths use request-safe locks for concurrent upserts, reads and governed status transitions. They remain fallback stores; production deployments should still use governed persistent backends.
+- `VisualImprintMorpher` enforces a pair-evaluation budget, filters morphing inputs by governed learning status and can suppress raw morphed vectors in returned candidates while preserving hashes and audit metadata.
+- Clinical pipeline dependencies are represented through structural protocols so runtime wiring remains replaceable while static analysis can verify required methods.
+- Core type checking is expected to pass with `python -m mypy src/melampo --ignore-missing-imports` in addition to pytest and Ruff.
+
 ## Data and memory model
 
 The semantic memory target is an object-property clinical graph:

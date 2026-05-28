@@ -39,13 +39,13 @@ def _extract_confidence(result: dict[str, Any]) -> float:
         top = diagnostic_result.get("top_hypothesis", {})
         if isinstance(top, dict) and top.get("score") is not None:
             try:
-                return max(0.0, min(1.0, float(top.get("score"))))
+                return max(0.0, min(1.0, float(top["score"])))
             except (TypeError, ValueError):
                 pass
         metrics = diagnostic_result.get("melampo_metrics", {})
         if isinstance(metrics, dict) and metrics.get("pi_score") is not None:
             try:
-                return max(0.0, min(1.0, float(metrics.get("pi_score"))))
+                return max(0.0, min(1.0, float(metrics["pi_score"])))
             except (TypeError, ValueError):
                 pass
     return 0.0
