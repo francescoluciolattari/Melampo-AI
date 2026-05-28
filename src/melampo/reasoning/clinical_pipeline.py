@@ -159,36 +159,37 @@ class ClinicalInferencePipeline:
     replay_engine: object
     logger: object
 
-    def run(self, payload: dict) -> dict:
-        case = self.ingestion.from_payload(payload)
-        bundle = self.normalizer.to_fhir_bundle(case)
-
-        runtime_services = RuntimeServices.build(config=getattr(self.metacognition, "config", object()), logger=self.logger)
-        retriever = MemoryRetriever(memory_store=self.semantic_memory)
-        evidence_ranker = EvidenceRanker()
-        coordinator = PipelineCoordinator(
-            differential_engine=DifferentialEngine(),
-            policy_stack=PolicyStack(
-                abstention=AbstentionPolicy(threshold=0.65),
-                risk_gate=RiskGate(threshold=0.35),
-                escalation=EscalationPolicy(),
-            ),
-        )
-        quantum_gate = QuantumResearchGate()
-        dream_trainer = DreamTrainer(
-            replay_filter=ReplayFilter(),
-            sampler=CounterfactualSampler(),
-            belief_layer=QuantumBeliefLayer(),
-        )
-        intuition_engine = IntuitionEngine(belief_layer=QuantumBeliefLayer())
-        visual_area = VisualDiagnosticArea()
-        language_area = LanguageListeningArea()
-        context_area = CaseContextArea()
-        epidemiology_area = EpidemiologyArea()
-        area_coherence = AreaCoherenceAnalyzer()
+    def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
-        specialist_runtime = SpecialistRuntime(registry=diagnostic_orchestrator.registry)
+        return {
+            "runtime_services": RuntimeServices.build(config=getattr(self.metacognition, "config", object()), logger=self.logger),
+            "retriever": MemoryRetriever(memory_store=self.semantic_memory),
+            "evidence_ranker": EvidenceRanker(),
+            "coordinator": PipelineCoordinator(
+                differential_engine=DifferentialEngine(),
+                policy_stack=PolicyStack(
+                    abstention=AbstentionPolicy(threshold=0.65),
+                    risk_gate=RiskGate(threshold=0.35),
+                    escalation=EscalationPolicy(),
+                ),
+            ),
+            "quantum_gate": QuantumResearchGate(),
+            "dream_trainer": DreamTrainer(
+                replay_filter=ReplayFilter(),
+                sampler=CounterfactualSampler(),
+                belief_layer=QuantumBeliefLayer(),
+            ),
+            "intuition_engine": IntuitionEngine(belief_layer=QuantumBeliefLayer()),
+            "visual_area": VisualDiagnosticArea(),
+            "language_area": LanguageListeningArea(),
+            "context_area": CaseContextArea(),
+            "epidemiology_area": EpidemiologyArea(),
+            "area_coherence": AreaCoherenceAnalyzer(),
+            "diagnostic_orchestrator": diagnostic_orchestrator,
+            "specialist_runtime": SpecialistRuntime(registry=diagnostic_orchestrator.registry),
+        }
 
+    def _encode_modalities(self, case: CaseContext) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
         text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
         if case.imaging:
             first_study = case.imaging[0]
@@ -202,7 +203,6 @@ class ClinicalInferencePipeline:
         else:
             volume_features = {"study_id": "none", "series_paths": [], "image_count": 0, "has_local_images": False}
             pathology_features = {"slide_id": "none"}
-
         fused = self.fusion.fuse(
             {
                 "text": text_features,
@@ -210,8 +210,10 @@ class ClinicalInferencePipeline:
                 "pathology": pathology_features,
             }
         )
-        query_text = case.report_text or case.ehr_text or case.case_id
-        retrieval = retriever.retrieve(
+        return text_features, volume_features, pathology_features, fused
+
+    def _retrieve_and_rank(self, components: dict[str, Any], case: CaseContext, payload: dict[str, Any], query_text: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        retrieval = components["retriever"].retrieve(
             query_text,
             top_k=5,
             case_context={
@@ -222,9 +224,18 @@ class ClinicalInferencePipeline:
             },
             target_areas=["visual_diagnostic", "language_listening", "case_context", "epidemiology"],
         )
-        ranked_evidence = evidence_ranker.rank(retrieval["evidence"])
-        resolved = runtime_services.resolve("volume_encoder")
-        quantum_allowed = quantum_gate.allow(contextuality_score=0.7)
+        return retrieval, components["evidence_ranker"].rank(retrieval["evidence"])
+
+    def _specialist_signals(
+        self,
+        components: dict[str, Any],
+        case: CaseContext,
+        query_text: str,
+        volume_features: dict[str, Any],
+        retrieval: dict[str, Any],
+        ranked_evidence: list[dict[str, Any]],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        specialist_runtime = components["specialist_runtime"]
         radiology_specialist_signal = specialist_runtime.radiology_signal(
             study_id=str(volume_features.get("study_id", "none")),
             series_paths=list(volume_features.get("series_paths", [])),
@@ -239,49 +250,59 @@ class ClinicalInferencePipeline:
                 "case_provenance": case.provenance,
             },
         )
+        return radiology_specialist_signal, grounded_text_specialist_signal
 
-        area_signals = {
-            "visual_diagnostic": visual_area.integrate(
+    def _build_area_signals(
+        self,
+        components: dict[str, Any],
+        payload: dict[str, Any],
+        case: CaseContext,
+        bundle: dict[str, Any],
+        volume_features: dict[str, Any],
+        pathology_features: dict[str, Any],
+        radiology_specialist_signal: dict[str, Any],
+        grounded_text_specialist_signal: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "visual_diagnostic": components["visual_area"].integrate(
                 volume_features=volume_features,
                 pathology_features=pathology_features,
                 patient_visual=payload.get("patient_visual", {}),
                 labs_snapshot=payload.get("labs_snapshot", {}),
                 specialist_signal=radiology_specialist_signal,
             ),
-            "language_listening": language_area.integrate(
+            "language_listening": components["language_area"].integrate(
                 report_text=case.report_text,
                 ehr_text=case.ehr_text,
                 patient_complaints=payload.get("patient_complaints", ""),
                 voice_features=payload.get("voice_features", {}),
                 specialist_signal=grounded_text_specialist_signal,
             ),
-            "case_context": context_area.integrate(
+            "case_context": components["context_area"].integrate(
                 {
                     "demographics": case.demographics,
                     "provenance": case.provenance,
                     "bundle_keys": list(bundle.keys()),
                 }
             ),
-            "epidemiology": epidemiology_area.integrate(
+            "epidemiology": components["epidemiology_area"].integrate(
                 demographics=case.demographics,
                 provenance=case.provenance,
                 exposures=payload.get("exposures", {}),
             ),
         }
-        visual_imprints = VisualImprintBuilder().from_visual_area(
-            signal=area_signals["visual_diagnostic"],
-            volume_features=volume_features,
-        )
-        area_dynamics = area_coherence.analyze(area_signals)
-        governance_scores = _derive_governance_scores(
-            payload=payload,
-            area_dynamics=area_dynamics,
-            retrieval=retrieval,
-            ranked_evidence=ranked_evidence,
-            area_signals=area_signals,
-        )
 
-        dream = dream_trainer.run(
+    def _run_dream_branch(
+        self,
+        components: dict[str, Any],
+        payload: dict[str, Any],
+        case: CaseContext,
+        bundle: dict[str, Any],
+        area_dynamics: dict[str, Any],
+        governance_scores: dict[str, Any],
+        visual_imprints: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        return components["dream_trainer"].run(
             case_context={
                 "case_id": case.case_id,
                 "bundle_keys": list(bundle.keys()),
@@ -300,14 +321,16 @@ class ClinicalInferencePipeline:
             risk=governance_scores["risk"],
         )
 
-        intuition = intuition_engine.infer(
-            case_id=case.case_id,
-            ranked_evidence=ranked_evidence,
-            dream=dream,
-            quantum_allowed=quantum_allowed,
-            area_signals=area_signals,
-            area_dynamics=area_dynamics,
-        )
+    def _coordination_evidence(
+        self,
+        bundle: dict[str, Any],
+        retrieval: dict[str, Any],
+        fused: dict[str, Any],
+        resolved: dict[str, Any],
+        intuition_engine: IntuitionEngine,
+        intuition: dict[str, Any],
+        ranked_evidence: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         evidence = [
             {"source": "bundle", "kind": "bundle_keys", "value": list(bundle.keys())},
             {"source": "retrieval", "kind": retrieval["retrieval_mode"], "value": retrieval["evidence_count"]},
@@ -316,7 +339,88 @@ class ClinicalInferencePipeline:
             {"source": "intuition", "kind": "candidate", "value": intuition_engine.summarize_for_trace(intuition)},
         ]
         evidence.extend(ranked_evidence)
-        coordinated = coordinator.run(
+        return evidence
+
+    def _finalize_diagnostic_result(self, components: dict[str, Any], pipeline_result: dict[str, Any], retrieval: dict[str, Any], ranked_evidence: list[dict[str, Any]]) -> None:
+        pipeline_result["diagnostic_result"] = components["diagnostic_orchestrator"].orchestrate(pipeline_result)
+        external_critique = components["specialist_runtime"].external_critique(
+            diagnostic_result=pipeline_result["diagnostic_result"],
+            literature_context={
+                "retrieval": retrieval,
+                "ranked_evidence": ranked_evidence,
+            },
+        )
+        pipeline_result["external_critique"] = external_critique
+        pipeline_result["diagnostic_result"]["external_critique"] = external_critique
+        pipeline_result["diagnostic_result"]["audit_trace"]["external_critic_is_final_arbiter"] = False
+
+    def run(self, payload: dict) -> dict:
+        case = self.ingestion.from_payload(payload)
+        bundle = self.normalizer.to_fhir_bundle(case)
+        components = self._build_runtime_components()
+        text_features, volume_features, pathology_features, fused = self._encode_modalities(case)
+        query_text = case.report_text or case.ehr_text or case.case_id
+        retrieval, ranked_evidence = self._retrieve_and_rank(components, case, payload, query_text)
+        resolved = components["runtime_services"].resolve("volume_encoder")
+        quantum_allowed = components["quantum_gate"].allow(contextuality_score=0.7)
+        radiology_specialist_signal, grounded_text_specialist_signal = self._specialist_signals(
+            components=components,
+            case=case,
+            query_text=query_text,
+            volume_features=volume_features,
+            retrieval=retrieval,
+            ranked_evidence=ranked_evidence,
+        )
+        area_signals = self._build_area_signals(
+            components=components,
+            payload=payload,
+            case=case,
+            bundle=bundle,
+            volume_features=volume_features,
+            pathology_features=pathology_features,
+            radiology_specialist_signal=radiology_specialist_signal,
+            grounded_text_specialist_signal=grounded_text_specialist_signal,
+        )
+        visual_imprints = VisualImprintBuilder().from_visual_area(
+            signal=area_signals["visual_diagnostic"],
+            volume_features=volume_features,
+        )
+        area_dynamics = components["area_coherence"].analyze(area_signals)
+        governance_scores = _derive_governance_scores(
+            payload=payload,
+            area_dynamics=area_dynamics,
+            retrieval=retrieval,
+            ranked_evidence=ranked_evidence,
+            area_signals=area_signals,
+        )
+        dream = self._run_dream_branch(
+            components=components,
+            payload=payload,
+            case=case,
+            bundle=bundle,
+            area_dynamics=area_dynamics,
+            governance_scores=governance_scores,
+            visual_imprints=visual_imprints,
+        )
+        intuition_engine = components["intuition_engine"]
+        intuition = intuition_engine.infer(
+            case_id=case.case_id,
+            ranked_evidence=ranked_evidence,
+            dream=dream,
+            quantum_allowed=quantum_allowed,
+            area_signals=area_signals,
+            area_dynamics=area_dynamics,
+        )
+        evidence = self._coordination_evidence(
+            bundle=bundle,
+            retrieval=retrieval,
+            fused=fused,
+            resolved=resolved,
+            intuition_engine=intuition_engine,
+            intuition=intuition,
+            ranked_evidence=ranked_evidence,
+        )
+        coordinated = components["coordinator"].run(
             case_id=case.case_id,
             evidence=evidence,
             risk=governance_scores["risk"],
@@ -350,15 +454,10 @@ class ClinicalInferencePipeline:
             "quantum_allowed": quantum_allowed,
             "dream": dream,
         }
-        pipeline_result["diagnostic_result"] = diagnostic_orchestrator.orchestrate(pipeline_result)
-        external_critique = specialist_runtime.external_critique(
-            diagnostic_result=pipeline_result["diagnostic_result"],
-            literature_context={
-                "retrieval": retrieval,
-                "ranked_evidence": ranked_evidence,
-            },
+        self._finalize_diagnostic_result(
+            components=components,
+            pipeline_result=pipeline_result,
+            retrieval=retrieval,
+            ranked_evidence=ranked_evidence,
         )
-        pipeline_result["external_critique"] = external_critique
-        pipeline_result["diagnostic_result"]["external_critique"] = external_critique
-        pipeline_result["diagnostic_result"]["audit_trace"]["external_critic_is_final_arbiter"] = False
         return pipeline_result

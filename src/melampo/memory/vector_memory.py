@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import time
-from threading import RLock
 from dataclasses import dataclass, field
+from pathlib import Path
+from threading import RLock
 from typing import Any, Iterable
 
 from .learning_status import normalize_learning_status, validate_learning_transition
@@ -322,6 +324,82 @@ class InMemoryVectorStore:
             "supports_governed_learning_status_transitions": True,
             "fallback_mode": "dependency_free_in_memory",
         }
+
+
+@dataclass(slots=True)
+class PersistentJsonlVectorStore(InMemoryVectorStore):
+    """Durable local JSONL vector-memory backend for audit/research deployments.
+
+    This backend is intentionally dependency-free and local. It is useful for
+    repeatable tests, air-gapped research and small audit fixtures. Enterprise
+    clinical deployments should still prefer a governed database/vector backend
+    with tenant isolation, access control and operational monitoring.
+    """
+
+    path: str | Path = "melampo_vector_memory.jsonl"
+    autosave: bool = True
+
+    def __post_init__(self) -> None:
+        self.path = Path(self.path)
+        self._load_existing()
+
+    def _record_payload(self, record: VectorMemoryRecord) -> dict[str, Any]:
+        return {
+            "record_id": record.record_id,
+            "text": record.text,
+            "dense_vector": record.dense_vector,
+            "metadata": record.metadata,
+            "modality": record.modality,
+            "source": record.source,
+            "learning_status": record.learning_status,
+            "created_at": record.created_at,
+            "updated_at": record.updated_at,
+        }
+
+    def _load_existing(self) -> None:
+        path = Path(self.path)
+        if not path.exists():
+            return
+        with self._lock:
+            self.records.clear()
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                payload = json.loads(line)
+                record = VectorMemoryRecord(
+                    record_id=str(payload["record_id"]),
+                    text=str(payload.get("text", "")),
+                    dense_vector=[float(value) for value in payload.get("dense_vector", [])],
+                    metadata=dict(payload.get("metadata", {})) if isinstance(payload.get("metadata", {}), dict) else {},
+                    modality=str(payload.get("modality", "text")),
+                    source=str(payload.get("source", "local")),
+                    learning_status=normalize_learning_status(payload.get("learning_status", "candidate")),
+                    created_at=float(payload.get("created_at", time.time())),
+                    updated_at=float(payload.get("updated_at", time.time())),
+                )
+                self.records[record.record_id] = record
+
+    def persist(self) -> dict[str, Any]:
+        path = Path(self.path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with self._lock:
+            rows = [json.dumps(self._record_payload(record), sort_keys=True, default=str) for record in self.records.values()]
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        tmp_path.write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
+        tmp_path.replace(path)
+        return {"status": "persisted", "path": str(path), "record_count": len(rows)}
+
+    def upsert(self, text: str, metadata: dict[str, Any] | None = None, modality: str = "text", source: str = "local", learning_status: str = "candidate") -> VectorMemoryRecord:
+        record = InMemoryVectorStore.upsert(self, text=text, metadata=metadata, modality=modality, source=source, learning_status=learning_status)
+        if self.autosave:
+            self.persist()
+        return record
+
+    def transition_status(self, record_id: str, target_status: str, reason: str, evidence: dict[str, Any] | None = None) -> dict:
+        result = InMemoryVectorStore.transition_status(self, record_id=record_id, target_status=target_status, reason=reason, evidence=evidence)
+        if self.autosave:
+            self.persist()
+        return result
 
 
 VectorMemoryStore = InMemoryVectorStore

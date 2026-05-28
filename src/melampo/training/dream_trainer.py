@@ -1,9 +1,46 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import Any
 
 from .counterfactual_sampler import CounterfactualSampler
 from .replay_filter import ReplayFilter
 from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..memory.visual_imprint import VisualImprintMorpher
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+@dataclass(frozen=True, slots=True)
+class DreamRuntimeContext:
+    case_context: dict[str, Any]
+    filter_assessment: dict[str, Any]
+    sampled: dict[str, Any]
+    accepted: bool
+    coherence: float
+    risk: float
+    bundle_keys: list[Any]
+    base_label: str
+    exposures: dict[str, Any]
+    report_text: str
+    patient_complaints: str
+    area_dynamics: dict[str, Any]
+    neuro_metrics: dict[str, Any]
+    mismatch_score: float
+    coherence_pairs: list[Any]
+    convergence_index: float
+    revision_pressure: float
+    dream_plasticity: float
+    pi_score: float
+    variant_focus: str
+    visual_morphing: dict[str, Any]
+    visual_morph_gain: float
+    visual_prediction_link_score: float
 
 
 @dataclass
@@ -15,25 +52,12 @@ class DreamTrainer:
     belief_layer: QuantumBeliefLayer
     visual_morpher: VisualImprintMorpher = field(default_factory=VisualImprintMorpher)
 
-    def run(self, case_context: dict, coherence: float, risk: float) -> dict:
-        filter_assessment = self.replay_filter.assess(coherence=coherence, risk=risk)
-        accepted = filter_assessment["accepted"]
-        sampled = self.sampler.sample(case_context)
+    def _runtime_context(self, case_context: dict, coherence: float, risk: float) -> DreamRuntimeContext:
         case_context = case_context or {}
-        bundle_keys = case_context.get("bundle_keys", [])
-        base_label = case_context.get("case_id", "case")
-        exposures = case_context.get("exposures", {})
-        report_text = case_context.get("report_text", "")
-        patient_complaints = case_context.get("patient_complaints", "")
+        filter_assessment = self.replay_filter.assess(coherence=coherence, risk=risk)
+        sampled = self.sampler.sample(case_context)
         area_dynamics = case_context.get("area_dynamics", {})
         neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
-        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
-        coherence_pairs = area_dynamics.get("coherence_pairs", [])
-        convergence_index = float(neuro_metrics.get("convergence_index", 0.0))
-        revision_pressure = float(neuro_metrics.get("revision_pressure", 0.0))
-        dream_plasticity = float(neuro_metrics.get("dream_plasticity", 0.0))
-        pi_score = float(neuro_metrics.get("pi_score", area_dynamics.get("pi_score", 0.0)))
-        variant_focus = sampled.get("variant_focus", "context")
         visual_imprints = list(case_context.get("visual_imprints", [])) if isinstance(case_context.get("visual_imprints", []), list) else []
         concept_memory_imprints = list(case_context.get("concept_memory_imprints", [])) if isinstance(case_context.get("concept_memory_imprints", []), list) else []
         diagnostic_visual_imprints = list(case_context.get("diagnostic_visual_imprints", visual_imprints)) if isinstance(case_context.get("diagnostic_visual_imprints", visual_imprints), list) else visual_imprints
@@ -42,75 +66,108 @@ class DreamTrainer:
             diagnostic_imprints=diagnostic_visual_imprints,
             area_dynamics=area_dynamics,
         )
-        visual_morph_gain = float(visual_morphing.get("visual_morph_intuition_gain", 0.0))
-        visual_prediction_link_score = float(visual_morphing.get("visual_prediction_link_score", 0.0))
+        return DreamRuntimeContext(
+            case_context=case_context,
+            filter_assessment=filter_assessment,
+            sampled=sampled,
+            accepted=bool(filter_assessment["accepted"]),
+            coherence=coherence,
+            risk=risk,
+            bundle_keys=case_context.get("bundle_keys", []),
+            base_label=case_context.get("case_id", "case"),
+            exposures=case_context.get("exposures", {}),
+            report_text=case_context.get("report_text", ""),
+            patient_complaints=case_context.get("patient_complaints", ""),
+            area_dynamics=area_dynamics,
+            neuro_metrics=neuro_metrics,
+            mismatch_score=_safe_float(area_dynamics.get("mismatch_score", 0.0)) if isinstance(area_dynamics, dict) else 0.0,
+            coherence_pairs=area_dynamics.get("coherence_pairs", []) if isinstance(area_dynamics, dict) else [],
+            convergence_index=_safe_float(neuro_metrics.get("convergence_index", 0.0)),
+            revision_pressure=_safe_float(neuro_metrics.get("revision_pressure", 0.0)),
+            dream_plasticity=_safe_float(neuro_metrics.get("dream_plasticity", 0.0)),
+            pi_score=_safe_float(neuro_metrics.get("pi_score", area_dynamics.get("pi_score", 0.0) if isinstance(area_dynamics, dict) else 0.0)),
+            variant_focus=sampled.get("variant_focus", "context"),
+            visual_morphing=visual_morphing,
+            visual_morph_gain=_safe_float(visual_morphing.get("visual_morph_intuition_gain", 0.0)),
+            visual_prediction_link_score=_safe_float(visual_morphing.get("visual_prediction_link_score", 0.0)),
+        )
 
-        rehearsal_profile = {
-            "rare_case_hint": bool(accepted and len(bundle_keys) <= 2),
-            "boundary_case_hint": bool(coherence < 0.95 and risk <= 0.15),
-            "contradiction_rehearsal": bool((not accepted) or risk > 0.2 or mismatch_score > 0.6 or revision_pressure > 0.55),
-            "revision_bias": "conservative" if (risk > 0.15 or mismatch_score > 0.4 or revision_pressure > 0.5) else "exploratory",
-            "post_error_adjustment": "re-rank_alternatives" if ((not accepted) or risk > 0.2 or mismatch_score > 0.6 or revision_pressure > 0.55) else "stabilize_primary",
-            "coherence_guidance": "multimodal_support" if coherence_pairs else "single_stream",
-            "replay_mode": filter_assessment["replay_mode"],
-            "acceptance_score": filter_assessment["acceptance_score"],
-            "variant_focus": variant_focus,
-            "dream_plasticity": dream_plasticity,
-            "convergence_index": convergence_index,
-            "revision_pressure": revision_pressure,
-            "pi_score": pi_score,
-            "visual_morphing_active": bool(visual_morphing.get("morph_count", 0)),
-            "visual_morph_intuition_gain": round(visual_morph_gain, 3),
-            "visual_prediction_link_score": round(visual_prediction_link_score, 3),
+    def _rehearsal_profile(self, context: DreamRuntimeContext) -> dict[str, Any]:
+        contradiction_rehearsal = bool(
+            (not context.accepted)
+            or context.risk > 0.2
+            or context.mismatch_score > 0.6
+            or context.revision_pressure > 0.55
+        )
+        return {
+            "rare_case_hint": bool(context.accepted and len(context.bundle_keys) <= 2),
+            "boundary_case_hint": bool(context.coherence < 0.95 and context.risk <= 0.15),
+            "contradiction_rehearsal": contradiction_rehearsal,
+            "revision_bias": "conservative" if (context.risk > 0.15 or context.mismatch_score > 0.4 or context.revision_pressure > 0.5) else "exploratory",
+            "post_error_adjustment": "re-rank_alternatives" if contradiction_rehearsal else "stabilize_primary",
+            "coherence_guidance": "multimodal_support" if context.coherence_pairs else "single_stream",
+            "replay_mode": context.filter_assessment["replay_mode"],
+            "acceptance_score": context.filter_assessment["acceptance_score"],
+            "variant_focus": context.variant_focus,
+            "dream_plasticity": context.dream_plasticity,
+            "convergence_index": context.convergence_index,
+            "revision_pressure": context.revision_pressure,
+            "pi_score": context.pi_score,
+            "visual_morphing_active": bool(context.visual_morphing.get("morph_count", 0)),
+            "visual_morph_intuition_gain": round(context.visual_morph_gain, 3),
+            "visual_prediction_link_score": round(context.visual_prediction_link_score, 3),
         }
 
-        alternative_hypotheses = [
+    def _alternative_hypotheses(self, context: DreamRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
+        hypotheses: list[dict[str, Any]] = [
             {
-                "label": f"{base_label}_alt_1",
+                "label": f"{context.base_label}_alt_1",
                 "kind": "rare_case" if rehearsal_profile["rare_case_hint"] else "adjacent_case",
-                "focus": "epidemiology" if exposures else variant_focus,
+                "focus": "epidemiology" if context.exposures else context.variant_focus,
             },
             {
-                "label": f"{base_label}_alt_2",
+                "label": f"{context.base_label}_alt_2",
                 "kind": "boundary_case" if rehearsal_profile["boundary_case_hint"] else "counterfactual_case",
-                "focus": "language_listening" if (report_text or patient_complaints) else variant_focus,
+                "focus": "language_listening" if (context.report_text or context.patient_complaints) else context.variant_focus,
             },
         ]
         if rehearsal_profile["contradiction_rehearsal"]:
-            alternative_hypotheses.append(
+            hypotheses.append(
                 {
-                    "label": f"{base_label}_alt_3",
+                    "label": f"{context.base_label}_alt_3",
                     "kind": "contradiction_revision",
                     "focus": "multi_area_recheck",
                 }
             )
-        if mismatch_score > 0.6 or revision_pressure > 0.6:
-            alternative_hypotheses.append(
+        if context.mismatch_score > 0.6 or context.revision_pressure > 0.6:
+            hypotheses.append(
                 {
-                    "label": f"{base_label}_alt_4",
+                    "label": f"{context.base_label}_alt_4",
                     "kind": "mismatch_resolution",
                     "focus": "cross_area_alignment",
                 }
             )
-        if visual_prediction_link_score >= 0.45:
-            alternative_hypotheses.append(
+        if context.visual_prediction_link_score >= 0.45:
+            hypotheses.append(
                 {
-                    "label": f"{base_label}_visual_morph_link",
+                    "label": f"{context.base_label}_visual_morph_link",
                     "kind": "visual_semantic_morph_correlation",
                     "focus": "visual_diagnostic",
-                    "score": round(visual_prediction_link_score, 3),
+                    "score": round(context.visual_prediction_link_score, 3),
                     "requires_review": True,
                 }
             )
+        return hypotheses
 
+    def _auto_evolution_plan(self, context: DreamRuntimeContext) -> dict[str, Any]:
         auto_evolution_candidate = bool(
-            accepted
-            and pi_score >= 0.55
-            and convergence_index >= 0.45
-            and risk <= 0.25
-            and dream_plasticity >= 0.35
+            context.accepted
+            and context.pi_score >= 0.55
+            and context.convergence_index >= 0.45
+            and context.risk <= 0.25
+            and context.dream_plasticity >= 0.35
         )
-        auto_evolution_plan = {
+        return {
             "status": "candidate" if auto_evolution_candidate else "hold_for_more_evidence",
             "learning_status": "candidate",
             "promotion_state": "requires_validation",
@@ -125,34 +182,60 @@ class DreamTrainer:
                 "generate counterfactual variants around unresolved mismatch",
                 "retain contradictions as diagnostic safeguards instead of deleting them",
             ],
-            "candidate_score": round(pi_score * 0.32 + convergence_index * 0.27 + dream_plasticity * 0.18 + visual_morph_gain * 0.08 - risk * 0.15, 3),
+            "candidate_score": round(
+                context.pi_score * 0.32
+                + context.convergence_index * 0.27
+                + context.dream_plasticity * 0.18
+                + context.visual_morph_gain * 0.08
+                - context.risk * 0.15,
+                3,
+            ),
             "rational_control_required": True,
             "human_review_before_clinical_use": True,
             "synthetic_candidate_not_clinical_truth": True,
         }
 
+    def _belief_context(
+        self,
+        context: DreamRuntimeContext,
+        rehearsal_profile: dict[str, Any],
+        alternative_hypotheses: list[dict[str, Any]],
+        auto_evolution_plan: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "sampled": context.sampled,
+            "filter_assessment": context.filter_assessment,
+            "rehearsal_profile": rehearsal_profile,
+            "alternative_hypotheses": alternative_hypotheses,
+            "area_dynamics": context.area_dynamics,
+            "auto_evolution_plan": auto_evolution_plan,
+            "visual_morphing": context.visual_morphing,
+            "visual_morph_intuition_gain": context.visual_morph_gain,
+            "visual_prediction_link_score": context.visual_prediction_link_score,
+            "neuro_dynamic_metrics": context.neuro_metrics,
+        }
+
+    def run(self, case_context: dict, coherence: float, risk: float) -> dict:
+        context = self._runtime_context(case_context=case_context, coherence=coherence, risk=risk)
+        rehearsal_profile = self._rehearsal_profile(context)
+        alternative_hypotheses = self._alternative_hypotheses(context, rehearsal_profile)
+        auto_evolution_plan = self._auto_evolution_plan(context)
         belief = self.belief_layer.update(
-            prior={"accepted": accepted},
-            context={
-                "sampled": sampled,
-                "filter_assessment": filter_assessment,
-                "rehearsal_profile": rehearsal_profile,
-                "alternative_hypotheses": alternative_hypotheses,
-                "area_dynamics": area_dynamics,
-                "auto_evolution_plan": auto_evolution_plan,
-                "visual_morphing": visual_morphing,
-                "visual_morph_intuition_gain": visual_morph_gain,
-                "visual_prediction_link_score": visual_prediction_link_score,
-                "neuro_dynamic_metrics": neuro_metrics,
-            },
+            prior={"accepted": context.accepted},
+            context=self._belief_context(
+                context=context,
+                rehearsal_profile=rehearsal_profile,
+                alternative_hypotheses=alternative_hypotheses,
+                auto_evolution_plan=auto_evolution_plan,
+            ),
         )
         return {
-            "accepted": accepted,
-            "filter_assessment": filter_assessment,
-            "sampled": sampled,
+            "accepted": context.accepted,
+            "filter_assessment": context.filter_assessment,
+            "sampled": context.sampled,
             "rehearsal_profile": rehearsal_profile,
             "alternative_hypotheses": alternative_hypotheses,
             "auto_evolution_plan": auto_evolution_plan,
-            "visual_morphing": visual_morphing,
+            "visual_morphing": context.visual_morphing,
             "belief": belief,
         }

@@ -159,6 +159,15 @@ The current core applies additional enterprise hardening controls:
 - Clinical pipeline dependencies are represented through structural protocols so runtime wiring remains replaceable while static analysis can verify required methods.
 - Core type checking is expected to pass with `python -m mypy src/melampo --ignore-missing-imports` in addition to pytest and Ruff.
 
+## Next-phase decomposition and persistence controls
+
+The current phase adds regression controls before further refactoring: an end-to-end golden snapshot protects the clinical pipeline output, numeric edge-case tests assert bounded governance/neuro-dynamic metrics, and concurrency tests exercise simultaneous dream-candidate promotion and memory-document retrieval.
+
+The decomposition is intentionally incremental rather than a wholesale rewrite. `ClinicalInferencePipeline.run` now delegates runtime assembly, encoding, retrieval/ranking, specialist signal collection, area signal construction, dream branching, coordination evidence and final diagnostic assembly to focused helper methods. `DreamTrainer.run` now delegates runtime-context construction, rehearsal profiling, alternative-hypothesis construction, auto-evolution planning and belief-context construction. `IntuitionEngine.infer` has only the lowest-risk metric/ranking/penalty extraction applied in this phase; the remaining candidate-scoring and belief-context extraction should be done only with additional golden snapshots because it is the highest-sensitivity cognitive scoring path.
+
+A dependency-free `PersistentJsonlVectorStore` and `AppendOnlyAuditStore` provide local durable research backends for repeatable tests, air-gapped runs and audit fixtures. They are not substitutes for a regulated production vector database or immutable audit ledger, but they establish the persistence contracts without adding hidden network services.
+
+
 ## Data and memory model
 
 The semantic memory target is an object-property clinical graph:

@@ -16,30 +16,110 @@ class IntuitionEngine:
 
     belief_layer: QuantumBeliefLayer
 
+    def _extract_metrics(self, area_dynamics: dict, neuro_metrics: dict) -> tuple[float, ...]:
+        return (
+            _float_metric(area_dynamics, "pi_score", _float_metric(neuro_metrics, "pi_score")),
+            _float_metric(area_dynamics, "prediction_error", _float_metric(neuro_metrics, "prediction_error")),
+            _float_metric(area_dynamics, "precision_weighted_coherence", _float_metric(neuro_metrics, "precision_weighted_coherence")),
+            _float_metric(neuro_metrics, "convergence_index"),
+            _float_metric(neuro_metrics, "mismatch_index"),
+            _float_metric(neuro_metrics, "inhibitory_control"),
+            _float_metric(neuro_metrics, "deductive_gate"),
+            _float_metric(neuro_metrics, "revision_pressure"),
+            _float_metric(neuro_metrics, "dream_plasticity"),
+            _float_metric(neuro_metrics, "intuition_gain", 1.0),
+            _float_metric(neuro_metrics, "bias_suppression_score"),
+            _float_metric(neuro_metrics, "candidate_temperature", 1.0),
+            _float_metric(neuro_metrics, "belief_update_rate"),
+            _float_metric(neuro_metrics, "interdependence_index"),
+            _float_metric(neuro_metrics, "evidence_integration_score"),
+            _float_metric(neuro_metrics, "noise_suppression_score"),
+            _float_metric(neuro_metrics, "action_potential_gate"),
+            _float_metric(neuro_metrics, "synaptic_plasticity_index"),
+            _float_metric(neuro_metrics, "deep_inference_score"),
+            _float_metric(neuro_metrics, "deductive_stability"),
+        )
+
+    def _rank_areas(self, area_signals: dict) -> tuple[list[dict], list[str], float, float]:
+        area_ranking = []
+        for name, payload in area_signals.items():
+            signal_size = len(payload) if isinstance(payload, dict) else 1
+            signal_count = int(payload.get("signal_count", signal_size)) if isinstance(payload, dict) else signal_size
+            salience = float(payload.get("salience_score", 0.0)) if isinstance(payload, dict) else 0.0
+            uncertainty = float(payload.get("uncertainty_score", max(0.0, 1.0 - min(salience, 1.0)))) if isinstance(payload, dict) else 1.0
+            area_ranking.append({"area": name, "weight": signal_size + signal_count + salience - uncertainty})
+        area_ranking.sort(key=lambda item: item["weight"], reverse=True)
+        top_areas = [item["area"] for item in area_ranking[:2]]
+        if area_ranking:
+            top_weight = area_ranking[0]["weight"]
+            second_weight = area_ranking[1]["weight"] if len(area_ranking) > 1 else 0
+            convergence_score = round(second_weight / max(top_weight, 1), 3)
+            conflict_score = round((top_weight - second_weight) / max(top_weight, 1), 3)
+        else:
+            convergence_score = 0.0
+            conflict_score = 0.0
+        return area_ranking, top_areas, convergence_score, conflict_score
+
+    def _area_pair_bonus(self, top_areas: list[str], coherence_score: float, pi_score: float, convergence_index: float, interdependence_index: float, evidence_integration_score: float) -> float:
+        base_bonus = 0.0
+        top_area_pair = tuple(sorted(top_areas))
+        if top_area_pair == ("language_listening", "visual_diagnostic"):
+            base_bonus = 0.2
+        elif top_area_pair == ("epidemiology", "visual_diagnostic"):
+            base_bonus = 0.15
+        elif top_area_pair == ("case_context", "language_listening"):
+            base_bonus = 0.1
+        return round(
+            base_bonus
+            + (0.08 * coherence_score)
+            + (0.12 * pi_score)
+            + convergence_index * 0.18
+            + interdependence_index * 0.12
+            + evidence_integration_score * 0.10,
+            3,
+        )
+
+    def _disagreement_penalty(self, conflict_score: float, mismatch_score: float, prediction_error: float, mismatch_index: float, inhibitory_control: float, noise_suppression_score: float, deductive_stability: float) -> float:
+        return round(
+            max(
+                0.0,
+                max(conflict_score - 0.4, 0.0)
+                + mismatch_score * 0.08
+                + prediction_error * 0.18
+                + mismatch_index * 0.22
+                - inhibitory_control * 0.1
+                - noise_suppression_score * 0.12
+                - deductive_stability * 0.08,
+            ),
+            3,
+        )
+
     def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None, area_dynamics: dict | None = None) -> dict:
         area_signals = area_signals or {}
         area_dynamics = area_dynamics or {}
         neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
-        pi_score = float(area_dynamics.get("pi_score", neuro_metrics.get("pi_score", 0.0)))
-        prediction_error = float(area_dynamics.get("prediction_error", neuro_metrics.get("prediction_error", 0.0)))
-        precision_weighted_coherence = float(area_dynamics.get("precision_weighted_coherence", neuro_metrics.get("precision_weighted_coherence", 0.0)))
-        convergence_index = _float_metric(neuro_metrics, "convergence_index")
-        mismatch_index = _float_metric(neuro_metrics, "mismatch_index")
-        inhibitory_control = _float_metric(neuro_metrics, "inhibitory_control")
-        deductive_gate = _float_metric(neuro_metrics, "deductive_gate")
-        revision_pressure = _float_metric(neuro_metrics, "revision_pressure")
-        dream_plasticity = _float_metric(neuro_metrics, "dream_plasticity")
-        intuition_gain = _float_metric(neuro_metrics, "intuition_gain", 1.0)
-        bias_suppression_score = _float_metric(neuro_metrics, "bias_suppression_score")
-        candidate_temperature = _float_metric(neuro_metrics, "candidate_temperature", 1.0)
-        belief_update_rate = _float_metric(neuro_metrics, "belief_update_rate")
-        interdependence_index = _float_metric(neuro_metrics, "interdependence_index")
-        evidence_integration_score = _float_metric(neuro_metrics, "evidence_integration_score")
-        noise_suppression_score = _float_metric(neuro_metrics, "noise_suppression_score")
-        action_potential_gate = _float_metric(neuro_metrics, "action_potential_gate")
-        synaptic_plasticity_index = _float_metric(neuro_metrics, "synaptic_plasticity_index")
-        deep_inference_score = _float_metric(neuro_metrics, "deep_inference_score")
-        deductive_stability = _float_metric(neuro_metrics, "deductive_stability")
+        (
+            pi_score,
+            prediction_error,
+            precision_weighted_coherence,
+            convergence_index,
+            mismatch_index,
+            inhibitory_control,
+            deductive_gate,
+            revision_pressure,
+            dream_plasticity,
+            intuition_gain,
+            bias_suppression_score,
+            candidate_temperature,
+            belief_update_rate,
+            interdependence_index,
+            evidence_integration_score,
+            noise_suppression_score,
+            action_potential_gate,
+            synaptic_plasticity_index,
+            deep_inference_score,
+            deductive_stability,
+        ) = self._extract_metrics(area_dynamics, neuro_metrics)
 
         rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
         alternative_hypotheses = dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else []
@@ -57,55 +137,23 @@ class IntuitionEngine:
             }
             for index, item in enumerate(ranked_evidence[:3])
         ]
-        area_ranking = []
-        for name, payload in area_signals.items():
-            signal_size = len(payload) if isinstance(payload, dict) else 1
-            signal_count = int(payload.get("signal_count", signal_size)) if isinstance(payload, dict) else signal_size
-            salience = float(payload.get("salience_score", 0.0)) if isinstance(payload, dict) else 0.0
-            uncertainty = float(payload.get("uncertainty_score", max(0.0, 1.0 - min(salience, 1.0)))) if isinstance(payload, dict) else 1.0
-            area_ranking.append({"area": name, "weight": signal_size + signal_count + salience - uncertainty})
-        area_ranking.sort(key=lambda item: item["weight"], reverse=True)
-        top_areas = [item["area"] for item in area_ranking[:2]]
-
-        if area_ranking:
-            top_weight = area_ranking[0]["weight"]
-            second_weight = area_ranking[1]["weight"] if len(area_ranking) > 1 else 0
-            convergence_score = round(second_weight / max(top_weight, 1), 3)
-            conflict_score = round((top_weight - second_weight) / max(top_weight, 1), 3)
-        else:
-            convergence_score = 0.0
-            conflict_score = 0.0
-
-        area_pair_bonus = 0.0
-        top_area_pair = tuple(sorted(top_areas))
-        if top_area_pair == ("language_listening", "visual_diagnostic"):
-            area_pair_bonus = 0.2
-        elif top_area_pair == ("epidemiology", "visual_diagnostic"):
-            area_pair_bonus = 0.15
-        elif top_area_pair == ("case_context", "language_listening"):
-            area_pair_bonus = 0.1
-        area_pair_bonus = round(
-            area_pair_bonus
-            + (0.08 * coherence_score_ext)
-            + (0.12 * pi_score)
-            + convergence_index * 0.18
-            + interdependence_index * 0.12
-            + evidence_integration_score * 0.10,
-            3,
+        area_ranking, top_areas, convergence_score, conflict_score = self._rank_areas(area_signals)
+        area_pair_bonus = self._area_pair_bonus(
+            top_areas,
+            coherence_score_ext,
+            pi_score,
+            convergence_index,
+            interdependence_index,
+            evidence_integration_score,
         )
-
-        disagreement_penalty = round(
-            max(
-                0.0,
-                max(conflict_score - 0.4, 0.0)
-                + mismatch_score_ext * 0.08
-                + prediction_error * 0.18
-                + mismatch_index * 0.22
-                - inhibitory_control * 0.1
-                - noise_suppression_score * 0.12
-                - deductive_stability * 0.08,
-            ),
-            3,
+        disagreement_penalty = self._disagreement_penalty(
+            conflict_score,
+            mismatch_score_ext,
+            prediction_error,
+            mismatch_index,
+            inhibitory_control,
+            noise_suppression_score,
+            deductive_stability,
         )
 
         rapid_intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
