@@ -1,7 +1,27 @@
 # RLM-on-Memory: Retrieval Strategy Decision Record
 
-Status: accepted for implementation, foundation tranche landed
 Supersedes: the retrieval-strategy sections of `enterprise_ai_rag_evolution.md` (the memory-substrate sections of that document remain in force)
+
+## Status
+
+This record carries claims of three different kinds, and a single status field
+would misrepresent all of them. Each section below is marked with its type.
+
+| Type | Meaning | Reversal cost |
+|---|---|---|
+| **CONSTRAINT** — accepted | An architectural boundary. Holds because the project chose it; no measurement can refute it. | Redesign |
+| **PLAN** — accepted, with a named review trigger | A sequencing decision. Binding until the named event occurs. | Re-plan |
+| **CLAIM** — not accepted; registered as falsifiable | An empirical prediction. Not settled by being written down. | None; it was never a commitment |
+
+Claims are registered in `evaluation/falsification_program.py`, each with the
+observation that would refute it. Three of them are marked blocking: the
+strategy cannot leave research use while they remain open.
+
+Marking an untested prediction "accepted" is precisely the error this project's
+governance exists to prevent, and a decision record is a design-control artefact
+where that error is legible to an auditor. Marking the whole record "proposed"
+would be the opposite failure: code implementing it has already landed, and
+implementation without a decision is harder to defend than either alternative.
 
 ## Context
 
@@ -14,6 +34,8 @@ recursively invoking a smaller model on individual fragments.
 The proposal under review was "use RLM instead of RAG".
 
 ## Decision
+
+**Type: CONSTRAINT — accepted.**
 
 **The migration is scoped to the retrieval strategy only.** The term "RAG" in
 this repository covers two separable concerns:
@@ -55,6 +77,8 @@ therefore built on the semantic memory adapter, not on raw document text.
 
 ### Dual-path retrieval
 
+**Type: CLAIM — registered as falsifiable** (`rlm.dual_path_beats_single_path`, `rlm.disagreement_is_informative`).
+
 The two strategies fail in opposite directions — one-shot by omission,
 recursive by overreach — which is the condition under which running both is
 worth its cost. Their divergence is an empirical uncertainty estimate for a
@@ -82,6 +106,8 @@ its nature.
 
 ### Complexity routing
 
+**Type: CLAIM — registered as falsifiable** (`rlm.recursive_helps_only_on_complex_cases`).
+
 `ModelRouter` is currently a static 12-line router. It becomes the gate that
 decides *how many* paths run, not which one:
 
@@ -93,6 +119,8 @@ decides *how many* paths run, not which one:
 | Dream branch (low activity) | Recursive only; latency is not binding |
 
 ### Authority boundary
+
+**Type: CONSTRAINT — accepted.**
 
 `MelampoDiagnosticOrchestrator` remains the sole diagnostic authority, and it is
 deterministic Python rather than a model. Recursive retrieval produces a
@@ -107,6 +135,8 @@ The following remain outside the recursive perimeter and deterministic:
 
 ### Ingestion
 
+**Type: CONSTRAINT — accepted.**
+
 Ingestion must be reproducible: the same document must yield the same memory
 today and in two years, or retrospective validation cannot be repeated. A
 recursive strategy is non-deterministic by construction and therefore does not
@@ -120,6 +150,8 @@ Two layers instead:
 | Derived | Recursive synthesis, schema-enforced | Marked `derived`, versioned by model id, re-derivable, never overwrites the source |
 
 ### Hypothesis channel
+
+**Type: CONSTRAINT — accepted** for the isolation requirement; **CLAIM** for the value of the hypotheses themselves (`rlm.dream_hypotheses_add_value`).
 
 Dream candidates enter the differential as **exclusion hypotheses**, never as
 evidence. A differential diagnosis is itself a set of hypotheses to be excluded,
@@ -151,10 +183,45 @@ multi-step planning, and low per-iteration cost. It does **not** require medical
 knowledge: it decides where to look, not what to conclude. Selecting it by
 medical benchmark scores optimises the wrong variable.
 
-**Sequencing decision:** start with a frontier API model on synthetic and
-de-identified cases to establish a baseline, then measure the loss when moving
-to a self-hosted open-weight model. The reverse order risks attributing to the
-architecture weaknesses that belong to whichever model could be run locally.
+**Type: PLAN — accepted.** Review trigger: PHI entering the environment, or
+refutation of `rlm.open_weight_root_is_sufficient`.
+
+**Decision.** Two phases.
+
+*Phase 1 — frontier API root model, synthetic and de-identified cases only.*
+Establishes the baseline and answers whether recursive retrieval helps at all
+before any infrastructure is procured. No PHI enters the environment in this
+phase, which is what makes an external API admissible; the constraint is
+enforced by the corpus, not by trust.
+
+*Phase 2 — self-hosted open-weight root model.* Required before any real case
+enters the environment, since the environment holds the entire raw context.
+
+**Why this order.** Starting on-premise risks attributing to the architecture
+weaknesses that belong to whichever model could be run locally. A negative
+Phase 1 result is decisive — if recursive retrieval does not help with a strong
+root model, it will not help with a weaker one — while a negative on-premise-first
+result is uninterpretable.
+
+**The sub-model is self-hosted from Phase 1.** It sees fragments rather than the
+whole context, so it could in principle be remote in Phase 1, but keeping it
+on-premise throughout means the transition changes exactly one variable. If both
+the root and the sub-model move at once, the observed delta cannot be attributed.
+It also avoids establishing an egress path that later has to be removed.
+
+**What Phase 1 does not establish.** The Phase 1 baseline is an upper bound on
+the architecture, not the system's performance. It must not be cited as a
+capability of Melampo, and any model card figure must come from the Phase 2
+configuration. This is recorded because a favourable number produced under
+relaxed conditions is the kind that survives into a document where it does not
+belong.
+
+**Transition criteria.** Phase 2 begins when: a Phase 1 baseline exists on the
+same case set to be reused; a pre-registered tolerance for acceptable
+degradation has been set *before* the on-premise model is measured; the sandbox
+has no network egress; and the audit store treats retrieval trajectories as
+health data. The tolerance is pre-registered because setting it afterwards makes
+it a description of the result rather than a test of it.
 
 ### Sub-model
 
@@ -208,8 +275,9 @@ Second tranche (coverage semantics and provenance):
 
 ## Open items
 
-1. Root model on external API or on-premise — determines whether the engine
-   phase can begin before GPU infrastructure exists. Highest schedule impact.
+1. ~~Root model on external API or on-premise.~~ Resolved: two-phase, API on
+   synthetic cases then self-hosted open-weight. See *Root model* above. The
+   sufficiency of the open-weight root is registered as a blocking claim.
 2. Clinical text model selection, replacing the unverifiable registry entry.
 3. `mean_grounding_score` still has no recursive equivalent. One-shot retrieval
    sources it from vector similarity; a recursive strategy navigates by code and
