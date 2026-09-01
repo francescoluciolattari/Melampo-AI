@@ -84,6 +84,19 @@ src/melampo/
 - `evaluation/prospective_validation.py`: prediction-lock prospective validation registry.
 - `evaluation/calibration.py`: confidence calibration metrics.
 
+## Retrieval strategy modules
+
+Foundation for the RLM-on-Memory migration recorded in
+`docs/rlm_on_memory_decision_record.md`. Recursive retrieval replaces the
+retrieval strategy only; the Weaviate memory substrate is unchanged and becomes
+more central, since typed relations are what give a recursive strategy its
+navigation affordances.
+
+- `memory/context_environment.py`: navigable case environment with mandatory character-level provenance and an instrumented coverage ledger.
+- `memory/retrieval_contract.py`: shared contract for one-shot and recursive strategies, with a validator for the silent failure modes.
+- `reasoning/retrieval_reconciliation.py`: deterministic dual-path reconciliation; path divergence becomes an empirical conflict signal.
+- `training/hypothesis_channel.py`: dream candidates delivered as exclusion hypotheses under an indeterminacy gate, structurally isolated from the evidence path.
+
 ## CLI commands
 
 ```bash
@@ -97,7 +110,7 @@ melampo-weaviate-schema
 ## Model strategy
 
 - **Pillar-0**: primary radiology / volumetric imaging signal provider for `visual_diagnostic_area`.
-- **Gemma 4**: grounded clinical text and agentic reasoning provider for language/context tasks.
+- **Gemma 4**: grounded clinical text and agentic reasoning provider for language/context tasks. **Open item:** no verifiable downloadable artefact carries this name, which is a traceability defect for the model card. Replacement candidates are Gemma-3-27B-MeditronFO (fully open pipeline, an audit advantage) and MedGemma 1.5 27B. Identifiers in code are unchanged pending that decision; see `docs/rlm_on_memory_decision_record.md`.
 - **Claude Healthcare / Life Sciences style critic**: optional external second-opinion, literature and regulatory critic.
 - **Weaviate**: semantic object-property memory and ontology-aware RAG backend.
 - **Docling**: document intelligence parser for clinical/literature ingestion.

@@ -159,3 +159,16 @@ A module should be considered enterprise-grade only if it has:
 - backward-compatible CLI behavior.
 
 The current update moves the project toward that target. It does not make the whole repository 100% enterprise-grade yet; that requires broader tests, adapters, CI, security review and clinical validation.
+
+## Retrieval strategy update
+
+The retrieval-strategy guidance in this document is superseded by
+`rlm_on_memory_decision_record.md`, which records the migration to recursive
+retrieval over the semantic memory substrate.
+
+The memory-substrate decisions above remain in force and are reinforced by that
+migration. Weaviate, the object-property schema and Docling ingestion are not
+replaced: a recursive strategy has no persistent storage of its own, and typed
+relations are what give it navigation affordances. What changes is the strategy
+layer — a single `top_k` selection becomes an adaptive exploration of that same
+governed memory, paired with the one-shot path rather than replacing it.
