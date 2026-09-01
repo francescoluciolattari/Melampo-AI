@@ -24,6 +24,18 @@ RETRIEVAL_MODE_DUAL = "dual_path_reconciled"
 
 GROUNDED_MODES = frozenset({RETRIEVAL_MODE_SEMANTIC, RETRIEVAL_MODE_RLM, RETRIEVAL_MODE_DUAL})
 
+COVERAGE_BASIS_TOPK = "topk_ratio"
+COVERAGE_BASIS_CORPUS = "corpus_characters"
+COVERAGE_BASIS_NONE = "not_applicable"
+
+DEFAULT_COVERAGE_BASIS_BY_MODE = {
+    RETRIEVAL_MODE_SEMANTIC: COVERAGE_BASIS_TOPK,
+    RETRIEVAL_MODE_EMPTY: COVERAGE_BASIS_NONE,
+    RETRIEVAL_MODE_FALLBACK: COVERAGE_BASIS_NONE,
+    RETRIEVAL_MODE_RLM: COVERAGE_BASIS_CORPUS,
+    RETRIEVAL_MODE_DUAL: COVERAGE_BASIS_CORPUS,
+}
+
 REQUIRED_KEYS = (
     "query",
     "focus",
@@ -121,6 +133,38 @@ def assert_retrieval_contract(payload: dict[str, Any], *, require_provenance: bo
     if violations:
         detail = "; ".join(f"{item.code}: {item.detail}" for item in violations)
         raise ValueError(f"retrieval contract violation -> {detail}")
+
+
+def coverage_basis(payload: dict[str, Any]) -> str:
+    """Return the semantics under which this payload's coverage was computed.
+
+    ``coverage`` means different things per strategy. One-shot retrieval reports
+    ``len(evidence) / top_k``: a selection ratio. Recursive retrieval reports the
+    fraction of the case corpus actually inspected. The two are not the same
+    quantity, and the one-shot definition actively penalises a strategy that
+    explores widely and reports selectively, which is the behaviour recursive
+    retrieval is expected to exhibit.
+    """
+    quality = payload.get("retrieval_quality") if isinstance(payload, dict) else None
+    if isinstance(quality, dict) and quality.get("coverage_basis"):
+        return str(quality["coverage_basis"])
+    return DEFAULT_COVERAGE_BASIS_BY_MODE.get(str(payload.get("retrieval_mode")), COVERAGE_BASIS_NONE)
+
+
+def assert_coverage_comparable(*payloads: dict[str, Any]) -> str:
+    """Raise when coverage figures from different bases would be compared.
+
+    A/B evaluation across retrieval strategies is only meaningful when the
+    compared quantities share a definition. Without this guard the comparison
+    silently produces a number, which is worse than failing.
+    """
+    bases = {coverage_basis(payload) for payload in payloads}
+    bases.discard(COVERAGE_BASIS_NONE)
+    if len(bases) > 1:
+        raise ValueError(
+            "coverage figures use incompatible bases and cannot be compared directly: " + ", ".join(sorted(bases))
+        )
+    return bases.pop() if bases else COVERAGE_BASIS_NONE
 
 
 def _has_trace(item: dict[str, Any]) -> bool:

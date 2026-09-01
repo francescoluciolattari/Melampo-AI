@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..memory.retrieval_contract import RETRIEVAL_MODE_DUAL
+from ..memory.retrieval_contract import COVERAGE_BASIS_CORPUS, RETRIEVAL_MODE_DUAL
 
 DISPOSITION_CONFIRMED = "confirmed_by_both"
 DISPOSITION_RAG_ONLY = "one_shot_only"
@@ -142,6 +142,7 @@ def build_dual_path_payload(
         "retrieval_quality": {
             "memory_backed": True,
             "coverage": round(coverage_ratio, 4),
+            "coverage_basis": COVERAGE_BASIS_CORPUS,
             "mean_grounding_score": round(mean_grounding, 3),
             "fallback_used": False,
             "agreement_ratio": round(verdict.agreement_ratio, 3),

@@ -151,6 +151,7 @@ class MemoryRetriever:
                 "retrieval_quality": {
                     "memory_backed": True,
                     "coverage": coverage,
+                    "coverage_basis": "topk_ratio",
                     "mean_grounding_score": round(mean_grounding, 3),
                     "fallback_used": False,
                     "filters": filters,
@@ -171,6 +172,7 @@ class MemoryRetriever:
                 "retrieval_quality": {
                     "memory_backed": False,
                     "coverage": 0.0,
+                    "coverage_basis": "not_applicable",
                     "mean_grounding_score": 0.0,
                     "fallback_used": False,
                     "filters": filters,
@@ -191,6 +193,7 @@ class MemoryRetriever:
             "retrieval_quality": {
                 "memory_backed": False,
                 "coverage": 0.0,
+                "coverage_basis": "not_applicable",
                 "mean_grounding_score": round(sum(item["grounding_score"] for item in evidence) / max(len(evidence), 1), 3),
                 "fallback_used": True,
                 "filters": filters,

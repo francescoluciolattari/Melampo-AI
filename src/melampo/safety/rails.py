@@ -11,6 +11,31 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _has_trace(item: dict[str, Any]) -> bool:
+    """Whether an evidence item can be traced back to a locatable source position.
+
+    Accepts a record identifier, a page or section, or explicit character offsets.
+    Offsets are what recursive retrieval produces: without recognising them here,
+    every recursively retrieved item would fail the provenance check and the
+    pipeline would abstain on principle rather than on evidence.
+
+    This widens the check. Nothing that previously carried a trace loses it.
+    """
+    metadata = item.get("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    if item.get("record_id") or metadata.get("page") is not None or metadata.get("section"):
+        return True
+    provenance = item.get("provenance")
+    if not isinstance(provenance, dict):
+        return False
+    if provenance.get("page") is not None or provenance.get("section"):
+        return True
+    start = provenance.get("char_start")
+    end = provenance.get("char_end")
+    return isinstance(start, int) and isinstance(end, int) and end > start
+
+
 @dataclass(slots=True)
 class RailDecision:
     stage: str
@@ -70,7 +95,7 @@ class ClinicalSafetyRails:
             for item in evidence:
                 metadata = item.get("metadata", {}) if isinstance(item, dict) else {}
                 has_source = bool(item.get("source") or metadata.get("source_path") or metadata.get("source_uri")) if isinstance(item, dict) else False
-                has_trace = bool(item.get("record_id") or metadata.get("page") is not None or metadata.get("section")) if isinstance(item, dict) else False
+                has_trace = _has_trace(item) if isinstance(item, dict) else False
                 if has_source and has_trace:
                     provenance_ready += 1
                 learning_status = str(item.get("learning_status", metadata.get("learning_status", ""))) if isinstance(item, dict) else ""

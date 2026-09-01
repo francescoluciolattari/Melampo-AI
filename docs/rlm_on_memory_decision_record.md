@@ -195,18 +195,30 @@ Landed in this tranche:
 No existing module was modified: the tranche is additive, and the recursive
 strategy joins as an additional `retrieval_mode` value.
 
+Second tranche (coverage semantics and provenance):
+
+- `memory/retrieval_contract.py` — `coverage_basis` declaration and
+  `assert_coverage_comparable`, which raises rather than silently comparing a
+  selection ratio against a corpus-inspection ratio
+- `memory/retriever.py` — all three one-shot branches now declare their basis
+- `safety/rails.py` — the trace check accepts character offsets alongside
+  `record_id`, page and section. Purely widening; nothing that previously
+  carried a trace loses it
+- `tests/test_coverage_semantics_and_provenance.py` — 8 tests
+
 ## Open items
 
 1. Root model on external API or on-premise — determines whether the engine
    phase can begin before GPU infrastructure exists. Highest schedule impact.
 2. Clinical text model selection, replacing the unverifiable registry entry.
-3. Redefinition of `coverage` and `mean_grounding_score` in
-   `reasoning/clinical_pipeline.py`, whose current semantics are RAG-specific:
-   `len(evidence) / top_k` penalises a strategy that explores widely and reports
-   selectively, and similarity scores have no recursive equivalent. Must precede
-   any comparative measurement.
-4. Mapping character offsets onto the fields `safety/rails.py` accepts as
-   traceable, so recursive evidence is not uniformly blocked.
+3. `mean_grounding_score` still has no recursive equivalent. One-shot retrieval
+   sources it from vector similarity; a recursive strategy navigates by code and
+   produces no such score. A substitute — sub-model verification, or offset
+   coverage of the claim — must exist before the two paths are compared, or the
+   A/B measures nothing. *Coverage is resolved: both bases are now declared and
+   cross-basis comparison raises.*
+4. ~~Mapping character offsets onto the fields `safety/rails.py` accepts as
+   traceable.~~ Resolved: the trace check now accepts character offsets.
 5. Grounding judge for overreach detection in the release gate.
 6. Validation corpus of long longitudinal cases; the current ChestX-ray14 and
    OpenI sets are too short to exercise recursive retrieval.
