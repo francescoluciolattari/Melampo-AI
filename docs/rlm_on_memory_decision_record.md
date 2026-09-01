@@ -273,6 +273,23 @@ Second tranche (coverage semantics and provenance):
   carried a trace loses it
 - `tests/test_coverage_semantics_and_provenance.py` — 8 tests
 
+Third tranche (root model decision, scoped status, falsification registry):
+
+- `evaluation/falsification_program.py` — claim registry replacing three
+  hardcoded strings; resolution requires evidence; three claims are blocking
+
+Fourth tranche (claim `rlm.dual_path_beats_single_path` made testable):
+
+- `evaluation/grounding_judge.py` — structural overreach detection. Complements
+  rather than replaces `RAGEvaluator.faithfulness`, which is term overlap and by
+  construction cannot see a relation asserted across two fragments: every term
+  is supported, every citation is real, and the unsupported part is the relation
+- `evaluation/dual_path_ab.py` — paired A/B harness evaluating the registered
+  refutation criterion. Within-case pairing, because case difficulty varies more
+  than the difference between strategies. Distinguishability decided by a
+  deterministic bootstrap interval rather than a mean, so a gain spanning zero
+  cannot pass. An inconclusive run leaves the claim open
+
 ## Open items
 
 1. ~~Root model on external API or on-premise.~~ Resolved: two-phase, API on
@@ -287,7 +304,15 @@ Second tranche (coverage semantics and provenance):
    cross-basis comparison raises.*
 4. ~~Mapping character offsets onto the fields `safety/rails.py` accepts as
    traceable.~~ Resolved: the trace check now accepts character offsets.
-5. Grounding judge for overreach detection in the release gate.
+5. ~~Grounding judge for overreach detection.~~ Partially resolved:
+   `evaluation/grounding_judge.py` detects overreach structurally — relations
+   asserted between entities that never co-occur in a cited fragment, modality
+   escalation, unsupported terms, span inflation. This is a lexical floor, not a
+   semantic judge: it cannot recognise a paraphrased relation and will flag some
+   legitimate synthesis. A semantic judge remains open; where the two would
+   disagree, the structural one is the conservative side.
+6. Pre-registered degradation tolerance for the Phase 2 root model transition,
+   to be set before the on-premise model is measured.
 6. Validation corpus of long longitudinal cases; the current ChestX-ray14 and
    OpenI sets are too short to exercise recursive retrieval.
 
