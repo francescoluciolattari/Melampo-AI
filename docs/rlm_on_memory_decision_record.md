@@ -178,11 +178,25 @@ so a candidate framed as "consider also X, synthetically generated, not
 observed" is legitimate; the same candidate framed as "memory supports X" is
 contamination.
 
-The separation is structural rather than a metadata flag. Candidates sharing a
-collection with clinical evidence compete for the same `top_k` slots under the
-same similarity ranking, so a single downstream caller that omits a filter
-reintroduces them silently. The channel therefore uses a distinct namespace, a
-dedicated retrieval path and one authorised consumer.
+The separation cannot rest on a metadata flag. Candidates sharing a collection
+with clinical evidence compete for the same `top_k` slots under the same
+similarity ranking, so a single downstream caller that omits a filter
+reintroduces them silently.
+
+Enforcement status, stated precisely because it was previously overstated here:
+
+| Layer | Status |
+|---|---|
+| Role markers on every candidate | Implemented |
+| Enforced boundary that rejects non-findings | Implemented — `reasoning/findings_boundary.py` |
+| Separate Weaviate collection | **Open** — block B2 |
+
+The boundary matters because the two guards written for this isolation were
+invoked zero times on the production path until it existed. A guard that is
+never called does not guard, and the separation was a convention rather than a
+constraint.
+
+Full design in `hypothesis_stream_decision_record.md`.
 
 Hypotheses are gated on diagnostic indeterminacy — low `convergence_index`, high
 `conflict_load`, material risk — because additional synthetic alternatives are
@@ -526,8 +540,12 @@ is acquired where an error costs nothing.
 ## Companion records
 
 - `semantic_extraction_decision_record.md` — how clinical text becomes
-  traversable concepts: assertion representation, modifier roles, family history
-  routing, vocabulary extension
+  traversable concepts: assertion representation and detection mechanism,
+  modifier roles, family history routing, vocabulary extension
+- `hypothesis_stream_decision_record.md` — how candidate conditions are
+  generated, gated, isolated and delivered: the two channels, path enumeration,
+  density gating and register switch, enforced separation from the evidence
+  path, and the connection to discriminating tests
 
 ## References
 

@@ -60,6 +60,75 @@ differential as weak supporting evidence; represented as a full interval it
 routes where it belongs — to the hypothesis channel, or to discriminating test
 selection.
 
+### Detection mechanism
+
+**Type: CONSTRAINT — accepted.**
+
+Cue lists with bounded scope, following the ConText line. Five axes are read
+from the text around a resolved span.
+
+| Axis | Values | Read from |
+|---|---|---|
+| Polarity | affirmed, negated | Cues before the span, and a smaller set after it |
+| Certainty | factual, possible, hypothetical | Cues before the span |
+| Experiencer | patient, other | Cues anywhere in the clause |
+| Temporality | current, historical | Cues before the span |
+| Source | objective, subjective, unspecified | Cues anywhere in the clause |
+
+#### Scope and termination
+
+Scope runs from the cue to the end of the clause or to an adversative
+terminator — *but*, *however*, *although*, *except*. Without termination a single
+cue negates the remainder of the sentence, which is the classic failure of naive
+negation detection:
+
+```
+"The patient denies fever but reports cough."
+   fever -> negated        (scope ends at "but")
+   cough -> affirmed
+```
+
+Sentence boundaries also bound the scope, so a negation in one sentence does not
+reach into the next.
+
+#### Why source is a separate axis
+
+Objectivity does not override subjectivity uniformly. A clinician can contradict
+"I have no arrhythmia", because an ECG is observable. A clinician cannot
+contradict "I have no pain", because pain is not observable and the person
+experiencing it is the authoritative source. The same holds for nausea, vertigo,
+the sensation of breathlessness, itch.
+
+So the rule is not a hierarchy of speakers but a rule of domain: **on observable
+signs the observation prevails; on experienced symptoms the experiencer
+prevails.** The frequently cited example — patient denies palpitations, ECG shows
+arrhythmia — is not a conflict at all: palpitations and arrhythmia are two
+different findings, one symptom and one sign, and both readings are correct.
+
+The axis feeds the interval directly: an objective negation is a documented
+exclusion at `[0.00, 0.05]`, a reported denial is a weak negation at
+`[0.00, 0.30]`. Both are "negated"; only one is strong.
+
+#### Temporality
+
+Temporality does not change whether something happened, it changes whether it is
+current. An affirmed historical finding therefore keeps its polarity but has its
+**upper bound capped** at 0.35, rather than being negated or dropped: the patient
+did have it, and it is context rather than current state.
+
+#### Cue sets are supplied, not built in
+
+English and Italian sets ship with the module and either can be replaced
+wholesale. The reference language for concept linking remains an open decision,
+and the detector does not pre-empt it.
+
+#### Auditability
+
+Every fired cue is recorded on the result with its category, so a classification
+can be explained by pointing at the words that produced it. This is the property
+a scalar score cannot offer, and the reason the deterministic layer is the
+baseline a model must beat rather than a placeholder for one.
+
 ### Model boundary
 
 **Type: CONSTRAINT — accepted.**
