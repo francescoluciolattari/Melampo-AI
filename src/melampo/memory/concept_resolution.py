@@ -37,6 +37,13 @@ SCOPE_RELATED = "RELATED"
 
 SAFE_SCOPES = frozenset({SCOPE_EXACT})
 
+CLINICAL_MODIFIER_ROOT = "HP:0012823"
+INHERITANCE_ROOT = "HP:0000005"
+
+ROLE_FINDING = "finding"
+ROLE_MODIFIER = "modifier"
+ROLE_INHERITANCE = "inheritance"
+
 MATCH_NAME = "name"
 MATCH_SYNONYM = "synonym"
 
@@ -54,6 +61,7 @@ class OntologyTerm:
     synonyms: tuple[tuple[str, str], ...] = ()
     alt_ids: tuple[str, ...] = ()
     obsolete: bool = False
+    parents: tuple[str, ...] = ()
 
     def surface_forms(self, scopes: Iterable[str] = SAFE_SCOPES) -> list[tuple[str, str]]:
         """Text forms that may stand for this term, with how each was obtained."""
@@ -76,6 +84,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
     name = ""
     synonyms: list[tuple[str, str]] = []
     alt_ids: list[str] = []
+    parents: list[str] = []
     obsolete = False
     inside = False
 
@@ -88,6 +97,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             synonyms=tuple(synonyms),
             alt_ids=tuple(alt_ids),
             obsolete=obsolete,
+            parents=tuple(parents),
         )
 
     for raw in lines:
@@ -97,7 +107,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             if finished is not None:
                 yield finished
             inside = line.strip() == "[Term]"
-            term_id, name, synonyms, alt_ids, obsolete = "", "", [], [], False
+            term_id, name, synonyms, alt_ids, parents, obsolete = "", "", [], [], [], False
             continue
         if not inside or not line:
             continue
@@ -108,6 +118,8 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             name = value.strip()
         elif key == "alt_id":
             alt_ids.append(value.strip())
+        elif key == "is_a":
+            parents.append(value.split("!")[0].strip())
         elif key == "is_obsolete":
             obsolete = value.strip().lower() == "true"
         elif key == "synonym":
@@ -141,6 +153,7 @@ class TermIndex:
     by_id: dict[str, OntologyTerm] = field(default_factory=dict)
     by_surface: dict[str, list[str]] = field(default_factory=dict)
     match_kind: dict[str, str] = field(default_factory=dict)
+    _ancestors: dict[str, frozenset[str]] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_terms(
@@ -178,6 +191,49 @@ class TermIndex:
     def lookup(self, surface: str) -> list[str]:
         return list(self.by_surface.get(normalise_surface(surface), []))
 
+    def ancestors(self, term_id: str) -> frozenset[str]:
+        """Transitive ``is_a`` closure, memoised.
+
+        The hierarchy is what makes the modifier rule deterministic. HPO already
+        separates clinical modifiers from phenotypic abnormalities in its own
+        structure, so deciding whether a term is a finding is a lookup rather
+        than a judgement — no model, and complete coverage over the branch.
+        """
+        cached = self._ancestors.get(term_id)
+        if cached is not None:
+            return cached
+        seen: set[str] = set()
+        frontier = [term_id]
+        while frontier:
+            current = frontier.pop()
+            term = self.by_id.get(current)
+            if term is None:
+                continue
+            for parent in term.parents:
+                if parent not in seen:
+                    seen.add(parent)
+                    frontier.append(parent)
+        result = frozenset(seen)
+        self._ancestors[term_id] = result
+        return result
+
+    def descends_from(self, term_id: str, root: str) -> bool:
+        return term_id == root or root in self.ancestors(term_id)
+
+    def role_of(self, term_id: str) -> str:
+        """Whether a term is a finding, a modifier, or an inheritance statement.
+
+        Modifiers such as *Bilateral* and *Progressive* qualify a finding; they
+        are not findings themselves, and admitting them as graph nodes would
+        connect them to thousands of conditions, making every path through them
+        uninformative — the same degeneracy an unknown edge produces.
+        """
+        if self.descends_from(term_id, CLINICAL_MODIFIER_ROOT):
+            return ROLE_MODIFIER
+        if self.descends_from(term_id, INHERITANCE_ROOT):
+            return ROLE_INHERITANCE
+        return ROLE_FINDING
+
     @property
     def size(self) -> int:
         return len(self.by_id)
@@ -197,6 +253,7 @@ class ResolvedConcept:
     match_kind: str
     char_start: int | None = None
     char_end: int | None = None
+    role: str = ROLE_FINDING
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -206,6 +263,7 @@ class ResolvedConcept:
             "match_kind": self.match_kind,
             "char_start": self.char_start,
             "char_end": self.char_end,
+            "role": self.role,
         }
 
 
@@ -284,6 +342,7 @@ class ConceptResolver:
                     term_id=term.term_id,
                     label=term.name,
                     match_kind=self.index.match_kind.get(normalise_surface(text), MATCH_NAME),
+                    role=self.index.role_of(term.term_id),
                 )
             )
         return report
@@ -325,9 +384,120 @@ class ConceptResolver:
                     match_kind=self.index.match_kind.get(surface, MATCH_NAME),
                     char_start=offsets[begin] if begin < len(offsets) else None,
                     char_end=offsets[end - 1] + 1 if end - 1 < len(offsets) else None,
+                    role=self.index.role_of(term.term_id),
                 )
             )
         return sorted(found, key=lambda item: (item.char_start is None, item.char_start or 0))
+
+
+@dataclass(frozen=True)
+class Finding:
+    """A clinical finding with its modifiers held as attributes, never as nodes.
+
+    Modifiers qualify a finding; they do not stand on their own. Admitting
+    *Bilateral* as a concept in its own right would attach it to thousands of
+    conditions, so every path crossing it would carry no information — the same
+    degeneracy an unknown edge produces, arrived at from the other direction.
+
+    The finding keeps its own identifier and therefore its traversability. The
+    modifier travels with it as an attribute, which also means a fused
+    pre-coordinated term is an optional refinement rather than a requirement:
+    across the whole ontology only 52 ``Bilateral X`` and 58 ``Progressive X``
+    terms exist, so fusion cannot be the primary mechanism.
+    """
+
+    concept: ResolvedConcept
+    modifiers: tuple[ResolvedConcept, ...] = ()
+
+    @property
+    def term_id(self) -> str:
+        return self.concept.term_id
+
+    @property
+    def label(self) -> str:
+        return self.concept.label
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            **self.concept.as_dict(),
+            "modifiers": [
+                {"term_id": item.term_id, "label": item.label, "surface": item.surface}
+                for item in self.modifiers
+            ],
+        }
+
+
+@dataclass
+class ExtractionResult:
+    """Findings, attached modifiers, and what was discarded and why."""
+
+    findings: list[Finding] = field(default_factory=list)
+    collapsed_modifiers: list[ResolvedConcept] = field(default_factory=list)
+    inheritance_statements: list[ResolvedConcept] = field(default_factory=list)
+
+    @property
+    def concepts(self) -> list[str]:
+        return [item.label for item in self.findings]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "findings": [item.as_dict() for item in self.findings],
+            "collapsed_modifiers": [item.as_dict() for item in self.collapsed_modifiers],
+            "inheritance_statements": [item.as_dict() for item in self.inheritance_statements],
+            "finding_count": len(self.findings),
+        }
+
+
+def attach_modifiers(
+    concepts: Sequence[ResolvedConcept], *, window: int = 80
+) -> ExtractionResult:
+    """Bind modifiers to the nearest finding, discarding those with no anchor.
+
+    A modifier with no finding to qualify has nothing to mean. Rather than
+    admitting it as a free-standing concept, it collapses — and is reported, so
+    the discard is visible rather than silent. The window bounds attachment to
+    the same clause-sized neighbourhood; a modifier far from any finding is more
+    likely a coincidence than a qualification.
+    """
+    result = ExtractionResult()
+    findings = [item for item in concepts if item.role == ROLE_FINDING]
+    result.inheritance_statements = [item for item in concepts if item.role == ROLE_INHERITANCE]
+    modifiers = [item for item in concepts if item.role == ROLE_MODIFIER]
+
+    attached: dict[int, list[ResolvedConcept]] = {index: [] for index in range(len(findings))}
+    for modifier in modifiers:
+        index = _nearest_finding(modifier, findings, window)
+        if index is None:
+            result.collapsed_modifiers.append(modifier)
+            continue
+        attached[index].append(modifier)
+
+    result.findings = [
+        Finding(concept=finding, modifiers=tuple(attached[index]))
+        for index, finding in enumerate(findings)
+    ]
+    return result
+
+
+def _nearest_finding(
+    modifier: ResolvedConcept, findings: Sequence[ResolvedConcept], window: int
+) -> int | None:
+    if not findings:
+        return None
+    if modifier.char_start is None:
+        return 0 if len(findings) == 1 else None
+    best_index: int | None = None
+    best_distance = window + 1
+    for index, finding in enumerate(findings):
+        if finding.char_start is None:
+            continue
+        distance = min(
+            abs(finding.char_start - (modifier.char_end or modifier.char_start)),
+            abs((finding.char_end or finding.char_start) - modifier.char_start),
+        )
+        if distance <= window and distance < best_distance:
+            best_index, best_distance = index, distance
+    return best_index
 
 
 def diagnose_empty_result(

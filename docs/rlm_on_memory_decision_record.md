@@ -351,6 +351,22 @@ Third tranche (root model decision, scoped status, falsification registry):
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
 
+Tenth tranche (modifier roles, family history routing):
+
+- `memory/concept_resolution.py` — `is_a` parsing, transitive ancestors, and
+  role classification. A term under `Clinical modifier` (HP:0012823) never
+  becomes a node; it attaches to the nearest finding as an attribute, and an
+  unanchored modifier collapses with the discard reported. The distinction is
+  already in the ontology — 357 terms in that branch — so it is a hierarchy
+  lookup, not a model judgement
+- `reasoning/family_history.py` — a condition reported in a relative never
+  enters patient findings. It becomes a screening hypothesis and a prior
+  modifier, gated on inheritance mode, reachable onset and prior assessment
+
+Full rationale in `semantic_extraction_decision_record.md`, including the
+assertion interval table, the model boundary, and the vocabulary extension
+policy.
+
 Ninth tranche (concept resolution — closes the bridge between text and graph):
 
 - `memory/concept_resolution.py` — OBO parsing, term index, deterministic
@@ -495,6 +511,12 @@ the diagnostic path but not in the dream branch, where every output is a
 candidate requiring validation and human review before clinical use, and where
 low-activity scheduling makes recursive latency irrelevant. The reliability data
 is acquired where an error costs nothing.
+
+## Companion records
+
+- `semantic_extraction_decision_record.md` — how clinical text becomes
+  traversable concepts: assertion representation, modifier roles, family history
+  routing, vocabulary extension
 
 ## References
 
