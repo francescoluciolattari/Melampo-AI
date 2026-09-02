@@ -92,6 +92,7 @@ class Investigation:
     discriminates_between: tuple[str, ...]
     likelihoods: dict[str, float] = field(default_factory=dict)
     provenance: tuple[dict[str, Any], ...] = ()
+    information_gain_lower: float = 0.0
 
     @property
     def gain_per_burden(self) -> float:
@@ -103,6 +104,7 @@ class Investigation:
             "name": self.name,
             "category": "discriminating_test",
             "information_gain_bits": round(self.information_gain, 4),
+            "information_gain_lower_bits": round(self.information_gain_lower, 4),
             "burden": round(self.burden, 3),
             "gain_per_burden": self.gain_per_burden,
             "discriminates_between": list(self.discriminates_between),
@@ -120,6 +122,7 @@ class DiscriminatingTestSelector:
     graph: ConceptGraphView
     test_relations: frozenset[str] = DEFAULT_TEST_RELATIONS
     absent_likelihood: float = 0.05
+    absent_bounds: tuple[float, float] = (0.0, 1.0)
     min_information_gain: float = 0.01
     max_suggestions: int = 5
     burdens: dict[str, float] = field(default_factory=dict)
@@ -166,7 +169,9 @@ class DiscriminatingTestSelector:
 
         for test in tests:
             likelihoods, provenance = self._likelihoods(test, prior)
+            bounds = self._likelihood_bounds(test, prior)
             gain = expected_information_gain(prior, likelihoods)
+            gain_lower = guaranteed_information_gain(prior, bounds)
             if gain < self.min_information_gain and not include_non_discriminating:
                 continue
             discriminating = tuple(
@@ -182,10 +187,13 @@ class DiscriminatingTestSelector:
                     discriminates_between=discriminating,
                     likelihoods=likelihoods,
                     provenance=provenance,
+                    information_gain_lower=gain_lower,
                 )
             )
 
-        investigations.sort(key=lambda item: (-item.information_gain, item.burden, item.name))
+        investigations.sort(
+            key=lambda item: (-item.information_gain_lower, -item.information_gain, item.burden, item.name)
+        )
         if include_non_discriminating:
             return investigations
         return investigations[: self.max_suggestions]
@@ -201,6 +209,20 @@ class DiscriminatingTestSelector:
             "decision_support_only": True,
         }
 
+    def _likelihood_bounds(self, test: str, prior: dict[str, float]) -> dict[str, tuple[float, float]]:
+        """Likelihood intervals per hypothesis, widest matching edge winning."""
+        bounds: dict[str, tuple[float, float]] = {}
+        test_key = normalise_concept(test)
+        for label in prior:
+            found: tuple[float, float] | None = None
+            for edge in self.graph.edges_from(label):
+                if not self._is_test_relation(edge) or normalise_concept(edge.target) != test_key:
+                    continue
+                low, high = edge.bounds
+                found = (low, high) if found is None else (min(found[0], low), max(found[1], high))
+            bounds[label] = found if found is not None else self.absent_bounds
+        return bounds
+
     def _is_test_relation(self, edge: ConceptEdge) -> bool:
         relation = str(edge.relation).lower()
         return relation.removeprefix("inverse_") in self.test_relations
@@ -214,6 +236,11 @@ class DiscriminatingTestSelector:
         assert that the finding is impossible under that hypothesis, which the
         absence of an edge does not establish — the graph being silent is not the
         same as the graph denying.
+
+        The point estimate still reads silence as a low value, which is a
+        softened version of the same error. ``_likelihood_bounds`` is the honest
+        reading: a missing edge is the full interval, so it guarantees nothing
+        and cannot win the ranking on the strength of what is unknown about it.
         """
         likelihoods = {label: self.absent_likelihood for label in prior}
         provenance: list[dict[str, Any]] = []
@@ -230,6 +257,32 @@ class DiscriminatingTestSelector:
                     likelihoods[label] = weight
                     provenance.append({"hypothesis": label, **edge.as_dict()})
         return likelihoods, tuple(provenance)
+
+
+def guaranteed_information_gain(prior: dict[str, float], bounds: dict[str, tuple[float, float]]) -> float:
+    """Worst-case information gain over the likelihood intervals.
+
+    Ranking by a point estimate lets ignorance masquerade as diagnostic power: a
+    test whose likelihood is unknown on one side scores higher than one
+    documented on both, because the missing value is read as an extreme rather
+    than as a blank. The guarantee is what the test delivers regardless of how
+    the unknowns resolve.
+
+    Expected information gain falls to zero when every likelihood coincides, so
+    if the intervals share any common value that configuration is achievable and
+    the guarantee is zero — a wide interval offers no floor. Otherwise the
+    intervals are disjoint and the worst case is the configuration in which they
+    are closest, obtained by clamping each toward the others.
+    """
+    if not bounds:
+        return 0.0
+    highest_lower = max(low for low, _ in bounds.values())
+    lowest_upper = min(high for _, high in bounds.values())
+    if highest_lower <= lowest_upper:
+        return 0.0
+    midpoint = (highest_lower + lowest_upper) / 2.0
+    closest = {label: min(max(midpoint, low), high) for label, (low, high) in bounds.items()}
+    return expected_information_gain(prior, closest)
 
 
 def entropy(probabilities: Sequence[float]) -> float:

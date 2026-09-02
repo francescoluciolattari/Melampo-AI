@@ -188,6 +188,31 @@ Hypotheses are gated on diagnostic indeterminacy — low `convergence_index`, hi
 `conflict_load`, material risk — because additional synthetic alternatives are
 informative only when the differential is flat.
 
+A second gate covers graph coverage. On a sparse neighbourhood every unknown
+path reaches an upper bound of 1.0, so ranking by the ceiling degenerates: a
+three-hop chain of unknowns outranks a two-hop chain of well-attested edges and
+the order is decided by tie-breaks. The failure is not noise but loss of
+ordering, and emitting the top three of an arbitrary order is worse than
+emitting none.
+
+Waiting for a complete graph is not the answer either. A clinical graph never
+reaches completeness, so the threshold never arrives, and it deadlocks: the
+completion queue is fed by use, and use would be waiting on the queue. Coverage
+is therefore assessed locally, per case, and a sparse neighbourhood switches
+register rather than silencing the branch — the output becomes questions aimed
+at the knowledge base, which is useful from the first day.
+
+Two structural bounds keep sparse traversal honest: at most one unknown edge per
+path, since two concatenated unknowns are not a weaker inference but a different
+object; and corroboration by two independent findings, which survives a sparse
+neighbourhood because a spurious path from one finding is easy while two
+converging on the same condition is not.
+
+This has a consequence for `rlm.dream_hypotheses_add_value`: while local density
+is low the claim is not testable, because the measurement would reflect graph
+coverage rather than hypothesis value. Clinical review must be run on cases
+selected from dense regions, or the result is predetermined and negative.
+
 Implemented in `training/hypothesis_channel.py`.
 
 ## Model selection
@@ -325,6 +350,26 @@ Third tranche (root model decision, scoped status, falsification registry):
 
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
+
+Seventh tranche (interval edges, density gating, register switch):
+
+- `memory/concept_paths.py` — edges hold an interval, not a point. A single
+  number cannot separate "documented as rare" from "nobody has looked": both
+  arrive small, and after multiplication along a path both read as near-certain
+  denial. Paths carry `strength_lower`, `strength_upper` and `gap_count`;
+  `local_density` measures coverage around one case
+- `training/mechanism_enumeration.py` — filters and ranks by the plausibility
+  ceiling instead of point support. Filtering on support discarded exactly the
+  uncertain paths, surfacing conditions the graph already knew well, and it
+  contradicted the novelty measure, which rewards low support
+- `reasoning/discriminating_tests.py` — ranks by guaranteed gain. A missing edge
+  now reads as the full interval rather than a low value
+
+Three consumers read the same interval differently: the diagnostic path takes
+the lower bound (what is guaranteed), hypothesis enumeration takes the upper
+bound (what could be true), and graph maintenance takes the width (where looking
+pays). Exploration is optimistic by construction, decision prudent by
+construction.
 
 Sixth tranche (claim revision, route conditionality, discriminating tests):
 

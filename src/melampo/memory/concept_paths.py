@@ -29,14 +29,46 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+STATE_DOCUMENTED = "documented"
+STATE_UNCERTAIN_POSITIVE = "uncertain_positive"
+STATE_WEAK_NEGATION = "weak_negation"
+STATE_DOCUMENTED_EXCLUSION = "documented_exclusion"
+STATE_GAP = "gap"
+
+GAP_WIDTH = 0.8
+NARROW_WIDTH = 0.2
+LOW_CEILING = 0.5
+
+
+def epistemic_state(lower: float, upper: float) -> str:
+    """Name the epistemic condition an interval expresses.
+
+    Descriptive only: nothing in the traversal branches on this label. The
+    computation reads the bounds, because bounds compose along a path and
+    category names do not.
+    """
+    width = upper - lower
+    if width >= GAP_WIDTH:
+        return STATE_GAP
+    if width <= NARROW_WIDTH:
+        return STATE_DOCUMENTED_EXCLUSION if upper <= LOW_CEILING else STATE_DOCUMENTED
+    return STATE_WEAK_NEGATION if upper <= LOW_CEILING else STATE_UNCERTAIN_POSITIVE
+
 
 @dataclass(frozen=True)
 class ConceptEdge:
-    """A typed, weighted relation between two clinical concepts.
+    """A typed relation between two clinical concepts, held as an interval.
 
-    ``weight`` expresses how well attested the relation is, from an established
-    mechanism down to a sparsely reported association. It is not a probability
-    and must not be read as one.
+    A single number cannot separate "documented as rare" from "nobody has
+    looked": both arrive as a small value, and after multiplication along a path
+    both read as near-certain denial. The bounds keep them apart. Their width is
+    the epistemic uncertainty — an unknown relation is ``[0.0, 1.0]``, a
+    documented exclusion is ``[0.0, 0.05]``, and the two behave differently
+    everywhere downstream.
+
+    ``weight`` remains the point estimate and the default reading. When bounds
+    are not supplied the edge is treated as exact, so existing graphs keep their
+    previous behaviour.
     """
 
     source: str
@@ -44,13 +76,49 @@ class ConceptEdge:
     target: str
     weight: float = 1.0
     provenance: str | None = None
+    lower: float | None = None
+    upper: float | None = None
+
+    @classmethod
+    def unknown(cls, source: str, relation: str, target: str, provenance: str | None = None) -> "ConceptEdge":
+        """An edge the knowledge base does not have. Maximally wide, not absent.
+
+        Distinct from omitting the edge: an absent edge cannot be traversed at
+        all, while an unknown one can be traversed and reported as unknown,
+        which is what makes it a candidate for graph completion.
+        """
+        return cls(source, relation, target, weight=0.5, provenance=provenance, lower=0.0, upper=1.0)
+
+    @property
+    def bounds(self) -> tuple[float, float]:
+        low = _clamp(self.weight if self.lower is None else self.lower)
+        high = _clamp(self.weight if self.upper is None else self.upper)
+        return (low, max(low, high))
+
+    @property
+    def width(self) -> float:
+        low, high = self.bounds
+        return high - low
+
+    @property
+    def is_gap(self) -> bool:
+        return self.width >= GAP_WIDTH
+
+    @property
+    def state(self) -> str:
+        low, high = self.bounds
+        return epistemic_state(low, high)
 
     def as_dict(self) -> dict[str, Any]:
+        low, high = self.bounds
         return {
             "source": self.source,
             "relation": self.relation,
             "target": self.target,
             "weight": round(self.weight, 3),
+            "lower": round(low, 3),
+            "upper": round(high, 3),
+            "state": self.state,
             "provenance": self.provenance,
         }
 
@@ -113,18 +181,57 @@ class ConceptPath:
         """Product of edge weights. Long chains of weak links score low, as they should."""
         total = 1.0
         for edge in self.edges:
-            total *= max(0.0, min(1.0, edge.weight))
+            total *= _clamp(edge.weight)
         return total
+
+    @property
+    def strength_bounds(self) -> tuple[float, float]:
+        """Interval strength: what the path guarantees, and what it could reach.
+
+        Three consumers read this differently. The diagnostic path reads the
+        lower bound — what the evidence guarantees. Hypothesis enumeration reads
+        the upper bound — what could be true. Graph maintenance reads the width —
+        where the knowledge base does not know, and therefore where looking pays.
+        """
+        low, high = 1.0, 1.0
+        for edge in self.edges:
+            edge_low, edge_high = edge.bounds
+            low *= edge_low
+            high *= edge_high
+        return (low, high)
+
+    @property
+    def strength_lower(self) -> float:
+        return self.strength_bounds[0]
+
+    @property
+    def strength_upper(self) -> float:
+        return self.strength_bounds[1]
+
+    @property
+    def epistemic_width(self) -> float:
+        low, high = self.strength_bounds
+        return high - low
+
+    @property
+    def gap_count(self) -> int:
+        """Edges on this path the knowledge base does not have."""
+        return sum(1 for edge in self.edges if edge.is_gap)
 
     @property
     def intermediates(self) -> tuple[str, ...]:
         return tuple(edge.target for edge in self.edges[:-1])
 
     def as_provenance(self) -> dict[str, Any]:
+        low, high = self.strength_bounds
         return {
             "kind": "concept_graph_path",
             "hops": self.hops,
             "strength": round(self.strength, 3),
+            "strength_lower": round(low, 3),
+            "strength_upper": round(high, 3),
+            "epistemic_width": round(high - low, 3),
+            "gap_count": self.gap_count,
             "intermediates": list(self.intermediates),
             "edges": [edge.as_dict() for edge in self.edges],
         }
@@ -147,12 +254,19 @@ def find_paths(
     max_hops: int = 3,
     min_edge_weight: float = 0.0,
     max_paths: int = 8,
+    max_gap_edges: int | None = None,
 ) -> list[ConceptPath]:
     """Breadth-first search for paths between two concepts, shortest first.
 
     Bounded deliberately. Given enough hops almost any two clinical concepts
     connect, and a path that long carries no information: it would turn this
     into a check that never fails, which is the same as having no check.
+
+    ``max_gap_edges`` bounds how many unknown edges a path may traverse. One
+    unverified link in a chain is an inference; two concatenated unknowns are
+    not a weaker inference but a different kind of object, since the second
+    unknown is conditioned on the first being true. Leave it unset to ignore the
+    distinction, which is the behaviour for graphs of exact edges.
     """
     start_key, end_key = normalise_concept(start), normalise_concept(end)
     if not start_key or not end_key or start_key == end_key:
@@ -171,6 +285,8 @@ def find_paths(
                 if target_key in visited:
                     continue
                 extended = path + (edge,)
+                if max_gap_edges is not None and sum(1 for item in extended if item.is_gap) > max_gap_edges:
+                    continue
                 if target_key == end_key:
                     found.append(ConceptPath(edges=extended))
                     if len(found) >= max_paths:
@@ -232,6 +348,85 @@ def mentioned_concepts(text: str, graph: ConceptGraphView, *, max_results: int =
         if len(found) >= max_results:
             break
     return found
+
+
+@dataclass(frozen=True)
+class DensityReport:
+    """How well the knowledge base covers the neighbourhood of one case."""
+
+    density: float
+    known_edges: int
+    gap_edges: int
+    concepts_present: tuple[str, ...]
+    concepts_absent: tuple[str, ...]
+
+    @property
+    def is_sparse_for(self) -> bool:
+        return self.density < 0.5
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "density": round(self.density, 3),
+            "known_edges": self.known_edges,
+            "gap_edges": self.gap_edges,
+            "concepts_present": list(self.concepts_present),
+            "concepts_absent": list(self.concepts_absent),
+        }
+
+
+def local_density(graph: ConceptGraphView, concepts: Sequence[str], *, radius: int = 1) -> DensityReport:
+    """Fraction of the neighbourhood around these concepts that the graph knows.
+
+    Completeness is the wrong question — a clinical graph never reaches it, so a
+    completeness threshold is one that never arrives, and waiting on it
+    deadlocks: the completion queue is fed by using the graph. Local density is
+    answerable and varies enormously, since a cardiology case may sit in
+    well-mapped territory while a rare presentation sits in a desert.
+    """
+    present: list[str] = []
+    absent: list[str] = []
+    frontier: set[str] = set()
+
+    for concept in concepts:
+        key = normalise_concept(concept)
+        if not key:
+            continue
+        if graph.edges_from(key):
+            present.append(key)
+            frontier.add(key)
+        else:
+            absent.append(key)
+
+    visited: set[str] = set()
+    known = 0
+    gaps = 0
+    for _ in range(max(1, radius)):
+        next_frontier: set[str] = set()
+        for concept in frontier:
+            if concept in visited:
+                continue
+            visited.add(concept)
+            for edge in graph.edges_from(concept):
+                if edge.is_gap:
+                    gaps += 1
+                else:
+                    known += 1
+                next_frontier.add(normalise_concept(edge.target))
+        frontier = next_frontier
+
+    total = known + gaps
+    density = known / total if total else 0.0
+    return DensityReport(
+        density=density,
+        known_edges=known,
+        gap_edges=gaps,
+        concepts_present=tuple(sorted(present)),
+        concepts_absent=tuple(sorted(absent)),
+    )
+
+
+def _clamp(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
 
 
 def _ranked(paths: list[ConceptPath]) -> list[ConceptPath]:
