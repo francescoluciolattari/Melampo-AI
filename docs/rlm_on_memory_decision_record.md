@@ -351,6 +351,27 @@ Third tranche (root model decision, scoped status, falsification registry):
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
 
+Eighth tranche (ontology import, coverage measurement):
+
+- `memory/ontology_import.py` — HPO disease-phenotype annotations become
+  interval edges. The frequency column is **already published as a range**
+  (obligate 100%, very frequent 80–99%, frequent 30–79%, occasional 5–29%, very
+  rare 1–4%, excluded 0%), so the interval representation is not a formalism
+  imposed on the data: a point estimate would have been the lossy step. Observed
+  fractions become Wilson intervals, so epistemic width falls out of sample size
+  rather than being assigned
+- `memory/graph_coverage.py` — coverage against a reference relation set,
+  separating present, reachable-through-a-gap, and absent. The first two feed
+  different queues: calibration and completion. `evaluation_is_interpretable`
+  guards the case where a measurement would reflect the knowledge base while
+  appearing to measure the architecture
+
+Verified against the full annotation file, 285,598 edges: 9.8% documented,
+42.6% uncertain positive, 19.9% weak negation, 24.2% gap, 3.4% documented
+exclusion. Almost two thirds of real edges carry meaningful epistemic width, and
+weak negation — the state a four-item list omits — covers 56,954 relations that
+would otherwise have been recorded as documented exclusions.
+
 Seventh tranche (interval edges, density gating, register switch):
 
 - `memory/concept_paths.py` — edges hold an interval, not a point. A single
