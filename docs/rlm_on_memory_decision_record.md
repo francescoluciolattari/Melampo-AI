@@ -106,7 +106,14 @@ its nature.
 
 ### Complexity routing
 
-**Type: CLAIM — registered as falsifiable** (`rlm.recursive_helps_only_on_complex_cases`).
+**Type: PLAN — accepted.** Review trigger: measured cost of recursive retrieval
+on simple lookups.
+
+Previously registered as a claim. Withdrawn 2026-09-02: the gate is justified on
+cost and latency grounds alone — running recursive retrieval on every trivial
+lookup is expensive regardless of accuracy — so it does not depend on the
+accuracy claim and the claim need not gate anything. The claim is retained in
+the registry with that reason rather than deleted.
 
 `ModelRouter` is currently a static 12-line router. It becomes the gate that
 decides *how many* paths run, not which one:
@@ -249,6 +256,35 @@ therefore sees PHI: self-hosted, no egress. Candidate: MedGemma 1.5 4B.
 | External critique | **Claude** — confirmed, on de-identified input only. |
 | Document parsing | **Docling** — confirmed and more central; supplies the character offsets the provenance layer depends on. |
 
+### External APIs beyond Phase 1
+
+**Type: PLAN — accepted.** Review trigger: legal review outcome, or evidence of
+reconstruction by aggregation.
+
+External APIs remain available past Phase 1 under a predicate oracle: instead of
+releasing an attribute, a local agent answers the clinical question that
+attribute would have served. Geography is the motivating case — it is almost
+never diagnostic in itself, only through a mediating factor such as endemic
+exposure, so answering "endemic risk present, band moderate" supplies the
+operative variable and withholds the identifier.
+
+This is not an exit from the GDPR and must not be described as one. It is a
+defensible transfer position: pseudonymisation as a technical measure, EU-region
+endpoints, no training on the data, zero retention, measured de-identification
+recall. The controller retains the linkage, so the data remains personal.
+
+Two risks are registered as claims rather than assumed away. Each answer is
+low-information alone, but their conjunction may not be
+(`privacy.predicate_budget_prevents_reconstruction`, blocking); and withholding
+the attribute may cost diagnostic quality
+(`privacy.predicate_disclosure_preserves_diagnosis`).
+
+Design constraints: a bounded query budget with cumulative disclosure tracking;
+discrete risk bands rather than continuous scores, which carry more bits; and
+proactive screening of relevant exposure factors alongside reactive answers,
+since an oracle can only be asked about hypotheses the caller has already
+formed.
+
 ### PHI perimeter
 
 The entire raw case context resides in the recursive environment, and fragments
@@ -289,6 +325,16 @@ Third tranche (root model decision, scoped status, falsification registry):
 
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
+
+Sixth tranche (claim revision, route conditionality, discriminating tests):
+
+- `evaluation/falsification_program.py` — claims may be conditional on a route.
+  Taking a route substitutes open questions rather than removing them: choosing
+  external APIs retires the on-premise sufficiency question and raises two
+  privacy ones, and the blocking count stays at three either way
+- `reasoning/discriminating_tests.py` — investigations ranked by expected
+  information gain over the concept graph, replacing fixed per-domain strings
+  that never inspected the hypotheses in contention
 
 Fifth tranche (knowledge-mediated grounding — corrects the fourth):
 

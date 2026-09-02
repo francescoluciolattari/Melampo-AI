@@ -15,23 +15,39 @@ def test_legacy_summary_keys_are_preserved():
         assert key in summary
 
 
-def test_decision_record_claims_start_open_and_carry_refutation_criteria():
+def test_every_claim_carries_a_refutation_criterion_and_a_source_record():
     program = FalsificationProgram()
     assert program.claims
     for claim in program.claims:
-        assert claim.status == CLAIM_OPEN
-        assert claim.refutation_criterion.strip()
-        assert claim.decision_record
+        assert claim.refutation_criterion.strip(), f"{claim.claim_id} has no refutation criterion"
+        assert claim.decision_record, f"{claim.claim_id} is not traceable to a decision record"
+
+
+def test_claims_start_open_unless_explicitly_resolved_with_a_reason():
+    program = FalsificationProgram()
+    for claim in program.claims:
+        if claim.status == CLAIM_OPEN:
+            assert claim.evidence == []
+        else:
+            assert claim.evidence, f"{claim.claim_id} left {claim.status} without recorded evidence"
 
 
 def test_blocking_claims_gate_the_strategy():
     program = FalsificationProgram()
     blocking = {claim.claim_id for claim in program.blocking_claims()}
     assert "rlm.dual_path_beats_single_path" in blocking
-    assert "rlm.open_weight_root_is_sufficient" in blocking
+    assert "rlm.disagreement_is_informative" in blocking
 
     program.resolve("rlm.dual_path_beats_single_path", CLAIM_CORROBORATED, evidence="run_2026_09_01")
     assert "rlm.dual_path_beats_single_path" not in {claim.claim_id for claim in program.blocking_claims()}
+
+
+def test_route_conditional_claims_are_still_registered_as_blocking():
+    """Dormant is not the same as non-blocking: the route may yet be taken."""
+    program = FalsificationProgram()
+    conditional = program.get("rlm.open_weight_root_is_sufficient")
+    assert conditional.blocking is True
+    assert conditional.conditional_on is not None
 
 
 def test_resolving_a_claim_requires_evidence():
