@@ -153,6 +153,18 @@ Two layers instead:
 
 **Type: CONSTRAINT — accepted** for the isolation requirement; **CLAIM** for the value of the hypotheses themselves (`rlm.dream_hypotheses_add_value`).
 
+Hypotheses are found rather than written. A candidate is a path through the
+concept graph connecting the observed findings to a condition the case has not
+raised; the path is its provenance. The difference from a generative model is
+categorical rather than one of quality — a path exists in the graph or it does
+not, so a hypothesis cannot be fluent and baseless at once.
+
+Speculation is a gradient, not a category. A short path over well-attested edges
+is a connection any clinician would raise; a long path over weak edges is rarely
+considered but still traceable. Novelty and support are reported separately,
+because collapsing them into one score is what makes a speculative hypothesis
+look like a strong one. No path at all is not speculation, and is discarded.
+
 Dream candidates enter the differential as **exclusion hypotheses**, never as
 evidence. A differential diagnosis is itself a set of hypotheses to be excluded,
 so a candidate framed as "consider also X, synthetically generated, not
@@ -277,6 +289,19 @@ Third tranche (root model decision, scoped status, falsification registry):
 
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
+
+Fifth tranche (knowledge-mediated grounding — corrects the fourth):
+
+- `memory/concept_paths.py` — bounded traversal over the clinical concept graph,
+  with path strength and shared-mechanism discovery
+- `evaluation/grounding_judge.py` — three verdicts instead of two. A relation
+  absent from the case is not automatically an error: most clinical inference
+  connects a finding to a condition through knowledge outside the case. Checking
+  only against case fragments conflates inference with fabrication and rejects
+  both
+- `training/mechanism_enumeration.py` — hypotheses found by path enumeration
+  rather than written by string concatenation, replacing
+  `_alternative_hypotheses()` and the `0.2 * len(list)` novelty formula
 
 Fourth tranche (claim `rlm.dual_path_beats_single_path` made testable):
 
