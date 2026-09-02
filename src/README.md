@@ -100,6 +100,8 @@ navigation affordances.
 - `memory/ontology_import.py`: HPO annotations as interval edges, published frequency ranges preserved rather than collapsed to points.
 - `memory/graph_coverage.py`: coverage against a reference relation set; guards evaluations that would measure the knowledge base while appearing to measure the architecture.
 - `reasoning/family_history.py`: family history as screening hypothesis and prior modifier, never as a patient finding.
+- `memory/assertion.py`: deterministic assertion detection — polarity, certainty, experiencer, temporality, source — producing an interval and an epistemic state rather than a scalar.
+- `reasoning/findings_boundary.py`: enforced boundary admitting only current, asserted findings of this patient; every rejection carries its route.
 
 ## CLI commands
 

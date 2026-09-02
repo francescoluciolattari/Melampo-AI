@@ -351,6 +351,17 @@ Third tranche (root model decision, scoped status, falsification registry):
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
 
+Eleventh tranche (assertion detection, enforced findings boundary):
+
+- `memory/assertion.py` — deterministic cue-based detection with bounded scope
+  and adversative termination. Closes the defect where exact matching resolved
+  "denies fever" and "presents with fever" identically, so a negated finding
+  entered as a present one and became a graph entry point
+- `reasoning/findings_boundary.py` — the single point at which findings are
+  assembled. The two isolation guards written earlier were invoked **zero
+  times** on the production path: the separation was a convention, not a
+  constraint. It is now enforced, and every rejection names its route
+
 Tenth tranche (modifier roles, family history routing):
 
 - `memory/concept_resolution.py` — `is_a` parsing, transitive ancestors, and

@@ -94,6 +94,47 @@ taxonomy that would need validating with one already validated.
 ambiguity with *Hypothetical*. Merge the two rather than acting on the
 distinction.
 
+### Implementation status
+
+`memory/assertion.py` implements the deterministic layer: cue lists with bounded
+scope and adversative termination, four i2b2 axes plus source, producing an
+interval and a state rather than a scalar. English and Italian cue sets are
+supplied and either can be replaced, so the corpus language stays open.
+
+`reasoning/findings_boundary.py` is the single point at which patient findings
+are assembled. Before it, two guards existed — one rejecting synthetic
+hypotheses, one rejecting screening items — and **neither was invoked anywhere
+on the production path**. A guard that is never called does not guard; the
+isolation was a convention. `assemble` now admits only what is a current,
+asserted finding of this patient, and every rejection names where the item
+belongs instead:
+
+| Rejected | Routes to |
+|---|---|
+| Negated | Documented exclusion |
+| Hypothetical, "rule out" | Open question, discriminating test selection |
+| Attributed to a relative | Family history channel |
+| Historical | Clinical context, not current state |
+| Synthetic hypothesis | Differential, as exclusion hypothesis only |
+| Screening consideration | Screening list, outside the differential |
+
+End-to-end behaviour on the sentences that previously produced false findings:
+
+```
+"The patient denies fever and reports no cough."
+   admitted : []
+   rejected : Fever (negated), Cough (negated)   -> documented_exclusion
+
+"Family history of diabetes mellitus in the mother."
+   rejected : Diabetes mellitus (other_experiencer) -> family_history_channel
+
+"Chest CT ordered to rule out pneumonia."
+   rejected : Pneumonia (hypothetical) -> open_question
+
+"Presents with progressive dyspnea and bilateral pleural effusion."
+   admitted : Dyspnea [Progressive], Pleural effusion [Bilateral]
+```
+
 ### Sequencing
 
 **Type: PLAN — accepted.** Review trigger: measured comparison.
