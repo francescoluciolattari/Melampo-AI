@@ -42,6 +42,9 @@ class WeaviateClassSchema:
         }
 
 
+QUARANTINED_HYPOTHESIS_CLASS = "HypothesisCandidate"
+
+
 @dataclass(slots=True)
 class MelampoWeaviateSchema:
     """Schema contract for Melampo's semantic clinical memory.
@@ -192,6 +195,24 @@ class MelampoWeaviateSchema:
                 named_vectors=("document_text_vector", "document_layout_vector"),
             ),
             WeaviateClassSchema(
+                name=QUARANTINED_HYPOTHESIS_CLASS,
+                description=(
+                    "Synthetic candidate hypotheses. Quarantined: never reachable from the evidence "
+                    "retrieval path, and admissible only as exclusion hypotheses in the differential."
+                ),
+                properties=(
+                    WeaviateProperty("label", "text", "Candidate condition proposed by hypothesis enumeration."),
+                    WeaviateProperty("rationale", "text", "Concept-graph path that produced the candidate."),
+                    WeaviateProperty("origin", "text", "Channel that generated it: enumeration or family history."),
+                    WeaviateProperty("novelty_score", "number", "How far outside routine consideration the candidate sits."),
+                    WeaviateProperty("learning_status", "text", "Always candidate; never promoted to grounded by this class."),
+                    WeaviateProperty("promotion_state", "text", "Requires validation before any clinical consideration."),
+                    WeaviateProperty(
+                        "human_review_before_clinical_use", "boolean", "Always true for quarantined candidates."
+                    ),
+                ),
+            ),
+            WeaviateClassSchema(
                 name="EpidemiologicalFactor",
                 description="Exposure, demographic or prevalence factor used to shape pre-test probability.",
                 properties=(
@@ -228,3 +249,20 @@ class MelampoWeaviateSchema:
 
     def class_names(self) -> list[str]:
         return [class_schema.name for class_schema in self.classes()]
+
+    def quarantined_class_names(self) -> list[str]:
+        """Classes holding synthetic candidates, unreachable from the evidence path.
+
+        Physical separation rather than a metadata flag. A candidate sharing a
+        class with clinical evidence competes for the same result slots under the
+        same ranking, so a single caller that omits a filter reintroduces it
+        silently — and safety cannot depend on every caller remembering.
+        """
+        return [QUARANTINED_HYPOTHESIS_CLASS]
+
+    def evidence_class_names(self) -> list[str]:
+        quarantined = set(self.quarantined_class_names())
+        return [name for name in self.class_names() if name not in quarantined]
+
+    def is_quarantined(self, class_name: str | None) -> bool:
+        return bool(class_name) and class_name in set(self.quarantined_class_names())

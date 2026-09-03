@@ -171,7 +171,34 @@ exercised only in tests. A guard that is never called does not guard.
 |---|---|
 | Logical role markers on every candidate | **Implemented** |
 | Enforced boundary calling the guards | **Implemented** — `reasoning/findings_boundary.py` |
-| Separate Weaviate collection (physical isolation) | **Open** — block B2 |
+| Separate schema class, unreachable from the evidence path | **Implemented** — `HypothesisCandidate` |
+
+### Physical quarantine
+
+`HypothesisCandidate` is a schema class outside `evidence_class_names()`.
+`hybrid_search` excludes quarantined classes **after retrieval** rather than
+through a filter, so the exclusion cannot be bypassed by omitting one — safety
+must not depend on every caller remembering to pass an argument.
+
+An explicit request for the quarantined class is **refused** rather than
+returning an empty list, because an empty result reads as "no such evidence"
+instead of "not permitted here", and the difference matters to whoever is
+reading the trace.
+
+Candidates remain reachable through `hypothesis_search`, a separate entry point
+by design: reaching them is then an explicit act with its own call site,
+auditable in a way a filter argument is not. Every hit it returns carries
+`usable_as_evidence: False` and `retrieval_channel: hypothesis_channel`.
+
+### Verification is by attempt, not by inspection
+
+Inspecting the schema proves how the store is configured; it does not prove a
+candidate is unreachable. The exit criterion is therefore a **negative test**
+that attempts retrieval through the evidence path and expects failure, including
+the case where the candidate would outrank the evidence — so that ranking is not
+the thing keeping it out.
+
+`tests/test_hypothesis_quarantine.py` holds those tests.
 
 `reasoning/findings_boundary.py` is the single point at which patient findings
 are assembled. It admits only what is a current, asserted finding of this
@@ -270,8 +297,10 @@ costs it precisely on the complex cases where the reviewer is already loaded.
 
 ## 9. Open items
 
-1. **Physical isolation** — separate Weaviate collection (B2). Until then
-   isolation is enforced at the boundary but not at the store.
+1. **Live Weaviate verification** — the quarantine is enforced in the adapter and
+   exercised against the local contract store. The same negative test must be
+   run against a real Weaviate instance before the isolation claim is made
+   outside research use.
 2. **Gate thresholds** — indeterminacy and density thresholds are set by
    judgement and need calibration against real cases.
 3. **Prior shift table** for family history — a policy artefact requiring

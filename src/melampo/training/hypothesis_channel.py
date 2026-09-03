@@ -69,6 +69,22 @@ class IndeterminacyGate:
     def is_open(self, dynamics: dict[str, Any] | None, *, risk: float = 0.0) -> bool:
         return bool(self.evaluate(dynamics, risk=risk)["open"])
 
+    def evaluate_context(self, context: Any) -> dict[str, Any]:
+        """Evaluate against a dream runtime context, reading the real metrics.
+
+        ``convergence_index`` and ``risk`` sit directly on the context;
+        ``conflict_load`` is produced by the neuro-dynamic layer and arrives
+        inside ``neuro_metrics``. Reading them here rather than requiring the
+        caller to assemble a dict keeps the gate wired to the values the system
+        actually computes, instead of to whatever a call site happens to pass.
+        """
+        metrics = getattr(context, "neuro_metrics", None)
+        dynamics = dict(metrics) if isinstance(metrics, dict) else {}
+        dynamics.setdefault("convergence_index", getattr(context, "convergence_index", 1.0))
+        if "conflict_load" not in dynamics:
+            dynamics["conflict_load"] = _safe_float(getattr(context, "mismatch_score", 0.0), 0.0)
+        return self.evaluate(dynamics, risk=_safe_float(getattr(context, "risk", 0.0), 0.0))
+
 
 @dataclass
 class HypothesisEnvelope:
@@ -114,8 +130,18 @@ class HypothesisChannel:
         *,
         dynamics: dict[str, Any] | None = None,
         risk: float = 0.0,
+        context: Any | None = None,
     ) -> dict[str, Any]:
-        decision = self.gate.evaluate(dynamics, risk=risk)
+        """Open the channel if the gate permits.
+
+        Pass ``context`` to read the metrics the system computes; ``dynamics``
+        and ``risk`` remain available for callers that assemble them directly.
+        """
+        decision = (
+            self.gate.evaluate_context(context)
+            if context is not None
+            else self.gate.evaluate(dynamics, risk=risk)
+        )
         if not decision["open"]:
             return {
                 "channel_open": False,
