@@ -327,7 +327,10 @@ def test_candidate_translations_can_be_excluded():
 
 
 def test_language_coverage_is_measured_before_it_is_relied_on():
-    from melampo.memory.concept_resolution import measure_language_coverage, parse_babelon
+    from melampo.memory.concept_resolution import (
+        measure_language_coverage,
+        parse_babelon,
+    )
 
     index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
     coverage = measure_language_coverage(index, list(parse_babelon(BABELON_SAMPLE.splitlines())), "it")
