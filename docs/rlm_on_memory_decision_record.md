@@ -540,6 +540,11 @@ is acquired where an error costs nothing.
 
 ## Companion records
 
+- `diagnostic_engine_decision_record.md` — how the trained model, the graph and
+  the deterministic calibrator divide the work: what expertise research
+  established, the illness script frame, model roles and adaptation, and the
+  learning cycle with its independence requirement
+
 - `semantic_extraction_decision_record.md` — how clinical text becomes
   traversable concepts: assertion representation and detection mechanism,
   modifier roles, family history routing, vocabulary extension
