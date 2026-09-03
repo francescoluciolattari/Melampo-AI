@@ -351,6 +351,33 @@ Third tranche (root model decision, scoped status, falsification registry):
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
 
+Ninth tranche (concept resolution — closes the bridge between text and graph):
+
+- `memory/concept_resolution.py` — OBO parsing, term index, deterministic
+  surface-to-concept resolution. The graph and the case corpus were keyed
+  differently: graph nodes are HPO identifiers and disease names, while the
+  pipeline extracted entities against sixteen hand-written English terms mapped
+  to invented references. Nothing connected them, so every traversal began from
+  a concept the graph had never heard of
+
+A resolution gap and a coverage gap present identically — the branch produces
+nothing and density reads zero — but call for opposite work.
+`diagnose_empty_result` separates them, because the obvious reading of an empty
+result is "the graph is too sparse", which sends effort into populating a graph
+that may already hold hundreds of thousands of edges and simply be unreachable.
+
+Matching is exact. A fuzzy match that silently resolves the wrong concept is
+worse than no match: an unresolved finding announces itself, a mis-resolved one
+propagates into a path, a hypothesis and a provenance record that all look
+well-formed. Ambiguity is reported rather than broken by a tie-break, since
+choosing would be a clinical judgement made silently.
+
+Verified on the real release: 23,800 terms and 42,045 surface forms indexed in
+0.4s. On a graph of 115,875 ORPHA edges, `Hepatomegaly` and `Splenomegaly`
+resolve and connect through `Gaucher disease` with interval strength
+[0.716, 0.886] and no gaps. The same query against the raw identifiers returns
+nothing.
+
 Eighth tranche (ontology import, coverage measurement):
 
 - `memory/ontology_import.py` — HPO disease-phenotype annotations become
