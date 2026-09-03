@@ -343,7 +343,40 @@ rather than a code edit.
 
 ---
 
-## 5. Languages
+## 5. Extraction pipeline
+
+**Type: CONSTRAINT — accepted.**
+
+`ClinicalDocumentProcessor` takes an optional `concept_resolver`. Without one the
+original sixteen-term lexicon runs unchanged, so existing ingestion behaviour is
+preserved; with one, extraction is driven by the ontology index — tens of
+thousands of surface forms, modifiers attached to their findings, and every
+mention carrying how it is asserted.
+
+### Two lists, because they answer different questions
+
+| List | Contains | Used for |
+|---|---|---|
+| `clinical_entities` | **Every** mention, including negated and hypothetical ones | Retrieval over the document |
+| `patient_findings` | Only what passed the findings boundary | **Graph entry points** |
+
+A chunk stating "denies fever" *should* be retrievable when searching for fever:
+the negation is what a reader needs to find, and dropping the mention would hide
+it. But that same chunk must not produce `Fever` as a finding, because a finding
+is an entry point and the graph would be walked from a symptom the patient does
+not have.
+
+Keeping both lists is what lets retrieval stay complete while traversal stays
+correct. `excluded_mentions` records each rejection with its route, so nothing
+disappears silently.
+
+### Ontology references
+
+References become identifiers — `HP:0002094` — rather than the invented strings
+of the previous lexicon (`Symptom:Cough`). This is what makes an extracted
+mention line up with a graph node at all.
+
+## 6. Languages
 
 **Type: CONSTRAINT — accepted.**
 
@@ -413,7 +446,7 @@ unsupported language falls back to English rather than guessing.
 - Document language is supplied by the caller. Automatic detection is not
   implemented, and would need its own error budget.
 
-## 6. Vocabulary extension beyond phenotypes
+## 7. Vocabulary extension beyond phenotypes
 
 **Type: CONSTRAINT — accepted.**
 
@@ -447,7 +480,7 @@ Permitted form:
 
 ---
 
-## 7. Open items
+## 8. Open items
 
 1. **Annotated corpus for validation.** i2b2 requires credentialing and is
    English. An Italian operating corpus needs local annotation, the largest cost
@@ -468,7 +501,7 @@ Permitted form:
 
 ---
 
-## 8. References
+## 9. References
 
 - i2b2 2010 assertion dataset — Present, Absent, Possible, Hypothetical,
   Conditional, Associated-with-someone-else

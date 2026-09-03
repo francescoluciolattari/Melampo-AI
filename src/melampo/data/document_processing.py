@@ -82,12 +82,16 @@ class ClinicalDocumentProcessor:
     chunk_size: int = 1200
     chunk_overlap: int = 160
     redact_phi: bool = True
+    concept_resolver: Any = None
+    language: str = "en"
 
     def describe(self) -> dict[str, Any]:
         return {
             "parser_backend": self.parser_backend,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
+            "extraction_mode": "lexicon" if self.concept_resolver is None else "ontology_index",
+            "extraction_language": self.language,
             "recommended_parser": "Docling",
             "supported_target_inputs": ["pdf", "docx", "pptx", "html", "markdown", "images", "clinical_reports"],
             "fallback_mode": "plain_text_file_reader",
@@ -174,6 +178,28 @@ class ClinicalDocumentProcessor:
         return redacted, redactions
 
     def extract_clinical_entities(self, text: str) -> dict[str, Any]:
+        """Extract clinical concepts from a chunk.
+
+        With a ``concept_resolver`` configured, extraction is driven by the
+        ontology index: tens of thousands of surface forms rather than sixteen
+        hand-written tokens, with modifiers attached to their findings and each
+        mention carrying how it is asserted.
+
+        Two lists are returned because they answer different questions.
+        ``clinical_entities`` holds every mention, including negated ones — a
+        chunk stating "denies fever" *should* be retrievable when searching for
+        fever, since the negation is what a reader needs to find.
+        ``patient_findings`` holds only what passed the findings boundary, and
+        it is that list, never the first, that supplies graph entry points.
+
+        Without a resolver the original lexicon is used unchanged, so existing
+        ingestion behaviour is preserved.
+        """
+        if self.concept_resolver is None:
+            return self._extract_with_lexicon(text)
+        return self._extract_with_index(text)
+
+    def _extract_with_lexicon(self, text: str) -> dict[str, Any]:
         lowered = text.lower()
         ontology_refs = []
         entities = []
@@ -185,6 +211,59 @@ class ClinicalDocumentProcessor:
         return {
             "clinical_entities": entities,
             "ontology_refs": sorted(set(ontology_refs)),
+            "extraction_mode": "lexicon",
+        }
+
+    def _extract_with_index(self, text: str) -> dict[str, Any]:
+        from ..memory.assertion import AssertionDetector, select_cues
+        from ..memory.concept_resolution import attach_modifiers
+        from ..reasoning.findings_boundary import assemble
+
+        resolved = self.concept_resolver.resolve_text(text)
+        extraction = attach_modifiers(resolved)
+        detector = AssertionDetector(cues=select_cues(self.language))
+
+        entities: list[dict[str, Any]] = []
+        candidates: list[dict[str, Any]] = []
+        for finding in extraction.findings:
+            concept = finding.concept
+            assertion = detector.detect(text, concept.char_start or 0, concept.char_end or 0)
+            modifiers = [item.label for item in finding.modifiers]
+            entities.append(
+                {
+                    "text": concept.surface,
+                    "category": "Phenotype",
+                    "normalized": concept.label,
+                    "ontology_ref": concept.term_id,
+                    "match_kind": concept.match_kind,
+                    "verified_match": concept.is_verified_match,
+                    "modifiers": modifiers,
+                    "char_start": concept.char_start,
+                    "char_end": concept.char_end,
+                    "assertion": assertion.as_dict(),
+                }
+            )
+            candidates.append(
+                {
+                    "label": concept.label,
+                    "term_id": concept.term_id,
+                    "assertion": assertion,
+                    "modifiers": modifiers,
+                    "char_start": concept.char_start,
+                    "char_end": concept.char_end,
+                }
+            )
+
+        findings = assemble(candidates)
+        return {
+            "clinical_entities": entities,
+            "ontology_refs": sorted({item["ontology_ref"] for item in entities}),
+            "patient_findings": [item.as_dict() for item in findings.admitted],
+            "excluded_mentions": [item.as_dict() for item in findings.rejected],
+            "collapsed_modifiers": [item.label for item in extraction.collapsed_modifiers],
+            "inheritance_statements": [item.label for item in extraction.inheritance_statements],
+            "extraction_mode": "ontology_index",
+            "extraction_language": self.language,
         }
 
     def infer_source_governance(self, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
