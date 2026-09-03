@@ -96,6 +96,12 @@ navigation affordances.
 - `memory/retrieval_contract.py`: shared contract for one-shot and recursive strategies, with a validator for the silent failure modes.
 - `reasoning/retrieval_reconciliation.py`: deterministic dual-path reconciliation; path divergence becomes an empirical conflict signal.
 - `training/hypothesis_channel.py`: dream candidates delivered as exclusion hypotheses under an indeterminacy gate, structurally isolated from the evidence path.
+- `memory/concept_resolution.py`: ontology parsing, term index, deterministic surface-to-concept resolution; modifier roles read from the hierarchy; separates a resolution gap from a coverage gap.
+- `memory/ontology_import.py`: HPO annotations as interval edges, published frequency ranges preserved rather than collapsed to points.
+- `memory/graph_coverage.py`: coverage against a reference relation set; guards evaluations that would measure the knowledge base while appearing to measure the architecture.
+- `reasoning/family_history.py`: family history as screening hypothesis and prior modifier, never as a patient finding.
+- `memory/assertion.py`: deterministic assertion detection — polarity, certainty, experiencer, temporality, source — producing an interval and an epistemic state rather than a scalar.
+- `reasoning/findings_boundary.py`: enforced boundary admitting only current, asserted findings of this patient; every rejection carries its route.
 
 ## CLI commands
 

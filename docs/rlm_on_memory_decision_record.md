@@ -178,11 +178,25 @@ so a candidate framed as "consider also X, synthetically generated, not
 observed" is legitimate; the same candidate framed as "memory supports X" is
 contamination.
 
-The separation is structural rather than a metadata flag. Candidates sharing a
-collection with clinical evidence compete for the same `top_k` slots under the
-same similarity ranking, so a single downstream caller that omits a filter
-reintroduces them silently. The channel therefore uses a distinct namespace, a
-dedicated retrieval path and one authorised consumer.
+The separation cannot rest on a metadata flag. Candidates sharing a collection
+with clinical evidence compete for the same `top_k` slots under the same
+similarity ranking, so a single downstream caller that omits a filter
+reintroduces them silently.
+
+Enforcement status, stated precisely because it was previously overstated here:
+
+| Layer | Status |
+|---|---|
+| Role markers on every candidate | Implemented |
+| Enforced boundary that rejects non-findings | Implemented — `reasoning/findings_boundary.py` |
+| Separate Weaviate collection | **Open** — block B2 |
+
+The boundary matters because the two guards written for this isolation were
+invoked zero times on the production path until it existed. A guard that is
+never called does not guard, and the separation was a convention rather than a
+constraint.
+
+Full design in `hypothesis_stream_decision_record.md`.
 
 Hypotheses are gated on diagnostic indeterminacy — low `convergence_index`, high
 `conflict_load`, material risk — because additional synthetic alternatives are
@@ -351,6 +365,33 @@ Third tranche (root model decision, scoped status, falsification registry):
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
 
+Eleventh tranche (assertion detection, enforced findings boundary):
+
+- `memory/assertion.py` — deterministic cue-based detection with bounded scope
+  and adversative termination. Closes the defect where exact matching resolved
+  "denies fever" and "presents with fever" identically, so a negated finding
+  entered as a present one and became a graph entry point
+- `reasoning/findings_boundary.py` — the single point at which findings are
+  assembled. The two isolation guards written earlier were invoked **zero
+  times** on the production path: the separation was a convention, not a
+  constraint. It is now enforced, and every rejection names its route
+
+Tenth tranche (modifier roles, family history routing):
+
+- `memory/concept_resolution.py` — `is_a` parsing, transitive ancestors, and
+  role classification. A term under `Clinical modifier` (HP:0012823) never
+  becomes a node; it attaches to the nearest finding as an attribute, and an
+  unanchored modifier collapses with the discard reported. The distinction is
+  already in the ontology — 357 terms in that branch — so it is a hierarchy
+  lookup, not a model judgement
+- `reasoning/family_history.py` — a condition reported in a relative never
+  enters patient findings. It becomes a screening hypothesis and a prior
+  modifier, gated on inheritance mode, reachable onset and prior assessment
+
+Full rationale in `semantic_extraction_decision_record.md`, including the
+assertion interval table, the model boundary, and the vocabulary extension
+policy.
+
 Ninth tranche (concept resolution — closes the bridge between text and graph):
 
 - `memory/concept_resolution.py` — OBO parsing, term index, deterministic
@@ -495,6 +536,16 @@ the diagnostic path but not in the dream branch, where every output is a
 candidate requiring validation and human review before clinical use, and where
 low-activity scheduling makes recursive latency irrelevant. The reliability data
 is acquired where an error costs nothing.
+
+## Companion records
+
+- `semantic_extraction_decision_record.md` — how clinical text becomes
+  traversable concepts: assertion representation and detection mechanism,
+  modifier roles, family history routing, vocabulary extension
+- `hypothesis_stream_decision_record.md` — how candidate conditions are
+  generated, gated, isolated and delivered: the two channels, path enumeration,
+  density gating and register switch, enforced separation from the evidence
+  path, and the connection to discriminating tests
 
 ## References
 
