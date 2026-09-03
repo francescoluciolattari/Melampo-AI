@@ -44,6 +44,17 @@ ROLE_FINDING = "finding"
 ROLE_MODIFIER = "modifier"
 ROLE_INHERITANCE = "inheritance"
 
+MATCH_TRANSLATION_OFFICIAL = "translation_official"
+MATCH_TRANSLATION_CANDIDATE = "translation_candidate"
+
+TRANSLATION_STATUS_OFFICIAL = "OFFICIAL"
+
+# Match kinds that did not come from a curated English source. A resolution
+# obtained through an unreviewed machine translation is not equivalent to one
+# obtained from the ontology's own label, and the difference travels with the
+# result rather than being averaged away.
+UNVERIFIED_MATCH_KINDS = frozenset({MATCH_TRANSLATION_CANDIDATE})
+
 MATCH_NAME = "name"
 MATCH_SYNONYM = "synonym"
 
@@ -184,6 +195,50 @@ class TermIndex:
     def from_obo(cls, lines: Iterable[str], **kwargs: Any) -> "TermIndex":
         return cls.from_terms(parse_obo(lines), **kwargs)
 
+    def add_translations(
+        self,
+        rows: Iterable[dict[str, str]],
+        *,
+        include_candidate: bool = True,
+    ) -> dict[str, int]:
+        """Merge Babelon translation rows into the surface index.
+
+        The identifier is the pivot, so a translated surface form points at the
+        same term as its English label and the knowledge layer stays in one
+        language. That matters beyond convenience: ontologies, terminologies and
+        the literature that supplies likelihoods are English, so translating the
+        graph would mean maintaining two knowledge bases instead of two
+        vocabularies.
+
+        Translation status is preserved as the match kind. An unreviewed machine
+        translation resolves, but the result says so, and a caller can require
+        curated matches where a wrong resolution would be costlier than none.
+        """
+        added = {"official": 0, "candidate": 0, "skipped": 0}
+        for row in rows:
+            term_id = str(row.get("subject_id", "")).strip()
+            surface = str(row.get("translation_value", "")).strip()
+            status = str(row.get("translation_status", "")).strip().upper()
+            if not term_id or not surface or term_id not in self.by_id:
+                added["skipped"] += 1
+                continue
+            official = status == TRANSLATION_STATUS_OFFICIAL
+            if not official and not include_candidate:
+                added["skipped"] += 1
+                continue
+            key = normalise_surface(surface)
+            if not key:
+                added["skipped"] += 1
+                continue
+            holders = self.by_surface.setdefault(key, [])
+            if term_id not in holders:
+                holders.append(term_id)
+            self.match_kind.setdefault(
+                key, MATCH_TRANSLATION_OFFICIAL if official else MATCH_TRANSLATION_CANDIDATE
+            )
+            added["official" if official else "candidate"] += 1
+        return added
+
     def label_map(self) -> dict[str, str]:
         """Identifier to preferred label, for substitution during graph import."""
         return {term_id: term.name for term_id, term in self.by_id.items() if term.name}
@@ -255,12 +310,24 @@ class ResolvedConcept:
     char_end: int | None = None
     role: str = ROLE_FINDING
 
+    @property
+    def is_verified_match(self) -> bool:
+        """Whether the surface form came from a curated source.
+
+        An unreviewed machine translation can resolve correctly and often does,
+        but a wrong resolution propagates into a path, a hypothesis and a
+        provenance record that all look well-formed, so the distinction is kept
+        rather than flattened.
+        """
+        return self.match_kind not in UNVERIFIED_MATCH_KINDS
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "surface": self.surface,
             "term_id": self.term_id,
             "label": self.label,
             "match_kind": self.match_kind,
+            "verified_match": self.is_verified_match,
             "char_start": self.char_start,
             "char_end": self.char_end,
             "role": self.role,
@@ -498,6 +565,80 @@ def _nearest_finding(
         if distance <= window and distance < best_distance:
             best_index, best_distance = index, distance
     return best_index
+
+
+def parse_babelon(lines: Iterable[str]) -> Iterator[dict[str, str]]:
+    """Parse a Babelon translation table, tab separated with a header row."""
+    columns: list[str] | None = None
+    for raw in lines:
+        line = raw.rstrip("\n")
+        if not line:
+            continue
+        fields = line.split("\t")
+        if columns is None:
+            columns = fields
+            continue
+        yield dict(zip(columns, fields, strict=False))
+
+
+@dataclass
+class LanguageCoverage:
+    """How much of the index a language reaches, and how much of it is curated."""
+
+    language: str
+    translated_terms: int
+    official: int
+    candidate: int
+    index_size: int
+
+    @property
+    def coverage(self) -> float:
+        return self.translated_terms / self.index_size if self.index_size else 0.0
+
+    @property
+    def verified_fraction(self) -> float:
+        total = self.official + self.candidate
+        return self.official / total if total else 0.0
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "language": self.language,
+            "translated_terms": self.translated_terms,
+            "official": self.official,
+            "candidate": self.candidate,
+            "index_size": self.index_size,
+            "coverage": round(self.coverage, 4),
+            "verified_fraction": round(self.verified_fraction, 4),
+        }
+
+
+def measure_language_coverage(
+    index: TermIndex, rows: Sequence[dict[str, str]], language: str
+) -> LanguageCoverage:
+    """Report reachable terms per language before relying on that language.
+
+    Coverage differs sharply between languages, and a resolution rate measured
+    on one says nothing about the other. Reporting it turns "the system supports
+    both" into a statement with a number attached.
+    """
+    official = candidate = 0
+    terms: set[str] = set()
+    for row in rows:
+        term_id = str(row.get("subject_id", "")).strip()
+        if term_id not in index.by_id or not str(row.get("translation_value", "")).strip():
+            continue
+        terms.add(term_id)
+        if str(row.get("translation_status", "")).strip().upper() == TRANSLATION_STATUS_OFFICIAL:
+            official += 1
+        else:
+            candidate += 1
+    return LanguageCoverage(
+        language=language,
+        translated_terms=len(terms),
+        official=official,
+        candidate=candidate,
+        index_size=index.size,
+    )
 
 
 def diagnose_empty_result(

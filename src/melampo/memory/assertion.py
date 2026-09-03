@@ -114,6 +114,21 @@ ITALIAN_CUES = CueSet(
     terminators=("ma", "tuttavia", "sebbene", "benche", "eccetto", "a parte", "peraltro"),
 )
 
+CUE_SETS: dict[str, CueSet] = {"en": ENGLISH_CUES, "it": ITALIAN_CUES}
+
+
+def select_cues(language: str) -> CueSet:
+    """Cue set for a document's language, defaulting to English.
+
+    Selection is per document rather than per sentence, and the sets are not
+    merged. Merging looks convenient and is not: cues collide across languages —
+    Italian "ma" is a terminator while English "ma" is nothing, Italian "non" is
+    negation while English "non" appears inside words — so a merged set fires on
+    text it was not written for, and the failure is silent.
+    """
+    return CUE_SETS.get((language or "").strip().lower()[:2], ENGLISH_CUES)
+
+
 # Category to interval. Deterministic and versioned in
 # docs/semantic_extraction_decision_record.md, so the numbers are a documented
 # decision rather than a model's opinion.

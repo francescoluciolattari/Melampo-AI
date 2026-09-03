@@ -255,3 +255,85 @@ def test_resolution_turns_an_unreachable_graph_into_a_traversable_one():
     assert paths, "the same graph is now reachable from clinician-facing names"
     assert "Example disease" in paths[0].describe()
     assert paths[0].gap_count == 0
+
+
+# --------------------------------------------------------------------------
+# Multilingual resolution: the identifier is the pivot
+# --------------------------------------------------------------------------
+
+BABELON_SAMPLE = (
+    "source_language\tsource_value\tsubject_id\tpredicate_id\ttranslation_language\ttranslation_value\ttranslation_status\n"
+    "en\tCough\tHP:0012735\trdfs:label\tit\tTosse\tOFFICIAL\n"
+    "en\tMulticystic kidney dysplasia\tHP:0000003\trdfs:label\tit\tDisplasia renale multicistica\tCANDIDATE\n"
+    "en\tUnknown term\tHP:9999999\trdfs:label\tit\tTermine ignoto\tOFFICIAL\n"
+    "en\tEmpty\tHP:0002094\trdfs:label\tit\t\tOFFICIAL\n"
+)
+
+
+def _bilingual_index() -> TermIndex:
+    from melampo.memory.concept_resolution import parse_babelon
+
+    index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
+    index.add_translations(parse_babelon(BABELON_SAMPLE.splitlines()))
+    return index
+
+
+def test_a_translated_surface_resolves_to_the_same_identifier():
+    """The knowledge layer stays in one language; only the vocabulary is bilingual."""
+    resolver = ConceptResolver(index=_bilingual_index())
+    report = resolver.resolve_findings(["Cough", "Tosse"])
+    assert {item.term_id for item in report.resolved} == {"HP:0012735"}
+
+
+def test_translation_status_travels_with_the_match():
+    from melampo.memory.concept_resolution import (
+        MATCH_TRANSLATION_CANDIDATE,
+        MATCH_TRANSLATION_OFFICIAL,
+    )
+
+    resolver = ConceptResolver(index=_bilingual_index())
+    by_surface = {
+        item.surface: item
+        for item in resolver.resolve_findings(["Tosse", "Displasia renale multicistica"]).resolved
+    }
+    assert by_surface["Tosse"].match_kind == MATCH_TRANSLATION_OFFICIAL
+    assert by_surface["Tosse"].is_verified_match is True
+    assert by_surface["Displasia renale multicistica"].match_kind == MATCH_TRANSLATION_CANDIDATE
+    assert by_surface["Displasia renale multicistica"].is_verified_match is False
+
+
+def test_the_english_label_stays_verified():
+    resolver = ConceptResolver(index=_bilingual_index())
+    assert resolver.resolve_findings(["Cough"]).resolved[0].is_verified_match is True
+
+
+def test_translations_for_unknown_or_empty_terms_are_skipped():
+    from melampo.memory.concept_resolution import parse_babelon
+
+    index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
+    added = index.add_translations(parse_babelon(BABELON_SAMPLE.splitlines()))
+    assert added["skipped"] == 2, "an unknown identifier and an empty translation"
+    assert added["official"] == 1
+    assert added["candidate"] == 1
+
+
+def test_candidate_translations_can_be_excluded():
+    from melampo.memory.concept_resolution import parse_babelon
+
+    index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
+    index.add_translations(parse_babelon(BABELON_SAMPLE.splitlines()), include_candidate=False)
+    assert index.lookup("tosse") == ["HP:0012735"]
+    assert index.lookup("displasia renale multicistica") == []
+
+
+def test_language_coverage_is_measured_before_it_is_relied_on():
+    from melampo.memory.concept_resolution import measure_language_coverage, parse_babelon
+
+    index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
+    coverage = measure_language_coverage(index, list(parse_babelon(BABELON_SAMPLE.splitlines())), "it")
+
+    assert coverage.translated_terms == 2
+    assert coverage.official == 1
+    assert coverage.candidate == 1
+    assert coverage.verified_fraction == pytest.approx(0.5)
+    assert 0.0 < coverage.coverage < 1.0
