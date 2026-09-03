@@ -343,7 +343,77 @@ rather than a code edit.
 
 ---
 
-## 5. Vocabulary extension beyond phenotypes
+## 5. Languages
+
+**Type: CONSTRAINT — accepted.**
+
+### The identifier is the pivot
+
+Clinical text may arrive in English or Italian; the knowledge layer stays in one
+language. `HP:0002240` is language-independent, so `Hepatomegaly` and
+`Epatomegalia` resolve to the same term and traverse the same graph.
+
+This is not only convenience. Ontologies, terminologies and the literature that
+supplies likelihoods are predominantly English, so translating the graph would
+mean maintaining **two knowledge bases** rather than two vocabularies. The split
+is therefore:
+
+| Layer | Language |
+|---|---|
+| Input — clinical text | Either |
+| Knowledge — graph, edges, likelihoods | English, canonical |
+| Output — presented to the clinician | Either, rendered from identifiers |
+
+### The two languages are not symmetric
+
+Measured on the published releases:
+
+| | Surface forms | Curated |
+|---|---|---|
+| English (`hp.obo`) | 42,045 | ontology labels and EXACT synonyms |
+| Italian (`hp-it.babelon.tsv`) | 3,488 terms | **524 official**, 2,964 machine-translated and marked preview |
+
+Italian reaches roughly **15% of the index**, and about 85% of that is
+unreviewed DeepL output. Building an Italian resolution path as though it were
+equivalent to the English one would produce a recall ceiling far below what the
+system appears to offer, and would do so silently.
+
+### Translation status travels with the match
+
+`match_kind` records how a surface form was obtained: ontology label, EXACT
+synonym, official translation, or candidate translation. `is_verified_match`
+exposes the distinction so a caller can require curated matches where a wrong
+resolution costs more than none.
+
+An unreviewed machine translation resolving correctly is common; resolving
+incorrectly propagates into a path, a hypothesis and a provenance record that
+all look well-formed. That asymmetry is the reason the provenance is preserved
+rather than averaged away.
+
+### Coverage is measured per language
+
+`measure_language_coverage` reports translated terms, the official fraction, and
+coverage against the index size. A resolution rate measured on English says
+nothing about Italian, and reporting coverage turns "the system supports both"
+into a statement with a number attached.
+
+### Assertion cues are selected, not merged
+
+Cue sets are chosen per document. Merging them looks convenient and is not: cues
+collide across languages — Italian *ma* is a terminator and English *ma* is
+nothing, Italian *non* is negation while English *non* appears inside words — so
+a merged set fires on text it was not written for, and the failure is silent. An
+unsupported language falls back to English rather than guessing.
+
+### Open
+
+- Italian coverage is the limiting factor. Raising it means either contributing
+  reviewed translations upstream, or building a local curated lexicon for the
+  finding categories that matter most.
+- Document language is supplied by the caller. Automatic detection is not
+  implemented, and would need its own error budget.
+
+## 6. Vocabulary extension beyond phenotypes
 
 **Type: CONSTRAINT — accepted.**
 
@@ -377,7 +447,7 @@ Permitted form:
 
 ---
 
-## 6. Open items
+## 7. Open items
 
 1. **Annotated corpus for validation.** i2b2 requires credentialing and is
    English. An Italian operating corpus needs local annotation, the largest cost
@@ -398,7 +468,7 @@ Permitted form:
 
 ---
 
-## 7. References
+## 8. References
 
 - i2b2 2010 assertion dataset — Present, Absent, Possible, Hypothetical,
   Conditional, Associated-with-someone-else

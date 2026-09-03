@@ -248,3 +248,14 @@ def test_malformed_candidates_are_skipped_rather_than_raising():
     result = assemble([{"label": ""}, "not a dict", {"no_label": 1}])
     assert result.admitted == []
     assert result.rejected == []
+
+
+def test_cue_sets_are_selected_per_language_and_never_merged():
+    """Merging would fire cues on text they were not written for, silently."""
+    from melampo.memory.assertion import ENGLISH_CUES, ITALIAN_CUES, select_cues
+
+    assert select_cues("it") is ITALIAN_CUES
+    assert select_cues("IT-it") is ITALIAN_CUES
+    assert select_cues("en") is ENGLISH_CUES
+    assert select_cues("") is ENGLISH_CUES
+    assert select_cues("de") is ENGLISH_CUES, "an unsupported language falls back rather than guessing"
