@@ -189,7 +189,8 @@ Enforcement status, stated precisely because it was previously overstated here:
 |---|---|
 | Role markers on every candidate | Implemented |
 | Enforced boundary that rejects non-findings | Implemented — `reasoning/findings_boundary.py` |
-| Separate Weaviate collection | **Open** — block B2 |
+| Separate schema class, unreachable from the evidence path | Implemented — `HypothesisCandidate` |
+| Verified against a live Weaviate instance | Open |
 
 The boundary matters because the two guards written for this isolation were
 invoked zero times on the production path until it existed. A guard that is

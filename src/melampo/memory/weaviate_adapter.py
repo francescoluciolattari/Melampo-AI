@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from .vector_memory import InMemoryVectorStore
+from .weaviate_schema import QUARANTINED_HYPOTHESIS_CLASS
 from .visual_imprint import VisualRecognitionImprint
 from .weaviate_schema import MelampoWeaviateSchema, WeaviateClassSchema
 
@@ -402,6 +403,40 @@ class WeaviateEnterpriseMemoryAdapter(WeaviateSemanticMemoryAdapter):
         )
         return self._store_prepared_object(prepared, text=text)
 
+    def _is_quarantined_hit(self, hit: dict[str, Any]) -> bool:
+        metadata = hit.get("metadata")
+        candidates = [hit.get("class_name")]
+        if isinstance(metadata, dict):
+            candidates.append(metadata.get("class_name"))
+        return any(self.schema.is_quarantined(value) for value in candidates if value)
+
+    def hypothesis_search(
+        self,
+        query: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 5,
+    ) -> dict[str, Any]:
+        """Retrieve quarantined candidates. Separate entry point by design.
+
+        Kept distinct from ``hybrid_search`` so that reaching candidates is an
+        explicit act with its own call site, auditable in a way that a filter
+        argument is not.
+        """
+        merged = {**(filters or {}), "class_name": QUARANTINED_HYPOTHESIS_CLASS}
+        hits = self.fallback_store.search(query=query, limit=limit, filters=merged)
+        for rank, hit in enumerate(hits, start=1):
+            hit["rank"] = rank
+            hit["usable_as_evidence"] = False
+            hit["retrieval_channel"] = "hypothesis_channel"
+        return {
+            "status": "completed",
+            "operation": "hypothesis_search",
+            "class_name": QUARANTINED_HYPOTHESIS_CLASS,
+            "hit_count": len(hits),
+            "hits": hits,
+            "usable_as_evidence": False,
+        }
+
     def hybrid_search(
         self,
         query: str,
@@ -410,10 +445,28 @@ class WeaviateEnterpriseMemoryAdapter(WeaviateSemanticMemoryAdapter):
         limit: int = 5,
         alpha: float = 0.65,
     ) -> dict[str, Any]:
+        """Search the evidence path. Quarantined classes are unreachable from here.
+
+        The exclusion is applied after retrieval rather than expressed as a
+        filter, so it cannot be bypassed by omitting one. An explicit request for
+        a quarantined class is refused rather than returning nothing: an empty
+        result would read as "no such evidence" instead of "not permitted here".
+        """
+        if self.schema.is_quarantined(class_name):
+            return {
+                "status": "refused",
+                "operation": "hybrid_search",
+                "reason": "quarantined_class_not_reachable_from_evidence_path",
+                "class_name": class_name,
+                "hint": "use hypothesis_search; candidates are not evidence",
+                "hit_count": 0,
+                "hits": [],
+            }
         filters = filters or {}
         if class_name:
             filters = {**filters, "class_name": class_name}
-        hits = self.fallback_store.search(query=query, limit=limit, filters=filters or None)
+        raw_hits = self.fallback_store.search(query=query, limit=limit * 2, filters=filters or None)
+        hits = [hit for hit in raw_hits if not self._is_quarantined_hit(hit)][:limit]
         enriched = []
         for rank, hit in enumerate(hits, start=1):
             text = str(hit.get("text") or hit.get("value") or "")
