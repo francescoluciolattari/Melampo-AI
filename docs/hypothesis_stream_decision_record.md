@@ -246,7 +246,59 @@ ceasing to.
 
 ---
 
-## 6. Connection to discriminating tests
+## 6. The yield model: what the branch learns
+
+**Type: CONSTRAINT — accepted** for what trains it; **PLAN** for the buckets.
+
+The dream branch produces a model the engine then uses. What trains it decides
+whether that is learning or circularity.
+
+A model trained on the hypotheses the system generated would learn to reproduce
+its own imagination: fluent, self-consistent and untethered. A model trained on
+**which hypotheses were independently confirmed** learns something real, because
+the signal comes from histology, outcome or a blinded review — evidence produced
+by something that did not take part in the reasoning.
+
+So the unit of learning is a hypothesis *with an outcome*, and outcomes arrive
+only through `governance/confirmation_registry.py`.
+
+### What is learned
+
+Not a diagnosis: the **yield of a shape**. Given a path of two hops over
+well-attested edges corroborated by three findings, how often did that pattern
+turn out to matter? Shapes are described by hops, support, corroboration and gap
+count, bucketed into descriptions a clinician would recognise — direct, through
+a mechanism, or a long chain; well attested or sparsely reported.
+
+The engine uses the estimate to decide what is worth a clinician's attention,
+which is the scarcest resource in the system and the one an unranked channel
+spends fastest.
+
+### Why empirical rates rather than a fitted model
+
+The result is inspectable; a bucket with three observations stays visibly wide
+instead of pretending to knowledge; and a rate over counted outcomes can be
+explained to a reviewer in a sentence. Wilson intervals, as elsewhere in the
+system, so width follows sample size.
+
+### Three properties that keep it honest
+
+- An **unobserved shape returns the full interval**, so a new pattern is neither
+  promoted nor suppressed on no evidence.
+- Ranking reads the **upper bound**, consistent with the rest of the stream: an
+  unmeasured shape therefore sits high, because a pattern nobody has measured is
+  a reason to look rather than a reason to hide.
+- Suppression requires an **established** estimate. A shape is silenced only
+  once enough outcomes exist, never on a handful — silence on thin evidence
+  would hide exactly the rare patterns the branch exists to surface.
+
+A surfaced hypothesis whose case has no confirmation yields nothing. Absence of
+a confirmation is not evidence the hypothesis was wrong, and counting it as a
+failure would teach the model from silence.
+
+Implemented in `training/hypothesis_yield.py`.
+
+## 7. Connection to discriminating tests
 
 A hypothesis with nothing in the record to confirm or exclude it is precisely the
 input `reasoning/discriminating_tests.py` needs: which observation would most
@@ -260,7 +312,7 @@ evidence.
 
 ---
 
-## 7. Registered claims
+## 8. Registered claims
 
 | Claim | Blocking | Status |
 |---|---|---|
@@ -281,7 +333,7 @@ costs it precisely on the complex cases where the reviewer is already loaded.
 
 ---
 
-## 8. Modules
+## 9. Modules
 
 | Module | Role |
 |---|---|
@@ -292,10 +344,12 @@ costs it precisely on the complex cases where the reviewer is already loaded.
 | `reasoning/findings_boundary.py` | Enforced separation from the evidence path |
 | `reasoning/discriminating_tests.py` | Which observation would settle a hypothesis |
 | `training/promotion_policy.py` | Deterministic, outside the recursive perimeter |
+| `training/hypothesis_yield.py` | Yield per hypothesis shape, learned from independent confirmations |
+| `governance/confirmation_registry.py` | Admits only confirmations independent of the system's output |
 
 ---
 
-## 9. Open items
+## 10. Open items
 
 1. **Live Weaviate verification** — the quarantine is enforced in the adapter and
    exercised against the local contract store. The same negative test must be
