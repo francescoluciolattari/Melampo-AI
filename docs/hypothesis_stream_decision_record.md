@@ -298,7 +298,50 @@ failure would teach the model from silence.
 
 Implemented in `training/hypothesis_yield.py`.
 
-## 7. Connection to discriminating tests
+## 7. Conjectures: intuition becomes knowledge
+
+**Type: CONSTRAINT — accepted.** Implemented in `training/conjecture_ledger.py`.
+
+The branch makes leaps — connections between two concepts that no edge states
+directly, reached through a shared mechanism or a longer chain. Expertise
+research describes this as what clinical intuition actually is: pattern
+recognition over encapsulated knowledge, a link whose halves are documented
+while the whole is not. Unorthodox, not false.
+
+Until this module a leap lived and died within one case. Now a leap that proves
+true becomes knowledge the graph did not have: a new edge, carrying the cases
+that confirmed it. The graph learns intuitions, and each learned intuition can
+be traced to the evidence that earned it.
+
+### The asymmetry, again
+
+| Step | Condition |
+|---|---|
+| Record | **Free.** Every leap is a candidate |
+| Test | Only against an **independent** confirmation for the same case |
+| Promote | Only after enough confirmations, with a positive lower bound |
+
+The promoted edge carries an interval computed from the confirmations, so a
+connection confirmed three times is visibly less certain than one confirmed
+thirty times, and a connection that keeps failing is never promoted. Its
+provenance names the path that produced the leap and the cases that tested it.
+
+### Not traversable before promotion
+
+A recorded conjecture is not an edge. If it were, the branch could reach the
+next leap through the previous one, and a chain of unverified connections would
+grow with no evidence entering anywhere. The graph gains a conjectured edge only
+at promotion.
+
+### What this makes the branch
+
+An engine that explores possibilities the graph does not yet hold, proposes
+them for examination rather than as diagnoses, and turns the ones that survive
+into new factors of connection — the holistic leaps between distant features
+that expertise research attributes to the intuition of the experienced
+clinician, here with a paper trail.
+
+## 8. Connection to discriminating tests
 
 A hypothesis with nothing in the record to confirm or exclude it is precisely the
 input `reasoning/discriminating_tests.py` needs: which observation would most
@@ -312,7 +355,7 @@ evidence.
 
 ---
 
-## 8. Registered claims
+## 9. Registered claims
 
 | Claim | Blocking | Status |
 |---|---|---|
@@ -333,7 +376,7 @@ costs it precisely on the complex cases where the reviewer is already loaded.
 
 ---
 
-## 9. Modules
+## 10. Modules
 
 | Module | Role |
 |---|---|
@@ -344,12 +387,13 @@ costs it precisely on the complex cases where the reviewer is already loaded.
 | `reasoning/findings_boundary.py` | Enforced separation from the evidence path |
 | `reasoning/discriminating_tests.py` | Which observation would settle a hypothesis |
 | `training/promotion_policy.py` | Deterministic, outside the recursive perimeter |
+| `training/conjecture_ledger.py` | Leaps recorded freely, promoted to edges only on independent confirmation |
 | `training/hypothesis_yield.py` | Yield per hypothesis shape, learned from independent confirmations |
 | `governance/confirmation_registry.py` | Admits only confirmations independent of the system's output |
 
 ---
 
-## 10. Open items
+## 11. Open items
 
 1. **Live Weaviate verification** — the quarantine is enforced in the adapter and
    exercised against the local contract store. The same negative test must be
