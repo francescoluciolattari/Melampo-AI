@@ -95,6 +95,47 @@ defect.
 
 ---
 
+## 3b. The model presents; it is not fine-tuned to a schema
+
+**Type: CONSTRAINT — accepted.** Supersedes the earlier plan for a format
+fine-tuning stage. Implemented in `reasoning/clinical_discourse.py`.
+
+A diagnostic model reasons in clinical language, and that language is not noise
+to be forced into a schema. "I think heart failure, though the fever bothers me
+— I would rule out pneumonia first" carries a leading hypothesis, a discordant
+finding flagged as not fitting, a candidate to exclude, and an implicit request
+for a test. A rigid output format loses most of that.
+
+So the model is read as a clinician presenting a case, with the same semantic
+machinery that reads a radiologist's report: concepts resolved against the
+ontology, each placed in the mental space the discourse assigns it — asserted,
+hedged, proposed for exclusion, denied. Diagnostic connectives carry the
+presenter's commitment and become rank: *most consistent with* outranks
+*consider*, which outranks *rule out*. A connective binds only the concept
+immediately after it, so "consistent with X, though the Y" does not carry X's
+commitment onto Y.
+
+The illness script is the **output of that reading**, and the verifier then
+says what each element rests on. This removes the annotation bottleneck the
+format stage would have required: no cases in script format are needed to make
+the verifier useful, because the reader produces scripts from the model's own
+language.
+
+The arrangement mirrors where clinical decisions are actually made. The
+presenter does not decide; the room does, after the presentation has been
+heard, questioned and checked. The model presents, the reader structures, the
+graph checks, the calibrator decides.
+
+### Confirmation source, revisited
+
+Earlier text in this record overstated the circularity risk. A system trained
+on cases with a **documented** diagnosis — the one the treating team reached
+and recorded, histology, discharge, outcome — takes its label from the clinical
+process, not from its own output, and whether the system was right is only a
+measurement against that label. The confirmation registry remains useful for
+recording the **source** of the label, since histology carries more weight than
+an unconfirmed discharge diagnosis; its role is to weight, not to exclude.
+
 ## 4. Dream branch integration
 
 **Type: CONSTRAINT — accepted.**
