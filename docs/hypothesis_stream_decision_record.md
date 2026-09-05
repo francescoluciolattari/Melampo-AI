@@ -403,5 +403,10 @@ costs it precisely on the complex cases where the reviewer is already loaded.
    judgement and need calibration against real cases.
 3. **Prior shift table** for family history — a policy artefact requiring
    clinical review.
-4. **`MechanismEnumerator` wiring** into `_alternative_hypotheses()` (B1), which
-   depends on index-driven extraction (B0b).
+4. ~~`MechanismEnumerator` wiring into `_alternative_hypotheses()`.~~ Done:
+   `DreamTrainer` takes an optional enumerator. With one, hypotheses are found
+   by path enumeration and carry their paths; the register switch is preserved,
+   so sparse coverage yields questions for the knowledge base rather than
+   hypotheses for the patient. Without one the previous rehearsal labels are
+   produced unchanged, and a case without findings or candidate conditions falls
+   back to them — no findings to enumerate from is not a graph problem.
