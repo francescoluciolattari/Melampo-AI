@@ -161,6 +161,56 @@ and nowhere else.
 
 ---
 
+## 7b. Choosing the root model
+
+**Type: PLAN — accepted.** Review trigger: bench result.
+
+The root model does not diagnose. It decides where to look and when to stop, so
+the requirements are format adherence first, multi-step planning second, and
+low cost per iteration third. **Medical knowledge is not required**, and a
+medical fine-tune typically degrades format adherence — which is why the
+diagnostic model is excluded from this role.
+
+### Published benchmarks cannot settle it
+
+IFEval saturates: models score far higher on its detectable-format subset than
+on harder format benchmarks, and the gap between models there is narrow.
+Failure modes are model-specific and telling them apart needs the trace rather
+than the metric. A leaderboard position does not predict whether a model will
+write `grep(prednisone)` rather than `grep prednisone` under this grammar.
+
+### Candidates
+
+| Model | Licence | EU commercial | Note |
+|---|---|---|---|
+| Mistral Small 3.1 | Apache 2.0 | Cleared | Reported as the most instruction-obedient of its class on exact output formats |
+| Mistral Small 4 | Apache 2.0 | Cleared | Newer sparse MoE; the adherence figure is on 3.1, not this |
+| Qwen 3.5 | Apache 2.0 | Cleared | Leads open-weight comparisons overall; same licence, cheap to include |
+| Gemma 3 27B | Gemma Terms | **Needs review** | More restrictive than Apache 2.0 |
+
+**Llama 4 is excluded.** Its Acceptable Use Policy withholds multimodal rights
+from EU-based individuals and companies, which restricts the family here. Llama
+3.3 70B is unaffected but means adopting a previous generation. Reports of a
+"Llama 5" have not materialised on any first-party channel.
+
+The candidate registry carries the licence status as data rather than in
+someone's memory, so a model cannot be benched, liked and adopted before anyone
+checks whether it can ship.
+
+### What the bench measures
+
+`evaluation/format_adherence_bench.py` produces two numbers per candidate:
+**adherence** — the fraction of emitted lines the parser accepted, since a
+rejected line is not a degraded action but no action — and **completion**, the
+fraction of runs reaching `final()`, because a model can emit well-formed
+actions forever and never declare it is finished.
+
+Rejections are split into **near misses** and **prose**. A model writing
+`grep prednisone` understood the task and missed the syntax: one line of parser
+tolerance. A model writing prose did not receive the format: prompt work that no
+model choice fixes. The raw adherence figure does not distinguish them, and the
+verdict does.
+
 ## 8. Open items
 
 1. **Root model binding.** The engine takes a callable; the tests use scripted
