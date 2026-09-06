@@ -134,9 +134,9 @@ def test_an_unknown_licence_is_not_assumed_cleared():
     assert candidate.eu_commercial_cleared is None
 
 
-def test_the_registry_covers_the_four_benched_families():
+def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
-    assert providers == {"mistral", "qwen", "google"}
+    assert providers == {"mistral", "qwen", "google", "meta"}
 
 
 # --------------------------------------------------------------------------
@@ -190,3 +190,32 @@ def test_a_completed_call_is_counted():
     adapter = RootModelAdapter(client=_Client())
     adapter("prompt")
     assert adapter.report() == {"calls": 1, "not_called": 0}
+
+
+def test_llama_is_benched_for_comparison_but_flagged():
+    """Benching is not adopting: an unresolved licence must stay visible."""
+    from melampo.models.rlm_model_adapter import (
+        BENCH_ONLY_UNTIL_LICENCE_REVIEW,
+    )
+
+    llama = next(item for item in DEFAULT_CANDIDATES if item.provider == "meta")
+    assert llama.name == "llama-3.3-70b", "the EU-restricted Llama 4 family is deliberately absent"
+    assert llama.eu_commercial_cleared is None
+    assert llama.licence in BENCH_ONLY_UNTIL_LICENCE_REVIEW
+
+
+def test_every_candidate_with_an_unresolved_licence_is_marked_bench_only():
+    from melampo.models.rlm_model_adapter import BENCH_ONLY_UNTIL_LICENCE_REVIEW
+
+    for candidate in DEFAULT_CANDIDATES:
+        if candidate.eu_commercial_cleared is None:
+            assert candidate.licence in BENCH_ONLY_UNTIL_LICENCE_REVIEW
+            assert "review" in candidate.note.lower()
+
+
+def test_a_model_mixing_prose_with_actions_scores_between_the_extremes():
+    """The realistic case: understands the format, wraps it in commentary."""
+    result = bench_model("mixed", lambda p: "Let me search.\ngrep(prednisone)\nfinal(x)", CASES)
+    assert 0.0 < result.adherence < 1.0
+    assert result.completion_rate == 1.0, "commentary does not prevent completion"
+    assert result.prose_lines == ["Let me search.", "Let me search."]

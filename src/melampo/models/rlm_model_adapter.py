@@ -92,7 +92,23 @@ DEFAULT_CANDIDATES = (
         licence=LICENCE_GEMMA_TERMS,
         note="Terms are more restrictive than Apache 2.0 and need review before any commercial use.",
     ),
+    RootModelCandidate(
+        name="llama-3.3-70b",
+        provider="meta",
+        licence=LICENCE_LLAMA_COMMUNITY,
+        note=(
+            "Dense and text-only, so unaffected by the Llama 4 restriction on EU-based "
+            "companies. Benched for comparison; the community licence still needs review "
+            "before shipping. Llama 4 is deliberately absent."
+        ),
+    ),
 )
+
+# Benching a model is not adopting it. A candidate whose licence is unresolved
+# belongs on the bench — comparison is how you learn what a permissive model
+# costs you in capability — but must not pass silently into deployment on the
+# strength of a good score.
+BENCH_ONLY_UNTIL_LICENCE_REVIEW = frozenset({LICENCE_GEMMA_TERMS, LICENCE_LLAMA_COMMUNITY})
 
 
 @dataclass

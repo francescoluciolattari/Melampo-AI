@@ -187,6 +187,7 @@ write `grep(prednisone)` rather than `grep prednisone` under this grammar.
 | Mistral Small 4 | Apache 2.0 | Cleared | Newer sparse MoE; the adherence figure is on 3.1, not this |
 | Qwen 3.5 | Apache 2.0 | Cleared | Leads open-weight comparisons overall; same licence, cheap to include |
 | Gemma 3 27B | Gemma Terms | **Needs review** | More restrictive than Apache 2.0 |
+| Llama 3.3 70B | Llama Community | **Needs review** | Dense and text-only, so unaffected by the Llama 4 EU restriction; benched for comparison |
 
 **Llama 4 is excluded.** Its Acceptable Use Policy withholds multimodal rights
 from EU-based individuals and companies, which restricts the family here. Llama
@@ -195,7 +196,17 @@ from EU-based individuals and companies, which restricts the family here. Llama
 
 The candidate registry carries the licence status as data rather than in
 someone's memory, so a model cannot be benched, liked and adopted before anyone
-checks whether it can ship.
+checks whether it can ship. Benching is not adopting: a model whose licence is
+unresolved belongs on the bench, because comparison is how you learn what a
+permissive licence costs in capability, and `BENCH_ONLY_UNTIL_LICENCE_REVIEW`
+keeps the question attached to the result.
+
+### Running the bench
+
+The bench cannot be run from this repository's own execution environment: model
+endpoints are outside its network allowlist, as `api.mistral.ai`,
+`generativelanguage.googleapis.com` and the rest all refuse. It runs where the
+operator has API access, the same arrangement as the PMC connector.
 
 ### What the bench measures
 
