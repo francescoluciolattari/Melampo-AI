@@ -116,7 +116,21 @@ class BenchReport:
                 f"{best.model_name} meets the adherence target "
                 f"({best.adherence:.0%}); the choice is settled on these cases"
             )
-        if all(item.near_miss_share > 0.5 for item in self.results if item.rejected_lines):
+
+        producing_output = [item for item in self.results if item.accepted_lines or item.rejected_lines]
+        if not producing_output:
+            # Every candidate returned nothing at all: this is not a format
+            # problem, since there is no output to have a format. A silent
+            # 0/0 near-miss share must not be read as "mostly near misses" --
+            # that would misdiagnose a connectivity or auth failure as a
+            # prompt problem and send the operator down the wrong fix.
+            return (
+                "no model produced any output at all; check API keys, network reachability and "
+                "provider errors before revisiting the prompt or the model choice"
+            )
+
+        rejecting = [item for item in producing_output if item.rejected_lines]
+        if rejecting and all(item.near_miss_share > 0.5 for item in rejecting):
             return (
                 "no model meets the target, but most rejections are near misses: "
                 "the models understand the task and miss the syntax, so this is prompt "

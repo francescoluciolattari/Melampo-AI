@@ -205,8 +205,36 @@ keeps the question attached to the result.
 
 The bench cannot be run from this repository's own execution environment: model
 endpoints are outside its network allowlist, as `api.mistral.ai`,
-`generativelanguage.googleapis.com` and the rest all refuse. It runs where the
-operator has API access, the same arrangement as the PMC connector.
+`generativelanguage.googleapis.com` and the rest all refuse.
+
+**Type: CONSTRAINT — accepted** for the credential discipline.
+
+`.github/workflows/root-model-bench.yml` runs it on `workflow_dispatch` only —
+deliberately excluded from the push and pull-request triggers `ci.yml` runs on,
+because this workflow makes real, billed calls to external providers and must
+never fire on every commit. Keys come from repository secrets
+(`MISTRAL_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`), exposed only as
+environment variables to the step that needs them, never written to a file or
+printed — the same discipline already established for `NCBI_API_KEY`.
+
+A candidate whose key is absent is skipped and reported as such rather than
+causing the run to fail: partial coverage is still a usable comparison.
+`scripts/run_format_adherence_bench.py` can also be run locally with the same
+variables exported.
+
+### A defect this testing found
+
+The first run against a real endpoint — with a deliberately invalid key, to
+exercise the failure path — returned a misdiagnosis: every call failed with
+HTTP 403 and every model produced zero accepted and zero rejected lines, so
+`near_miss_share` computed 0/0 as 0.0, and the verdict logic read that as "the
+rejections are mostly near misses" and recommended prompt work. A connectivity
+or authentication failure was about to be diagnosed as a syntax problem.
+
+The fix separates "no output at all" from "output that failed to parse" before
+computing a verdict: a model producing zero lines is not a formatting failure,
+because there is no output to have a format, and the verdict now says
+explicitly to check keys and connectivity first.
 
 ### What the bench measures
 

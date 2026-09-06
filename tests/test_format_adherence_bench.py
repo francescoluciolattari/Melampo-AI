@@ -219,3 +219,16 @@ def test_a_model_mixing_prose_with_actions_scores_between_the_extremes():
     assert 0.0 < result.adherence < 1.0
     assert result.completion_rate == 1.0, "commentary does not prevent completion"
     assert result.prose_lines == ["Let me search.", "Let me search."]
+
+
+def test_a_model_producing_no_output_at_all_is_not_misdiagnosed_as_a_syntax_problem():
+    """0/0 near-miss share must not read as 'mostly near misses': that would
+    send a connectivity or auth failure down the prompt-fixing path instead."""
+    silent_report = bench_models({"unreachable": lambda p: ""}, CASES)
+    assert "check API keys" in silent_report.verdict()
+    assert "near misses" not in silent_report.verdict()
+
+
+def test_a_mix_of_silent_and_producing_models_uses_the_producing_ones_to_diagnose():
+    report = bench_models({"unreachable": lambda p: "", "near": _near_miss}, CASES)
+    assert "near misses" in report.verdict()
