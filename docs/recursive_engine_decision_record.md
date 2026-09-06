@@ -188,7 +188,10 @@ write `grep(prednisone)` rather than `grep prednisone` under this grammar.
 | Qwen 3.5 | Apache 2.0 | Cleared | Leads open-weight comparisons overall; same licence, cheap to include |
 | Gemma 3 27B | Gemma Terms | **Needs review** | More restrictive than Apache 2.0 |
 | Llama 3.3 70B | Llama Community | **Needs review** | Dense and text-only, so unaffected by the Llama 4 EU restriction; benched for comparison |
-| Claude | Anthropic Commercial Terms | **Needs review** | Reached through OpenRouter, not a direct key — see below |
+| Claude Sonnet 5 | Anthropic Commercial Terms | **Needs review** | Default Claude tier: mid-tier cost for a task that is format adherence, not depth of reasoning |
+| Claude Opus 5 | Anthropic Commercial Terms | **Needs review** | Benched, not assumed unnecessary: a 25% premium is worth it only if it also raises adherence |
+| Claude Fable 5.1 | Anthropic Commercial Terms | **Needs review** | Mythos-tier, 5x Sonnet's cost; benched for the same reason as Opus |
+| GPT-6 Astra | OpenAI Commercial Terms | **Needs review** | Omitted from the first version of this registry with no reasoning given — an oversight, corrected here |
 
 **Llama 4 is excluded.** Its Acceptable Use Policy withholds multimodal rights
 from EU-based individuals and companies, which restricts the family here. Llama
@@ -238,6 +241,27 @@ Qwen, Llama and Gemma in one catalogue. All four candidates therefore share
 `OPENROUTER_API_KEY`, and Mistral remains on its own first-party endpoint. The
 net effect is one fewer service to trust than four separate credentials would
 have required, not a substitution of one uncertain proxy for another.
+
+### Why three Claude tiers and OpenAI, not one Claude candidate
+
+The first version of this registry benched a single Claude tier by default, on
+the reasoning that the root model's task — format adherence, not depth of
+reasoning — does not need a premium model's capability. That reasoning is
+sound for *why a cheap tier is a reasonable default*; it is not a reason to
+skip measuring whether a costlier tier does better, and defaulting to one
+candidate without measuring the others would repeat the mistake this whole
+bench exists to avoid: choosing on argument what should be decided by a
+number.
+
+So `claude-sonnet-5`, `claude-opus-5` and `claude-fable-5.1` are all benched.
+Whichever tier's adherence and completion rate justify its cost is the
+evidence-based answer; a 25% or 5x premium that does not raise adherence has
+its own answer.
+
+OpenAI was omitted from the first version of this registry alongside Mistral,
+Qwen and Llama, with no reasoning recorded for the omission. That is corrected
+here: `gpt-6-astra` is benched through the same `OPENROUTER_API_KEY`, and its
+commercial terms need the same review as every other unresolved candidate's.
 
 A candidate whose key is absent is skipped and reported as such rather than
 causing the run to fail: partial coverage is still a usable comparison.
