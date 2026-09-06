@@ -129,6 +129,56 @@ can be explained by pointing at the words that produced it. This is the property
 a scalar score cannot offer, and the reason the deterministic layer is the
 baseline a model must beat rather than a placeholder for one.
 
+### Three layers, not two options
+
+**Type: CONSTRAINT — accepted.**
+
+Detection failures fall into three kinds, and only the third needs a learned
+model:
+
+| Kind | Example | Solved by |
+|---|---|---|
+| **Lexical** — which words negate | *never*, *nothing to suggest* | Cue list |
+| **Structural** — what an operator governs, where its scope ends | *"no fever, and dyspnea was documented"*; *"no evidence that X caused Y"* | Dependency parsing |
+| **Domain paraphrase** — absence with no negation marker | *unremarkable*, *within normal limits* | Enumerable lexicon — a few dozen per language |
+
+The paraphrases were the part that looked irreducible and is not: they carry
+absence in the clinical term itself, nothing in the sentence signals negation,
+and they are a closed list rather than a productive construction. Both cue sets
+now include them, and sentence and clause boundaries keep them from reaching a
+finding they do not qualify.
+
+Productive constructions — *"we were unable to demonstrate"*, *"was not felt to
+be present"* — almost always carry a marker, so parsing reaches them and they
+are not residue.
+
+### Rules and model compose, they do not compete
+
+`LayeredAssertionResolver` runs the rules first. Where a cue fires the rule
+decides and the explanation survives; where none fires, a fallback may run.
+
+The arrangement matters because it removes the trade-off. On the cases the rules
+cover, nothing becomes opaque. On the residue, the alternative was never a good
+explanation versus a poor one — it was a decision versus silence, since the
+system previously detected nothing there.
+
+Every resolution records which layer decided it, so the explained fraction is
+observable rather than assumed.
+
+### Measure the residue before building for it
+
+`measure_residue` reports what fraction of a sample the rules leave undecided,
+with examples. That number is the only evidence that a classifier is needed, and
+it may show that it is not: with paraphrases covered and parsing handling scope,
+the residue may be small enough that a learned model would solve a problem that
+no longer exists.
+
+When a classifier is compared, it is compared **on the same corpus** — otherwise
+a difference in accuracy may come from the difficulty of the texts rather than
+from the method — and the question is whether the gain is distinguishable from
+zero with the sample at hand, by the same interval reasoning used elsewhere. A
+gain whose confidence interval spans zero is not a gain.
+
 ### Model boundary
 
 **Type: CONSTRAINT — accepted.**

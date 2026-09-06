@@ -36,7 +36,8 @@ are provided and either can be replaced, so the corpus language stays an open
 decision.
 """
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any
 
 POLARITY_AFFIRMED = "affirmed"
@@ -83,7 +84,15 @@ ENGLISH_CUES = CueSet(
         "no", "not", "denies", "denied", "without", "absent", "negative for",
         "no evidence of", "free of", "rules out", "ruled out", "resolved",
     ),
-    negation_after=("was ruled out", "is ruled out", "not seen", "not present", "absent"),
+    negation_after=(
+        "was ruled out", "is ruled out", "not seen", "not present", "absent",
+        # Absence carried by the clinical term itself, with no negation marker.
+        # Enumerable — a few dozen per language — and the part neither a lexicon
+        # of negation words nor a parser reaches, because nothing in the sentence
+        # signals negation except what the term means.
+        "unremarkable", "within normal limits", "grossly normal", "non contributory",
+        "noncontributory", "clear", "patent", "intact", "negative",
+    ),
     hypothetical=("rule out", "r/o", "evaluate for", "screen for", "if", "to exclude", "workup for"),
     possible=("possible", "probable", "suspected", "suspicious for", "cannot be excluded", "may", "might"),
     experiencer_other=(
@@ -101,7 +110,11 @@ ITALIAN_CUES = CueSet(
         "non", "nega", "negato", "senza", "assente", "assenza di", "nessun", "nessuna",
         "negativo per", "non si evidenzia", "esclude", "escluso", "risolto",
     ),
-    negation_after=("non riscontrato", "non presente", "assente", "escluso"),
+    negation_after=(
+        "non riscontrato", "non presente", "assente", "escluso",
+        "nella norma", "nei limiti", "nei limiti di norma", "regolare", "libero",
+        "indenne", "negativo", "silente",
+    ),
     hypothetical=("da escludere", "per escludere", "in caso di", "valutare per", "screening per", "sospetto di"),
     possible=("possibile", "probabile", "sospetto", "non si puo escludere", "potrebbe", "verosimile"),
     experiencer_other=(
@@ -297,6 +310,112 @@ class AssertionDetector:
             if position >= 0:
                 end = min(end, position)
         return (start, end)
+
+
+DECIDED_BY_RULES = "rules"
+DECIDED_BY_FALLBACK = "fallback"
+DECIDED_BY_DEFAULT = "default"
+
+
+@dataclass(frozen=True)
+class ResolvedAssertion:
+    """An assertion together with which layer decided it, and whether it is explained."""
+
+    status: AssertionStatus
+    decided_by: str
+
+    @property
+    def is_explained(self) -> bool:
+        """Whether the decision can be traced to the words that produced it.
+
+        Rules explain themselves — the cue is recorded. A fallback does not, but
+        it only runs where no rule fired, so nothing that was previously
+        explainable becomes opaque: the alternative there was not a worse
+        explanation but no detection at all.
+        """
+        return self.decided_by == DECIDED_BY_RULES
+
+    def as_dict(self) -> dict[str, Any]:
+        return {**self.status.as_dict(), "decided_by": self.decided_by, "explained": self.is_explained}
+
+
+@dataclass
+class LayeredAssertionResolver:
+    """Rules first, fallback only on what the rules do not cover.
+
+    The two are not alternatives. Where a cue fires the rule decides and the
+    explanation survives; where none fires — a paraphrase the lexicon lacks, a
+    construction nobody anticipated — the fallback runs, and there the choice
+    was never between a good explanation and a poor one but between a decision
+    and silence.
+
+    Coverage therefore rises without the explained cases becoming opaque, and
+    the fallback is measured only on the residue, which is the subset where it
+    would actually be used.
+    """
+
+    detector: AssertionDetector = field(default_factory=AssertionDetector)
+    fallback: Any = None
+
+    def resolve(self, text: str, char_start: int, char_end: int) -> ResolvedAssertion:
+        status = self.detector.detect(text, char_start, char_end)
+        if status.cues:
+            return ResolvedAssertion(status=status, decided_by=DECIDED_BY_RULES)
+        if self.fallback is not None:
+            proposed = self.fallback(text, char_start, char_end)
+            if isinstance(proposed, AssertionStatus):
+                return ResolvedAssertion(status=proposed, decided_by=DECIDED_BY_FALLBACK)
+        return ResolvedAssertion(status=status, decided_by=DECIDED_BY_DEFAULT)
+
+
+@dataclass
+class ResidueReport:
+    """How much of a corpus the rules leave undecided.
+
+    This is the number that decides whether a learned classifier is worth
+    building at all. A small residue means the rules and the paraphrase lexicon
+    have closed the gap and the classifier would be a solution to a problem that
+    no longer exists.
+    """
+
+    total: int = 0
+    decided_by_rules: int = 0
+    residue: list[str] = field(default_factory=list)
+
+    @property
+    def coverage(self) -> float:
+        return self.decided_by_rules / self.total if self.total else 0.0
+
+    @property
+    def residue_fraction(self) -> float:
+        return 1.0 - self.coverage if self.total else 0.0
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "total": self.total,
+            "decided_by_rules": self.decided_by_rules,
+            "coverage": round(self.coverage, 4),
+            "residue_fraction": round(self.residue_fraction, 4),
+            "residue_examples": self.residue[:20],
+        }
+
+
+def measure_residue(
+    detector: AssertionDetector, samples: Sequence[tuple[str, int, int]]
+) -> ResidueReport:
+    """Fraction of spans the rules decide, over a sample of (text, start, end).
+
+    Measured before building anything, because the residue is the only evidence
+    that a classifier is needed — and it may show that it is not.
+    """
+    report = ResidueReport()
+    for text, start, end in samples:
+        report.total += 1
+        if detector.detect(text, start, end).cues:
+            report.decided_by_rules += 1
+        else:
+            report.residue.append(text[max(0, start - 40) : end + 40].strip())
+    return report
 
 
 def _normalise(text: str) -> str:
