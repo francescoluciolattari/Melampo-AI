@@ -102,6 +102,9 @@ navigation affordances.
 - `reasoning/family_history.py`: family history as screening hypothesis and prior modifier, never as a patient finding.
 - `memory/assertion.py`: deterministic assertion detection — polarity, certainty, experiencer, temporality, source — producing an interval and an epistemic state rather than a scalar.
 - `reasoning/findings_boundary.py`: enforced boundary admitting only current, asserted findings of this patient; every rejection carries its route.
+- `reasoning/rlm_engine.py`: recursive retrieval loop that dispatches named primitives instead of executing code; data class, budget and completion enforced in code; depth capped at one.
+- `reasoning/rlm_wiring.py`: binds the engine to the semantic memory adapter (inheriting the quarantine) and writes trajectories to the audit store as health data.
+- `evaluation/depth_comparison.py`: paired comparison of depth 0 against depth 1 before the recursion is trusted.
 
 ## CLI commands
 
