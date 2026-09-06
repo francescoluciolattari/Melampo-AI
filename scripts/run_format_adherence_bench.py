@@ -16,7 +16,7 @@ Usage:
     python scripts/run_format_adherence_bench.py [--out results.json]
 
 Environment variables consulted, all optional:
-    MISTRAL_API_KEY, GOOGLE_API_KEY, OPENROUTER_API_KEY
+    MISTRAL_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY
 
 Candidates that need a key with no variable set are reported as skipped, not
 silently dropped.
@@ -99,32 +99,34 @@ def _http_chat_completion(endpoint: str, api_key: str, model: str, prompt: str) 
     return payload["choices"][0]["message"]["content"]
 
 
-def _http_gemini(api_key: str, model: str, prompt: str) -> str:
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+def _http_anthropic(api_key: str, model: str, prompt: str) -> str:
+    """First-party Anthropic Messages API. No proxy: the key talks to api.anthropic.com directly."""
     body = json.dumps(
         {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": (
-                                "You navigate a document environment by emitting exactly one action per "
-                                f"line, chosen from: {ACTION_GRAMMAR}. Emit nothing else. Call final(answer) "
-                                f"once you can answer.\n\n{prompt}"
-                            )
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 256},
+            "model": model,
+            "max_tokens": 256,
+            "temperature": 0.0,
+            "system": (
+                "You navigate a document environment by emitting exactly one action per line, "
+                f"chosen from: {ACTION_GRAMMAR}. Emit nothing else -- no prose, no explanation. "
+                "Call final(answer) once you can answer the question."
+            ),
+            "messages": [{"role": "user", "content": prompt}],
         }
     ).encode("utf-8")
     request = urllib.request.Request(
-        endpoint, data=body, headers={"Content-Type": "application/json"}, method="POST"
+        "https://api.anthropic.com/v1/messages",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        },
+        method="POST",
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         payload = json.loads(response.read().decode("utf-8"))
-    return payload["candidates"][0]["content"]["parts"][0]["text"]
+    return payload["content"][0]["text"]
 
 
 def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
@@ -143,23 +145,27 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
     else:
         skipped.append("mistral-small-3.1 (MISTRAL_API_KEY not set)")
 
-    google_key = os.environ.get("GOOGLE_API_KEY")
-    if google_key:
-        candidates["gemma-3-27b"] = _bind_gemini(google_key, "gemma-3-27b-it")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        candidates["claude"] = _bind_anthropic(anthropic_key, "claude-sonnet-4-6")
     else:
-        skipped.append("gemma-3-27b (GOOGLE_API_KEY not set)")
+        skipped.append("claude (ANTHROPIC_API_KEY not set)")
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     if openrouter_key:
+        # Gemma via OpenRouter's own catalogue rather than a direct Google
+        # endpoint: one key covers Qwen, Llama and Gemma together instead of
+        # requiring a separate Google AI Studio credential.
         for name, model in (
             ("qwen-3.5", "qwen/qwen-3.5-72b-instruct"),
             ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
+            ("gemma-3-27b", "google/gemma-3-27b-it"),
         ):
             candidates[name] = _bind(
                 _http_chat_completion, "https://openrouter.ai/api/v1/chat/completions", openrouter_key, model
             )
     else:
-        skipped.append("qwen-3.5, llama-3.3-70b (OPENROUTER_API_KEY not set)")
+        skipped.append("qwen-3.5, llama-3.3-70b, gemma-3-27b (OPENROUTER_API_KEY not set)")
 
     return candidates, skipped
 
@@ -178,10 +184,10 @@ def _bind(fn, endpoint, key, model):
     return _call
 
 
-def _bind_gemini(key, model):
+def _bind_anthropic(key, model):
     def _call(prompt: str) -> str:
         try:
-            return _http_gemini(key, model, prompt)
+            return _http_anthropic(key, model, prompt)
         except (urllib.error.URLError, urllib.error.HTTPError, KeyError, json.JSONDecodeError) as error:
             print(f"  [warn] {model}: {error}", file=sys.stderr)
             return ""
@@ -197,7 +203,7 @@ def main() -> int:
     candidates, skipped = build_candidates()
     if not candidates:
         print("No API keys found in the environment; nothing to bench.", file=sys.stderr)
-        print("Set at least one of MISTRAL_API_KEY, GOOGLE_API_KEY, OPENROUTER_API_KEY.", file=sys.stderr)
+        print("Set at least one of MISTRAL_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY.", file=sys.stderr)
         return 1
 
     print(f"Benching: {', '.join(sorted(candidates))}")

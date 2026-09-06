@@ -30,8 +30,11 @@ jobs:
           # Populated from repository secrets. Never printed, never written to
           # a file other than being consumed as an environment variable by the
           # script -- the same discipline as NCBI_API_KEY for the PMC connector.
+          # Claude and Mistral are called at their own first-party endpoints.
+          # Gemma, Qwen and Llama are reached through OPENROUTER_API_KEY, a
+          # named aggregator, rather than a proxy of uncertain provenance.
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: python scripts/run_format_adherence_bench.py --out bench_results.json
 

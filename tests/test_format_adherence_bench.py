@@ -136,7 +136,15 @@ def test_an_unknown_licence_is_not_assumed_cleared():
 
 def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
-    assert providers == {"mistral", "qwen", "google", "meta"}
+    assert providers == {"mistral", "qwen", "google", "meta", "anthropic"}
+
+
+def test_claude_is_called_directly_never_through_a_third_party_proxy():
+    """A proxy advertising Claude was found to serve a different model entirely --
+    the exact failure this bench exists to avoid propagating."""
+    claude = next(item for item in DEFAULT_CANDIDATES if item.provider == "anthropic")
+    assert "proxy" in claude.note.lower()
+    assert "api.anthropic.com" in claude.note
 
 
 # --------------------------------------------------------------------------

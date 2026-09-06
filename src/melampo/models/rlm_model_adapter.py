@@ -31,6 +31,7 @@ from typing import Any
 LICENCE_APACHE_2 = "Apache-2.0"
 LICENCE_GEMMA_TERMS = "Gemma Terms of Use"
 LICENCE_LLAMA_COMMUNITY = "Llama Community License"
+LICENCE_ANTHROPIC_COMMERCIAL = "Anthropic Commercial Terms of Service"
 
 # Whether a licence permits commercial use in the EU without further review.
 # Not a legal opinion: a flag that makes an open question visible at the point
@@ -40,6 +41,11 @@ LICENCE_CLEARED_FOR_EU_COMMERCIAL = {
     LICENCE_APACHE_2: True,
     LICENCE_GEMMA_TERMS: None,
     LICENCE_LLAMA_COMMUNITY: None,
+    # A commercial API terms-of-service agreement is a contract entered
+    # deliberately, unlike an open-weight licence whose EU applicability may be
+    # buried in an acceptable-use policy. Still recorded rather than assumed,
+    # since "cleared" here means "the agreement was read", not "no terms apply".
+    LICENCE_ANTHROPIC_COMMERCIAL: None,
 }
 
 
@@ -102,13 +108,26 @@ DEFAULT_CANDIDATES = (
             "before shipping. Llama 4 is deliberately absent."
         ),
     ),
+    RootModelCandidate(
+        name="claude",
+        provider="anthropic",
+        licence=LICENCE_ANTHROPIC_COMMERCIAL,
+        note=(
+            "Commercial terms of service need review before shipping, same as any other "
+            "candidate here. Called at api.anthropic.com directly, never through a third-party "
+            "proxy: one such proxy advertising Claude access was found to serve a different "
+            "model entirely, which is the exact failure this bench exists to avoid propagating."
+        ),
+    ),
 )
 
 # Benching a model is not adopting it. A candidate whose licence is unresolved
 # belongs on the bench — comparison is how you learn what a permissive model
 # costs you in capability — but must not pass silently into deployment on the
 # strength of a good score.
-BENCH_ONLY_UNTIL_LICENCE_REVIEW = frozenset({LICENCE_GEMMA_TERMS, LICENCE_LLAMA_COMMUNITY})
+BENCH_ONLY_UNTIL_LICENCE_REVIEW = frozenset(
+    {LICENCE_GEMMA_TERMS, LICENCE_LLAMA_COMMUNITY, LICENCE_ANTHROPIC_COMMERCIAL}
+)
 
 
 @dataclass
