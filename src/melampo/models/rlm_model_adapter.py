@@ -114,9 +114,11 @@ DEFAULT_CANDIDATES = (
         licence=LICENCE_ANTHROPIC_COMMERCIAL,
         note=(
             "Commercial terms of service need review before shipping, same as any other "
-            "candidate here. Called at api.anthropic.com directly, never through a third-party "
-            "proxy: one such proxy advertising Claude access was found to serve a different "
-            "model entirely, which is the exact failure this bench exists to avoid propagating."
+            "candidate here. Reached through OpenRouter, a named and established aggregator "
+            "that proxies to the real provider -- not the unverified gateway (oneprovider.dev) "
+            "considered and rejected: a public review of that service states the model actually "
+            "served behind it is not Claude at all, which is the exact failure this bench exists "
+            "to avoid propagating."
         ),
     ),
 )

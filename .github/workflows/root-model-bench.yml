@@ -31,10 +31,12 @@ jobs:
           # a file other than being consumed as an environment variable by the
           # script -- the same discipline as NCBI_API_KEY for the PMC connector.
           # Claude and Mistral are called at their own first-party endpoints.
-          # Gemma, Qwen and Llama are reached through OPENROUTER_API_KEY, a
-          # named aggregator, rather than a proxy of uncertain provenance.
+          # Claude, Gemma, Qwen and Llama are all reached through
+          # OPENROUTER_API_KEY, a named aggregator -- not the unverified
+          # gateway considered and rejected for Claude access (see
+          # docs/recursive_engine_decision_record.md). Mistral is called at
+          # its own first-party endpoint.
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: python scripts/run_format_adherence_bench.py --out bench_results.json
 

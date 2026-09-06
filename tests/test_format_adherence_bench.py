@@ -139,12 +139,12 @@ def test_the_registry_covers_every_benched_family():
     assert providers == {"mistral", "qwen", "google", "meta", "anthropic"}
 
 
-def test_claude_is_called_directly_never_through_a_third_party_proxy():
-    """A proxy advertising Claude was found to serve a different model entirely --
+def test_claude_is_reached_through_a_named_aggregator_not_an_unverified_gateway():
+    """A gateway advertising Claude was found to serve a different model entirely --
     the exact failure this bench exists to avoid propagating."""
     claude = next(item for item in DEFAULT_CANDIDATES if item.provider == "anthropic")
-    assert "proxy" in claude.note.lower()
-    assert "api.anthropic.com" in claude.note
+    assert "oneprovider" in claude.note.lower()
+    assert "openrouter" in claude.note.lower()
 
 
 # --------------------------------------------------------------------------

@@ -188,7 +188,7 @@ write `grep(prednisone)` rather than `grep prednisone` under this grammar.
 | Qwen 3.5 | Apache 2.0 | Cleared | Leads open-weight comparisons overall; same licence, cheap to include |
 | Gemma 3 27B | Gemma Terms | **Needs review** | More restrictive than Apache 2.0 |
 | Llama 3.3 70B | Llama Community | **Needs review** | Dense and text-only, so unaffected by the Llama 4 EU restriction; benched for comparison |
-| Claude | Anthropic Commercial Terms | **Needs review** | Called at `api.anthropic.com` directly, never through a proxy — see below |
+| Claude | Anthropic Commercial Terms | **Needs review** | Reached through OpenRouter, not a direct key — see below |
 
 **Llama 4 is excluded.** Its Acceptable Use Policy withholds multimodal rights
 from EU-based individuals and companies, which restricts the family here. Llama
@@ -213,12 +213,14 @@ endpoints are outside its network allowlist, as `api.mistral.ai`,
 `.github/workflows/root-model-bench.yml` runs it on `workflow_dispatch` only —
 deliberately excluded from the push and pull-request triggers `ci.yml` runs on,
 because this workflow makes real, billed calls to external providers and must
-never fire on every commit. Keys come from repository secrets
-(`MISTRAL_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`), exposed only as
-environment variables to the step that needs them, never written to a file or
-printed — the same discipline already established for `NCBI_API_KEY`.
+never fire on every commit. Keys come from repository secrets (`MISTRAL_API_KEY`, `OPENROUTER_API_KEY`),
+exposed only as environment variables to the step that needs them, never
+written to a file or printed — the same discipline already established for
+`NCBI_API_KEY`. No `ANTHROPIC_API_KEY` is used: the operator does not hold a
+direct Anthropic key, and Claude is reached through OpenRouter instead, on the
+same key as Qwen, Llama and Gemma.
 
-### Why Claude is called directly, and why one proxy was rejected
+### Why one proxy was rejected and OpenRouter was chosen instead
 
 A third-party API gateway advertising Claude access, `oneprovider.dev`, was
 considered and rejected before any code was written for it. A public review of
@@ -230,13 +232,12 @@ payment model, cryptocurrency with no account requirement, is a further signal
 that it is built for anonymity on the seller's side rather than accountability
 on the buyer's.
 
-Claude is therefore called at `api.anthropic.com` with the operator's own
-`ANTHROPIC_API_KEY`, exactly as Mistral is called at `api.mistral.ai`. Gemma
-does not need a direct Google endpoint at all: it is in OpenRouter's own
-catalogue, so the same `OPENROUTER_API_KEY` that reaches Qwen and Llama reaches
-it too, and no separate Google AI Studio credential is required. The net effect
-is one fewer service to trust, not a substitution of one uncertain proxy for
-another.
+OpenRouter is a named, established aggregator that proxies to the real
+provider rather than an anonymous reseller, and it already carries Claude,
+Qwen, Llama and Gemma in one catalogue. All four candidates therefore share
+`OPENROUTER_API_KEY`, and Mistral remains on its own first-party endpoint. The
+net effect is one fewer service to trust than four separate credentials would
+have required, not a substitution of one uncertain proxy for another.
 
 A candidate whose key is absent is skipped and reported as such rather than
 causing the run to fail: partial coverage is still a usable comparison.
