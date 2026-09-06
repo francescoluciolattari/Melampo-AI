@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .counterfactual_sampler import CounterfactualSampler
-from .replay_filter import ReplayFilter
-from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..memory.visual_imprint import VisualImprintMorpher
+from ..models.quantum_belief_layer import QuantumBeliefLayer
+from .counterfactual_sampler import CounterfactualSampler
+from .mechanism_enumeration import MODE_HYPOTHESES
+from .replay_filter import ReplayFilter
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -51,6 +52,7 @@ class DreamTrainer:
     sampler: CounterfactualSampler
     belief_layer: QuantumBeliefLayer
     visual_morpher: VisualImprintMorpher = field(default_factory=VisualImprintMorpher)
+    enumerator: Any = None
 
     def _runtime_context(self, case_context: dict, coherence: float, risk: float) -> DreamRuntimeContext:
         case_context = case_context or {}
@@ -119,6 +121,78 @@ class DreamTrainer:
         }
 
     def _alternative_hypotheses(self, context: DreamRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
+        """Alternative hypotheses for this case.
+
+        With an ``enumerator`` configured these are found by path enumeration
+        over the concept graph: each candidate is a condition the case has not
+        raised, reached from the observed findings, carrying the path as its
+        provenance. A hypothesis is therefore found rather than written, and it
+        cannot be fluent and baseless at the same time — a path exists in the
+        graph or it does not.
+
+        Without one the previous rehearsal labels are produced unchanged. They
+        name what kind of alternative *ought* to exist rather than proposing one,
+        which is useful as a rehearsal plan and is not a clinical hypothesis.
+        """
+        enumerated = self._enumerated_hypotheses(context)
+        if enumerated is not None:
+            return enumerated
+        return self._rehearsal_labels(context, rehearsal_profile)
+
+    def _enumerated_hypotheses(self, context: DreamRuntimeContext) -> list[dict[str, Any]] | None:
+        """Enumerate over the graph, or return None when no enumerator is wired.
+
+        Returns the branch's own register: under sparse local coverage the
+        enumerator emits questions for the knowledge base instead of hypotheses
+        for the patient, and those are passed through as they are rather than
+        being reshaped into hypotheses they are not.
+        """
+        if self.enumerator is None:
+            return None
+        findings = [str(item) for item in (context.case_context.get("findings") or []) if str(item).strip()]
+        candidates = [
+            str(item) for item in (context.case_context.get("candidate_conditions") or []) if str(item).strip()
+        ]
+        if not findings or not candidates:
+            return None
+
+        outcome = self.enumerator.run(
+            findings=findings,
+            candidate_conditions=candidates,
+            already_considered=[
+                str(item) for item in (context.case_context.get("already_considered") or [])
+            ],
+        )
+        payload = outcome.as_dict()
+        if outcome.mode != MODE_HYPOTHESES:
+            return [
+                {
+                    "label": item["condition"],
+                    "kind": "knowledge_gap_question",
+                    "focus": "graph_completion",
+                    "question": item["question"],
+                    "clinical_use": False,
+                    "density": payload["density"]["density"],
+                }
+                for item in payload["open_questions"]
+            ]
+
+        return [
+            {
+                "label": item["condition"],
+                "kind": "enumerated_mechanism",
+                "focus": context.variant_focus,
+                "novelty": item["novelty"],
+                "plausibility": item["plausibility"],
+                "guaranteed": item["guaranteed"],
+                "corroboration": item["corroboration"],
+                "paths": item["paths"],
+                "density": payload["density"]["density"],
+            }
+            for item in payload["hypotheses"]
+        ]
+
+    def _rehearsal_labels(self, context: DreamRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
         hypotheses: list[dict[str, Any]] = [
             {
                 "label": f"{context.base_label}_alt_1",
