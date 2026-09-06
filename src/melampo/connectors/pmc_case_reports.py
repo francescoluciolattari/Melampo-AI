@@ -1,5 +1,16 @@
 """Fetch case reports from PMC and turn them into B4 evaluation cases.
 
+Project defaults: contact email and API key. The key is read from the
+``NCBI_API_KEY`` environment variable at call time — populated from a GitHub
+Actions secret of the same name when run in CI, or exported locally by the
+operator — and is never written into this file or any other tracked file.
+Committing a working credential to a public repository is a standing risk
+regardless of provider, and NCBI's own guidance is to keep API keys out of
+version control for the same reason. ``FetchConfig.from_environment`` is the
+supported way to build a config; constructing one with a literal key inline is
+still possible but bypasses that discipline, and reviewers should treat a
+literal key in a diff as a defect to fix before merge, not a style note.
+
 Runs where the operator has network access to NCBI, which this repository's own
 execution environment may not have — its outbound access is allowlisted, and
 NCBI's endpoints are ordinarily outside that list. The client is therefore
@@ -25,6 +36,7 @@ articles, too fast risks the caller's key being throttled or blocked, with no
 visible error pointing at the cause.
 """
 
+import os
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Sequence
@@ -38,6 +50,15 @@ from ..evaluation.dream_capture_benchmark import EvaluationCase
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 OAI_BASE = "https://www.ncbi.nlm.nih.gov/pmc/oai/oai.cgi"
+
+# Project defaults, not secrets. The email is a contact address NCBI's usage
+# policy requires and carries no access on its own; publishing it is normal
+# practice (it appears in every request's query string regardless). The API
+# key environment variable name is a convention, matching the GitHub Actions
+# secret configured for this repository -- the key itself lives only there and
+# in the operator's local environment, never in tracked files.
+DEFAULT_CONTACT_EMAIL = "francesco.lucio.lattari@gmail.com"
+NCBI_API_KEY_ENV_VAR = "NCBI_API_KEY"
 
 LICENSE_COMMERCIAL = "oa_comm"
 LICENSE_NONCOMMERCIAL = "oa_noncomm"
@@ -82,6 +103,28 @@ class FetchConfig:
     @property
     def requests_per_second(self) -> float:
         return REQUESTS_PER_SECOND_WITH_KEY if self.api_key else REQUESTS_PER_SECOND_WITHOUT_KEY
+
+    @classmethod
+    def from_environment(
+        cls,
+        *,
+        email: str = DEFAULT_CONTACT_EMAIL,
+        license_group: str = LICENSE_COMMERCIAL,
+        tool: str = "melampo-b4-connector",
+    ) -> "FetchConfig":
+        """Build a config with the API key read from the environment, never from a literal.
+
+        Looks up ``NCBI_API_KEY`` at call time. Absent, the fetcher still works
+        at the unkeyed rate rather than raising -- a missing key degrades
+        throughput, it does not block evaluation, and failing loudly here would
+        make local experimentation harder for no safety benefit.
+        """
+        return cls(
+            email=email,
+            tool=tool,
+            api_key=os.environ.get(NCBI_API_KEY_ENV_VAR) or None,
+            license_group=license_group,
+        )
 
 
 @dataclass

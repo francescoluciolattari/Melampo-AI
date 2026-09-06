@@ -1,4 +1,5 @@
 import json
+import re
 import time
 
 import pytest
@@ -273,3 +274,61 @@ def test_search_restricts_to_case_reports_and_open_access():
     assert "open access[filter]" in seen["term"]
     assert "cardiac amyloidosis" in seen["term"]
     assert seen["email"] == "ops@example.org"
+
+
+# --------------------------------------------------------------------------
+# Environment-based configuration: the key lives outside the repository
+# --------------------------------------------------------------------------
+
+
+def test_from_environment_reads_the_key_from_the_expected_variable(monkeypatch):
+    monkeypatch.setenv("NCBI_API_KEY", "test-key-value")
+    config = FetchConfig.from_environment()
+    assert config.api_key == "test-key-value"
+    assert config.requests_per_second == pytest.approx(10.0) or config.requests_per_second > 0
+
+
+def test_from_environment_uses_the_project_contact_email_by_default(monkeypatch):
+    monkeypatch.delenv("NCBI_API_KEY", raising=False)
+    config = FetchConfig.from_environment()
+    assert config.email == "francesco.lucio.lattari@gmail.com"
+
+
+def test_a_missing_key_degrades_throughput_rather_than_raising(monkeypatch):
+    """Absent should not block evaluation, only slow it."""
+    monkeypatch.delenv("NCBI_API_KEY", raising=False)
+    config = FetchConfig.from_environment()
+    assert config.api_key is None
+    assert config.requests_per_second > 0
+
+
+def test_an_empty_environment_variable_is_treated_as_absent():
+    import os
+
+    old = os.environ.get("NCBI_API_KEY")
+    os.environ["NCBI_API_KEY"] = ""
+    try:
+        assert FetchConfig.from_environment().api_key is None
+    finally:
+        if old is None:
+            os.environ.pop("NCBI_API_KEY", None)
+        else:
+            os.environ["NCBI_API_KEY"] = old
+
+
+def test_from_environment_still_enforces_the_license_partition():
+    with pytest.raises(ValueError):
+        FetchConfig.from_environment(license_group=LICENSE_OTHER)
+
+
+def test_no_literal_looking_ncbi_key_is_committed_in_this_module():
+    """Guardrail: a real key pasted into this file in a future edit should fail CI."""
+    import inspect
+
+    import melampo.connectors.pmc_case_reports as module
+
+    source = inspect.getsource(module)
+    # Real NCBI keys are 36-character hex strings. Flag anything that shape
+    # appearing next to "api_key" or "NCBI_API_KEY" outside the env var name itself.
+    suspicious = re.findall(r"[0-9a-f]{32,40}", source)
+    assert suspicious == [], f"a literal key-shaped string was found in source: {suspicious}"

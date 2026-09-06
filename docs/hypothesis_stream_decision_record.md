@@ -403,6 +403,15 @@ primary differential missed, does the branch contain the documented diagnosis.
 Stratified by local graph density, with a base rate computed by drawing
 candidates at random as the floor a real mechanism must clear.
 
+`FetchConfig.from_environment()` supplies the project's operating defaults:
+contact email `francesco.lucio.lattari@gmail.com`, and the API key read from
+the `NCBI_API_KEY` environment variable — populated from the GitHub Actions
+secret of the same name in CI, exported locally by the operator otherwise, and
+never written into a tracked file. A missing key degrades throughput rather
+than blocking evaluation. A test asserts no key-shaped literal appears in the
+module's own source, so a future edit that pastes a real key in cannot merge
+unnoticed.
+
 `connectors/pmc_case_reports.py` fetches case reports from PMC to feed it,
 built to run wherever the operator has network access — Claude's own execution
 environment is allowlisted and does not ordinarily reach NCBI. Two disciplines

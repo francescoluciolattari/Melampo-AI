@@ -14,22 +14,66 @@ server, notebook Jupyter.
 ## Prerequisiti
 
 - Python 3.11+, nessuna libreria oltre la libreria standard.
-- Una email di contatto valida (richiesta da NCBI, non è autenticazione).
+- Una email di contatto (NCBI la richiede; non è autenticazione). Il progetto
+  ha un default già configurato: `francesco.lucio.lattari@gmail.com`.
 - Facoltativo ma consigliato: una API key NCBI, gratuita, da
   https://www.ncbi.nlm.nih.gov/account/settings/ — alza il limite di frequenza
   da 3 a 10 richieste al secondo.
 
+## Configurazione della API key — non va mai scritta nel codice
+
+La chiave vive **solo** in due posti: il secret GitHub `NCBI_API_KEY` del
+repository, e — quando esegui lo script in locale — una variabile d'ambiente
+con lo stesso nome sulla tua macchina. Non va mai incollata in un file
+tracciato dal repository, nemmeno temporaneamente: un secret committato per
+errore resta nella cronologia Git anche dopo essere stato rimosso dall'ultima
+versione, e va considerato compromesso.
+
+**In locale, prima di eseguire lo script:**
+
+```bash
+export NCBI_API_KEY="la-tua-chiave"     # bash/zsh, sessione corrente
+```
+
+oppure su Windows PowerShell:
+
+```powershell
+$env:NCBI_API_KEY = "la-tua-chiave"
+```
+
+**In un workflow GitHub Actions**, il secret è già configurato nel repository;
+va solo esposto come variabile d'ambiente al passo che esegue lo script:
+
+```yaml
+- name: Run PMC fetch
+  env:
+    NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+  run: python scripts/fetch_pmc_cases.py
+```
+
 ## Uso minimo
+
+`FetchConfig.from_environment()` legge la chiave dalla variabile d'ambiente e
+usa l'email di default del progetto — non serve passare nulla a mano:
 
 ```python
 from melampo.connectors.pmc_case_reports import FetchConfig, PmcCaseReportFetcher, LICENSE_COMMERCIAL
 
-config = FetchConfig(
-    email="tuo.indirizzo@dominio.it",
-    api_key="LA_TUA_CHIAVE",          # opzionale
-    license_group=LICENSE_COMMERCIAL,  # o LICENSE_NONCOMMERCIAL
-)
+config = FetchConfig.from_environment(license_group=LICENSE_COMMERCIAL)
+fetcher = PmcCaseReportFetcher(config=config)
+```
 
+Se `NCBI_API_KEY` non è impostata, il recupero funziona comunque, solo più
+lentamente (limite di frequenza senza chiave). Non è un errore bloccante.
+
+Per usare un'email o una chiave diverse da quelle di default:
+
+```python
+config = FetchConfig(
+    email="altro.indirizzo@dominio.it",
+    api_key="chiave-passata-esplicitamente",  # solo se non usi from_environment
+    license_group=LICENSE_COMMERCIAL,
+)
 fetcher = PmcCaseReportFetcher(config=config)
 
 pmcids = fetcher.search_case_reports(
