@@ -32,6 +32,7 @@ LICENCE_APACHE_2 = "Apache-2.0"
 LICENCE_GEMMA_TERMS = "Gemma Terms of Use"
 LICENCE_LLAMA_COMMUNITY = "Llama Community License"
 LICENCE_ANTHROPIC_COMMERCIAL = "Anthropic Commercial Terms of Service"
+LICENCE_OPENAI_COMMERCIAL = "OpenAI Commercial Terms of Service"
 
 # Whether a licence permits commercial use in the EU without further review.
 # Not a legal opinion: a flag that makes an open question visible at the point
@@ -46,6 +47,7 @@ LICENCE_CLEARED_FOR_EU_COMMERCIAL = {
     # buried in an acceptable-use policy. Still recorded rather than assumed,
     # since "cleared" here means "the agreement was read", not "no terms apply".
     LICENCE_ANTHROPIC_COMMERCIAL: None,
+    LICENCE_OPENAI_COMMERCIAL: None,
 }
 
 
@@ -73,6 +75,13 @@ class RootModelCandidate:
         }
 
 
+# Every Anthropic candidate below is reached through OpenRouter, a named and
+# established aggregator that proxies to the real provider. This is not the
+# default choice: a third-party gateway advertising Claude access
+# (oneprovider.dev) was evaluated and rejected first, because a public review
+# of that service states the model actually served behind it is not Claude at
+# all -- the exact failure this bench exists to avoid propagating. See
+# docs/recursive_engine_decision_record.md for the full reasoning.
 DEFAULT_CANDIDATES = (
     RootModelCandidate(
         name="mistral-small-3.1",
@@ -109,16 +118,45 @@ DEFAULT_CANDIDATES = (
         ),
     ),
     RootModelCandidate(
-        name="claude",
+        name="claude-sonnet-5",
         provider="anthropic",
         licence=LICENCE_ANTHROPIC_COMMERCIAL,
         note=(
             "Commercial terms of service need review before shipping, same as any other "
-            "candidate here. Reached through OpenRouter, a named and established aggregator "
-            "that proxies to the real provider -- not the unverified gateway (oneprovider.dev) "
-            "considered and rejected: a public review of that service states the model actually "
-            "served behind it is not Claude at all, which is the exact failure this bench exists "
-            "to avoid propagating."
+            "candidate here. Default Claude tier: mid-tier cost ($2/M in, $10/M out on "
+            "OpenRouter) for a task that is format adherence, not depth of reasoning."
+        ),
+    ),
+    RootModelCandidate(
+        name="claude-opus-5",
+        provider="anthropic",
+        licence=LICENCE_ANTHROPIC_COMMERCIAL,
+        note=(
+            "Commercial terms of service need review before shipping, same as any other "
+            "candidate here. Benched alongside Sonnet rather than assumed unnecessary: a 25% "
+            "cost premium ($2.50/M in, $12.50/M out) is worth paying only if it also raises "
+            "adherence, and that is a question for the bench, not for argument."
+        ),
+    ),
+    RootModelCandidate(
+        name="claude-fable-5.1",
+        provider="anthropic",
+        licence=LICENCE_ANTHROPIC_COMMERCIAL,
+        note=(
+            "Commercial terms of service need review before shipping, same as any other "
+            "candidate here. Mythos-tier, five times Sonnet's cost ($10/M in, $50/M out). "
+            "Benched for the same reason as Opus: the premium is justified by a measured "
+            "adherence gain or it is not, and guessing either way defeats the purpose of a bench."
+        ),
+    ),
+    RootModelCandidate(
+        name="gpt-6-astra",
+        provider="openai",
+        licence=LICENCE_OPENAI_COMMERCIAL,
+        note=(
+            "OpenAI was omitted from the first version of this registry alongside Mistral, Qwen "
+            "and Llama with no reasoning given -- an oversight, not a decision, corrected here. "
+            "Commercial API terms need review before shipping, same as Claude's."
         ),
     ),
 )
@@ -128,7 +166,7 @@ DEFAULT_CANDIDATES = (
 # costs you in capability — but must not pass silently into deployment on the
 # strength of a good score.
 BENCH_ONLY_UNTIL_LICENCE_REVIEW = frozenset(
-    {LICENCE_GEMMA_TERMS, LICENCE_LLAMA_COMMUNITY, LICENCE_ANTHROPIC_COMMERCIAL}
+    {LICENCE_GEMMA_TERMS, LICENCE_LLAMA_COMMUNITY, LICENCE_ANTHROPIC_COMMERCIAL, LICENCE_OPENAI_COMMERCIAL}
 )
 
 

@@ -136,15 +136,37 @@ def test_an_unknown_licence_is_not_assumed_cleared():
 
 def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
-    assert providers == {"mistral", "qwen", "google", "meta", "anthropic"}
+    assert providers == {"mistral", "qwen", "google", "meta", "anthropic", "openai"}
 
 
-def test_claude_is_reached_through_a_named_aggregator_not_an_unverified_gateway():
-    """A gateway advertising Claude was found to serve a different model entirely --
-    the exact failure this bench exists to avoid propagating."""
-    claude = next(item for item in DEFAULT_CANDIDATES if item.provider == "anthropic")
-    assert "oneprovider" in claude.note.lower()
-    assert "openrouter" in claude.note.lower()
+def test_the_rejected_gateway_is_named_in_the_registry_source():
+    """Data as well as prose: the rejection reasoning must be visible next to the
+    candidates it governs, not only in the decision record."""
+    import inspect
+
+    import melampo.models.rlm_model_adapter as module
+
+    source = inspect.getsource(module)
+    assert "oneprovider.dev" in source
+    assert "not Claude" in source
+
+
+def test_all_three_claude_tiers_are_benched_rather_than_one_assumed_representative():
+    """A cost premium is worth paying only if a measurement shows it earns adherence."""
+    from melampo.models.rlm_model_adapter import DEFAULT_CANDIDATES
+
+    tiers = {item.name for item in DEFAULT_CANDIDATES if item.provider == "anthropic"}
+    assert len(tiers) == 3, "Sonnet, Opus and Fable must each be measured, not extrapolated from one"
+
+
+def test_openai_is_present_after_being_omitted_from_the_first_registry():
+    """The omission was an oversight, not a decision, and the record says so."""
+    from melampo.models.rlm_model_adapter import LICENCE_OPENAI_COMMERCIAL
+
+    openai_candidate = next(item for item in DEFAULT_CANDIDATES if item.provider == "openai")
+    assert openai_candidate.licence == LICENCE_OPENAI_COMMERCIAL
+    assert openai_candidate.eu_commercial_cleared is None
+    assert "oversight" in openai_candidate.note.lower()
 
 
 # --------------------------------------------------------------------------

@@ -124,7 +124,10 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
         # to the real provider -- unlike an unverified gateway once considered
         # and rejected for this bench (see recursive_engine_decision_record.md).
         for name, model in (
-            ("claude", "anthropic/claude-sonnet-5"),
+            ("claude-sonnet-5", "anthropic/claude-sonnet-5"),
+            ("claude-opus-5", "anthropic/claude-opus-5"),
+            ("claude-fable-5.1", "anthropic/claude-fable-5.1"),
+            ("gpt-6-astra", "openai/gpt-6-astra"),
             ("qwen-3.5", "qwen/qwen-3.5-72b-instruct"),
             ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
             ("gemma-3-27b", "google/gemma-3-27b-it"),
