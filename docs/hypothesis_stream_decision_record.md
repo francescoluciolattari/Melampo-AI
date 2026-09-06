@@ -393,6 +393,37 @@ costs it precisely on the complex cases where the reviewer is already loaded.
 
 ---
 
+## 10b. B4 phase-one tooling
+
+**Type: CONSTRAINT — accepted.**
+
+`evaluation/dream_capture_benchmark.py` and `evaluation/case_corpus.py`
+implement the outcome-based half of B4 that needs no clinician: among cases the
+primary differential missed, does the branch contain the documented diagnosis.
+Stratified by local graph density, with a base rate computed by drawing
+candidates at random as the floor a real mechanism must clear.
+
+`connectors/pmc_case_reports.py` fetches case reports from PMC to feed it,
+built to run wherever the operator has network access — Claude's own execution
+environment is allowlisted and does not ordinarily reach NCBI. Two disciplines
+carry into the live connector precisely because a mistake here is easy to make
+and expensive to find later:
+
+- **License is required at construction**, not inferred from a flag a later
+  refactor could drop, and `oa_other` is never fetchable because a missing or
+  unreadable license cannot be classified as anything. Read per article rather
+  than assumed from the search filter, since a search result is a query-time
+  snapshot.
+- **Rate limiting matches NCBI's published contract exactly**, neither padded
+  nor exceeded — guessing in either direction wastes time or risks silent
+  throttling.
+
+A fetched article is split into presentation and outcome and loaded through
+`case_corpus.load_records`, so a leaked diagnosis is rejected by the same rule
+that applies to a hand-built file. Diagnosis extraction is a rough heuristic and
+documented as such: a human should review a sample before the cases are used for
+anything that counts.
+
 ## 11. Open items
 
 1. **Live Weaviate verification** — the quarantine is enforced in the adapter and
