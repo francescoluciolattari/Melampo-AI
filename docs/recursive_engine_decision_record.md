@@ -185,17 +185,32 @@ write `grep(prednisone)` rather than `grep prednisone` under this grammar.
 |---|---|---|---|
 | Mistral Small 3.1 | Apache 2.0 | Cleared | Reported as the most instruction-obedient of its class on exact output formats |
 | Mistral Small 4 | Apache 2.0 | Cleared | Newer sparse MoE; the adherence figure is on 3.1, not this |
-| Qwen 3.5 | Apache 2.0 | Cleared | Leads open-weight comparisons overall; same licence, cheap to include |
+| Mistral Large 3 (via OpenRouter) | Apache 2.0 | Cleared | Second path to Mistral after the direct API's free-tier rate limit; separate limits, real redundancy |
+| Mistral Small 4 (via OpenRouter) | Apache 2.0 | Cleared | Same rationale as Large 3, at the small tier |
+| Qwen 3.5 | Apache 2.0 | Cleared | Slug corrected: the original was invented and never existed |
+| Qwen 3.7 | Apache 2.0 | Cleared | Flagship of the 3.7 generation, benched alongside 3.5 and 3.8 |
+| Qwen 3.8 | Apache 2.0 | Cleared | Current Qwen flagship as of Sept 2026; generic slug tracks Alibaba's own updates |
 | Gemma 3 27B | Gemma Terms | **Needs review** | More restrictive than Apache 2.0 |
-| Llama 3.3 70B | Llama Community | **Needs review** | Dense and text-only, so unaffected by the Llama 4 EU restriction; benched for comparison |
-| GLM-5 | MIT | **Cleared** | No acceptable-use policy to review, unlike Llama or Gemma; open-weight #1 on Artificial Analysis at release |
-| Claude Sonnet 5 | Anthropic Commercial Terms | **Needs review** | Default Claude tier: mid-tier cost for a task that is format adherence, not depth of reasoning |
-| Claude Opus 5 | Anthropic Commercial Terms | **Needs review** | Benched, not assumed unnecessary: a 25% premium is worth it only if it also raises adherence |
-| Claude Fable 5.1 | Anthropic Commercial Terms | **Needs review** | Mythos-tier, 5x Sonnet's cost; benched for the same reason as Opus |
-| GPT-6 Astra | OpenAI Commercial Terms | **Needs review** | Omitted from the first version of this registry with no reasoning given — an oversight, corrected here |
+| Gemma 4 31B | Apache 2.0 | Cleared | Supersedes Gemma 3 in two ways at once: newer, and licence-cleared in the same release |
+| Gemma 4 26B-A4B | Apache 2.0 | Cleared | Same generation and licence; MoE, cheaper per call |
+| Llama 3.3 70B | Llama Community | **Needs review** | Dense and text-only, unaffected by the Llama 4 EU restriction |
+| Llama 4 Maverick | Llama Community | **Needs review** | Bench-only, not adoption: EU AUP restriction stands regardless of result |
+| Llama 4 Scout | Llama Community | **Needs review** | Same restriction and status as Maverick, at the smaller tier |
+| GLM-5 | MIT | Cleared | No acceptable-use policy to review, unlike Llama or Gemma |
+| GLM-5.3 | Unverified | **Needs review** | Reasoning always on and cannot be disabled — directly relevant to the completion-rate investigation below |
+| Claude Sonnet 5 | Anthropic Commercial Terms | **Needs review** | Default Claude tier: mid-tier cost for a format-adherence task |
+| Claude Opus 5 | Anthropic Commercial Terms | **Needs review** | A 25% premium is worth it only if it also raises adherence |
+| Claude Fable 5.1 | Anthropic Commercial Terms | **Needs review** | Mythos-tier, 5x Sonnet's cost |
+| GPT-6 Astra | OpenAI Commercial Terms | **Needs review** | Omitted from the first registry version with no reasoning given — corrected |
+| Kimi K2.6 | Unverified | **Needs review** | Reported to sustain the longest correct open-weight tool-calling sequences available |
+| DeepSeek V4 Flash | Unverified | **Needs review** | Cheapest capable candidate; predecessor's structured tool-calling reported unreliable, measured rather than assumed here |
+| Grok 4 Fast | xAI Commercial Terms | **Needs review** | Verified slug for xAI's cost-efficient tier |
 
-**Llama 4 is excluded.** Its Acceptable Use Policy withholds multimodal rights
-from EU-based individuals and companies, which restricts the family here. Llama
+**Llama 4 is benched, not adopted.** Its Acceptable Use Policy withholds
+multimodal rights from EU-based individuals and companies, which restricts the
+family here regardless of how it performs on this bench. Maverick and Scout
+are included so the comparison table states a measured gap rather than an
+assumed one — the restriction stands either way. Llama
 3.3 70B is unaffected but means adopting a previous generation. Reports of a
 "Llama 5" have not materialised on any first-party channel.
 
@@ -263,6 +278,117 @@ this script, a change in a dependency — `main` catches it, writes a
 traceback, and still exits 1. Verified by injecting a `RuntimeError` nobody
 anticipated directly into `build_candidates`: the results file is written
 regardless.
+
+### First real-provider results, and why completion was low
+
+The first live run against nine candidates completed successfully (the
+robustness work above held) and produced a genuine measurement: `gemma-3-27b`
+won on adherence and completion, but **completion across all seven
+candidates that produced output averaged 33%**, and two Claude tiers
+(Sonnet, Fable) hit `iteration_budget_exhausted` on every single case with
+100% adherence the whole time — well-formed actions throughout, never a
+`final()`.
+
+That pattern rules out confusion as the cause: a model emitting correct
+actions for six iterations straight understood the grammar. Three
+hypotheses were investigated instead of guessed at.
+
+**Hidden reasoning consuming the token budget.** GLM-5.3's own OpenRouter
+listing states reasoning "is always on and cannot be disabled." Mistral
+Small 4 documents a configurable `reasoning_effort` parameter, implying
+reasoning is on by default for at least some call shapes. If a model's
+visible completion is preceded by reasoning tokens sharing the same
+`max_tokens` budget, 256 tokens may not have left room for both the
+reasoning and the action line — indistinguishable from "genuinely stuck"
+without more room to see the whole output. Simulated with a mocked provider
+that emits reasoning text before its action: at `max_tokens=256` the action
+is truncated away; at `max_tokens=1024` the same model completes 100% of
+cases. `max_tokens` raised accordingly, and OpenRouter's own
+`reasoning: {enabled: false}` parameter (`openrouter.ai/docs/use-cases/reasoning-tokens`)
+is now sent on every OpenRouter call as a best-effort hint — ignored by
+models that cannot disable reasoning, harmless for models without one.
+
+**Over-verification rather than a tight budget.** The system prompt asked
+for one action per line and to call `final()` "once you can answer," which
+does not rule out re-checking an already-sufficient answer before
+committing to it. Rewritten with a worked example (`grep(dose)` →
+`final(40 mg daily)`, nothing more) and an explicit instruction that one
+clean lookup is enough and re-verification spends part of a small, fixed
+budget.
+
+**Two further, distinct artifacts, not budget-related at all.** Claude Opus
+produced lines like `"Assistantslice(1, 0, 151)"` and `"human grep: 3
+fragment(s)"` — the second nearly identical to this engine's own history
+line format (`"{action.raw} -> {step.result_summary}"`), suggesting the
+rendered history was being pattern-matched onto a chat transcript. GPT-6
+Astra narrated tool output in prose (`"[doc 0] note.txt (152 chars)"`)
+instead of emitting the next action. Neither is a completion problem a
+wider budget fixes; the rewritten prompt explicitly prohibits role labels,
+dialogue formatting, and narrating what an action returned.
+
+The iteration budget was also raised, 6→10, and `budget_bound` — new on
+`ModelResult` — reports per candidate whether every incomplete run used the
+full ceiling it was given: `True` means the budget was plausibly the limit
+and is worth revisiting with the next run's evidence; `False` means the
+model stopped short for a different reason, which a wider budget will not
+change. The case count went from 3 to 6 for the same reason precision
+matters in a measurement: one case is 33 percentage points of
+`completion_rate`, too coarse to tell a genuine pattern from noise.
+
+### Registry corrections and additions found by the same investigation
+
+`qwen-3.5` carried an invented slug, `qwen-3.5-72b-instruct` — there is no
+72B-parameter Qwen 3.5 variant. Corrected to the verified
+`qwen/qwen3.5-plus-02-15`. A user-requested "Mistral 3.6" was checked
+against Mistral's full, dated release history (32 tracked releases, most
+recent Medium 3.5) and does not exist; no slug was invented for it.
+
+Verified additions: Qwen 3.7 and 3.8 (current flagships); Llama 4 Maverick
+and Scout, benched for comparison under the same EU Acceptable Use Policy
+restriction already documented for the family — benching is not adoption,
+and the restriction stands regardless of this bench's result; GLM-5.3;
+Gemma 4 in both sizes, which matters beyond being newer — **Gemma 4 shipped
+under Apache 2.0**, resolving the licence-review flag Gemma 3 carried, in
+the same release that made it more capable; Mistral Large 3 and Small 4 via
+OpenRouter, added as a second path after the direct Mistral API's free-tier
+rate limit (below) made the single path unreliable.
+
+Three genuinely new families, from a survey of what exists as of September
+2026 rather than only extending families already present: **Kimi K2.6**
+(Moonshot), reported to sustain the longest correct open-weight tool-calling
+sequences available — closer to this bench's actual task than a general
+capability score; **DeepSeek V4 Flash**, the cheapest capable candidate by a
+wide margin, included with a documented caveat rather than assumed reliable
+— independent reports describe the predecessor generation's structured
+tool-calling as unreliable, and this bench measures that question on the
+specific six-verb grammar rather than inheriting the reputation; **Grok 4
+Fast** (xAI), the verified slug for the cost-efficient tier — a costlier
+"Grok 4.5" is referenced in press coverage but its exact OpenRouter slug was
+not confirmed, so it was not guessed at. Licences not directly confirmed
+from a primary source (GLM-5.3, Kimi, DeepSeek, Grok) carry a new
+`LICENCE_UNVERIFIED` marker rather than being assumed to match a
+permissively-licensed sibling.
+
+**Data residency, noted for later.** Kimi and DeepSeek are Chinese-developed;
+reached here through OpenRouter rather than a China-hosted endpoint
+directly, and every document this bench sends is synthetic — enforced by
+`RlmEngine`'s own data-class check, independent of this candidate list — so
+there is no live exposure in this context. The consideration becomes live
+the moment any candidate here is considered for production use on real case
+content, where it would need review alongside the licence.
+
+### Why the direct Mistral API failed, and the fix
+
+`mistral-small-3.1`'s preflight returned `HTTP 429 Too Many Requests` on the
+first live run. Verified against Mistral's own documentation: the free
+evaluation tier carries conservative per-second limits, explicitly
+described as intended for evaluation and prototyping, with rate-limit
+responses that include a `Retry-After` header. `_http_chat_completion` now
+retries once on 429, honouring that header (capped at 20 seconds, falling
+back to 5 if absent or unparseable) rather than failing on the first
+transient limit. Mistral is also now reachable through OpenRouter as a
+second path, whose limits are separate from the direct API's — real
+redundancy rather than hitting the same wall twice.
 
 ### Running the bench
 

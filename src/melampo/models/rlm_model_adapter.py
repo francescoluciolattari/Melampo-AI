@@ -34,6 +34,13 @@ LICENCE_LLAMA_COMMUNITY = "Llama Community License"
 LICENCE_MIT = "MIT"
 LICENCE_ANTHROPIC_COMMERCIAL = "Anthropic Commercial Terms of Service"
 LICENCE_OPENAI_COMMERCIAL = "OpenAI Commercial Terms of Service"
+LICENCE_XAI_COMMERCIAL = "xAI Commercial Terms of Service"
+# Terms not directly confirmed from a primary source at the time these
+# candidates were added -- a placeholder that forces review rather than a
+# guess. Distinct from LICENCE_GEMMA_TERMS/LICENCE_LLAMA_COMMUNITY, whose
+# specific restrictions (EU acceptable-use scope, etc.) are documented; this
+# one means only "unverified", not "known and restrictive".
+LICENCE_UNVERIFIED = "Unverified -- confirm before use"
 
 # Whether a licence permits commercial use in the EU without further review.
 # Not a legal opinion: a flag that makes an open question visible at the point
@@ -50,6 +57,8 @@ LICENCE_CLEARED_FOR_EU_COMMERCIAL = {
     # since "cleared" here means "the agreement was read", not "no terms apply".
     LICENCE_ANTHROPIC_COMMERCIAL: None,
     LICENCE_OPENAI_COMMERCIAL: None,
+    LICENCE_XAI_COMMERCIAL: None,
+    LICENCE_UNVERIFIED: None,
 }
 
 
@@ -98,10 +107,49 @@ DEFAULT_CANDIDATES = (
         note="Newer sparse MoE; instruction following claimed but the adherence figure is on 3.1.",
     ),
     RootModelCandidate(
+        name="mistral-large-openrouter",
+        provider="mistral",
+        licence=LICENCE_APACHE_2,
+        note=(
+            "Added after mistral-small-3.1's direct-API call hit HTTP 429 on the first live "
+            "run -- a genuine rate limit on Mistral's own free evaluation tier, documented as "
+            "conservative and intended for prototyping, not a wrong slug or a bug. OpenRouter's "
+            "pass-through has its own, separate limits, so this is a real second path rather "
+            "than hitting the same wall twice. Mistral Large 3 (Dec 2025), Apache 2.0."
+        ),
+    ),
+    RootModelCandidate(
+        name="mistral-small-openrouter",
+        provider="mistral",
+        licence=LICENCE_APACHE_2,
+        note="Same rationale as mistral-large-openrouter, at the small tier: a second path to the model the direct API rate-limited.",
+    ),
+    RootModelCandidate(
         name="qwen-3.5",
         provider="qwen",
         licence=LICENCE_APACHE_2,
-        note="Leads open-weight comparisons overall; same permissive licence, so cheap to include.",
+        note=(
+            "Slug corrected after the first live run: the original "
+            "\"qwen-3.5-72b-instruct\" was invented and never existed as a real model -- "
+            "there is no 72B-parameter Qwen 3.5 variant. Verified against OpenRouter's own "
+            "listing: qwen/qwen3.5-plus-02-15."
+        ),
+    ),
+    RootModelCandidate(
+        name="qwen-3.7",
+        provider="qwen",
+        licence=LICENCE_APACHE_2,
+        note="Flagship of the 3.7 generation, benched alongside 3.5 and 3.8 rather than assuming newer is better.",
+    ),
+    RootModelCandidate(
+        name="qwen-3.8",
+        provider="qwen",
+        licence=LICENCE_APACHE_2,
+        note=(
+            "Current Qwen flagship as of September 2026 (2.4T-parameter MoE). The generic "
+            "\"qwen/qwen3.8-max\" slug is used rather than a dated snapshot, so it tracks "
+            "Alibaba's own updates instead of going stale the way the original 3.5 slug did."
+        ),
     ),
     RootModelCandidate(
         name="glm-5",
@@ -126,7 +174,31 @@ DEFAULT_CANDIDATES = (
         note=(
             "Dense and text-only, so unaffected by the Llama 4 restriction on EU-based "
             "companies. Benched for comparison; the community licence still needs review "
-            "before shipping. Llama 4 is deliberately absent."
+            "before shipping."
+        ),
+    ),
+    RootModelCandidate(
+        name="llama-4-maverick",
+        provider="meta",
+        licence=LICENCE_LLAMA_COMMUNITY,
+        note=(
+            "Commercial terms need review before shipping, same as any other candidate here -- "
+            "and separately, benched for comparison only, not for adoption: Llama 4's Acceptable "
+            "Use Policy withholds rights from EU-based individuals and companies (see "
+            "recursive_engine_decision_record.md), which stands regardless of this bench's "
+            "result. Included so the comparison table states a measured gap rather than an "
+            "assumed one."
+        ),
+    ),
+    RootModelCandidate(
+        name="llama-4-scout",
+        provider="meta",
+        licence=LICENCE_LLAMA_COMMUNITY,
+        note=(
+            "Commercial terms need review before shipping, same as any other candidate here. "
+            "Same EU restriction and same bench-only status as Maverick; the smaller sibling, "
+            "included because a licence-restricted flagship and a licence-restricted small "
+            "model are not equally informative about the licence's practical cost."
         ),
     ),
     RootModelCandidate(
@@ -171,6 +243,79 @@ DEFAULT_CANDIDATES = (
             "Commercial API terms need review before shipping, same as Claude's."
         ),
     ),
+    RootModelCandidate(
+        name="glm-5.3",
+        provider="z-ai",
+        licence=LICENCE_UNVERIFIED,
+        note=(
+            "Licence needs review before shipping: not directly confirmed for this specific "
+            "release, marked unverified rather than assumed to match glm-5's MIT. Newer "
+            "flagship than glm-5, added after a live run raised the completion-rate question "
+            "this bench exists to answer -- its own listing states reasoning \"is always on "
+            "and cannot be disabled\", directly relevant to why some candidates used their "
+            "full iteration budget without ever finalising."
+        ),
+    ),
+    RootModelCandidate(
+        name="gemma-4-31b",
+        provider="google",
+        licence=LICENCE_APACHE_2,
+        note=(
+            "Supersedes gemma-3-27b in two ways at once: released April 2026, and shipped "
+            "under Apache 2.0 rather than Gemma 3's more restrictive terms -- newer and "
+            "licence-cleared in the same release. Dense, #3 on the Arena text leaderboard at "
+            "launch."
+        ),
+    ),
+    RootModelCandidate(
+        name="gemma-4-26b-a4b",
+        provider="google",
+        licence=LICENCE_APACHE_2,
+        note="Same generation and licence as gemma-4-31b; MoE with only 4B active parameters, cheaper per call. Both sizes benched rather than assuming the larger one wins.",
+    ),
+    RootModelCandidate(
+        name="kimi-k2.6",
+        provider="moonshotai",
+        licence=LICENCE_UNVERIFIED,
+        note=(
+            "Licence terms not directly confirmed; review before shipping, same as any "
+            "other unresolved candidate here. Reported to sustain the longest correct "
+            "open-weight tool-calling sequences available, which is closer to this bench's "
+            "actual task -- a multi-step, format-constrained loop -- than a general "
+            "capability score. Chinese-developed; reached here through OpenRouter rather than "
+            "a China-hosted endpoint directly, and every document this bench sends is "
+            "synthetic, so there is no live data-residency exposure in this context. The "
+            "consideration becomes live the moment any candidate here is considered for "
+            "production use on real case content."
+        ),
+    ),
+    RootModelCandidate(
+        name="deepseek-v4-flash",
+        provider="deepseek",
+        licence=LICENCE_UNVERIFIED,
+        note=(
+            "Licence terms not directly confirmed; review before shipping. The cheapest "
+            "capable candidate here by a wide margin, included with a caveat rather than "
+            "assumed reliable: independent integration reports describe the predecessor "
+            "generation's structured tool-calling as unreliable and note V4 was too new for a "
+            "settled verdict at time of writing. This bench measures exactly that question on "
+            "our specific six-verb grammar rather than inheriting the reputation either way. "
+            "Flash rather than Pro: a separate report describes Pro hitting a thinking-mode "
+            "protocol incompatibility in some harnesses. Same data-residency consideration as "
+            "kimi-k2.6."
+        ),
+    ),
+    RootModelCandidate(
+        name="grok-4-fast",
+        provider="xai",
+        licence=LICENCE_XAI_COMMERCIAL,
+        note=(
+            "Commercial terms need review before shipping, same as any other candidate here. "
+            "Verified OpenRouter slug for xAI's cost-efficient tier. Press coverage references "
+            "a costlier \"Grok 4.5\"; its exact OpenRouter slug was not confirmed from available "
+            "sources, so it is not guessed at here rather than risking another invented slug."
+        ),
+    ),
 )
 
 # Benching a model is not adopting it. A candidate whose licence is unresolved
@@ -178,7 +323,14 @@ DEFAULT_CANDIDATES = (
 # costs you in capability — but must not pass silently into deployment on the
 # strength of a good score.
 BENCH_ONLY_UNTIL_LICENCE_REVIEW = frozenset(
-    {LICENCE_GEMMA_TERMS, LICENCE_LLAMA_COMMUNITY, LICENCE_ANTHROPIC_COMMERCIAL, LICENCE_OPENAI_COMMERCIAL}
+    {
+        LICENCE_GEMMA_TERMS,
+        LICENCE_LLAMA_COMMUNITY,
+        LICENCE_ANTHROPIC_COMMERCIAL,
+        LICENCE_OPENAI_COMMERCIAL,
+        LICENCE_XAI_COMMERCIAL,
+        LICENCE_UNVERIFIED,
+    }
 )
 
 
