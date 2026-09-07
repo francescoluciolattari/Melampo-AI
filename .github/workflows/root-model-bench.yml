@@ -33,19 +33,56 @@ jobs:
           python -m pip install -e .
 
       - name: Run the bench
+        id: bench
         env:
           # Populated from repository secrets. Never printed, never written to
           # a file other than being consumed as an environment variable by the
           # script -- the same discipline as NCBI_API_KEY for the PMC connector.
-          # Claude and Mistral are called at their own first-party endpoints.
-          # Claude, Gemma, Qwen and Llama are all reached through
+          # Claude, GPT, Gemma, Qwen, GLM and Llama are all reached through
           # OPENROUTER_API_KEY, a named aggregator -- not the unverified
-          # gateway considered and rejected for Claude access (see
-          # docs/recursive_engine_decision_record.md). Mistral is called at
-          # its own first-party endpoint.
+          # gateway considered and rejected (see
+          # docs/recursive_engine_decision_record.md). Mistral is called at its
+          # own first-party endpoint.
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        # continue-on-error so the summary and artifact steps below still run
+        # when the bench fails -- that is precisely when their diagnostics
+        # matter most. The job is still failed explicitly by the final step.
+        continue-on-error: true
         run: python scripts/run_format_adherence_bench.py --out bench_results.json
+
+      - name: Summarise results
+        if: always()
+        run: |
+          if [ ! -f bench_results.json ]; then
+            echo "### Bench did not produce a results file" >> "$GITHUB_STEP_SUMMARY"
+            echo "The script exited before writing output. Check the 'Run the bench' step log." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          data = json.loads(pathlib.Path("bench_results.json").read_text())
+          print("### Root model format-adherence bench\n")
+          print(f"**Verdict:** {data.get('verdict', 'n/a')}\n")
+          results = data.get("results") or []
+          if results:
+              print("| Model | Adherence | Completion | Near-miss share |")
+              print("|---|---:|---:|---:|")
+              for row in results:
+                  print(
+                      f"| {row['model_name']} | {row['adherence']:.0%} | "
+                      f"{row['completion_rate']:.0%} | {row['near_miss_share']:.0%} |"
+                  )
+              print()
+          preflight = data.get("preflight") or {}
+          if preflight:
+              print("<details><summary>Preflight detail</summary>\n")
+              print("| Candidate | Result |")
+              print("|---|---|")
+              for name, reason in sorted(preflight.items()):
+                  print(f"| {name} | {reason} |")
+              print("\n</details>")
+          PY
 
       - name: Upload results
         if: always()
@@ -54,3 +91,13 @@ jobs:
           name: root-model-bench-results
           path: bench_results.json
           retention-days: 90
+          # The script writes this file on every path, including total
+          # preflight failure, so a missing file means something unexpected
+          # happened and should be loud rather than silently ignored.
+          if-no-files-found: error
+
+      - name: Fail the job if the bench failed
+        if: steps.bench.outcome == 'failure'
+        run: |
+          echo "The bench step failed; see the job summary and artifact for per-candidate reasons."
+          exit 1

@@ -115,14 +115,16 @@ def _http_chat_completion(endpoint: str, api_key: str, model: str, prompt: str, 
     return payload["choices"][0]["message"]["content"]
 
 
-def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
+def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]]:
     """Preflight every candidate whose key is present, then wrap the survivors.
 
-    Returns (candidates, skipped) rather than raising on a missing key or a
-    failed preflight, so a partial run still produces a usable comparison.
+    Returns (candidates, skipped, preflight_detail) rather than raising on a
+    missing key or a failed preflight, so a partial run still produces a
+    usable comparison and a failed one still explains itself.
     """
     candidates: dict[str, object] = {}
     skipped: list[str] = []
+    preflight_detail: dict[str, str] = {}
     to_check: list[tuple[str, str, str, str]] = []  # (name, endpoint, key, model)
 
     mistral_key = os.environ.get("MISTRAL_API_KEY")
@@ -130,41 +132,48 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
         to_check.append(("mistral-small-3.1", "https://api.mistral.ai/v1/chat/completions", mistral_key, "mistral-small-latest"))
     else:
         skipped.append("mistral-small-3.1 (MISTRAL_API_KEY not set)")
+        preflight_detail["mistral-small-3.1"] = "MISTRAL_API_KEY not set"
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    openrouter_models = (
+        ("claude-sonnet-5", "anthropic/claude-sonnet-5"),
+        ("claude-opus-5", "anthropic/claude-opus-5"),
+        ("claude-fable-5.1", "anthropic/claude-fable-5.1"),
+        ("gpt-6-astra", "openai/gpt-6-astra"),
+        ("qwen-3.5", "qwen/qwen-3.5-72b-instruct"),
+        ("glm-5", "z-ai/glm-5"),
+        ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
+        ("gemma-3-27b", "google/gemma-3-27b-it"),
+    )
     if openrouter_key:
-        # Every remaining candidate, Claude included, is reached through
+        # Every candidate here, Claude included, is reached through
         # OpenRouter's own catalogue rather than a first-party endpoint: one
         # key covers all eight instead of requiring a separate credential per
         # provider. OpenRouter is a named, established aggregator that proxies
         # to the real provider -- unlike an unverified gateway once considered
         # and rejected for this bench (see recursive_engine_decision_record.md).
         endpoint = "https://openrouter.ai/api/v1/chat/completions"
-        for name, model in (
-            ("claude-sonnet-5", "anthropic/claude-sonnet-5"),
-            ("claude-opus-5", "anthropic/claude-opus-5"),
-            ("claude-fable-5.1", "anthropic/claude-fable-5.1"),
-            ("gpt-6-astra", "openai/gpt-6-astra"),
-            ("qwen-3.5", "qwen/qwen-3.5-72b-instruct"),
-            ("glm-5", "z-ai/glm-5"),
-            ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
-            ("gemma-3-27b", "google/gemma-3-27b-it"),
-        ):
+        for name, model in openrouter_models:
             to_check.append((name, endpoint, openrouter_key, model))
     else:
         skipped.append(
             "claude (all tiers), gpt-6-astra, qwen-3.5, glm-5, llama-3.3-70b, gemma-3-27b "
             "(OPENROUTER_API_KEY not set)"
         )
+        for name, _ in openrouter_models:
+            preflight_detail[name] = "OPENROUTER_API_KEY not set"
 
-    print(f"Preflighting {len(to_check)} candidate(s) (timeout {PREFLIGHT_TIMEOUT_SECONDS}s each)...")
+    if to_check:
+        print(f"Preflighting {len(to_check)} candidate(s) (timeout {PREFLIGHT_TIMEOUT_SECONDS}s each)...")
     for name, endpoint, key, model in to_check:
-        if _preflight(name, endpoint, key, model):
+        reachable, reason = _preflight(name, endpoint, key, model)
+        preflight_detail[name] = reason
+        if reachable:
             candidates[name] = _bind(_http_chat_completion, endpoint, key, model)
         else:
-            skipped.append(f"{name} (preflight failed)")
+            skipped.append(f"{name} (preflight failed: {reason})")
 
-    return candidates, skipped
+    return candidates, skipped, preflight_detail
 
 
 def _bind(fn, endpoint, key, model):
@@ -181,7 +190,7 @@ def _bind(fn, endpoint, key, model):
     return _call
 
 
-def _preflight(name: str, endpoint: str, key: str, model: str) -> bool:
+def _preflight(name: str, endpoint: str, key: str, model: str) -> tuple[bool, str]:
     """One short, short-timeout call per candidate before committing to the full bench.
 
     The run that motivated this function spent 10.5 minutes discovering that
@@ -190,6 +199,10 @@ def _preflight(name: str, endpoint: str, key: str, model: str) -> bool:
     unrecognised model slug almost always fails fast (an auth or not-found
     response arrives in well under a second); a preflight call with a short
     timeout catches that in seconds per candidate instead of minutes.
+
+    Returns (reachable, reason) so the reason survives into the results file
+    rather than existing only as a line on stderr -- when every candidate
+    fails, that reason is the entire useful output of the run.
     """
     try:
         response = _http_chat_completion(
@@ -198,10 +211,20 @@ def _preflight(name: str, endpoint: str, key: str, model: str) -> bool:
         )
         if not response.strip():
             print(f"  [preflight] {model}: reachable but returned empty text", file=sys.stderr)
-        return True
-    except (urllib.error.URLError, urllib.error.HTTPError, KeyError, json.JSONDecodeError) as error:
-        print(f"  [preflight] {model}: unreachable ({error}), skipping the full bench for it", file=sys.stderr)
-        return False
+            return True, "reachable, empty response to preflight"
+        return True, "reachable"
+    except urllib.error.HTTPError as error:
+        # Distinguished from a generic URLError because the status code is the
+        # single most useful diagnostic: 401/403 means the key, 404 means the
+        # model slug, 429 means rate limiting. Guessing between those from a
+        # generic message is what makes a failed run hard to act on.
+        detail = f"HTTP {error.code} {error.reason}"
+        print(f"  [preflight] {model}: unreachable ({detail}), skipping the full bench for it", file=sys.stderr)
+        return False, detail
+    except (urllib.error.URLError, KeyError, json.JSONDecodeError, TimeoutError) as error:
+        detail = f"{type(error).__name__}: {error}"
+        print(f"  [preflight] {model}: unreachable ({detail}), skipping the full bench for it", file=sys.stderr)
+        return False, detail
 
 
 def main() -> int:
@@ -209,11 +232,30 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=Path("bench_results.json"))
     args = parser.parse_args()
 
-    candidates, skipped = build_candidates()
+    candidates, skipped, preflight_detail = build_candidates()
+
     if not candidates:
-        print("No candidate survived preflight; nothing to bench.", file=sys.stderr)
-        print("Set at least one of MISTRAL_API_KEY, OPENROUTER_API_KEY, and check the", file=sys.stderr)
-        print("[preflight] lines above for the specific reason each candidate failed.", file=sys.stderr)
+        # Write the results file even here. This is the case where the
+        # artifact matters most: the run failed, and the per-candidate reason
+        # is the only thing that tells the operator whether to fix a key, a
+        # model slug, or nothing at all. Exiting without writing leaves them
+        # with an empty artifact and a red X.
+        payload = {
+            "status": "no_candidates",
+            "verdict": (
+                "no candidate survived preflight; check the per-candidate reasons below -- "
+                "401/403 indicates the API key, 404 indicates the model slug, 429 indicates rate limiting"
+            ),
+            "models": 0,
+            "results": [],
+            "skipped": skipped,
+            "preflight": preflight_detail,
+        }
+        _write_results(args.out, payload)
+        print("\nNo candidate survived preflight; nothing to bench.", file=sys.stderr)
+        for name, detail in sorted(preflight_detail.items()):
+            print(f"  {name}: {detail}", file=sys.stderr)
+        print(f"\nDiagnostics written to {args.out}", file=sys.stderr)
         return 1
 
     print(f"\nBenching: {', '.join(sorted(candidates))}")
@@ -222,9 +264,11 @@ def main() -> int:
 
     report = bench_models(candidates, BENCH_CASES, adherence_target=0.95, budget_factory=_bench_budget)
     payload = report.as_dict()
+    payload["status"] = "completed"
     payload["skipped"] = skipped
+    payload["preflight"] = preflight_detail
 
-    args.out.write_text(json.dumps(payload, indent=2))
+    _write_results(args.out, payload)
 
     print(f"\nVerdict: {payload['verdict']}\n")
     print(f"{'model':<20}{'adherence':>11}{'completion':>12}{'near-miss share':>18}")
@@ -232,6 +276,12 @@ def main() -> int:
         print(f"{row['model_name']:<20}{row['adherence']:>10.0%}{row['completion_rate']:>12.0%}{row['near_miss_share']:>17.0%}")
     print(f"\nFull report written to {args.out}")
     return 0
+
+
+def _write_results(path: Path, payload: dict) -> None:
+    """Write results, creating the parent directory if the caller named one."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2))
 
 
 if __name__ == "__main__":
