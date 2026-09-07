@@ -20,6 +20,36 @@ Environment variables consulted, all optional:
 
 Candidates that need a key with no variable set are reported as skipped, not
 silently dropped.
+
+WHAT THIS BENCH DOES AND DOES NOT MEASURE. It measures format adherence and
+navigation persistence: does a candidate emit the action grammar correctly,
+and does it complete a multi-step lookup within budget. It does NOT grade
+whether a candidate's final(answer) is clinically correct — there is no
+answer key here, only a parser and a completion flag. A model that
+confidently emits final(wrong answer) scores identically to one that gets it
+right, provided both are well-formed. Choosing which model reasons best about
+a differential diagnosis is a different, already-built evaluation
+(evaluation/dream_capture_benchmark.py, part of the B4 protocol), which grades
+against a documented outcome rather than a format grammar. This bench answers
+"can this model navigate and follow the loop", which is the prerequisite for
+that other question, not a substitute for it.
+
+============================================================================
+MODEL AND ENGINE CONFIGURATION -- edit here when newer versions ship
+============================================================================
+Every model this bench can call is declared in the two constants below,
+CANDIDATE_MODELS and MISTRAL_DIRECT_MODEL, so that adding, removing or
+re-pointing a model at a newer release is a one-line change at the top of the
+file rather than a hunt through build_candidates()'s body. Nothing past this
+block should need to change when a provider ships a new version -- only the
+tuples themselves.
+
+Each CANDIDATE_MODELS entry is (bench_name, openrouter_slug, disable_reasoning).
+``disable_reasoning`` requests OpenRouter's reasoning:{enabled:false} hint
+(openrouter.ai/docs/use-cases/reasoning-tokens); providers that reject the
+override outright fall back to a plain call automatically (see the HTTP 400
+handling in _http_chat_completion), so setting it to True is always safe to
+try and never fatal to a candidate that cannot honour it.
 """
 
 import argparse
@@ -40,10 +70,94 @@ from melampo.evaluation.format_adherence_bench import (
 from melampo.memory.context_environment import EnvironmentDocument
 from melampo.reasoning.rlm_engine import Budget
 
-# Synthetic only. This bench measures format adherence, not clinical reasoning,
-# and phase-one data-class discipline (see rlm_engine.py) applies here as
-# everywhere else the environment is populated.
-BENCH_DOCUMENT = EnvironmentDocument(
+# The one candidate called at its own first-party endpoint rather than through
+# OpenRouter. "latest" is a Mistral-hosted alias that follows their own
+# updates, so unlike a dated slug it does not need editing here as new Small
+# releases ship -- verify occasionally that "latest" still points where you
+# expect, since an alias can also jump to a size/price tier you did not choose.
+MISTRAL_DIRECT_MODEL = "mistral-small-latest"
+
+# name, OpenRouter slug, disable_reasoning. Every slug here was checked
+# against a primary or independently-verified source before being added --
+# qwen-3.5 previously carried an invented slug that never existed, which is
+# the reason for that discipline, not a formality. Grouped by family for
+# readability; order has no effect on the bench, which runs every reachable
+# candidate against every case.
+CANDIDATE_MODELS: tuple[tuple[str, str, bool], ...] = (
+    # Anthropic. Called via OpenRouter (see recursive_engine_decision_record.md
+    # for why a third-party gateway offering direct Claude access was
+    # evaluated and rejected). Commercial terms need review before shipping.
+    ("claude-sonnet-5", "anthropic/claude-sonnet-5", True),
+    ("claude-opus-5", "anthropic/claude-opus-5", True),
+    ("claude-fable-5.1", "anthropic/claude-fable-5.1", True),
+    # OpenAI.
+    ("gpt-6-astra", "openai/gpt-6-astra", True),
+    # Qwen (Alibaba), Apache 2.0.
+    ("qwen-3.5", "qwen/qwen3.5-plus-02-15", True),
+    ("qwen-3.7", "qwen/qwen3.7-max", True),
+    ("qwen-3.8", "qwen/qwen3.8-max", True),
+    # Z.ai, GLM. glm-5 is MIT; glm-5.3's terms were not directly confirmed at
+    # the time it was added (see LICENCE_UNVERIFIED in rlm_model_adapter.py).
+    # glm-5.3's own listing states reasoning "is always on and cannot be
+    # disabled" -- disable_reasoning is still requested here because the 400
+    # fallback makes the attempt free, not because it is expected to succeed.
+    ("glm-5", "z-ai/glm-5", True),
+    ("glm-5.3", "z-ai/glm-5.3", True),
+    # Meta, Llama. 3.3 is unaffected by the Llama 4 EU Acceptable Use Policy
+    # restriction; 4-Maverick and 4-Scout are benched for comparison only --
+    # that restriction governs adoption regardless of this bench's result.
+    ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct", True),
+    ("llama-4-maverick", "meta-llama/llama-4-maverick", True),
+    ("llama-4-scout", "meta-llama/llama-4-scout", True),
+    # Google, Gemma. Gemma 4 shipped under Apache 2.0, resolving Gemma 3's
+    # licence-review flag in the same release that made it newer.
+    ("gemma-3-27b", "google/gemma-3-27b-it", True),
+    ("gemma-4-31b", "google/gemma-4-31b-it", True),
+    ("gemma-4-26b-a4b", "google/gemma-4-26b-a4b-it", True),
+    # Mistral, via OpenRouter as a second path: the direct API's free tier
+    # rate-limited on the first live run (HTTP 429), and OpenRouter's
+    # pass-through has separate limits, so this is redundancy, not duplication.
+    ("mistral-large-openrouter", "mistralai/mistral-large-2512", True),
+    ("mistral-small-openrouter", "mistralai/mistral-small-2603", True),
+    # Three families outside those already covered, from a survey of what
+    # exists as of September 2026. Licences not directly confirmed for any of
+    # the three; see LICENCE_UNVERIFIED.
+    ("kimi-k2.6", "moonshotai/kimi-k2.6", True),
+    ("deepseek-v4-flash", "deepseek/deepseek-v4-flash", True),
+    # xAI. ":free" confirmed working via an independent, reproducible example
+    # (Simon Willison, simonwillison.net/tags/openrouter/) after the bare
+    # "x-ai/grok-4-fast" slug returned HTTP 404 on the first live run of this
+    # bench -- some accounts or plans appear to need the explicit free-tier
+    # route for this model rather than the unsuffixed slug.
+    ("grok-4-fast", "x-ai/grok-4-fast:free", True),
+)
+
+ACTION_GRAMMAR = (
+    "describe() | grep(pattern) | slice(document_id, start, end) | "
+    "search(query) | expand(concept) | final(answer)"
+)
+
+# ============================================================================
+# BENCH DOCUMENTS AND CASES
+# ============================================================================
+# All synthetic, phase-one data-class discipline (see rlm_engine.py) applies
+# here as everywhere else the environment is populated. A first live run
+# produced an 8-way tie at 100% adherence / 100% completion on the original
+# six single-document, single-fact cases -- too easy to discriminate among
+# strong candidates. The additions below are built around specific navigation
+# demands the easy tier cannot exercise, not just "harder wording" of the
+# same lookup: distinguishing a stated finding from a nearby negated one,
+# discovering and reading a second document, locating a fact buried in a
+# longer note, comparing values across a series, and picking the confirmed
+# diagnosis out of a differential rather than the first name mentioned.
+#
+# Reminder from the module docstring: completing a harder case still is not
+# graded against a correct answer. What these add is discrimination on
+# whether a candidate does the additional navigation at all, which is a
+# necessary condition for a correct answer even though it is not sufficient
+# for one.
+
+BASELINE_DOCUMENT = EnvironmentDocument(
     document_id="report_1",
     text=(
         "Chest radiograph shows bibasilar opacities. Prednisone 40 mg daily was "
@@ -54,24 +168,138 @@ BENCH_DOCUMENT = EnvironmentDocument(
     metadata={"data_class": "synthetic"},
 )
 
-BENCH_CASES = (
-    BenchCase("dose", (BENCH_DOCUMENT,), "What steroid dose was started, and from which document?"),
-    BenchCase("finding", (BENCH_DOCUMENT,), "What imaging finding is documented?"),
-    BenchCase("symptom_duration", (BENCH_DOCUMENT,), "How long has the dyspnoea been present?"),
-    # Added after a first live run showed only 33% completion across seven
-    # candidates with n=3 -- too small a sample to tell a genuine limitation
-    # from noise (one case is 33 percentage points). Six cases quantise
-    # completion_rate into ~17% steps instead of ~33%, and cover facts a
-    # single-question bench could not distinguish: an absence rather than a
-    # presence, and a qualifier on an already-asked symptom.
-    BenchCase("fever_status", (BENCH_DOCUMENT,), "Is fever present according to the report?"),
-    BenchCase("onset_pattern", (BENCH_DOCUMENT,), "Is the dyspnoea described as progressive or sudden?"),
-    BenchCase("treatment_frequency", (BENCH_DOCUMENT,), "How often is the prednisone dose taken?"),
+# Tests assertion status, not just keyword presence: three related findings
+# sit close together, one affirmed, two negated, and the affirmed one is not
+# the first mentioned -- a plain keyword grep on "effusion" hits all three
+# lines, and only reading the qualifier on each distinguishes them.
+NEGATION_DOCUMENT = EnvironmentDocument(
+    document_id="report_2",
+    text=(
+        "Cardiac silhouette mildly enlarged. No pleural effusion. Trace "
+        "pericardial effusion noted, unchanged from six months prior. "
+        "Pneumothorax is absent. Small apical pleural bulla, stable."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
 )
 
-ACTION_GRAMMAR = (
-    "describe() | grep(pattern) | slice(document_id, start, end) | "
-    "search(query) | expand(concept) | final(answer)"
+# Two documents, deliberately cross-referencing: the imaging report names a
+# finding and defers the explanation to "the accompanying laboratory
+# report," which is a separate document. Answering requires discovering that
+# a second document exists (describe() or search(), not assumed from one
+# grep) and reading it specifically, rather than answering from document 1
+# alone because it was the only one looked at.
+CROSS_REF_IMAGING = EnvironmentDocument(
+    document_id="report_3a",
+    text=(
+        "Right upper lobe consolidation with air bronchograms, most consistent "
+        "with infective process. Correlate clinically with inflammatory markers "
+        "in the accompanying laboratory report."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+CROSS_REF_LABS = EnvironmentDocument(
+    document_id="report_3b",
+    text=(
+        "White cell count 16.4 (elevated). C-reactive protein 142 (markedly "
+        "elevated). Procalcitonin 3.8, supportive of a bacterial source."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# The fact the question asks about sits in the fourth of four paragraphs,
+# each plausible enough that a model might stop at the first or second and
+# answer from the wrong one -- tests whether grep-then-slice for surrounding
+# context happens, or whether the model settles for the first superficially
+# relevant hit in a longer note.
+LONG_DOCUMENT = EnvironmentDocument(
+    document_id="report_4",
+    text=(
+        "History: 68-year-old with prior myocardial infarction, admitted with "
+        "acute dyspnoea. Initial impression favoured decompensated heart failure.\n\n"
+        "Examination: Bibasilar crackles, elevated jugular venous pressure, "
+        "peripheral oedema to the mid-shin bilaterally.\n\n"
+        "Initial management: Intravenous furosemide 40 mg was given, with "
+        "improvement in oxygen saturation over the following two hours.\n\n"
+        "Revised assessment after echocardiography: Ejection fraction 58%, "
+        "preserved. Findings are now judged more consistent with a pulmonary "
+        "embolism than primary cardiac decompensation; CT pulmonary angiogram "
+        "requested."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# A series of values across time; the question requires comparing the first
+# and last rather than reading either in isolation, and the middle value is a
+# distractor that goes the "wrong" direction before the trend resolves.
+TREND_DOCUMENT = EnvironmentDocument(
+    document_id="report_5",
+    text=(
+        "Serial inflammatory markers. Day 1: white cell count 14.2. Day 3: "
+        "white cell count 16.8, mild interval rise. Day 5: white cell count "
+        "9.1, following initiation of antibiotics on day 2."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# A differential list names three candidates before the confirmed diagnosis
+# is stated separately -- the correct answer is not the first name in the
+# document, and a model that stops at the first plausible-looking diagnostic
+# term will report a candidate that was explicitly ruled out.
+DIFFERENTIAL_DOCUMENT = EnvironmentDocument(
+    document_id="report_6",
+    text=(
+        "Differential considered pneumonia, pulmonary oedema, and pulmonary "
+        "embolism. Pneumonia was considered less likely given the afebrile "
+        "course. Oedema was excluded on the basis of a normal echocardiogram. "
+        "CT pulmonary angiogram confirmed a segmental pulmonary embolism as "
+        "the cause of the presentation."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+BENCH_CASES = (
+    # Baseline tier: single document, single fact. Kept as a floor -- a
+    # candidate that fails here has a problem the harder tier cannot help
+    # diagnose any further.
+    BenchCase("dose", (BASELINE_DOCUMENT,), "What steroid dose was started, and from which document?"),
+    BenchCase("finding", (BASELINE_DOCUMENT,), "What imaging finding is documented?"),
+    BenchCase("symptom_duration", (BASELINE_DOCUMENT,), "How long has the dyspnoea been present?"),
+    BenchCase("fever_status", (BASELINE_DOCUMENT,), "Is fever present according to the report?"),
+    BenchCase("onset_pattern", (BASELINE_DOCUMENT,), "Is the dyspnoea described as progressive or sudden?"),
+    BenchCase("treatment_frequency", (BASELINE_DOCUMENT,), "How often is the prednisone dose taken?"),
+    # Harder tier: each case below exercises a distinct navigation demand the
+    # baseline tier cannot, per the comment on each document above.
+    BenchCase(
+        "negation_discrimination",
+        (NEGATION_DOCUMENT,),
+        "Is a pericardial effusion present, and how does that differ from the pleural finding?",
+    ),
+    BenchCase(
+        "cross_document_correlation",
+        (CROSS_REF_IMAGING, CROSS_REF_LABS),
+        "What laboratory abnormality supports the imaging impression, and which document reports it?",
+    ),
+    BenchCase(
+        "buried_fact_after_revision",
+        (LONG_DOCUMENT,),
+        "What is the current leading diagnosis after echocardiography, and how does it differ from the initial impression?",
+    ),
+    BenchCase(
+        "numeric_trend",
+        (TREND_DOCUMENT,),
+        "Did the white cell count rise or fall from day 1 to day 5, and what happened in between?",
+    ),
+    BenchCase(
+        "confirmed_vs_candidate_diagnosis",
+        (DIFFERENTIAL_DOCUMENT,),
+        "Which diagnosis was ultimately confirmed, as distinct from the other candidates considered?",
+    ),
 )
 
 # Rewritten after a first live run showed three distinct failure patterns that
@@ -152,49 +380,69 @@ def _http_chat_completion(
     twice in a row is more informatively reported as such than retried
     indefinitely.
     """
-    body = json.dumps(
-        {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.0,
-            # Raised from 256 after a first live run showed 0% completion on
-            # two model families that used well-formed actions the entire
-            # time (100% adherence). GLM-5.3's own listing states its
-            # reasoning "is always on and cannot be disabled"; several other
-            # candidates here are reasoning-capable by default. If hidden
-            # reasoning tokens are consuming the completion budget before the
-            # visible action line is ever written, 256 tokens may simply not
-            # have left room for both -- and there is no way to tell that
-            # apart from "genuinely stuck" without more room to see the whole
-            # output. 1024 gives that room while staying a small fraction of
-            # a cent per call at every candidate's pricing.
-            "max_tokens": 1024,
-            **({"reasoning": {"enabled": False}} if disable_reasoning else {}),
-        }
-    ).encode("utf-8")
-    request = urllib.request.Request(
-        endpoint,
-        data=body,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-        method="POST",
-    )
+    def _build_body(with_reasoning_hint: bool) -> bytes:
+        return json.dumps(
+            {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.0,
+                # Raised from 256 after a first live run showed 0% completion on
+                # two model families that used well-formed actions the entire
+                # time (100% adherence). GLM-5.3's own listing states its
+                # reasoning "is always on and cannot be disabled"; several other
+                # candidates here are reasoning-capable by default. If hidden
+                # reasoning tokens are consuming the completion budget before the
+                # visible action line is ever written, 256 tokens may simply not
+                # have left room for both -- and there is no way to tell that
+                # apart from "genuinely stuck" without more room to see the whole
+                # output. 1024 gives that room while staying a small fraction of
+                # a cent per call at every candidate's pricing.
+                "max_tokens": 1024,
+                **({"reasoning": {"enabled": False}} if with_reasoning_hint else {}),
+            }
+        ).encode("utf-8")
 
-    attempt = 0
+    def _request(with_reasoning_hint: bool) -> urllib.request.Request:
+        return urllib.request.Request(
+            endpoint,
+            data=_build_body(with_reasoning_hint),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            method="POST",
+        )
+
+    rate_limit_attempt = 0
+    reasoning_hint_active = disable_reasoning
+    reasoning_fallback_used = False
     while True:
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.urlopen(_request(reasoning_hint_active), timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             return _extract_content(payload)
         except urllib.error.HTTPError as error:
-            if error.code != 429 or attempt >= RATE_LIMIT_MAX_RETRIES:
-                raise
-            wait = _parse_retry_after(error.headers.get("Retry-After") if error.headers else None)
-            print(f"  [rate limit] {model}: HTTP 429, waiting {wait:.0f}s before one retry", file=sys.stderr)
-            time.sleep(wait)
-            attempt += 1
+            if error.code == 429 and rate_limit_attempt < RATE_LIMIT_MAX_RETRIES:
+                wait = _parse_retry_after(error.headers.get("Retry-After") if error.headers else None)
+                print(f"  [rate limit] {model}: HTTP 429, waiting {wait:.0f}s before one retry", file=sys.stderr)
+                time.sleep(wait)
+                rate_limit_attempt += 1
+                continue
+            if error.code == 400 and reasoning_hint_active and not reasoning_fallback_used:
+                # Some providers reject the reasoning-disable hint outright for
+                # models that cannot honour it, rather than ignoring it as most
+                # OpenAI-compatible fields are ignored when unrecognised. GLM-5.3
+                # documents reasoning as permanently on; the first live run
+                # returned exactly this HTTP 400 for it and three other
+                # candidates. One retry without the hint distinguishes "this
+                # model rejects the override" from "this model or key is
+                # actually broken" instead of losing the candidate to the first
+                # explanation without checking the second.
+                print(f"  [400] {model}: retrying once without the reasoning-disable hint", file=sys.stderr)
+                reasoning_hint_active = False
+                reasoning_fallback_used = True
+                continue
+            raise
 
 
 def _parse_retry_after(header_value: str | None) -> float:
@@ -252,6 +500,10 @@ def _extract_content(payload: object) -> str:
 def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]]:
     """Preflight every candidate whose key is present, then wrap the survivors.
 
+    Iterates CANDIDATE_MODELS and MISTRAL_DIRECT_MODEL, declared at the top of
+    this file -- this function contains no model names or slugs of its own,
+    so a version bump never means editing logic, only the table above it.
+
     Returns (candidates, skipped, preflight_detail) rather than raising on a
     missing key or a failed preflight, so a partial run still produces a
     usable comparison and a failed one still explains itself.
@@ -264,84 +516,13 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]
     mistral_key = os.environ.get("MISTRAL_API_KEY")
     if mistral_key:
         to_check.append(
-            ("mistral-small-3.1", "https://api.mistral.ai/v1/chat/completions", mistral_key, "mistral-small-latest", False)
+            ("mistral-small-3.1", "https://api.mistral.ai/v1/chat/completions", mistral_key, MISTRAL_DIRECT_MODEL, False)
         )
     else:
         skipped.append("mistral-small-3.1 (MISTRAL_API_KEY not set)")
         preflight_detail["mistral-small-3.1"] = "MISTRAL_API_KEY not set"
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    openrouter_models = (
-        ("claude-sonnet-5", "anthropic/claude-sonnet-5"),
-        ("claude-opus-5", "anthropic/claude-opus-5"),
-        ("claude-fable-5.1", "anthropic/claude-fable-5.1"),
-        ("gpt-6-astra", "openai/gpt-6-astra"),
-        # qwen-3.5 previously used the invented slug "qwen-3.5-72b-instruct",
-        # which never existed -- there is no 72B-parameter Qwen 3.5 variant.
-        # Verified against OpenRouter's own listing: qwen/qwen3.5-plus-02-15.
-        ("qwen-3.5", "qwen/qwen3.5-plus-02-15"),
-        ("qwen-3.7", "qwen/qwen3.7-max"),
-        ("qwen-3.8", "qwen/qwen3.8-max"),
-        ("glm-5", "z-ai/glm-5"),
-        ("glm-5.3", "z-ai/glm-5.3"),
-        ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
-        ("llama-4-maverick", "meta-llama/llama-4-maverick"),
-        ("llama-4-scout", "meta-llama/llama-4-scout"),
-        ("gemma-3-27b", "google/gemma-3-27b-it"),
-        # Gemma 4 (April 2026) shipped under Apache 2.0, replacing Gemma 3's
-        # more restrictive terms -- newer and licence-cleared in one move.
-        # Both sizes benched rather than assuming the larger one wins: 31B is
-        # dense (#3 on the Arena text leaderboard at release), 26B-A4B is a
-        # cheaper MoE with only 4B active parameters (#6).
-        ("gemma-4-31b", "google/gemma-4-31b-it"),
-        ("gemma-4-26b-a4b", "google/gemma-4-26b-a4b-it"),
-        # Mistral via OpenRouter as well as the direct API: the direct path
-        # failed with HTTP 429 on the first live run, a genuine rate limit on
-        # Mistral's own free evaluation tier (conservative RPS caps,
-        # documented as intended for prototyping) rather than a wrong slug or
-        # a bug. OpenRouter's Mistral pass-through has its own, separate
-        # limits, so it is a real fallback rather than hitting the same wall
-        # twice, and one of the two paths surviving is enough for a result.
-        # ("Mistral 3.6" does not exist -- checked against Mistral's full,
-        # dated release history; the current lineup is Large 3 and Small 4.)
-        ("mistral-large-openrouter", "mistralai/mistral-large-2512"),
-        ("mistral-small-openrouter", "mistralai/mistral-small-2603"),
-        # Three additions outside the families already covered, from a survey
-        # of what else exists as of September 2026 rather than only extending
-        # families already in the registry.
-        #
-        # Kimi K2.6 (Moonshot): reported to sustain the longest correct
-        # tool-calling sequences of any open-weight model, which is close to
-        # this bench's actual task -- a multi-step, format-constrained loop --
-        # rather than a general capability score.
-        ("kimi-k2.6", "moonshotai/kimi-k2.6"),
-        # DeepSeek V4 Flash: the cheapest capable candidate here by a wide
-        # margin. Included with a caveat rather than assumed reliable:
-        # independent reports describe its predecessor's structured
-        # tool-calling as unreliable and note V4 was too new for a settled
-        # verdict at time of writing. This bench measures exactly that
-        # question on our specific six-verb grammar rather than inheriting
-        # the reputation either way. Flash rather than Pro: one integration
-        # report describes Pro hitting a thinking-mode protocol
-        # incompatibility in some harnesses; Flash is also the cheaper of the
-        # two and was independently described as "the real star" of the V4
-        # release.
-        ("deepseek-v4-flash", "deepseek/deepseek-v4-flash"),
-        # Grok 4 Fast (xAI): the verified slug for xAI's current
-        # cost-efficient tier; "Grok 4.5" is referenced in press coverage but
-        # its exact OpenRouter slug was not confirmed, so it is not guessed at.
-        ("grok-4-fast", "x-ai/grok-4-fast"),
-    )
-    # Kimi and DeepSeek are Chinese-developed models; on OpenRouter this bench
-    # reaches them through OpenRouter's own infrastructure rather than a
-    # China-hosted endpoint directly, and every document this bench sends is
-    # synthetic (enforced by RlmEngine's data_class check, independent of this
-    # list) -- so there is no live data-residency exposure here. The
-    # consideration is recorded because it becomes relevant the moment any
-    # candidate here is considered for production use on real case content,
-    # where the existing PHI/data-class discipline would need to account for
-    # where each provider actually processes the request.
-    reasoning_capable_via_openrouter = True
     if openrouter_key:
         # Every candidate here is reached through OpenRouter's own catalogue
         # rather than a first-party endpoint: one key covers all of them
@@ -349,12 +530,20 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]
         # is a named, established aggregator that proxies to the real
         # provider -- unlike an unverified gateway once considered and
         # rejected for this bench (see recursive_engine_decision_record.md).
+        #
+        # Kimi and DeepSeek are Chinese-developed; reached here through
+        # OpenRouter rather than a China-hosted endpoint directly, and every
+        # document this bench sends is synthetic (enforced by RlmEngine's
+        # data_class check, independent of this list), so there is no live
+        # data-residency exposure here. The consideration becomes relevant
+        # the moment any candidate here is considered for production use on
+        # real case content.
         endpoint = "https://openrouter.ai/api/v1/chat/completions"
-        for name, model in openrouter_models:
-            to_check.append((name, endpoint, openrouter_key, model, reasoning_capable_via_openrouter))
+        for name, model, disable_reasoning in CANDIDATE_MODELS:
+            to_check.append((name, endpoint, openrouter_key, model, disable_reasoning))
     else:
-        skipped.append(f"{', '.join(name for name, _ in openrouter_models)} (OPENROUTER_API_KEY not set)")
-        for name, _ in openrouter_models:
+        skipped.append(f"{', '.join(name for name, _, _ in CANDIDATE_MODELS)} (OPENROUTER_API_KEY not set)")
+        for name, _, _ in CANDIDATE_MODELS:
             preflight_detail[name] = "OPENROUTER_API_KEY not set"
 
     if to_check:
@@ -368,6 +557,7 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]
             skipped.append(f"{name} (preflight failed: {reason})")
 
     return candidates, skipped, preflight_detail
+
 
 
 def _bind(fn, endpoint, key, model, *, disable_reasoning=False):

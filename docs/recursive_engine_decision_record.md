@@ -326,6 +326,23 @@ instead of emitting the next action. Neither is a completion problem a
 wider budget fixes; the rewritten prompt explicitly prohibits role labels,
 dialogue formatting, and narrating what an action returned.
 
+**Opus's artifacts persisted into the second run, in a new form worth
+recording rather than glossing over.** With the rewritten prompt in place,
+Opus's adherence fell further, to 78.95%, and its rejected lines now include
+visible chain-of-thought (`"Reasoning: grep(prednisone) matched, so I need
+the surrounding text; the earlier bounded-context pattern failed, so try a
+greedy wildcard..."`), a malformed run-together token (`"assistdescribe()"`,
+plausibly a truncated "Assistant" fused to the next action), and a full
+clinical sentence — `"Patient denies fever, chills, or night sweats. Afebrile
+on exam."` — that does not appear in any bench document, which reads as
+fabricated content rather than a quotation. `reasoning: {enabled: false}` is
+sent for Opus as for every OpenRouter candidate, and it plausibly does not
+suppress Claude's extended thinking the way it does for models whose
+reasoning control OpenRouter's schema maps more directly — an open question,
+not a fixed one, and not silently smoothed over: Opus remains the weakest
+adherence in both runs, and the harder cases below give a further,
+independent read on whether that persists.
+
 The iteration budget was also raised, 6→10, and `budget_bound` — new on
 `ModelResult` — reports per candidate whether every incomplete run used the
 full ceiling it was given: `True` means the budget was plausibly the limit
@@ -389,6 +406,86 @@ back to 5 if absent or unparseable) rather than failing on the first
 transient limit. Mistral is also now reachable through OpenRouter as a
 second path, whose limits are separate from the direct API's — real
 redundancy rather than hitting the same wall twice.
+
+### Second live run: an 8-way tie, an HTTP 400 pattern explained, one slug corrected
+
+The second live run, with the wider budget and rewritten prompt from the
+completion-rate investigation above, produced eight candidates tied at
+100% adherence and 100% completion out of fifteen that ran
+(llama-4-maverick, llama-4-scout, gemma-3-27b, gemma-4-26b-a4b, both Mistral
+OpenRouter candidates, kimi-k2.6, deepseek-v4-flash). The fixes worked; the
+bench had become too easy to tell the survivors apart, exactly the outcome
+that motivates a harder case set (below).
+
+Four candidates failed preflight with **HTTP 400 Bad Request**:
+claude-fable-5.1, gpt-6-astra, qwen-3.8, glm-5.3. A fifth failed with
+**HTTP 404**: grok-4-fast.
+
+**The 400 pattern.** All four share a property: each is reasoning-mandatory
+or reasoning-heavy by design (GLM-5.3's own listing states this explicitly;
+the other three are flagship-tier releases plausibly defaulting the same
+way). The working hypothesis, consistent with external evidence — an
+independent benchmark of Fable 5.1 on OpenRouter explicitly passes
+`--thinking off` as a controlled parameter rather than omitting reasoning
+control — is that OpenRouter returns 400 for some providers when
+`reasoning: {enabled: false}` is sent to a model that cannot honour it,
+rather than silently ignoring the field the way most unrecognised
+OpenAI-compatible parameters are tolerated. `_http_chat_completion` now
+retries once without the reasoning hint on a 400 that occurred with the hint
+active, composing with the existing 429 retry rather than replacing it.
+Verified with a mocked provider that rejects any request carrying the
+`reasoning` field: the first call returns 400, the retry without the field
+succeeds.
+
+**The grok-4-fast 404.** A confirmed, reproducible example
+(`simonwillison.net/tags/openrouter/`) uses `x-ai/grok-4-fast:free` rather
+than the bare slug; a separate report describes some accounts or plans
+lacking access to the unsuffixed route. The slug is corrected to the
+`:free` variant.
+
+### Model and case configuration moved to the top of the file
+
+`CANDIDATE_MODELS` and `MISTRAL_DIRECT_MODEL`, declared immediately after the
+module docstring, are now the only place a model name or slug appears in
+this script; `build_candidates()` contains no model-specific logic and
+iterates the table. Adding, removing or re-pointing a candidate at a newer
+release is a one-line change at the top of the file, which was the explicit
+purpose of the reorganisation: not needing to re-read `build_candidates()`'s
+body to find where a slug lives.
+
+### Harder cases: from six to eleven, and why "harder" means something specific
+
+The original six cases were single-document, single-fact lookups, which the
+8-way tie above shows a capable model can solve almost by construction. Five
+new cases were added, each targeting a distinct navigation demand the
+original six could not exercise, not merely longer or more technical
+wording of the same lookup:
+
+| Case | Tests |
+|---|---|
+| `negation_discrimination` | Distinguishing an affirmed finding from a negated one nearby — a plain keyword match hits both |
+| `cross_document_correlation` | Discovering and reading a **second** document rather than answering from the first one looked at |
+| `buried_fact_after_revision` | Locating a fact in the fourth of four paragraphs, after an earlier, superficially-plausible paragraph that is not the answer |
+| `numeric_trend` | Comparing a first and last value across a series, with a middle value that goes the "wrong" direction |
+| `confirmed_vs_candidate_diagnosis` | Picking the diagnosis explicitly confirmed, as distinct from other candidates named earlier in the same document |
+
+Each is tested for the structural property it claims (the negation case
+contains both an affirmed and negated finding; the cross-document case
+supplies two distinct document IDs; the differential case states the
+confirmation after the candidate list), and the cross-document case is
+additionally verified navigable to completion within budget by a scripted
+model that actually reads both documents.
+
+**Scope boundary, stated explicitly because it is easy to elide:** none of
+this bench's cases are graded against a correct answer. It measures whether
+a candidate follows the action grammar and completes navigation within
+budget, not whether its `final()` text is clinically right — a model that
+confidently answers incorrectly scores identically to one that answers
+correctly, provided both are well-formed. Evaluating diagnostic correctness
+against a documented outcome is a different, already-built tool
+(`evaluation/dream_capture_benchmark.py`, part of the B4 protocol). This
+bench answers a prerequisite question — can the candidate navigate the loop
+at all — not a substitute for that one.
 
 ### Running the bench
 
