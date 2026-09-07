@@ -366,6 +366,20 @@ Third tranche (root model decision, scoped status, falsification registry):
 - `evaluation/falsification_program.py` — claim registry replacing three
   hardcoded strings; resolution requires evidence; three claims are blocking
 
+Block C (recursive engine):
+
+- `reasoning/rlm_engine.py` — the loop. The root model emits invocations of
+  named primitives, never code; a dispatcher that knows six verbs has nothing to
+  escape from. Data class is enforced at construction, budget exhaustion fails
+  explicitly, `final()` is required, depth is capped at one
+- `reasoning/rlm_wiring.py` — binds search to the adapter so the engine
+  inherits the quarantine, and writes trajectories to the audit store as health
+  data when the case is real
+- `evaluation/depth_comparison.py` — paired depth-0 vs depth-1 comparison,
+  run before the recursion is trusted
+
+Full rationale in `recursive_engine_decision_record.md`.
+
 Eleventh tranche (assertion detection, enforced findings boundary):
 
 - `memory/assertion.py` — deterministic cue-based detection with bounded scope
@@ -539,6 +553,10 @@ low-activity scheduling makes recursive latency irrelevant. The reliability data
 is acquired where an error costs nothing.
 
 ## Companion records
+
+- `recursive_engine_decision_record.md` — Block C: the loop, why it dispatches
+  primitives instead of executing code, the three constraints enforced in code,
+  the depth cap, quarantine inheritance, and trajectories as health records
 
 - `diagnostic_engine_decision_record.md` — how the trained model, the graph and
   the deterministic calibrator divide the work: what expertise research
