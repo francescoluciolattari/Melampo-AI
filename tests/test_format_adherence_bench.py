@@ -271,3 +271,19 @@ def test_glm_is_cleared_for_eu_commercial_use_under_its_mit_licence():
     glm = next(item for item in DEFAULT_CANDIDATES if item.provider == "z-ai")
     assert glm.licence == LICENCE_MIT
     assert glm.eu_commercial_cleared is True
+
+
+def test_bench_models_accepts_a_custom_budget_factory():
+    """Every case must get its own Budget instance, not a shared one."""
+    from melampo.reasoning.rlm_engine import Budget
+
+    seen_budgets = []
+
+    def _tracking_factory():
+        budget = Budget(max_iterations=2)
+        seen_budgets.append(budget)
+        return budget
+
+    bench_models({"a": lambda p: "grep(x)\ngrep(y)\ngrep(z)"}, CASES, budget_factory=_tracking_factory)
+    assert len(seen_budgets) == len(CASES), "a fresh Budget per case, not one reused across all of them"
+    assert all(budget.iterations <= 2 for budget in seen_budgets), "the custom limit must actually apply"
