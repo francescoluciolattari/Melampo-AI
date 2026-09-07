@@ -8,61 +8,111 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  bench:
-    name: Bench root model candidates
+  # Reads the candidate roster from the Python source of truth
+  # (CANDIDATE_MODELS / all_candidate_names() in the bench script) rather
+  # than duplicating the list in YAML, so the matrix below always reflects
+  # whatever the script currently declares.
+  prepare:
+    name: List candidates
     runs-on: ubuntu-latest
-    # Without this, a hung provider call has no ceiling other than GitHub's
-    # default of six hours. Scope has grown twice: 21 candidates (from 9),
-    # and now 11 cases (from 6) after the original six produced an 8-way tie
-    # at 100% adherence/completion on the second live run -- too easy to
-    # discriminate among strong candidates. Preflight (15s timeout each)
-    # still catches unreachable candidates in seconds rather than after their
-    # full per-case budget, and that is what keeps a real run well under this
-    # number in practice -- the formal worst case, every surviving candidate
-    # maxing out every one of 11 cases, is several hours, which this ceiling
-    # does not attempt to cover. 90 minutes is sized for a realistic run with
-    # most candidates reachable and completing normally, not the theoretical
-    # worst case.
-    timeout-minutes: 90
+    timeout-minutes: 5
+    outputs:
+      candidates: ${{ steps.list.outputs.candidates }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - id: list
+        run: echo "candidates=$(python3 scripts/run_format_adherence_bench.py --list-candidates)" >> "$GITHUB_OUTPUT"
 
-      - name: Install package
-        run: |
+  # One job per candidate, run concurrently. This is the fix for a run that
+  # previously took over 50 minutes: 21 candidates in sequence, each up to
+  # 11 cases x up to 10 iterations x up to 30s per call, meant total time
+  # scaled with the size of the roster. In parallel it scales with the
+  # slowest single candidate instead.
+  bench:
+    name: Bench ${{ matrix.candidate }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    # A single candidate's worst case: 11 cases x (60s wall clock + one 30s
+    # trailing call) plus one-time 429/400 retry overhead -- comfortably
+    # under 20 minutes even maxed out on every case, so 20 minutes covers a
+    # real run with margin rather than needing the roster-wide ceiling the
+    # old sequential job did.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate: ${{ fromJson(needs.prepare.outputs.candidates) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
           python -m pip install --upgrade pip
           python -m pip install -e .
 
-      - name: Run the bench
+      - name: Run this candidate
         id: bench
         env:
-          # Populated from repository secrets. Never printed, never written to
-          # a file other than being consumed as an environment variable by the
-          # script -- the same discipline as NCBI_API_KEY for the PMC connector.
-          # Claude, GPT, Gemma, Qwen, GLM and Llama are all reached through
-          # OPENROUTER_API_KEY, a named aggregator -- not the unverified
-          # gateway considered and rejected (see
-          # docs/recursive_engine_decision_record.md). Mistral is called at its
-          # own first-party endpoint.
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        # continue-on-error so the summary and artifact steps below still run
-        # when the bench fails -- that is precisely when their diagnostics
-        # matter most. The job is still failed explicitly by the final step.
         continue-on-error: true
-        run: python scripts/run_format_adherence_bench.py --out bench_results.json
+        run: |
+          python scripts/run_format_adherence_bench.py \
+            --candidate "${{ matrix.candidate }}" \
+            --out "result.json"
+
+      - name: Upload this candidate's result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # Matrix values can contain characters (a dot in "claude-fable-5.1")
+          # that are fine in a filename but safer sanitised for an artifact
+          # name; using the job index keeps this simple rather than pulling
+          # in a slugify step for one workflow.
+          name: candidate-result-${{ strategy.job-index }}
+          path: result.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  combine:
+    name: Combine results
+    needs: bench
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Download every candidate's result
+        uses: actions/download-artifact@v4
+        with:
+          pattern: candidate-result-*
+          path: all_results
+          merge-multiple: false
+
+      - name: Merge into one report
+        id: merge
+        run: |
+          mkdir -p merged_input
+          find all_results -name '*.json' -exec cp {} merged_input/ \;
+          python scripts/merge_bench_results.py merged_input --out bench_results.json
 
       - name: Summarise results
         if: always()
         run: |
           if [ ! -f bench_results.json ]; then
             echo "### Bench did not produce a results file" >> "$GITHUB_STEP_SUMMARY"
-            echo "The script exited before writing output. Check the 'Run the bench' step log." >> "$GITHUB_STEP_SUMMARY"
+            echo "The merge step did not write output. Check the 'Merge into one report' step log." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
@@ -87,23 +137,31 @@ jobs:
               print("|---|---|")
               for name, reason in sorted(preflight.items()):
                   print(f"| {name} | {reason} |")
+              print("\n</details>\n")
+          failures = data.get("merge_failures") or []
+          if failures:
+              print("<details><summary>Merge failures</summary>\n")
+              for item in failures:
+                  print(f"- {item}")
               print("\n</details>")
           PY
 
-      - name: Upload results
+      - name: Upload merged results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: root-model-bench-results
           path: bench_results.json
           retention-days: 90
-          # The script writes this file on every path, including total
-          # preflight failure, so a missing file means something unexpected
-          # happened and should be loud rather than silently ignored.
           if-no-files-found: error
 
-      - name: Fail the job if the bench failed
-        if: steps.bench.outcome == 'failure'
+      - name: Fail the job if no candidate produced a usable result
+        if: always()
         run: |
-          echo "The bench step failed; see the job summary and artifact for per-candidate reasons."
-          exit 1
+          python3 -c "
+          import json, sys
+          data = json.load(open('bench_results.json'))
+          if not data.get('results'):
+              print('No candidate produced a usable result; see the job summary and artifact.')
+              sys.exit(1)
+          "

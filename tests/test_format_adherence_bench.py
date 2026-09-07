@@ -350,3 +350,50 @@ def test_the_payload_carries_the_new_diagnostics():
     assert "mean_iterations_on_incompletion" in payload
     assert "budget_bound" in payload
     assert payload["mean_iterations_on_completion"] is None
+
+
+# --------------------------------------------------------------------------
+# Pure verdict/ranking functions: usable live or from results loaded off disk
+# --------------------------------------------------------------------------
+
+
+def test_compute_verdict_matches_bench_report_verdict_on_the_same_data():
+    """The extraction must not change behaviour: same numbers, same conclusion,
+    whether read from a live BenchReport or from plain dicts."""
+    from melampo.evaluation.format_adherence_bench import BenchReport, compute_verdict
+
+    live_report = BenchReport(
+        results=[bench_model("obedient", lambda p: "final(x)", CASES)],
+        adherence_target=0.95,
+    )
+    as_dicts = [item.as_dict() for item in live_report.results]
+    assert compute_verdict(as_dicts, 0.95) == live_report.verdict()
+
+
+def test_compute_verdict_on_dicts_reconstructed_from_json_round_trip():
+    """The exact scenario a merge step faces: results loaded back from a file."""
+    import json
+
+    from melampo.evaluation.format_adherence_bench import compute_verdict
+
+    result = bench_model("obedient", lambda p: "final(x)", CASES)
+    round_tripped = json.loads(json.dumps(result.as_dict()))
+    assert compute_verdict([round_tripped], 0.95) == (
+        f"obedient meets the adherence target ({round_tripped['adherence']:.0%}); "
+        "the choice is settled on these cases"
+    )
+
+
+def test_rank_result_dicts_orders_the_same_way_as_ranked():
+    from melampo.evaluation.format_adherence_bench import rank_result_dicts
+
+    a = bench_model("a", lambda p: "final(x)", CASES).as_dict()
+    b = bench_model("b", lambda p: "I will think about it.", CASES).as_dict()
+    ranked = rank_result_dicts([b, a])
+    assert [item["model_name"] for item in ranked] == ["a", "b"]
+
+
+def test_compute_verdict_on_an_empty_list():
+    from melampo.evaluation.format_adherence_bench import compute_verdict
+
+    assert compute_verdict([]) == "no models benched"
