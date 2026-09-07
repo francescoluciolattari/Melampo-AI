@@ -12,12 +12,18 @@ jobs:
     name: Bench root model candidates
     runs-on: ubuntu-latest
     # Without this, a hung provider call has no ceiling other than GitHub's
-    # default of six hours. A preflight call (15s timeout each) now catches
-    # unreachable candidates in seconds rather than after their full per-case
-    # budget; the remaining ceiling covers up to nine surviving candidates each
-    # legitimately using their full budget (6 iterations, 40s wall clock per
-    # case, three cases) plus API latency headroom.
-    timeout-minutes: 20
+    # default of six hours. Scope grew substantially in this revision: up to
+    # 21 candidates (from 9), 6 cases each (from 3), and a wider per-case
+    # budget (10 iterations / 60s wall clock, from 6/40s) after a first live
+    # run showed 0% completion tied to too tight a ceiling. Preflight (15s
+    # timeout each) still catches unreachable candidates in seconds rather
+    # than after their full per-case budget, and that is what keeps a real
+    # run well under this number in practice -- the formal worst case, if
+    # every surviving candidate maxed out every case, is over three hours,
+    # which this ceiling does not attempt to cover. 60 minutes is sized for a
+    # realistic run with most candidates reachable and completing normally,
+    # not for the theoretical worst case.
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

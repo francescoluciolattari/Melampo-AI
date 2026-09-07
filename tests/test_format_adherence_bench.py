@@ -13,6 +13,7 @@ from melampo.models.rlm_model_adapter import (
     RootModelAdapter,
     RootModelCandidate,
 )
+from melampo.reasoning.rlm_engine import Budget as _RlmBudget
 
 
 def _doc(text: str) -> EnvironmentDocument:
@@ -136,7 +137,10 @@ def test_an_unknown_licence_is_not_assumed_cleared():
 
 def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
-    assert providers == {"mistral", "qwen", "google", "meta", "anthropic", "openai", "z-ai"}
+    assert providers == {
+        "mistral", "qwen", "google", "meta", "anthropic", "openai", "z-ai",
+        "moonshotai", "deepseek", "xai",
+    }
 
 
 def test_the_rejected_gateway_is_named_in_the_registry_source():
@@ -287,3 +291,62 @@ def test_bench_models_accepts_a_custom_budget_factory():
     bench_models({"a": lambda p: "grep(x)\ngrep(y)\ngrep(z)"}, CASES, budget_factory=_tracking_factory)
     assert len(seen_budgets) == len(CASES), "a fresh Budget per case, not one reused across all of them"
     assert all(budget.iterations <= 2 for budget in seen_budgets), "the custom limit must actually apply"
+
+
+# --------------------------------------------------------------------------
+# Iteration diagnostics: distinguishing budget-bound from genuinely stuck
+# --------------------------------------------------------------------------
+
+
+def test_a_model_that_always_hits_the_ceiling_is_reported_as_budget_bound():
+    """This is the pattern Sonnet and Fable showed on the real run: every
+    incomplete run used exactly the max_iterations allowed."""
+
+    def _never_finals(prompt):
+        return "grep(x)"
+
+    result = bench_model(
+        "never-finals", _never_finals, CASES, budget_factory=lambda: _RlmBudget(max_iterations=3)
+    )
+    assert result.completion_rate == 0.0
+    assert result.budget_bound is True
+    assert result.mean_iterations_on_incompletion == 3.0
+
+
+def test_a_model_that_stops_short_is_not_reported_as_budget_bound():
+    """A model emitting prose immediately stops at iteration 0, well under
+    any budget -- a wider budget would not have helped it finish."""
+    result = bench_model("prose-model", lambda p: "I will think about this.", CASES)
+    assert result.completion_rate == 0.0
+    assert result.budget_bound is False
+
+
+def test_iterations_on_completion_are_tracked_separately():
+    def _finals_immediately(prompt):
+        return "final(answer)"
+
+    result = bench_model("fast-finisher", _finals_immediately, CASES)
+    assert result.completion_rate == 1.0
+    assert result.mean_iterations_on_completion == 1.0
+    assert result.iterations_on_incompletion == []
+
+
+def test_no_incomplete_runs_reports_budget_bound_as_false_not_true():
+    """An empty 'all incomplete runs hit the ceiling' must not vacuously read True."""
+
+    def _finals_immediately(prompt):
+        return "final(answer)"
+
+    result = bench_model("always-finishes", _finals_immediately, CASES)
+    assert result.budget_bound is False
+
+
+def test_the_payload_carries_the_new_diagnostics():
+    def _never_finals(prompt):
+        return "grep(x)"
+
+    payload = bench_model("m", _never_finals, CASES).as_dict()
+    assert "mean_iterations_on_completion" in payload
+    assert "mean_iterations_on_incompletion" in payload
+    assert "budget_bound" in payload
+    assert payload["mean_iterations_on_completion"] is None

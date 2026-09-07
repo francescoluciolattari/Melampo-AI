@@ -61,6 +61,16 @@ class ModelResult:
     near_misses: list[str] = field(default_factory=list)
     prose_lines: list[str] = field(default_factory=list)
     stop_reasons: dict[str, int] = field(default_factory=dict)
+    # Iterations actually used, split by outcome. Distinguishes "ran out of
+    # budget" from "task genuinely too hard": a model landing at exactly the
+    # iteration cap every time was never given the chance to finish, while one
+    # stopping well short of the cap and still not calling final() has a
+    # different problem the budget cannot fix.
+    iterations_on_completion: list[int] = field(default_factory=list)
+    # Each incomplete run's (iterations used, that run's own ceiling), so
+    # budget_bound compares each run against the budget it actually had
+    # rather than assuming every case shares one ceiling.
+    iterations_on_incompletion: list[tuple[int, int]] = field(default_factory=list)
 
     @property
     def adherence(self) -> float:
@@ -80,6 +90,29 @@ class ModelResult:
         """
         return len(self.near_misses) / self.rejected_lines if self.rejected_lines else 0.0
 
+    @property
+    def mean_iterations_on_completion(self) -> float | None:
+        values = self.iterations_on_completion
+        return sum(values) / len(values) if values else None
+
+    @property
+    def mean_iterations_on_incompletion(self) -> float | None:
+        values = [used for used, _ceiling in self.iterations_on_incompletion]
+        return sum(values) / len(values) if values else None
+
+    @property
+    def budget_bound(self) -> bool:
+        """Whether every incomplete run used the full iteration budget it was given.
+
+        True suggests the budget was the limiting factor and a wider one might
+        change the result; false suggests the model stopped short for another
+        reason -- a malformed action it could not recover from, or simply
+        never attempting to conclude -- which a wider budget will not fix.
+        """
+        return bool(self.iterations_on_incompletion) and all(
+            used >= ceiling for used, ceiling in self.iterations_on_incompletion
+        )
+
     def prose_examples_present(self) -> bool:
         return bool(self.prose_lines)
 
@@ -95,6 +128,15 @@ class ModelResult:
             "near_miss_examples": self.near_misses[:5],
             "prose_examples": self.prose_lines[:5],
             "stop_reasons": dict(sorted(self.stop_reasons.items())),
+            "mean_iterations_on_completion": (
+                None if self.mean_iterations_on_completion is None else round(self.mean_iterations_on_completion, 2)
+            ),
+            "mean_iterations_on_incompletion": (
+                None
+                if self.mean_iterations_on_incompletion is None
+                else round(self.mean_iterations_on_incompletion, 2)
+            ),
+            "budget_bound": self.budget_bound,
         }
 
 
@@ -162,10 +204,15 @@ def bench_model(
     result = ModelResult(model_name=model_name)
 
     for case in cases:
-        trajectory = engine.run(case.case_id, case.documents, case.question, budget=budget_factory())
+        budget = budget_factory()
+        trajectory = engine.run(case.case_id, case.documents, case.question, budget=budget)
         result.runs += 1
+        used = trajectory.budget.get("iterations", 0)
         if trajectory.stop_reason == STOP_FINAL:
             result.completed_runs += 1
+            result.iterations_on_completion.append(used)
+        else:
+            result.iterations_on_incompletion.append((used, budget.max_iterations))
         reason = trajectory.stop_reason or "unknown"
         result.stop_reasons[reason] = result.stop_reasons.get(reason, 0) + 1
 

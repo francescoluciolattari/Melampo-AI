@@ -84,7 +84,7 @@ def test_preflight_reports_missing_keys_per_candidate(script, monkeypatch):
     assert candidates == {}
     assert detail["mistral-small-3.1"] == "MISTRAL_API_KEY not set"
     assert detail["claude-sonnet-5"] == "OPENROUTER_API_KEY not set"
-    assert len(detail) == 9, "all nine candidates accounted for, none silently dropped"
+    assert len(detail) == 21, "all candidates accounted for, none silently dropped"
 
 
 def test_every_candidate_appears_in_the_preflight_detail(script, monkeypatch):
@@ -103,14 +103,23 @@ def test_every_candidate_appears_in_the_preflight_detail(script, monkeypatch):
 # --------------------------------------------------------------------------
 
 
-def test_the_bench_budget_is_tighter_than_the_engine_default(script):
-    """Three one-fact questions about a two-sentence document need no more."""
+def test_the_bench_iteration_budget_is_tighter_than_the_engine_default(script):
+    """Six one-fact questions about a two-sentence document need fewer turns
+    than the engine's general-purpose default, even after the ceiling was
+    raised once already following a first live run's 0% completion."""
     from melampo.reasoning.rlm_engine import Budget
 
     bench_budget = script._bench_budget()
     default = Budget()
     assert bench_budget.max_iterations < default.max_iterations
-    assert bench_budget.max_wall_clock_seconds < default.max_wall_clock_seconds
+
+
+def test_the_bench_wall_clock_matches_the_engine_default(script):
+    """Not tightened below the default: real provider latency, and the raised
+    max_tokens for reasoning-capable candidates, both need the room."""
+    from melampo.reasoning.rlm_engine import Budget
+
+    assert script._bench_budget().max_wall_clock_seconds == Budget().max_wall_clock_seconds
 
 
 def test_the_budget_factory_returns_a_fresh_instance_each_call(script):
@@ -233,3 +242,163 @@ def test_the_safety_net_does_not_itself_crash_if_writing_fails(script, monkeypat
 
     assert exit_code == 1
     assert "Could not write crash diagnostics" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------
+# Rate-limit retry: what actually failed the first live run (Mistral 429)
+# --------------------------------------------------------------------------
+
+
+def test_a_429_is_retried_once_honouring_retry_after(script, monkeypatch):
+    import urllib.error
+
+    calls = {"n": 0}
+
+    def flaky(request, timeout):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise urllib.error.HTTPError("http://fake", 429, "Too Many Requests", {"Retry-After": "0.01"}, None)
+        return _FakeResponse({"choices": [{"message": {"content": "final(ok)"}}]})
+
+    monkeypatch.setattr("urllib.request.urlopen", flaky)
+    result = script._http_chat_completion("http://fake", "k", "m", "test", timeout=5)
+    assert result == "final(ok)"
+    assert calls["n"] == 2
+
+
+def test_two_consecutive_429s_propagate_rather_than_retrying_forever(script, monkeypatch):
+    import urllib.error
+
+    calls = {"n": 0}
+
+    def always_429(request, timeout):
+        calls["n"] += 1
+        raise urllib.error.HTTPError("http://fake", 429, "Too Many Requests", {"Retry-After": "0.01"}, None)
+
+    monkeypatch.setattr("urllib.request.urlopen", always_429)
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        script._http_chat_completion("http://fake", "k", "m", "test", timeout=5)
+    assert excinfo.value.code == 429
+    assert calls["n"] == 2, "one original attempt plus exactly one retry, not an unbounded loop"
+
+
+def test_retry_after_is_capped_rather_than_waited_out_in_full(script):
+    assert script._parse_retry_after("999") == script.RATE_LIMIT_MAX_WAIT_SECONDS
+
+
+def test_a_missing_retry_after_falls_back_to_the_default_wait(script):
+    assert script._parse_retry_after(None) == script.RATE_LIMIT_DEFAULT_WAIT_SECONDS
+
+
+def test_a_malformed_retry_after_falls_back_rather_than_raising(script):
+    assert script._parse_retry_after("not-a-number") == script.RATE_LIMIT_DEFAULT_WAIT_SECONDS
+
+
+# --------------------------------------------------------------------------
+# The reasoning-disable hint: OpenRouter only, never the direct Mistral call
+# --------------------------------------------------------------------------
+
+
+def test_disable_reasoning_adds_the_openrouter_parameter(script, monkeypatch):
+    captured = {}
+
+    def capture(request, timeout):
+        captured["body"] = __import__("json").loads(request.data.decode())
+        return _FakeResponse({"choices": [{"message": {"content": "final(x)"}}]})
+
+    monkeypatch.setattr("urllib.request.urlopen", capture)
+    script._http_chat_completion("http://fake", "k", "m", "p", timeout=5, disable_reasoning=True)
+    assert captured["body"]["reasoning"] == {"enabled": False}
+
+
+def test_without_the_flag_no_reasoning_parameter_is_sent(script, monkeypatch):
+    captured = {}
+
+    def capture(request, timeout):
+        captured["body"] = __import__("json").loads(request.data.decode())
+        return _FakeResponse({"choices": [{"message": {"content": "final(x)"}}]})
+
+    monkeypatch.setattr("urllib.request.urlopen", capture)
+    script._http_chat_completion("http://fake", "k", "m", "p", timeout=5, disable_reasoning=False)
+    assert "reasoning" not in captured["body"]
+
+
+def test_the_mistral_direct_candidate_never_receives_the_reasoning_hint(script, monkeypatch):
+    """Its tolerance for unrecognised top-level fields is not verified from here."""
+    import inspect
+
+    source = inspect.getsource(script.build_candidates)
+    # The Mistral direct-API append must not carry disable_reasoning=True;
+    # only the OpenRouter loop should set it, via reasoning_capable_via_openrouter.
+    mistral_line = next(line for line in source.splitlines() if "mistral-small-3.1" in line and "api.mistral.ai" in line)
+    assert mistral_line.rstrip().endswith("False)"), mistral_line
+
+
+def test_max_tokens_was_raised_after_the_first_run_showed_zero_completion(script, monkeypatch):
+    captured = {}
+
+    def capture(request, timeout):
+        captured["body"] = __import__("json").loads(request.data.decode())
+        return _FakeResponse({"choices": [{"message": {"content": "final(x)"}}]})
+
+    monkeypatch.setattr("urllib.request.urlopen", capture)
+    script._http_chat_completion("http://fake", "k", "m", "p", timeout=5)
+    assert captured["body"]["max_tokens"] == 1024
+
+
+def test_the_system_prompt_includes_a_worked_example_and_explicit_prohibitions(script):
+    """Targets the three failure patterns the first live run actually showed:
+    never finalising, dialogue-style artifacts, narrating tool output."""
+    prompt = script._SYSTEM_PROMPT.lower()
+    assert "grep(dose)" in script._SYSTEM_PROMPT  # worked example present
+    assert "one clean lookup" in prompt or "enough" in prompt  # anti-over-verification
+    assert "dialogue" in prompt or "role labels" in prompt  # anti-Opus-artifact
+
+
+# --------------------------------------------------------------------------
+# New candidates: verified slugs, not guesses
+# --------------------------------------------------------------------------
+
+
+def test_all_twenty_one_candidates_are_present(script, monkeypatch):
+    monkeypatch.setenv("MISTRAL_API_KEY", "k")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    _, _, detail = script.build_candidates()
+    assert len(detail) == 21
+
+
+def test_qwen_3_5_uses_the_corrected_slug_not_the_invented_one(script):
+    """The invented slug is named on purpose in an explanatory comment above
+    the fix; only non-comment lines should be checked, or that comment makes
+    the test fail for explaining the bug it fixed."""
+    import inspect
+
+    source = inspect.getsource(script.build_candidates)
+    code_lines = [line for line in source.splitlines() if not line.strip().startswith("#")]
+    code_only = "\n".join(code_lines)
+    assert "qwen3.5-plus-02-15" in code_only
+    assert "qwen-3.5-72b-instruct" not in code_only
+
+
+
+def test_mistral_3_6_was_not_added_because_it_does_not_exist(script):
+    """Checked against Mistral's full release history before writing any code for it."""
+    import inspect
+    source = inspect.getsource(script.build_candidates)
+    assert "3.6" not in source or "mistral-3.6" not in source.lower()
+
+
+def test_new_model_families_are_present_in_the_openrouter_candidate_list(script):
+    import inspect
+    source = inspect.getsource(script.build_candidates)
+    for expected_slug in (
+        "gemma-4-31b-it",
+        "gemma-4-26b-a4b-it",
+        "z-ai/glm-5.3",
+        "moonshotai/kimi-k2.6",
+        "deepseek/deepseek-v4-flash",
+        "x-ai/grok-4-fast",
+        "meta-llama/llama-4-maverick",
+        "meta-llama/llama-4-scout",
+    ):
+        assert expected_slug in source, f"{expected_slug} missing from build_candidates"

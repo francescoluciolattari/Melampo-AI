@@ -16,3 +16,4 @@ ENV/
 Thumbs.db
 src/*.egg-info/
 *.egg-info/
+bench_results.json
