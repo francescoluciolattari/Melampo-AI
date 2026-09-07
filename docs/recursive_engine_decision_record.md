@@ -206,6 +206,28 @@ unresolved belongs on the bench, because comparison is how you learn what a
 permissive licence costs in capability, and `BENCH_ONLY_UNTIL_LICENCE_REVIEW`
 keeps the question attached to the result.
 
+### A defect this testing found: ten minutes to discover a bad key
+
+The first live run against nine candidates took 10.5 minutes and ended in
+failure. The cause was arithmetic the script never bounded: each candidate got
+the full three-cases-times-up-to-twelve-iterations-times-60-seconds budget
+before its unreachability became visible, and with most or all candidates
+sharing the same broken credential, that cost was paid nine times over before
+the run could report anything.
+
+Two fixes, one in the workflow and one in the script. `timeout-minutes: 20` on
+the job gives GitHub Actions an explicit ceiling instead of its default of six
+hours, so a genuinely hung call fails the job visibly rather than occupying a
+runner indefinitely. And `_preflight()` makes one short call per candidate,
+timeout 15 seconds, before committing to the full bench: a bad key or an
+unrecognised model slug almost always fails fast — an auth or not-found
+response arrives in well under a second — so the same failure that took over
+ten minutes to surface now surfaces in under one. The per-case budget for
+survivors was also tightened (six iterations, 40-second wall clock) rather than
+left at the engine's general-purpose defaults, since this bench asks three
+one-fact questions about a two-sentence document and does not need the
+allowance a harder task would.
+
 ### Running the bench
 
 The bench cannot be run from this repository's own execution environment: model

@@ -37,6 +37,7 @@ from melampo.evaluation.format_adherence_bench import (
     bench_models,
 )
 from melampo.memory.context_environment import EnvironmentDocument
+from melampo.reasoning.rlm_engine import Budget
 
 # Synthetic only. This bench measures format adherence, not clinical reasoning,
 # and phase-one data-class discipline (see rlm_engine.py) applies here as
@@ -63,12 +64,27 @@ ACTION_GRAMMAR = (
     "search(query) | expand(concept) | final(answer)"
 )
 
+# The run that motivated these constants took 10.5 minutes and ended in
+# failure because most or all candidates were unreachable (bad key, wrong
+# model slug) -- and every one of them was still given the full 3 cases x up
+# to 12 iterations x 60s-per-call budget before the failure became visible.
+# A single bad candidate should fail in seconds, not minutes.
+PREFLIGHT_TIMEOUT_SECONDS = 15
+CALL_TIMEOUT_SECONDS = 30
+# Six iterations and a 40s wall clock are plenty to describe, look, and
+# answer three one-fact questions about a two-sentence document; this bench
+# measures format adherence, not how far a model can be pushed. A factory,
+# not a shared instance: Budget carries mutable per-run state (iteration
+# count, start time), and reusing one instance across cases would corrupt
+# both.
+def _bench_budget() -> Budget:
+    return Budget(max_iterations=6, max_wall_clock_seconds=40.0)
 
-def _http_chat_completion(endpoint: str, api_key: str, model: str, prompt: str) -> str:
+
+def _http_chat_completion(endpoint: str, api_key: str, model: str, prompt: str, *, timeout: int) -> str:
     """Minimal OpenAI-compatible chat completion call, stdlib only.
 
     Mistral, OpenRouter and most inference gateways implement this shape.
-    Google's native Gemini endpoint does not, and is handled separately below.
     """
     body = json.dumps(
         {
@@ -94,24 +110,24 @@ def _http_chat_completion(endpoint: str, api_key: str, model: str, prompt: str) 
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
     return payload["choices"][0]["message"]["content"]
 
 
 def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
-    """Construct callables for every candidate whose key is present.
+    """Preflight every candidate whose key is present, then wrap the survivors.
 
-    Returns (candidates, skipped) rather than raising on a missing key, so a
-    partial run still produces a usable comparison.
+    Returns (candidates, skipped) rather than raising on a missing key or a
+    failed preflight, so a partial run still produces a usable comparison.
     """
     candidates: dict[str, object] = {}
     skipped: list[str] = []
+    to_check: list[tuple[str, str, str, str]] = []  # (name, endpoint, key, model)
 
     mistral_key = os.environ.get("MISTRAL_API_KEY")
     if mistral_key:
-        for name, model in (("mistral-small-3.1", "mistral-small-latest"),):
-            candidates[name] = _bind(_http_chat_completion, "https://api.mistral.ai/v1/chat/completions", mistral_key, model)
+        to_check.append(("mistral-small-3.1", "https://api.mistral.ai/v1/chat/completions", mistral_key, "mistral-small-latest"))
     else:
         skipped.append("mistral-small-3.1 (MISTRAL_API_KEY not set)")
 
@@ -119,10 +135,11 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
     if openrouter_key:
         # Every remaining candidate, Claude included, is reached through
         # OpenRouter's own catalogue rather than a first-party endpoint: one
-        # key covers all four instead of requiring a separate credential per
+        # key covers all eight instead of requiring a separate credential per
         # provider. OpenRouter is a named, established aggregator that proxies
         # to the real provider -- unlike an unverified gateway once considered
         # and rejected for this bench (see recursive_engine_decision_record.md).
+        endpoint = "https://openrouter.ai/api/v1/chat/completions"
         for name, model in (
             ("claude-sonnet-5", "anthropic/claude-sonnet-5"),
             ("claude-opus-5", "anthropic/claude-opus-5"),
@@ -133,11 +150,19 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
             ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
             ("gemma-3-27b", "google/gemma-3-27b-it"),
         ):
-            candidates[name] = _bind(
-                _http_chat_completion, "https://openrouter.ai/api/v1/chat/completions", openrouter_key, model
-            )
+            to_check.append((name, endpoint, openrouter_key, model))
     else:
-        skipped.append("claude, qwen-3.5, llama-3.3-70b, gemma-3-27b (OPENROUTER_API_KEY not set)")
+        skipped.append(
+            "claude (all tiers), gpt-6-astra, qwen-3.5, glm-5, llama-3.3-70b, gemma-3-27b "
+            "(OPENROUTER_API_KEY not set)"
+        )
+
+    print(f"Preflighting {len(to_check)} candidate(s) (timeout {PREFLIGHT_TIMEOUT_SECONDS}s each)...")
+    for name, endpoint, key, model in to_check:
+        if _preflight(name, endpoint, key, model):
+            candidates[name] = _bind(_http_chat_completion, endpoint, key, model)
+        else:
+            skipped.append(f"{name} (preflight failed)")
 
     return candidates, skipped
 
@@ -145,7 +170,7 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
 def _bind(fn, endpoint, key, model):
     def _call(prompt: str) -> str:
         try:
-            return fn(endpoint, key, model, prompt)
+            return fn(endpoint, key, model, prompt, timeout=CALL_TIMEOUT_SECONDS)
         except (urllib.error.URLError, urllib.error.HTTPError, KeyError, json.JSONDecodeError) as error:
             # A provider error becomes empty text, which the engine already
             # treats as model_emitted_no_action -- consistent with how the
@@ -156,6 +181,29 @@ def _bind(fn, endpoint, key, model):
     return _call
 
 
+def _preflight(name: str, endpoint: str, key: str, model: str) -> bool:
+    """One short, short-timeout call per candidate before committing to the full bench.
+
+    The run that motivated this function spent 10.5 minutes discovering that
+    most candidates were unreachable, because each one was given the full
+    per-case budget before its failure became visible. A bad key or an
+    unrecognised model slug almost always fails fast (an auth or not-found
+    response arrives in well under a second); a preflight call with a short
+    timeout catches that in seconds per candidate instead of minutes.
+    """
+    try:
+        response = _http_chat_completion(
+            endpoint, key, model, "final(preflight check -- respond with exactly this action)",
+            timeout=PREFLIGHT_TIMEOUT_SECONDS,
+        )
+        if not response.strip():
+            print(f"  [preflight] {model}: reachable but returned empty text", file=sys.stderr)
+        return True
+    except (urllib.error.URLError, urllib.error.HTTPError, KeyError, json.JSONDecodeError) as error:
+        print(f"  [preflight] {model}: unreachable ({error}), skipping the full bench for it", file=sys.stderr)
+        return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=Path("bench_results.json"))
@@ -163,15 +211,16 @@ def main() -> int:
 
     candidates, skipped = build_candidates()
     if not candidates:
-        print("No API keys found in the environment; nothing to bench.", file=sys.stderr)
-        print("Set at least one of MISTRAL_API_KEY, OPENROUTER_API_KEY.", file=sys.stderr)
+        print("No candidate survived preflight; nothing to bench.", file=sys.stderr)
+        print("Set at least one of MISTRAL_API_KEY, OPENROUTER_API_KEY, and check the", file=sys.stderr)
+        print("[preflight] lines above for the specific reason each candidate failed.", file=sys.stderr)
         return 1
 
-    print(f"Benching: {', '.join(sorted(candidates))}")
+    print(f"\nBenching: {', '.join(sorted(candidates))}")
     if skipped:
-        print(f"Skipped (no key): {'; '.join(skipped)}")
+        print(f"Skipped: {'; '.join(skipped)}")
 
-    report = bench_models(candidates, BENCH_CASES, adherence_target=0.95)
+    report = bench_models(candidates, BENCH_CASES, adherence_target=0.95, budget_factory=_bench_budget)
     payload = report.as_dict()
     payload["skipped"] = skipped
 

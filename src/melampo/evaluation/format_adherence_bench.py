@@ -183,11 +183,12 @@ def bench_models(
     cases: Sequence[BenchCase],
     *,
     adherence_target: float = 0.95,
+    budget_factory: Callable[[], Budget] = Budget,
 ) -> BenchReport:
     """Run every candidate over the same cases, so the comparison is paired."""
     report = BenchReport(adherence_target=adherence_target)
     for name, model in candidates.items():
-        report.results.append(bench_model(name, model, cases))
+        report.results.append(bench_model(name, model, cases, budget_factory=budget_factory))
     return report
 
 
