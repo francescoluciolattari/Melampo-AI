@@ -112,7 +112,41 @@ def _http_chat_completion(endpoint: str, api_key: str, model: str, prompt: str, 
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
-    return payload["choices"][0]["message"]["content"]
+    return _extract_content(payload)
+
+
+class ProviderResponseError(Exception):
+    """The provider answered (no network or HTTP-status failure) but the body
+    was not a usable completion. Distinct from a connectivity failure because
+    the two need different fixes: this one usually means the model is
+    unavailable or was rejected, not that the key or the network is broken.
+    """
+
+
+def _extract_content(payload: object) -> str:
+    """Pull the completion text out of a chat-completion response body.
+
+    OpenRouter and similar aggregators return HTTP 200 even when the request
+    could not be served -- no endpoint available for the model, content
+    filtered, upstream provider error -- with the failure described inside
+    the JSON body instead of the status code. ``payload["choices"][0]`` on an
+    empty list is a real response shape, not a hypothetical one, and it must
+    raise something the callers already catch rather than an IndexError or
+    TypeError that was never in their except clause. Every failure mode here
+    raises ProviderResponseError, so one exception type covers all of them.
+    """
+    if not isinstance(payload, dict):
+        raise ProviderResponseError(f"response body is not a JSON object: {type(payload).__name__}")
+    if error := payload.get("error"):
+        raise ProviderResponseError(f"provider returned an error: {error}")
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ProviderResponseError(f"no choices in response: {json.dumps(payload)[:300]}")
+    message = choices[0].get("message") if isinstance(choices[0], dict) else None
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str):
+        raise ProviderResponseError(f"no text content in first choice: {json.dumps(choices[0])[:300]}")
+    return content
 
 
 def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]]:
@@ -180,11 +214,22 @@ def _bind(fn, endpoint, key, model):
     def _call(prompt: str) -> str:
         try:
             return fn(endpoint, key, model, prompt, timeout=CALL_TIMEOUT_SECONDS)
-        except (urllib.error.URLError, urllib.error.HTTPError, KeyError, json.JSONDecodeError) as error:
+        except urllib.error.HTTPError as error:
+            print(f"  [warn] {model}: HTTP {error.code} {error.reason}", file=sys.stderr)
+            return ""
+        except (urllib.error.URLError, ProviderResponseError, KeyError, json.JSONDecodeError, TimeoutError) as error:
             # A provider error becomes empty text, which the engine already
             # treats as model_emitted_no_action -- consistent with how the
             # adapter treats a refused SafeModelClient call.
-            print(f"  [warn] {model}: {error}", file=sys.stderr)
+            print(f"  [warn] {model}: {type(error).__name__}: {error}", file=sys.stderr)
+            return ""
+        except Exception as error:  # noqa: BLE001 - see module docstring: any failure here
+            # degrades to an empty response, it never crashes the script. A
+            # provider integration talks to code we do not control, and its
+            # failure modes are open-ended -- the case that motivated this
+            # clause was OpenRouter returning HTTP 200 with an empty choices
+            # list, which is neither a network error nor a KeyError.
+            print(f"  [warn] {model}: unexpected {type(error).__name__}: {error}", file=sys.stderr)
             return ""
 
     return _call
@@ -221,17 +266,65 @@ def _preflight(name: str, endpoint: str, key: str, model: str) -> tuple[bool, st
         detail = f"HTTP {error.code} {error.reason}"
         print(f"  [preflight] {model}: unreachable ({detail}), skipping the full bench for it", file=sys.stderr)
         return False, detail
-    except (urllib.error.URLError, KeyError, json.JSONDecodeError, TimeoutError) as error:
+    except (urllib.error.URLError, ProviderResponseError, KeyError, json.JSONDecodeError, TimeoutError) as error:
         detail = f"{type(error).__name__}: {error}"
+        print(f"  [preflight] {model}: unreachable ({detail}), skipping the full bench for it", file=sys.stderr)
+        return False, detail
+    except Exception as error:  # noqa: BLE001 - see _bind: any unexpected provider
+        # behaviour must degrade to a reported, catchable outcome, never a
+        # script crash. This is the same defensive posture as _bind's final
+        # clause, kept here too because _preflight has its own except chain
+        # rather than calling through _bind.
+        detail = f"unexpected {type(error).__name__}: {error}"
         print(f"  [preflight] {model}: unreachable ({detail}), skipping the full bench for it", file=sys.stderr)
         return False, detail
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path, default=Path("bench_results.json"))
-    args = parser.parse_args()
+    """Top-level safety net: every path below writes a results file before returning.
 
+    _bind and _preflight already convert provider failures into reported
+    outcomes, but that only covers calls made through them. Anything else
+    unexpected -- a bug in this script, a change in a dependency's behaviour,
+    a JSON payload shaped in a way nothing here anticipated -- must still
+    leave a diagnostic file behind rather than exiting via an uncaught
+    traceback with nothing written. The run that motivated this function did
+    exactly that: an IndexError from an empty ``choices`` list, raised two
+    calls below _bind's except clause at the time, crashed the whole script
+    before a single byte was written.
+    """
+    out_path = Path("bench_results.json")
+    try:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("--out", type=Path, default=out_path)
+        args = parser.parse_args()
+        out_path = args.out
+        return _run(args.out)
+    except Exception as error:  # noqa: BLE001 - last-resort net, see docstring
+        import traceback
+
+        trace = traceback.format_exc()
+        print(f"\nUnexpected error: {type(error).__name__}: {error}", file=sys.stderr)
+        print(trace, file=sys.stderr)
+        try:
+            _write_results(
+                out_path,
+                {
+                    "status": "crashed",
+                    "verdict": f"the bench script crashed with an unhandled {type(error).__name__}; see traceback",
+                    "error": str(error),
+                    "error_type": type(error).__name__,
+                    "traceback": trace,
+                    "results": [],
+                },
+            )
+            print(f"Crash diagnostics written to {out_path}", file=sys.stderr)
+        except Exception as write_error:  # noqa: BLE001 - do not let the handler itself crash
+            print(f"Could not write crash diagnostics either: {write_error}", file=sys.stderr)
+        return 1
+
+
+def _run(out: Path) -> int:
     candidates, skipped, preflight_detail = build_candidates()
 
     if not candidates:
@@ -251,11 +344,11 @@ def main() -> int:
             "skipped": skipped,
             "preflight": preflight_detail,
         }
-        _write_results(args.out, payload)
+        _write_results(out, payload)
         print("\nNo candidate survived preflight; nothing to bench.", file=sys.stderr)
         for name, detail in sorted(preflight_detail.items()):
             print(f"  {name}: {detail}", file=sys.stderr)
-        print(f"\nDiagnostics written to {args.out}", file=sys.stderr)
+        print(f"\nDiagnostics written to {out}", file=sys.stderr)
         return 1
 
     print(f"\nBenching: {', '.join(sorted(candidates))}")
@@ -268,13 +361,13 @@ def main() -> int:
     payload["skipped"] = skipped
     payload["preflight"] = preflight_detail
 
-    _write_results(args.out, payload)
+    _write_results(out, payload)
 
     print(f"\nVerdict: {payload['verdict']}\n")
     print(f"{'model':<20}{'adherence':>11}{'completion':>12}{'near-miss share':>18}")
     for row in payload["results"]:
         print(f"{row['model_name']:<20}{row['adherence']:>10.0%}{row['completion_rate']:>12.0%}{row['near_miss_share']:>17.0%}")
-    print(f"\nFull report written to {args.out}")
+    print(f"\nFull report written to {out}")
     return 0
 
 

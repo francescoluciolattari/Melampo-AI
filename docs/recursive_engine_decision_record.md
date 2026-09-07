@@ -228,6 +228,42 @@ left at the engine's general-purpose defaults, since this bench asks three
 one-fact questions about a two-sentence document and does not need the
 allowance a harder task would.
 
+### A third defect, found on the first real run: unhandled provider response shapes
+
+The first execution against real endpoints failed with `actions/upload-artifact`
+reporting "No files were found" — the previous fix (writing results even on
+total preflight failure) had not fired at all, because the script crashed
+*before* reaching that code path.
+
+The cause: `_http_chat_completion` read `payload["choices"][0]["message"]["content"]`
+unconditionally. OpenRouter, like most aggregators, returns HTTP 200 even when
+a request could not be served — no endpoint available for the model, content
+filtered, an upstream provider error — with the failure described inside the
+JSON body rather than the status code. `"choices": []` is a real response
+shape, and `payload["choices"][0]` on an empty list raises `IndexError`, which
+was not in any `except` clause anywhere in the script. Reproduced with a mocked
+`urlopen` returning exactly that body: the crash propagated through
+`_preflight`, through `build_candidates`, out of `main`, with nothing written.
+
+Two layers of fix, deliberately redundant.
+
+`_extract_content` now validates the response shape explicitly — not a `dict`,
+an `error` field, missing or empty `choices`, a choice with no text content —
+and raises one exception type, `ProviderResponseError`, for all of them, which
+`_bind` and `_preflight` already catch alongside `URLError` and `HTTPError`.
+
+But enumerating every malformed shape a third-party API might someday return is
+a losing game, so `_bind` and `_preflight` each also gained a final
+`except Exception` clause: *any* unexpected failure from a provider call
+degrades to a reported, catchable outcome, never a crash. And `main` was split
+into `main`, a top-level safety net, and `_run`, the actual logic: if
+something raises from anywhere `_bind`/`_preflight` do not cover — a bug in
+this script, a change in a dependency — `main` catches it, writes a
+`status: "crashed"` payload with the exception type, message and full
+traceback, and still exits 1. Verified by injecting a `RuntimeError` nobody
+anticipated directly into `build_candidates`: the results file is written
+regardless.
+
 ### Running the bench
 
 The bench cannot be run from this repository's own execution environment: model
