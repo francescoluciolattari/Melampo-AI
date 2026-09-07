@@ -9,6 +9,7 @@ run was empty exactly when it mattered most.
 import importlib.util
 import json
 import sys
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -368,16 +369,11 @@ def test_all_twenty_one_candidates_are_present(script, monkeypatch):
 
 
 def test_qwen_3_5_uses_the_corrected_slug_not_the_invented_one(script):
-    """The invented slug is named on purpose in an explanatory comment above
-    the fix; only non-comment lines should be checked, or that comment makes
-    the test fail for explaining the bug it fixed."""
-    import inspect
-
-    source = inspect.getsource(script.build_candidates)
-    code_lines = [line for line in source.splitlines() if not line.strip().startswith("#")]
-    code_only = "\n".join(code_lines)
-    assert "qwen3.5-plus-02-15" in code_only
-    assert "qwen-3.5-72b-instruct" not in code_only
+    """Slugs live in CANDIDATE_MODELS, the top-of-file table, not inline in
+    build_candidates -- that is the point of the top-of-file reorganisation."""
+    slugs = {model for _, model, _ in script.CANDIDATE_MODELS}
+    assert "qwen/qwen3.5-plus-02-15" in slugs
+    assert "qwen/qwen-3.5-72b-instruct" not in slugs
 
 
 
@@ -389,16 +385,192 @@ def test_mistral_3_6_was_not_added_because_it_does_not_exist(script):
 
 
 def test_new_model_families_are_present_in_the_openrouter_candidate_list(script):
-    import inspect
-    source = inspect.getsource(script.build_candidates)
+    slugs = {model for _, model, _ in script.CANDIDATE_MODELS}
     for expected_slug in (
-        "gemma-4-31b-it",
-        "gemma-4-26b-a4b-it",
+        "google/gemma-4-31b-it",
+        "google/gemma-4-26b-a4b-it",
         "z-ai/glm-5.3",
         "moonshotai/kimi-k2.6",
         "deepseek/deepseek-v4-flash",
-        "x-ai/grok-4-fast",
         "meta-llama/llama-4-maverick",
         "meta-llama/llama-4-scout",
     ):
-        assert expected_slug in source, f"{expected_slug} missing from build_candidates"
+        assert expected_slug in slugs, f"{expected_slug} missing from CANDIDATE_MODELS"
+    assert any(model.startswith("x-ai/grok-4-fast") for model in slugs)
+
+
+# --------------------------------------------------------------------------
+# HTTP 400 fallback: some providers reject the reasoning-disable hint outright
+# --------------------------------------------------------------------------
+
+
+def test_a_400_with_the_reasoning_hint_retries_once_without_it(script, monkeypatch):
+    """The exact mechanism hypothesised for glm-5.3, gpt-6-astra, qwen-3.8 and
+    claude-fable-5.1 all returning HTTP 400 on the first live run."""
+    calls = []
+
+    def rejects_reasoning_hint(request, timeout):
+        body = json.loads(request.data.decode())
+        calls.append(body.get("reasoning"))
+        if "reasoning" in body:
+            raise urllib.error.HTTPError(request.full_url, 400, "Bad Request", {}, None)
+        return _FakeResponse({"choices": [{"message": {"content": "final(ok)"}}]})
+
+    monkeypatch.setattr("urllib.request.urlopen", rejects_reasoning_hint)
+    result = script._http_chat_completion(
+        "http://fake", "k", "z-ai/glm-5.3", "test", timeout=5, disable_reasoning=True
+    )
+    assert result == "final(ok)"
+    assert calls == [{"enabled": False}, None], "hint sent once, then omitted on retry"
+
+
+def test_a_400_without_the_reasoning_hint_is_not_retried(script, monkeypatch):
+    """The fallback is specific to the reasoning hint; an unrelated 400 must
+    still propagate rather than being silently swallowed."""
+
+    def always_400(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, 400, "Bad Request", {}, None)
+
+    monkeypatch.setattr("urllib.request.urlopen", always_400)
+    with pytest.raises(urllib.error.HTTPError):
+        script._http_chat_completion("http://fake", "k", "m", "test", timeout=5, disable_reasoning=False)
+
+
+def test_the_400_fallback_happens_at_most_once(script, monkeypatch):
+    """If the retry without the hint still fails, that failure propagates --
+    this is one fallback, not a loop."""
+    calls = {"n": 0}
+
+    def always_400(request, timeout):
+        calls["n"] += 1
+        raise urllib.error.HTTPError(request.full_url, 400, "Bad Request", {}, None)
+
+    monkeypatch.setattr("urllib.request.urlopen", always_400)
+    with pytest.raises(urllib.error.HTTPError):
+        script._http_chat_completion("http://fake", "k", "m", "test", timeout=5, disable_reasoning=True)
+    assert calls["n"] == 2, "one attempt with the hint, one retry without, then propagate"
+
+
+def test_a_429_and_a_400_fallback_can_both_occur_in_one_call(script, monkeypatch):
+    """The two retry mechanisms are independent and must compose."""
+    sequence = iter(
+        [
+            lambda: (_ for _ in ()).throw(urllib.error.HTTPError("u", 429, "", {"Retry-After": "0.01"}, None)),
+            lambda: (_ for _ in ()).throw(urllib.error.HTTPError("u", 400, "", {}, None)),
+            lambda: _FakeResponse({"choices": [{"message": {"content": "final(ok)"}}]}),
+        ]
+    )
+
+    def flaky(request, timeout):
+        return next(sequence)()
+
+    monkeypatch.setattr("urllib.request.urlopen", flaky)
+    result = script._http_chat_completion("http://fake", "k", "m", "test", timeout=5, disable_reasoning=True)
+    assert result == "final(ok)"
+
+
+# --------------------------------------------------------------------------
+# Grok slug: corrected after a real 404
+# --------------------------------------------------------------------------
+
+
+def test_grok_uses_the_free_suffix_verified_after_a_live_404(script):
+    grok_entries = [(name, model) for name, model, _ in script.CANDIDATE_MODELS if name == "grok-4-fast"]
+    assert grok_entries == [("grok-4-fast", "x-ai/grok-4-fast:free")]
+
+
+# --------------------------------------------------------------------------
+# Model/engine configuration lives at the top of the file
+# --------------------------------------------------------------------------
+
+
+def test_candidate_models_is_declared_before_any_function_definition(script):
+    """The whole point of the reorganisation: config is data, found immediately,
+    not logic requiring a read of build_candidates to discover."""
+    import inspect
+
+    source = inspect.getsource(script)
+    config_position = source.index("CANDIDATE_MODELS")
+    first_def_position = source.index("\ndef ")
+    assert config_position < first_def_position
+
+
+def test_every_candidate_models_entry_has_the_expected_shape(script):
+    for entry in script.CANDIDATE_MODELS:
+        assert len(entry) == 3
+        name, slug, disable_reasoning = entry
+        assert isinstance(name, str) and name
+        assert isinstance(slug, str) and "/" in slug
+        assert isinstance(disable_reasoning, bool)
+
+
+def test_no_duplicate_candidate_names(script):
+    names = [name for name, _, _ in script.CANDIDATE_MODELS]
+    assert len(names) == len(set(names))
+
+
+def test_mistral_direct_model_is_a_separate_named_constant(script):
+    assert script.MISTRAL_DIRECT_MODEL == "mistral-small-latest"
+
+
+# --------------------------------------------------------------------------
+# Harder, multi-document bench cases
+# --------------------------------------------------------------------------
+
+
+def test_more_than_the_original_six_cases_are_present(script):
+    """An 8-way tie at 100%/100% on the original six motivated this."""
+    assert len(script.BENCH_CASES) > 6
+
+
+def test_every_case_document_is_marked_synthetic(script):
+    """Phase-one discipline applies to every document this bench sends, not
+    only the baseline tier."""
+    for case in script.BENCH_CASES:
+        for document in case.documents:
+            assert document.metadata["data_class"] == "synthetic"
+
+
+def test_the_cross_document_case_actually_spans_two_documents(script):
+    """A case testing multi-document navigation that only supplies one
+    document would not test what its name claims."""
+    case = next(c for c in script.BENCH_CASES if c.case_id == "cross_document_correlation")
+    assert len(case.documents) == 2
+    assert case.documents[0].document_id != case.documents[1].document_id
+
+
+def test_case_ids_are_unique(script):
+    ids = [case.case_id for case in script.BENCH_CASES]
+    assert len(ids) == len(set(ids))
+
+
+def test_the_cross_document_case_is_navigable_to_completion(script):
+    """Concrete proof the harder case can be solved within budget by a model
+    that actually looks at both documents, not just a structural check."""
+    from melampo.reasoning.rlm_engine import STOP_FINAL, RlmEngine
+
+    case = next(c for c in script.BENCH_CASES if c.case_id == "cross_document_correlation")
+    steps = iter(["describe()", "grep(laboratory)", "final(elevated CRP, from report_3b)"])
+
+    def scripted(prompt):
+        return next(steps, "final(fallback)")
+
+    engine = RlmEngine(root_model=scripted, depth=0)
+    trajectory = engine.run("t", case.documents, case.question, budget=script._bench_budget())
+    assert trajectory.stop_reason == STOP_FINAL
+
+
+def test_the_negation_case_document_contains_both_an_affirmed_and_a_negated_finding(script):
+    """The whole point of this case: it must contain the discrimination it
+    claims to test, not just harder-sounding prose."""
+    case = next(c for c in script.BENCH_CASES if c.case_id == "negation_discrimination")
+    text = case.documents[0].text.lower()
+    assert "no pleural effusion" in text
+    assert "trace pericardial effusion" in text
+
+
+def test_the_differential_case_states_a_confirmed_diagnosis_distinct_from_candidates(script):
+    case = next(c for c in script.BENCH_CASES if c.case_id == "confirmed_vs_candidate_diagnosis")
+    text = case.documents[0].text.lower()
+    assert "confirmed" in text
+    assert text.index("confirmed") > text.index("differential"), "the confirmation must come after the candidate list"

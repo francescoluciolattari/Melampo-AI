@@ -12,18 +12,18 @@ jobs:
     name: Bench root model candidates
     runs-on: ubuntu-latest
     # Without this, a hung provider call has no ceiling other than GitHub's
-    # default of six hours. Scope grew substantially in this revision: up to
-    # 21 candidates (from 9), 6 cases each (from 3), and a wider per-case
-    # budget (10 iterations / 60s wall clock, from 6/40s) after a first live
-    # run showed 0% completion tied to too tight a ceiling. Preflight (15s
-    # timeout each) still catches unreachable candidates in seconds rather
-    # than after their full per-case budget, and that is what keeps a real
-    # run well under this number in practice -- the formal worst case, if
-    # every surviving candidate maxed out every case, is over three hours,
-    # which this ceiling does not attempt to cover. 60 minutes is sized for a
-    # realistic run with most candidates reachable and completing normally,
-    # not for the theoretical worst case.
-    timeout-minutes: 60
+    # default of six hours. Scope has grown twice: 21 candidates (from 9),
+    # and now 11 cases (from 6) after the original six produced an 8-way tie
+    # at 100% adherence/completion on the second live run -- too easy to
+    # discriminate among strong candidates. Preflight (15s timeout each)
+    # still catches unreachable candidates in seconds rather than after their
+    # full per-case budget, and that is what keeps a real run well under this
+    # number in practice -- the formal worst case, every surviving candidate
+    # maxing out every one of 11 cases, is several hours, which this ceiling
+    # does not attempt to cover. 90 minutes is sized for a realistic run with
+    # most candidates reachable and completing normally, not the theoretical
+    # worst case.
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
