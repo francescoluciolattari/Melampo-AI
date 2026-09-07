@@ -1,0 +1,198 @@
+name: Four-model comparison bench (advanced cases)
+
+# Manual trigger only, same discipline as root-model-bench.yml: this makes
+# real, billed calls to external providers and must never fire on every
+# commit.
+#
+# A focused companion to root-model-bench.yml, not a replacement. That
+# workflow measures the full candidate roster on the standard eleven-case
+# set, at a budget sized to stay affordable across 21 candidates. This one
+# narrows to four candidates that the full run's numbers already singled
+# out as worth a closer look -- llama-4-maverick and gemma-3-27b, which
+# reached 100% completion; gemma-4-31b and mistral-large-openrouter, which
+# reached 90.9% but hit the iteration ceiling on their one incomplete case
+# (budget_bound: true, meaning still working when the budget ran out, not
+# stuck) -- and spends the room a four-candidate run affords on two things
+# the full run could not: a wider budget, so the two candidates that were
+# cut off get the chance to actually finish, and eight further, more subtle
+# cases (--cases advanced) that the standard eleven do not exercise: three-
+# document synthesis, confirming the absence of a requested fact rather
+# than always having one to find, distinguishing confusable clinical terms,
+# chronology presented out of reading order, a longer multi-section
+# document, two documents that disagree on the same value, a dose requiring
+# two located numbers, and a two-hop inference connecting facts stated far
+# apart.
+#
+# The roster here is a snapshot of a specific comparison, not a second
+# source of truth for the candidate list: CANDIDATE_MODELS in
+# run_format_adherence_bench.py remains the only place model slugs are
+# declared. Edit ROSTER below to compare a different handful of candidates;
+# nothing else in this file needs to change.
+on:
+  workflow_dispatch:
+    inputs:
+      roster:
+        description: "Comma-separated candidate names to compare"
+        required: false
+        default: "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter"
+
+jobs:
+  prepare:
+    name: List candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      candidates: ${{ steps.list.outputs.candidates }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - id: list
+        run: |
+          echo "candidates=$(python3 scripts/run_format_adherence_bench.py \
+            --list-candidates --roster '${{ inputs.roster }}')" >> "$GITHUB_OUTPUT"
+
+  bench:
+    name: Bench ${{ matrix.candidate }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    # Wider than root-model-bench.yml's 20 minutes: BENCH_MAX_ITERATIONS=16 and
+    # BENCH_WALL_CLOCK_SECONDS=90 below raise the per-case ceiling specifically
+    # so gemma-4-31b and mistral-large-openrouter can complete the case that
+    # stopped them at the old ceiling, and nineteen cases (eleven baseline plus
+    # eight advanced) is nearly double the case count. A single candidate's
+    # formal worst case grows accordingly; 30 minutes covers a real run with
+    # margin, not the theoretical worst case if every one of nineteen cases
+    # maxed out the wider budget on every candidate.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate: ${{ fromJson(needs.prepare.outputs.candidates) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Run this candidate on the advanced case set
+        id: bench
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Raised from the 10/60s default (see _bench_budget in
+          # run_format_adherence_bench.py) specifically so the two candidates
+          # that hit the old ceiling get the room to finish. Applies only to
+          # this workflow's jobs -- root-model-bench.yml is unaffected, since
+          # these are read with a fallback to the unchanged default when unset.
+          BENCH_MAX_ITERATIONS: "16"
+          BENCH_WALL_CLOCK_SECONDS: "90"
+        continue-on-error: true
+        run: |
+          python scripts/run_format_adherence_bench.py \
+            --candidate "${{ matrix.candidate }}" \
+            --cases advanced \
+            --out "result.json"
+
+      - name: Upload this candidate's result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-result-${{ strategy.job-index }}
+          path: result.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  combine:
+    name: Combine results
+    needs: bench
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Download every candidate's result
+        uses: actions/download-artifact@v4
+        with:
+          pattern: candidate-result-*
+          path: all_results
+          merge-multiple: false
+
+      - name: Merge into one report
+        run: |
+          mkdir -p merged_input
+          find all_results -name '*.json' -exec cp {} merged_input/ \;
+          python scripts/merge_bench_results.py merged_input --out bench_results.json
+
+      - name: Summarise results
+        if: always()
+        run: |
+          if [ ! -f bench_results.json ]; then
+            echo "### Bench did not produce a results file" >> "$GITHUB_STEP_SUMMARY"
+            echo "The merge step did not write output. Check the 'Merge into one report' step log." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          data = json.loads(pathlib.Path("bench_results.json").read_text())
+          print("### Four-model comparison, advanced case set\n")
+          print(f"**Verdict:** {data.get('verdict', 'n/a')}\n")
+          results = data.get("results") or []
+          if results:
+              print("| Model | Adherence | Completion | Mean iters (complete) | Budget-bound |")
+              print("|---|---:|---:|---:|:---:|")
+              for row in results:
+                  bound = "yes" if row.get("budget_bound") else "no"
+                  mean_it = row.get("mean_iterations_on_completion")
+                  mean_it_str = f"{mean_it:.2f}" if mean_it is not None else "n/a"
+                  print(
+                      f"| {row['model_name']} | {row['adherence']:.0%} | "
+                      f"{row['completion_rate']:.0%} | {mean_it_str} | {bound} |"
+                  )
+              print()
+          preflight = data.get("preflight") or {}
+          if preflight:
+              print("<details><summary>Preflight detail</summary>\n")
+              print("| Candidate | Result |")
+              print("|---|---|")
+              for name, reason in sorted(preflight.items()):
+                  print(f"| {name} | {reason} |")
+              print("\n</details>\n")
+          failures = data.get("merge_failures") or []
+          if failures:
+              print("<details><summary>Merge failures</summary>\n")
+              for item in failures:
+                  print(f"- {item}")
+              print("\n</details>")
+          PY
+
+      - name: Upload merged results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-model-comparison-results
+          path: bench_results.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Fail the job if no candidate produced a usable result
+        if: always()
+        run: |
+          python3 -c "
+          import json, sys
+          data = json.load(open('bench_results.json'))
+          if not data.get('results'):
+              print('No candidate produced a usable result; see the job summary and artifact.')
+              sys.exit(1)
+          "
