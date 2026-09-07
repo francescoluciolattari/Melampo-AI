@@ -497,12 +497,31 @@ def _extract_content(payload: object) -> str:
     return content
 
 
-def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]]:
+def all_candidate_names() -> list[str]:
+    """Every candidate name this bench could run, in the order they are declared.
+
+    Used by the workflow's matrix-preparation step to fan out one job per
+    candidate without duplicating the roster in YAML: the list lives once,
+    in CANDIDATE_MODELS and the Mistral direct entry above, and this reads it
+    back rather than keeping a second copy in sync by hand.
+    """
+    return ["mistral-small-3.1", *(name for name, _, _ in CANDIDATE_MODELS)]
+
+
+def build_candidates(only: str | None = None) -> tuple[dict[str, "callable"], list[str], dict[str, str]]:
     """Preflight every candidate whose key is present, then wrap the survivors.
 
     Iterates CANDIDATE_MODELS and MISTRAL_DIRECT_MODEL, declared at the top of
     this file -- this function contains no model names or slugs of its own,
     so a version bump never means editing logic, only the table above it.
+
+    ``only``, when given, restricts preflight and the bench to that single
+    candidate name -- what a parallel matrix job needs to run its one
+    assigned candidate without also preflighting the other twenty, most of
+    which it will never use. Every other candidate still appears in
+    ``skipped``/``preflight_detail`` with a reason naming the restriction, so
+    a single-candidate run's own output stays self-explanatory rather than
+    silently reporting on only a fraction of the roster with no note of why.
 
     Returns (candidates, skipped, preflight_detail) rather than raising on a
     missing key or a failed preflight, so a partial run still produces a
@@ -513,14 +532,24 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]
     preflight_detail: dict[str, str] = {}
     to_check: list[tuple[str, str, str, str, bool]] = []  # (name, endpoint, key, model, disable_reasoning)
 
+    def _wanted(name: str) -> bool:
+        return only is None or name == only
+
     mistral_key = os.environ.get("MISTRAL_API_KEY")
-    if mistral_key:
+    if not _wanted("mistral-small-3.1"):
+        preflight_detail["mistral-small-3.1"] = f"not requested (running only {only!r})"
+    elif mistral_key:
         to_check.append(
             ("mistral-small-3.1", "https://api.mistral.ai/v1/chat/completions", mistral_key, MISTRAL_DIRECT_MODEL, False)
         )
     else:
         skipped.append("mistral-small-3.1 (MISTRAL_API_KEY not set)")
         preflight_detail["mistral-small-3.1"] = "MISTRAL_API_KEY not set"
+
+    wanted_openrouter = [entry for entry in CANDIDATE_MODELS if _wanted(entry[0])]
+    for name, _, _ in CANDIDATE_MODELS:
+        if not _wanted(name):
+            preflight_detail[name] = f"not requested (running only {only!r})"
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     if openrouter_key:
@@ -539,11 +568,11 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str], dict[str, str]
         # the moment any candidate here is considered for production use on
         # real case content.
         endpoint = "https://openrouter.ai/api/v1/chat/completions"
-        for name, model, disable_reasoning in CANDIDATE_MODELS:
+        for name, model, disable_reasoning in wanted_openrouter:
             to_check.append((name, endpoint, openrouter_key, model, disable_reasoning))
-    else:
-        skipped.append(f"{', '.join(name for name, _, _ in CANDIDATE_MODELS)} (OPENROUTER_API_KEY not set)")
-        for name, _, _ in CANDIDATE_MODELS:
+    elif wanted_openrouter:
+        skipped.append(f"{', '.join(name for name, _, _ in wanted_openrouter)} (OPENROUTER_API_KEY not set)")
+        for name, _, _ in wanted_openrouter:
             preflight_detail[name] = "OPENROUTER_API_KEY not set"
 
     if to_check:
@@ -647,9 +676,29 @@ def main() -> int:
     try:
         parser = argparse.ArgumentParser(description=__doc__)
         parser.add_argument("--out", type=Path, default=out_path)
+        parser.add_argument(
+            "--candidate",
+            default=None,
+            help=(
+                "Run only this one candidate (by bench name, e.g. 'claude-sonnet-5') instead of "
+                "the full roster. What a parallel matrix job passes so 21 candidates run as 21 "
+                "concurrent single-candidate jobs rather than one long sequential job -- see "
+                "all_candidate_names() and the workflow's 'prepare' job."
+            ),
+        )
+        parser.add_argument(
+            "--list-candidates",
+            action="store_true",
+            help="Print every candidate name as a JSON array and exit, for the workflow's matrix step.",
+        )
         args = parser.parse_args()
         out_path = args.out
-        return _run(args.out)
+
+        if args.list_candidates:
+            print(json.dumps(all_candidate_names()))
+            return 0
+
+        return _run(args.out, only=args.candidate)
     except Exception as error:  # noqa: BLE001 - last-resort net, see docstring
         import traceback
 
@@ -674,8 +723,8 @@ def main() -> int:
         return 1
 
 
-def _run(out: Path) -> int:
-    candidates, skipped, preflight_detail = build_candidates()
+def _run(out: Path, *, only: str | None = None) -> int:
+    candidates, skipped, preflight_detail = build_candidates(only=only)
 
     if not candidates:
         # Write the results file even here. This is the case where the

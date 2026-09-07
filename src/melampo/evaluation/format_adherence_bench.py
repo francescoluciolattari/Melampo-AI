@@ -150,38 +150,62 @@ class BenchReport:
 
     def verdict(self) -> str:
         """State what the numbers decide, including when they decide nothing."""
-        if not self.results:
-            return "no models benched"
-        best = self.ranked()[0]
-        if best.adherence >= self.adherence_target:
-            return (
-                f"{best.model_name} meets the adherence target "
-                f"({best.adherence:.0%}); the choice is settled on these cases"
-            )
+        return compute_verdict([item.as_dict() for item in self.results], self.adherence_target)
 
-        producing_output = [item for item in self.results if item.accepted_lines or item.rejected_lines]
-        if not producing_output:
-            # Every candidate returned nothing at all: this is not a format
-            # problem, since there is no output to have a format. A silent
-            # 0/0 near-miss share must not be read as "mostly near misses" --
-            # that would misdiagnose a connectivity or auth failure as a
-            # prompt problem and send the operator down the wrong fix.
-            return (
-                "no model produced any output at all; check API keys, network reachability and "
-                "provider errors before revisiting the prompt or the model choice"
-            )
 
-        rejecting = [item for item in producing_output if item.rejected_lines]
-        if rejecting and all(item.near_miss_share > 0.5 for item in rejecting):
-            return (
-                "no model meets the target, but most rejections are near misses: "
-                "the models understand the task and miss the syntax, so this is prompt "
-                "and parser work rather than a model choice"
-            )
+def rank_result_dicts(results: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sort result dicts the way ``BenchReport.ranked()`` sorts ``ModelResult``.
+
+    Operates on the plain-dict shape ``ModelResult.as_dict()`` produces, so the
+    same ordering applies whether the results just came from a live run or
+    were loaded back from JSON written by a separate, earlier process --
+    which is what a parallel, one-candidate-per-job bench run needs when a
+    later step combines what each job wrote independently.
+    """
+    return sorted(results, key=lambda item: (-item["adherence"], -item["completion_rate"]))
+
+
+def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float = 0.95) -> str:
+    """The verdict logic, as a pure function over result dicts.
+
+    Extracted from ``BenchReport.verdict()`` so a merge step recombining
+    results that were computed in separate processes (one per candidate, run
+    in parallel) reaches the same conclusion a single sequential run would
+    have -- one place decides what the numbers mean, read from either a live
+    ``BenchReport`` or a set of files on disk.
+    """
+    if not results:
+        return "no models benched"
+    best = rank_result_dicts(results)[0]
+    if best["adherence"] >= adherence_target:
         return (
-            "no model meets the target and rejections are mostly prose: "
-            "the prompt is not conveying the action format, and no model choice fixes that"
+            f"{best['model_name']} meets the adherence target "
+            f"({best['adherence']:.0%}); the choice is settled on these cases"
         )
+
+    producing_output = [item for item in results if item["accepted_lines"] or item["rejected_lines"]]
+    if not producing_output:
+        # Every candidate returned nothing at all: this is not a format
+        # problem, since there is no output to have a format. A silent
+        # 0/0 near-miss share must not be read as "mostly near misses" --
+        # that would misdiagnose a connectivity or auth failure as a
+        # prompt problem and send the operator down the wrong fix.
+        return (
+            "no model produced any output at all; check API keys, network reachability and "
+            "provider errors before revisiting the prompt or the model choice"
+        )
+
+    rejecting = [item for item in producing_output if item["rejected_lines"]]
+    if rejecting and all(item["near_miss_share"] > 0.5 for item in rejecting):
+        return (
+            "no model meets the target, but most rejections are near misses: "
+            "the models understand the task and miss the syntax, so this is prompt "
+            "and parser work rather than a model choice"
+        )
+    return (
+        "no model meets the target and rejections are mostly prose: "
+        "the prompt is not conveying the action format, and no model choice fixes that"
+    )
 
     def as_dict(self) -> dict[str, Any]:
         return {

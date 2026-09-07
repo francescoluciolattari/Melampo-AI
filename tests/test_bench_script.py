@@ -217,7 +217,7 @@ def test_a_completely_unforeseen_exception_still_produces_a_results_file(script,
     calls below any except clause crashed the script with nothing written."""
     out = tmp_path / "results.json"
     monkeypatch.setattr(sys, "argv", ["bench", "--out", str(out)])
-    monkeypatch.setattr(script, "build_candidates", lambda: (_ for _ in ()).throw(RuntimeError("never seen before")))
+    monkeypatch.setattr(script, "build_candidates", lambda only=None: (_ for _ in ()).throw(RuntimeError("never seen before")))
 
     exit_code = script.main()
 
@@ -574,3 +574,65 @@ def test_the_differential_case_states_a_confirmed_diagnosis_distinct_from_candid
     text = case.documents[0].text.lower()
     assert "confirmed" in text
     assert text.index("confirmed") > text.index("differential"), "the confirmation must come after the candidate list"
+
+
+# --------------------------------------------------------------------------
+# Parallel matrix support: one candidate per job
+# --------------------------------------------------------------------------
+
+
+def test_list_candidates_names_every_candidate_including_mistral_direct(script):
+    names = script.all_candidate_names()
+    assert "mistral-small-3.1" in names
+    assert "claude-sonnet-5" in names
+    assert len(names) == len(set(names)), "no duplicate names"
+    assert len(names) == 1 + len(script.CANDIDATE_MODELS)
+
+
+def test_build_candidates_with_only_restricts_preflight_to_that_one(script, monkeypatch):
+    """What a matrix job needs: run its one assigned candidate without also
+    preflighting the other twenty it will never use."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    checked = []
+
+    def fake_preflight(name, endpoint, key, model, disable_reasoning=False):
+        checked.append(name)
+        return (name == "glm-5", "reachable" if name == "glm-5" else "fake failure")
+
+    monkeypatch.setattr(script, "_preflight", fake_preflight)
+    candidates, _skipped, detail = script.build_candidates(only="glm-5")
+
+    assert checked == ["glm-5"], "no other candidate should have been preflighted at all"
+    assert "glm-5" in candidates
+    assert len(detail) == len(script.all_candidate_names())
+    assert "not requested" in detail["claude-sonnet-5"]
+
+
+def test_build_candidates_without_only_behaves_as_before(script, monkeypatch):
+    """The restriction is opt-in; the default full-roster behaviour must be unchanged."""
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    _, _, detail = script.build_candidates()
+    assert all("not requested" not in reason for reason in detail.values())
+
+
+def test_main_dashdash_list_candidates_prints_json_and_exits_zero(script, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["bench", "--list-candidates"])
+    exit_code = script.main()
+    assert exit_code == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed == script.all_candidate_names()
+
+
+def test_main_dashdash_candidate_restricts_the_run(script, monkeypatch, tmp_path):
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "bad-key")
+    out = tmp_path / "single.json"
+    monkeypatch.setattr(sys, "argv", ["bench", "--candidate", "glm-5", "--out", str(out)])
+
+    script.main()
+
+    payload = json.loads(out.read_text())
+    assert "glm-5" in payload["preflight"]
+    assert "not requested" in payload["preflight"]["claude-sonnet-5"]

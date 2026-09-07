@@ -505,6 +505,54 @@ written to a file or printed — the same discipline already established for
 direct Anthropic key, and Claude is reached through OpenRouter instead, on the
 same key as Qwen, Llama and Gemma.
 
+### From one sequential job to a parallel matrix
+
+A run against the full, now-21-candidate, 11-case roster took over 50
+minutes in a single sequential job — plausible given the scope (more
+candidates surviving preflight after the HTTP 400 fix, nearly double the
+cases, several reasoning-heavy models with genuine per-call latency), but a
+poor fit for a routine check regardless of whether it was "working as
+designed." Raising the job timeout each time it was approached would have
+treated the symptom: total time scales with the size of the roster as long
+as every candidate runs in one job, one after another, and every model
+added since the first run had made that worse.
+
+The workflow is now three jobs. **`prepare`** reads the candidate roster
+from the script itself (`--list-candidates`, backed by
+`all_candidate_names()`) rather than duplicating it in YAML, so the matrix
+always reflects whatever `CANDIDATE_MODELS` currently declares. **`bench`**
+runs as a matrix, one job per candidate, each invoking
+`run_format_adherence_bench.py --candidate NAME` — a new flag that restricts
+`build_candidates()` to that single name via a filter parameter, recording
+every other candidate as `"not requested"` rather than silently omitting it,
+so one job's own output stays self-explanatory. Jobs run concurrently
+(`fail-fast: false`, so one candidate's failure does not cancel the others),
+each uploading its own small result artifact. **`combine`** downloads every
+artifact and merges them with the new `scripts/merge_bench_results.py`.
+
+Total time now scales with the slowest single candidate rather than the sum
+of all of them — a single candidate's formal worst case (11 cases at the
+60-second wall-clock ceiling plus one trailing call) is under 20 minutes,
+which is also that job's timeout, down from the 90-minute roster-wide
+ceiling the sequential version needed.
+
+**One verdict function, two call sites.** `BenchReport.verdict()`'s logic
+was extracted into a pure function, `compute_verdict(results: list[dict],
+adherence_target)`, operating on the same plain-dict shape
+`ModelResult.as_dict()` already produces. A live sequential run calls it via
+`BenchReport.verdict()`; the merge script calls it directly on results
+loaded back from JSON files written by separate processes. One place
+decides what the numbers mean, so a parallel run and a sequential run reach
+the same conclusion from the same underlying data — verified by asserting
+the two call paths produce identical output on the same results.
+
+**Malformed input degrades, it does not erase.** If one matrix job's
+artifact is missing, corrupted, or JSON-but-not-an-object, `merge()` records
+it in `merge_failures` and continues with whatever else is present, rather
+than one broken candidate losing every result that arrived cleanly. An
+empty input directory is itself a named failure rather than a silent empty
+report.
+
 ### Why one proxy was rejected and OpenRouter was chosen instead
 
 A third-party API gateway advertising Claude access, `oneprovider.dev`, was
