@@ -188,6 +188,7 @@ write `grep(prednisone)` rather than `grep prednisone` under this grammar.
 | Qwen 3.5 | Apache 2.0 | Cleared | Leads open-weight comparisons overall; same licence, cheap to include |
 | Gemma 3 27B | Gemma Terms | **Needs review** | More restrictive than Apache 2.0 |
 | Llama 3.3 70B | Llama Community | **Needs review** | Dense and text-only, so unaffected by the Llama 4 EU restriction; benched for comparison |
+| GLM-5 | MIT | **Cleared** | No acceptable-use policy to review, unlike Llama or Gemma; open-weight #1 on Artificial Analysis at release |
 | Claude Sonnet 5 | Anthropic Commercial Terms | **Needs review** | Default Claude tier: mid-tier cost for a task that is format adherence, not depth of reasoning |
 | Claude Opus 5 | Anthropic Commercial Terms | **Needs review** | Benched, not assumed unnecessary: a 25% premium is worth it only if it also raises adherence |
 | Claude Fable 5.1 | Anthropic Commercial Terms | **Needs review** | Mythos-tier, 5x Sonnet's cost; benched for the same reason as Opus |
@@ -262,6 +263,12 @@ OpenAI was omitted from the first version of this registry alongside Mistral,
 Qwen and Llama, with no reasoning recorded for the omission. That is corrected
 here: `gpt-6-astra` is benched through the same `OPENROUTER_API_KEY`, and its
 commercial terms need the same review as every other unresolved candidate's.
+
+`glm-5` is added for the same reason as Qwen: MIT licensed, weights published,
+no acceptable-use policy to review at all — the cleanest licence position of
+any candidate here, Apache-2.0 included only because MIT and Apache-2.0 are
+both unconditionally cleared while Llama, Gemma and the commercial APIs are
+not.
 
 A candidate whose key is absent is skipped and reported as such rather than
 causing the run to fail: partial coverage is still a usable comparison.

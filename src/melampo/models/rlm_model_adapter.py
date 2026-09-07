@@ -31,6 +31,7 @@ from typing import Any
 LICENCE_APACHE_2 = "Apache-2.0"
 LICENCE_GEMMA_TERMS = "Gemma Terms of Use"
 LICENCE_LLAMA_COMMUNITY = "Llama Community License"
+LICENCE_MIT = "MIT"
 LICENCE_ANTHROPIC_COMMERCIAL = "Anthropic Commercial Terms of Service"
 LICENCE_OPENAI_COMMERCIAL = "OpenAI Commercial Terms of Service"
 
@@ -40,6 +41,7 @@ LICENCE_OPENAI_COMMERCIAL = "OpenAI Commercial Terms of Service"
 # checks whether it can ship.
 LICENCE_CLEARED_FOR_EU_COMMERCIAL = {
     LICENCE_APACHE_2: True,
+    LICENCE_MIT: True,
     LICENCE_GEMMA_TERMS: None,
     LICENCE_LLAMA_COMMUNITY: None,
     # A commercial API terms-of-service agreement is a contract entered
@@ -100,6 +102,16 @@ DEFAULT_CANDIDATES = (
         provider="qwen",
         licence=LICENCE_APACHE_2,
         note="Leads open-weight comparisons overall; same permissive licence, so cheap to include.",
+    ),
+    RootModelCandidate(
+        name="glm-5",
+        provider="z-ai",
+        licence=LICENCE_MIT,
+        note=(
+            "MIT licensed, full weights on Hugging Face -- no acceptable-use policy to review, "
+            "unlike Llama or Gemma. Open-weight #1 on Artificial Analysis at release. Trained on "
+            "non-NVIDIA hardware, which is unrelated to its suitability here but worth knowing."
+        ),
     ),
     RootModelCandidate(
         name="gemma-3-27b",

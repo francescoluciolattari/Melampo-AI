@@ -129,6 +129,7 @@ def build_candidates() -> tuple[dict[str, "callable"], list[str]]:
             ("claude-fable-5.1", "anthropic/claude-fable-5.1"),
             ("gpt-6-astra", "openai/gpt-6-astra"),
             ("qwen-3.5", "qwen/qwen-3.5-72b-instruct"),
+            ("glm-5", "z-ai/glm-5"),
             ("llama-3.3-70b", "meta-llama/llama-3.3-70b-instruct"),
             ("gemma-3-27b", "google/gemma-3-27b-it"),
         ):

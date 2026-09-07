@@ -136,7 +136,7 @@ def test_an_unknown_licence_is_not_assumed_cleared():
 
 def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
-    assert providers == {"mistral", "qwen", "google", "meta", "anthropic", "openai"}
+    assert providers == {"mistral", "qwen", "google", "meta", "anthropic", "openai", "z-ai"}
 
 
 def test_the_rejected_gateway_is_named_in_the_registry_source():
@@ -262,3 +262,12 @@ def test_a_model_producing_no_output_at_all_is_not_misdiagnosed_as_a_syntax_prob
 def test_a_mix_of_silent_and_producing_models_uses_the_producing_ones_to_diagnose():
     report = bench_models({"unreachable": lambda p: "", "near": _near_miss}, CASES)
     assert "near misses" in report.verdict()
+
+
+def test_glm_is_cleared_for_eu_commercial_use_under_its_mit_licence():
+    """MIT carries no acceptable-use policy to review, unlike Llama or Gemma."""
+    from melampo.models.rlm_model_adapter import LICENCE_MIT
+
+    glm = next(item for item in DEFAULT_CANDIDATES if item.provider == "z-ai")
+    assert glm.licence == LICENCE_MIT
+    assert glm.eu_commercial_cleared is True
