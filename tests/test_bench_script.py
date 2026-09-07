@@ -636,3 +636,182 @@ def test_main_dashdash_candidate_restricts_the_run(script, monkeypatch, tmp_path
     payload = json.loads(out.read_text())
     assert "glm-5" in payload["preflight"]
     assert "not requested" in payload["preflight"]["claude-sonnet-5"]
+
+
+# --------------------------------------------------------------------------
+# Configurable budget via environment variables
+# --------------------------------------------------------------------------
+
+
+def test_the_budget_defaults_match_the_documented_values(script):
+    budget = script._bench_budget()
+    assert budget.max_iterations == script.DEFAULT_MAX_ITERATIONS
+    assert budget.max_wall_clock_seconds == script.DEFAULT_WALL_CLOCK_SECONDS
+
+
+def test_environment_variables_override_the_budget(script, monkeypatch):
+    monkeypatch.setenv("BENCH_MAX_ITERATIONS", "16")
+    monkeypatch.setenv("BENCH_WALL_CLOCK_SECONDS", "90")
+    budget = script._bench_budget()
+    assert budget.max_iterations == 16
+    assert budget.max_wall_clock_seconds == 90.0
+
+
+def test_a_malformed_override_falls_back_to_the_default_rather_than_crashing(script, monkeypatch):
+    monkeypatch.setenv("BENCH_MAX_ITERATIONS", "not-a-number")
+    budget = script._bench_budget()
+    assert budget.max_iterations == script.DEFAULT_MAX_ITERATIONS
+
+
+def test_an_absent_override_uses_the_default(script, monkeypatch):
+    monkeypatch.delenv("BENCH_MAX_ITERATIONS", raising=False)
+    assert script._bench_budget().max_iterations == script.DEFAULT_MAX_ITERATIONS
+
+
+def test_a_fresh_budget_instance_is_still_returned_each_call(script, monkeypatch):
+    """The mutable-state concern from before still applies with env overrides."""
+    monkeypatch.setenv("BENCH_MAX_ITERATIONS", "5")
+    first, second = script._bench_budget(), script._bench_budget()
+    assert first is not second
+
+
+# --------------------------------------------------------------------------
+# --roster: a named subset for a focused comparison
+# --------------------------------------------------------------------------
+
+
+def test_list_candidates_with_roster_prints_only_the_requested_subset(script, monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys, "argv",
+        ["bench", "--list-candidates", "--roster", "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter"],
+    )
+    exit_code = script.main()
+    assert exit_code == 0
+    names = json.loads(capsys.readouterr().out)
+    assert names == ["llama-4-maverick", "gemma-4-31b", "gemma-3-27b", "mistral-large-openrouter"]
+
+
+def test_an_unknown_roster_name_fails_clearly_rather_than_silently_shrinking(script, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["bench", "--list-candidates", "--roster", "llama-4-maverick,not-a-real-model"])
+    exit_code = script.main()
+    assert exit_code == 1
+    assert "not-a-real-model" in capsys.readouterr().err
+
+
+def test_roster_is_ignored_without_list_candidates(script, monkeypatch):
+    """--roster only filters what --list-candidates prints; it must not
+    silently restrict a normal bench run, which uses --candidate instead."""
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(sys, "argv", ["bench", "--roster", "gemma-4-31b"])
+    _, _, detail = script.build_candidates()
+    assert len(detail) == len(script.all_candidate_names())
+
+
+# --------------------------------------------------------------------------
+# --cases advanced: the larger, more subtle set for a focused run
+# --------------------------------------------------------------------------
+
+
+def test_baseline_is_the_default_case_set(script, monkeypatch):
+    """The main 21-candidate workflow's behaviour must not change by default."""
+    captured = {}
+
+    def fake_run(out, *, only=None, cases=script.BENCH_CASES):
+        captured["cases"] = cases
+        return 0
+
+    monkeypatch.setattr(script, "_run", fake_run)
+    monkeypatch.setattr(sys, "argv", ["bench"])
+    script.main()
+    assert captured["cases"] == script.BENCH_CASES
+
+
+def test_cases_advanced_passes_the_combined_set_to_run(script, monkeypatch):
+    captured = {}
+
+    def fake_run(out, *, only=None, cases=script.BENCH_CASES):
+        captured["cases"] = cases
+        return 0
+
+    monkeypatch.setattr(script, "_run", fake_run)
+    monkeypatch.setattr(sys, "argv", ["bench", "--cases", "advanced"])
+    script.main()
+    assert captured["cases"] == script.BENCH_CASES + script.ADVANCED_CASES
+
+
+def test_advanced_cases_extend_rather_than_replace_the_baseline_set(script):
+    combined = script.BENCH_CASES + script.ADVANCED_CASES
+    assert len(combined) == len(script.BENCH_CASES) + len(script.ADVANCED_CASES)
+    baseline_ids = {c.case_id for c in script.BENCH_CASES}
+    advanced_ids = {c.case_id for c in script.ADVANCED_CASES}
+    assert baseline_ids.isdisjoint(advanced_ids), "no case id collision between the two sets"
+
+
+def test_every_advanced_case_document_is_marked_synthetic(script):
+    for case in script.ADVANCED_CASES:
+        for document in case.documents:
+            assert document.metadata["data_class"] == "synthetic"
+
+
+def test_advanced_case_ids_are_unique(script):
+    ids = [case.case_id for case in script.ADVANCED_CASES]
+    assert len(ids) == len(set(ids))
+
+
+def test_the_absence_case_document_genuinely_does_not_mention_the_asked_drug(script):
+    """The whole point of this case: there must be nothing to find."""
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "absence_of_requested_fact")
+    assert "prednisone" not in case.documents[0].text.lower()
+
+
+def test_the_absence_case_is_navigable_to_completion_despite_finding_nothing(script):
+    """A candidate that searches, finds nothing, and still finalises should
+    succeed within budget -- looping forever searching for an absent fact
+    would be the failure this case is designed to catch."""
+    from melampo.reasoning.rlm_engine import STOP_FINAL, RlmEngine
+
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "absence_of_requested_fact")
+    steps = iter(["grep(prednisone)", "search(prednisone)", "final(not documented)"])
+
+    def scripted(prompt):
+        return next(steps, "final(fallback)")
+
+    engine = RlmEngine(root_model=scripted, depth=0)
+    trajectory = engine.run("t", case.documents, case.question, budget=script._bench_budget())
+    assert trajectory.stop_reason == STOP_FINAL
+
+
+def test_the_confusable_terms_document_contains_both_opposite_findings(script):
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "confusable_terms")
+    text = case.documents[0].text.lower()
+    assert "embolism excluded" in text
+    assert "pulmonary oedema" in text
+
+
+def test_the_three_document_case_spans_exactly_three_documents(script):
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "three_document_synthesis")
+    ids = {document.document_id for document in case.documents}
+    assert len(ids) == 3
+
+
+def test_the_conflicting_values_case_has_disagreeing_numbers_across_two_documents(script):
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "conflicting_values_across_documents")
+    assert len(case.documents) == 2
+    texts = [document.text for document in case.documents]
+    assert "5.8" in texts[0] and "4.2" in texts[1], "the two sources must genuinely disagree"
+
+
+def test_the_out_of_order_case_states_the_later_event_before_the_earlier_one(script):
+    """Structural check that the document really is out of chronological
+    order, which is the entire point of the case."""
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "out_of_order_chronology")
+    text = case.documents[0].text.lower()
+    assert text.index("discharge diagnosis") < text.index("ankle swelling")
+
+
+def test_the_weight_based_dose_case_states_both_the_rate_and_the_weight(script):
+    case = next(c for c in script.ADVANCED_CASES if c.case_id == "weight_based_dose")
+    text = case.documents[0].text.lower()
+    assert "mg/kg" in text
+    assert "kg" in text and any(char.isdigit() for char in text)

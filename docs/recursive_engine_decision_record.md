@@ -553,6 +553,64 @@ than one broken candidate losing every result that arrived cleanly. An
 empty input directory is itself a named failure rather than a silent empty
 report.
 
+### A focused companion workflow: four candidates, harder cases, wider budget
+
+The full-roster run that motivated the harder eleven-case set also produced,
+for the first time, a genuine gradient rather than a tie: llama-4-maverick
+and gemma-3-27b reached 100% completion; gemma-4-31b and
+mistral-large-openrouter reached 90.9%, each stopped on exactly one case by
+`iteration_budget_exhausted` with `budget_bound: true` — evidence they were
+still working, not stuck, when the shared 21-candidate budget ran out.
+
+Two questions follow that the full-roster workflow is not built to answer
+cheaply: would a wider budget let those two finish, and can four strong
+candidates be told apart further on cases more subtle than the standard
+eleven. Both cost more per candidate, which is affordable for four
+candidates and would not be for twenty-one — hence a separate workflow
+rather than changing the shared one.
+
+**`--roster` and `--cases advanced` and `BENCH_MAX_ITERATIONS`/
+`BENCH_WALL_CLOCK_SECONDS`, all additive.** `--list-candidates --roster
+NAME,NAME,...` filters the printed roster to a named subset, validating
+every name and failing loudly on one that does not exist rather than
+silently printing a shorter list. `--cases advanced` runs `BENCH_CASES +
+ADVANCED_CASES`; the default remains `BENCH_CASES` alone, so the full-roster
+workflow's behaviour is unchanged unless the flag is passed. `_bench_budget()`
+now reads `BENCH_MAX_ITERATIONS`/`BENCH_WALL_CLOCK_SECONDS` from the
+environment with a fallback to the existing 10/60s default, so the
+full-roster workflow — which does not set them — is unaffected.
+
+**Eight further cases, each targeting a discrimination the standard eleven
+do not exercise:**
+
+| Case | Tests |
+|---|---|
+| `three_document_synthesis` | Synthesising across **three** documents, not two |
+| `absence_of_requested_fact` | Concluding and reporting absence rather than confabulating an answer, or looping indefinitely searching for something that is not there |
+| `confusable_terms` | Distinguishing two clinically opposite findings that share a word ("pulmonary embolism", excluded, vs "pulmonary oedema", confirmed) |
+| `out_of_order_chronology` | Determining true temporal order when the document's paragraph order does not match it |
+| `long_multi_section_lookup` | Connecting a fact in an early paragraph to one several paragraphs later in a genuinely long note |
+| `conflicting_values_across_documents` | Noticing and citing two disagreeing values for the same measurement, rather than reporting only the first found |
+| `weight_based_dose` | Locating two separate numbers (a rate and a weight) needed together, not graded on doing the arithmetic |
+| `two_hop_family_history_inference` | Connecting two facts stated in different sentences into one relevant inference |
+
+The absence case is the one worth dwelling on: every other case in this file,
+baseline and advanced, has something to find. This one does not, and the
+discriminating behaviour is recognising that and finalising anyway —
+verified by a scripted model that greps, finds nothing, searches, finds
+nothing, and still reaches `final()` within budget, which is exactly the
+sequence a genuinely absent fact should produce rather than an endless
+search.
+
+`.github/workflows/four-model-comparison-bench.yml` wires these together:
+`workflow_dispatch` with a `roster` input defaulting to the four candidates
+above, the same three-job `prepare`/`bench`/`combine` structure as the main
+workflow, `BENCH_MAX_ITERATIONS=16`/`BENCH_WALL_CLOCK_SECONDS=90` and
+`--cases advanced` set on the bench step. `CANDIDATE_MODELS` in the script
+remains the only place a model slug is declared; the roster here is a
+snapshot of one comparison, changeable via the workflow's input without
+touching the model registry.
+
 ### Why one proxy was rejected and OpenRouter was chosen instead
 
 A third-party API gateway advertising Claude access, `oneprovider.dev`, was

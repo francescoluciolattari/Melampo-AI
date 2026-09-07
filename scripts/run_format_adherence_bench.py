@@ -302,6 +302,217 @@ BENCH_CASES = (
     ),
 )
 
+# ============================================================================
+# ADVANCED DOCUMENTS AND CASES -- opt-in via --cases advanced
+# ============================================================================
+# Built for a focused comparison among a small number of strong candidates
+# (see docs/four_model_comparison.md and four-model-comparison-bench.yml)
+# where the 21-candidate roster's cost and time constraints do not apply, so
+# a larger, more subtle set is affordable. Each case targets a discrimination
+# the eleven cases above do not: three-document synthesis rather than two,
+# confirming the *absence* of a requested fact rather than always having one
+# to find, distinguishing two similarly-worded but clinically opposite terms,
+# chronology presented out of reading order, a genuinely long document
+# requiring several slices, two documents that disagree on the same value,
+# a dose expressed as a rate requiring two located numbers rather than one,
+# and a two-hop inference connecting facts stated far apart. As with every
+# other case in this file: none of these are graded against a correct
+# answer. They discriminate navigation persistence and format adherence
+# under harder demands, which is what this bench measures throughout.
+
+CONSULT_IMAGING = EnvironmentDocument(
+    document_id="report_7a",
+    text=(
+        "Echocardiogram: small circumferential pericardial effusion, no "
+        "tamponade physiology. Normal left ventricular wall motion."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+CONSULT_LABS = EnvironmentDocument(
+    document_id="report_7b",
+    text="Troponin mildly elevated at 0.08, trending down on repeat testing six hours later.",
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+CONSULT_NOTE = EnvironmentDocument(
+    document_id="report_7c",
+    text=(
+        "Cardiology consult: taking the effusion, the down-trending troponin, "
+        "and the preserved wall motion together, the picture is most "
+        "consistent with pericarditis rather than myocardial infarction. A "
+        "true infarction would be expected to show a rising troponin and a "
+        "regional wall motion abnormality, neither of which is present."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# The question asks about a drug the document never mentions -- it discusses
+# a real, different treatment instead. Tests whether a candidate concludes
+# and reports absence, or keeps searching (and burns its budget) for
+# something that was never there. Unlike every case above, there is nothing
+# to find; correct navigation ends in a documented "not found," not a longer
+# search.
+ABSENCE_DOCUMENT = EnvironmentDocument(
+    document_id="report_8",
+    text=(
+        "Community-acquired pneumonia was treated with azithromycin 500 mg "
+        "on day one, then 250 mg daily for four further days. Symptoms "
+        "improved over the course of treatment."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# Two clinically opposite conditions share the word "pulmonary" and sit one
+# sentence apart, one ruled out and one confirmed. A candidate matching on
+# the shared word rather than reading the whole term will confuse them.
+CONFUSABLE_TERMS_DOCUMENT = EnvironmentDocument(
+    document_id="report_9",
+    text=(
+        "CT pulmonary angiogram performed to assess for pulmonary embolism; "
+        "no filling defect identified, embolism excluded. Findings instead "
+        "show bilateral interstitial pulmonary oedema, judged cardiogenic in "
+        "origin given the associated cardiomegaly."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# The discharge diagnosis is stated first; the symptom that actually came
+# first in time is described later, in the "history" section. A candidate
+# that answers from the first paragraph it reads, rather than locating the
+# section that actually addresses onset, reports the wrong symptom as first.
+OUT_OF_ORDER_DOCUMENT = EnvironmentDocument(
+    document_id="report_10",
+    text=(
+        "Discharge diagnosis: decompensated heart failure with acute kidney "
+        "injury.\n\n"
+        "Hospital course: Diuresis was initiated on admission with good "
+        "response; renal function improved over the following four days.\n\n"
+        "History of presenting complaint: The illness began eight days prior "
+        "to admission with ankle swelling, which preceded the breathlessness "
+        "that ultimately prompted presentation three days later."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# Six paragraphs; the answer requires connecting a fact in the second
+# paragraph to a fact in the fifth, forcing at least two located reads
+# rather than one grep-and-answer.
+LONG_MULTI_SECTION_DOCUMENT = EnvironmentDocument(
+    document_id="report_11",
+    text=(
+        "Admission note: 74-year-old admitted with fever and productive "
+        "cough of three days' duration.\n\n"
+        "A sputum culture was sent on admission and empirical antibiotics "
+        "were started pending results.\n\n"
+        "Day two: Patient remained febrile; no growth on blood cultures at "
+        "24 hours.\n\n"
+        "Day three: Repeat observations show improving oxygen requirement.\n\n"
+        "Microbiology, final report: Sputum culture from admission grew "
+        "Streptococcus pneumoniae, sensitive to the antibiotic already in "
+        "use.\n\n"
+        "Day five: Afebrile for 48 hours, planned for discharge tomorrow "
+        "to complete a seven-day antibiotic course."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# Two documents report a value for what is presented as the same blood draw,
+# and the numbers disagree. There is no single correct value to report --
+# the discriminating behaviour is noticing and citing both rather than
+# reporting only the first one found.
+CONFLICT_NURSING_NOTE = EnvironmentDocument(
+    document_id="report_12a",
+    text="Morning bloods: potassium 5.8, flagged to the covering doctor.",
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+CONFLICT_LAB_REPORT = EnvironmentDocument(
+    document_id="report_12b",
+    text="Potassium 4.2, sample collected 07:10, processed without delay.",
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# The dose is expressed per kilogram; the weight is stated in a different
+# sentence. Locating both is the discriminating behaviour -- whether a
+# candidate computes the absolute dose is not graded, but a candidate that
+# never finds the weight cannot have used it.
+WEIGHT_BASED_DOSE_DOCUMENT = EnvironmentDocument(
+    document_id="report_13",
+    text=(
+        "Gentamicin was dosed at 5 mg/kg for presumed Gram-negative sepsis. "
+        "The patient's admission weight was recorded as 68 kg. Renal "
+        "function was monitored daily given the nephrotoxicity risk."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+# Two facts stated in different sentences must be connected: a family
+# history and a measurement that only becomes significant in light of it.
+# Both facts are explicit; the inference is in relating them, not finding
+# either alone.
+TWO_HOP_DOCUMENT = EnvironmentDocument(
+    document_id="report_14",
+    text=(
+        "Family history is notable for a sister with confirmed Marfan "
+        "syndrome. Echocardiography today shows an aortic root diameter of "
+        "4.8 cm, above the threshold at which surgical referral is "
+        "considered in patients with a connective tissue disorder."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+ADVANCED_CASES = (
+    BenchCase(
+        "three_document_synthesis",
+        (CONSULT_IMAGING, CONSULT_LABS, CONSULT_NOTE),
+        "What is the working diagnosis once all three notes are read together, and why was myocardial infarction excluded?",
+    ),
+    BenchCase(
+        "absence_of_requested_fact",
+        (ABSENCE_DOCUMENT,),
+        "What dose of prednisone was prescribed?",
+    ),
+    BenchCase(
+        "confusable_terms",
+        (CONFUSABLE_TERMS_DOCUMENT,),
+        "Was pulmonary embolism or pulmonary oedema the actual finding, and what happened to the other?",
+    ),
+    BenchCase(
+        "out_of_order_chronology",
+        (OUT_OF_ORDER_DOCUMENT,),
+        "Which symptom appeared first in time: the ankle swelling or the breathlessness?",
+    ),
+    BenchCase(
+        "long_multi_section_lookup",
+        (LONG_MULTI_SECTION_DOCUMENT,),
+        "What organism grew on the sputum culture sent at admission, and was it sensitive to the antibiotic already being given?",
+    ),
+    BenchCase(
+        "conflicting_values_across_documents",
+        (CONFLICT_NURSING_NOTE, CONFLICT_LAB_REPORT),
+        "What potassium value is reported for this blood draw, and is there any discrepancy between sources?",
+    ),
+    BenchCase(
+        "weight_based_dose",
+        (WEIGHT_BASED_DOSE_DOCUMENT,),
+        "What is the per-kilogram gentamicin dose, and what is the patient's weight needed to compute the total?",
+    ),
+    BenchCase(
+        "two_hop_family_history_inference",
+        (TWO_HOP_DOCUMENT,),
+        "Does the family history have any bearing on today's aortic measurement, and why?",
+    ),
+)
+
 # Rewritten after a first live run showed three distinct failure patterns that
 # a short instruction left room for: two Claude tiers exhausted their full
 # iteration budget without ever calling final() despite well-formed actions
@@ -346,8 +557,53 @@ CALL_TIMEOUT_SECONDS = 30
 # again. A factory, not a shared instance: Budget carries mutable per-run
 # state (iteration count, start time), and reusing one instance across cases
 # would corrupt both.
+DEFAULT_MAX_ITERATIONS = 10
+DEFAULT_WALL_CLOCK_SECONDS = 60.0
+
+
 def _bench_budget() -> Budget:
-    return Budget(max_iterations=10, max_wall_clock_seconds=60.0)
+    """The per-case budget, overridable via environment variables.
+
+    Two candidates on the second live run (gemma-4-31b, mistral-large-openrouter)
+    hit exactly the 10-iteration ceiling on their one incomplete case each,
+    with budget_bound=true -- evidence they were still working, not stuck, when
+    the budget ran out. BENCH_MAX_ITERATIONS and BENCH_WALL_CLOCK_SECONDS let a
+    focused, smaller-roster run (see four-model-comparison-bench.yml) give
+    those candidates the room to actually finish, without changing the default
+    for the full 21-candidate roster, where a wider budget multiplied across
+    every candidate would cost meaningfully more time and money for a question
+    this run does not need answered.
+    """
+    max_iterations = _env_int("BENCH_MAX_ITERATIONS", DEFAULT_MAX_ITERATIONS)
+    wall_clock = _env_float("BENCH_WALL_CLOCK_SECONDS", DEFAULT_WALL_CLOCK_SECONDS)
+    return Budget(max_iterations=max_iterations, max_wall_clock_seconds=wall_clock)
+
+
+def _env_int(name: str, default: int) -> int:
+    """Read an environment variable as int, falling back on absence or a malformed value.
+
+    A typo in a workflow's env block should degrade to the documented default,
+    not crash the bench before it does anything useful.
+    """
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"  [config] {name}={raw!r} is not an integer, using default {default}", file=sys.stderr)
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        print(f"  [config] {name}={raw!r} is not a number, using default {default}", file=sys.stderr)
+        return default
 
 
 RATE_LIMIT_MAX_RETRIES = 1
@@ -691,14 +947,49 @@ def main() -> int:
             action="store_true",
             help="Print every candidate name as a JSON array and exit, for the workflow's matrix step.",
         )
+        parser.add_argument(
+            "--roster",
+            default=None,
+            help=(
+                "Comma-separated candidate names to restrict --list-candidates to (e.g. "
+                "'llama-4-maverick,gemma-4-31b'), for a focused workflow comparing a handful of "
+                "candidates rather than the full roster. Unknown names are reported and exit "
+                "non-zero rather than silently producing a shorter-than-expected list. Has no "
+                "effect without --list-candidates."
+            ),
+        )
+        parser.add_argument(
+            "--cases",
+            choices=("baseline", "advanced"),
+            default="baseline",
+            help=(
+                "'baseline' (default) runs the eleven-case set every candidate is measured "
+                "against. 'advanced' adds ADVANCED_CASES -- eight further, more subtle cases "
+                "(three-document synthesis, absence of a requested fact, confusable terms, "
+                "out-of-order chronology, a longer multi-section document, conflicting values "
+                "across documents, a weight-based dose, a two-hop inference) built for a "
+                "smaller, focused comparison where the added cost and time are affordable. "
+                "Never changes the default for the full-roster workflow."
+            ),
+        )
         args = parser.parse_args()
         out_path = args.out
 
         if args.list_candidates:
-            print(json.dumps(all_candidate_names()))
+            names = all_candidate_names()
+            if args.roster:
+                requested = [item.strip() for item in args.roster.split(",") if item.strip()]
+                unknown = [name for name in requested if name not in names]
+                if unknown:
+                    print(f"Unknown candidate name(s) in --roster: {unknown}", file=sys.stderr)
+                    print(f"Valid names: {names}", file=sys.stderr)
+                    return 1
+                names = requested
+            print(json.dumps(names))
             return 0
 
-        return _run(args.out, only=args.candidate)
+        cases = BENCH_CASES + ADVANCED_CASES if args.cases == "advanced" else BENCH_CASES
+        return _run(args.out, only=args.candidate, cases=cases)
     except Exception as error:  # noqa: BLE001 - last-resort net, see docstring
         import traceback
 
@@ -723,7 +1014,7 @@ def main() -> int:
         return 1
 
 
-def _run(out: Path, *, only: str | None = None) -> int:
+def _run(out: Path, *, only: str | None = None, cases: tuple = BENCH_CASES) -> int:
     candidates, skipped, preflight_detail = build_candidates(only=only)
 
     if not candidates:
@@ -754,7 +1045,7 @@ def _run(out: Path, *, only: str | None = None) -> int:
     if skipped:
         print(f"Skipped: {'; '.join(skipped)}")
 
-    report = bench_models(candidates, BENCH_CASES, adherence_target=0.95, budget_factory=_bench_budget)
+    report = bench_models(candidates, cases, adherence_target=0.95, budget_factory=_bench_budget)
     payload = report.as_dict()
     payload["status"] = "completed"
     payload["skipped"] = skipped
