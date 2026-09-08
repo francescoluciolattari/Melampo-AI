@@ -871,7 +871,7 @@ def test_gemini_is_the_first_google_candidate_that_is_not_gemma(script):
     Google's proprietary Gemini has ever been benched."""
     google_entries = [(name, model) for name, model, _ in script.CANDIDATE_MODELS if "gemini" in model or "gemma" in model]
     gemini_entries = [item for item in google_entries if "gemini" in item[1]]
-    assert gemini_entries == [("gemini-3-pro-preview", "google/gemini-3-pro-preview")]
+    assert gemini_entries == [("gemini-3-pro-preview", "google/gemini-3.1-pro-preview")]
 
 
 def test_nemotron_super_is_present(script):
@@ -919,3 +919,13 @@ def test_google_and_nvidia_licences_are_marked_needs_review(script):
 
     assert LICENCE_GOOGLE_COMMERCIAL in BENCH_ONLY_UNTIL_LICENCE_REVIEW
     assert LICENCE_NVIDIA_OPEN in BENCH_ONLY_UNTIL_LICENCE_REVIEW
+
+
+def test_gemini_slug_was_corrected_after_a_live_404_deprecation(script):
+    """google/gemini-3-pro-preview (without .1) was shut down by Google on
+    March 9, 2026, after this candidate was first added -- a live run's
+    HTTP 404 caught it. google/gemini-3.1-pro-preview is the confirmed
+    successor."""
+    entries = [model for name, model, _ in script.CANDIDATE_MODELS if name == "gemini-3-pro-preview"]
+    assert entries == ["google/gemini-3.1-pro-preview"]
+    assert "gemini-3-pro-preview" not in entries[0], "the deprecated slug must not resurface"

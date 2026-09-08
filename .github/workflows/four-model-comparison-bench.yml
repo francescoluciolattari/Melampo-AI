@@ -63,15 +63,24 @@ jobs:
     name: Bench ${{ matrix.candidate }}
     needs: prepare
     runs-on: ubuntu-latest
-    # Wider than root-model-bench.yml's 20 minutes: BENCH_MAX_ITERATIONS=16 and
-    # BENCH_WALL_CLOCK_SECONDS=90 below raise the per-case ceiling specifically
-    # so gemma-4-31b and mistral-large-openrouter can complete the case that
-    # stopped them at the old ceiling, and nineteen cases (eleven baseline plus
-    # eight advanced) is nearly double the case count. A single candidate's
-    # formal worst case grows accordingly; 30 minutes covers a real run with
-    # margin, not the theoretical worst case if every one of nineteen cases
-    # maxed out the wider budget on every candidate.
-    timeout-minutes: 30
+    # A live run's grok-4.6 job ran 30.3 minutes -- essentially the full 30
+    # minutes plus a few seconds of shutdown grace period -- before being
+    # cancelled by this timeout, without completing. Every other candidate in
+    # the same run finished well inside 30 minutes, so this is not the
+    # nineteen-case worst case discussed below being generally too tight; it
+    # is one candidate proving genuinely, substantially slower than the rest
+    # of this roster. Raised to 50 minutes to give it (and any future
+    # candidate with similar real-world latency) room to actually finish
+    # rather than being cut off with nothing to show for it -- BENCH_MAX_ITERATIONS=16
+    # and BENCH_WALL_CLOCK_SECONDS=90 below raise the per-case ceiling
+    # specifically so gemma-4-31b and mistral-large-openrouter can complete
+    # the case that stopped them at the old ceiling, and nineteen cases
+    # (eleven baseline plus eight advanced) is nearly double the case count.
+    # A single candidate's formal worst case grows accordingly; this is sized
+    # for a real run with margin for a genuinely slow candidate, not the
+    # theoretical worst case if every one of nineteen cases maxed out the
+    # wider budget on every candidate.
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
