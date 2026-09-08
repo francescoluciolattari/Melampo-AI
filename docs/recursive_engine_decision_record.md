@@ -611,6 +611,53 @@ remains the only place a model slug is declared; the roster here is a
 snapshot of one comparison, changeable via the workflow's input without
 touching the model registry.
 
+### The first real run of the parallel matrix lost three results out of four
+
+The four-model comparison workflow's first live run reported "No candidate
+produced a usable result" despite `List candidates` correctly naming all
+four, all four `Bench <candidate>` jobs completing, and `Merge into one
+report` exiting successfully — every step green, and yet zero results in
+the merged output.
+
+The cause was in the merge step's own shell, not in any candidate's run.
+`actions/download-artifact@v4` with `merge-multiple: false` (the default)
+downloads each artifact into its own subdirectory named after the artifact
+— `all_results/candidate-result-0/result.json`,
+`all_results/candidate-result-1/result.json`, and so on — because every
+candidate job writes the same internal filename, `result.json`. The
+workflow's merge step then flattened these with `find all_results -name
+'*.json' -exec cp {} merged_input/ \;` before calling
+`merge_bench_results.py`. Since every source file shares that one filename,
+every copy into the same flat destination **overwrote the previous one**:
+four files went in, one came out, and which one survived depended on
+`find`'s traversal order rather than anything about the candidates
+themselves.
+
+This affected both workflows equally — `root-model-bench.yml` carried the
+identical pattern, copied when `four-model-comparison-bench.yml` was built
+from it — and had never been caught, because the merge script's own tests
+exercised `merge()` against hand-built flat directories with distinctly
+named files, never against the actual nested, identically-named layout
+`download-artifact` produces. The logic was verified in isolation and
+correct as far as it went; the gap was never testing the full pipeline
+against GitHub's real artifact layout.
+
+Fixed by removing the flattening step entirely rather than working around
+the collision: `merge()` now searches `input_dir.rglob("*.json")` instead of
+`input_dir.glob("*.json")`, so it can be pointed directly at
+`all_results/` — the nested layout `download-artifact` already produces —
+with nothing to flatten and nothing to collide. `source_files` and every
+failure message now report each file's path relative to the input
+directory rather than its bare name, since two files both literally named
+`result.json` are indistinguishable by name alone once nesting is no
+longer removed first.
+
+Reproduced and verified directly: four files written into four
+subdirectories exactly as `download-artifact` would produce them, merged
+first through the old flattening step (one result survives) and then
+through `merge()` pointed at the nested directory directly (all four
+survive) — the same contrast is now a permanent regression test.
+
 ### Why one proxy was rejected and OpenRouter was chosen instead
 
 A third-party API gateway advertising Claude access, `oneprovider.dev`, was

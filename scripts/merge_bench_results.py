@@ -14,8 +14,16 @@ same conclusion from the same underlying numbers.
 Usage:
     python scripts/merge_bench_results.py INPUT_DIR --out bench_results.json
 
-INPUT_DIR should contain one JSON file per candidate, each written by
-``--candidate NAME --out <path>``. Files that do not parse as JSON, or that do
+INPUT_DIR is searched recursively for ``*.json`` files -- point it directly at
+what ``actions/download-artifact@v4`` produces (with ``merge-multiple: false``,
+its default, every artifact lands in its own subdirectory named after the
+artifact, e.g. ``INPUT_DIR/candidate-result-0/result.json``,
+``INPUT_DIR/candidate-result-1/result.json``). No flattening step is needed or
+wanted: since every candidate job writes the same internal filename
+(``result.json``), copying them into one flat directory first would collide on
+that repeated name and silently keep only the last one copied. Each file
+should be one candidate's output, written by ``--candidate NAME --out <path>``.
+Files that do not parse as JSON, or that do
 not have the expected shape, are recorded as merge failures rather than
 aborting the whole merge -- one malformed artifact from one matrix job should
 not erase the twenty results that did arrive cleanly.
@@ -49,18 +57,35 @@ def merge(input_dir: Path) -> dict:
     preflight: dict[str, str] = {}
     merge_failures: list[str] = []
 
-    files = sorted(input_dir.glob("*.json"))
+    # Recursive: actions/download-artifact@v4 with merge-multiple: false (the
+    # default) downloads each artifact into its own subdirectory named after
+    # the artifact -- all_results/candidate-result-0/result.json,
+    # all_results/candidate-result-1/result.json, and so on -- since every
+    # candidate job writes the same internal filename ("result.json"). A
+    # flat glob() would only see files directly in input_dir and silently
+    # find nothing; a shell step that copies them all into one flat
+    # directory first would collide on that same repeated filename and
+    # overwrite all but the last one copied, which is the defect this
+    # comment replaces: rglob() reads the artifacts directly from their
+    # nested layout, so no flattening step -- and no collision -- is needed
+    # at all.
+    files = sorted(input_dir.rglob("*.json"))
     if not files:
         merge_failures.append(f"no JSON files found in {input_dir}")
 
     for path in files:
+        # Relative to input_dir, not path.name alone: with the nested
+        # artifact layout, two files both named "result.json" in different
+        # subdirectories are indistinguishable by bare name, and a merge
+        # failure report naming the wrong one is worse than unhelpful.
+        label = str(path.relative_to(input_dir))
         try:
             payload = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError) as error:
-            merge_failures.append(f"{path.name}: could not read/parse ({type(error).__name__}: {error})")
+            merge_failures.append(f"{label}: could not read/parse ({type(error).__name__}: {error})")
             continue
         if not isinstance(payload, dict):
-            merge_failures.append(f"{path.name}: top-level JSON is not an object")
+            merge_failures.append(f"{label}: top-level JSON is not an object")
             continue
 
         results.extend(item for item in payload.get("results", []) if isinstance(item, dict))
@@ -86,7 +111,7 @@ def merge(input_dir: Path) -> dict:
         "skipped": sorted(set(skipped)),
         "preflight": dict(sorted(preflight.items())),
         "merge_failures": merge_failures,
-        "source_files": [path.name for path in files],
+        "source_files": [str(path.relative_to(input_dir)) for path in files],
     }
 
 
