@@ -130,10 +130,13 @@ jobs:
           merge-multiple: false
 
       - name: Merge into one report
-        run: |
-          mkdir -p merged_input
-          find all_results -name '*.json' -exec cp {} merged_input/ \;
-          python scripts/merge_bench_results.py merged_input --out bench_results.json
+        # merge_bench_results.py searches recursively, so it is pointed
+        # directly at what download-artifact produced -- no flattening step.
+        # A prior version copied every candidate's result.json into one flat
+        # directory first; since every candidate job writes that same
+        # filename, the copy silently collided and kept only the last file,
+        # discarding the rest before the merge ever saw them.
+        run: python scripts/merge_bench_results.py all_results --out bench_results.json
 
       - name: Summarise results
         if: always()

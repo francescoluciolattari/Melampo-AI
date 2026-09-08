@@ -174,3 +174,72 @@ def test_main_writes_the_merged_file_and_returns_zero_on_success(merge_script, t
     assert out.exists()
     payload = json.loads(out.read_text())
     assert payload["models"] == 1
+
+
+# --------------------------------------------------------------------------
+# Regression: the exact download-artifact@v4 layout, filename collision
+# --------------------------------------------------------------------------
+
+
+def test_merge_finds_results_nested_in_per_artifact_subdirectories(merge_script, tmp_path):
+    """This is the real shape actions/download-artifact@v4 produces with
+    merge-multiple: false (its default): each artifact in its own
+    subdirectory, every one containing an identically-named file. A prior
+    version of the workflow flattened these with a shell cp step first,
+    which silently collided on the repeated filename and kept only the last
+    one copied -- this test is against merge() being pointed directly at
+    the nested layout instead, with no flattening step at all."""
+    names = ["llama-4-maverick", "gemma-4-31b", "gemma-3-27b", "mistral-large-openrouter"]
+    for index, name in enumerate(names):
+        subdir = tmp_path / f"candidate-result-{index}"
+        subdir.mkdir()
+        (subdir / "result.json").write_text(
+            json.dumps({"results": [_result(name, 1.0, 1.0)], "skipped": [], "preflight": {name: "reachable"}})
+        )
+
+    payload = merge_script.merge(tmp_path)
+
+    assert {item["model_name"] for item in payload["results"]} == set(names)
+    assert len(payload["results"]) == 4, "all four, not just the last one a flattening cp would have kept"
+
+
+def test_a_flattening_copy_step_would_have_lost_three_of_four_results(merge_script, tmp_path):
+    """Documents the bug this fixes by reproducing what the old shell step
+    did, so the contrast with the test above is explicit rather than
+    implicit."""
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    names = ["a", "b", "c", "d"]
+    for index, name in enumerate(names):
+        subdir = nested / f"candidate-result-{index}"
+        subdir.mkdir()
+        (subdir / "result.json").write_text(
+            json.dumps({"results": [_result(name, 1.0, 1.0)], "skipped": [], "preflight": {}})
+        )
+
+    flattened = tmp_path / "flattened"
+    flattened.mkdir()
+    for path in sorted(nested.rglob("result.json")):
+        # Reproduces "cp {} merged_input/" for every match: same destination
+        # filename every time, so each copy overwrites the last.
+        (flattened / "result.json").write_bytes(path.read_bytes())
+
+    old_way_payload = merge_script.merge(flattened)
+    assert len(old_way_payload["results"]) == 1, "the collision this fix removes"
+
+    new_way_payload = merge_script.merge(nested)
+    assert len(new_way_payload["results"]) == 4, "merge() pointed at the nested layout directly loses nothing"
+
+
+def test_source_files_use_relative_paths_not_bare_names_when_nested(merge_script, tmp_path):
+    """Two files both literally named result.json in different
+    subdirectories must stay distinguishable in the report."""
+    for index in range(2):
+        subdir = tmp_path / f"candidate-result-{index}"
+        subdir.mkdir()
+        (subdir / "result.json").write_text(json.dumps({"results": [], "skipped": [], "preflight": {}}))
+
+    payload = merge_script.merge(tmp_path)
+
+    assert len(set(payload["source_files"])) == 2, "bare names would collide; relative paths must not"
+    assert all("/" in item for item in payload["source_files"])
