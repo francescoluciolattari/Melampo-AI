@@ -1,4 +1,4 @@
-name: Eight-model comparison bench (advanced cases)
+name: Focused model comparison bench (advanced cases)
 
 # Manual trigger only, same discipline as root-model-bench.yml: this makes
 # real, billed calls to external providers and must never fire on every
@@ -7,32 +7,41 @@ name: Eight-model comparison bench (advanced cases)
 # A focused companion to root-model-bench.yml, not a replacement. That
 # workflow measures the full candidate roster on the standard eleven-case
 # set, at a budget sized to stay affordable across 24 candidates. This one
-# narrows to eight candidates worth a closer look, and spends the room a
-# small-roster run affords on two things the full run could not: a wider
-# budget, and eight further, more subtle cases (--cases advanced) the
-# standard eleven do not exercise: three-document synthesis, confirming
-# the absence of a requested fact rather than always having one to find,
-# distinguishing confusable clinical terms, chronology presented out of
-# reading order, a longer multi-section document, two documents that
-# disagree on the same value, a dose requiring two located numbers, and a
-# two-hop inference connecting facts stated far apart.
+# narrows to a smaller roster worth a closer look, and spends the room that
+# affords on two things the full run could not: a wider budget, and eight
+# further, more subtle cases (--cases advanced) the standard eleven do not
+# exercise: three-document synthesis, confirming the absence of a requested
+# fact rather than always having one to find, distinguishing confusable
+# clinical terms, chronology presented out of reading order, a longer
+# multi-section document, two documents that disagree on the same value, a
+# dose requiring two located numbers, and a two-hop inference connecting
+# facts stated far apart.
 #
-# The eight: llama-4-maverick and gemma-3-27b reached 100% completion on the
-# first four-candidate run; gemma-4-31b and mistral-large-openrouter reached
-# 90.9%, each stopped by the iteration ceiling on one case with
-# budget_bound: true (still working, not stuck, when the old budget ran
-# out) -- the wider budget here gives them room to actually finish.
-# mistral-small-openrouter joins its Large sibling for a same-family
-# comparison at two sizes. grok-4.6, gemini-3-pro-preview and
-# nemotron-3-super are three families never benched in any prior run of
-# either workflow -- Gemini in particular had never been tested at all
-# before this, since every earlier Google entry was Gemma, the open-weight
-# sibling.
+# The roster has grown twice, for two different reasons -- deliberately
+# named "focused", not a fixed count, since a hardcoded number in the
+# workflow's own name goes stale exactly the way "Eight-model comparison"
+# did the moment this list changed again. First: llama-4-maverick and
+# gemma-3-27b reached 100% completion on an early four-candidate run;
+# gemma-4-31b and mistral-large-openrouter reached 90.9%, stopped by the
+# iteration ceiling with budget_bound: true (still working, not stuck) --
+# the wider budget here gives them room to finish. mistral-small-openrouter
+# joins its Large sibling for a same-family comparison at two sizes.
+# grok-4.6, gemini-3-pro-preview and nemotron-3-super were three families
+# never benched in any prior run of either workflow. Second: claude-sonnet-5,
+# claude-opus-5, claude-fable-5.1, qwen-3.5, qwen-3.7 and qwen-3.8 were all
+# culled early in root-model-bench.yml runs (as low as 0-18% completion)
+# under conditions since substantially changed -- before the system prompt
+# was rewritten with a worked example, before max_tokens was raised
+# 256->1024, before the reasoning-disable hint existed, before the wider
+# budget and the latency circuit breaker. None of the six were ever
+# re-measured against the current harness; the low numbers on record may
+# describe a harness limitation rather than a model one, and this run is
+# what actually answers that rather than continuing to guess from stale data.
 #
 # The roster here is a snapshot of a specific comparison, not a second
 # source of truth for the candidate list: CANDIDATE_MODELS in
 # run_format_adherence_bench.py remains the only place model slugs are
-# declared. Edit ROSTER below to compare a different handful of candidates;
+# declared. Edit ROSTER below to compare a different set of candidates;
 # nothing else in this file needs to change.
 on:
   workflow_dispatch:
@@ -40,7 +49,7 @@ on:
       roster:
         description: "Comma-separated candidate names to compare"
         required: false
-        default: "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter,mistral-small-openrouter,grok-4.6,gemini-3-pro-preview,nemotron-3-super"
+        default: "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter,mistral-small-openrouter,grok-4.6,gemini-3-pro-preview,nemotron-3-super,claude-sonnet-5,claude-opus-5,claude-fable-5.1,qwen-3.5,qwen-3.7,qwen-3.8"
 
 jobs:
   prepare:
@@ -172,7 +181,7 @@ jobs:
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, pathlib
           data = json.loads(pathlib.Path("bench_results.json").read_text())
-          print("### Eight-model comparison, advanced case set\n")
+          print("### Focused model comparison, advanced case set\n")
           print(f"**Verdict:** {data.get('verdict', 'n/a')}\n")
           results = data.get("results") or []
           if results:
@@ -207,7 +216,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: eight-model-comparison-results
+          name: focused-comparison-results
           path: bench_results.json
           retention-days: 90
           if-no-files-found: error

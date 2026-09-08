@@ -330,7 +330,7 @@ BENCH_CASES = (
 # ADVANCED DOCUMENTS AND CASES -- opt-in via --cases advanced
 # ============================================================================
 # Built for a focused comparison among a small number of strong candidates
-# (see docs/four_model_comparison.md and four-model-comparison-bench.yml)
+# (see focused-comparison-bench.yml and the decision record)
 # where the 21-candidate roster's cost and time constraints do not apply, so
 # a larger, more subtle set is affordable. Each case targets a discrimination
 # the eleven cases above do not: three-document synthesis rather than two,
@@ -592,7 +592,7 @@ def _bench_budget() -> Budget:
     hit exactly the 10-iteration ceiling on their one incomplete case each,
     with budget_bound=true -- evidence they were still working, not stuck, when
     the budget ran out. BENCH_MAX_ITERATIONS and BENCH_WALL_CLOCK_SECONDS let a
-    focused, smaller-roster run (see four-model-comparison-bench.yml) give
+    focused, smaller-roster run (see focused-comparison-bench.yml) give
     those candidates the room to actually finish, without changing the default
     for the full 21-candidate roster, where a wider budget multiplied across
     every candidate would cost meaningfully more time and money for a question
