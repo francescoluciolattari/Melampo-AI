@@ -1,6 +1,7 @@
 
 from melampo.evaluation.format_adherence_bench import (
     BenchCase,
+    BenchReport,
     bench_model,
     bench_models,
 )
@@ -397,3 +398,49 @@ def test_compute_verdict_on_an_empty_list():
     from melampo.evaluation.format_adherence_bench import compute_verdict
 
     assert compute_verdict([]) == "no models benched"
+
+
+# --------------------------------------------------------------------------
+# Regression: BenchReport.as_dict() was deleted during a refactor and never
+# called by any existing test, so the gap surfaced only on a live run.
+# --------------------------------------------------------------------------
+
+
+def test_bench_report_as_dict_does_not_raise():
+    """The exact call _run() makes: report.as_dict(), on a real BenchReport
+    instance, not on a ModelResult. This is what every previous test in this
+    file omitted -- each called .as_dict() on individual ModelResult objects,
+    never on the BenchReport wrapping them, which is what a live run does."""
+    report = bench_models({"a": lambda p: "final(x)"}, CASES)
+    payload = report.as_dict()
+    assert isinstance(payload, dict)
+
+
+def test_bench_report_as_dict_has_the_shape_run_format_adherence_bench_writes():
+    """scripts/run_format_adherence_bench.py's _run() reads models, verdict
+    and results straight off this payload -- if any key is missing or
+    renamed here, the live script breaks the same way it just did."""
+    report = bench_models({"a": lambda p: "final(x)", "b": lambda p: "prose"}, CASES)
+    payload = report.as_dict()
+
+    assert payload["models"] == 2
+    assert payload["adherence_target"] == 0.95
+    assert isinstance(payload["verdict"], str) and payload["verdict"]
+    assert len(payload["results"]) == 2
+    assert all("model_name" in item for item in payload["results"])
+
+
+def test_bench_report_as_dict_results_are_ranked():
+    """as_dict()'s results must be in ranked order, matching .ranked(), since
+    the summary step in both workflows reads row order directly as the
+    comparison table's row order."""
+    report = bench_models({"weak": lambda p: "prose", "strong": lambda p: "final(x)"}, CASES)
+    payload = report.as_dict()
+    assert [item["model_name"] for item in payload["results"]] == ["strong", "weak"]
+
+
+def test_bench_report_as_dict_on_an_empty_report():
+    payload = BenchReport().as_dict()
+    assert payload["models"] == 0
+    assert payload["results"] == []
+    assert payload["verdict"] == "no models benched"

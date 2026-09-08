@@ -815,3 +815,27 @@ def test_the_weight_based_dose_case_states_both_the_rate_and_the_weight(script):
     text = case.documents[0].text.lower()
     assert "mg/kg" in text
     assert "kg" in text and any(char.isdigit() for char in text)
+
+
+def test_the_full_script_does_not_crash_on_a_successful_candidate(script, tmp_path, monkeypatch):
+    """The exact scenario the real crash came from: main() -> _run() ->
+    build_candidates() -> bench_models() -> report.as_dict(), with at least
+    one candidate actually reachable. Every other crash-safety test in this
+    file exercises the failure path (no candidates, malformed keys); this is
+    the success path, which is what the uploaded traceback showed breaking
+    -- report.as_dict() raised AttributeError only once a candidate actually
+    produced a result to write."""
+    out = tmp_path / "results.json"
+
+    def fake_build_candidates(only=None):
+        return {"fake-model": lambda p: "final(ok)"}, [], {"fake-model": "reachable"}
+
+    monkeypatch.setattr(script, "build_candidates", fake_build_candidates)
+    monkeypatch.setattr(sys, "argv", ["bench", "--out", str(out)])
+
+    exit_code = script.main()
+
+    assert exit_code == 0
+    payload = json.loads(out.read_text())
+    assert payload["status"] == "completed"
+    assert payload["results"][0]["model_name"] == "fake-model"

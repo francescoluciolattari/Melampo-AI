@@ -152,6 +152,28 @@ class BenchReport:
         """State what the numbers decide, including when they decide nothing."""
         return compute_verdict([item.as_dict() for item in self.results], self.adherence_target)
 
+    def as_dict(self) -> dict[str, Any]:
+        """The full payload the script writes to the results file.
+
+        Present since the tool's first commit; lost when BenchReport.verdict()
+        was refactored to delegate to compute_verdict() in the parallel-matrix
+        change, apparently dropped while the class body was being rewritten
+        and never re-added. Every unit test that exercised this class called
+        bench_model() directly and asserted on the resulting ModelResult
+        (which has its own as_dict() and was never affected), so nothing
+        locally exercised BenchReport.as_dict() itself -- the gap surfaced
+        only on a live run, where _run() calls exactly this method and
+        nothing stood in for it. Restored here, and a regression test now
+        calls it directly rather than only through code that happens to
+        reach it.
+        """
+        return {
+            "models": len(self.results),
+            "adherence_target": self.adherence_target,
+            "verdict": self.verdict(),
+            "results": [item.as_dict() for item in self.ranked()],
+        }
+
 
 def rank_result_dicts(results: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort result dicts the way ``BenchReport.ranked()`` sorts ``ModelResult``.
