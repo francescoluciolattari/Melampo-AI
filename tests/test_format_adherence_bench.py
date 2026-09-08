@@ -140,7 +140,7 @@ def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
     assert providers == {
         "mistral", "qwen", "google", "meta", "anthropic", "openai", "z-ai",
-        "moonshotai", "deepseek", "xai",
+        "moonshotai", "deepseek", "xai", "nvidia",
     }
 
 
@@ -444,3 +444,20 @@ def test_bench_report_as_dict_on_an_empty_report():
     assert payload["models"] == 0
     assert payload["results"] == []
     assert payload["verdict"] == "no models benched"
+
+
+def test_grok_gemini_nemotron_are_in_the_default_candidates_registry():
+    """The Python-level registry (with licence notes), not just the script's
+    CANDIDATE_MODELS table, must also carry the new candidates -- they are
+    two different data structures serving different purposes and both need
+    updating together."""
+    names = {item.name for item in DEFAULT_CANDIDATES}
+    for expected in ("grok-4.6", "gemini-3-pro-preview", "nemotron-3-super"):
+        assert expected in names
+
+
+def test_nemotron_note_names_its_relevant_capability():
+    """Not a generic capability claim: the note should reflect the specific
+    reason this candidate was added over other options considered."""
+    nemotron = next(item for item in DEFAULT_CANDIDATES if item.name == "nemotron-3-super")
+    assert "cross-document" in nemotron.note.lower() or "multi-step" in nemotron.note.lower()

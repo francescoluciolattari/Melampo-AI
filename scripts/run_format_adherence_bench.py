@@ -130,6 +130,21 @@ CANDIDATE_MODELS: tuple[tuple[str, str, bool], ...] = (
     # bench -- some accounts or plans appear to need the explicit free-tier
     # route for this model rather than the unsuffixed slug.
     ("grok-4-fast", "x-ai/grok-4-fast:free", True),
+    # xAI's current flagship: an August 2026 post-training refresh of the
+    # Grok 4.5 base, not a new foundation model. Verified slug, unlike the
+    # earlier unconfirmed reference to "Grok 4.5" that grok-4-fast's own note
+    # once carried.
+    ("grok-4.6", "x-ai/grok-4.6", True),
+    # First Gemini candidate in this registry -- every prior Google entry was
+    # Gemma, the open-weight sibling; Gemini itself was never benched before.
+    # Reasoning cannot be fully disabled (only a High/Low effort choice), so
+    # the reasoning-disable hint is sent as a best-effort attempt, same as
+    # for glm-5.3.
+    ("gemini-3-pro-preview", "google/gemini-3-pro-preview", True),
+    # NVIDIA's own description names "cross-document reasoning" and
+    # "multi-step task planning" specifically -- closer to this bench's
+    # actual demands than most candidates' general capability marketing.
+    ("nemotron-3-super", "nvidia/nemotron-3-super-120b-a12b", True),
 )
 
 ACTION_GRAMMAR = (

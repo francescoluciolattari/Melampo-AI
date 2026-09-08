@@ -35,6 +35,14 @@ LICENCE_MIT = "MIT"
 LICENCE_ANTHROPIC_COMMERCIAL = "Anthropic Commercial Terms of Service"
 LICENCE_OPENAI_COMMERCIAL = "OpenAI Commercial Terms of Service"
 LICENCE_XAI_COMMERCIAL = "xAI Commercial Terms of Service"
+LICENCE_GOOGLE_COMMERCIAL = "Google Commercial Terms of Service"
+# Distinct from LICENCE_GEMMA_TERMS: Gemini is a proprietary commercial API
+# (like Claude, GPT, Grok), not an open-weight release with its own terms.
+# Conflating the two would misrepresent what governs each.
+LICENCE_NVIDIA_OPEN = "NVIDIA Open Model License"
+# Open-weight but with NVIDIA's own custom terms, not Apache/MIT -- treated
+# with the same review requirement as Llama's and Gemma 3's licences rather
+# than assumed permissive because weights are published.
 # Terms not directly confirmed from a primary source at the time these
 # candidates were added -- a placeholder that forces review rather than a
 # guess. Distinct from LICENCE_GEMMA_TERMS/LICENCE_LLAMA_COMMUNITY, whose
@@ -58,6 +66,8 @@ LICENCE_CLEARED_FOR_EU_COMMERCIAL = {
     LICENCE_ANTHROPIC_COMMERCIAL: None,
     LICENCE_OPENAI_COMMERCIAL: None,
     LICENCE_XAI_COMMERCIAL: None,
+    LICENCE_GOOGLE_COMMERCIAL: None,
+    LICENCE_NVIDIA_OPEN: None,
     LICENCE_UNVERIFIED: None,
 }
 
@@ -311,9 +321,47 @@ DEFAULT_CANDIDATES = (
         licence=LICENCE_XAI_COMMERCIAL,
         note=(
             "Commercial terms need review before shipping, same as any other candidate here. "
-            "Verified OpenRouter slug for xAI's cost-efficient tier. Press coverage references "
-            "a costlier \"Grok 4.5\"; its exact OpenRouter slug was not confirmed from available "
-            "sources, so it is not guessed at here rather than risking another invented slug."
+            "Verified OpenRouter slug for xAI's cost-efficient tier. A costlier flagship tier "
+            "was referenced but unconfirmed when this candidate was added; grok-4.6 below is "
+            "that confirmed flagship, added separately once its slug was verified rather than "
+            "guessed at."
+        ),
+    ),
+    RootModelCandidate(
+        name="grok-4.6",
+        provider="xai",
+        licence=LICENCE_XAI_COMMERCIAL,
+        note=(
+            "Commercial terms need review before shipping, same as any other candidate here. "
+            "xAI's current flagship: an August 2026 post-training refresh of the Grok 4.5 base "
+            "(same $2/M in, $6/M out pricing) rather than a new foundation model. Benched "
+            "alongside grok-4-fast as the reasoning-capable tier next to the cost-efficient one, "
+            "the same cheap-plus-flagship pattern used for every other family here."
+        ),
+    ),
+    RootModelCandidate(
+        name="gemini-3-pro-preview",
+        provider="google",
+        licence=LICENCE_GOOGLE_COMMERCIAL,
+        note=(
+            "Commercial terms need review before shipping. First Gemini candidate in this "
+            "registry -- every prior Google entry was Gemma, the open-weight sibling; Gemini "
+            "itself was never benched until now. Google's flagship: reasoning cannot be fully "
+            "disabled (only a 'High'/'Low' effort choice), similar to GLM-5.3's situation, so "
+            "the reasoning-disable hint is sent as a best-effort attempt rather than an "
+            "expected guarantee, same as for every other reasoning-mandatory candidate here."
+        ),
+    ),
+    RootModelCandidate(
+        name="nemotron-3-super",
+        provider="nvidia",
+        licence=LICENCE_NVIDIA_OPEN,
+        note=(
+            "Licence needs review: open weights under NVIDIA's own terms, not Apache/MIT. "
+            "Its own description names \"cross-document reasoning\" and \"multi-step task "
+            "planning\" specifically -- closer to this bench's actual demands than most "
+            "candidates' general capability marketing. 120B total / 12B active MoE, verified "
+            "native tool-calling support."
         ),
     ),
 )
@@ -329,6 +377,8 @@ BENCH_ONLY_UNTIL_LICENCE_REVIEW = frozenset(
         LICENCE_ANTHROPIC_COMMERCIAL,
         LICENCE_OPENAI_COMMERCIAL,
         LICENCE_XAI_COMMERCIAL,
+        LICENCE_GOOGLE_COMMERCIAL,
+        LICENCE_NVIDIA_OPEN,
         LICENCE_UNVERIFIED,
     }
 )

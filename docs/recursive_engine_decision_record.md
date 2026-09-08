@@ -611,6 +611,74 @@ remains the only place a model slug is declared; the roster here is a
 snapshot of one comparison, changeable via the workflow's input without
 touching the model registry.
 
+### Four candidates become eight: a survey of the landscape, then four additions
+
+Before adding anything, every family already in the registry was checked
+against current sources rather than assumed still accurate, and a
+deliberate search covered labs never considered: Cohere, NVIDIA, MiniMax,
+AI21. Cohere's agentic offering is narrowly built for repository and
+terminal coding tasks, a different shape of problem than document
+navigation; MiniMax showed competitive numbers on an independent agentic
+benchmark but no confirmed OpenRouter slug from available sources, so
+nothing was guessed at; AI21 did not surface prominently in any of the
+searches performed. Three families were found worth adding, plus one gap
+in a family already present.
+
+**Google Gemini had never been benched at all.** Every prior Google entry —
+`gemma-3-27b`, `gemma-4-31b`, `gemma-4-26b-a4b` — is the open-weight Gemma
+family; the proprietary Gemini line was never a candidate in either
+workflow until now. `google/gemini-3-pro-preview` is added as the first:
+Google's flagship, verified slug, 1M context, native tool-calling. Its
+reasoning cannot be fully disabled (a "High"/"Low" effort choice only,
+not off) — the same situation as `glm-5.3`, and the same handling applies:
+the reasoning-disable hint is sent as a best-effort attempt, and the
+existing HTTP-400 fallback (added when `glm-5.3` first demonstrated the
+need) already covers a provider rejecting that hint outright. Verified
+directly: a mocked provider that rejects any request carrying the
+`reasoning` field behaves for `gemini-3-pro-preview` exactly as it does for
+`glm-5.3` — one retry without the hint, then success. No new code was
+needed for this case; the existing fallback generalised correctly to a
+candidate that did not exist when it was written.
+
+**`x-ai/grok-4.6`** joins `grok-4-fast` as the reasoning-capable tier next
+to the cost-efficient one — the same cheap-plus-flagship pairing already
+used for every other family in this registry. Verified as an August 2026
+post-training refresh of the Grok 4.5 base (same $2/$6 per-million-token
+pricing as 4.5, not a new foundation model) rather than assumed from the
+unconfirmed "Grok 4.5" reference `grok-4-fast`'s own note previously
+carried — that note is corrected here now that the flagship tier has an
+actual, verified slug rather than an open question.
+
+**`nvidia/nemotron-3-super-120b-a12b`.** NVIDIA's own description names
+"cross-document reasoning" and "multi-step task planning" specifically —
+language closer to this bench's actual demands than most candidates'
+general capability marketing, which is why it was chosen over the larger
+Ultra or smaller Nano tiers in the same family. 120B total / 12B active
+MoE, verified native tool-calling support. Licence: NVIDIA's own terms,
+not Apache or MIT — a new `LICENCE_NVIDIA_OPEN` constant carries this
+distinction rather than assuming permissive because weights are published,
+the same discipline already applied to Llama's and Gemma 3's licences.
+`LICENCE_GOOGLE_COMMERCIAL` is added alongside it for Gemini, kept
+distinct from `LICENCE_GEMMA_TERMS` since Gemini is a proprietary
+commercial API, not an open-weight release with its own terms — conflating
+the two would misrepresent what actually governs each candidate.
+
+**`mistral-small-openrouter` joins the eight-candidate roster.** It already
+existed in `CANDIDATE_MODELS` from an earlier addition; the
+four-candidate comparison simply never included it, testing only its
+Large sibling. Its slug, `mistralai/mistral-small-2603`, was explicitly
+re-verified against OpenRouter for this change (four independent sources,
+including OpenRouter's own listing, confirmed the same identifier) rather
+than assumed unchanged from memory — it matches what was already in the
+registry, so no correction was needed here, unlike `qwen-3.5`'s history.
+
+The workflow file, its default `roster` input, its job/step names, and its
+artifact name were all updated together (four-model-comparison-bench.yml
+retitled "Eight-model comparison bench"), and a test reads the workflow
+file directly and asserts every name in its default roster resolves to a
+real candidate, so the workflow and the registry cannot silently drift
+apart the way `qwen-3.5`'s slug once did undetected.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate
