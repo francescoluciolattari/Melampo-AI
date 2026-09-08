@@ -1,4 +1,4 @@
-name: Four-model comparison bench (advanced cases)
+name: Eight-model comparison bench (advanced cases)
 
 # Manual trigger only, same discipline as root-model-bench.yml: this makes
 # real, billed calls to external providers and must never fire on every
@@ -6,22 +6,28 @@ name: Four-model comparison bench (advanced cases)
 #
 # A focused companion to root-model-bench.yml, not a replacement. That
 # workflow measures the full candidate roster on the standard eleven-case
-# set, at a budget sized to stay affordable across 21 candidates. This one
-# narrows to four candidates that the full run's numbers already singled
-# out as worth a closer look -- llama-4-maverick and gemma-3-27b, which
-# reached 100% completion; gemma-4-31b and mistral-large-openrouter, which
-# reached 90.9% but hit the iteration ceiling on their one incomplete case
-# (budget_bound: true, meaning still working when the budget ran out, not
-# stuck) -- and spends the room a four-candidate run affords on two things
-# the full run could not: a wider budget, so the two candidates that were
-# cut off get the chance to actually finish, and eight further, more subtle
-# cases (--cases advanced) that the standard eleven do not exercise: three-
-# document synthesis, confirming the absence of a requested fact rather
-# than always having one to find, distinguishing confusable clinical terms,
-# chronology presented out of reading order, a longer multi-section
-# document, two documents that disagree on the same value, a dose requiring
-# two located numbers, and a two-hop inference connecting facts stated far
-# apart.
+# set, at a budget sized to stay affordable across 24 candidates. This one
+# narrows to eight candidates worth a closer look, and spends the room a
+# small-roster run affords on two things the full run could not: a wider
+# budget, and eight further, more subtle cases (--cases advanced) the
+# standard eleven do not exercise: three-document synthesis, confirming
+# the absence of a requested fact rather than always having one to find,
+# distinguishing confusable clinical terms, chronology presented out of
+# reading order, a longer multi-section document, two documents that
+# disagree on the same value, a dose requiring two located numbers, and a
+# two-hop inference connecting facts stated far apart.
+#
+# The eight: llama-4-maverick and gemma-3-27b reached 100% completion on the
+# first four-candidate run; gemma-4-31b and mistral-large-openrouter reached
+# 90.9%, each stopped by the iteration ceiling on one case with
+# budget_bound: true (still working, not stuck, when the old budget ran
+# out) -- the wider budget here gives them room to actually finish.
+# mistral-small-openrouter joins its Large sibling for a same-family
+# comparison at two sizes. grok-4.6, gemini-3-pro-preview and
+# nemotron-3-super are three families never benched in any prior run of
+# either workflow -- Gemini in particular had never been tested at all
+# before this, since every earlier Google entry was Gemma, the open-weight
+# sibling.
 #
 # The roster here is a snapshot of a specific comparison, not a second
 # source of truth for the candidate list: CANDIDATE_MODELS in
@@ -34,7 +40,7 @@ on:
       roster:
         description: "Comma-separated candidate names to compare"
         required: false
-        default: "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter"
+        default: "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter,mistral-small-openrouter,grok-4.6,gemini-3-pro-preview,nemotron-3-super"
 
 jobs:
   prepare:
@@ -149,7 +155,7 @@ jobs:
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, pathlib
           data = json.loads(pathlib.Path("bench_results.json").read_text())
-          print("### Four-model comparison, advanced case set\n")
+          print("### Eight-model comparison, advanced case set\n")
           print(f"**Verdict:** {data.get('verdict', 'n/a')}\n")
           results = data.get("results") or []
           if results:
@@ -184,7 +190,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: four-model-comparison-results
+          name: eight-model-comparison-results
           path: bench_results.json
           retention-days: 90
           if-no-files-found: error

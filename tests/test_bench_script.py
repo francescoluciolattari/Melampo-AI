@@ -85,7 +85,9 @@ def test_preflight_reports_missing_keys_per_candidate(script, monkeypatch):
     assert candidates == {}
     assert detail["mistral-small-3.1"] == "MISTRAL_API_KEY not set"
     assert detail["claude-sonnet-5"] == "OPENROUTER_API_KEY not set"
-    assert len(detail) == 21, "all candidates accounted for, none silently dropped"
+    assert len(detail) == len(script.all_candidate_names()), (
+        "all candidates accounted for, none silently dropped"
+    )
 
 
 def test_every_candidate_appears_in_the_preflight_detail(script, monkeypatch):
@@ -361,11 +363,13 @@ def test_the_system_prompt_includes_a_worked_example_and_explicit_prohibitions(s
 # --------------------------------------------------------------------------
 
 
-def test_all_twenty_one_candidates_are_present(script, monkeypatch):
+def test_every_registered_candidate_is_present(script, monkeypatch):
+    """Uses all_candidate_names() as the expected count rather than a fixed
+    number, so this does not need editing every time a candidate is added."""
     monkeypatch.setenv("MISTRAL_API_KEY", "k")
     monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     _, _, detail = script.build_candidates()
-    assert len(detail) == 21
+    assert len(detail) == len(script.all_candidate_names())
 
 
 def test_qwen_3_5_uses_the_corrected_slug_not_the_invented_one(script):
@@ -839,3 +843,79 @@ def test_the_full_script_does_not_crash_on_a_successful_candidate(script, tmp_pa
     payload = json.loads(out.read_text())
     assert payload["status"] == "completed"
     assert payload["results"][0]["model_name"] == "fake-model"
+
+
+# --------------------------------------------------------------------------
+# The four candidates added for the eight-model comparison workflow
+# --------------------------------------------------------------------------
+
+
+def test_mistral_small_verified_slug_matches_the_existing_registry_entry(script):
+    """Explicitly re-verified against OpenRouter (mistralai/mistral-small-2603,
+    confirmed by multiple independent sources) rather than assumed unchanged;
+    it matches what was already in CANDIDATE_MODELS, so no slug correction
+    was needed here, unlike qwen-3.5's history."""
+    entries = [(name, model) for name, model, _ in script.CANDIDATE_MODELS if name == "mistral-small-openrouter"]
+    assert entries == [("mistral-small-openrouter", "mistralai/mistral-small-2603")]
+
+
+def test_grok_4_6_is_present_alongside_grok_4_fast(script):
+    names = {name for name, _, _ in script.CANDIDATE_MODELS}
+    assert "grok-4-fast" in names
+    assert "grok-4.6" in names
+
+
+def test_gemini_is_the_first_google_candidate_that_is_not_gemma(script):
+    """Every prior Google entry (gemma-3-27b, gemma-4-31b, gemma-4-26b-a4b)
+    is the open-weight Gemma family; gemini-3-pro-preview is the first time
+    Google's proprietary Gemini has ever been benched."""
+    google_entries = [(name, model) for name, model, _ in script.CANDIDATE_MODELS if "gemini" in model or "gemma" in model]
+    gemini_entries = [item for item in google_entries if "gemini" in item[1]]
+    assert gemini_entries == [("gemini-3-pro-preview", "google/gemini-3-pro-preview")]
+
+
+def test_nemotron_super_is_present(script):
+    entries = [model for name, model, _ in script.CANDIDATE_MODELS if name == "nemotron-3-super"]
+    assert entries == ["nvidia/nemotron-3-super-120b-a12b"]
+
+
+def test_the_eight_model_workflow_roster_matches_its_default_input(script):
+    """Reads the actual workflow file rather than hardcoding the roster a
+    second time here, so this test fails if the two ever drift apart."""
+    import yaml
+
+    workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "four-model-comparison-bench.yml"
+    workflow = yaml.safe_load(workflow_path.read_text())
+    trigger = workflow.get(True) or workflow.get("on")
+    default_roster = trigger["workflow_dispatch"]["inputs"]["roster"]["default"]
+    names = [item.strip() for item in default_roster.split(",")]
+
+    assert len(names) == 8
+    all_names = script.all_candidate_names()
+    for name in names:
+        assert name in all_names, f"{name} in the workflow roster does not match any known candidate"
+
+
+def test_the_new_licence_constants_are_distinct_from_existing_ones(script):
+    """Gemini (proprietary API) must not be conflated with Gemma's licence,
+    and Nemotron's custom NVIDIA terms must not be assumed Apache/MIT."""
+    from melampo.models.rlm_model_adapter import (
+        LICENCE_APACHE_2,
+        LICENCE_GEMMA_TERMS,
+        LICENCE_GOOGLE_COMMERCIAL,
+        LICENCE_NVIDIA_OPEN,
+    )
+
+    assert LICENCE_GOOGLE_COMMERCIAL not in (LICENCE_GEMMA_TERMS, LICENCE_APACHE_2)
+    assert LICENCE_NVIDIA_OPEN not in (LICENCE_APACHE_2,)
+
+
+def test_google_and_nvidia_licences_are_marked_needs_review(script):
+    from melampo.models.rlm_model_adapter import (
+        BENCH_ONLY_UNTIL_LICENCE_REVIEW,
+        LICENCE_GOOGLE_COMMERCIAL,
+        LICENCE_NVIDIA_OPEN,
+    )
+
+    assert LICENCE_GOOGLE_COMMERCIAL in BENCH_ONLY_UNTIL_LICENCE_REVIEW
+    assert LICENCE_NVIDIA_OPEN in BENCH_ONLY_UNTIL_LICENCE_REVIEW
