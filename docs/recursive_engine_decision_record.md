@@ -658,6 +658,50 @@ first through the old flattening step (one result survives) and then
 through `merge()` pointed at the nested directory directly (all four
 survive) — the same contrast is now a permanent regression test.
 
+### The second run after that fix: an AttributeError the merge fix could not have caught
+
+The very next live run, after the artifact-collision fix above, produced
+the same symptom — "no candidate produced a usable result" — for a
+different reason entirely. This time the merge worked correctly (no
+collision), but the merged output was still empty because every one of the
+four candidate jobs had individually crashed before writing a real result,
+each caught by `main()`'s own safety net and reported as `status: "crashed"`
+with a full traceback rather than silently vanishing — the safety net
+worked exactly as designed. The traceback:
+
+```
+AttributeError: 'BenchReport' object has no attribute 'as_dict'
+  File ".../run_format_adherence_bench.py", line 1049, in _run
+    payload = report.as_dict()
+```
+
+`BenchReport.as_dict()` had existed since this tool's first commit. It was
+lost during the parallel-matrix refactor that extracted `verdict()`'s logic
+into the standalone `compute_verdict()` function — the class body was
+rewritten in that change and `as_dict()` was apparently dropped along the
+way, never re-added. Every test in the suite that called `.as_dict()`
+called it on a `ModelResult` (which has its own, unaffected, `as_dict()`),
+never on the `BenchReport` wrapping them — the one call site that mattered,
+`_run()`'s `report.as_dict()`, was never exercised by anything except a
+live run against a real, reachable candidate. Restored verbatim (rebuilding
+the same payload shape the script has always expected: `models`,
+`adherence_target`, `verdict`, ranked `results`), now delegating to
+`compute_verdict` internally rather than duplicating that logic, and
+verified to reproduce the exact reported traceback when reverted and to be
+resolved by the fix.
+
+**The gap this exposes, stated plainly:** two live-run failures in a row
+were each caused by a code path no test ever reached, despite a large and
+otherwise careful test suite. `BenchReport.as_dict()` is now covered
+directly (`test_bench_report_as_dict_does_not_raise` and three siblings
+checking its exact shape), and — the more load-bearing addition —
+`test_the_full_script_does_not_crash_on_a_successful_candidate` drives
+`main()` itself through a scripted, always-reachable candidate, the one
+path (a candidate that succeeds, not one that is skipped or fails) neither
+of the two real incidents' underlying bugs could have survived. Reverting
+the fix and re-running that test reproduces the reported traceback exactly,
+confirming it would have caught this before a live run did.
+
 ### Why one proxy was rejected and OpenRouter was chosen instead
 
 A third-party API gateway advertising Claude access, `oneprovider.dev`, was
