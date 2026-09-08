@@ -2,6 +2,7 @@
 from melampo.evaluation.format_adherence_bench import (
     BenchCase,
     BenchReport,
+    ModelResult,
     bench_model,
     bench_models,
 )
@@ -14,6 +15,7 @@ from melampo.models.rlm_model_adapter import (
     RootModelAdapter,
     RootModelCandidate,
 )
+from melampo.reasoning.rlm_engine import Budget
 from melampo.reasoning.rlm_engine import Budget as _RlmBudget
 
 
@@ -461,3 +463,116 @@ def test_nemotron_note_names_its_relevant_capability():
     reason this candidate was added over other options considered."""
     nemotron = next(item for item in DEFAULT_CANDIDATES if item.name == "nemotron-3-super")
     assert "cross-document" in nemotron.note.lower() or "multi-step" in nemotron.note.lower()
+
+
+# --------------------------------------------------------------------------
+# Latency circuit breaker: a candidate whose recent cases are consistently
+# slow is abandoned early rather than run through every remaining case.
+# --------------------------------------------------------------------------
+
+
+def test_the_circuit_breaker_trips_after_the_window_of_consecutive_slow_cases():
+    """The scenario a real run motivated this for: a candidate whose last few
+    cases each used their entire per-case wall-clock allowance has already
+    shown what running the rest would show again. A tiny real sleep paired
+    with a smaller ceiling forces every case's elapsed/ceiling ratio past the
+    threshold deterministically -- elapsed_seconds is rounded to milliseconds
+    by Budget, so an effectively-instant scripted model would round to
+    exactly 0.000 and never exceed any ceiling regardless of how small."""
+    import time as time_module
+
+    import melampo.evaluation.format_adherence_bench as bench_module
+
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(6))
+
+    def slow_model(prompt):
+        time_module.sleep(0.01)
+        return "final(x)"
+
+    result = bench_model("slow", slow_model, cases, budget_factory=lambda: Budget(max_wall_clock_seconds=0.005))
+
+    assert result.runs == bench_module.LATENCY_CIRCUIT_BREAKER_WINDOW
+    assert result.abandoned_for_latency is True
+    assert result.cases_skipped_for_latency == len(cases) - bench_module.LATENCY_CIRCUIT_BREAKER_WINDOW
+
+
+def test_the_circuit_breaker_does_not_trip_on_a_single_slow_case():
+    """One slow case -- a network blip, a transient provider queue -- must
+    not condemn an otherwise well-behaved candidate. The model genuinely
+    sleeps only on the isolated slow case (call 2 of 5), paired with a tight
+    ceiling for that one case only, so its ratio actually exceeds the
+    threshold while the surrounding cases' fast, generously-budgeted ratios
+    stay low -- never three consecutive over threshold, so no trip."""
+    import time as time_module
+
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(5))
+
+    call_count = {"n": 0}
+
+    def one_tight_budget():
+        call_count["n"] += 1
+        return Budget(max_wall_clock_seconds=0.005) if call_count["n"] == 2 else Budget(max_wall_clock_seconds=5.0)
+
+    def mostly_fast_model(prompt):
+        if call_count["n"] == 2:  # the one case with the tight ceiling
+            time_module.sleep(0.01)
+        return "final(x)"
+
+    result = bench_model("mostly-fast", mostly_fast_model, cases, budget_factory=one_tight_budget)
+
+    assert result.runs == len(cases), "all cases must still run"
+    assert result.abandoned_for_latency is False
+    assert result.case_latency_ratios[1] >= 1.0, "the isolated slow case must genuinely have tripped its own ceiling"
+
+
+def test_a_fast_model_never_trips_the_breaker():
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(6))
+    result = bench_model("fast", lambda p: "final(x)", cases)
+    assert result.abandoned_for_latency is False
+    assert result.cases_skipped_for_latency == 0
+    assert result.runs == len(cases)
+
+
+def test_case_elapsed_seconds_are_tracked_per_case():
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(3))
+    result = bench_model("m", lambda p: "final(x)", cases)
+    assert len(result.case_elapsed_seconds) == 3
+    assert all(isinstance(value, float) and value >= 0 for value in result.case_elapsed_seconds)
+
+
+def test_mean_and_max_case_seconds_are_none_when_no_cases_ran():
+    result = ModelResult(model_name="never-run")
+    assert result.mean_case_seconds is None
+    assert result.max_case_seconds is None
+
+
+def test_as_dict_carries_the_latency_fields():
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(2))
+    payload = bench_model("m", lambda p: "final(x)", cases).as_dict()
+    for key in ("mean_case_seconds", "max_case_seconds", "abandoned_for_latency", "cases_skipped_for_latency"):
+        assert key in payload
+
+
+def test_the_breaker_condemning_reason_survives_into_stop_reasons_context():
+    """A verdict-reader looking only at stop_reasons must not be misled: an
+    abandoned candidate's stop_reasons reflect the cases actually run, and
+    abandoned_for_latency is what explains the missing ones."""
+    import time as time_module
+
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(5))
+
+    def slow_model(prompt):
+        time_module.sleep(0.01)
+        return "final(x)"
+
+    result = bench_model(
+        "slow", slow_model, cases, budget_factory=lambda: Budget(max_wall_clock_seconds=0.005)
+    )
+    assert sum(result.stop_reasons.values()) == result.runs
+    assert result.runs < len(cases)

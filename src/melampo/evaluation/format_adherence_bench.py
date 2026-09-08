@@ -41,6 +41,38 @@ _NEAR_MISS = re.compile(
     r"^\s*(describe|grep|slice|search|expand|query|final)\b(?!\s*\()", re.IGNORECASE
 )
 
+# A live run left one candidate's job running 30.3 minutes against a 30-minute
+# job timeout, cancelled without a result, while every other candidate in the
+# same run finished comfortably inside it. The right response is not a wider
+# timeout that waits out slowness -- if a candidate needs minutes for a single
+# case, that is not a budget problem to accommodate, it is evidence the
+# candidate is impractical for this workload.
+#
+# The threshold is a FRACTION of each case's own configured wall-clock
+# ceiling, not a fixed number of seconds. Two workflows here use different
+# per-case budgets (60s default for the full 21-candidate roster, 90s for the
+# 8-candidate comparison's wider allowance) -- a fixed absolute threshold
+# tuned to look right against one of those would be miscalibrated against the
+# other: too low relative to a 90s ceiling flags candidates that are still
+# working productively as "slow", too high relative to a 60s ceiling never
+# trips at all, silently disabling the whole mechanism for that workflow.
+# Comparing against each case's own ceiling stays correctly calibrated
+# whichever budget is actually in use, including a budget neither workflow
+# uses yet. 1.0 means "took the case's entire nominal wall-clock allowance" --
+# whether that particular case then succeeded or not, spending the full
+# allocation on a single lookup, three times in a row, is itself the signal:
+# an efficient candidate does not need to.
+#
+# If the last WINDOW consecutive cases each consumed at least this fraction
+# of their own ceiling, further cases are not attempted: the candidate has
+# already shown what it will keep showing, and running the rest would only
+# spend more time and money confirming a conclusion already reached. WINDOW
+# is 3 so a single slow case (a network blip, a transient provider queue)
+# does not condemn an otherwise-fine candidate.
+LATENCY_CIRCUIT_BREAKER_WINDOW = 3
+LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION = 1.0
+
+
 
 @dataclass(frozen=True)
 class BenchCase:
@@ -71,6 +103,23 @@ class ModelResult:
     # budget_bound compares each run against the budget it actually had
     # rather than assuming every case shares one ceiling.
     iterations_on_incompletion: list[tuple[int, int]] = field(default_factory=list)
+    # Real wall-clock seconds actually spent per case, in the order cases were
+    # run -- distinct from iteration counts, which say how many turns a model
+    # took but nothing about how long each one took. A candidate needing many
+    # quick turns and a candidate needing few slow ones can share the same
+    # iteration count and look identical without this.
+    case_elapsed_seconds: list[float] = field(default_factory=list)
+    # Per-case elapsed_seconds / that case's own max_wall_clock_seconds. Kept
+    # separate from case_elapsed_seconds because the circuit breaker compares
+    # against each case's own ceiling, not an absolute number -- see
+    # LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION.
+    case_latency_ratios: list[float] = field(default_factory=list)
+    # Set when the latency circuit breaker trips: see
+    # LATENCY_CIRCUIT_BREAKER_WINDOW/THRESHOLD_SECONDS above. Distinguishes
+    # "every case was attempted" from "the bench gave up on this candidate
+    # early because its own recent behaviour already answered the question."
+    abandoned_for_latency: bool = False
+    cases_skipped_for_latency: int = 0
 
     @property
     def adherence(self) -> float:
@@ -99,6 +148,15 @@ class ModelResult:
     def mean_iterations_on_incompletion(self) -> float | None:
         values = [used for used, _ceiling in self.iterations_on_incompletion]
         return sum(values) / len(values) if values else None
+
+    @property
+    def mean_case_seconds(self) -> float | None:
+        values = self.case_elapsed_seconds
+        return sum(values) / len(values) if values else None
+
+    @property
+    def max_case_seconds(self) -> float | None:
+        return max(self.case_elapsed_seconds) if self.case_elapsed_seconds else None
 
     @property
     def budget_bound(self) -> bool:
@@ -137,6 +195,10 @@ class ModelResult:
                 else round(self.mean_iterations_on_incompletion, 2)
             ),
             "budget_bound": self.budget_bound,
+            "mean_case_seconds": None if self.mean_case_seconds is None else round(self.mean_case_seconds, 1),
+            "max_case_seconds": None if self.max_case_seconds is None else round(self.max_case_seconds, 1),
+            "abandoned_for_latency": self.abandoned_for_latency,
+            "cases_skipped_for_latency": self.cases_skipped_for_latency,
         }
 
 
@@ -245,7 +307,14 @@ def bench_model(
     *,
     budget_factory: Callable[[], Budget] = Budget,
 ) -> ModelResult:
-    """Run one candidate over the cases and count what the parser made of it."""
+    """Run one candidate over the cases and count what the parser made of it.
+
+    Stops early if the latency circuit breaker trips (see
+    LATENCY_CIRCUIT_BREAKER_WINDOW/THRESHOLD_SECONDS): a candidate whose last
+    few cases each took real minutes has already shown what running the rest
+    would show again, and finishing the full case list would only spend more
+    time and money confirming a conclusion already reached.
+    """
     engine = RlmEngine(root_model=_counting(root_model, collector := []), depth=0)
     result = ModelResult(model_name=model_name)
 
@@ -261,6 +330,24 @@ def bench_model(
             result.iterations_on_incompletion.append((used, budget.max_iterations))
         reason = trajectory.stop_reason or "unknown"
         result.stop_reasons[reason] = result.stop_reasons.get(reason, 0) + 1
+
+        elapsed = float(trajectory.budget.get("elapsed_seconds", 0.0) or 0.0)
+        result.case_elapsed_seconds.append(elapsed)
+
+        # Each case against its own ceiling, not a fixed number of seconds --
+        # see the module-level comment on LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION
+        # for why a fixed threshold would be miscalibrated for one of the two
+        # workflows that call this with different per-case wall-clock budgets.
+        ceiling = max(budget.max_wall_clock_seconds, 1e-9)  # guard a pathological zero-length budget
+        result.case_latency_ratios.append(elapsed / ceiling)
+
+        recent = result.case_latency_ratios[-LATENCY_CIRCUIT_BREAKER_WINDOW:]
+        if len(recent) >= LATENCY_CIRCUIT_BREAKER_WINDOW and all(
+            ratio >= LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION for ratio in recent
+        ):
+            result.abandoned_for_latency = True
+            result.cases_skipped_for_latency = len(cases) - result.runs
+            break
 
     for output in collector:
         actions, ignored = parse_actions(output)

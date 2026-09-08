@@ -64,6 +64,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from melampo.evaluation.format_adherence_bench import (
+    LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION,
+    LATENCY_CIRCUIT_BREAKER_WINDOW,
     BenchCase,
     bench_models,
 )
@@ -1076,9 +1078,22 @@ def _run(out: Path, *, only: str | None = None, cases: tuple = BENCH_CASES) -> i
     _write_results(out, payload)
 
     print(f"\nVerdict: {payload['verdict']}\n")
-    print(f"{'model':<20}{'adherence':>11}{'completion':>12}{'near-miss share':>18}")
+    print(f"{'model':<20}{'adherence':>11}{'completion':>12}{'near-miss share':>18}{'mean s/case':>14}{'abandoned':>11}")
     for row in payload["results"]:
-        print(f"{row['model_name']:<20}{row['adherence']:>10.0%}{row['completion_rate']:>12.0%}{row['near_miss_share']:>17.0%}")
+        mean_seconds = row.get("mean_case_seconds")
+        mean_seconds_str = f"{mean_seconds:.1f}s" if mean_seconds is not None else "n/a"
+        abandoned = "yes" if row.get("abandoned_for_latency") else "no"
+        print(
+            f"{row['model_name']:<20}{row['adherence']:>10.0%}{row['completion_rate']:>12.0%}"
+            f"{row['near_miss_share']:>17.0%}{mean_seconds_str:>14}{abandoned:>11}"
+        )
+        if row.get("abandoned_for_latency"):
+            print(
+                f"  -> abandoned after {row['runs']} case(s): last "
+                f"{LATENCY_CIRCUIT_BREAKER_WINDOW} consecutive cases each used at least "
+                f"{LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION:.0%} of their own per-case wall-clock "
+                f"budget; {row['cases_skipped_for_latency']} case(s) not attempted"
+            )
     print(f"\nFull report written to {out}")
     return 0
 

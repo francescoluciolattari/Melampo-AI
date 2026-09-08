@@ -37,10 +37,15 @@ jobs:
     runs-on: ubuntu-latest
     # A single candidate's worst case: 11 cases x (60s wall clock + one 30s
     # trailing call) plus one-time 429/400 retry overhead -- comfortably
-    # under 20 minutes even maxed out on every case, so 20 minutes covers a
-    # real run with margin rather than needing the roster-wide ceiling the
-    # old sequential job did.
-    timeout-minutes: 20
+    # under 20 minutes even maxed out on every case. Tightened further to 15:
+    # the latency circuit breaker in bench_model() (see
+    # format_adherence_bench.py) now abandons a candidate whose last three
+    # consecutive cases each used their entire per-case wall-clock allowance,
+    # so a consistently slow candidate self-terminates in a few minutes
+    # rather than needing this ceiling to catch it at all. 15 minutes remains
+    # the backstop for a candidate whose slowness happens not to land on
+    # three consecutive cases, not the primary mechanism.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

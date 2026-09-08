@@ -705,11 +705,73 @@ This is not the general nineteen-case budget being too tight (the other
 seven candidates, several also facing that same wider budget and case
 count, all finished well within time); it is evidence that this specific
 candidate's real-world latency is substantially higher than the rest of
-this roster's. `timeout-minutes` raised 30→50 to give it — and any future
-candidate with similarly high real latency — room to actually finish and
-produce a result, rather than being cut off with nothing to show for it.
-Whether 50 minutes is enough is itself now an open question the next run
-answers with evidence rather than another guess.
+this roster's. `timeout-minutes` was first raised 30→50 to give it room to
+finish — the wrong lever, corrected below once the actual complaint was
+understood: a wider timeout waits out slowness instead of recognising it,
+and if a candidate needs minutes for a single case, that is not a budget
+problem worth accommodating at all.
+
+### A latency circuit breaker, and why the timeout went back down rather than up further
+
+Widening the timeout to 50 minutes was reconsidered on a direct challenge:
+a candidate that genuinely needs on the order of twenty minutes per
+interaction is not a case to wait out with a longer ceiling, it is a
+candidate to abandon early, and the diagnostics should say so with more
+precision than "the job ran long."
+
+`bench_model()` now tracks real elapsed wall-clock seconds per case
+(`case_elapsed_seconds`) — distinct from iteration counts, which say how
+many turns a model took but nothing about how long each one took; a
+candidate needing many quick turns and one needing few slow ones can share
+an iteration count and look identical without this. If the last
+`LATENCY_CIRCUIT_BREAKER_WINDOW` (3) consecutive cases each consumed at
+least `LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION` (1.0, i.e. the case's
+entire nominal allowance) of that case's own configured wall-clock ceiling,
+remaining cases for that candidate are not attempted: `abandoned_for_latency`
+and `cases_skipped_for_latency` record what happened and why, and the
+candidate's `adherence`/`completion_rate` are still computed correctly over
+whatever cases did run.
+
+**The threshold is a fraction of each case's own ceiling, not a fixed
+number of seconds — this was reconsidered once, and the reconsideration
+matters.** The two workflows here configure different per-case wall-clock
+budgets (60s default, 90s for the eight-candidate comparison's wider
+allowance). A fixed absolute threshold tuned to look reasonable against one
+would be miscalibrated against the other: a value low enough to catch
+genuine slowness against the 90s budget would flag candidates on the 60s
+budget that are working productively, not stuck; a value high enough to
+avoid that would rarely or never trip against the 60s budget at all,
+silently disabling the mechanism there. Comparing each case's elapsed time
+against that same case's own ceiling stays correctly calibrated for
+whichever budget is actually configured, including one neither workflow
+uses yet, without needing two hardcoded constants tuned to two specific
+numbers.
+
+**This is a practical reduction in risk, not a mathematical guarantee.** A
+candidate whose slow cases are interleaved with fast ones (slow, slow,
+fast, slow, slow, fast…) could avoid ever landing three genuinely
+*consecutive* cases over threshold and still consume most of the case
+budget before finishing normally. The breaker is sized for what was
+actually observed — grok-4.6 was consistently slow throughout its run, not
+intermittently — and `timeout-minutes` remains the true backstop for the
+adversarial case the breaker does not cover, which is why both workflows'
+job timeouts were tightened to 15 minutes (down from 20 and 50
+respectively) rather than removed: with the breaker doing the routine work,
+15 minutes is ample margin over its typical few-minutes case while staying
+a firm ceiling rather than another number chosen to wait out whatever was
+observed most recently.
+
+Verified with a small real sleep (`elapsed_seconds` is rounded to
+milliseconds by `Budget`, so an effectively-instant scripted model would
+round to exactly 0.000 and never exceed any ceiling regardless of how
+small it is set — an early version of this test used a near-zero ceiling
+with an instant model and passed for the wrong reason, tripping nothing
+because every ratio was `0.0/ceiling = 0.0`; caught before merging, not
+after) paired with a ceiling smaller than that sleep: a candidate that is
+slow on its last three cases is abandoned with the correct case count
+skipped; a candidate slow on one isolated case among fast ones is not; a
+uniformly fast candidate never approaches the threshold regardless of which
+budget it is measured against.
 
 ### The first real run of the parallel matrix lost three results out of four
 

@@ -63,24 +63,32 @@ jobs:
     name: Bench ${{ matrix.candidate }}
     needs: prepare
     runs-on: ubuntu-latest
-    # A live run's grok-4.6 job ran 30.3 minutes -- essentially the full 30
-    # minutes plus a few seconds of shutdown grace period -- before being
-    # cancelled by this timeout, without completing. Every other candidate in
-    # the same run finished well inside 30 minutes, so this is not the
-    # nineteen-case worst case discussed below being generally too tight; it
-    # is one candidate proving genuinely, substantially slower than the rest
-    # of this roster. Raised to 50 minutes to give it (and any future
-    # candidate with similar real-world latency) room to actually finish
-    # rather than being cut off with nothing to show for it -- BENCH_MAX_ITERATIONS=16
-    # and BENCH_WALL_CLOCK_SECONDS=90 below raise the per-case ceiling
-    # specifically so gemma-4-31b and mistral-large-openrouter can complete
-    # the case that stopped them at the old ceiling, and nineteen cases
-    # (eleven baseline plus eight advanced) is nearly double the case count.
-    # A single candidate's formal worst case grows accordingly; this is sized
-    # for a real run with margin for a genuinely slow candidate, not the
-    # theoretical worst case if every one of nineteen cases maxed out the
-    # wider budget on every candidate.
-    timeout-minutes: 50
+    # A live run's grok-4.6 job ran 30.3 minutes without completing -- every
+    # other candidate in the same run finished well inside 30 minutes. The
+    # first response to this was raising the ceiling to 50 minutes, which was
+    # the wrong lever: a candidate needing minutes for a single case is not a
+    # timeout problem to accommodate, it is evidence the candidate is
+    # impractical for this workload, and a growing timeout just waits out
+    # slowness instead of recognising it.
+    #
+    # The real fix is the latency circuit breaker in bench_model() (see
+    # format_adherence_bench.py): if the last three consecutive cases each
+    # used their entire per-case wall-clock allowance, remaining cases for
+    # that candidate are not attempted -- the candidate has already shown
+    # what it will keep showing. For a consistently slow candidate (which is
+    # what was actually observed -- grok-4.6 was not intermittent), this
+    # bounds a single candidate's job to roughly three cases at the 90s
+    # per-case ceiling plus call overhead, a few minutes, not thirty.
+    #
+    # This is a practical reduction, not a mathematical guarantee: a
+    # candidate whose slow cases are interleaved with fast ones (slow, slow,
+    # fast, slow, slow, fast...) could avoid ever hitting three *consecutive*
+    # slow cases and still consume most of the nineteen-case budget before
+    # the run ends normally. 15 minutes is set with that gap in mind: ample
+    # margin over the breaker's few-minutes typical case, while remaining a
+    # firm backstop rather than another number chosen to wait out whatever
+    # was seen last time.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
