@@ -6,6 +6,7 @@ from melampo.evaluation.format_adherence_bench import (
     ModelResult,
     bench_model,
     bench_models,
+    rank_result_dicts,
 )
 from melampo.memory.context_environment import EnvironmentDocument
 from melampo.models.model_client import ModelClientConfig, SafeModelClient
@@ -610,3 +611,91 @@ def test_a_candidate_consistently_at_80_percent_of_ceiling_now_trips():
     assert all(ratio < 1.0 for ratio in result.case_latency_ratios), (
         "none of these cases exhausted their ceiling -- the old threshold would have missed this entirely"
     )
+
+
+# --------------------------------------------------------------------------
+# Efficiency tiebreak: three candidates tied at 100%/100% on a real run,
+# distinguishable only by data the report already collected but never used
+# for ranking.
+# --------------------------------------------------------------------------
+
+
+def _perfect_result(name: str, mean_seconds) -> dict:
+    return {
+        "model_name": name, "adherence": 1.0, "completion_rate": 1.0,
+        "accepted_lines": 10, "rejected_lines": 0, "near_miss_share": 0.0,
+        "mean_case_seconds": mean_seconds,
+    }
+
+
+def test_rank_result_dicts_breaks_a_tie_on_mean_case_seconds():
+    results = [
+        _perfect_result("slow", 5.3),
+        _perfect_result("fast", 1.3),
+        _perfect_result("medium", 4.3),
+    ]
+    ranked = rank_result_dicts(results)
+    assert [item["model_name"] for item in ranked] == ["fast", "medium", "slow"]
+
+
+def test_the_verdict_names_the_tiebreak_when_multiple_candidates_are_tied():
+    results = [_perfect_result("slow", 5.3), _perfect_result("fast", 1.3)]
+    from melampo.evaluation.format_adherence_bench import compute_verdict
+
+    verdict = compute_verdict(results)
+    assert "fast" in verdict
+    assert "tied on adherence and completion" in verdict
+    assert "1.3s" in verdict
+
+
+def test_the_verdict_does_not_mention_a_tiebreak_when_only_one_candidate_wins_outright():
+    results = [_perfect_result("clear-winner", 1.0), {**_perfect_result("also-ran", 9.0), "adherence": 0.5}]
+    from melampo.evaluation.format_adherence_bench import compute_verdict
+
+    verdict = compute_verdict(results)
+    assert "tied" not in verdict
+
+
+def test_a_missing_mean_case_seconds_sorts_last_among_ties_rather_than_crashing():
+    """A result predating this field, or one with zero completed cases, must
+    not break ranking or silently be treated as fastest."""
+    results = [
+        {**_perfect_result("has-timing", 3.0)},
+        {**_perfect_result("no-timing", None)},
+    ]
+    ranked = rank_result_dicts(results)
+    assert [item["model_name"] for item in ranked] == ["has-timing", "no-timing"]
+
+
+def test_bench_report_ranked_applies_the_same_tiebreak_as_rank_result_dicts():
+    """The two ranking implementations (ModelResult-based and dict-based)
+    must agree, since a live run uses one and a merge step uses the other."""
+    fast = bench_model("fast", lambda p: "final(x)", CASES)
+    slow_report = BenchReport(results=[fast])
+    assert slow_report.ranked()[0].model_name == "fast"
+
+
+# --------------------------------------------------------------------------
+# all_cases_completed: distinguishes budget_bound's ambiguous False
+# --------------------------------------------------------------------------
+
+
+def test_all_cases_completed_is_true_when_every_case_finished():
+    result = bench_model("perfect", lambda p: "final(x)", CASES)
+    assert result.all_cases_completed is True
+    assert result.budget_bound is False, "budget_bound alone cannot tell this apart from a real failure"
+
+
+def test_all_cases_completed_is_false_when_any_case_failed_for_any_reason():
+    result = bench_model("prose", lambda p: "not an action", CASES)
+    assert result.all_cases_completed is False
+
+
+def test_all_cases_completed_is_false_on_a_never_run_result():
+    result = ModelResult(model_name="never-run")
+    assert result.all_cases_completed is False
+
+
+def test_as_dict_carries_all_cases_completed():
+    payload = bench_model("m", lambda p: "final(x)", CASES).as_dict()
+    assert "all_cases_completed" in payload

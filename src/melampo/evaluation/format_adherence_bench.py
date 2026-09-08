@@ -178,10 +178,29 @@ class ModelResult:
         change the result; false suggests the model stopped short for another
         reason -- a malformed action it could not recover from, or simply
         never attempting to conclude -- which a wider budget will not fix.
+
+        False is ambiguous on its own, and a real comparison exposed the
+        ambiguity directly: mistral-large-openrouter completed every case
+        (budget_bound False because there was nothing incomplete to be bound
+        by -- the best possible outcome) and mistral-small-openrouter failed
+        two cases by exhausting their iteration ceiling (budget_bound True).
+        Both are meaningfully different from a candidate that failed cases
+        for some OTHER reason -- a malformed action, giving up outright --
+        which would also show budget_bound False, looking identical to
+        "completed everything" from this field alone. See
+        all_cases_completed for the distinction this property cannot make by
+        itself: read them together, not this one in isolation.
         """
         return bool(self.iterations_on_incompletion) and all(
             used >= ceiling for used, ceiling in self.iterations_on_incompletion
         )
+
+    @property
+    def all_cases_completed(self) -> bool:
+        """True only when completion_rate is exactly 100% -- the specific
+        thing budget_bound's False cannot distinguish from "failed for a
+        non-iteration reason" on its own."""
+        return self.runs > 0 and self.completed_runs == self.runs
 
     def prose_examples_present(self) -> bool:
         return bool(self.prose_lines)
@@ -207,6 +226,7 @@ class ModelResult:
                 else round(self.mean_iterations_on_incompletion, 2)
             ),
             "budget_bound": self.budget_bound,
+            "all_cases_completed": self.all_cases_completed,
             "mean_case_seconds": None if self.mean_case_seconds is None else round(self.mean_case_seconds, 1),
             "max_case_seconds": None if self.max_case_seconds is None else round(self.max_case_seconds, 1),
             "abandoned_for_latency": self.abandoned_for_latency,
@@ -220,7 +240,17 @@ class BenchReport:
     adherence_target: float = 0.95
 
     def ranked(self) -> list[ModelResult]:
-        return sorted(self.results, key=lambda item: (-item.adherence, -item.completion_rate))
+        """Same three-key order as rank_result_dicts: adherence, completion,
+        then mean seconds per completed case as a tiebreaker among ties on
+        the first two."""
+        return sorted(
+            self.results,
+            key=lambda item: (
+                -item.adherence,
+                -item.completion_rate,
+                item.mean_case_seconds if item.mean_case_seconds is not None else float("inf"),
+            ),
+        )
 
     def verdict(self) -> str:
         """State what the numbers decide, including when they decide nothing."""
@@ -257,8 +287,28 @@ def rank_result_dicts(results: Sequence[dict[str, Any]]) -> list[dict[str, Any]]
     were loaded back from JSON written by a separate, earlier process --
     which is what a parallel, one-candidate-per-job bench run needs when a
     later step combines what each job wrote independently.
+
+    Three keys, in order: adherence, completion, then mean seconds per
+    completed case as a tiebreaker. Added after a real run left three
+    candidates tied at 100% adherence and 100% completion -- gemma-3-27b,
+    mistral-large-openrouter, nemotron-3-super -- with nemotron running
+    3-4x faster per case than the other two, a difference already measured
+    (mean_case_seconds) but invisible in the verdict because nothing ranked
+    on it. A missing mean_case_seconds (an older result predating that
+    field, or a candidate with zero completed cases) sorts last among ties
+    rather than raising or silently defaulting to "fastest" -- infinity is
+    the value that means "the tiebreaker has no answer for this one",
+    consistent with adherence/completion still deciding the primary order
+    regardless.
     """
-    return sorted(results, key=lambda item: (-item["adherence"], -item["completion_rate"]))
+    def _tiebreak_seconds(item: dict[str, Any]) -> float:
+        value = item.get("mean_case_seconds")
+        return value if isinstance(value, (int, float)) else float("inf")
+
+    return sorted(
+        results,
+        key=lambda item: (-item["adherence"], -item["completion_rate"], _tiebreak_seconds(item)),
+    )
 
 
 def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float = 0.95) -> str:
@@ -272,8 +322,28 @@ def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float =
     """
     if not results:
         return "no models benched"
-    best = rank_result_dicts(results)[0]
+    ranked = rank_result_dicts(results)
+    best = ranked[0]
     if best["adherence"] >= adherence_target:
+        tied = [
+            item
+            for item in ranked
+            if item["adherence"] == best["adherence"] and item["completion_rate"] == best["completion_rate"]
+        ]
+        if len(tied) > 1:
+            # Several candidates reached the same adherence and completion --
+            # the case a real run first showed with three candidates at
+            # 100%/100%. The tiebreak already happened inside rank_result_dicts
+            # (mean seconds per completed case); naming it here means the
+            # verdict states why this one specifically, rather than reporting
+            # a number tied with others as if it had settled the question
+            # alone.
+            return (
+                f"{best['model_name']} meets the adherence target ({best['adherence']:.0%}) "
+                f"and is fastest among {len(tied)} candidates tied on adherence and completion "
+                f"({best.get('mean_case_seconds', 'n/a')}s mean per completed case); "
+                "the choice is settled on these cases"
+            )
         return (
             f"{best['model_name']} meets the adherence target "
             f"({best['adherence']:.0%}); the choice is settled on these cases"

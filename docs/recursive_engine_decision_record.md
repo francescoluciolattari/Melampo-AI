@@ -818,6 +818,51 @@ not a guess at it — is confirmed to trip under the new 0.75 threshold and
 confirmed to have been missed under the old 1.0, run side by side against
 the same case sequence.
 
+### An efficiency tiebreak, and a second field to resolve budget_bound's ambiguity
+
+The same live run that validated the circuit breaker also produced a
+three-way tie: `gemma-3-27b`, `mistral-large-openrouter`, and
+`nemotron-3-super` all reached 100% adherence and 100% completion.
+`mean_case_seconds` already distinguished them clearly — nemotron at 1.3s,
+mistral-large at 4.3s, gemma-3 at 5.3s, a 3-4x spread — but nothing used
+that number for ranking; the verdict named a winner among the tie without
+saying why that one specifically, and the difference was visible only by
+reading the table by hand.
+
+`rank_result_dicts` and `BenchReport.ranked()` now sort on adherence,
+completion, then mean seconds per completed case as a third key, and
+`compute_verdict` names the tiebreak explicitly when more than one
+candidate is tied on the first two: *"nemotron-3-super meets the adherence
+target (100%) and is fastest among 3 candidates tied on adherence and
+completion (1.3s mean per completed case)."* Verified directly against
+the real numbers from that run. A result missing `mean_case_seconds` (an
+older result predating the field, or a candidate with zero completed
+cases) sorts last among its ties rather than raising or being treated as
+fastest by a missing-value default.
+
+**Scope, restated because a question raised it directly:** none of this
+measures answer correctness. `budget_bound`, `completion_rate`, the new
+efficiency ranking — all describe whether a candidate navigates the action
+grammar and finishes within budget, not whether its `final()` text is
+diagnostically right. A confidently wrong answer scores identically to a
+correct one, provided both are well-formed. That evaluation is a
+different, already-built tool (`dream_capture_benchmark.py`, part of B4),
+grading against a documented outcome, not yet wired to this bench's
+candidate list.
+
+**`budget_bound`'s `False` was found to be ambiguous, from a real
+comparison rather than by inspection.** `mistral-large-openrouter`
+completed every case (`budget_bound` False because there was nothing
+incomplete to be bound by — the best outcome) and
+`mistral-small-openrouter` failed two cases by exhausting their iteration
+ceiling (`budget_bound` True) — but a candidate that failed cases for a
+*different* reason (a malformed action it could not recover from, giving
+up outright) would also show `budget_bound` False, indistinguishable from
+"completed everything" by that field alone. `all_cases_completed` — true
+only when `completion_rate` is exactly 100% — is added as the field this
+distinction actually needs; the two are meant to be read together, not
+`budget_bound` alone.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate
