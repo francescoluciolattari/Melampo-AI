@@ -679,6 +679,38 @@ file directly and asserts every name in its default roster resolves to a
 real candidate, so the workflow and the registry cannot silently drift
 apart the way `qwen-3.5`'s slug once did undetected.
 
+### The first real run of the eight-candidate roster: a deprecated slug and a candidate that needed more time than budgeted
+
+The first live run against the expanded roster produced six usable results
+out of eight. Two absences, two different causes.
+
+**`gemini-3-pro-preview` failed preflight with HTTP 404.** Verified against
+Google's own developer changelog: `gemini-3-pro-preview` (without the
+`.1`) was deprecated and shut down on March 9, 2026 — after this candidate
+was first added to the registry, when the slug was correct. OpenRouter's
+own current Google provider listing confirms `gemini-3.1-pro-preview` as
+the successor, alongside the 3.6/3.7/3.8 Flash tiers. Corrected with the
+same discipline `qwen-3.5`'s slug correction used: a live failure checked
+against a primary source before changing anything, not assumed. This is
+also the second time in this registry a slug has gone stale between
+verification and use (the first was `grok-4-fast`'s bare form needing the
+`:free` suffix) — worth remembering as a standing risk of benching
+`-preview` and other pre-GA model names, which providers deprecate on
+their own schedule with no guarantee of notice reaching this codebase.
+
+**`grok-4.6` never completed.** Its job ran 30.3 minutes against a
+30-minute job timeout and was cancelled without writing a result — every
+other candidate in the same run finished comfortably inside that ceiling.
+This is not the general nineteen-case budget being too tight (the other
+seven candidates, several also facing that same wider budget and case
+count, all finished well within time); it is evidence that this specific
+candidate's real-world latency is substantially higher than the rest of
+this roster's. `timeout-minutes` raised 30→50 to give it — and any future
+candidate with similarly high real latency — room to actually finish and
+produce a result, rather than being cut off with nothing to show for it.
+Whether 50 minutes is enough is itself now an open question the next run
+answers with evidence rather than another guess.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate

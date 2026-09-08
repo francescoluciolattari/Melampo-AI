@@ -349,7 +349,10 @@ DEFAULT_CANDIDATES = (
             "itself was never benched until now. Google's flagship: reasoning cannot be fully "
             "disabled (only a 'High'/'Low' effort choice), similar to GLM-5.3's situation, so "
             "the reasoning-disable hint is sent as a best-effort attempt rather than an "
-            "expected guarantee, same as for every other reasoning-mandatory candidate here."
+            "expected guarantee, same as for every other reasoning-mandatory candidate here. "
+            "Slug corrected after a live HTTP 404: google/gemini-3-pro-preview (without .1) "
+            "was deprecated and shut down by Google on March 9, 2026, after this candidate was "
+            "first added; google/gemini-3.1-pro-preview is the confirmed current successor."
         ),
     ),
     RootModelCandidate(

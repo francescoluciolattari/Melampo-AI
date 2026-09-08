@@ -140,7 +140,14 @@ CANDIDATE_MODELS: tuple[tuple[str, str, bool], ...] = (
     # Reasoning cannot be fully disabled (only a High/Low effort choice), so
     # the reasoning-disable hint is sent as a best-effort attempt, same as
     # for glm-5.3.
-    ("gemini-3-pro-preview", "google/gemini-3-pro-preview", True),
+    # google/gemini-3-pro-preview (without .1) was deprecated and shut down
+    # by Google on March 9, 2026; calls to it now 404. gemini-3.1-pro-preview
+    # is the confirmed current successor, listed on OpenRouter's own Google
+    # provider page alongside the 3.6/3.7/3.8 Flash tiers. Corrected here
+    # after a real live run's HTTP 404 -- the same discipline as qwen-3.5's
+    # slug correction: a live failure is verified against a primary source
+    # before the fix, not assumed.
+    ("gemini-3-pro-preview", "google/gemini-3.1-pro-preview", True),
     # NVIDIA's own description names "cross-document reasoning" and
     # "multi-step task planning" specifically -- closer to this bench's
     # actual demands than most candidates' general capability marketing.
