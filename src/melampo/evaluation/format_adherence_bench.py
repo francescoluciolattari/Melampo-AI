@@ -58,10 +58,22 @@ _NEAR_MISS = re.compile(
 # trips at all, silently disabling the whole mechanism for that workflow.
 # Comparing against each case's own ceiling stays correctly calibrated
 # whichever budget is actually in use, including a budget neither workflow
-# uses yet. 1.0 means "took the case's entire nominal wall-clock allowance" --
-# whether that particular case then succeeded or not, spending the full
-# allocation on a single lookup, three times in a row, is itself the signal:
-# an efficient candidate does not need to.
+# uses yet.
+#
+# The fraction was first set at 1.0 -- "took the case's entire nominal
+# allowance" -- and a live run showed exactly the gap that choice left open.
+# grok-4.6 was consistently at or beyond its ceiling and tripped correctly
+# after three cases (5.8 minutes, clean diagnostic data). gemini-3-pro-preview,
+# reached with a corrected slug in the same run, was never that far over --
+# apparently reliably using most but not all of its 90s allowance, case after
+# case -- so no three consecutive cases ever hit exactly 100%, the job ran
+# past the 15-minute job timeout, and was killed externally before writing
+# any result at all: a job timeout kills the process itself, which no
+# try/except inside that process can catch, unlike every other failure mode
+# this bench recovers from. Lowered to 0.75 so a candidate reliably spending
+# three-quarters or more of its budget -- not only one exhausting it outright
+# -- is recognised and abandoned with real diagnostic data, before the job
+# timeout has to be the one to notice, with no data to show for it.
 #
 # If the last WINDOW consecutive cases each consumed at least this fraction
 # of their own ceiling, further cases are not attempted: the candidate has
@@ -70,7 +82,7 @@ _NEAR_MISS = re.compile(
 # is 3 so a single slow case (a network blip, a transient provider queue)
 # does not condemn an otherwise-fine candidate.
 LATENCY_CIRCUIT_BREAKER_WINDOW = 3
-LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION = 1.0
+LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION = 0.75
 
 
 

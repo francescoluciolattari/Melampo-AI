@@ -1,3 +1,4 @@
+import time
 
 from melampo.evaluation.format_adherence_bench import (
     BenchCase,
@@ -576,3 +577,36 @@ def test_the_breaker_condemning_reason_survives_into_stop_reasons_context():
     )
     assert sum(result.stop_reasons.values()) == result.runs
     assert result.runs < len(cases)
+
+
+def test_a_candidate_consistently_at_80_percent_of_ceiling_now_trips():
+    """The exact real-world gap that motivated lowering the threshold from
+    1.0 to 0.75: gemini-3-pro-preview reliably used most but not all of its
+    90s ceiling, never hit 100% on any case, and was killed by the job
+    timeout with zero diagnostic data instead of being recognised and
+    abandoned early. A candidate using 80% of its ceiling every time must now
+    trip -- it would not have under the old threshold."""
+    import melampo.evaluation.format_adherence_bench as bench_module
+
+    assert bench_module.LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION < 0.8, (
+        "this test assumes the threshold was lowered below 0.8; if it changes again, "
+        "this assumption needs revisiting alongside it"
+    )
+
+    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
+                  for i in range(6))
+    ceiling = 0.02
+
+    def eighty_percent_model(prompt):
+        time.sleep(ceiling * 0.8)
+        return "final(x)"
+
+    result = bench_model(
+        "consistently-slow-not-exhausted", eighty_percent_model, cases,
+        budget_factory=lambda: Budget(max_wall_clock_seconds=ceiling),
+    )
+
+    assert result.abandoned_for_latency is True
+    assert all(ratio < 1.0 for ratio in result.case_latency_ratios), (
+        "none of these cases exhausted their ceiling -- the old threshold would have missed this entirely"
+    )

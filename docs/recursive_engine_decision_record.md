@@ -773,6 +773,51 @@ skipped; a candidate slow on one isolated case among fast ones is not; a
 uniformly fast candidate never approaches the threshold regardless of which
 budget it is measured against.
 
+### The very next live run found the gap the threshold's own documentation had predicted
+
+With the Gemini slug corrected and the circuit breaker in place, the next
+live run against the eight-candidate roster showed the breaker working
+exactly as designed for one candidate and missing another entirely.
+
+`grok-4.6` tripped after three cases, 5.8 minutes total, mean 109.4s per
+case, `wall_clock_budget_exhausted` on all three — clean diagnostic data in
+place of the 30-minute timeout kill the previous run ended in.
+`gemini-3-pro-preview`, reached for the first time with the corrected
+slug, ran the full 15-minute job timeout and was killed with no result at
+all: not present in the merged output, not even a `status: "crashed"`
+diagnostic, because a job timeout terminates the process itself, which no
+`try`/`except` inside that process can intercept — unlike every other
+failure mode this bench recovers from, this one kills the messenger before
+it can write anything down.
+
+The threshold at 1.0 only caught a candidate that reached its ceiling.
+Gemini's job duration is consistent with reliably using most but not all
+of its 90-second allowance, case after case — never hitting exactly 100%
+on any three consecutive cases, so the breaker never fired, while the
+cumulative time across nineteen cases still exceeded the job's own
+ceiling. Lowered to 0.75: a candidate reliably spending three-quarters or
+more of its budget, not only one exhausting it outright, is now recognised
+and abandoned with real data before the external timeout has to be the
+one to notice, with nothing to show for it.
+
+**This is a tightening, not a closure.** A candidate reliably sitting just
+under 0.75 would evade this threshold exactly as gemini-3-pro-preview
+evaded 1.0, for the identical underlying reason. The deeper limitation —
+that a job timeout's kill cannot be caught from inside the process it
+kills, so whatever progress existed at that moment is lost regardless of
+how the circuit breaker is tuned — remains open. A more complete fix would
+write intermediate progress incrementally (after each case, not only at
+the end), so a run terminated externally still leaves behind whatever was
+completed up to that point; this was not built here, deliberately, since
+it is a more invasive change to the write path than a threshold number and
+deserves its own scoping rather than being bundled into a reactive fix.
+
+Verified directly: a scripted model consistently using 80% of its
+configured ceiling — reproducing the shape of what the real run showed,
+not a guess at it — is confirmed to trip under the new 0.75 threshold and
+confirmed to have been missed under the old 1.0, run side by side against
+the same case sequence.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate
