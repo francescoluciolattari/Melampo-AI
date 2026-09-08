@@ -863,6 +863,33 @@ only when `completion_rate` is exactly 100% — is added as the field this
 distinction actually needs; the two are meant to be read together, not
 `budget_bound` alone.
 
+### The workflow is renamed and the roster grows again: "eight-model" was never going to be the last count
+
+`four-model-comparison-bench.yml`, retitled "Eight-model comparison bench"
+in an earlier change, is renamed again — file and internal name both — to
+`focused-comparison-bench.yml`, "Focused model comparison bench". Every
+number this workflow has carried in its own name has gone stale within the
+same conversation that gave it that name; "focused" describes what the
+workflow is for without asserting a count that the next roster change would
+immediately falsify again. References to "four-model-comparison-bench.yml"
+and "the eight-candidate roster" earlier in this record describe the
+workflow accurately as it existed at each point in this narrative — they
+are not corrected retroactively, since doing so would misrepresent the
+sequence of decisions rather than the file itself, which has moved.
+
+The roster gained six candidates for the reason the efficiency-tiebreak
+section above concluded with: `claude-sonnet-5`, `claude-opus-5`,
+`claude-fable-5.1`, `qwen-3.5`, `qwen-3.7`, and `qwen-3.8` were all culled
+early in `root-model-bench.yml` runs — completion as low as 0-18% — under
+conditions substantially different from the current harness: before the
+system prompt carried a worked example, before `max_tokens` was raised
+256→1024, before the reasoning-disable hint existed, before the wider
+budget or the latency circuit breaker. None of the six were ever
+re-measured against what exists now. The low numbers on record may
+describe a harness limitation from months of iteration ago rather than a
+genuine model limitation — this run is what actually answers that question
+rather than continuing to treat stale numbers as settled.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate

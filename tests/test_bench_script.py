@@ -846,7 +846,7 @@ def test_the_full_script_does_not_crash_on_a_successful_candidate(script, tmp_pa
 
 
 # --------------------------------------------------------------------------
-# The four candidates added for the eight-model comparison workflow
+# Candidates added for the focused comparison workflow's expanding roster
 # --------------------------------------------------------------------------
 
 
@@ -879,18 +879,23 @@ def test_nemotron_super_is_present(script):
     assert entries == ["nvidia/nemotron-3-super-120b-a12b"]
 
 
-def test_the_eight_model_workflow_roster_matches_its_default_input(script):
+def test_the_focused_workflow_roster_matches_its_default_input(script):
     """Reads the actual workflow file rather than hardcoding the roster a
-    second time here, so this test fails if the two ever drift apart."""
+    second time here, so this test fails if the two ever drift apart. No
+    fixed count asserted -- a hardcoded number here would go stale exactly
+    the way the workflow's own name ("Eight-model comparison") did the
+    moment the roster grew again; only that every name is real and none
+    repeats is checked."""
     import yaml
 
-    workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "four-model-comparison-bench.yml"
+    workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "focused-comparison-bench.yml"
     workflow = yaml.safe_load(workflow_path.read_text())
     trigger = workflow.get(True) or workflow.get("on")
     default_roster = trigger["workflow_dispatch"]["inputs"]["roster"]["default"]
     names = [item.strip() for item in default_roster.split(",")]
 
-    assert len(names) == 8
+    assert len(names) > 0
+    assert len(names) == len(set(names)), "no duplicate candidate in the default roster"
     all_names = script.all_candidate_names()
     for name in names:
         assert name in all_names, f"{name} in the workflow roster does not match any known candidate"
