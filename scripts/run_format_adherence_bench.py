@@ -154,6 +154,16 @@ CANDIDATE_MODELS: tuple[tuple[str, str, bool], ...] = (
     # "multi-step task planning" specifically -- closer to this bench's
     # actual demands than most candidates' general capability marketing.
     ("nemotron-3-super", "nvidia/nemotron-3-super-120b-a12b", True),
+    # Meta Superintelligence Labs' first open-weight release, and the first
+    # Meta entry here under Apache 2.0 rather than the Llama Community
+    # Licence with its EU acceptable-use restriction. 30B dense, distilled
+    # from the proprietary Muse Spark, described for "long-horizon agentic
+    # workflows, multi-step reasoning, reliable tool use, failure recovery" --
+    # close to this bench's actual demands. Muse Spark itself is deliberately
+    # not benched: it is closed-weight, and its cheap "contributor" tier
+    # states that prompts and outputs may be used to improve Meta's products,
+    # which is not a habit worth forming even on synthetic documents.
+    ("muse-glimmer-30b", "meta/muse-glimmer-30b", True),
 )
 
 ACTION_GRAMMAR = (

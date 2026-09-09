@@ -1027,6 +1027,85 @@ passing a frame without having given the models
 `frame_prompt_instruction` would parse unstructured prose into slots that
 were never filled, which is a worse failure than the one being fixed.
 
+### Analysing what fell through to free text: two frames, and why only one of them is extraction
+
+The two advanced-bench questions landing in `FRAME_FREE_TEXT` turned out to
+be different in kind, and the difference is the whole point.
+
+*"What laboratory abnormality supports the imaging impression, and which
+document reports it?"* evokes two chained Fillmore frames: **Support**
+(Support / Supported_claim) and **Statement** (Source / Message). Every slot
+is locatable in the documents. This is extraction — careful reading, nothing
+more. `FRAME_ATTRIBUTION` adds `source_document` as the slot that
+distinguishes it from `FRAME_FINDING`.
+
+*"Does the family history have any bearing on today's aortic measurement,
+and why?"* evokes a **Relevance** frame — Factor, Target, a judgment, a
+mechanism — but the operative difference is in Fauconnier's terms. "Marfan
+in a sister" and "aortic root 4.8 cm" are both facts in the base space, the
+document. The question opens a **third space**, one of clinical consequence,
+and asks whether the two base-space facts map onto each other there. That
+mapping is not in the text at any level of careful reading: it is in the
+concept graph, or nowhere. `FRAME_RELEVANCE`'s `mechanism` slot is where a
+graph path would be named.
+
+**Recognition is Frame Semantics, not a heuristic standing in for it.** An
+earlier framing in this conversation presented keyword routing as the weaker
+alternative to declaring a type explicitly per case. That was imprecise:
+identifying a frame from its **frame-evoking lexical units** is how Frame
+Semantics works, and how FrameNet — the computational resource built on
+Fillmore's theory — is organised. `FRAME_EVOKING_UNITS` catalogues which
+predicates evoke which frame; `recognise_frame` consults no model, so the
+classification is inspectable and cannot itself hallucinate. Mental Spaces
+plays a different role and is deliberately absent from recognition: it
+explains why a relevance question needs graph traversal *once identified*,
+not how to identify one.
+
+Ordering matters in one specific way: relevance is checked first, so a
+question evoking both routes to relevance. The extraction-answerable half of
+such a question would otherwise succeed silently while the other half failed
+— the worse of the two failures.
+
+`judgment_conflict` is the relevance frame's analogue of
+`polarity_conflict`, and `contradicts` covers both: two models disagreeing
+on whether a link exists at all are contradicting each other, not offering
+two descriptions of one thing. Kept as separate flags because a reviewer
+needs to know which kind of opposition they are looking at.
+
+Two defects found while verifying this, both fixed before merging: the
+instruction builder emitted a "for 'polarity' write exactly…" clause for
+every frame including those with no polarity slot (inviting a model to
+invent one, or to distrust the rest of the instruction), and yes/no finding
+questions ("Is fever present according to the report?") fell through to free
+text despite being exactly the finding frame with the answer carried in the
+polarity slot.
+
+`FRAME_FREE_TEXT` survives, and still should: *"How long has the dyspnoea
+been present?"* is a duration, matching no frame here, and admitting that is
+better than forcing one. The escape hatch narrowed rather than closed.
+
+### Muse Glimmer 30B: the first Meta candidate without a licence restriction
+
+Recommended in an earlier turn and, on audit, never actually added — a gap
+found by checking the code rather than trusting the recollection that it had
+been done. `meta/muse-glimmer-30b`, verified against OpenRouter's own Meta
+provider listing: 30B dense, **Apache 2.0**, the first Meta entry in this
+registry not under the Llama Community Licence and its EU acceptable-use
+restriction. Described for long-horizon agentic workflows with multi-step
+reasoning, tool use and failure recovery.
+
+Benched with a caveat rather than on reputation: an independent reader of
+its published scores flagged a high hallucination rate and advised against
+critical tasks. This bench measures navigation and format adherence, not
+answer correctness, so it can neither confirm nor refute that — the caveat
+is recorded in the registry precisely because a good result here would not
+address it.
+
+Muse Spark, the model it is distilled from, is deliberately not benched:
+closed-weight, and its cheap "contributor" tier states that prompts and
+outputs may be used to improve Meta's products — not a habit worth forming
+even on synthetic documents.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate
