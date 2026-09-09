@@ -890,6 +890,79 @@ describe a harness limitation from months of iteration ago rather than a
 genuine model limitation — this run is what actually answers that question
 rather than continuing to treat stale numbers as settled.
 
+### Two root models instead of one: disagreement as a signal, not a tie to break
+
+Fourteen candidates measured across two independent live runs left four tied
+at 100% adherence and 100% completion, with `nemotron-3-super` and
+`gemma-3-27b` the two most efficient by a consistent margin in both. The
+question that follows is not which single one to adopt, but whether one is
+the right shape of answer at all.
+
+**The bench cannot answer the question that matters most.** It measures
+whether a candidate follows the action grammar and finishes within budget;
+it never grades whether `final()` is clinically right. Two models that both
+navigate competently can reach different conclusions from the same
+documents, and no single model can report that about itself — a confident
+wrong answer and a confident right one are indistinguishable from the
+inside.
+
+`reasoning/root_model_cross_check.py` runs two root models over the
+identical environment, independently, and compares what each produced. This
+is not a new idea in this codebase: `retrieval_reconciliation` already
+applies exactly this principle one level down, treating divergence between
+the one-shot and recursive retrieval paths as an empirical uncertainty
+estimate rather than noise. The same reasoning, applied to two root models,
+reuses that module's vocabulary (agreement ratio, per-item disposition)
+rather than inventing a parallel one.
+
+**Non-adjudicating by construction.** No third model decides which of the
+two is right, and neither is designated authoritative — `primary` and
+`secondary` name run order for reproducibility, not precedence. A
+disagreement records both answers and picks neither; silently preferring
+one would discard the entire signal. Four dispositions are kept distinct
+because they call for different responses: `agreed`, `disagreed`,
+`single_answer_only` (one model finished, one did not — one answer is not a
+second opinion), and `neither_completed`. Everything except `agreed` sets
+`needs_review`, deliberately inclusive: one competent navigator failing a
+case is itself a reason not to trust the other's answer unexamined.
+
+**Answer comparison, and a measurement that changed the design.** The first
+implementation compared answers by character-sequence ratio alone. Checked
+against this bench's own vocabulary, that ranks a contradiction above a
+paraphrase: "pulmonary embolism" vs "pulmonary oedema" — clinically
+opposite, and a distinction one advanced case exists specifically to test —
+scores 0.71, while "40 mg daily" vs "prednisone 40 mg daily" — the same
+answer, one more verbose — scores 0.67. Exactly backwards. Containment
+corrects it: when one normalised answer contains the other whole, the
+shorter is a subset rather than a rival claim, which is the shape of "same
+answer, different verbosity" and never the shape of two different findings.
+Those score 1.0; everything else falls back to the ratio. Verified on both
+pairs and on genuinely different answers.
+
+**A limitation stated rather than hidden.** Two answers meaning the same
+thing in entirely different words ("not documented" vs "the report does not
+mention prednisone", 0.38) are reported as disagreement — a false alarm.
+That is the direction the error is deliberately allowed to fall:
+over-reporting sends a correct case to a human unnecessarily,
+under-reporting lets a genuine divergence through unexamined. Closing it
+properly needs semantic comparison, which needs a third model, which
+reintroduces the adjudicating judgement this module exists to avoid.
+`answer_similarity` is recorded alongside every verdict so a reviewer can
+see whether a flagged disagreement scored near the threshold or far from
+it.
+
+**Pairing, and why Mistral stays available rather than dropped.**
+`DEFAULT_PAIR` is nemotron-3-super plus gemma-3-27b, on the measured
+merits: the two most efficient candidates in both live runs, near-identical
+iteration counts, the least redundant cost for a doubled workload.
+`ALTERNATIVE_PAIR` swaps the second for mistral-large-openrouter, which
+matched on adherence and completion at roughly twice the iterations. It is
+kept because of something the bench structurally cannot measure: Mistral is
+the only one of the three from an EU-based lab, which may matter for a
+system with MDR ambitions in a way no adherence figure will ever show. Both
+are names only — the callables are supplied by the caller, so this module
+holds no opinion about how a model is reached.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate
