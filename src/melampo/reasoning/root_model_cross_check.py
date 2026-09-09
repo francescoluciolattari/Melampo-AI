@@ -43,6 +43,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.context_environment import EnvironmentDocument
+from .frame_answer import FrameComparison, compare_frame_answers
 from .rlm_engine import STOP_FINAL, Budget, RlmEngine, Trajectory
 
 # Named pairings, from two live runs of the focused comparison bench. Names
@@ -80,6 +81,10 @@ class CrossCheckResult:
     shared_evidence_ids: list[str] = field(default_factory=list)
     primary_only_evidence_ids: list[str] = field(default_factory=list)
     secondary_only_evidence_ids: list[str] = field(default_factory=list)
+    # Populated only when cross_check was given a frame: the slot-by-slot
+    # comparison that replaced character similarity for this case. None means
+    # the character path was used, not that the comparison failed.
+    frame_comparison: FrameComparison | None = None
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -152,6 +157,7 @@ class CrossCheckResult:
             "secondary_only_evidence_count": len(self.secondary_only_evidence_ids),
             "disposition": self.disposition,
             "needs_review": self.needs_review,
+            "frame_comparison": self.frame_comparison.as_dict() if self.frame_comparison else None,
             "notes": list(self.notes),
         }
 
@@ -217,6 +223,7 @@ def cross_check(
     *,
     primary_name: str = DEFAULT_PAIR[0],
     secondary_name: str = DEFAULT_PAIR[1],
+    frame: str | None = None,
     budget_factory: Callable[[], Budget] = Budget,
     search_fn: Any = None,
     graph_expand_fn: Any = None,
@@ -226,6 +233,16 @@ def cross_check(
     Each gets its own ``RlmEngine`` and its own fresh ``Budget`` -- sharing
     either would let the first model's navigation influence the second's,
     which would defeat the independence the comparison depends on.
+
+    ``frame``, when given, compares the two answers slot by slot via
+    ``frame_answer.compare_frame_answers`` instead of by character
+    similarity. This is strictly better where it applies and is the intended
+    path: character comparison was measured ranking a contradiction above a
+    paraphrase on this bench's own vocabulary (see ``answer_similarity``).
+    It is optional rather than mandatory because the caller has to ask the
+    models for that format in the first place -- passing ``frame`` without
+    having given them ``frame_prompt_instruction`` would parse unstructured
+    answers into slots that were never filled.
     """
     result = CrossCheckResult(case_id=case_id, primary_model=primary_name, secondary_model=secondary_name)
 
@@ -238,7 +255,20 @@ def cross_check(
     result.secondary_completed = secondary_trajectory.stop_reason == STOP_FINAL
     result.primary_answer = primary_trajectory.final_answer
     result.secondary_answer = secondary_trajectory.final_answer
-    result.answer_similarity = answer_similarity(result.primary_answer, result.secondary_answer)
+    if frame:
+        # Slot comparison replaces the character ratio entirely rather than
+        # supplementing it: where a frame applies, the ratio's known failure
+        # (ranking a contradiction above a paraphrase) has no reason to
+        # influence the verdict at all. answer_similarity is still populated,
+        # as 1.0/0.0 from the slot verdict, so downstream readers of that
+        # field see a value consistent with the disposition rather than a
+        # character score that might contradict it.
+        result.frame_comparison = compare_frame_answers(
+            frame, result.primary_answer, result.secondary_answer
+        )
+        result.answer_similarity = 1.0 if result.frame_comparison.agrees else 0.0
+    else:
+        result.answer_similarity = answer_similarity(result.primary_answer, result.secondary_answer)
 
     primary_ids = {item.get("record_id", "") for item in primary_trajectory.evidence() if item.get("record_id")}
     secondary_ids = {item.get("record_id", "") for item in secondary_trajectory.evidence() if item.get("record_id")}
@@ -250,6 +280,12 @@ def cross_check(
         result.notes.append(f"{primary_name} did not complete: {primary_trajectory.stop_reason}")
     if not result.secondary_completed:
         result.notes.append(f"{secondary_name} did not complete: {secondary_trajectory.stop_reason}")
+    if result.frame_comparison and result.frame_comparison.polarity_conflict:
+        result.notes.append(
+            "the two models disagree on POLARITY -- one states the finding as present, the other "
+            "as absent. This is categorically worse than differing on which finding: they are "
+            "asserting opposites about the same thing, not two candidate answers"
+        )
     if result.disposition == "disagreed":
         result.notes.append(
             "both models completed but reached different answers; neither is preferred here -- "
