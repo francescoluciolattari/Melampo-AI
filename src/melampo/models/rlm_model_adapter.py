@@ -367,6 +367,25 @@ DEFAULT_CANDIDATES = (
             "native tool-calling support."
         ),
     ),
+    RootModelCandidate(
+        name="muse-glimmer-30b",
+        provider="meta",
+        licence=LICENCE_APACHE_2,
+        note=(
+            "Meta Superintelligence Labs' first open-weight release, and the first Meta entry "
+            "in this registry under Apache 2.0 rather than the Llama Community Licence -- so "
+            "unlike every Llama candidate here, no EU acceptable-use restriction applies. 30B "
+            "dense, distilled from the proprietary Muse Spark, described for long-horizon "
+            "agentic workflows with multi-step reasoning, reliable tool use and failure "
+            "recovery. Benched with a caveat rather than on reputation: an independent reader "
+            "of its published scores flagged a high hallucination rate and advised against "
+            "critical tasks. This bench measures navigation and format adherence, not answer "
+            "correctness, so it cannot confirm or refute that -- the caveat is recorded here "
+            "because a good result on this bench would not address it. Muse Spark itself is "
+            "deliberately absent: closed-weight, and its cheap 'contributor' tier states that "
+            "prompts and outputs may be used to improve Meta's products."
+        ),
+    ),
 )
 
 # Benching a model is not adopting it. A candidate whose licence is unresolved

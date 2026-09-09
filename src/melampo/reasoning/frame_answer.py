@@ -35,6 +35,7 @@ structured, so no interpretation stands between the two answers and their
 comparison.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,6 +47,28 @@ FRAME_MEDICATION = "medication"
 FRAME_FINDING = "finding"
 FRAME_MEASUREMENT = "measurement"
 FRAME_FREE_TEXT = "free_text"
+# Two frames added after analysing the questions that were falling through to
+# FRAME_FREE_TEXT. Both are Fillmore frames in the strict sense -- a
+# conceptual structure with roles to fill -- but they differ in a way that
+# matters operationally, and Mental Spaces theory is what explains the
+# difference.
+#
+# FRAME_ATTRIBUTION covers "What laboratory abnormality supports the imaging
+# impression, and which document reports it?" -- two chained frames, Support
+# (Support / Supported_claim) and Statement (Source / Message). Every slot is
+# *locatable in the text*: this is extraction, and it needs nothing beyond
+# careful reading.
+#
+# FRAME_RELEVANCE covers "Does the family history have any bearing on today's
+# aortic measurement, and why?" -- Factor, Target, a relevance judgment, and
+# the connecting mechanism. In Fauconnier's terms this question opens a THIRD
+# mental space: "Marfan in a sister" and "aortic root 4.8 cm" are both facts
+# in the base space (the document), and the question asks whether they map
+# onto each other in a space of clinical consequence that the document never
+# states. That mapping is not in the text at any level of careful reading --
+# it is in the concept graph, or nowhere.
+FRAME_ATTRIBUTION = "attribution"
+FRAME_RELEVANCE = "relevance"
 
 # Slot definitions per frame, in the order a model is asked to state them.
 # Order matters for the prompt (a fixed order is what makes the format
@@ -66,7 +89,25 @@ FRAME_SLOTS: dict[str, tuple[str, ...]] = {
     # Rather than forcing a frame that does not fit and getting a worse
     # answer, free_text falls back to whole-answer comparison, and says so.
     FRAME_FREE_TEXT: ("text",),
+    # Extraction: every slot is locatable in the documents. `source_document`
+    # is what makes this distinct from FRAME_FINDING -- the question asks not
+    # only what the finding is but which document reports it, which is the
+    # Statement frame's Source role.
+    FRAME_ATTRIBUTION: ("finding", "supports_claim", "source_document", "polarity"),
+    # Relevance: `factor` and `target` are both stated in the documents, but
+    # `bears_on` and `mechanism` are not -- they are the claim the question
+    # actually asks about. `mechanism` is where a concept-graph path would be
+    # named ("Marfan syndrome causes connective tissue weakness causes aortic
+    # root dilation"), which is why this frame is the one that routes to
+    # verification rather than to extraction.
+    FRAME_RELEVANCE: ("factor", "target", "bears_on", "mechanism"),
 }
+
+# Slots whose values are yes/no judgments rather than free content. Compared
+# as a controlled vocabulary for the same reason polarity is: "yes" and "no"
+# are the only meaningful values, and two models differing here are stating
+# opposites, not variants.
+BEARS_ON_VALUES = ("yes", "no")
 
 # Slots whose values are compared as a controlled vocabulary rather than as
 # free strings: only these two values are meaningful, and anything else is
@@ -104,6 +145,75 @@ def normalise_slot_value(value: str | None) -> str:
     return " ".join(str(value).lower().split()).strip().rstrip(".,;:!?")
 
 
+# Frame-evoking lexical units, in Fillmore's sense: the words whose presence
+# in a question signals which conceptual structure it invokes. This is not a
+# heuristic standing in for Frame Semantics -- it *is* how Frame Semantics
+# identifies a frame, and how FrameNet, the computational resource built on
+# Fillmore's theory, is organised: by cataloguing which predicates evoke which
+# frame. Mental Spaces theory plays a different role and does not appear here:
+# it explains why a relevance question needs graph traversal once recognised
+# (it links two spaces), but it is not what tells you, looking at the
+# sentence, that you are facing one.
+#
+# Ordered most-specific first. A question asking both "what supports X" and
+# "does Y bear on Z" is rare, but if it happens, relevance wins: the
+# unanswerable-by-extraction half is the half that would fail silently.
+FRAME_EVOKING_UNITS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        FRAME_RELEVANCE,
+        (
+            "bearing on", "bear on", "bears on", "relevant to", "relevance of",
+            "correlate with", "correlates with", "correlation between",
+            "have any bearing", "does .* affect", "implication", "implications of",
+            "significance of", "in light of", "given the", "account for",
+        ),
+    ),
+    (
+        FRAME_ATTRIBUTION,
+        ("which document", "what document", "reported by", "which source", "reports it", "supports the"),
+    ),
+    (FRAME_MEDICATION, ("what dose", "which dose", "what drug", "which drug", "prescribed", "dosed at")),
+    (
+        FRAME_FINDING,
+        (
+            "what finding", "which finding", "what diagnosis", "which diagnosis",
+            # "is X present" / "was X present" -- a yes/no about a finding, which
+            # is the finding frame with the answer carried by the polarity slot
+            # rather than a separate one.
+            "is .* present", "was .* present", "present according to",
+            "described as", "confirmed",
+        ),
+    ),
+    (FRAME_MEASUREMENT, ("what value", "how much", "rise or fall", "trend")),
+)
+
+
+def recognise_frame(question: str) -> str:
+    """Identify which frame a question evokes, from its lexical units.
+
+    Returns FRAME_FREE_TEXT when nothing matches -- an honest "no frame
+    recognised" rather than a guess, since forcing an ill-fitting frame
+    produces a worse answer than admitting the question does not decompose.
+
+    Deliberately conservative and deterministic: no model is consulted, so
+    the classification is inspectable and cannot itself hallucinate. Its
+    limitation is the mirror of that strength -- a relevance question phrased
+    in words not on this list falls through to free text, exactly as before.
+    That is the safe direction: a missed frame degrades to the old behaviour,
+    while a wrong frame would parse an answer into slots it was never asked
+    to fill.
+    """
+    lowered = " ".join(question.lower().split())
+    for frame, units in FRAME_EVOKING_UNITS:
+        for unit in units:
+            if ".*" in unit:
+                if re.search(unit, lowered):
+                    return frame
+            elif unit in lowered:
+                return frame
+    return FRAME_FREE_TEXT
+
+
 def frame_prompt_instruction(frame: str) -> str:
     """The instruction to give a root model so its answer fills these slots.
 
@@ -117,12 +227,23 @@ def frame_prompt_instruction(frame: str) -> str:
     if frame == FRAME_FREE_TEXT:
         return "State your answer as a single short sentence."
     slot_list = f" {SLOT_SEPARATOR} ".join(slots)
-    return (
+    instruction = (
         f"State your answer as {frame} slots in exactly this order, separated by "
         f"'{SLOT_SEPARATOR}': {slot_list}. Write '{UNSTATED or 'unknown'}' for any slot the "
-        f"documents do not state. For 'polarity' write exactly "
-        f"'{POLARITY_AFFIRMED}' or '{POLARITY_NEGATED}'."
+        f"documents do not state."
     )
+    # Controlled-vocabulary clauses only for the frames that actually have
+    # those slots -- telling a model to fill a 'polarity' slot its frame does
+    # not contain invites it to invent one, or to distrust the rest of the
+    # instruction.
+    if "polarity" in slots:
+        instruction += f" For 'polarity' write exactly '{POLARITY_AFFIRMED}' or '{POLARITY_NEGATED}'."
+    if "bears_on" in slots:
+        instruction += (
+            f" For 'bears_on' write exactly '{BEARS_ON_VALUES[0]}' or '{BEARS_ON_VALUES[1]}', and use "
+            "'mechanism' to name the connection you are asserting, not to restate the question."
+        )
+    return instruction
 
 
 def parse_frame_answer(frame: str, answer: str | None) -> FrameAnswer:
@@ -227,6 +348,24 @@ class FrameComparison:
         return any(item.slot == "polarity" and item.conflicts for item in self.slots)
 
     @property
+    def judgment_conflict(self) -> bool:
+        """Whether the two answers disagree on a yes/no judgment slot.
+
+        The relevance frame's analogue of polarity_conflict: two models
+        disagreeing on whether a factor bears on a target at all are
+        contradicting each other about the existence of a link, not offering
+        two descriptions of one. Kept separate from polarity because they
+        belong to different frames and a reviewer needs to know which kind of
+        opposition they are looking at.
+        """
+        return any(item.slot == "bears_on" and item.conflicts for item in self.slots)
+
+    @property
+    def contradicts(self) -> bool:
+        """Either kind of direct opposition -- the worst class of disagreement."""
+        return self.polarity_conflict or self.judgment_conflict
+
+    @property
     def agrees(self) -> bool:
         """No slot conflicts, and at least one slot agreed on substance.
 
@@ -251,6 +390,8 @@ class FrameComparison:
             "agreeing_slots": self.agreeing_slots,
             "unstated_slots": self.unstated_slots,
             "polarity_conflict": self.polarity_conflict,
+            "judgment_conflict": self.judgment_conflict,
+            "contradicts": self.contradicts,
             "slots": [item.as_dict() for item in self.slots],
         }
 

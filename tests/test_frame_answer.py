@@ -241,3 +241,164 @@ def test_the_finding_frame_separates_site_from_finding():
     shared word "pulmonary" must land in its own slot."""
     assert "site" in FRAME_SLOTS[FRAME_FINDING]
     assert "finding" in FRAME_SLOTS[FRAME_FINDING]
+
+
+# --------------------------------------------------------------------------
+# Frame recognition: Fillmore's frame-evoking lexical units
+# --------------------------------------------------------------------------
+
+
+def test_the_two_questions_that_were_falling_through_are_now_recognised():
+    """These are the actual FRAME_FREE_TEXT cases from the advanced bench set
+    that prompted this analysis -- one extractive, one requiring a link the
+    documents never state."""
+    from melampo.reasoning.frame_answer import (
+        FRAME_ATTRIBUTION,
+        FRAME_RELEVANCE,
+        recognise_frame,
+    )
+
+    assert recognise_frame(
+        "What laboratory abnormality supports the imaging impression, and which document reports it?"
+    ) == FRAME_ATTRIBUTION
+    assert recognise_frame(
+        "Does the family history have any bearing on today's aortic measurement, and why?"
+    ) == FRAME_RELEVANCE
+
+
+def test_relevance_wins_when_a_question_evokes_both():
+    """A question with both an extractive and a relevance half must route to
+    relevance: the extraction-answerable half would succeed silently while the
+    other failed, which is the worse failure."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE, recognise_frame
+
+    assert recognise_frame(
+        "Which document reports it, and does it have any bearing on the measurement?"
+    ) == FRAME_RELEVANCE
+
+
+def test_yes_no_finding_questions_are_recognised_as_the_finding_frame():
+    from melampo.reasoning.frame_answer import FRAME_FINDING, recognise_frame
+
+    assert recognise_frame("Is fever present according to the report?") == FRAME_FINDING
+    assert recognise_frame("Is a pericardial effusion present, and how does it differ?") == FRAME_FINDING
+
+
+def test_an_unrecognised_question_falls_back_to_free_text_rather_than_guessing():
+    """Honest "no frame recognised" rather than forcing an ill-fitting one --
+    a missed frame degrades to the old behaviour, while a wrong frame would
+    parse an answer into slots it was never asked to fill."""
+    from melampo.reasoning.frame_answer import FRAME_FREE_TEXT, recognise_frame
+
+    assert recognise_frame("How long has the dyspnoea been present?") == FRAME_FREE_TEXT
+    assert recognise_frame("Summarise the case.") == FRAME_FREE_TEXT
+
+
+def test_recognition_is_case_and_whitespace_insensitive():
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE, recognise_frame
+
+    assert recognise_frame("  DOES THIS  HAVE ANY BEARING ON that?  ") == FRAME_RELEVANCE
+
+
+def test_recognition_consults_no_model_and_is_deterministic():
+    """Inspectable and unable to hallucinate its own classification -- the
+    same question always routes the same way."""
+    from melampo.reasoning.frame_answer import recognise_frame
+
+    question = "Does the family history have any bearing on today's aortic measurement?"
+    assert recognise_frame(question) == recognise_frame(question) == recognise_frame(question)
+
+
+# --------------------------------------------------------------------------
+# The relevance frame: a judgment conflict is its own kind of contradiction
+# --------------------------------------------------------------------------
+
+
+def test_two_models_disagreeing_on_whether_a_link_exists_is_a_judgment_conflict():
+    """The relevance analogue of polarity_conflict: disagreeing about whether
+    a factor bears on a target at all is contradiction, not two descriptions."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    comparison = compare_frame_answers(
+        FRAME_RELEVANCE,
+        "marfan syndrome | aortic root 4.8 cm | yes | connective tissue weakness",
+        "marfan syndrome | aortic root 4.8 cm | no | ",
+    )
+    assert comparison.agrees is False
+    assert comparison.judgment_conflict is True
+    assert comparison.contradicts is True
+
+
+def test_agreeing_that_a_link_exists_while_naming_different_mechanisms_is_not_a_contradiction():
+    """Both assert the link; they differ on how it works. That is a
+    disagreement worth reviewing but not the same class as one saying yes and
+    the other no."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    comparison = compare_frame_answers(
+        FRAME_RELEVANCE,
+        "marfan syndrome | aortic root | yes | connective tissue weakness",
+        "marfan syndrome | aortic root | yes | inherited aortopathy",
+    )
+    assert comparison.judgment_conflict is False
+    assert comparison.contradicts is False
+    assert "mechanism" in comparison.conflicting_slots
+
+
+def test_contradicts_covers_both_kinds_of_direct_opposition():
+    from melampo.reasoning.frame_answer import FRAME_FINDING, FRAME_RELEVANCE
+
+    polarity = compare_frame_answers(
+        FRAME_FINDING, "embolism | pulmonary | affirmed", "embolism | pulmonary | negated"
+    )
+    judgment = compare_frame_answers(
+        FRAME_RELEVANCE, "a | b | yes | m", "a | b | no | m"
+    )
+    assert polarity.contradicts is True
+    assert judgment.contradicts is True
+
+
+# --------------------------------------------------------------------------
+# The attribution frame
+# --------------------------------------------------------------------------
+
+
+def test_attribution_separates_the_finding_from_the_document_reporting_it():
+    """The Statement frame's Source role is what distinguishes this from
+    FRAME_FINDING: the question asks not only what, but which document."""
+    from melampo.reasoning.frame_answer import FRAME_ATTRIBUTION, FRAME_SLOTS
+
+    assert "source_document" in FRAME_SLOTS[FRAME_ATTRIBUTION]
+
+    comparison = compare_frame_answers(
+        FRAME_ATTRIBUTION,
+        "elevated CRP | infective process | report_3b | affirmed",
+        "elevated CRP | infective process | report_3a | affirmed",
+    )
+    assert comparison.conflicting_slots == ["source_document"]
+
+
+# --------------------------------------------------------------------------
+# Instructions match the frame's actual slots
+# --------------------------------------------------------------------------
+
+
+def test_the_relevance_instruction_does_not_mention_polarity_which_it_has_no_slot_for():
+    """Telling a model to fill a slot its frame does not contain invites it to
+    invent one, or to distrust the rest of the instruction."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    instruction = frame_prompt_instruction(FRAME_RELEVANCE)
+    assert "polarity" not in instruction
+    assert "bears_on" in instruction
+
+
+def test_the_finding_instruction_still_mentions_polarity():
+    instruction = frame_prompt_instruction(FRAME_FINDING)
+    assert "polarity" in instruction
+
+
+def test_the_relevance_instruction_asks_for_a_mechanism_not_a_restatement():
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    assert "not to restate the question" in frame_prompt_instruction(FRAME_RELEVANCE)
