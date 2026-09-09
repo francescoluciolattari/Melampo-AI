@@ -104,6 +104,7 @@ navigation affordances.
 - `reasoning/findings_boundary.py`: enforced boundary admitting only current, asserted findings of this patient; every rejection carries its route.
 - `reasoning/rlm_engine.py`: recursive retrieval loop that dispatches named primitives instead of executing code; data class, budget and completion enforced in code; depth capped at one.
 - `reasoning/rlm_wiring.py`: binds the engine to the semantic memory adapter (inheriting the quarantine) and writes trajectories to the audit store as health data.
+- `reasoning/root_model_cross_check.py`: runs two root models independently over the same case and treats disagreement as an uncertainty signal, the same principle `retrieval_reconciliation` applies to the two retrieval paths; picks neither side and flags for review.
 - `evaluation/depth_comparison.py`: paired comparison of depth 0 against depth 1 before the recursion is trusted.
 
 ## CLI commands
