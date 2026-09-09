@@ -963,6 +963,70 @@ system with MDR ambitions in a way no adherence figure will ever show. Both
 are names only — the callables are supplied by the caller, so this module
 holds no opinion about how a model is reached.
 
+### Frame slots replace character comparison, applying the project's own theory to its own output
+
+The character-similarity limitation documented above was raised as a
+question — whether a false-alarm-prone comparison makes a second opinion an
+obstacle rather than an advantage — together with a proposal: ask the models
+to answer in a fixed logical order ("farmaco dose posologia"), and compare
+field by field. That proposal is better than the containment patch it
+replaces, and it is the same move the project already makes elsewhere.
+
+**Why character comparison failed, mechanically.** `difflib`'s ratio is
+`2 × shared_characters / total_length`. "pulmonary embolism" and "pulmonary
+oedema" share 12 characters out of 34 — the word "pulmonary " plus "em"
+appearing by coincidence in *em*bolism and oed*em*a — for 0.706. "40 mg
+daily" and "prednisone 40 mg daily" share 11 out of 33 — the entire shorter
+answer — for 0.667, penalised because "prednisone" inflates the
+denominator. The comparison counts shared characters without knowing that
+"pulmonary" discriminates nothing in a medical vocabulary (it prefixes
+embolism, oedema, fibrosis, hypertension alike) while "embolism" versus
+"oedema" discriminates everything.
+
+**`reasoning/frame_answer.py` removes the need for that comparison.** A
+model is asked to answer by filling named slots — `drug | dose | frequency
+| polarity` for medication, `finding | site | polarity` for a finding — and
+the two answers are compared slot against slot. The word that broke the
+character comparison lands in `site`, where sharing it is correctly
+uninformative, and the conflict localises to `finding`, which is where it
+actually is.
+
+**This is Frame Semantics and Mental Spaces applied to the comparison, not
+imported into it.** The project already uses Fillmore for assertion
+detection; a frame with roles to fill is exactly that apparatus, applied to
+what a root model produces rather than to what a clinical document contains.
+And `memory/assertion.py` already encodes Fauconnier's mental spaces as
+`POLARITY_AFFIRMED` / `POLARITY_NEGATED`: "pulmonary embolism, confirmed"
+and "pulmonary embolism, excluded" name the same finding in different
+spaces, which a character comparison reads as near-identical and a polarity
+slot reads as opposite. `frame_answer` imports those constants directly
+rather than defining a parallel vocabulary that could drift from them, and
+`polarity_conflict` is surfaced as its own flag because two models asserting
+opposites about the same finding is categorically worse than naming two
+different findings.
+
+Three further distinctions the slot comparison makes that the ratio could
+not. A slot one model left unstated is a **gap**, not a contradiction —
+conflating them would report a partial answer as disagreement about
+substance. Two answers with every slot unstated have no conflicts but agree
+on nothing, so agreement requires at least one positively agreed slot rather
+than merely an absence of conflict. And containment survives, but only
+inside a slot, where "40 mg" inside "40 mg" is trivially the same value and
+cannot silently forgive two different findings the way it would across a
+whole answer.
+
+`FRAME_FREE_TEXT` is a deliberate escape hatch: not every question this
+bench asks decomposes into slots ("does the family history bear on today's
+measurement, and why?"), and forcing an ill-fitting frame would produce a
+worse answer rather than a better comparison. Those fall back to whole-answer
+comparison and say so.
+
+The frame path is optional on `cross_check` rather than mandatory, because
+the caller has to ask its models for that format in the first place —
+passing a frame without having given the models
+`frame_prompt_instruction` would parse unstructured prose into slots that
+were never filled, which is a worse failure than the one being fixed.
+
 ### The first real run of the parallel matrix lost three results out of four
 
 The four-model comparison workflow's first live run reported "No candidate

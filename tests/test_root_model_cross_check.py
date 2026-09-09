@@ -297,3 +297,75 @@ def test_as_dict_carries_the_fields_a_reviewer_needs():
         "disposition", "needs_review", "evidence_agreement_ratio",
     ):
         assert key in payload
+
+
+# --------------------------------------------------------------------------
+# Frame-structured comparison: the fix for what character comparison got wrong
+# --------------------------------------------------------------------------
+
+
+def test_frame_comparison_replaces_character_similarity_when_a_frame_is_given():
+    from melampo.reasoning.frame_answer import FRAME_FINDING
+
+    result = cross_check(
+        "c-frame", [DOC], "finding?",
+        _scripted("final(embolism | pulmonary | affirmed)"),
+        _scripted("final(oedema | pulmonary | affirmed)"),
+        frame=FRAME_FINDING,
+    )
+    assert result.frame_comparison is not None
+    assert result.disposition == "disagreed"
+    assert result.frame_comparison.conflicting_slots == ["finding"]
+
+
+def test_the_character_path_is_used_when_no_frame_is_given():
+    """Optional, not mandatory: a caller that did not ask its models for slot
+    format must not have unstructured answers parsed into empty slots."""
+    result = cross_check(
+        "c-nof", [DOC], "dose?",
+        _scripted("final(40 mg daily)"), _scripted("final(40 mg daily)"),
+    )
+    assert result.frame_comparison is None
+    assert result.answers_agree is True
+
+
+def test_a_polarity_conflict_gets_its_own_explicit_note():
+    """Two models asserting opposites about the same finding is categorically
+    worse than naming two different findings, and must not read as an
+    ordinary disagreement."""
+    from melampo.reasoning.frame_answer import FRAME_FINDING
+
+    result = cross_check(
+        "c-pol", [DOC], "finding?",
+        _scripted("final(embolism | pulmonary | affirmed)"),
+        _scripted("final(embolism | pulmonary | negated)"),
+        frame=FRAME_FINDING,
+    )
+    assert result.frame_comparison.polarity_conflict is True
+    assert any("POLARITY" in note for note in result.notes)
+
+
+def test_frame_agreement_survives_verbosity_differences_that_broke_the_ratio():
+    from melampo.reasoning.frame_answer import FRAME_MEDICATION
+
+    result = cross_check(
+        "c-verb", [DOC], "dose?",
+        _scripted("final(prednisone | 40 mg | daily | affirmed)"),
+        _scripted("final(prednisone | 40 mg | once daily | affirmed)"),
+        frame=FRAME_MEDICATION,
+    )
+    assert result.disposition == "agreed"
+
+
+def test_as_dict_carries_the_frame_comparison_when_present():
+    from melampo.reasoning.frame_answer import FRAME_FINDING
+
+    result = cross_check(
+        "c-dict", [DOC], "finding?",
+        _scripted("final(embolism | pulmonary | affirmed)"),
+        _scripted("final(embolism | pulmonary | affirmed)"),
+        frame=FRAME_FINDING,
+    )
+    payload = result.as_dict()
+    assert payload["frame_comparison"] is not None
+    assert "polarity_conflict" in payload["frame_comparison"]
