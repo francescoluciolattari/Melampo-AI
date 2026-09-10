@@ -225,6 +225,18 @@ section 1 applies to them as to any other concept.
 
 Ordered by evidence strength and by what unblocks what.
 
+**Implemented (this branch): steps one and two.**
+`memory/information_content.py` provides `InformationContentTable`
+(`from_frequencies` for real counts, `from_graph_structure` for intrinsic IC
+where none exist, `basis` recorded on every score so a measurement is
+distinguishable from a default), `score_path`/`rank_paths` carrying both raw
+and weighted strength, and `score_convergence` implementing the sub-additive
+converging-paths reward. Verified on the Marfan example from the discussion:
+"pulmonary" scores IC 0.018 against "marfan syndrome" at 1.000 -- the formal
+version of the empirical observation in section 2 -- and two independent
+routes lift the connection from 0.604 to 0.905. Step three (constrained
+spreading activation) and the image work remain as described below.
+
 **First — Information Content weighting on graph paths.** The
 best-supported single change here: it has a measured result behind it, it
 formalises an intuition this project already arrived at empirically, and it
