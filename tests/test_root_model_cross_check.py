@@ -369,3 +369,116 @@ def test_as_dict_carries_the_frame_comparison_when_present():
     payload = result.as_dict()
     assert payload["frame_comparison"] is not None
     assert "polarity_conflict" in payload["frame_comparison"]
+
+
+# --------------------------------------------------------------------------
+# Mechanism verification wired into the real entry point, not only the
+# standalone module: this is the gap a status check found -- the module
+# existed and was tested, but cross_check() never called it.
+# --------------------------------------------------------------------------
+
+
+def _marfan_graph():
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    return InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
+            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
+        ]
+    )
+
+
+def test_without_a_concept_graph_mechanism_check_is_not_populated():
+    """The documented fallback: a caller with no graph handy still gets a
+    usable, if less precise, comparison rather than an error."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    result = cross_check(
+        "c-nograph", [DOC], "does X bear on Y?",
+        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        frame=FRAME_RELEVANCE,
+    )
+    assert result.mechanism_check is None
+
+
+def test_two_models_agreeing_on_an_invented_mechanism_is_caught_through_cross_check_itself():
+    """The exact gap found in a status audit: mechanism_verification.py
+    existed and was tested in isolation, but cross_check() -- the real entry
+    point -- never called it, so this case looked like clean agreement right
+    up until concept_graph was actually wired through."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    result = cross_check(
+        "c-danger", [DOC], "does X bear on Y?",
+        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        frame=FRAME_RELEVANCE,
+        concept_graph=_marfan_graph(),
+    )
+    assert result.mechanism_check is not None
+    assert result.mechanism_check.disposition == "agreed_but_ungrounded"
+    assert result.needs_review is True, "must not be masked by frame_comparison's own clean agreement"
+
+
+def test_needs_review_is_a_union_not_an_override():
+    """A relevance case can pass the plain slot comparison (same words) while
+    the graph finds neither claim grounded -- the union catches this, an
+    override keyed only on mechanism_check would not distinguish it from a
+    case where the slot comparison itself already disagreed."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    result = cross_check(
+        "c-union", [DOC], "does X bear on Y?",
+        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        frame=FRAME_RELEVANCE,
+        concept_graph=_marfan_graph(),
+    )
+    assert result.frame_comparison.agrees is True, "the slot comparison itself sees clean agreement"
+    assert result.needs_review is True, "but the union with mechanism_check still flags it"
+
+
+def test_a_grounded_agreed_mechanism_needs_no_review():
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    result = cross_check(
+        "c-clean", [DOC], "does X bear on Y?",
+        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
+        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
+        frame=FRAME_RELEVANCE,
+        concept_graph=_marfan_graph(),
+    )
+    assert result.mechanism_check.disposition == "agreed_and_grounded"
+    assert result.needs_review is False
+
+
+def test_mechanism_check_is_only_attempted_for_the_relevance_frame():
+    """concept_graph passed with a different frame must not attempt mechanism
+    verification against slots that frame does not have."""
+    from melampo.reasoning.frame_answer import FRAME_MEDICATION
+
+    result = cross_check(
+        "c-otherframe", [DOC], "dose?",
+        _scripted("final(prednisone | 40 mg | daily | affirmed)"),
+        _scripted("final(prednisone | 40 mg | daily | affirmed)"),
+        frame=FRAME_MEDICATION,
+        concept_graph=_marfan_graph(),
+    )
+    assert result.mechanism_check is None
+
+
+def test_as_dict_carries_mechanism_check_when_present():
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    result = cross_check(
+        "c-dict2", [DOC], "does X bear on Y?",
+        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
+        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
+        frame=FRAME_RELEVANCE,
+        concept_graph=_marfan_graph(),
+    )
+    payload = result.as_dict()
+    assert payload["mechanism_check"] is not None
+    assert "disposition" in payload["mechanism_check"]

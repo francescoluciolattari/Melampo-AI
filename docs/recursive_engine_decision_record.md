@@ -1292,3 +1292,53 @@ verdict does.
 4. **A1 still gates D5.** The engine produces a `mean_grounding_score` from
    fragment scores, but those are still similarity-derived where present; the
    recursive equivalent remains the open prerequisite it was.
+
+### Three modules built from a research report, and a status check that found they were not wired together
+
+`memory/information_content.py`, `memory/spreading_activation.py`, and
+`reasoning/mechanism_verification.py` were built across three sequential
+changes following `docs/semantic_comparison_research_report.md`'s proposed
+sequence: Information Content weighting (concept specificity as `-log(p)`,
+since IC-based measures outperform path-based ones on MSH-WSD), converging-path
+rewards (ONTOSPREAD's principle that multiple independent routes to a
+conclusion are worth more than their individual strengths), and constrained
+spreading activation (relation, decay and threshold constraints, since
+unconstrained spreading is a documented failure mode). Each is recorded in
+full in the research report rather than repeated here.
+
+A direct status question — "where are we" — prompted an audit rather than a
+recollection, and the audit found two gaps neither of which had been caught
+before being reported as done.
+
+**The larger one:** `rlm_wiring.py`, the file that actually binds the
+recursive engine to the live pipeline, wires the search environment and the
+audit store and has never bound a root model at all. Every candidate
+selected, every cross-check built, every frame and every graph verification
+in this entire sequence of work exists in a bench harness and a set of tested
+library modules that no real case passing through Melampo today would ever
+reach. This remains open; it is a larger piece of wiring than the one fixed
+here and deserves its own scoping rather than being folded into this fix.
+
+**The smaller one, fixed in this change:** `mechanism_verification.py` was
+presented as "closing the loop" on the `mechanism` slot — but `cross_check()`,
+the actual entry point a caller would use, never called it. The mechanism
+slot was still compared as a plain frame-answer string, exactly the
+comparison the module existed to replace. The module itself was correct and
+tested in isolation; the wiring that would have made it reachable was not
+written. This is the same shape of gap already found twice earlier in this
+work (Muse Glimmer recommended but never added to the registry;
+`root_model_cross_check.py` built with no caller) — a module built, tested,
+and reported complete, without verifying anything actually calls it.
+
+`cross_check()` now takes `concept_graph`, and routes the `mechanism` slot
+through `cross_check_mechanisms` when `frame == FRAME_RELEVANCE` and a graph
+is supplied. `needs_review` is the union of the frame comparison's verdict
+and the mechanism check's, not an override: a relevance case can pass plain
+slot agreement (same words, or one containing the other) while the graph
+finds neither model's claim grounded, and that combination -- two models
+agreeing on an invented mechanism -- must not be masked by the slot
+comparison having already said "agreed". Verified through the real entry
+point rather than only the standalone module: the same agreed-but-invented
+case used to test `mechanism_verification.py` in isolation was run again
+through `cross_check()` itself, first without `concept_graph` (clean
+agreement, invisible) and then with it (caught).

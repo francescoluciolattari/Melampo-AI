@@ -43,7 +43,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.context_environment import EnvironmentDocument
-from .frame_answer import FrameComparison, compare_frame_answers
+from .frame_answer import FRAME_RELEVANCE, FrameComparison, compare_frame_answers
+from .mechanism_verification import MechanismCrossCheck, cross_check_mechanisms
 from .rlm_engine import STOP_FINAL, Budget, RlmEngine, Trajectory
 
 # Named pairings, from two live runs of the focused comparison bench. Names
@@ -85,6 +86,11 @@ class CrossCheckResult:
     # comparison that replaced character similarity for this case. None means
     # the character path was used, not that the comparison failed.
     frame_comparison: FrameComparison | None = None
+    # Populated only for frame=FRAME_RELEVANCE when a graph was supplied: the
+    # mechanism slot's claim, checked against the concept graph instead of
+    # compared as a string. None means either no frame, a frame other than
+    # relevance, or no graph available -- not that the check failed.
+    mechanism_check: MechanismCrossCheck | None = None
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -136,7 +142,17 @@ class CrossCheckResult:
         are flagged alongside outright disagreement, because "one model could
         not finish" is itself a reason not to trust the other's answer
         unexamined -- it means the case defeated a competent navigator.
+
+        The union with `mechanism_check.needs_review`, not an override: a
+        relevance case can pass frame_comparison's plain slot agreement (same
+        words, or one containing the other) while the graph finds neither
+        model's claim grounded. That combination -- two models agreeing on an
+        invented mechanism -- is the specific gap mechanism_verification was
+        built to close, and it must not be masked by the slot comparison
+        having already said "agreed".
         """
+        if self.mechanism_check is not None and self.mechanism_check.needs_review:
+            return True
         return self.disposition != "agreed"
 
     def as_dict(self) -> dict[str, Any]:
@@ -158,6 +174,7 @@ class CrossCheckResult:
             "disposition": self.disposition,
             "needs_review": self.needs_review,
             "frame_comparison": self.frame_comparison.as_dict() if self.frame_comparison else None,
+            "mechanism_check": self.mechanism_check.as_dict() if self.mechanism_check else None,
             "notes": list(self.notes),
         }
 
@@ -224,6 +241,7 @@ def cross_check(
     primary_name: str = DEFAULT_PAIR[0],
     secondary_name: str = DEFAULT_PAIR[1],
     frame: str | None = None,
+    concept_graph: Any = None,
     budget_factory: Callable[[], Budget] = Budget,
     search_fn: Any = None,
     graph_expand_fn: Any = None,
@@ -243,6 +261,17 @@ def cross_check(
     models for that format in the first place -- passing ``frame`` without
     having given them ``frame_prompt_instruction`` would parse unstructured
     answers into slots that were never filled.
+
+    ``concept_graph``, when given together with ``frame=FRAME_RELEVANCE``,
+    routes the claimed ``mechanism`` through ``mechanism_verification`` instead
+    of comparing it as a string: ``mechanism_check`` on the result reports
+    whether the graph independently supports each model's claim, and whether
+    agreement between the two models coincides with grounding or not --
+    surfacing the case a string comparison cannot, two models agreeing on an
+    invented mechanism. Without a graph, the mechanism slot falls back to the
+    same slot comparison every other frame slot gets; a caller that has no
+    graph handy still gets a usable, if less precise, comparison rather than
+    an error.
     """
     result = CrossCheckResult(case_id=case_id, primary_model=primary_name, secondary_model=secondary_name)
 
@@ -267,6 +296,20 @@ def cross_check(
             frame, result.primary_answer, result.secondary_answer
         )
         result.answer_similarity = 1.0 if result.frame_comparison.agrees else 0.0
+
+        if frame == FRAME_RELEVANCE and concept_graph is not None:
+            # The mechanism slot gets a second, stricter verdict on top of the
+            # plain slot comparison above -- not instead of it, since the slot
+            # comparison still covers factor/target/bears_on, and needs_review
+            # below is the union of what either check flags. Two models can
+            # agree in frame_comparison (same words, or one contains the
+            # other) while mechanism_check finds neither claim grounded; that
+            # combination is exactly the previously-invisible case this
+            # routing exists to surface.
+            result.mechanism_check = cross_check_mechanisms(
+                concept_graph, result.primary_answer, result.secondary_answer
+            )
+
     else:
         result.answer_similarity = answer_similarity(result.primary_answer, result.secondary_answer)
 
