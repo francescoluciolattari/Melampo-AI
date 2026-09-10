@@ -106,6 +106,7 @@ navigation affordances.
 - `reasoning/rlm_wiring.py`: binds the engine to the semantic memory adapter (inheriting the quarantine) and writes trajectories to the audit store as health data.
 - `reasoning/root_model_cross_check.py`: runs two root models independently over the same case and treats disagreement as an uncertainty signal, the same principle `retrieval_reconciliation` applies to the two retrieval paths; picks neither side and flags for review.
 - `memory/information_content.py`: concept specificity as -log(p), used to weight path strength so a path through specific concepts outranks one of equal length through general ones (IC-based measures outperform path-based ones on MSH-WSD); plus ONTOSPREAD's converging-paths reward, sub-additive so connectivity cannot manufacture certainty.
+- `memory/spreading_activation.py`: constrained spreading activation from one or two origin concepts, reusing SCRIPT_RELATIONS as the default allowed-relation vocabulary; IC-weighted at the destination, multi-sourcing identifies mediating concepts for a relevance question.
 - `reasoning/frame_answer.py`: compares two answers by frame slots (drug/dose/frequency, finding/site/polarity) rather than by characters, after character similarity was measured ranking a contradiction above a paraphrase; polarity slots make Fauconnier's mental spaces checkable.
 - `evaluation/depth_comparison.py`: paired comparison of depth 0 against depth 1 before the recursion is trusted.
 

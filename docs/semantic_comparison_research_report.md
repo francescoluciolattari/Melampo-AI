@@ -235,7 +235,19 @@ converging-paths reward. Verified on the Marfan example from the discussion:
 "pulmonary" scores IC 0.018 against "marfan syndrome" at 1.000 -- the formal
 version of the empirical observation in section 2 -- and two independent
 routes lift the connection from 0.604 to 0.905. Step three (constrained
-spreading activation) and the image work remain as described below.
+spreading activation) is now also implemented:
+`memory/spreading_activation.py` reuses `illness_script.SCRIPT_RELATIONS` as
+the default allowed-relation vocabulary (plus HPO's own `has_phenotype`)
+rather than inventing a parallel one, applies decay and a threshold to bound
+the frontier, and applies Information Content at the destination rather than
+along the way, since specificity says how much a concept's activation means,
+not how well activation travels through it. `mediating_concepts` spreads
+from both ends of a relevance pair and reports what both reach -- verified on
+the same Marfan fixture: "connective tissue weakness" is reached from both
+origins with weighted activation 0.489, while "pulmonary" is also reached
+from both but suppressed to 0.004 by its near-zero IC, exactly the
+distinction the whole prior investigation in this document was chasing. The
+image work remains as described below.
 
 **First — Information Content weighting on graph paths.** The
 best-supported single change here: it has a measured result behind it, it
