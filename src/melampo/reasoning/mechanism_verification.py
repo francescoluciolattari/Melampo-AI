@@ -37,11 +37,12 @@ need different responses, and collapsing them into one verdict would discard
 exactly what the graph was consulted for.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.concept_paths import ConceptGraphView, normalise_concept
+from ..memory.guided_graph_expansion import guided_expand
 from ..memory.information_content import InformationContentTable
 from ..memory.spreading_activation import ActivatedConcept, mediating_concepts
 from .frame_answer import FRAME_RELEVANCE, parse_frame_answer
@@ -56,6 +57,7 @@ from .frame_answer import FRAME_RELEVANCE, parse_frame_answer
 MECHANISM_SUPPORT_THRESHOLD = 0.05
 
 GROUNDING_SUPPORTED = "supported"
+GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION = "supported_via_guided_expansion"
 GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM = "connection_without_this_mechanism"
 GROUNDING_NO_CONNECTION = "no_connection"
 GROUNDING_NOT_CHECKABLE = "not_checkable"
@@ -72,11 +74,19 @@ class MechanismVerification:
     matched_concept: str | None = None
     matched_activation: float = 0.0
     candidate_mechanisms: tuple[str, ...] = ()
+    # True only when the deterministic pass found nothing and a model-guided
+    # walk (guided_graph_expansion.guided_expand) found the match instead.
+    # Kept as its own field rather than folded into `grounding` alone, so a
+    # reader checking `is_grounded` gets the right boolean either way while
+    # still being able to see, separately, whether the grounding came from
+    # the fully deterministic pass or a walk whose specific path depended on
+    # which model was calling it.
+    via_guided_expansion: bool = False
     notes: list[str] = field(default_factory=list)
 
     @property
     def is_grounded(self) -> bool:
-        return self.grounding == GROUNDING_SUPPORTED
+        return self.grounding in (GROUNDING_SUPPORTED, GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION)
 
     @property
     def graph_supports_any_connection(self) -> bool:
@@ -86,7 +96,9 @@ class MechanismVerification:
         strongly by a route the model never mentioned, which is a different
         finding from the graph knowing of no connection at all.
         """
-        return self.grounding in (GROUNDING_SUPPORTED, GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM)
+        return self.grounding in (
+            GROUNDING_SUPPORTED, GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION, GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM,
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -95,6 +107,7 @@ class MechanismVerification:
             "claimed_mechanism": self.claimed_mechanism,
             "grounding": self.grounding,
             "is_grounded": self.is_grounded,
+            "via_guided_expansion": self.via_guided_expansion,
             "graph_supports_any_connection": self.graph_supports_any_connection,
             "matched_concept": self.matched_concept,
             "matched_activation": round(self.matched_activation, 4),
@@ -103,16 +116,13 @@ class MechanismVerification:
         }
 
 
-def _mechanism_matches(claimed: str, candidate: ActivatedConcept) -> bool:
-    """Whether a claimed mechanism names the same concept as a graph node.
+def _concept_names_match(claimed: str, concept: str) -> bool:
+    """Whether a claimed mechanism names the same concept, as plain text comparison.
 
-    Three tests, in increasing looseness, all against a *graph node* rather
-    than against the other model's answer -- which is what makes the looseness
-    safe. A rule this permissive applied between two free-text answers would
-    reintroduce the character-comparison failure this line of work removed;
-    applied against a concept the graph independently surfaced, the worst case
-    is matching a claim to a real node slightly too eagerly, and the node is
-    named in the output for a reader to check.
+    The pure comparison both `_mechanism_matches` (against an ActivatedConcept
+    from the deterministic pass) and the guided-walk fallback (against a bare
+    string) reduce to -- extracted so the same matching rule governs both
+    rather than two copies drifting apart.
 
     Exact equality, then containment in either direction, then equality as a
     set of words: "weakness of connective tissue" and "connective tissue
@@ -129,7 +139,7 @@ def _mechanism_matches(claimed: str, candidate: ActivatedConcept) -> bool:
     wrong.
     """
     left = normalise_concept(claimed)
-    right = normalise_concept(candidate.concept)
+    right = normalise_concept(concept)
     if not left or not right:
         return False
     if left == right or left in right or right in left:
@@ -142,6 +152,20 @@ def _mechanism_matches(claimed: str, candidate: ActivatedConcept) -> bool:
     return bool(left_words) and left_words == right_words
 
 
+def _mechanism_matches(claimed: str, candidate: ActivatedConcept) -> bool:
+    """Whether a claimed mechanism names the same concept as a graph node.
+
+    All against a *graph node* rather than against the other model's answer --
+    which is what makes the looseness in `_concept_names_match` safe. A rule
+    this permissive applied between two free-text answers would reintroduce
+    the character-comparison failure this line of work removed; applied
+    against a concept the graph independently surfaced, the worst case is
+    matching a claim to a real node slightly too eagerly, and the node is
+    named in the output for a reader to check.
+    """
+    return _concept_names_match(claimed, candidate.concept)
+
+
 def verify_mechanism(
     graph: ConceptGraphView,
     factor: str,
@@ -150,9 +174,20 @@ def verify_mechanism(
     *,
     table: InformationContentTable | None = None,
     support_threshold: float = MECHANISM_SUPPORT_THRESHOLD,
+    fallback_model: Callable[[str], str] | None = None,
     **spread_kwargs: Any,
 ) -> MechanismVerification:
-    """Check a claimed mechanism against what the graph independently supports."""
+    """Check a claimed mechanism against what the graph independently supports.
+
+    ``fallback_model``, when given, is tried only when the deterministic pass
+    finds no connection at all between ``factor`` and ``target`` -- never when
+    it found a connection but not the one claimed, since in that case the
+    deterministic pass already has an answer, just not the one asked about.
+    A result grounded this way sets ``via_guided_expansion`` and a distinct
+    ``grounding`` value, never silently merged into the same state a fully
+    deterministic match produces -- see ``guided_graph_expansion`` for why
+    that distinction is kept.
+    """
     verification = MechanismVerification(
         factor=normalise_concept(factor),
         target=normalise_concept(target),
@@ -193,6 +228,24 @@ def verify_mechanism(
             "the graph supports no connection between these concepts above the support threshold; "
             "the claimed mechanism rests on nothing the graph knows"
         )
+        if fallback_model is not None:
+            walk = guided_expand(graph, verification.factor, verification.target, fallback_model)
+            if walk.found_something and _concept_names_match(verification.claimed_mechanism, walk.final_concept):
+                verification.grounding = GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION
+                verification.matched_concept = walk.final_concept
+                verification.via_guided_expansion = True
+                verification.notes.append(
+                    f"the deterministic pass found nothing, but a guided walk reached "
+                    f"'{walk.final_concept}' in {walk.hops} hop(s); this grounding is model-dependent, "
+                    "not reproducible the way the deterministic pass is"
+                )
+            elif walk.found_something:
+                verification.notes.append(
+                    f"a guided walk reached '{walk.final_concept}', not the mechanism claimed "
+                    f"('{verification.claimed_mechanism}')"
+                )
+            else:
+                verification.notes.append(f"a guided walk was also tried and did not find a connection ({walk.stop_reason})")
     return verification
 
 
