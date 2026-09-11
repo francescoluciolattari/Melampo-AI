@@ -43,8 +43,9 @@ from typing import Any
 
 from ..memory.concept_paths import (
     ConceptGraphView,
-    mentioned_concepts,
+    concept_names_match,
     normalise_concept,
+    resolve_concept,
 )
 from ..memory.guided_graph_expansion import guided_expand
 from ..memory.information_content import InformationContentTable
@@ -121,39 +122,14 @@ class MechanismVerification:
 
 
 def _concept_names_match(claimed: str, concept: str) -> bool:
-    """Whether a claimed mechanism names the same concept, as plain text comparison.
+    """Local alias to the shared comparison in concept_paths.
 
-    The pure comparison both `_mechanism_matches` (against an ActivatedConcept
-    from the deterministic pass) and the guided-walk fallback (against a bare
-    string) reduce to -- extracted so the same matching rule governs both
-    rather than two copies drifting apart.
-
-    Exact equality, then containment in either direction, then equality as a
-    set of words: "weakness of connective tissue" and "connective tissue
-    weakness" are the same concept reordered, which containment misses
-    because the words are permuted rather than nested. Word-set equality
-    catches that without admitting genuinely different claims -- "aortic
-    dilation" and "pulmonary dilation" share a word but not their word sets.
-
-    What this deliberately does not do is resolve synonyms: "inherited
-    aortopathy" will not match "connective tissue weakness" here, and the
-    result is a recorded miss rather than a silent guess. Synonym expansion is
-    real work with its own literature; approximating it with a similarity
-    threshold is exactly the shortcut this project already measured going
-    wrong.
+    Kept as a thin wrapper, not removed, so every existing call site in this
+    file (and every existing test) keeps working -- the actual rule now
+    lives in one place, concept_paths.concept_names_match, reused by
+    resolve_concept for factor/target resolution too.
     """
-    left = normalise_concept(claimed)
-    right = normalise_concept(concept)
-    if not left or not right:
-        return False
-    if left == right or left in right or right in left:
-        return True
-    # Stop words carry no conceptual content and their presence should not
-    # decide whether two phrasings name the same thing.
-    stop = {"of", "the", "a", "an", "in", "to", "and", "with"}
-    left_words = {word for word in left.split() if word not in stop}
-    right_words = {word for word in right.split() if word not in stop}
-    return bool(left_words) and left_words == right_words
+    return concept_names_match(claimed, concept)
 
 
 def _mechanism_matches(claimed: str, candidate: ActivatedConcept) -> bool:
@@ -211,12 +187,16 @@ def verify_mechanism(
     # chronic kidney disease" both failed to match a node named "chronic
     # kidney disease" verbatim, so the verification never had a chance to
     # succeed on grounds unrelated to the claim's actual merit.
-    # mentioned_concepts() already solves this -- built for finding a graph
-    # concept mentioned within free text -- and is reused here rather than
-    # duplicated, the same discipline applied to _concept_names_match's
-    # earlier extraction.
-    resolved_factor = mentioned_concepts(factor, graph, max_results=1)
-    resolved_target = mentioned_concepts(target, graph, max_results=1)
+    # resolve_concept() already solves this -- reusing mentioned_concepts()
+    # as its safe first tier, then concept_names_match's word-set tolerance
+    # (the same rule already applied a few lines below to the mechanism
+    # itself) as a second tier, so factor/target resolution and mechanism
+    # matching now share one comparison philosophy instead of two that
+    # happened to agree only on the cases tested so far -- word-reordering
+    # ("kidney chronic disease" for "chronic kidney disease") is exactly
+    # where the two previously diverged.
+    resolved_factor = resolve_concept(factor, graph)
+    resolved_target = resolve_concept(target, graph)
     if not resolved_factor or not resolved_target:
         verification.grounding = GROUNDING_NOT_CHECKABLE
         unresolved = "factor" if not resolved_factor else "target"
@@ -226,7 +206,7 @@ def verify_mechanism(
             "graph was never successfully asked"
         )
         return verification
-    factor, target = resolved_factor[0], resolved_target[0]
+    factor, target = resolved_factor, resolved_target
 
     result = mediating_concepts(graph, factor, target, table=table, **spread_kwargs)
     supported = [item for item in result.multiply_sourced() if item.weighted_activation >= support_threshold]

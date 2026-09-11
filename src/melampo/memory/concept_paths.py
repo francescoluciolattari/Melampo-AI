@@ -446,3 +446,73 @@ def _strip_punctuation(value: str) -> str:
     return " ".join(
         "".join(character if character.isalnum() else " " for character in str(value).lower()).split()
     )
+
+
+def concept_names_match(claimed: str, concept: str) -> bool:
+    """Whether free text names the same concept as a graph node -- one shared rule.
+
+    The single comparison every place in this project that asks "is this
+    text the same concept as that graph node" reduces to, so the rule is
+    learned once rather than reimplemented per call site with its own
+    tolerance that could silently diverge from the others. Originally built
+    for comparing a claimed mechanism against a candidate the graph already
+    surfaced; `resolve_concept` below reuses it, unchanged, for a different
+    job -- finding which graph concept a factor or target refers to in the
+    first place.
+
+    Exact equality, then containment in either direction, then equality as a
+    set of words: "weakness of connective tissue" and "connective tissue
+    weakness" are the same concept reordered, which containment misses
+    because the words are permuted rather than nested. Word-set equality
+    catches that without admitting genuinely different claims -- "aortic
+    dilation" and "pulmonary dilation" share a word but not their word sets.
+
+    What this deliberately does not do is resolve synonyms: "inherited
+    aortopathy" will not match "connective tissue weakness" here, and the
+    result is a recorded miss rather than a silent guess. Synonym expansion is
+    real work with its own literature; approximating it with a similarity
+    threshold is exactly the shortcut this project already measured going
+    wrong.
+    """
+    left = normalise_concept(claimed)
+    right = normalise_concept(concept)
+    if not left or not right:
+        return False
+    if left == right or left in right or right in left:
+        return True
+    # Stop words carry no conceptual content and their presence should not
+    # decide whether two phrasings name the same thing.
+    stop = {"of", "the", "a", "an", "in", "to", "and", "with"}
+    left_words = {word for word in left.split() if word not in stop}
+    right_words = {word for word in right.split() if word not in stop}
+    return bool(left_words) and left_words == right_words
+
+
+def resolve_concept(text: str, graph: ConceptGraphView) -> str | None:
+    """Find the one graph concept `text` most likely refers to, deterministically.
+
+    Two tiers, in order, and the order matters for safety, not just
+    convenience. `mentioned_concepts` runs first: it requires the concept's
+    words to appear in their own order as a contiguous span, which is the
+    stricter and safer test, already relied on elsewhere in this project
+    (`grounding_judge.py`) on text that can be much longer than a single
+    factor or target -- changing its tolerance would risk that existing,
+    untested-for-this-change consumer. Only if that finds nothing does this
+    fall back to `concept_names_match`'s word-set tier, which tolerates
+    reordering ("kidney chronic disease") that a strict substring search
+    misses -- deliberately *not* folded into `mentioned_concepts` itself,
+    since word-set equality is the right tolerance for a short phrase like a
+    stated factor or target and a much riskier one to apply while scanning
+    an arbitrarily long document for any of many concepts.
+
+    Returns `None`, never a guess, when neither tier finds a match -- the
+    caller (`mechanism_verification.verify_mechanism`) treats that as "the
+    graph was never successfully asked", not as "asked and found nothing".
+    """
+    direct = mentioned_concepts(text, graph, max_results=1)
+    if direct:
+        return direct[0]
+    for concept in sorted(graph.concepts(), key=len, reverse=True):
+        if concept and concept_names_match(text, concept):
+            return concept
+    return None
