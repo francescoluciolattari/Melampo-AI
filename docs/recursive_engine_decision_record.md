@@ -1547,3 +1547,38 @@ because the origin-resolution bug no longer masks it underneath a uniform
 graph fixture with intermediate biochemical nodes, or accepting the
 limitation as already documented and scoped. Left as an open, separate
 decision rather than folded into this fix.
+
+### One shared concept-matching rule instead of two that happened to agree
+
+A direct question -- could the same comparison technique already used to
+compare Nemotron's and Gemma's answers to each other also be reused for
+resolving a factor or target against the graph, instead of building a
+separate mechanism -- was a sharper instinct than the first framing
+suggested. It was not "use a model to judge equivalence" (that reintroduces
+exactly the interpretive risk a deterministic graph exists to avoid); it was
+"don't maintain two different deterministic comparison rules where one
+would do."
+
+Checked directly rather than assumed: `mentioned_concepts` (the fix in the
+previous change) and `concept_names_match` (already used for mechanism
+matching) gave identical results on every real failing case from the live
+run. But a clean, isolated test -- the same three words, reordered
+("kidney chronic disease" for "chronic kidney disease") -- showed them
+diverge: `concept_names_match`'s word-set tier recognises it,
+`mentioned_concepts`'s contiguous-substring search does not. They agreed on
+the cases seen so far by coincidence, not by design.
+
+**Not fixed by making `mentioned_concepts` more permissive.** It has a
+second, existing consumer, `evaluation/grounding_judge.py`, on text that can
+be much longer than a single factor or target -- loosening its matching
+tolerance globally would change that consumer's behaviour without having
+tested it for this change. Instead: `concept_names_match` moved to
+`concept_paths.py`, made public, and a new `resolve_concept(text, graph)`
+tries `mentioned_concepts` first (the stricter, already-relied-upon test)
+and falls back to `concept_names_match`'s word-set tier only when the first
+finds nothing. `mentioned_concepts` itself is untouched, confirmed by a test
+that the reordering case it cannot handle alone is unchanged. Factor/target
+resolution and mechanism matching now share one comparison philosophy,
+reused, not two independent ones -- exactly what was asked for, achieved
+without introducing a model into a step that has to stay deterministic to
+mean what it claims to mean.
