@@ -164,6 +164,12 @@ CANDIDATE_MODELS: tuple[tuple[str, str, bool], ...] = (
     # states that prompts and outputs may be used to improve Meta's products,
     # which is not a habit worth forming even on synthetic documents.
     ("muse-glimmer-30b", "meta/muse-glimmer-30b", True),
+    # OpenAI's first open-weight release since GPT-2. Apache 2.0 plus OpenAI's
+    # own usage policy, on-premise deployable, 117B MoE with 5.1B active
+    # parameters -- runs on a single H100. Verified but never benched: raised
+    # as a candidate for the vetting role specifically (never tested on
+    # anything in this project), not as a navigation candidate.
+    ("gpt-oss-120b", "openai/gpt-oss-120b", True),
 )
 
 ACTION_GRAMMAR = (

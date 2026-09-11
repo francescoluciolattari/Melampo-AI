@@ -934,3 +934,8 @@ def test_gemini_slug_was_corrected_after_a_live_404_deprecation(script):
     entries = [model for name, model, _ in script.CANDIDATE_MODELS if name == "gemini-3-pro-preview"]
     assert entries == ["google/gemini-3.1-pro-preview"]
     assert "gemini-3-pro-preview" not in entries[0], "the deprecated slug must not resurface"
+
+
+def test_gpt_oss_120b_is_in_the_shared_registry(script):
+    entries = [model for name, model, _ in script.CANDIDATE_MODELS if name == "gpt-oss-120b"]
+    assert entries == ["openai/gpt-oss-120b"]
