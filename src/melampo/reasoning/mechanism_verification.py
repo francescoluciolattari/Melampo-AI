@@ -41,7 +41,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..memory.concept_paths import ConceptGraphView, normalise_concept
+from ..memory.concept_paths import (
+    ConceptGraphView,
+    mentioned_concepts,
+    normalise_concept,
+)
 from ..memory.guided_graph_expansion import guided_expand
 from ..memory.information_content import InformationContentTable
 from ..memory.spreading_activation import ActivatedConcept, mediating_concepts
@@ -197,6 +201,32 @@ def verify_mechanism(
     if not verification.factor or not verification.target:
         verification.notes.append("factor or target unstated; nothing to check a mechanism between")
         return verification
+
+    # Resolve free text to the graph's own concept names before any traversal
+    # starts. mediating_concepts()/spread() require an *exact* graph node as
+    # their origin -- graph.edges_from() on a string that is not literally a
+    # node returns nothing, silently, regardless of how good the claim is.
+    # A live run against Claude Opus 5 and GPT-OSS-120B demonstrated exactly
+    # this failure: "chronic kidney disease (ckd)" and "the patient's
+    # chronic kidney disease" both failed to match a node named "chronic
+    # kidney disease" verbatim, so the verification never had a chance to
+    # succeed on grounds unrelated to the claim's actual merit.
+    # mentioned_concepts() already solves this -- built for finding a graph
+    # concept mentioned within free text -- and is reused here rather than
+    # duplicated, the same discipline applied to _concept_names_match's
+    # earlier extraction.
+    resolved_factor = mentioned_concepts(factor, graph, max_results=1)
+    resolved_target = mentioned_concepts(target, graph, max_results=1)
+    if not resolved_factor or not resolved_target:
+        verification.grounding = GROUNDING_NOT_CHECKABLE
+        unresolved = "factor" if not resolved_factor else "target"
+        verification.notes.append(
+            f"could not resolve the stated {unresolved} ({factor if unresolved == 'factor' else target!r}) "
+            "to any concept the graph knows -- not the same as the graph finding no connection, since the "
+            "graph was never successfully asked"
+        )
+        return verification
+    factor, target = resolved_factor[0], resolved_target[0]
 
     result = mediating_concepts(graph, factor, target, table=table, **spread_kwargs)
     supported = [item for item in result.multiply_sourced() if item.weighted_activation >= support_threshold]
