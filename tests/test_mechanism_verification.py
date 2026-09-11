@@ -62,10 +62,31 @@ def test_an_invented_mechanism_is_not_grounded_even_though_the_concepts_are_conn
     assert "connective tissue weakness" in verification.candidate_mechanisms
 
 
-def test_unconnected_concepts_yield_no_connection_not_merely_no_match():
-    verification = verify_mechanism(_graph(), "marfan syndrome", "unrelated thing", "anything", table=_table())
+def test_unconnected_but_real_concepts_yield_no_connection():
+    """Genuinely real graph nodes with no path between them -- distinct from
+    a target that cannot be resolved to any graph concept at all, which is
+    GROUNDING_NOT_CHECKABLE, not this."""
+    graph = InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
+            ConceptEdge("isolated concept", "unrelated_relation_not_admitted", "elsewhere", 0.5),
+        ]
+    )
+    verification = verify_mechanism(graph, "marfan syndrome", "isolated concept", "anything", table=_table())
     assert verification.grounding == GROUNDING_NO_CONNECTION
     assert verification.graph_supports_any_connection is False
+
+
+def test_a_target_that_resolves_to_no_graph_concept_is_not_checkable_not_no_connection():
+    """The distinction a live run against Claude Opus 5 and GPT-OSS-120B
+    motivated: free text that never resolves to any real graph node means
+    the graph was never successfully asked, which must not read the same as
+    the graph having been asked and finding nothing."""
+    verification = verify_mechanism(
+        _graph(), "marfan syndrome", "something entirely absent from this graph", "anything", table=_table()
+    )
+    assert verification.grounding == GROUNDING_NOT_CHECKABLE
+    assert verification.is_grounded is False
 
 
 def test_a_low_information_content_concept_does_not_count_as_support():
@@ -339,3 +360,81 @@ def test_no_fallback_model_given_is_the_default_and_behaves_as_before():
         _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y", support_threshold=0.9
     )
     assert verification.grounding == "no_connection"
+
+
+# --------------------------------------------------------------------------
+# Regression: a live vetting-bench run against Claude Opus 5 and GPT-OSS-120B
+# found every well-formed answer scored no_connection, including one
+# (GPT-OSS's) that stated the graph's own expected mechanism verbatim. The
+# cause was factor/target passed straight to graph traversal as literal
+# strings -- mediating_concepts() requires an *exact* graph node as its
+# origin, and no real model spontaneously produces that. mentioned_concepts()
+# already existed, built for finding a graph concept named within free text,
+# and was never connected here.
+# --------------------------------------------------------------------------
+
+
+def _ckd_graph():
+    return InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("chronic kidney disease", "causes", "secondary hyperparathyroidism", 0.8),
+            ConceptEdge("secondary hyperparathyroidism", "causes", "renal osteodystrophy", 0.75),
+        ]
+    )
+
+
+def test_a_parenthetical_abbreviation_no_longer_defeats_resolution():
+    """The exact failure from the live run: "chronic kidney disease (ckd)"
+    must resolve to the graph's "chronic kidney disease" node."""
+    table = InformationContentTable.from_frequencies(
+        {"chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60}
+    )
+    verification = verify_mechanism(
+        _ckd_graph(), "chronic kidney disease (ckd)", "renal osteodystrophy.",
+        "secondary hyperparathyroidism due to phosphate retention and reduced vitamin d activation",
+        table=table,
+    )
+    assert verification.is_grounded is True
+    assert verification.matched_concept == "secondary hyperparathyroidism"
+
+
+def test_natural_phrasing_wrapping_a_concept_no_longer_defeats_resolution():
+    """"the patient's chronic kidney disease" -- a real model's actual
+    phrasing style, not a hand-picked edge case."""
+    table = InformationContentTable.from_frequencies(
+        {"chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60}
+    )
+    verification = verify_mechanism(
+        _ckd_graph(), "the patient's chronic kidney disease", "the bone findings (renal osteodystrophy)",
+        "secondary hyperparathyroidism",
+        table=table,
+    )
+    assert verification.is_grounded is True
+
+
+def test_a_target_with_no_resolvable_concept_at_all_is_reported_as_not_checkable():
+    """Free text with nothing the graph recognises must say so plainly,
+    rather than silently reporting the same 'no_connection' a genuinely
+    checked-and-empty result would give."""
+    table = InformationContentTable.from_frequencies({"chronic kidney disease": 900})
+    verification = verify_mechanism(
+        _ckd_graph(), "chronic kidney disease", "a finding this graph has never heard of",
+        "anything",
+        table=table,
+    )
+    assert verification.grounding == GROUNDING_NOT_CHECKABLE
+    assert "never successfully asked" in verification.notes[0]
+
+
+def test_resolution_does_not_paper_over_a_genuinely_unsupported_mechanism_claim():
+    """Fixing origin resolution must not make the check more permissive than
+    it should be: a claim the graph genuinely does not support after correct
+    resolution still fails."""
+    table = InformationContentTable.from_frequencies(
+        {"chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60}
+    )
+    verification = verify_mechanism(
+        _ckd_graph(), "chronic kidney disease (ckd)", "renal osteodystrophy.", "cosmic ray exposure", table=table
+    )
+    assert verification.is_grounded is False
+    assert verification.grounding == GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM

@@ -1501,3 +1501,49 @@ was first verified is a real import, not a second copy that could drift.
 `DpoReadiness` reports pair count against a recommended minimum without
 enforcing it, the same posture `verify_mechanism`'s grounding states
 take: visible, not silently gated.
+
+### The vetting bench's first real run scored every candidate at zero, and the cause was in the bench, not the models
+
+Claude Opus 5 and GPT-OSS-120B both scored `grounding_rate: 0.0` on the
+first live run. One of GPT-OSS's answers for the CKD case stated
+"secondary hyperparathyroidism" — the graph's own expected mechanism,
+close to verbatim — and still scored `no_connection`. That is not a
+plausible clinical failure for either candidate; it is a bench defect.
+
+**The cause, found by reproducing the exact answers.** `verify_mechanism`
+passed `factor`/`target` straight to `mediating_concepts`/`spread` as
+literal strings. `spread`'s origin lookup requires an *exact* graph node —
+`graph.edges_from(origin)` on a string that is not literally a node returns
+nothing, silently. No real model spontaneously produces the graph's exact
+node text: "chronic kidney disease (CKD)", a trailing full stop, "the
+patient's chronic kidney disease" — each defeated resolution on its own,
+confirmed directly by reproducing all four with the fix absent.
+
+**The fix reuses code that already existed and was never connected.**
+`concept_paths.mentioned_concepts(text, graph)` — built for finding which
+graph concepts are named within a span of free text, longest match first —
+already solves exactly this. `verify_mechanism` now resolves `factor` and
+`target` through it before any traversal starts; a target that resolves to
+no concept the graph recognises returns a new state,
+`GROUNDING_NOT_CHECKABLE`, distinct from `GROUNDING_NO_CONNECTION` — the
+graph genuinely searched and found nothing versus the graph never
+successfully being asked at all. Verified against the real failing
+answers: the CKD case, where the claim's text contains the graph's exact
+mechanism, now resolves and grounds correctly.
+
+**A second, separate finding surfaced once the first was fixed, and was not
+treated as a second bug.** Claude's answers for the Marfan and sarcoidosis
+cases remained ungrounded after the fix — but correctly reclassified as
+`GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM` rather than `NO_CONNECTION`.
+Checked directly: neither answer's text contains the graph's node name at
+all ("granulomatous macrophages express 1-alpha-hydroxylase" versus the
+graph's "granuloma formation" — different words for genuinely more
+sophisticated, more upstream biology than the bench's small demonstration
+graph represents as a single node). This is the already-documented
+limitation of `_concept_names_match` — synonym resolution is deliberately
+not attempted, a recorded miss rather than a silent guess — now visible
+because the origin-resolution bug no longer masks it underneath a uniform
+`no_connection`. Not fixed here: closing it would mean either a richer
+graph fixture with intermediate biochemical nodes, or accepting the
+limitation as already documented and scoped. Left as an open, separate
+decision rather than folded into this fix.
