@@ -1404,3 +1404,56 @@ guided model reaches the mechanism and is marked
 `supported_via_guided_expansion`; and a case where the deterministic pass
 already found *a* connection (just not the claimed one) never calls the
 fallback at all, confirmed by a test that counts the calls.
+
+### A bench for vetting, and a check on whether DPO's data already exists
+
+Two decisions, taken with the same discipline the navigation bench established:
+measure before choosing, and verify a claim rather than assume it.
+
+**DoRA over GaLore, but nothing to change yet.** Checking the code rather than
+recalling it found that no PEFT configuration exists in this project at all --
+no LoRA, no fine-tuning code of any kind. The apparent matches were a
+false positive ("exploratory" contains "lora"). The decision stands and is
+recorded: DoRA's improvement over LoRA is measured and consistent (+0.84-0.88%
+on GLUE, strongest in the low-rank regime, one flag in PEFT, no inference
+overhead), while GaLore costs roughly four times as much and approaches full
+fine-tuning in both capacity and risk -- a poor trade when confirmations
+arrive as slowly as clinical ones do. But writing that configuration now,
+before a base model is chosen and before the vetting bench says which
+candidate to choose, would build another disconnected module.
+
+**`evaluation/vetting_bench.py` measures the role nothing has measured.** The
+project knows how candidates navigate documents; it knows nothing about how
+they vet a hypothesis. The two reward different things -- navigation rewards
+finding what is in the documents, vetting rewards proposing a mechanism that
+is *not* in them and being right -- and this project has already been wrong
+once by assuming a bench result transfers to a task it did not measure.
+
+The bench reuses what exists rather than inventing scoring: a candidate is
+asked for a `FRAME_RELEVANCE` answer, and `mechanism_verification.verify_mechanism`
+scores it against a curated graph. **The graph is the judge, not another
+model** -- the same refusal to appoint an adjudicator that governs
+`root_model_cross_check`. Three rates are kept separate because they call for
+different responses: `format_rate` (a formatting failure is prompt work),
+`grounding_rate` (a grounding failure is a reason to prefer another
+candidate), and `useful_rate` (naming the wrong mechanism between genuinely
+connected concepts is wrong recoverably; claiming a connection the graph
+does not know at all is not). `grounding_rate` divides by all runs, not by
+well-formed ones -- three perfect answers among twenty malformed ones has not
+earned 100%. Verified to separate a correct candidate, one inventing
+mechanisms, and one producing prose, and a test asserts the fixture's own
+expected mechanisms are graph-grounded, so the bench measures the candidate
+rather than gaps in its own fixture.
+
+**`training/preference_pairs.py` tests a claim made in discussion.** The claim
+was that DPO's (prompt, chosen, rejected) shape already falls out of recorded
+data -- the confirmed diagnosis as chosen, the alternatives raised for the
+same case as rejected -- so no separate preference-collection pipeline would
+be needed. It holds: the pairs extract cleanly, in the field names TRL and
+Axolotl expect. But the same run quantified the qualification: of five cases,
+one produced usable pairs. The rest were excluded for reasons each of which
+is correct -- a non-independent confirmation (the automation-bias guard), a
+case with no alternative to contrast against, and a case where the confirmed
+diagnosis was never raised at all (a miss, counted as one, never turned into
+a pair whose "preferred" answer the system never produced). That thinness is
+itself an argument for DoRA over GaLore when the time comes.
