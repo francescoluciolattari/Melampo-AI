@@ -227,3 +227,115 @@ def test_as_dict_carries_what_a_reviewer_needs():
     for key in ("disposition", "needs_review", "primary", "secondary"):
         assert key in payload
     assert "candidate_mechanisms" in payload["primary"]
+
+
+# --------------------------------------------------------------------------
+# The guided-expansion fallback: optional, transparent, never confused with
+# the deterministic pass
+# --------------------------------------------------------------------------
+
+
+def _weak_link_graph():
+    """A connection real enough for a guided walk to find, but too weak for
+    the deterministic pass to surface above a high support threshold."""
+    return InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("rare syndrome x", "causes", "obscure mechanism y", 0.6),
+            ConceptEdge("obscure mechanism y", "causes", "target finding z", 0.55),
+        ]
+    )
+
+
+def test_without_a_fallback_model_a_weak_connection_is_reported_as_none():
+    verification = verify_mechanism(
+        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
+        support_threshold=0.9,
+    )
+    assert verification.is_grounded is False
+    assert verification.via_guided_expansion is False
+
+
+def test_a_fallback_model_finds_the_grounding_the_deterministic_pass_missed():
+    def guided(prompt):
+        return "final(obscure mechanism y)" if "obscure mechanism y" in prompt else "neighbor(obscure mechanism y)"
+
+    verification = verify_mechanism(
+        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
+        support_threshold=0.9, fallback_model=guided,
+    )
+    assert verification.is_grounded is True
+    assert verification.via_guided_expansion is True
+    assert verification.grounding == "supported_via_guided_expansion"
+
+
+def test_guided_grounding_is_never_confused_with_the_deterministic_grounding():
+    """The whole reason this stays a separate value: a reader checking
+    `grounding == "supported"` specifically must not be fooled by a result
+    that came from a model-dependent walk instead."""
+    def guided(prompt):
+        return "final(obscure mechanism y)" if "obscure mechanism y" in prompt else "neighbor(obscure mechanism y)"
+
+    verification = verify_mechanism(
+        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
+        support_threshold=0.9, fallback_model=guided,
+    )
+    assert verification.grounding != "supported"
+    assert verification.is_grounded is True, "but is_grounded is still true -- it checks both states"
+
+
+def test_a_fallback_that_finds_a_different_mechanism_is_not_treated_as_grounded():
+    def guided(prompt):
+        return "final(some other unrelated concept)"
+
+    verification = verify_mechanism(
+        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
+        support_threshold=0.9, fallback_model=guided,
+    )
+    assert verification.is_grounded is False
+    assert verification.via_guided_expansion is False
+
+
+def test_the_fallback_is_never_tried_when_the_deterministic_pass_already_found_something():
+    """fallback_model must only fire on GROUNDING_NO_CONNECTION, never when the
+    deterministic pass already has an answer -- even a "wrong" one. Needs a
+    genuine intermediate concept (not just factor and target directly
+    adjacent) so the deterministic pass has something to find at all."""
+    called = {"n": 0}
+
+    def guided(prompt):
+        called["n"] += 1
+        return "give_up()"
+
+    graph = InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
+            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
+        ]
+    )
+    table = InformationContentTable.from_frequencies(
+        {"marfan syndrome": 40, "connective tissue weakness": 120, "aortic root dilation": 300}
+    )
+    verify_mechanism(
+        graph, "marfan syndrome", "aortic root dilation", "cosmic ray exposure",
+        table=table, fallback_model=guided,
+    )
+    assert called["n"] == 0, "the deterministic pass found a connection (just not this mechanism); fallback must not run"
+
+
+def test_a_fallback_model_that_also_finds_nothing_leaves_grounding_as_no_connection():
+    verification = verify_mechanism(
+        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
+        support_threshold=0.9, fallback_model=lambda p: "give_up()",
+    )
+    assert verification.grounding == "no_connection"
+    assert verification.via_guided_expansion is False
+    assert any("guided walk was also tried" in note for note in verification.notes)
+
+
+def test_no_fallback_model_given_is_the_default_and_behaves_as_before():
+    """Backward compatibility: omitting fallback_model must reproduce exactly
+    the pre-existing behaviour."""
+    verification = verify_mechanism(
+        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y", support_threshold=0.9
+    )
+    assert verification.grounding == "no_connection"

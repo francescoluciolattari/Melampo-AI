@@ -1342,3 +1342,65 @@ point rather than only the standalone module: the same agreed-but-invented
 case used to test `mechanism_verification.py` in isolation was run again
 through `cross_check()` itself, first without `concept_graph` (clean
 agreement, invisible) and then with it (caught).
+
+### Two more pieces wired: HypothesisYieldModel as a tool, and an optional guided fallback for the graph
+
+Both closed a gap of the same shape found repeatedly across this work: a
+well-designed module, tested in isolation, never connected to anything that
+would call it.
+
+**HypothesisYieldModel and ConfirmationRegistry existed independently.**
+`training/hypothesis_yield.py`'s own docstring already states the design
+choice that resolves a question raised directly: the estimator is "empirical
+rates per feature bucket with Wilson intervals, not a fitted network" — data,
+not weights, and for a stated reason (inspectable, and a thin bucket stays
+visibly wide rather than pretending to knowledge). Because it is data, it
+needs no weight-level integration with whatever model does the vetting —
+`training/hypothesis_yield_wiring.py` exposes `estimate()` as a plain callable
+plus a tool-spec dict in the same shape function-calling and MCP definitions
+use, so it drops into whatever calling convention the vetting model's
+integration already has, whether that model is a closed API or an
+open-weight one hosted on-premise. `sync_from_registry()` connects
+`ConfirmationRegistry.learning_set()` — confirmations already filtered for
+independence, guarding against the automation-bias failure mode the registry's
+own docstring names — through `outcomes_from_confirmations()` into the model.
+Verified end to end: a non-independent confirmation is excluded from the
+count; an independent one is observed; the tool call and a direct call to
+`estimate()` return identical results, confirming the tool is a thin wrapper
+and not a second implementation to drift from the first.
+
+**The turn-by-turn graph exploration discussed and evaluated earlier is now
+built, exactly as scoped: optional, and only as a fallback.**
+`memory/guided_graph_expansion.py` gives a model a closed, named action
+grammar over the graph — `neighbor(concept)`, `final(concept)`, `give_up()`
+— never code execution, and every move is checked against the current
+concept's *actual* edges before being accepted: a request to move to a
+concept not on the offered list is refused as an ill-formed action, the same
+treatment as any other output the walk cannot parse, not a followed
+invented edge. The module's own docstring restates the trade evaluated
+before building it — determinism, confirmation bias, cost, and test surface
+against the mostly-hypothetical benefit of question-specific adaptivity —
+and concludes by design that this module never decides *when* it runs; that
+decision belongs to the caller.
+
+Wired into exactly one caller, as scoped: `mechanism_verification.verify_mechanism`
+gained a `fallback_model` parameter, tried only when the deterministic pass
+returns `GROUNDING_NO_CONNECTION` — never when it found a connection but not
+the claimed mechanism, since in that case the deterministic pass already has
+an answer, just not the one asked about. A grounding reached this way sets a
+distinct value, `GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION`, and
+`via_guided_expansion = True` — never merged into the same state a fully
+deterministic match produces, so a reader checking `grounding == "supported"`
+specifically is not fooled by a result that came from a model-dependent walk.
+`is_grounded` reads true for either, since both are genuinely grounded; which
+one is which stays visible to anyone who needs to know. The matching between
+a walk's found concept and the claimed mechanism now shares one function,
+`_concept_names_match`, with the deterministic path's own matching — extracted
+rather than duplicated, so the two comparisons cannot silently drift apart.
+
+Verified directly: the case used throughout this investigation still resolves
+to no connection without a fallback model; the same case with a scripted
+guided model reaches the mechanism and is marked
+`supported_via_guided_expansion`; and a case where the deterministic pass
+already found *a* connection (just not the claimed one) never calls the
+fallback at all, confirmed by a test that counts the calls.
