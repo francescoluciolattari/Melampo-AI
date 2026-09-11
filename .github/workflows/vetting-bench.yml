@@ -1,0 +1,171 @@
+name: Vetting bench (diagnostic engine candidates)
+
+# Manual trigger only, same discipline as every other bench workflow: real,
+# billed calls to external providers, never on push or pull_request.
+#
+# This is not the navigation bench (root-model-bench.yml,
+# focused-comparison-bench.yml): those measure whether a candidate can find a
+# fact in a set of documents and report it in a strict grammar. This measures
+# a different role entirely -- whether a candidate can propose a mechanism
+# connecting a factor to a target, and whether the concept graph actually
+# supports what it proposed. The graph is the judge here, not another model
+# and not this workflow: see melampo.evaluation.vetting_bench for why, and
+# for the case set and scoring.
+#
+# The roster defaults to the two candidates raised for the vetting role and
+# never benched on anything before: claude-opus-5 (already licence-reviewed
+# for privacy in this project's own research) and gpt-oss-120b (Apache 2.0,
+# on-premise deployable, added to the shared registry specifically for this
+# comparison). CANDIDATE_MODELS in run_format_adherence_bench.py remains the
+# single source of truth for every slug; nothing here duplicates it.
+on:
+  workflow_dispatch:
+    inputs:
+      roster:
+        description: "Comma-separated candidate names to compare on vetting"
+        required: false
+        default: "claude-opus-5,gpt-oss-120b"
+
+jobs:
+  prepare:
+    name: List candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      candidates: ${{ steps.list.outputs.candidates }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+      - id: list
+        run: |
+          echo "candidates=$(python3 scripts/run_vetting_bench.py \
+            --list-candidates --roster '${{ inputs.roster }}')" >> "$GITHUB_OUTPUT"
+
+  bench:
+    name: Vet ${{ matrix.candidate }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    # Four cases per candidate, no wide budget or circuit breaker needed the
+    # way the 19-case navigation bench does -- this is a much lighter run.
+    # 10 minutes is ample margin over what four calls to any candidate,
+    # including a genuinely slow one, would take.
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate: ${{ fromJson(needs.prepare.outputs.candidates) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Vet this candidate
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        continue-on-error: true
+        run: |
+          python scripts/run_vetting_bench.py \
+            --candidate "${{ matrix.candidate }}" \
+            --out "result.json"
+
+      - name: Upload this candidate's result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vetting-result-${{ strategy.job-index }}
+          path: result.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  combine:
+    name: Combine results
+    needs: bench
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download every candidate's result
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vetting-result-*
+          path: all_results
+          merge-multiple: false
+
+      - name: Merge into one report
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          all_results = []
+          skipped = []
+          for path in sorted(pathlib.Path("all_results").rglob("*.json")):
+              try:
+                  payload = json.loads(path.read_text())
+              except (OSError, json.JSONDecodeError) as error:
+                  skipped.append(f"{path}: {type(error).__name__}: {error}")
+                  continue
+              if payload.get("status") == "completed":
+                  all_results.extend(payload.get("results", []))
+              else:
+                  skipped.append(f"{payload.get('candidate', path.name)}: {payload.get('reason', payload.get('status'))}")
+          ranked = sorted(all_results, key=lambda item: (-item["grounding_rate"], -item["useful_rate"], -item["format_rate"]))
+          merged = {"status": "completed" if ranked else "no_candidates", "results": ranked, "skipped": skipped}
+          pathlib.Path("vetting_results.json").write_text(json.dumps(merged, indent=2))
+          print(f"Merged {len(ranked)} result(s), {len(skipped)} skipped")
+          PY
+
+      - name: Summarise results
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          data = json.loads(pathlib.Path("vetting_results.json").read_text())
+          print("### Vetting bench: diagnostic engine candidates\n")
+          results = data.get("results") or []
+          if results:
+              print("| Model | Format | Grounding | Useful |")
+              print("|---|---:|---:|---:|")
+              for row in results:
+                  print(f"| {row['model_name']} | {row['format_rate']:.0%} | {row['grounding_rate']:.0%} | {row['useful_rate']:.0%} |")
+              print()
+          skipped = data.get("skipped") or []
+          if skipped:
+              print("<details><summary>Skipped candidates</summary>\n")
+              for item in skipped:
+                  print(f"- {item}")
+              print("\n</details>")
+          PY
+
+      - name: Upload merged results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vetting-bench-results
+          path: vetting_results.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Fail the job if no candidate produced a usable result
+        if: always()
+        run: |
+          python3 -c "
+          import json, sys
+          data = json.load(open('vetting_results.json'))
+          if not data.get('results'):
+              print('No candidate produced a usable result; see the job summary and artifact.')
+              sys.exit(1)
+          "

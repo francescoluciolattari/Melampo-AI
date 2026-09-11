@@ -1457,3 +1457,47 @@ case with no alternative to contrast against, and a case where the confirmed
 diagnosis was never raised at all (a miss, counted as one, never turned into
 a pair whose "preferred" answer the system never produced). That thinness is
 itself an argument for DoRA over GaLore when the time comes.
+
+### The vetting bench gets an execution path, and DoRA/DPO become code
+
+A direct question -- "how do I run this, I don't see the action" -- found
+the same gap as before, one level up: `vetting_bench.py` was a library with
+scoring logic and no way to invoke itself against a real provider. No
+script, no workflow.
+
+`scripts/run_vetting_bench.py` closes it by reuse rather than duplication:
+it imports `_http_chat_completion`, `_preflight`, and `CANDIDATE_MODELS`
+directly from `run_format_adherence_bench.py` as a sibling module, so a slug
+correction made there (the project has needed one more than once) is picked
+up here automatically. One candidate per invocation, the same
+`--candidate NAME` shape every other bench script uses, so
+`.github/workflows/vetting-bench.yml` fans it into a parallel matrix the
+same proven way rather than inventing a second orchestration pattern.
+`gpt-oss-120b` — raised repeatedly in discussion, never added — is now in
+`CANDIDATE_MODELS` itself, verified slug (`openai/gpt-oss-120b`, confirmed
+against OpenRouter's own listing and OpenAI's own model page) rather than
+carried as a special case in the new script.
+
+**DoRA over GaLore and DPO over full RLVR are now code, not only a decision
+recorded in a report.** `dora_config.py` and `dpo_config.py` are
+configuration, deliberately not a training script: no PEFT configuration
+existed anywhere in this project before this, no base model is chosen yet
+(that is what the vetting bench exists to determine), and this sandboxed
+environment has neither the disk space to install `peft`/`trl`/`torch` nor a
+GPU to run them regardless -- confirmed directly rather than assumed, 2.9GB
+free against dependencies that need far more. Both modules mirror the real
+libraries' own parameter names exactly (`peft.LoraConfig`, `trl.DPOConfig`),
+so `LoraConfig(**config.as_peft_kwargs())` and its DPO counterpart are a
+straight drop-in wherever a real training environment exists, with no
+translation layer to drift from the library's own evolving API.
+`TrainingRunPlan` requires a base model and raises rather than defaulting to
+a guess, since guessing it is exactly what the vetting bench exists to
+avoid.
+
+`dpo_config.build_training_dataset` does not reimplement
+`preference_pairs.as_training_records` -- it calls it, verified identical
+output on the same input, so the connection promised when DPO's data shape
+was first verified is a real import, not a second copy that could drift.
+`DpoReadiness` reports pair count against a recommended minimum without
+enforcing it, the same posture `verify_mechanism`'s grounding states
+take: visible, not silently gated.
