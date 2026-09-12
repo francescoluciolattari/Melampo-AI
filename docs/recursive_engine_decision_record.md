@@ -1605,3 +1605,39 @@ already drifted again, within the same investigation that unified them,
 because each still normalised its own input independently. A shared
 comparison rule is only as safe as the normalisation feeding it being shared
 too.
+
+### A bench for the differential, not for one claim at a time
+
+The vetting bench measures a single factor/target/mechanism triple. That is
+a real brick, but a direct observation in discussion identified what it does
+not measure and what the system actually needs: given a case with several
+findings, a spread of competing hypotheses in a sensible order, and the
+judgement to decline ranking when there is not enough to conclude.
+
+`MechanismEnumerator` already produces exactly that shape --
+`EnumerationOutcome` carries either ranked `hypotheses` or `open_questions`
+and picks the register itself from local graph density. Nothing measured
+whether it picks well. `evaluation/enumeration_bench.py` does, scoring four
+properties kept deliberately separate because they fail independently:
+recall (is the confirmed condition in the spread at all), ranking (is it
+near the top -- present-but-eleventh is a lesser failure than absent, and
+one number would hide which happened), restraint (does it emit questions
+rather than rank noise where the graph cannot support a conclusion), and
+question quality (do those questions name findings and conditions actually
+at issue, or filler a count-only metric could not distinguish).
+
+**Building the restraint fixture took three attempts, and the two failures
+are worth recording.** A weakly-attested edge still yields density 1.0, and
+so does an unknown-strength `ConceptEdge.unknown()` edge: `local_density`
+measures whether the *findings themselves* are mapped, not how strongly the
+graph knows what it knows about them. "The graph knows this corner but knows
+little" and "the graph has never heard of these findings" are different
+conditions, and only the second is what restraint is for. The fixture now
+uses findings genuinely absent from the graph, with a test asserting that
+absence so the case cannot silently stop testing what it claims to.
+
+First run: recall 100%, top-rank 100%, restraint 100%, question quality
+100% -- the enumerator ranks correctly where the graph supports it and
+abstains with four pertinent questions where it does not. A bench everything
+passes discriminates nothing, so this is a floor to build harder cases on,
+not a result to stop at.
