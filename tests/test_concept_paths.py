@@ -83,3 +83,41 @@ def test_mentioned_concepts_itself_is_unchanged_by_this_addition():
     # extra tolerance was added as a new, separate tier, not baked into the
     # existing, relied-upon function.
     assert mentioned_concepts("kidney chronic disease", graph) == []
+
+
+# --------------------------------------------------------------------------
+# concept_names_match: hyphens must not hide a match, found by a live run
+# --------------------------------------------------------------------------
+
+
+def test_a_hyphenated_compound_matches_its_spaced_out_form():
+    """The exact case a live run against GPT-OSS-120B produced:
+    "connective-tissue weakness" (hyphenated) must match "connective tissue
+    weakness" (the graph's own node, space-separated). A plain .split() sees
+    "connective-tissue" as one token, never equal to two separate ones."""
+    assert concept_names_match("connective-tissue weakness", "connective tissue weakness") is True
+
+
+def test_a_unicode_non_breaking_hyphen_is_handled_the_same_as_an_ascii_one():
+    """GPT-OSS's actual answer used U+2011 (non-breaking hyphen), not a plain
+    ASCII "-" -- both must be treated as a word boundary, not just the
+    common case."""
+    text = "fibrillin\u20111 mutation causing connective\u2011tissue weakness"
+    assert concept_names_match(text, "connective tissue weakness") is True
+
+
+def test_concept_names_match_and_mentioned_concepts_agree_on_hyphenation_now():
+    """The two functions this project keeps in sync (concept_names_match and
+    mentioned_concepts) must apply the same punctuation handling -- this was
+    exactly the kind of drift the earlier unification was meant to prevent,
+    and it had already crept back in via a different normalisation function."""
+    graph = InMemoryConceptGraph.from_edges([ConceptEdge("connective tissue weakness", "causes", "x", 0.8)])
+    text = "connective-tissue weakness of the aorta"
+    assert concept_names_match(text, "connective tissue weakness") is True
+    assert mentioned_concepts(text, graph) == ["connective tissue weakness"]
+
+
+def test_hyphenation_handling_does_not_create_new_false_positives():
+    """The red line this whole line of work protects: stripping punctuation
+    must not make genuinely different terms collapse into each other."""
+    assert concept_names_match("pulmonary-embolism", "pulmonary oedema") is False

@@ -474,8 +474,17 @@ def concept_names_match(claimed: str, concept: str) -> bool:
     threshold is exactly the shortcut this project already measured going
     wrong.
     """
-    left = normalise_concept(claimed)
-    right = normalise_concept(concept)
+    # Punctuation is stripped, not merely lowercased-and-collapsed, so a
+    # hyphenated compound ("connective-tissue weakness") is treated the same
+    # as its spaced-out form -- the same normalisation mentioned_concepts
+    # already applies internally. Found by a real GPT-OSS-120B answer using
+    # a hyphen (a non-breaking one, no less) exactly where the graph's node
+    # name has a space; without this, "connective-tissue" and "connective
+    # tissue" are different tokens to a plain .split(), and the two
+    # concept-matching functions this project keeps in sync would have
+    # drifted again on real data within days of being unified.
+    left = _strip_punctuation(claimed)
+    right = _strip_punctuation(concept)
     if not left or not right:
         return False
     if left == right or left in right or right in left:
