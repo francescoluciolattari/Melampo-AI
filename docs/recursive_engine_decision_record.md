@@ -1582,3 +1582,26 @@ resolution and mechanism matching now share one comparison philosophy,
 reused, not two independent ones -- exactly what was asked for, achieved
 without introducing a model into a step that has to stay deterministic to
 mean what it claims to mean.
+
+### A second live run found a hyphen the previous unification missed
+
+`concept_names_match` used `normalise_concept` (lowercase, collapse
+whitespace) rather than `mentioned_concepts`'s internal `_strip_punctuation`
+(every non-alphanumeric character becomes a separator). A real GPT-OSS-120B
+answer -- "connective\u2011tissue weakness", a non-breaking hyphen, not even
+an ASCII one -- exposed the gap directly: `.split()` sees
+"connective-tissue" as one token, never equal to the graph's two separate
+words. Fixed by switching `concept_names_match` to `_strip_punctuation`
+throughout, which also strengthens its exact/containment tier for free,
+since a hyphenated and spaced-out form are now identical strings before any
+containment or word-set logic runs at all. Verified against the exact
+failing answer, and against the same red-line test applied throughout this
+work: "pulmonary-embolism" still does not match "pulmonary oedema" merely
+for sharing punctuation-stripped words.
+
+The finding matters beyond the one bug: two functions this project committed
+to keeping in sync (`concept_names_match` and `mentioned_concepts`) had
+already drifted again, within the same investigation that unified them,
+because each still normalised its own input independently. A shared
+comparison rule is only as safe as the normalisation feeding it being shared
+too.
