@@ -56,7 +56,7 @@ class ModelCapabilityRegistry:
     capabilities: dict[str, ModelCapability] = field(default_factory=dict)
 
     @classmethod
-    def build_default(cls) -> "ModelCapabilityRegistry":
+    def build_default(cls) -> ModelCapabilityRegistry:
         registry = cls()
         registry.register_many(
             [
@@ -139,8 +139,8 @@ class ModelCapabilityRegistry:
                     clinical_authority="memory_substrate_only",
                 ),
                 ModelCapability(
-                    name="Docling",
-                    provider="document_intelligence_parser",
+                    name="Nemotron-Parse",
+                    provider="nvidia_document_intelligence_parser",
                     role="clinical_document_processing",
                     modalities=("pdf", "docx", "pptx", "image_document", "table", "formula"),
                     areas=("document_rag", "semantic_memory"),
@@ -148,12 +148,33 @@ class ModelCapabilityRegistry:
                         "layout_aware_document_conversion",
                         "table_and_formula_preservation",
                         "rag_ready_structured_chunks",
+                        "open_weights_genuinely_on_premise_deployable",
                     ),
                     limitations=(
                         "parser_not_reasoner",
                         "requires_downstream_clinical_chunk_validation",
+                        "no_hosted_api_for_the_current_release_self_hosting_required",
                     ),
                     priority=15,
+                    clinical_authority="ingestion_substrate_only",
+                ),
+                ModelCapability(
+                    name="LlamaParse",
+                    provider="llamaindex_document_intelligence_parser",
+                    role="clinical_document_processing_cross_check",
+                    modalities=("pdf", "docx", "pptx", "image_document", "table", "formula"),
+                    areas=("document_rag", "semantic_memory"),
+                    strengths=(
+                        "documented_strength_on_clinical_tables_and_mixed_formatting",
+                        "rag_ready_structured_chunks",
+                    ),
+                    limitations=(
+                        "parser_not_reasoner",
+                        "requires_downstream_clinical_chunk_validation",
+                        "no_true_on_premise_mode_vpc_is_the_closest_equivalent",
+                        "cloud_deployments_only",
+                    ),
+                    priority=16,
                     clinical_authority="ingestion_substrate_only",
                 ),
             ]

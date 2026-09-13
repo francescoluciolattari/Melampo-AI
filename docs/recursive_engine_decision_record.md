@@ -1772,3 +1772,67 @@ pipeline ever put them there -- which is why the trainer fell through to
 placeholder rehearsal labels on every real case. `dream_context_for` builds
 that context with the candidates retrieved from the graph, so the hook has
 something to find.
+
+### Docling removed; Nemotron-Parse the default, LlamaParse an optional cloud-only cross-check
+
+Decided after a direct comparison found no evidence Docling was ever the
+strongest choice specifically for clinical documents: one 2026 assessment
+calls it "weaker on complex layouts" against current leaders, a
+clinical-document-specific comparison names a different tool "the benchmark
+solution" for exactly this domain. Keeping it wired in as an unused default
+would have left a reference to a decision this project no longer holds.
+
+Two real code sites carried it, not only documentation:
+`data/document_processing.py` (`_docling_available`, `load_with_docling`,
+`docling_integration_plan`, `prefer_docling`) and one entry in
+`orchestration/model_capability_registry.py`. Both replaced, not patched
+around -- the graceful-degradation contract (report unavailable rather than
+raise, fall back to plain text) preserved exactly, so no caller handling
+that status needs to change.
+
+**Nemotron-Parse is the default because it is the only genuinely on-premise
+option.** Checking further on the LlamaParse claim from an earlier report
+found it did not hold: a more specific source states LlamaParse "does not
+offer true on-premise deployment -- VPC is the closest equivalent." Open
+weights with no vendor API dependency is what a hard on-premise requirement
+actually needs, and Nemotron-Parse is that; a hosted parser with a VPC option
+is not, regardless of accuracy.
+
+**LlamaParse is kept as an optional cross-check, off by default, cloud-only.**
+`also_cross_check_with_llamaparse` defaults to `False` specifically so an
+on-premise-only deployment does not report a spurious "unavailable"
+cross-check on every call. Where cloud deployment is already accepted, its
+documented strength on clinical tables and mixed formatting is worth testing
+against Nemotron-Parse's own output -- the same double-reading-at-ingestion
+principle already agreed for this project, since an ingestion error is more
+costly than a navigation error: it propagates silently into everything read
+afterwards.
+
+Both parsers are called over HTTP against a configured endpoint, the same
+pattern the bench scripts already use for every model candidate in this
+project, rather than a local pip import -- neither is a simple installable
+library the way Docling nominally was. The actual transport call is left
+unimplemented (`NotImplementedError`) deliberately: the exact request shape
+depends on how the endpoint is deployed, a configuration decision for
+whoever operates a given installation, not something to hard-code here.
+
+### The RLM-conjecture origin, refined: a citable qualifier, not a fourth branch
+
+A proposal to add `proposed_from_literature` as a fourth origin alongside
+`read_from_document`, `supplied_by_graph`, and `proposed_by_rlm` was
+reconsidered after a direct objection: a claim citing retrieved literature is
+still produced by the RLM (Claude or GPT-OSS-120B), not a peer source
+competing with the graph or the patient's chart -- correct, and the original
+proposal conflated "who produced this claim" with "how verifiable is it".
+
+The distinction actually worth preserving is the second one. An RLM
+conjecture with no citation has nothing to check it against, which is why it
+is held in `ConjectureLedger` pending independent confirmation. An RLM
+conjecture citing a specific retrieved paper already carries an
+independently checkable reference -- a reviewer can open that one paper and
+verify it today, without waiting for confirmations to accumulate. That
+distinction belongs on `VettedClaim` as a qualifier (which citations support
+this conjecture, if any), not as a separate top-level origin -- the claim
+stays in the `proposed_by_rlm` branch either way, since that is genuinely
+what it is. Not yet implemented; recorded here so the eventual literature
+retrieval work builds the field in the right place from the start.
