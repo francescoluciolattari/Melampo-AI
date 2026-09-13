@@ -1888,3 +1888,55 @@ one citing a specific paper carries a reference anyone can open today. Both
 remain conjectures, and a test asserts that citations never make an
 ungrounded claim grounded -- promoting on a citation alone would be trusting
 the model's own reading of a paper it selected itself.
+
+### Two literature connectors, populating the index built for exactly this
+
+`literature_index.py` shipped with storage and retrieval but no way to fill
+it. Two connectors close that, chosen for being genuinely complementary
+rather than redundant.
+
+**`connectors/europe_pmc.py` is the primary source, not raw PubMed
+E-utilities.** PubMed does not index full text -- Europe PMC aggregates
+PubMed's citations with PMC full text and life-science preprints (bioRxiv,
+medRxiv) in one search, no API key required. `connectors/pmc_case_reports.py`
+already wraps E-utilities for a different job entirely (fetching case-report
+full text for evaluation cases via the OAI endpoint) and was left untouched
+-- this is a separate connector for a separate purpose, not a replacement.
+
+Every result becomes a `LiteraturePassage` only when it has both a real
+title and abstract; a record with neither is skipped rather than stored
+empty, since an empty passage can never match a search and would only
+inflate a count past what is actually retrievable. Identifier preference is
+PMID, then PMCID, then DOI -- PMID is the most universally resolvable of the
+three -- and a record with none still constructs, since
+`is_independently_checkable` already exists to flag that case; dropping it
+here would duplicate that check in a second place.
+
+**`connectors/clinical_trials.py` is a different kind of source, not a second
+copy of the first.** A trial record is not a finding about established
+mechanism the way a published paper is -- it is a registration of ongoing or
+completed investigation. Where Europe PMC answers "does the literature
+support this mechanism", ClinicalTrials.gov can answer "is there a study
+this case could be referred to, or an outcome already reported here" --
+closer to the further-investigation role `OpenQuestion` already serves for
+the graph, applied to the wider research landscape rather than to what the
+graph itself contains. Terminated and withdrawn trials are excluded by
+default: a stopped trial is not a place to refer a case or a source of an
+outcome to cite, and excluding it explicitly rather than silently makes that
+a choice, not an oversight.
+
+Kept in `LiteraturePassage`'s own shape rather than a new type: an NCT
+number is exactly as openly resolvable as a PMID (at
+clinicaltrials.gov/study/NCT...), added to `CHECKABLE_ID_PREFIXES` --
+introducing a second passage type would have fragmented
+`LiteratureIndex.search` into two code paths for what is, from the
+retrieval side, one operation.
+
+Both connectors share one `RateLimiter` (defined in `europe_pmc.py`, plain
+N-requests-per-second pacing with no source-specific fields) rather than
+importing `pmc_case_reports.RateLimiter`, which sits beside NCBI-specific
+configuration neither of these needs -- shared between connectors with the
+same actual contract, not coupled to one with a different one. Verified end
+to end: both connectors populate the same `LiteratureIndex`, and a search
+for the same concepts returns results from both sources together, each with
+its own distinct, checkable citation.

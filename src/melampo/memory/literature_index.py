@@ -56,7 +56,7 @@ from ..memory.concept_paths import (
 # whose source cannot be opened by a reviewer is not evidence -- it is an
 # assertion with a bibliography-shaped decoration, which is worse than no
 # citation because it looks like one.
-CHECKABLE_ID_PREFIXES = ("pmid:", "pmcid:", "doi:")
+CHECKABLE_ID_PREFIXES = ("pmid:", "pmcid:", "doi:", "nct:")
 
 
 @dataclass(frozen=True)
