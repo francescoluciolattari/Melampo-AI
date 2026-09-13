@@ -66,10 +66,33 @@ class VettedClaim:
     target: str
     mechanism: str
     verification: MechanismVerification
+    # Citations the RLM cited in support, when literature retrieval supplied
+    # any. Deliberately a qualifier on this claim rather than a fourth origin
+    # alongside read_from_document / supplied_by_graph / proposed_by_rlm: a
+    # claim citing retrieved literature is still produced by the RLM, not by
+    # a source standing peer to the graph or the patient's chart. What the
+    # citations change is not who made the claim but how quickly anyone can
+    # check it -- see `is_citation_supported`.
+    citations: tuple[str, ...] = ()
 
     @property
     def is_grounded(self) -> bool:
         return self.verification.is_grounded
+
+    @property
+    def is_citation_supported(self) -> bool:
+        """Whether a reviewer could check this claim today, without waiting.
+
+        The distinction that matters between two conjectures the graph cannot
+        confirm. One with no citation has nothing outside its own assertion,
+        which is why `ConjectureLedger` holds it until independent
+        confirmations accumulate -- a wait measured in cases and months. One
+        citing a specific paper already carries a reference anyone can open
+        now. Both remain conjectures and neither is promoted automatically;
+        they simply are not equally checkable, and collapsing that into one
+        category would lose the difference.
+        """
+        return bool(self.citations)
 
     @property
     def is_candidate_conjecture(self) -> bool:
@@ -94,6 +117,8 @@ class VettedClaim:
             "origin": ORIGIN_RLM_CONJECTURE,
             "is_grounded": self.is_grounded,
             "is_candidate_conjecture": self.is_candidate_conjecture,
+            "is_citation_supported": self.is_citation_supported,
+            "citations": list(self.citations),
             "grounding": self.verification.grounding,
         }
 
@@ -108,6 +133,12 @@ class BridgeResult:
     outcome: EnumerationOutcome | None = None
     predicted_findings: list[str] = field(default_factory=list)
     vetted_claims: list[VettedClaim] = field(default_factory=list)
+    # Literature passages retrieved for this case's concepts, when a
+    # literature index was supplied. Kept alongside the graph's own output
+    # rather than merged into it: a passage from a case report is not an
+    # ontology edge, and the two must stay distinguishable however similar
+    # their content.
+    retrieved_literature: list[Any] = field(default_factory=list)
 
     @property
     def grounded_claims(self) -> list[VettedClaim]:
@@ -141,6 +172,7 @@ class BridgeResult:
             ],
             "predicted_findings": list(self.predicted_findings),
             "vetted_claims": [claim.as_dict() for claim in self.vetted_claims],
+            "retrieved_literature": [item.as_dict() for item in self.retrieved_literature],
         }
 
 
@@ -209,6 +241,7 @@ def vet_rlm_claims(
     graph: ConceptGraphView,
     *,
     table: InformationContentTable | None = None,
+    citations_by_claim: dict[int, Sequence[str]] | None = None,
 ) -> list[VettedClaim]:
     """Check each (factor, target, mechanism) the RLM proposed against the graph.
 
@@ -216,13 +249,20 @@ def vet_rlm_claims(
     bench use, not a second checker: an RLM's own conjecture deserves exactly
     the scrutiny a model's answer gets, and a separate, gentler path for
     "our own engine's ideas" is how a system starts trusting its own output.
+
+    ``citations_by_claim`` maps a claim's position to the references the RLM
+    cited for it. Keyed by position rather than folded into the claim tuple
+    so existing callers need no change -- and because a citation is metadata
+    about how a claim can be checked, not part of the claim itself.
     """
+    citations_by_claim = citations_by_claim or {}
     return [
         VettedClaim(
             factor=factor, target=target, mechanism=mechanism,
             verification=verify_mechanism(graph, factor, target, mechanism, table=table),
+            citations=tuple(citations_by_claim.get(index, ())),
         )
-        for factor, target, mechanism in claims
+        for index, (factor, target, mechanism) in enumerate(claims)
     ]
 
 
@@ -233,6 +273,8 @@ def bridge(
     enumerator: MechanismEnumerator | None = None,
     table: InformationContentTable | None = None,
     rlm_claims: Sequence[tuple[str, str, str]] = (),
+    citations_by_claim: dict[int, Sequence[str]] | None = None,
+    literature: Any = None,
 ) -> BridgeResult:
     """Run the full bridge: documents to graph, graph back to documents.
 
@@ -241,6 +283,12 @@ def bridge(
     `memory/graph_store.build_persistent_graph`), which is the configuration
     that matters once the learned layer is non-empty -- constructing one
     internally would silently use only the imported layer.
+
+    `literature`, when supplied, is a `LiteratureIndex` searched for the
+    case's own concepts. Its passages are returned alongside the graph's
+    output, never merged into it -- a passage from a case report is not an
+    ontology edge, and a system that lets the two become interchangeable has
+    given up the distinction its whole provenance design rests on.
     """
     result = BridgeResult()
     result.findings_from_documents, result.findings_unresolved = findings_from_trajectory(trajectory, graph)
@@ -257,7 +305,13 @@ def bridge(
                 result.outcome, graph, result.findings_from_documents
             )
 
+    if literature is not None and result.findings_from_documents:
+        concepts = [*result.findings_from_documents, *result.candidate_conditions]
+        result.retrieved_literature = literature.search(concepts, graph)
+
     if rlm_claims:
-        result.vetted_claims = vet_rlm_claims(rlm_claims, graph, table=table)
+        result.vetted_claims = vet_rlm_claims(
+            rlm_claims, graph, table=table, citations_by_claim=citations_by_claim
+        )
 
     return result

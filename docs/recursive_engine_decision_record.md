@@ -1836,3 +1836,55 @@ this conjecture, if any), not as a separate top-level origin -- the claim
 stays in the `proposed_by_rlm` branch either way, since that is genuinely
 what it is. Not yet implemented; recorded here so the eventual literature
 retrieval work builds the field in the right place from the start.
+
+### Literature as retrieval, and the citation qualifier the origin design actually needed
+
+Two outstanding items from the same discussion, implemented together because
+the second depends on the first.
+
+**`memory/literature_index.py`: retrieval, never training.** Four arguments
+decided this rather than one preference. Literature ages faster than a model
+can be retrained -- the mirror of the reasoning that chose DoRA over GaLore
+for slowly-arriving clinical confirmations. Training would work on an
+open-weight engine and never on Claude, so two engines enriched unequally
+would stop being comparable, which is the whole premise of running both. A
+weight has no citation, while a retrieved passage carries its own reference
+-- the same reasoning that chose DPO over full RLVR for auditability. And
+the risk is already documented here: Meditron was excluded as a navigation
+model because medical fine-tuning erodes format adherence.
+
+Concept-matched rather than embedding-matched, deliberately. Not because
+embeddings are wrong, but because this project already measured what latent
+similarity costs clinically -- a RAG system asked about heart failure
+retrieving "acute coronary syndrome" because it is close in latent space,
+not because it answers the question. Matching on concepts the graph already
+names keeps retrieval in the same vocabulary as the rest of the reasoning,
+and leaves an embedding layer as something a deployment adds rather than an
+assumption baked in.
+
+`is_independently_checkable` gates retrieval by default: a source a reviewer
+cannot open is an assertion wearing a bibliography, which is worse than no
+citation because it looks like one. Passages are stored regardless -- hiding
+them would conceal that the index holds unverifiable material -- but never
+retrieved into a vetting context unless asked for explicitly. And
+`as_vetting_context` puts each citation *before* its passage, since a model
+attributes what it reads to whatever is nearest and a trailing reference is
+easy to lose; truncation drops whole passages rather than cutting text, so a
+citation never covers something its source did not finish saying.
+
+**The citation qualifier, correcting an earlier proposal.** A fourth origin,
+`proposed_from_literature`, was proposed alongside `read_from_document`,
+`supplied_by_graph` and `proposed_by_rlm`. A direct objection rejected it and
+was right: a claim citing retrieved literature is still produced by the RLM,
+not by a source standing peer to the graph or the patient's chart. The
+proposal had conflated "who produced this" with "how checkable is it".
+
+`VettedClaim.citations` and `is_citation_supported` implement the second
+question where it belongs -- as a qualifier inside the existing branch. Two
+conjectures the graph cannot confirm are not equally checkable: one with no
+citation has nothing outside its own assertion, which is why
+`ConjectureLedger` holds it for confirmations measured in cases and months;
+one citing a specific paper carries a reference anyone can open today. Both
+remain conjectures, and a test asserts that citations never make an
+ungrounded claim grounded -- promoting on a citation alone would be trusting
+the model's own reading of a paper it selected itself.
