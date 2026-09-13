@@ -1641,3 +1641,57 @@ First run: recall 100%, top-rank 100%, restraint 100%, question quality
 abstains with four pertinent questions where it does not. A bench everything
 passes discriminates nothing, so this is a floor to build harder cases on,
 not a result to stop at.
+
+### Graph persistence and candidate retrieval: the two pieces everything else waited on
+
+Identified in discussion, in this order, and the order was right.
+
+**Persistence was the real bottleneck.** `InMemoryConceptGraph` is a Python
+list rebuilt from the HPO file on every start. An edge promoted by
+`ConjectureLedger` after three independent confirmations would exist until
+the process exited and then be silently lost -- which made the dream-replay
+work, the confirmation ledger, and any weight adjustment from real outcomes
+ceremonial rather than real.
+
+`memory/graph_store.py` keeps learned edges in their own JSONL file, apart
+from the imported layer, and that separation is the central design choice:
+the imported layer is derivable (re-import a newer HPO release any time), the
+learned layer is not (it is the accumulated product of confirmed cases).
+One file would mean an HPO refresh either destroys what was learned or needs
+a merge that has to get the distinction right anyway. Append-only, because an
+edge justified by accumulated evidence should not be silently rewritten;
+JSONL, because promotion appends one line rather than rewriting a store, and
+a truncated write costs one line rather than everything. Intervals round-trip
+exactly, verified -- an edge that loses its bounds becomes indistinguishable
+from an unknown one, which is the distinction the whole interval design
+exists to preserve.
+
+**Candidate retrieval was the enumerator's missing half.**
+`MechanismEnumerator.enumerate(findings, candidate_conditions)` answers "of
+these conditions, which does the graph connect to these findings" -- not
+"which conditions could explain these findings at all". Wiring it into the
+pipeline without this would have connected a machine with nothing to chew on.
+
+`memory/candidate_retrieval.py` walks outward from each resolved finding and
+gathers what the graph links to it, ranked by how many of the case's findings
+each condition touches -- breadth before strength, the same reasoning the
+convergence reward already encodes: independent corroboration outweighs a
+single strong link. Findings resolve through `resolve_concept` first, for the
+reason `verify_mechanism` needed it, and an unresolvable finding is reported
+rather than dropped, since a coverage gap is exactly what the density check
+downstream reasons about.
+
+**A defect caught in the first run, and how it was fixed.** The retrieval
+ranked "night sweats" among the candidates -- a symptom proposed as a
+diagnosis, reached two hops out through a disease it shares with the case's
+own findings. The fix uses edge *direction*, not relation-name matching:
+HPO imports as `disease -> has_phenotype -> finding`, and
+`InMemoryConceptGraph` prefixes generated reverse edges with `inverse_`, so a
+concept reached by traversing backwards is on the disease side. Matching
+relation names instead would have hard-coded an assumption about HPO's
+vocabulary that a second imported source (LOINC, ATC) would break.
+
+Verified end to end: from three findings alone, with no caller supplying
+candidates, the chain produces sarcoidosis, lymphoma and tuberculosis ranked
+in that order -- and still abstains with knowledge-gap questions on findings
+the graph has never heard of.
