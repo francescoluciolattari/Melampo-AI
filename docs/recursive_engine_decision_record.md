@@ -1695,3 +1695,43 @@ Verified end to end: from three findings alone, with no caller supplying
 candidates, the chain produces sarcoidosis, lymphoma and tuberculosis ranked
 in that order -- and still abstains with knowledge-gap questions on findings
 the graph has never heard of.
+
+### The bridge between what the RLM reads and what the graph knows
+
+Identified directly in discussion as the missing link, and it was: the RLM
+read a patient's documents and never touched the concept graph; the
+enumerator walked the graph and never read a document. Each was a complete
+half of a diagnostic reasoner with no path between them.
+
+`reasoning/rlm_graph_bridge.py` runs in both directions. **Documents to
+graph**: findings the RLM located become entry points for
+`retrieve_candidates` and then `MechanismEnumerator`, so the differential is
+grounded in what this patient's documents say rather than a candidate list
+someone supplied. Findings are read from the trajectory's evidence
+fragments, not only its final answer -- the answer is one sentence, the
+fragments are everything the run touched.
+
+**Graph back to documents**: a ranked hypothesis predicts findings that
+should be present if it is right, and `predicted_findings` returns those,
+excluding what the case already shows. A ranking nobody can act on is not
+yet useful; this is what turns it into something checkable.
+
+**And the direction raised in the same discussion -- the RLM's own
+conjectures.** An RLM reading documents may notice a correlation the graph
+has no edge for. `vet_rlm_claims` puts each through the *same*
+`verify_mechanism` the cross-check and the vetting bench use, deliberately
+not a gentler path for the system's own ideas, since a separate lenient
+route is how a system starts trusting its own output. Three outcomes are
+kept distinct: grounded (the graph confirms), candidate conjecture (the
+graph knows both concepts but has no connection -- new material for
+`ConjectureLedger` to hold pending confirmation), and not checkable (the
+graph cannot resolve the concepts at all, so there is nothing to hold).
+
+Every part of the output declares its origin -- read from a document,
+supplied by the graph, or merely proposed by the RLM -- so a reader
+downstream never has to guess which is which.
+
+Verified end to end on a realistic trajectory: three raw document fragments
+produce sarcoidosis/lymphoma/tuberculosis ranked, "night sweats" returned as
+a finding to look for, and an RLM conjecture correctly held for the ledger
+rather than accepted or discarded.
