@@ -1735,3 +1735,40 @@ Verified end to end on a realistic trajectory: three raw document fragments
 produce sarcoidosis/lymphoma/tuberculosis ranked, "night sweats" returned as
 a finding to look for, and an RLM conjecture correctly held for the ledger
 rather than accepted or discarded.
+
+### The assembly point, and the learning loop finally closing
+
+This project built a correct, tested module and then never called it seven
+times over: `MechanismEnumerator`, `ConjectureLedger`, `HypothesisYield`, the
+guided expansion fallback, the RLM-graph bridge, and before them Muse Glimmer
+and `root_model_cross_check`. `reasoning/diagnostic_assembly.py` is the
+answer to the pattern rather than to any one instance -- one file where the
+wiring lives, so "is it connected?" has a place to look rather than a search
+across the codebase.
+
+Nothing was modified to fit. The assembly composes components that keep their
+own behaviour: it builds the graph from imported plus learned layers, binds
+an enumerator to that graph, supplies the candidate retrieval the enumerator
+was missing, and routes what the RLM read through the bridge. The judgement
+calls -- which model, whether the cross-check is always on -- stay with the
+caller, because they are decisions about the system rather than about how its
+parts fit.
+
+**`promote_confirmed` is deliberately a separate call, not something
+`run_case` does.** Promotion changes the shared knowledge base; it should
+happen when someone runs it, not as a side effect of answering one patient's
+case. Verified by a test asserting that running a case alone writes nothing.
+
+**The loop now closes, verified across a simulated restart.** A case runs,
+its hypotheses' leaps are recorded as conjectures, three independent
+confirmations arrive, `promote_confirmed` writes an edge with its Wilson
+interval and a `learned:` provenance into the persistent store -- and a
+freshly assembled process sees it. `[0.44, 1.00]` on three confirmations,
+visibly not certainty, which is what the interval is for.
+
+**And the DreamTrainer hook is finally usable.** `_enumerated` returns None
+unless `case_context` carries `candidate_conditions`, and nothing in the
+pipeline ever put them there -- which is why the trainer fell through to
+placeholder rehearsal labels on every real case. `dream_context_for` builds
+that context with the candidates retrieved from the graph, so the hook has
+something to find.
