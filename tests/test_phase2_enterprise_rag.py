@@ -25,7 +25,7 @@ def test_phase2_document_processor_preserves_governed_clinical_metadata(tmp_path
             "publication_date": "2026-01-01",
             "source_uri": "local://guideline",
         },
-        prefer_docling=False,
+        prefer_structured_parser=False,
     )
 
     assert result["status"] == "completed"
@@ -45,7 +45,7 @@ def test_phase2_weaviate_enterprise_adapter_upserts_searches_and_expands_graph(t
     processed = processor.process_document(
         path,
         metadata={"source_type": "guideline", "license": "research_use", "publication_date": "2026-01-01"},
-        prefer_docling=False,
+        prefer_structured_parser=False,
     )
     adapter = WeaviateEnterpriseMemoryAdapter()
     materialized = adapter.materialize_schema()
@@ -69,7 +69,7 @@ def test_phase2_memory_retriever_uses_enterprise_weaviate_adapter(tmp_path: Path
     path = tmp_path / "guideline.txt"
     path.write_text("Pneumonia cough fever opacity should be grounded by clinical document provenance.", encoding="utf-8")
     processor = ClinicalDocumentProcessor(chunk_size=120, chunk_overlap=10)
-    processed = processor.process_document(path, metadata={"source_type": "guideline"}, prefer_docling=False)
+    processed = processor.process_document(path, metadata={"source_type": "guideline"}, prefer_structured_parser=False)
     adapter = WeaviateEnterpriseMemoryAdapter()
     processor.upsert_processed_document(processed, adapter)
 

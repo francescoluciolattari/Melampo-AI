@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
-
+from typing import Any
 
 _HEADING_RE = re.compile(r"^(#{1,6}\s+.+|[A-Z][A-Z0-9 /,:;()\-]{5,})$", re.MULTILINE)
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
@@ -74,16 +74,41 @@ class ClinicalDocumentProcessor:
     Phase-2 adds enterprise RAG metadata: deterministic document ids, semantic
     section chunking, simple clinical entity/ontology extraction, source
     governance, license/publication metadata, and optional PHI-like redaction.
-    The implementation remains dependency-free and Docling-aware for local tests
-    and air-gapped execution.
+    The implementation remains dependency-free when no parser is configured,
+    falling back to plain text -- the same posture Docling held before it was
+    replaced.
+
+    Docling was removed rather than kept as a fallback option. A direct
+    comparison found no evidence it was ever the strongest choice for clinical
+    documents specifically: one 2026 assessment calls it "weaker on complex
+    layouts" against current leaders, while a clinical-document-specific
+    comparison names a different tool "the benchmark solution" for exactly
+    this domain. Keeping Docling wired in as an unused option would have left
+    a reference to a decision this project no longer holds.
+
+    Two parsers are supported instead, matching the deployment-mode decision
+    already made for the vetting engine (see docs/recursive_engine_decision_record.md):
+    Nemotron-Parse is the default because it is the one genuinely on-premise
+    option -- open weights, no vendor API dependency -- while a hosted
+    alternative (LlamaParse) is checked separately, since its own vendor
+    documentation states it does not offer true on-premise deployment (VPC is
+    the closest equivalent), and it is used only where cloud deployment is
+    already acceptable and its documented strength on clinical tables and
+    mixed formatting is worth the trade. Running both and comparing their
+    output is the double-reading-at-ingestion principle already agreed for
+    this project: an ingestion error is more costly than a navigation error,
+    because it propagates silently into everything read afterwards.
     """
 
-    parser_backend: str = "docling_recommended_with_plain_text_fallback"
+    parser_backend: str = "nemotron_parse_recommended_with_plain_text_fallback"
     chunk_size: int = 1200
     chunk_overlap: int = 160
     redact_phi: bool = True
     concept_resolver: Any = None
     language: str = "en"
+    nemotron_parse_endpoint: str | None = None
+    nemotron_parse_api_key: str | None = None
+    llamaparse_api_key: str | None = None
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -92,10 +117,12 @@ class ClinicalDocumentProcessor:
             "chunk_overlap": self.chunk_overlap,
             "extraction_mode": "lexicon" if self.concept_resolver is None else "ontology_index",
             "extraction_language": self.language,
-            "recommended_parser": "Docling",
+            "recommended_parser": "Nemotron-Parse",
+            "cross_check_parser": "LlamaParse (cloud deployments only -- no true on-premise mode)",
             "supported_target_inputs": ["pdf", "docx", "pptx", "html", "markdown", "images", "clinical_reports"],
             "fallback_mode": "plain_text_file_reader",
-            "docling_available": self._docling_available()["available"],
+            "nemotron_parse_available": self._nemotron_parse_available()["available"],
+            "llamaparse_available": self._llamaparse_available()["available"],
             "phase2_enterprise_features": [
                 "section_aware_chunking",
                 "clinical_entity_extraction",
@@ -106,40 +133,61 @@ class ClinicalDocumentProcessor:
             ],
         }
 
-    def _docling_available(self) -> dict[str, Any]:
-        try:
-            from docling.document_converter import DocumentConverter  # type: ignore
-        except Exception as exc:  # pragma: no cover - optional dependency
-            return {"available": False, "converter": None, "error": str(exc)}
-        return {"available": True, "converter": DocumentConverter, "error": None}
+    def _nemotron_parse_available(self) -> dict[str, Any]:
+        """Whether a Nemotron-Parse endpoint is configured.
+
+        Called via HTTP against a NIM endpoint or an OpenRouter-style
+        provider, the same pattern the model-comparison bench scripts use for
+        every other candidate in this project -- not a local pip package, so
+        availability is a matter of configuration (endpoint and key), not of
+        whether a library happens to be installed.
+        """
+        endpoint = self.nemotron_parse_endpoint
+        key = self.nemotron_parse_api_key
+        if not endpoint or not key:
+            return {"available": False, "error": "nemotron_parse_endpoint_or_key_not_configured"}
+        return {"available": True, "error": None}
+
+    def _llamaparse_available(self) -> dict[str, Any]:
+        """Whether a LlamaParse API key is configured.
+
+        Cloud-only by the vendor's own documentation (VPC is the closest
+        on-premise equivalent) -- used as an optional cross-check parser
+        where cloud deployment is already accepted, never as the sole or
+        default parser for a deployment that requires genuine on-premise
+        operation.
+        """
+        key = self.llamaparse_api_key
+        if not key:
+            return {"available": False, "error": "llamaparse_api_key_not_configured"}
+        return {"available": True, "error": None}
 
     def load_text_fallback(self, path: str | Path) -> str:
         path = Path(path)
         return path.read_text(encoding="utf-8", errors="ignore")
 
-    def load_with_docling(self, path: str | Path) -> dict[str, Any]:
-        """Convert a document with Docling when installed.
+    def load_with_nemotron_parse(self, path: str | Path) -> dict[str, Any]:
+        """Convert a document with Nemotron-Parse when an endpoint is configured.
 
-        Returns a structured result instead of raising when Docling is missing.
+        Returns a structured result instead of raising when unavailable --
+        the same graceful-degradation contract the removed Docling path held,
+        so callers that already handle a "not_executed" status need no
+        change.
         """
-        availability = self._docling_available()
+        availability = self._nemotron_parse_available()
         if not availability["available"]:
             return {
                 "status": "not_executed",
-                "reason": "docling_unavailable",
+                "reason": "nemotron_parse_unavailable",
                 "error": availability["error"],
                 "source_path": str(path),
             }
-        converter_cls = availability["converter"]
-        converter = converter_cls()
         try:
-            result = converter.convert(str(path))
-            document = result.document
-            text = document.export_to_markdown()
-        except Exception as exc:  # pragma: no cover - depends on optional parser/files
+            text, layout_metadata = self._call_nemotron_parse(path)
+        except Exception as exc:  # pragma: no cover - depends on the live endpoint/files
             return {
                 "status": "failed",
-                "reason": "docling_conversion_failed",
+                "reason": "nemotron_parse_conversion_failed",
                 "error": str(exc),
                 "source_path": str(path),
             }
@@ -147,13 +195,59 @@ class ClinicalDocumentProcessor:
             "status": "completed",
             "source_path": str(path),
             "text": text,
-            "parser": "docling",
+            "parser": "nemotron_parse",
             "metadata": {
-                "parser": "docling",
+                "parser": "nemotron_parse",
                 "source_path": str(path),
                 "layout_preserved": True,
+                **layout_metadata,
             },
         }
+
+    def load_with_llamaparse(self, path: str | Path) -> dict[str, Any]:
+        """Convert a document with LlamaParse when an API key is configured.
+
+        For the cross-check path only (see the class docstring) -- never the
+        sole parser for a deployment requiring genuine on-premise operation,
+        since LlamaParse's own documentation offers VPC as its closest
+        equivalent, not true on-premise.
+        """
+        availability = self._llamaparse_available()
+        if not availability["available"]:
+            return {
+                "status": "not_executed",
+                "reason": "llamaparse_unavailable",
+                "error": availability["error"],
+                "source_path": str(path),
+            }
+        try:
+            text, layout_metadata = self._call_llamaparse(path)
+        except Exception as exc:  # pragma: no cover - depends on the live endpoint/files
+            return {
+                "status": "failed",
+                "reason": "llamaparse_conversion_failed",
+                "error": str(exc),
+                "source_path": str(path),
+            }
+        return {
+            "status": "completed",
+            "source_path": str(path),
+            "text": text,
+            "parser": "llamaparse",
+            "metadata": {"parser": "llamaparse", "source_path": str(path), "layout_preserved": True, **layout_metadata},
+        }
+
+    def _call_nemotron_parse(self, path: str | Path) -> tuple[str, dict[str, Any]]:  # pragma: no cover - network call
+        """The actual HTTP call, isolated so tests can monkeypatch it.
+
+        Left unimplemented at the transport level deliberately: the specific
+        NIM/OpenRouter request shape depends on how the endpoint is deployed,
+        a configuration decision, not something to hard-code here.
+        """
+        raise NotImplementedError("configure nemotron_parse_endpoint and implement the HTTP call for this deployment")
+
+    def _call_llamaparse(self, path: str | Path) -> tuple[str, dict[str, Any]]:  # pragma: no cover - network call
+        raise NotImplementedError("configure llamaparse_api_key and implement the HTTP call for this deployment")
 
     def document_id(self, source_path: str, text: str, metadata: dict[str, Any] | None = None) -> str:
         metadata = metadata or {}
@@ -360,24 +454,42 @@ class ClinicalDocumentProcessor:
         text = self.load_text_fallback(path)
         return [chunk.to_memory_document() for chunk in self.chunk_text(text=text, source_path=str(path), metadata=metadata)]
 
-    def process_document(self, path: str | Path, metadata: dict[str, Any] | None = None, prefer_docling: bool = True) -> dict[str, Any]:
+    def process_document(
+        self, path: str | Path, metadata: dict[str, Any] | None = None,
+        prefer_structured_parser: bool = True, also_cross_check_with_llamaparse: bool = False,
+    ) -> dict[str, Any]:
+        """Parse a document, preferring Nemotron-Parse, falling back to plain text.
+
+        ``also_cross_check_with_llamaparse`` runs the second reading agreed
+        for ingestion specifically -- an ingestion error is more costly than
+        a navigation error, since it propagates silently into everything
+        read afterwards -- and is off by default because it requires a
+        cloud-acceptable deployment; turning it on where only on-premise
+        Nemotron-Parse is available would just report the second parser
+        unavailable on every call.
+        """
         metadata = metadata or {}
-        docling_result = self.load_with_docling(path) if prefer_docling else {"status": "not_requested"}
-        if docling_result.get("status") == "completed":
-            text = str(docling_result.get("text", ""))
-            raw_metadata: Any = docling_result.get("metadata", {})
+        parser_result = self.load_with_nemotron_parse(path) if prefer_structured_parser else {"status": "not_requested"}
+        cross_check_result = self.load_with_llamaparse(path) if also_cross_check_with_llamaparse else None
+
+        if parser_result.get("status") == "completed":
+            text = str(parser_result.get("text", ""))
+            raw_metadata: Any = parser_result.get("metadata", {})
             parser_metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
             chunks = self.chunk_text(text=text, source_path=str(path), metadata={**metadata, **parser_metadata})
-            return {
+            result = {
                 "status": "completed",
-                "parser": "docling",
+                "parser": "nemotron_parse",
                 "source_path": str(path),
                 "document_id": chunks[0].metadata.get("document_id") if chunks else self.document_id(str(path), text, metadata),
                 "chunk_count": len(chunks),
                 "documents": [chunk.to_memory_document() for chunk in chunks],
-                "governance": self.docling_integration_plan()["governance_requirements"],
+                "governance": self.ingestion_integration_plan()["governance_requirements"],
                 "enterprise_metadata": self.infer_source_governance({**metadata, **parser_metadata, "source_path": str(path)}),
             }
+            if cross_check_result is not None:
+                result["cross_check"] = cross_check_result
+            return result
         try:
             documents = self.process_plain_text_file(path, metadata={**metadata, "parser": "plain_text_fallback"})
         except Exception as exc:
@@ -386,20 +498,23 @@ class ClinicalDocumentProcessor:
                 "parser": "plain_text_fallback",
                 "source_path": str(path),
                 "error": str(exc),
-                "docling_result": docling_result,
+                "parser_result": parser_result,
             }
         document_id = documents[0]["metadata"].get("document_id") if documents else self.document_id(str(path), "", metadata)
-        return {
+        result = {
             "status": "completed",
             "parser": "plain_text_fallback",
             "source_path": str(path),
             "document_id": document_id,
             "chunk_count": len(documents),
             "documents": documents,
-            "docling_result": docling_result,
-            "governance": self.docling_integration_plan()["governance_requirements"],
+            "parser_result": parser_result,
+            "governance": self.ingestion_integration_plan()["governance_requirements"],
             "enterprise_metadata": self.infer_source_governance({**metadata, "source_path": str(path)}),
         }
+        if cross_check_result is not None:
+            result["cross_check"] = cross_check_result
+        return result
 
     def upsert_processed_document(self, processed: dict[str, Any], memory_adapter: Any) -> dict[str, Any]:
         documents = list(processed.get("documents", []))
@@ -423,13 +538,14 @@ class ClinicalDocumentProcessor:
             "results": results,
         }
 
-    def docling_integration_plan(self) -> dict[str, Any]:
+    def ingestion_integration_plan(self) -> dict[str, Any]:
         return {
             "status": "phase2_enterprise_contract",
-            "package": "docling",
+            "package": "nemotron_parse",
+            "cross_check_package": "llamaparse",
             "intended_flow": [
-                "DocumentConverter().convert(source).document",
-                "export structured markdown/json",
+                "call the configured Nemotron-Parse endpoint on the source document",
+                "export structured markdown/json with bounding boxes and semantic classes",
                 "preserve tables, formulas, reading order and page metadata",
                 "chunk by clinical section and semantic boundaries",
                 "extract clinical entities and ontology references",

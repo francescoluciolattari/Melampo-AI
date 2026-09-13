@@ -7,7 +7,7 @@ The source tree preserves the original Melampo vision while adding explicit prov
 ## Core implementation principles
 
 1. **Melampo-owned final control**: external models provide signals; `MelampoDiagnosticOrchestrator` produces the final structured research output.
-2. **Provider neutrality**: Pillar-0, Gemma 4, Claude, Weaviate and Docling are represented through contracts and registries, not hardcoded authority.
+2. **Provider neutrality**: Pillar-0, Gemma 4, Claude, Weaviate and Nemotron-Parse are represented through contracts and registries, not hardcoded authority.
 3. **No hidden network calls**: live integrations require explicit configuration or infrastructure-specific subclasses.
 4. **Clinical safety boundary**: all outputs are research outputs, not validated medical decisions.
 5. **Typed and auditable outputs**: every major module emits structured dictionaries with provenance, limitations and governance metadata.
@@ -74,12 +74,12 @@ src/melampo/
 
 ## Current enterprise modules
 
-- `orchestration/model_capability_registry.py`: records Pillar-0, Gemma 4, Claude, Weaviate and Docling roles.
+- `orchestration/model_capability_registry.py`: records Pillar-0, Gemma 4, Claude, Weaviate and Nemotron-Parse roles.
 - `reasoning/diagnostic_orchestrator.py`: final audit-first research diagnostic controller.
 - `memory/weaviate_schema.py`: object-property clinical memory schema contract.
 - `memory/weaviate_adapter.py`: safe Weaviate adapter contract and dry-run/live boundary.
 - `models/specialist_adapters.py`: Pillar-0, Gemma 4 and Claude adapter contracts.
-- `data/document_processing.py`: Docling-aware document processor with fallback.
+- `data/document_processing.py`: Nemotron-Parse-aware document processor with fallback.
 - `evaluation/clinical_benchmark.py`: retrospective benchmark runner.
 - `evaluation/prospective_validation.py`: prediction-lock prospective validation registry.
 - `evaluation/calibration.py`: confidence calibration metrics.
@@ -139,7 +139,7 @@ melampo-weaviate-schema
 - **Gemma 4**: grounded clinical text and agentic reasoning provider for language/context tasks. **Open item:** no verifiable downloadable artefact carries this name, which is a traceability defect for the model card. Replacement candidates are Gemma-3-27B-MeditronFO (fully open pipeline, an audit advantage) and MedGemma 1.5 27B. Identifiers in code are unchanged pending that decision; see `docs/rlm_on_memory_decision_record.md`.
 - **Claude Healthcare / Life Sciences style critic**: optional external second-opinion, literature and regulatory critic.
 - **Weaviate**: semantic object-property memory and ontology-aware RAG backend.
-- **Docling**: document intelligence parser for clinical/literature ingestion.
+- **Nemotron-Parse**: document intelligence parser for clinical/literature ingestion.
 
 None of these external systems is the final diagnostic authority.
 
