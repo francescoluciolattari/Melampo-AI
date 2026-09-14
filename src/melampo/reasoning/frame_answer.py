@@ -254,6 +254,20 @@ def parse_frame_answer(frame: str, answer: str | None) -> FrameAnswer:
     that omits a trailing slot has still answered the ones it stated, and
     discarding the whole answer over a formatting slip would throw away the
     information the comparison needs.
+
+    Tolerant about *excess* parts too, and this matters more than it first
+    looks. A live vetting-bench run surfaced answers whose mechanism slot
+    reads "channel" -- a fragment, not an explanation -- because the model's
+    own free-text mechanism used the pipe character itself (arrows between
+    biochemical steps, alternatives, a chain of clauses), producing more
+    segments than the frame declares slots for. A purely positional split
+    then took whichever segment happened to land at the mechanism index and
+    silently discarded the rest, including the segment that would have
+    named the graph's own concept and grounded correctly. The last declared
+    slot -- free text by construction in every frame that has one -- absorbs
+    every excess segment instead, rejoined with the same separator so the
+    reconstruction is faithful to what the model actually wrote rather than
+    guessing which fragment was the "real" one.
     """
     slots = FRAME_SLOTS.get(frame)
     if not slots:
@@ -263,7 +277,16 @@ def parse_frame_answer(frame: str, answer: str | None) -> FrameAnswer:
         return FrameAnswer(frame=frame, slots={"text": raw.strip()}, raw=raw)
 
     parts = [part.strip() for part in raw.split(SLOT_SEPARATOR)]
-    filled = {slot: (parts[index] if index < len(parts) else UNSTATED) for index, slot in enumerate(slots)}
+    filled: dict[str, str] = {}
+    for index, slot in enumerate(slots):
+        if index >= len(parts):
+            filled[slot] = UNSTATED
+        elif index == len(slots) - 1 and len(parts) > len(slots):
+            # The last slot absorbs whatever the model wrote past the
+            # declared arity, rather than losing it to a positional cutoff.
+            filled[slot] = SLOT_SEPARATOR.join(parts[index:]).strip()
+        else:
+            filled[slot] = parts[index]
     return FrameAnswer(frame=frame, slots=filled, raw=raw)
 
 

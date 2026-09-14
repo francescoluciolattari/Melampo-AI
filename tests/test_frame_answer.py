@@ -402,3 +402,89 @@ def test_the_relevance_instruction_asks_for_a_mechanism_not_a_restatement():
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE
 
     assert "not to restate the question" in frame_prompt_instruction(FRAME_RELEVANCE)
+
+
+# --------------------------------------------------------------------------
+# Excess pipe-separated segments: found by a live vetting-bench run whose
+# mechanism slot came back as fragments like "channel" -- the model's own
+# free-text mechanism used the pipe character itself, and a purely
+# positional split silently discarded everything past the fourth segment.
+# --------------------------------------------------------------------------
+
+
+def test_excess_segments_are_absorbed_by_the_last_slot_not_discarded():
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    answer = (
+        "chronic kidney disease | renal osteodystrophy | yes | reduced calcitriol synthesis | "
+        "elevated pth acting via the calcium-sensing receptor | channel"
+    )
+    parsed = parse_frame_answer(FRAME_RELEVANCE, answer)
+
+    mechanism = parsed.value("mechanism")
+    assert "calcium-sensing receptor" in mechanism, "previously lost past the fourth segment"
+    assert "channel" in mechanism, "the trailing fragment must survive too, not just the middle one"
+
+
+def test_earlier_slots_are_unaffected_by_excess_segments():
+    """Only the last declared slot absorbs the overflow -- factor, target and
+    bears_on keep their exact positional values, since changing how those
+    are extracted risks introducing a different bug for no benefit."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    answer = "chronic kidney disease | renal osteodystrophy | yes | a | b | c"
+    parsed = parse_frame_answer(FRAME_RELEVANCE, answer)
+
+    assert parsed.value("factor") == "chronic kidney disease"
+    assert parsed.value("target") == "renal osteodystrophy"
+    assert parsed.value("bears_on") == "yes"
+
+
+def test_a_normal_four_segment_answer_is_completely_unaffected():
+    """The common case -- no excess pipes -- must produce exactly what it did
+    before this fix; only the overflow path changed."""
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+
+    answer = "chronic kidney disease | renal osteodystrophy | yes | secondary hyperparathyroidism"
+    parsed = parse_frame_answer(FRAME_RELEVANCE, answer)
+
+    assert parsed.value("mechanism") == "secondary hyperparathyroidism"
+
+
+def test_the_recovered_mechanism_actually_grounds_where_it_previously_could_not():
+    """The concrete, measured impact: a real graph-matching term buried past
+    the fourth segment now reaches verify_mechanism instead of being cut off
+    before it."""
+    from melampo.evaluation.vetting_bench import vetting_graph, vetting_table
+    from melampo.reasoning.frame_answer import FRAME_RELEVANCE
+    from melampo.reasoning.mechanism_verification import verify_mechanism
+
+    answer = (
+        "chronic kidney disease | renal osteodystrophy | yes | reduced calcitriol synthesis | "
+        "elevated pth causing secondary hyperparathyroidism | channel"
+    )
+    parsed = parse_frame_answer(FRAME_RELEVANCE, answer)
+    graph, table = vetting_graph(), vetting_table()
+
+    verification = verify_mechanism(
+        graph, parsed.value("factor"), parsed.value("target"), parsed.value("mechanism"), table=table
+    )
+
+    assert verification.is_grounded is True
+    assert verification.matched_concept == "secondary hyperparathyroidism"
+
+
+def test_excess_segments_with_no_slots_to_overflow_into_are_simply_dropped():
+    """A frame with no free-text final slot (FRAME_FREE_TEXT is handled
+    separately above) still needs a sane answer when arity is exceeded --
+    the fix only changes what happens to the *last declared* slot, which for
+    every frame with more than one slot is exactly where free text already
+    lives."""
+    from melampo.reasoning.frame_answer import FRAME_MEDICATION
+
+    answer = "prednisone | 40 mg | daily | affirmed | extra | more extra"
+    parsed = parse_frame_answer(FRAME_MEDICATION, answer)
+
+    assert "extra" in parsed.value("polarity")
+    assert parsed.value("drug") == "prednisone"
+    assert parsed.value("dose") == "40 mg"
