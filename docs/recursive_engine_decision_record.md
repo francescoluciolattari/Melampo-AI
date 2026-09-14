@@ -1940,3 +1940,54 @@ same actual contract, not coupled to one with a different one. Verified end
 to end: both connectors populate the same `LiteratureIndex`, and a search
 for the same concepts returns results from both sources together, each with
 its own distinct, checkable citation.
+
+### The vetting bench, widened for a decision that actually holds: 16 cases, restraint scoring, confidence intervals
+
+Asked directly for a bench precise and broad enough to decide between
+candidates, not just measure them once. Four things changed, and each closes
+a specific gap the two live runs had already exposed.
+
+**The graph gained the biochemistry real answers actually cited.** Both live
+runs showed Claude and GPT-OSS describing genuine intermediate steps --
+1-alpha-hydroxylase activity, calcitriol excess, a fibrillin-1 mutation --
+that the nine-edge v1 graph collapsed into a single link, scoring a correct,
+more detailed answer as unfounded. The graph now carries both the coarse
+chain and the detailed one for sarcoidosis, and the upstream genetic cause
+for Marfan, so either level of detail grounds correctly.
+
+**Case count went from four to sixteen, across ten distinct mechanisms and
+organ systems** (renal, endocrine, electrolyte, haematologic, cardiovascular,
+neurologic, metabolic, rheumatologic, hepatic, and connective tissue) rather
+than four cases repeated. Breadth is asserted by a test, not just claimed --
+`test_the_case_set_spans_multiple_organ_systems` checks the distinct-mechanism
+count directly.
+
+**Restraint is now a measured property, not assumed.** A candidate that
+invents a plausible connection where the graph has none is a more dangerous
+failure than one that gets a real mechanism wrong, and grounding_rate alone
+cannot see it -- a candidate could ground every real connection perfectly
+while confidently fabricating ones that do not exist, and the rate would
+never reflect it. Three restraint cases pair a real factor and target the
+graph genuinely does not connect (verified directly:
+`test_every_restraint_case_genuinely_has_no_path` asserts no shared neighbour
+exists), and correct behaviour is `bears_on: no`, or a proposed mechanism the
+graph itself then finds unsupported. A demonstration case
+(`_grounded_but_reckless_model`) scores identical grounding_rate to a fully
+correct candidate while failing every restraint case, and ranks below it --
+proof the property catches what grounding_rate alone would miss.
+
+**`grounding_wilson_lower`, not the raw point estimate, is what ranking
+actually sorts on.** 3/4 and 12/16 are both 75% grounded, but the first could
+plausibly be anywhere from roughly 30% to 95% while the second is pinned
+much tighter -- the same Wilson interval this project already uses for HPO
+frequency parsing, HypothesisYield, and ConjectureLedger promotion, reused
+here rather than reinvented, for the same reason: a proportion from a small
+sample should say so rather than being compared as if it were exact.
+
+**`trials_per_case` repeats every case and folds the trials into one
+result**, since a single trial reports what a candidate did once, not what
+it reliably does -- exposed via `--trials` on the runner script (default 2,
+trading a wider confidence interval against real API cost) and reflected in
+the workflow's summary table and merge-ranking logic, both updated to sort on
+restraint first, then the Wilson lower bound, matching `rank_vetting_results`
+exactly rather than drifting from it in a second implementation.

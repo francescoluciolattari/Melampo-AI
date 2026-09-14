@@ -122,7 +122,16 @@ jobs:
                   all_results.extend(payload.get("results", []))
               else:
                   skipped.append(f"{payload.get('candidate', path.name)}: {payload.get('reason', payload.get('status'))}")
-          ranked = sorted(all_results, key=lambda item: (-item["grounding_rate"], -item["useful_rate"], -item["format_rate"]))
+          ranked = sorted(
+              all_results,
+              key=lambda item: (
+                  -item.get("restraint_rate", 0.0),
+                  -item.get("grounding_wilson_interval", [0.0, 0.0])[0],
+                  -item["useful_rate"],
+                  -item["format_rate"],
+                  item.get("mean_latency_seconds", 0.0),
+              ),
+          )
           merged = {"status": "completed" if ranked else "no_candidates", "results": ranked, "skipped": skipped}
           pathlib.Path("vetting_results.json").write_text(json.dumps(merged, indent=2))
           print(f"Merged {len(ranked)} result(s), {len(skipped)} skipped")
@@ -137,10 +146,16 @@ jobs:
           print("### Vetting bench: diagnostic engine candidates\n")
           results = data.get("results") or []
           if results:
-              print("| Model | Format | Grounding | Useful |")
-              print("|---|---:|---:|---:|")
+              print("| Model | Format | Grounding (95% CI) | Useful | Restraint | Mean latency |")
+              print("|---|---:|---:|---:|---:|---:|")
               for row in results:
-                  print(f"| {row['model_name']} | {row['format_rate']:.0%} | {row['grounding_rate']:.0%} | {row['useful_rate']:.0%} |")
+                  ci = row.get("grounding_wilson_interval", [0, 0])
+                  print(
+                      f"| {row['model_name']} | {row['format_rate']:.0%} | "
+                      f"{row['grounding_rate']:.0%} [{ci[0]:.0%}, {ci[1]:.0%}] | "
+                      f"{row['useful_rate']:.0%} | {row['restraint_rate']:.0%} | "
+                      f"{row['mean_latency_seconds']:.1f}s |"
+                  )
               print()
           skipped = data.get("skipped") or []
           if skipped:
