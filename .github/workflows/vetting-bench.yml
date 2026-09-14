@@ -125,7 +125,7 @@ jobs:
           ranked = sorted(
               all_results,
               key=lambda item: (
-                  -item.get("restraint_rate", 0.0),
+                  -item.get("restraint_wilson_interval", [0.0, 0.0])[0],
                   -item.get("grounding_wilson_interval", [0.0, 0.0])[0],
                   -item["useful_rate"],
                   -item["format_rate"],
@@ -146,14 +146,16 @@ jobs:
           print("### Vetting bench: diagnostic engine candidates\n")
           results = data.get("results") or []
           if results:
-              print("| Model | Format | Grounding (95% CI) | Useful | Restraint | Mean latency |")
+              print("| Model | Format | Grounding (95% CI) | Useful | Restraint (95% CI) | Mean latency |")
               print("|---|---:|---:|---:|---:|---:|")
               for row in results:
                   ci = row.get("grounding_wilson_interval", [0, 0])
+                  rci = row.get("restraint_wilson_interval", [0, 0])
                   print(
                       f"| {row['model_name']} | {row['format_rate']:.0%} | "
                       f"{row['grounding_rate']:.0%} [{ci[0]:.0%}, {ci[1]:.0%}] | "
-                      f"{row['useful_rate']:.0%} | {row['restraint_rate']:.0%} | "
+                      f"{row['useful_rate']:.0%} | "
+                      f"{row['restraint_rate']:.0%} [{rci[0]:.0%}, {rci[1]:.0%}] | "
                       f"{row['mean_latency_seconds']:.1f}s |"
                   )
               print()

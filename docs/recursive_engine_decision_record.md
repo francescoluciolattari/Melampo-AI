@@ -2060,3 +2060,24 @@ byte for byte. `run_vetting_bench.py` now supplies its own
 navigate and naming every navigation verb it must not emit, since the
 concrete failure a live run exposed was a model believing `final(...)` was
 still the right way to close its answer.
+
+### Restraint gets a confidence interval, and the number it replaces was badly overstated
+
+Grounding had a Wilson interval from the moment the bench was widened;
+restraint did not, despite resting on the thinner sample of the two -- a
+handful of restraint cases against a couple of dozen conclusive ones. That
+asymmetry made the weaker number look like the stronger one.
+
+The correction is not cosmetic. The most recent live run reported 66.7%
+restraint for both candidates, which reads as a settled finding. Its actual
+95% interval is **[30.0%, 90.3%]** -- four correct declines out of six
+establishes almost nothing. The same 66.7% observed over sixty cases would
+be [54.1%, 77.3%], a genuinely usable number. Reporting the point estimate
+alone had been implying a confidence the evidence never supported.
+
+`rank_vetting_results` now sorts on `restraint_wilson_lower` rather than the
+raw rate, matching what grounding already did and for the same reason: two
+candidates both declining every restraint case are not equally established
+if one faced two cases and the other twenty. The workflow's summary table
+and merge-ranking were updated together, so the CI view and
+`rank_vetting_results` stay one implementation rather than drifting apart.

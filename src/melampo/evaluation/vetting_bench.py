@@ -207,6 +207,32 @@ class VettingResult:
         return self.restraint_correct / self.restraint_expected if self.restraint_expected else 0.0
 
     @property
+    def restraint_wilson_interval(self) -> tuple[float, float]:
+        """A confidence interval on restraint_rate, for the same reason grounding has one.
+
+        Restraint rests on an even thinner sample than grounding does -- a
+        handful of restraint cases against a couple of dozen conclusive ones
+        -- so reporting it as a bare percentage overstates it more, not less,
+        than the same treatment would overstate grounding. A candidate
+        declining 4 of 6 and one declining 40 of 60 both read "67%", and only
+        the second has established anything.
+        """
+        return wilson_interval(self.restraint_correct, self.restraint_expected) if self.restraint_expected else (0.0, 0.0)
+
+    @property
+    def restraint_wilson_lower(self) -> float:
+        """The conservative bound `rank_vetting_results` sorts on.
+
+        Ranking on the raw restraint_rate would let a candidate that happened
+        to decline its only two restraint cases outrank one that declined
+        eighteen of twenty -- both 100%, wildly different evidence. Sorting
+        on the lower bound makes the thinner sample rank lower, which is the
+        honest ordering when the difference is sample size rather than
+        behaviour.
+        """
+        return self.restraint_wilson_interval[0]
+
+    @property
     def mean_latency_seconds(self) -> float:
         """Mean response time, the efficiency tie-break once correctness ties.
 
@@ -227,6 +253,10 @@ class VettingResult:
             "grounding_wilson_interval": [round(lower, 4), round(upper, 4)],
             "useful_rate": round(self.useful_rate, 4),
             "restraint_rate": round(self.restraint_rate, 4),
+            "restraint_wilson_interval": [
+                round(self.restraint_wilson_interval[0], 4),
+                round(self.restraint_wilson_interval[1], 4),
+            ],
             "restraint_expected": self.restraint_expected,
             "mean_latency_seconds": round(self.mean_latency_seconds, 3),
             "grounded": self.grounded,
@@ -364,10 +394,11 @@ def rank_vetting_results(results: Sequence[VettingResult]) -> list[VettingResult
     Restraint leads because inventing a connection is the more dangerous
     failure -- a candidate that grounds real connections well but also
     fabricates ones that do not exist is not safe merely for scoring well on
-    the first measure. `grounding_wilson_lower`, not the raw point estimate,
-    is the tie-break beneath it: ranking on a point estimate would let a
-    candidate's lucky small sample outrank another's more reliable larger
-    one at the same observed rate. Format and latency come last, not because
+    the first measure. Both leading keys are Wilson lower bounds rather than
+    raw rates, and for the same reason: ranking on a point estimate would let
+    a candidate's lucky small sample outrank another's more reliable larger
+    one at the same observed rate. Restraint needs this more than grounding
+    does, not less, since it rests on the thinner sample of the two. Format and latency come last, not because
     they do not matter, but because a candidate that grounds well and
     formats poorly is a prompt problem, while one that formats perfectly and
     grounds badly is a candidate problem -- and only the second is a reason
@@ -376,7 +407,7 @@ def rank_vetting_results(results: Sequence[VettingResult]) -> list[VettingResult
     return sorted(
         results,
         key=lambda item: (
-            -item.restraint_rate,
+            -item.restraint_wilson_lower,
             -item.grounding_wilson_lower,
             -item.useful_rate,
             -item.format_rate,
