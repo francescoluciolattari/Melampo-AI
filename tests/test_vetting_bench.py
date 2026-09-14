@@ -1,5 +1,7 @@
 """Tests for the vetting bench v2 -- broader case set, restraint scoring, Wilson intervals."""
 
+import pytest
+
 from melampo.evaluation.vetting_bench import (
     VETTING_CASES,
     VettingCase,
@@ -307,3 +309,59 @@ def test_as_dict_carries_the_new_fields_a_reviewer_needs():
     payload = result.as_dict()
     for key in ("grounding_wilson_interval", "restraint_rate", "restraint_expected", "conclusive_runs", "mean_latency_seconds"):
         assert key in payload
+
+
+# --------------------------------------------------------------------------
+# Restraint gets the same confidence treatment grounding already had -- it
+# rests on the thinner sample of the two, so a bare percentage overstates it
+# more, not less.
+# --------------------------------------------------------------------------
+
+
+def test_restraint_has_a_confidence_interval_not_just_a_rate():
+    """4 of 6 reads as 66.7%, which sounds far more settled than six cases
+    can establish."""
+    result = VettingResult(model_name="thin", restraint_correct=4, restraint_expected=6)
+    lower, upper = result.restraint_wilson_interval
+
+    assert result.restraint_rate == pytest.approx(0.667, abs=0.001)
+    assert lower < 0.4, "the real uncertainty is much wider than the point estimate suggests"
+    assert upper > 0.85
+
+
+def test_the_same_restraint_rate_is_tighter_on_a_larger_sample():
+    thin = VettingResult(model_name="thin", restraint_correct=4, restraint_expected=6)
+    thick = VettingResult(model_name="thick", restraint_correct=40, restraint_expected=60)
+
+    thin_lower, thin_upper = thin.restraint_wilson_interval
+    thick_lower, thick_upper = thick.restraint_wilson_interval
+
+    assert thin.restraint_rate == pytest.approx(thick.restraint_rate, abs=0.001)
+    assert (thick_upper - thick_lower) < (thin_upper - thin_lower)
+
+
+def test_ranking_prefers_a_larger_restraint_sample_at_the_same_rate():
+    """Two candidates both declining every restraint case are not equally
+    established if one faced two cases and the other twenty."""
+    few = VettingResult(model_name="few_cases", restraint_correct=2, restraint_expected=2)
+    few.runs = 2
+    many = VettingResult(model_name="many_cases", restraint_correct=20, restraint_expected=20)
+    many.runs = 20
+
+    assert few.restraint_rate == many.restraint_rate == 1.0
+
+    ranked = rank_vetting_results([few, many])
+    assert ranked[0].model_name == "many_cases"
+
+
+def test_a_result_with_no_restraint_cases_reports_a_zero_width_interval():
+    empty = VettingResult(model_name="none")
+    assert empty.restraint_wilson_interval == (0.0, 0.0)
+    assert empty.restraint_wilson_lower == 0.0
+
+
+def test_as_dict_carries_the_restraint_interval():
+    result = VettingResult(model_name="x", restraint_correct=4, restraint_expected=6)
+    payload = result.as_dict()
+    assert "restraint_wilson_interval" in payload
+    assert len(payload["restraint_wilson_interval"]) == 2
