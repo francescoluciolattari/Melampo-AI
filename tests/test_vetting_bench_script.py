@@ -20,7 +20,7 @@ def script():
     return module
 
 
-def _correct_model(endpoint, key, model, prompt, *, timeout, disable_reasoning=False):
+def _correct_model(endpoint, key, model, prompt, *, timeout, disable_reasoning=False, system_prompt=None):
     """Answers any shipped vetting case correctly, matched by its own question
     text rather than a hand-picked keyword list -- the v1 version of this
     mock only recognised four cases and silently failed the other twelve
@@ -198,3 +198,77 @@ def test_an_unforeseen_exception_still_writes_diagnostics(script, tmp_path, monk
     payload = json.loads(out.read_text())
     assert payload["status"] == "crashed"
     assert "never seen before" in payload["error"]
+
+
+# --------------------------------------------------------------------------
+# The system prompt: three live runs showed both candidates emitting
+# document-navigation actions (describe(), grep(...), even wrapping their
+# real answer in final(...)) because this script, by reusing
+# _http_chat_completion unchanged, was sending run_format_adherence_bench's
+# navigation-grammar system prompt to a task with no document to navigate.
+# --------------------------------------------------------------------------
+
+
+def test_the_vetting_bench_sends_its_own_system_prompt_not_the_navigation_one(script, monkeypatch):
+    """Three live runs showed both candidates emitting document-navigation
+    actions -- describe(), grep(...), even wrapping their real answer in
+    final(...) -- because reusing _http_chat_completion unchanged sent
+    run_format_adherence_bench's navigation-grammar prompt to a task with no
+    document to navigate."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(script, "_preflight", _ok_preflight)
+
+    captured = {}
+
+    def capturing_call(endpoint, key, model, prompt, *, timeout, disable_reasoning=False, system_prompt=None):
+        captured["system_prompt"] = system_prompt
+        return "chronic kidney disease | renal osteodystrophy | yes | secondary hyperparathyroidism"
+
+    monkeypatch.setattr(script, "_http_chat_completion", capturing_call)
+
+    candidates, _ = script._build_one_candidate("claude-opus-5")
+    candidates["claude-opus-5"]("any prompt")
+
+    assert captured["system_prompt"] == script.VETTING_SYSTEM_PROMPT
+    assert "you navigate a document environment" not in script.VETTING_SYSTEM_PROMPT.lower()
+
+
+def test_the_vetting_system_prompt_explicitly_forbids_navigation_actions(script):
+    """The exact failure mode a live run exposed: a model wrapping its real
+    answer inside final(...) because it believed it was in a navigation
+    task. The prompt now says plainly not to, for every verb the navigation
+    grammar defines."""
+    prompt = script.VETTING_SYSTEM_PROMPT.lower()
+    for verb in ("search(", "grep(", "slice(", "describe(", "expand(", "query(", "final("):
+        assert verb in prompt
+
+
+def test_the_navigation_bench_system_prompt_is_unaffected(monkeypatch):
+    """The fix must be additive: run_format_adherence_bench's own callers,
+    which never pass system_prompt, must keep getting exactly the navigation
+    prompt they always did."""
+    import json
+    import urllib.request
+
+    import run_format_adherence_bench as rfab
+
+    captured = {}
+
+    class _FakeResponse:
+        def read(self):
+            return json.dumps({"choices": [{"message": {"content": "final(ok)"}}]}).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(request, timeout=30):
+        captured["system_prompt"] = json.loads(request.data.decode())["messages"][0]["content"]
+        return _FakeResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    rfab._http_chat_completion("https://example", "key", "model", "a question", timeout=30)
+
+    assert "you navigate a document environment" in captured["system_prompt"].lower()
