@@ -1991,3 +1991,36 @@ trading a wider confidence interval against real API cost) and reflected in
 the workflow's summary table and merge-ranking logic, both updated to sort on
 restraint first, then the Wilson lower bound, matching `rank_vetting_results`
 exactly rather than drifting from it in a second implementation.
+
+### A real vetting-bench run revealed a frame-parsing bug: excess pipes silently discarded
+
+Two uploaded runs both showed a recurring, specific artifact:
+`claimed_mechanism` values reading as bare fragments like "channel" --
+clearly not a complete clinical explanation. Traced to
+`parse_frame_answer`'s positional split: `raw.split(SLOT_SEPARATOR)` followed
+by taking `parts[index]` for each declared slot silently discarded
+everything past the fourth segment whenever a model's own free-text
+mechanism used the pipe character itself -- arrows between biochemical
+steps, alternatives, a chain of clauses. Whatever segment happened to land
+at the mechanism index survived; the rest, including whatever contained the
+graph's own matching term, was lost with no signal that it had been.
+
+Verified directly: a constructed six-segment answer where the real,
+graph-matching term ("secondary hyperparathyroidism") sat in the fifth
+segment extracted only the fourth ("reduced calcitriol synthesis") before
+the fix, and the term the graph would have recognised was silently gone.
+
+Fixed by having only the *last declared slot* absorb any excess segments,
+rejoined with the same separator rather than discarded -- free text by
+construction in every frame that has one, and the only slot where a model's
+own pipe usage is plausible in the first place. `factor`, `target`, and
+`bears_on` keep their exact positional extraction unchanged, since widening
+the fix to every slot would risk a different bug for no benefit. Verified
+end to end: the same six-segment case now grounds correctly against the
+recovered term, and a normal four-segment answer is byte-identical to what
+it produced before this fix.
+
+This was caught by comparing two live vetting-bench runs against `main`
+directly, the same discipline applied throughout this project: a
+suspicious, repeated pattern in real output is a reason to reproduce it
+against current code before accepting the numbers at face value, not after.
