@@ -122,6 +122,17 @@ def main() -> int:
             default=None,
             help="Comma-separated candidate names, used with --list-candidates to restrict the printed list.",
         )
+        parser.add_argument(
+            "--trials",
+            type=int,
+            default=2,
+            help=(
+                "How many times to repeat each case, folded into one result. Real models vary "
+                "run to run, and a single trial reports what happened once, not what the candidate "
+                "reliably does. Default 2 trades a wider confidence interval against API cost; a "
+                "decisive comparison may want more."
+            ),
+        )
         args = parser.parse_args()
         out_path = args.out
 
@@ -157,7 +168,8 @@ def main() -> int:
 
         graph, table = vetting_graph(), vetting_table()
         results = [
-            bench_vetting(name, model, VETTING_CASES, graph, table=table) for name, model in candidates.items()
+            bench_vetting(name, model, VETTING_CASES, graph, table=table, trials_per_case=args.trials)
+            for name, model in candidates.items()
         ]
         ranked = rank_vetting_results(results)
         payload = {

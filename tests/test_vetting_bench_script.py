@@ -21,15 +21,18 @@ def script():
 
 
 def _correct_model(endpoint, key, model, prompt, *, timeout, disable_reasoning=False):
-    lowered = prompt.lower()
-    if "marfan" in lowered:
-        return "marfan syndrome | aortic root dilation | yes | connective tissue weakness"
-    if "kidney" in lowered:
-        return "chronic kidney disease | renal osteodystrophy | yes | secondary hyperparathyroidism"
-    if "coeliac" in lowered:
-        return "coeliac disease | iron malabsorption | yes | villous atrophy"
-    if "sarcoid" in lowered:
-        return "sarcoidosis | hypercalcaemia | yes | granuloma formation"
+    """Answers any shipped vetting case correctly, matched by its own question
+    text rather than a hand-picked keyword list -- the v1 version of this
+    mock only recognised four cases and silently failed the other twelve
+    once the case set grew, which is exactly the kind of drift a
+    fixture-matched mock avoids."""
+    from melampo.evaluation.vetting_bench import VETTING_CASES
+
+    for case in VETTING_CASES:
+        if case.question[:40] in prompt:
+            if case.is_restraint_case:
+                return f"{case.factor} | {case.target} | no | none"
+            return f"{case.factor} | {case.target} | yes | {case.expected_mechanism}"
     return "unknown"
 
 
