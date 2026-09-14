@@ -41,6 +41,26 @@ from run_format_adherence_bench import (
     all_candidate_names,
 )
 
+# Deliberately not run_format_adherence_bench's own _SYSTEM_PROMPT, which
+# describes a document-navigation action grammar (grep/slice/search/final)
+# this bench has no use for -- there is no document environment here, only a
+# direct question. Reusing that prompt unchanged was the actual cause behind
+# three live runs showing both candidates emitting document-navigation
+# actions (describe(), grep(...), even wrapping their real answer in
+# final(...)) instead of a plain pipe-delimited line, and in one case a
+# model's own leaked reasoning agonising over "the document environment" and
+# "what grep returned" for a question that was never about a document at
+# all. `case.prompt()` already carries the exact answer format via
+# `frame_prompt_instruction`; this system prompt's only job is to set the
+# right frame of mind, not to repeat that format.
+VETTING_SYSTEM_PROMPT = (
+    "You answer a single clinical question directly, in exactly the format the user's "
+    "message specifies. There is no document to search, browse, or navigate -- do not emit "
+    "search(), grep(), slice(), describe(), expand(), query(), or final(), and do not wrap "
+    "your answer inside any of those. Emit only the answer line itself: no prose, no "
+    "explanation, no reasoning shown, no role labels."
+)
+
 from melampo.evaluation.vetting_bench import (
     VETTING_CASES,
     bench_vetting,
@@ -98,7 +118,10 @@ def _build_one_candidate(name: str) -> tuple[dict, str]:
     reachable, reason = _preflight(candidate_name, endpoint, key, model, disable_reasoning=disable_reasoning)
     if not reachable:
         return {}, reason
-    fn = _bind(_http_chat_completion, endpoint, key, model, disable_reasoning=disable_reasoning)
+    fn = _bind(
+        _http_chat_completion, endpoint, key, model,
+        disable_reasoning=disable_reasoning, system_prompt=VETTING_SYSTEM_PROMPT,
+    )
     return {candidate_name: fn}, "reachable"
 
 

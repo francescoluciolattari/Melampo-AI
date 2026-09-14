@@ -652,9 +652,22 @@ RATE_LIMIT_MAX_WAIT_SECONDS = 20.0
 
 
 def _http_chat_completion(
-    endpoint: str, api_key: str, model: str, prompt: str, *, timeout: int, disable_reasoning: bool = False
+    endpoint: str, api_key: str, model: str, prompt: str, *, timeout: int, disable_reasoning: bool = False,
+    system_prompt: str | None = None,
 ) -> str:
     """Minimal OpenAI-compatible chat completion call, stdlib only.
+
+    ``system_prompt`` defaults to ``_SYSTEM_PROMPT`` -- the document-navigation
+    action grammar this function was written for -- so every existing caller
+    of this navigation bench keeps working unchanged. A caller answering a
+    different kind of question, such as the vetting bench's direct
+    relevance questions, must pass its own: three live vetting-bench runs
+    showed both candidates producing document-navigation actions
+    (``describe()``, ``grep(...)``, even wrapping their actual answer in
+    ``final(...)``) and, in one case, a model's own leaked reasoning
+    agonising over "the document environment" and "what grep returned" --
+    all because this function's hard-coded navigation prompt was sent
+    unchanged to a task that never had a document environment to navigate.
 
     Mistral, OpenRouter and most inference gateways implement this shape.
 
@@ -676,12 +689,14 @@ def _http_chat_completion(
     twice in a row is more informatively reported as such than retried
     indefinitely.
     """
+    active_system_prompt = system_prompt if system_prompt is not None else _SYSTEM_PROMPT
+
     def _build_body(with_reasoning_hint: bool) -> bytes:
         return json.dumps(
             {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "system", "content": active_system_prompt},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.0,
@@ -885,10 +900,13 @@ def build_candidates(only: str | None = None) -> tuple[dict[str, "callable"], li
 
 
 
-def _bind(fn, endpoint, key, model, *, disable_reasoning=False):
+def _bind(fn, endpoint, key, model, *, disable_reasoning=False, system_prompt=None):
     def _call(prompt: str) -> str:
         try:
-            return fn(endpoint, key, model, prompt, timeout=CALL_TIMEOUT_SECONDS, disable_reasoning=disable_reasoning)
+            return fn(
+                endpoint, key, model, prompt, timeout=CALL_TIMEOUT_SECONDS,
+                disable_reasoning=disable_reasoning, system_prompt=system_prompt,
+            )
         except urllib.error.HTTPError as error:
             print(f"  [warn] {model}: HTTP {error.code} {error.reason}", file=sys.stderr)
             return ""

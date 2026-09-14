@@ -2024,3 +2024,39 @@ This was caught by comparing two live vetting-bench runs against `main`
 directly, the same discipline applied throughout this project: a
 suspicious, repeated pattern in real output is a reason to reproduce it
 against current code before accepting the numbers at face value, not after.
+
+### A third live run's leaked reasoning exposed the real cause behind three runs of bad numbers: the wrong system prompt
+
+A third uploaded vetting-bench run contained something the first two had
+only hinted at: one malformed answer's raw text was Claude's own leaked
+reasoning, agonising over "the document environment", "what grep returned",
+and "budget for one more read" -- for a question that was never about a
+document at all. GPT-OSS's own malformed answers showed the same pattern
+from the other side: `search(...)`, `grep(...)` sequences, and in one case
+the model wrapping its actual answer inside `final(hereditary
+haemochromatosis|cirrhosis|yes|iron overload)` -- the navigation engine's own
+completion syntax, with a stray `<|return|>` control token leaking through.
+
+Both candidates were producing document-navigation actions because they were
+being told, explicitly, that they were in a document-navigation task.
+`run_vetting_bench.py` reused `run_format_adherence_bench.py`'s
+`_http_chat_completion` -- sound reuse of real HTTP-calling infrastructure,
+as documented when that script was built -- but that function hard-codes
+`_SYSTEM_PROMPT`, the navigation bench's own instruction: *"You navigate a
+document environment by emitting exactly one action per line, chosen from:
+[grep, slice, search, describe, expand, query, final]"*. Reusing the
+function meant reusing that prompt too, unchanged, for a task with no
+document environment at all. This was likely the largest single contributor
+to the low format rates and malformed answers across all three uploaded
+runs -- not a candidate quality signal, a setup bug shared by both
+candidates identically.
+
+Fixed by parameterising `_http_chat_completion` and `_bind` with an optional
+`system_prompt`, defaulting to the navigation prompt so every existing
+navigation-bench caller is unaffected -- verified directly, with a mocked
+`urlopen` confirming the navigation bench still receives its original prompt
+byte for byte. `run_vetting_bench.py` now supplies its own
+`VETTING_SYSTEM_PROMPT`, stating plainly that there is no document to
+navigate and naming every navigation verb it must not emit, since the
+concrete failure a live run exposed was a model believing `final(...)` was
+still the right way to close its answer.
