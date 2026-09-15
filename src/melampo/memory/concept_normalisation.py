@@ -113,6 +113,7 @@ class NormalisationCascade:
 
     graph: ConceptGraphView
     synonym_index: Any = None
+    term_history: Any = None
     embedder: Callable[[str], Sequence[float]] | None = None
     structural_resolver: Callable[[str, Sequence[str]], str | None] | None = None
     embedding_threshold: float = DEFAULT_EMBEDDING_THRESHOLD
@@ -190,24 +191,28 @@ class NormalisationCascade:
         return NormalisationResult(phrase=phrase, concept=None, tier=TIER_LEXICAL)
 
     def _synonyms_for(self, concept: str) -> list[str]:
-        """Every curated synonym (including layperson) an ontology release knows for this concept.
+        """Every curated synonym (including layperson) an ontology release knows for this concept,
+        plus every historical name it has ever carried.
 
-        Looked up by surface form rather than assuming the graph's concept
-        name is itself a term id: the concept graph stores HPO's own label
-        text as its node names, the same text `TermIndex.by_surface` already
-        indexes, so a normalised-surface lookup is the correct bridge
-        between the two without either side needing to know the other's
-        identifiers.
+        A term's history is looked up the same way its curated synonyms are
+        -- by resolving the concept's surface form to a term id via
+        `synonym_index` -- because `term_history` records changes by id, not
+        by current name, and the id is the one thing that survives a rename.
         """
-        if self.synonym_index is None:
-            return []
-        term_ids = self.synonym_index.by_surface.get(normalise_concept(concept), [])
         synonyms: list[str] = []
-        for term_id in term_ids:
-            term = self.synonym_index.by_id.get(term_id)
-            if term is None:
-                continue
-            synonyms.extend(text for text, _kind in term.surface_forms(include_layperson=True))
+        term_ids: list[str] = []
+        if self.synonym_index is not None:
+            term_ids = self.synonym_index.by_surface.get(normalise_concept(concept), [])
+            for term_id in term_ids:
+                term = self.synonym_index.by_id.get(term_id)
+                if term is not None:
+                    synonyms.extend(text for text, _kind in term.surface_forms(include_layperson=True))
+
+        if self.term_history is not None and term_ids:
+            historical = self.term_history.synonyms_by_term_id()
+            for term_id in term_ids:
+                synonyms.extend(historical.get(term_id, []))
+
         return synonyms
 
     def _resolve_embedding(self, phrase: str, pool: Sequence[str]) -> NormalisationResult:

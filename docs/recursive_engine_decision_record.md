@@ -2321,3 +2321,109 @@ version file someone must remember to update. Dependencies are reported but
 never bumped in the same change: a dependency that alters tokenisation or
 numerical behaviour would move bench results, and that belongs in its own
 reviewed change rather than arriving alongside a data refresh.
+
+### Term history: nothing renamed is ever lost, corrected from a design this project got wrong
+
+A direct correction to the previous change: the update workflow had treated
+a rename as a risk to flag for review, and stopped there. That is not
+sufficient -- a term must never stop being recognisable under a name it used
+to have, and renaming is not removal.
+
+`term_history.py` records every rename and obsoletion permanently, append-only,
+the same discipline as `graph_store`'s learned layer: a term's history is
+discovered once, when first detected between two consecutive releases, and
+cannot be rederived afterward, since the old release is gone by then. Bridged
+into `NormalisationCascade`'s tier 1 through `TermHistoryStore.synonyms_by_term_id`,
+looked up by term id the same way curated OBO synonyms already are. Verified
+across two successive renames of the same term: both historical names survive,
+and `load_synonym_index` includes history automatically (`include_history=True`
+by default) so no caller has to remember to attach it separately.
+
+The update workflow now diffs the previous `hp.obo` against the new one
+before overwriting it -- the only point at which the previous release's
+names are still readable -- and appends every detected rename and
+obsoletion to `data/term_renames.jsonl` / `data/term_obsoletions.jsonl`
+before the pull request opens.
+
+### Differential ranking: the inverse-selection approach, confirmed as sufficient and built
+
+Asked directly whether discriminating between conditions requires a separate
+diagnostic data source, or whether observing findings against what HPO
+already associates is enough. The answer, confirmed rather than assumed: the
+inverse approach is not a workaround, it is the established method in
+clinical bioinformatics -- information-content-weighted phenotype semantic
+similarity, the approach behind tools such as Phenomizer -- and it is
+exactly what the IC table and the has_phenotype graph were already built to
+support. There is no separate "diagnostic differential" dataset to look for;
+HPO's own disease-phenotype associations are that source, used correctly.
+
+`differential_ranking.py` ranks candidates by the summed IC of findings they
+actually share with the case, not by raw overlap count (`candidate_retrieval`'s
+job, which only needs to gather candidates cheaply). Deliberately not
+normalised by a candidate's own profile size, which would reward a
+sparsely-annotated rare disease purely for being under-curated; `profile_size`
+is reported instead of folded silently into the score. Verified on the real
+graph: Marfan syndrome, congenital contractural arachnodactyly, and familial
+ectopia lentis tie for first place on three classic Marfan findings --
+correct, not a defect, since these are genuinely difficult differentials to
+separate with only those three findings in real clinical practice.
+
+A test-writing mistake caught a real design gap worth recording: the first
+version of a tie-break test used a fixture (`enumeration_bench`'s
+`differential_graph`) built with relation name `manifests_as`, while the
+ranker defaulted to HPO's own `has_phenotype` -- every candidate silently
+scored zero, and the alphabetical tie-break decided an order that looked
+like a real result. Fixed by making `relation` a parameter rather than a
+hard-coded constant, since other graphs in this project legitimately use
+different vocabulary for the same kind of edge.
+
+### Level 3, completed: a real extractor, persistent descriptions, automatic population on promotion
+
+Three pieces requested together, and built together.
+
+**A real extractor**, not a mock. `structural_extraction.py` follows the
+same pattern as every other external model call in this project: isolated
+HTTP call, transport left unimplemented since the exact request shape
+depends on deployment (the same choice `document_processing.py` made for
+Nemotron-Parse and LlamaParse), graceful degradation throughout -- an
+unconfigured extractor, a failing call, and a malformed response all yield
+an empty structure rather than an exception reaching the cascade. Markdown
+fences around the JSON response are stripped before parsing, since models
+asked for "only JSON" reliably wrap it in fences anyway, and treating that
+as a parse failure would degrade tier 3 on the most common well-formed
+response shape.
+
+**Persistent descriptions.** `ConceptDescriptionStore` gained the same
+append-only JSONL persistence `graph_store` already established: a
+description that took a model call to extract is exactly as expensive to
+lose as a promoted graph edge. Verified round-tripping through a restart.
+
+**Automatic population on promotion**, the concrete behaviour requested:
+every edge `DiagnosticAssembly.promote_confirmed` promotes -- whether the
+underlying conjecture came from the Dream Engine's offline exploration or a
+newly confirmed RLM hypothesis -- now builds and persists a description for
+each of its concepts, if one does not already exist. Built from the edge's
+own justification (what was confirmed, by how many cases) rather than left
+unexplained. A concept with an existing, curated description is never
+overwritten -- verified directly. The feature is additive: a caller not
+passing the new optional arguments gets promotion exactly as it worked
+before.
+
+### The update workflow gained a second, daily schedule for literature
+
+Asked to check not only HPO data weekly but literature and other sources on
+a faster cadence. HPO releases every 6-10 weeks; PubMed and
+ClinicalTrials.gov content appears daily, a genuinely different rate that
+gets a genuinely different schedule rather than one compromise cadence
+serving both -- a second cron entry (`0 5 * * *`) alongside the existing
+weekly one, with `github.event.schedule` distinguishing which fired so each
+job runs only on its own cadence (or on manual dispatch, gated by its own
+`workflow_dispatch` input).
+
+`refresh-literature` refreshes concepts the literature index already tracks,
+read from `data/literature_index_concepts.json`, rather than crawling the
+full HPO term set daily -- the index grows around concepts this project has
+actually reasoned about, and a blind daily crawl of thousands of terms would
+mostly fetch literature nothing has asked about. Not committed automatically:
+the literature index is runtime state, not a versioned data file, unlike the
+HPO release update, which does open a reviewable pull request.

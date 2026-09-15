@@ -88,7 +88,14 @@ class DiagnosticAssembly:
 
         return CaseResult(bridge_result=bridge_result, conjectures_recorded=recorded)
 
-    def promote_confirmed(self, *, min_confirmations: int = 3) -> list[ConceptEdge]:
+    def promote_confirmed(
+        self,
+        *,
+        min_confirmations: int = 3,
+        description_store: Any = None,
+        description_extractor: Any = None,
+        description_store_path: Any = None,
+    ) -> list[ConceptEdge]:
         """Write conjectures that have earned promotion into the persistent store.
 
         Deliberately a separate call rather than something `run_case` does:
@@ -96,6 +103,14 @@ class DiagnosticAssembly:
         happen when someone decides to run it, not as a side effect of
         answering one case. Returns the edges written so a caller can see
         what changed rather than only that something did.
+
+        ``description_store``/``description_extractor`` are optional and
+        both must be supplied for this to do anything: every newly promoted
+        edge -- whether the conjecture came from the Dream Engine's offline
+        exploration or from a confirmed RLM hypothesis -- gets a tier-3
+        description built and persisted for its target concept, if one does
+        not already exist. Without both, promotion behaves exactly as
+        before; this is additive, not a new requirement on every caller.
         """
         promoted: list[ConceptEdge] = []
         for record in self.ledger.records.values():
@@ -118,7 +133,37 @@ class DiagnosticAssembly:
         if promoted:
             self.store.append_many(promoted)
             self.learned_edge_count += len(promoted)
+
+        if promoted and description_store is not None and description_extractor is not None:
+            self._describe_promoted_concepts(promoted, description_store, description_extractor, description_store_path)
+
         return promoted
+
+    def _describe_promoted_concepts(
+        self, promoted: list[ConceptEdge], description_store: Any, description_extractor: Any, store_path: Any
+    ) -> None:
+        """Build and persist a description for every promoted edge's concepts that lacks one.
+
+        Extracted from the edge's own justification -- what was confirmed,
+        by how many cases -- rather than left unexplained. A concept that
+        entered the graph through promotion has exactly as much right to a
+        tier-3 description as one that entered through the curated
+        literature; the only difference is where the source text comes from.
+        """
+        for edge in promoted:
+            for concept in (edge.source, edge.target):
+                if description_store.get(concept) is not None:
+                    continue
+                justification = (
+                    f"{edge.source} {edge.relation.replace('_', ' ')} {edge.target}, "
+                    f"confirmed by independent cases (provenance: {edge.provenance})."
+                )
+                structure = description_extractor(justification)
+                if structure.is_empty:
+                    continue
+                description_store.add(concept, structure)
+                if store_path is not None:
+                    description_store.append_to(store_path, concept)
 
 
 @dataclass

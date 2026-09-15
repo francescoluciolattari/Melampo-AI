@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .concept_paths import ConceptGraphView, InMemoryConceptGraph
+from .concept_paths import ConceptGraphView, InMemoryConceptGraph, normalise_concept
 from .ontology_import import build_edges, parse_hpoa
 
 SOURCE_HPOA = "hpoa"
@@ -282,7 +282,7 @@ def find_hp_obo_file(explicit_path: str | Path | None = None) -> Path | None:
 
 
 def load_synonym_index(
-    explicit_path: str | Path | None = None, **term_index_kwargs: Any
+    explicit_path: str | Path | None = None, *, include_history: bool = True, **term_index_kwargs: Any
 ) -> Any:
     """Build a `TermIndex` from a real hp.obo release, or None if there is none to find.
 
@@ -291,16 +291,36 @@ def load_synonym_index(
     check) from "loaded an index with zero terms" (a genuine parsing
     problem) -- collapsing the two would hide a broken file behind the same
     behaviour as a missing one.
+
+    ``include_history`` is on by default: a term renamed by an HPO release
+    must never stop being recognisable under the name it used to have, and
+    the update workflow records every such rename permanently. Folding those
+    historical names into the index here, rather than requiring every caller
+    to remember to attach `TermHistoryStore` separately, is what makes that
+    guarantee automatic rather than opt-in.
     """
-    from .concept_resolution import (
-        TermIndex,
-    )
+    from .concept_resolution import TermIndex
 
     path = find_hp_obo_file(explicit_path)
     if path is None:
         return None
     lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    return TermIndex.from_obo(lines, **term_index_kwargs)
+    index = TermIndex.from_obo(lines, **term_index_kwargs)
+
+    if include_history:
+        from .term_history import TermHistoryStore
+
+        history = TermHistoryStore(path.parent)
+        for term_id, old_names in history.synonyms_by_term_id().items():
+            term = index.by_id.get(term_id)
+            if term is None:
+                continue
+            for old_name in old_names:
+                normalised = normalise_concept(old_name)
+                if normalised and normalised not in index.by_surface:
+                    index.by_surface[normalised] = [term_id]
+
+    return index
 
 
 def load_verification_graph(
