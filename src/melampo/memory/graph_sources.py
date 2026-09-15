@@ -46,6 +46,13 @@ SOURCE_EMPTY = "empty"
 HPOA_PATH_ENV = "MELAMPO_HPOA_PATH"
 DEFAULT_HPOA_FILENAMES = ("phenotype.hpoa", "phenotype_annotation.hpoa")
 
+# Where a deployment places the HPO ontology release itself (term names,
+# definitions, synonyms including layperson translations) -- a separate file
+# from phenotype.hpoa, which carries only disease-to-phenotype associations
+# and no synonym data at all.
+HP_OBO_PATH_ENV = "MELAMPO_HP_OBO_PATH"
+DEFAULT_OBO_FILENAMES = ("hp.obo",)
+
 
 @dataclass(frozen=True)
 class GraphSource:
@@ -113,6 +120,50 @@ def load_hpoa_graph(path: str | Path) -> GraphSource:
         edge_count=edges,
         detail=f"loaded from {path}",
     )
+
+
+def find_hp_obo_file(explicit_path: str | Path | None = None) -> Path | None:
+    """Locate an hp.obo release, or None if there is none to find.
+
+    Same search order as `find_hpoa_file`, over the ontology file rather
+    than the annotation file -- the two are separate downloads from the same
+    HPO release and neither implies the other is present.
+    """
+    candidates: list[Path] = []
+    if explicit_path:
+        candidates.append(Path(explicit_path))
+    from_env = os.environ.get(HP_OBO_PATH_ENV)
+    if from_env:
+        candidates.append(Path(from_env))
+    for filename in DEFAULT_OBO_FILENAMES:
+        candidates.append(Path(filename))
+        candidates.append(Path("data") / filename)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def load_synonym_index(
+    explicit_path: str | Path | None = None, **term_index_kwargs: Any
+) -> Any:
+    """Build a `TermIndex` from a real hp.obo release, or None if there is none to find.
+
+    Returns None rather than an empty index when no file is found, so a
+    caller can tell "no synonym data available" (skip the lexical-synonym
+    check) from "loaded an index with zero terms" (a genuine parsing
+    problem) -- collapsing the two would hide a broken file behind the same
+    behaviour as a missing one.
+    """
+    from .concept_resolution import (
+        TermIndex,
+    )
+
+    path = find_hp_obo_file(explicit_path)
+    if path is None:
+        return None
+    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    return TermIndex.from_obo(lines, **term_index_kwargs)
 
 
 def load_verification_graph(

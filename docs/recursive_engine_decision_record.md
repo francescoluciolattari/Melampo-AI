@@ -2145,3 +2145,71 @@ surfaced -- letting looser tiers roam the whole concept set would admit a
 distant concept that happens to embed closely. `normalisation_tier` on the
 result records which tier grounded it, so an exact match and an
 embedding-neighbourhood match are never reported as the same thing.
+
+### HPO's layperson synonyms: parsed, then found being silently discarded, then bridged into the cascade
+
+A direct question -- should we use HPO's own layperson synonym translations
+-- led to a real defect, not just an opportunity. `concept_resolution.py`
+already parsed OBO synonym lines (`_parse_synonym`), built months earlier for
+work that was never connected to production. It captured the OBO scope
+(EXACT/BROAD/NARROW/RELATED) but silently discarded the type tag that
+follows it -- "layperson" in `synonym: "Big head" BROAD layperson [...]` --
+because only `remainder[0]` was ever kept. And `SAFE_SCOPES` admits EXACT
+only by default, so even with the tag captured, every layperson synonym
+(always BROAD-scoped, never EXACT) would have been excluded regardless.
+
+Fixed in two parts, kept deliberately separate. `_parse_synonym` now returns
+`(text, scope, type_tag)` rather than discarding the third piece.
+`surface_forms(include_layperson=True)` is a new, explicitly opt-in
+parameter -- not a wider `SAFE_SCOPES` -- because a layperson synonym is safe
+to treat as the same concept specifically for being layperson-tagged, not
+because BROAD synonyms became safe generally. Widening `SAFE_SCOPES` itself
+would have quietly admitted every other BROAD synonym too: genuinely
+broader, different concepts, which is exactly the imprecision this scope
+distinction exists to keep out. A test constructs the case directly: a
+generic `BROAD` synonym with no layperson tag stays excluded even when
+`include_layperson=True`.
+
+**The bridge into `concept_normalisation`'s tier 1, not a new tier.**
+`NormalisationCascade` gained an optional `synonym_index`; the lexical tier
+now checks a claim against a concept's curated synonyms (via `TermIndex`,
+looked up by surface form rather than assuming the graph's concept name is
+itself a term id) in addition to its bare graph label. This stays tier 1 in
+spirit and in determinism: every synonym checked came from a curated
+ontology release, not a guess, so matching against one is exactly as safe as
+matching against the node's own name -- what changed is how many
+known-correct strings a concept has, not how the comparison works.
+
+**`graph_sources.py` gained the missing loader.** The HPOA loader from the
+previous change had no counterpart for hp.obo, so there was no way to
+actually populate a `TermIndex` from a real file without doing it by hand.
+`find_hp_obo_file`/`load_synonym_index` mirror the HPOA loader's honesty:
+`load_synonym_index` returns `None` when no file is found, not an empty
+index, so "no synonym data available" and "a file parsed into nothing" stay
+distinguishable rather than looking identical from the outside.
+
+### Two new annotation files, a new relation type the graph never carried
+
+Asked directly whether the project should use HPO's other annotation
+files -- `genes_to_phenotype.txt`, `phenotype_to_genes.txt`,
+`genes_to_disease.txt` -- alongside `phenotype.hpoa`. These add gene
+involvement, an edge type the graph has never modelled at all (HPO's
+annotation file gives only `has_phenotype`).
+
+`gene_annotations.py` parses both, header-driven like `parse_hpoa` rather
+than assuming a fixed column order: `genes_to_phenotype.txt`'s header was
+confirmed from a working parse (`entrez_gene_id`, `entrez_gene_symbol`,
+`hpo_term_id`, `hpo_term_name`, `frequency_raw`, `frequency_hpo`), and an
+early version of this parser used the wrong field names for it -- a
+self-caught error, fixed by making both parsers alias-tolerant across the
+column-naming variants different HPO release generations have used, rather
+than committing to one and failing silently on the other. An unrecognised
+header raises rather than silently producing zero associations with no
+explanation. `genes_to_disease.txt`'s exact header was not independently
+confirmed to the same standard; the alias mechanism and an explicit code
+comment flag this as worth checking against whatever release is actually in
+use.
+
+Edge weight is uniform (1.0) rather than invented: neither file carries a
+per-association strength the way `phenotype.hpoa`'s frequency column does,
+and assigning one would fabricate precision the source data does not have.
