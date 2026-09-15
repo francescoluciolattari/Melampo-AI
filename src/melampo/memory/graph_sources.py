@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from .concept_paths import ConceptGraphView, InMemoryConceptGraph
-from .ontology_import import build_graph
+from .ontology_import import build_edges, parse_hpoa
 
 SOURCE_HPOA = "hpoa"
 SOURCE_FIXTURE = "hand_written_fixture"
@@ -52,6 +52,13 @@ DEFAULT_HPOA_FILENAMES = ("phenotype.hpoa", "phenotype_annotation.hpoa")
 # and no synonym data at all.
 HP_OBO_PATH_ENV = "MELAMPO_HP_OBO_PATH"
 DEFAULT_OBO_FILENAMES = ("hp.obo",)
+
+# Gene annotation files. Optional: they add an edge type phenotype.hpoa
+# cannot express, and their absence narrows the graph rather than breaking it.
+GENES_TO_PHENOTYPE_ENV = "MELAMPO_GENES_TO_PHENOTYPE_PATH"
+DEFAULT_GENES_TO_PHENOTYPE_FILENAMES = ("genes_to_phenotype.txt", "phenotype_to_genes.txt")
+GENES_TO_DISEASE_ENV = "MELAMPO_GENES_TO_DISEASE_PATH"
+DEFAULT_GENES_TO_DISEASE_FILENAMES = ("genes_to_disease.txt",)
 
 
 @dataclass(frozen=True)
@@ -108,18 +115,120 @@ def find_hpoa_file(explicit_path: str | Path | None = None) -> Path | None:
     return None
 
 
-def load_hpoa_graph(path: str | Path) -> GraphSource:
-    """Build the concept graph from a real HPO annotation release."""
+def load_hpoa_graph(
+    path: str | Path, *, obo_path: str | Path | None = None, include_gene_annotations: bool = True
+) -> GraphSource:
+    """Build the concept graph from a real HPO annotation release.
+
+    `phenotype.hpoa` identifies phenotypes only by HPO id (`HP:0001166`), not
+    by name, so a graph built from it alone has unreadable targets -- and,
+    worse for this project, targets no clinical phrase could ever match:
+    every lexical and embedding comparison downstream works on text, and
+    `HP:0001166` is not text anyone writes. `hp.obo` carries the id-to-label
+    map, so when it is available the labels are resolved here rather than
+    leaving an id-shaped graph for every caller to translate.
+
+    A missing hp.obo is not fatal -- the graph still builds, with ids as
+    targets -- and `GraphSource.detail` says which happened, so a run on an
+    id-shaped graph is visible rather than silently producing nothing that
+    matches.
+    """
     path = Path(path)
     lines: Iterable[str] = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    graph = build_graph(lines)
-    edges = sum(len(graph.edges_from(concept)) for concept in graph.concepts())
-    return GraphSource(
-        graph=graph,
-        source=SOURCE_HPOA,
-        edge_count=edges,
-        detail=f"loaded from {path}",
+
+    label_for: dict[str, str] = {}
+    resolved_obo = find_hp_obo_file(obo_path)
+    if resolved_obo is not None:
+        from .concept_resolution import (
+            parse_obo,
+        )
+
+        label_for = {
+            term.term_id: term.name
+            for term in parse_obo(resolved_obo.read_text(encoding="utf-8", errors="ignore").splitlines())
+            if term.name
+        }
+
+    annotations = list(parse_hpoa(lines))
+    hpoa_edges = list(build_edges(annotations, label_for=label_for or None))
+
+    # genes_to_disease.txt identifies diseases only by id; phenotype.hpoa
+    # indexes the same ids and carries their names, so the map is built from
+    # what was just parsed rather than read from a second source.
+    name_for_disease_id = {
+        annotation.disease_id: annotation.disease_name
+        for annotation in annotations
+        if annotation.disease_id and annotation.disease_name
+    }
+    gene_edges = (
+        load_gene_annotation_edges(name_for_disease_id=name_for_disease_id) if include_gene_annotations else []
     )
+    graph = InMemoryConceptGraph.from_edges([*hpoa_edges, *gene_edges])
+
+    edges = sum(len(graph.edges_from(concept)) for concept in graph.concepts())
+    detail = f"loaded from {path}"
+    detail += f"; phenotype labels resolved from {resolved_obo}" if label_for else "; no hp.obo found, targets are HPO ids"
+    if gene_edges:
+        detail += f"; {len(gene_edges):,} gene-annotation edges included"
+    return GraphSource(graph=graph, source=SOURCE_HPOA, edge_count=edges, detail=detail)
+
+
+def load_gene_annotation_edges(
+    *,
+    genes_to_phenotype: str | Path | None = None,
+    genes_to_disease: str | Path | None = None,
+    name_for_disease_id: dict[str, str] | None = None,
+) -> list[Any]:
+    """Load gene-phenotype and gene-disease edges, if those files are present.
+
+    A separate call from `load_hpoa_graph` rather than folded into it,
+    because the two answer different questions and a caller may legitimately
+    want one without the other: `phenotype.hpoa` supports "does this disease
+    manifest this finding", while the gene files support "is there a genetic
+    link between this finding and that condition" -- a connection a vetting
+    question can genuinely rest on, and one `has_phenotype` alone can never
+    express.
+
+    Missing files yield no edges rather than raising: a deployment without
+    the gene annotations is a narrower graph, not a broken one.
+    """
+    from .gene_annotations import (
+        gene_disease_edges,
+        gene_phenotype_edges,
+        parse_genes_to_disease,
+        parse_genes_to_phenotype,
+    )
+
+    edges: list[Any] = []
+
+    phenotype_path = _find_file(genes_to_phenotype, GENES_TO_PHENOTYPE_ENV, DEFAULT_GENES_TO_PHENOTYPE_FILENAMES)
+    if phenotype_path is not None:
+        lines = phenotype_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        edges.extend(gene_phenotype_edges(parse_genes_to_phenotype(lines)))
+
+    disease_path = _find_file(genes_to_disease, GENES_TO_DISEASE_ENV, DEFAULT_GENES_TO_DISEASE_FILENAMES)
+    if disease_path is not None:
+        lines = disease_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        edges.extend(gene_disease_edges(parse_genes_to_disease(lines), name_for_disease_id=name_for_disease_id))
+
+    return edges
+
+
+def _find_file(explicit: str | Path | None, env_var: str, filenames: tuple[str, ...]) -> Path | None:
+    """Shared search order for every optional data file: explicit, env, cwd, data/."""
+    candidates: list[Path] = []
+    if explicit:
+        candidates.append(Path(explicit))
+    from_env = os.environ.get(env_var)
+    if from_env:
+        candidates.append(Path(from_env))
+    for filename in filenames:
+        candidates.append(Path(filename))
+        candidates.append(Path("data") / filename)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def find_hp_obo_file(explicit_path: str | Path | None = None) -> Path | None:

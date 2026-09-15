@@ -41,9 +41,18 @@ _HPOA_SAMPLE = (
 # --------------------------------------------------------------------------
 
 
-def test_a_fixture_graph_reports_itself_as_a_fixture():
+def test_a_fixture_graph_reports_itself_as_a_fixture(monkeypatch, tmp_path):
     """The audit that produced this module found a 33-edge hand-written
-    fixture being reported as grounding against the concept graph."""
+    fixture being reported as grounding against the concept graph.
+
+    Runs in an empty working directory: now that data/ actually contains a
+    real phenotype.hpoa, a test asserting fixture-fallback behaviour has to
+    isolate itself from it, or it silently stops testing the fallback and
+    starts testing the real loader instead.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MELAMPO_HPOA_PATH", raising=False)
+
     source = load_verification_graph(fixture_factory=vetting_graph)
 
     assert source.source == SOURCE_FIXTURE
@@ -329,3 +338,64 @@ def test_an_unresolvable_phrase_is_recorded_as_unresolved():
     cascade = NormalisationCascade(graph=vetting_graph())
     cascade.resolve("nothing in this graph resembles this phrase at all")
     assert cascade.usage_report()["by_tier"].get(TIER_NONE) == 1
+
+
+# --------------------------------------------------------------------------
+# Graph indexing: the 33-edge fixture hid a quadratic lookup that made the
+# real 573,302-edge graph take over five minutes to load
+# --------------------------------------------------------------------------
+
+
+def test_edges_from_returns_both_directions():
+    """Traversal is undirected, and the index must preserve that -- inverse
+    edges were previously built fresh on every call and are now pre-built."""
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    graph = InMemoryConceptGraph.from_edges([ConceptEdge("a", "causes", "b", 0.8)])
+
+    assert [edge.target for edge in graph.edges_from("a")] == ["b"]
+    reverse = graph.edges_from("b")
+    assert [edge.target for edge in reverse] == ["a"]
+    assert reverse[0].relation == "inverse_causes"
+
+
+def test_inverse_edges_preserve_interval_bounds():
+    """The pre-built inverse previously dropped lower/upper, which would have
+    turned an interval-valued edge into a bare point estimate the moment it
+    was traversed backwards."""
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    graph = InMemoryConceptGraph.from_edges(
+        [ConceptEdge("a", "causes", "b", 0.6, lower=0.4, upper=0.8)]
+    )
+    reverse = graph.edges_from("b")[0]
+
+    assert reverse.lower == 0.4
+    assert reverse.upper == 0.8
+
+
+def test_lookup_does_not_degrade_with_graph_size():
+    """The defect this guards against: edges_from scanned the whole edge list
+    twice per call, re-normalising both endpoints of every edge. A large
+    graph must not make a single lookup slower than a trivial one."""
+    import time
+
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    large = InMemoryConceptGraph.from_edges(
+        [ConceptEdge(f"disease {index}", "has_phenotype", f"finding {index}", 0.5) for index in range(20_000)]
+    )
+
+    started = time.monotonic()
+    for _ in range(200):
+        large.edges_from("disease 19999")
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.5, f"200 lookups on a 20k-edge graph took {elapsed:.2f}s -- the index is not being used"
+
+
+def test_a_concept_with_no_edges_returns_empty_not_an_error():
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    graph = InMemoryConceptGraph.from_edges([ConceptEdge("a", "causes", "b", 0.8)])
+    assert list(graph.edges_from("something absent")) == []
