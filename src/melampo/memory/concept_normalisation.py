@@ -112,6 +112,7 @@ class NormalisationCascade:
     """
 
     graph: ConceptGraphView
+    synonym_index: Any = None
     embedder: Callable[[str], Sequence[float]] | None = None
     structural_resolver: Callable[[str, Sequence[str]], str | None] | None = None
     embedding_threshold: float = DEFAULT_EMBEDDING_THRESHOLD
@@ -162,11 +163,16 @@ class NormalisationCascade:
         return NormalisationResult(phrase=phrase, concept=None, tier=TIER_NONE, detail=detail)
 
     def _resolve_lexical(self, phrase: str, pool: Sequence[str]) -> NormalisationResult:
-        """Tier 1: the existing exact/containment/word-set rule, unchanged.
+        """Tier 1: the existing exact/containment/word-set rule, now checked
+        against a concept's curated synonyms too, not only its bare graph label.
 
-        Reused rather than reimplemented -- it is the same comparison
-        `verify_mechanism` already applies, and a second copy here would be
-        exactly the drift this project has had to fix once already.
+        Still fully deterministic and still tier 1 in spirit: every synonym
+        checked here came from a curated ontology release, not a guess, so
+        matching against one is exactly as safe as matching against the
+        node's own label. What changed is how many known-correct strings a
+        concept has, not how the comparison itself works -- the same
+        `concept_names_match` `verify_mechanism` already applies, reused
+        rather than reimplemented.
         """
         for concept in sorted(pool, key=len, reverse=True):
             if concept_names_match(phrase, concept):
@@ -174,7 +180,35 @@ class NormalisationCascade:
                     phrase=phrase, concept=concept, tier=TIER_LEXICAL, score=1.0,
                     detail="exact, containment, or word-set match",
                 )
+            if self.synonym_index is not None:
+                for synonym in self._synonyms_for(concept):
+                    if concept_names_match(phrase, synonym):
+                        return NormalisationResult(
+                            phrase=phrase, concept=concept, tier=TIER_LEXICAL, score=1.0,
+                            detail=f"matched curated synonym {synonym!r}",
+                        )
         return NormalisationResult(phrase=phrase, concept=None, tier=TIER_LEXICAL)
+
+    def _synonyms_for(self, concept: str) -> list[str]:
+        """Every curated synonym (including layperson) an ontology release knows for this concept.
+
+        Looked up by surface form rather than assuming the graph's concept
+        name is itself a term id: the concept graph stores HPO's own label
+        text as its node names, the same text `TermIndex.by_surface` already
+        indexes, so a normalised-surface lookup is the correct bridge
+        between the two without either side needing to know the other's
+        identifiers.
+        """
+        if self.synonym_index is None:
+            return []
+        term_ids = self.synonym_index.by_surface.get(normalise_concept(concept), [])
+        synonyms: list[str] = []
+        for term_id in term_ids:
+            term = self.synonym_index.by_id.get(term_id)
+            if term is None:
+                continue
+            synonyms.extend(text for text, _kind in term.surface_forms(include_layperson=True))
+        return synonyms
 
     def _resolve_embedding(self, phrase: str, pool: Sequence[str]) -> NormalisationResult:
         """Tier 2: nearest concept by embedding similarity, above a strict threshold.

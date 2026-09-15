@@ -62,8 +62,8 @@ def test_terms_names_synonyms_and_alt_ids_are_read():
     kidney = terms["HP:0000003"]
     assert kidney.name == "Multicystic kidney dysplasia"
     assert kidney.alt_ids == ("HP:0004715",)
-    assert ("Multicystic dysplastic kidney", SCOPE_EXACT) in kidney.synonyms
-    assert ("Kidney abnormality", SCOPE_BROAD) in kidney.synonyms
+    assert ("Multicystic dysplastic kidney", SCOPE_EXACT, "") in kidney.synonyms
+    assert ("Kidney abnormality", SCOPE_BROAD, "") in kidney.synonyms
 
 
 def test_obsolete_terms_are_flagged_not_dropped():

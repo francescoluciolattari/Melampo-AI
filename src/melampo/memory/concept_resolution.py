@@ -37,6 +37,14 @@ SCOPE_RELATED = "RELATED"
 
 SAFE_SCOPES = frozenset({SCOPE_EXACT})
 
+# HPO tags a synonym as "layperson" when it is a plain-language translation
+# of a clinical term ("Big skull" for Macrocephaly) -- the OBO scope on such
+# a synonym is BROAD, the same scope a genuinely broader, different concept
+# would carry ("Kidney abnormality" for a specific kidney malformation). The
+# scope alone cannot tell the two apart; the type tag can, and until now it
+# was parsed and silently discarded.
+TYPE_LAYPERSON = "layperson"
+
 CLINICAL_MODIFIER_ROOT = "HP:0012823"
 INHERITANCE_ROOT = "HP:0000005"
 
@@ -69,18 +77,31 @@ class OntologyTerm:
 
     term_id: str
     name: str
-    synonyms: tuple[tuple[str, str], ...] = ()
+    synonyms: tuple[tuple[str, str, str], ...] = ()
     alt_ids: tuple[str, ...] = ()
     obsolete: bool = False
     parents: tuple[str, ...] = ()
 
-    def surface_forms(self, scopes: Iterable[str] = SAFE_SCOPES) -> list[tuple[str, str]]:
-        """Text forms that may stand for this term, with how each was obtained."""
+    def surface_forms(
+        self, scopes: Iterable[str] = SAFE_SCOPES, *, include_layperson: bool = False
+    ) -> list[tuple[str, str]]:
+        """Text forms that may stand for this term, with how each was obtained.
+
+        ``include_layperson`` is opt-in, not folded into a wider default
+        ``SAFE_SCOPES``: a layperson synonym is safe to treat as the same
+        concept precisely *because* it is layperson-tagged, not because BROAD
+        synonyms in general became safe. Widening ``SAFE_SCOPES`` itself
+        would have admitted every other BROAD synonym too -- genuinely
+        broader, different concepts -- for the sake of the one category that
+        happens to be safe.
+        """
         allowed = set(scopes)
         forms: list[tuple[str, str]] = []
         if self.name:
             forms.append((self.name, MATCH_NAME))
-        forms.extend((text, MATCH_SYNONYM) for text, scope in self.synonyms if scope in allowed)
+        for text, scope, type_tag in self.synonyms:
+            if scope in allowed or (include_layperson and type_tag == TYPE_LAYPERSON):
+                forms.append((text, MATCH_SYNONYM))
         return forms
 
 
@@ -143,8 +164,17 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
         yield finished
 
 
-def _parse_synonym(value: str) -> tuple[str, str] | None:
-    """Read ``"text" SCOPE type []`` into (text, scope)."""
+def _parse_synonym(value: str) -> tuple[str, str, str] | None:
+    """Read ``"text" SCOPE type []`` into (text, scope, type_tag).
+
+    The type tag -- "layperson" being the one this project uses -- used to
+    be parsed as part of ``remainder`` and then discarded, since only
+    ``remainder[0]`` (the scope) was ever kept. A synonym's register is
+    exactly the information that distinguishes a same-concept plain-language
+    alternative from a genuinely broader, different concept, both of which
+    OBO tags BROAD -- so losing it meant no caller could ever recover that
+    distinction.
+    """
     text = value.strip()
     if not text.startswith('"'):
         return None
@@ -154,7 +184,16 @@ def _parse_synonym(value: str) -> tuple[str, str] | None:
     surface = text[1:closing]
     remainder = text[closing + 1 :].strip().split()
     scope = remainder[0] if remainder else SCOPE_RELATED
-    return (surface, scope) if surface else None
+    # The type tag is whatever follows the scope, up to the xref brackets --
+    # "layperson" in "BROAD layperson [ORCID:...]", absent for an ordinary
+    # clinical synonym like "EXACT []".
+    type_tag = ""
+    for token in remainder[1:]:
+        if token.startswith("["):
+            break
+        type_tag = token
+        break
+    return (surface, scope, type_tag) if surface else None
 
 
 @dataclass
@@ -173,6 +212,7 @@ class TermIndex:
         *,
         scopes: Iterable[str] = SAFE_SCOPES,
         include_obsolete: bool = False,
+        include_layperson: bool = False,
     ) -> "TermIndex":
         index = cls()
         for term in terms:
@@ -181,7 +221,7 @@ class TermIndex:
             index.by_id[term.term_id] = term
             for alt in term.alt_ids:
                 index.by_id.setdefault(alt, term)
-            for surface, kind in term.surface_forms(scopes):
+            for surface, kind in term.surface_forms(scopes, include_layperson=include_layperson):
                 key = normalise_surface(surface)
                 if not key:
                     continue
