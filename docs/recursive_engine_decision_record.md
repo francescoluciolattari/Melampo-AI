@@ -2081,3 +2081,67 @@ candidates both declining every restraint case are not equally established
 if one faced two cases and the other twenty. The workflow's summary table
 and merge-ranking were updated together, so the CI view and
 `rank_vetting_results` stay one implementation rather than drifting apart.
+
+### The bench was scoring against a 33-edge fixture, and the normalisation cascade that followed
+
+An audit prompted by a direct question -- why does the graph not know
+sarcoidosis can cause villous atrophy -- found something larger than the
+missing edge. Two graphs exist in this codebase and had been conflated: the
+285,598-edge HPO import, and a 33-edge hand-written fixture with
+`provenance=None` on every edge, written to make the vetting bench runnable.
+**The bench used the fixture.** Three live runs had been measuring how
+closely a candidate's phrasing matched thirty-three hand-written lines, then
+reporting it as grounding against the concept graph.
+
+Worth separating from the scale problem: the sarcoidosis-villous-atrophy link
+is real medicine -- a review of 305 gastrointestinal sarcoidosis cases finds
+the duodenum among the most affected sites, and documented cases pair
+sarcoidosis with duodenal villous atrophy and malabsorption. Claude's
+"restraint failure" on that case was clinically correct and the fixture was
+wrong. That reframes the 100%-restraint goal entirely: measured against a
+graph, restraint asks a model to be as ignorant as the graph is, and a model
+that knows more medicine will always "fail" it.
+
+`memory/graph_sources.py` closes the conflation. Every load returns a
+`GraphSource` naming its source and size, and `require_real_data=True`
+raises rather than falling back -- the setting a selection-deciding bench run
+should use. Falling back is allowed; falling back silently is what made the
+original error undetectable. A structural limit is recorded there too and
+remains open: HPO imports a single relation type, `has_phenotype`, and
+encodes no mechanistic causal chains, which is exactly what a vetting
+question asks about. Connecting to the real graph fixes scale, not kind.
+
+**The cascade, built in the order proposed: tiers by determinism, not just
+cost.** Tier 1 is the existing lexical rule, reused rather than
+reimplemented. Tier 2 is SapBERT-style embedding similarity -- a bi-encoder
+self-aligned on UMLS synonym pairs, deterministic at runtime though learned.
+Tier 3 extracts structure from both the claim and a concept's cached
+literature description and compares those structures arithmetically. The
+ordering means the least reproducible tier only ever sees what the
+reproducible ones could not resolve, and `NormalisationResult.is_deterministic`
+plus `usage_report()` make visible how much of any result rested on a
+generated step.
+
+Two guards on tier 2, not one. A test with a deliberately degenerate embedder
+-- same vector for every input -- exposed that a threshold alone judges the
+winner in isolation: every concept scored 1.0, passed any threshold, and the
+first one encountered won by accident. The runner-up margin judges whether
+there was a winner at all.
+
+Tier 3's design was proposed in discussion and is better than the obvious
+alternative it replaces. Asking a model "do these two phrases mean the same
+thing?" is adjudication that cannot be checked, on precisely the question
+the graph exists to answer deterministically. Having a model *extract*
+entities and relations, and deciding overlap arithmetically, keeps the
+judgement deterministic while letting a model do what it is good at. The
+concept side is cached because it is re-derivable and reused across every
+case; relations are weighted above entities in the overlap score because two
+texts about the same clinical area share entities easily, and only a shared
+relation suggests the same mechanism rather than the same subject.
+
+Wired into `verify_mechanism` via an optional `cascade`, tried only after
+lexical matching fails and only against the candidates the graph already
+surfaced -- letting looser tiers roam the whole concept set would admit a
+distant concept that happens to embed closely. `normalisation_tier` on the
+result records which tier grounded it, so an exact match and an
+embedding-neighbourhood match are never reported as the same thing.
