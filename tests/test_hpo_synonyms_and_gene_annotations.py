@@ -245,3 +245,102 @@ def test_the_env_var_is_honoured_for_obo_too(monkeypatch, tmp_path):
     monkeypatch.setenv("MELAMPO_HP_OBO_PATH", str(path))
 
     assert find_hp_obo_file() == path
+
+
+# --------------------------------------------------------------------------
+# Wiring gene edges into the real graph: two defects the fixture could not
+# have surfaced, both found by loading the actual HPO release
+# --------------------------------------------------------------------------
+
+
+def test_gene_disease_edges_survive_a_file_with_no_disease_name_column():
+    """The real genes_to_disease.txt carries ncbi_gene_id, gene_symbol,
+    association_type, disease_id, source -- and no name at all. An earlier
+    version of this function required a disease_name field and silently
+    dropped every row."""
+    from melampo.memory.gene_annotations import GeneDiseaseAssociation
+
+    edges = list(gene_disease_edges([GeneDiseaseAssociation("FBN1", "OMIM:154700", "")]))
+
+    assert len(edges) == 1, "a row with no name must still produce an edge"
+    assert edges[0].target == "OMIM:154700", "falling back to the id keeps it traversable and visibly an id"
+
+
+def test_a_supplied_name_map_turns_disease_ids_into_clinical_text():
+    """Every comparison downstream works on text; OMIM:154700 matches
+    nothing a clinician writes. phenotype.hpoa indexes the same ids and does
+    carry the names."""
+    from melampo.memory.gene_annotations import GeneDiseaseAssociation
+
+    edges = list(
+        gene_disease_edges(
+            [GeneDiseaseAssociation("FBN1", "OMIM:154700", "")],
+            name_for_disease_id={"OMIM:154700": "Marfan syndrome"},
+        )
+    )
+
+    assert edges[0].target == "Marfan syndrome"
+
+
+def test_the_real_genes_to_disease_header_parses():
+    """Confirmed against the actual file shipped in data/."""
+    lines = [
+        "ncbi_gene_id\tgene_symbol\tassociation_type\tdisease_id\tsource",
+        "NCBIGene:64170\tCARD9\tMENDELIAN\tOMIM:212050\tftp://example",
+    ]
+    associations = list(parse_genes_to_disease(lines))
+
+    assert associations[0].gene_symbol == "CARD9"
+    assert associations[0].disease_id == "OMIM:212050"
+
+
+def test_a_gene_is_never_proposed_as_a_diagnosis():
+    """Gene edges point gene -> phenotype, so traversing one backwards from a
+    finding lands on a gene -- which passes the reached-by-reverse test but
+    is not something to rank in a differential. Verified against the real
+    graph, where retrieval for an aortic finding returned AEBP1 and ALG9
+    alongside the actual syndromes."""
+    from melampo.memory.candidate_retrieval import retrieve_candidates
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+    from melampo.memory.gene_annotations import (
+        RELATION_ASSOCIATED_GENE,
+        RELATION_CAUSES_DISEASE,
+    )
+
+    graph = InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("FBN1", RELATION_ASSOCIATED_GENE, "aortic root aneurysm", 1.0),
+            ConceptEdge("FBN1", RELATION_CAUSES_DISEASE, "marfan syndrome", 1.0),
+            ConceptEdge("marfan syndrome", "has_phenotype", "aortic root aneurysm", 0.8),
+        ]
+    )
+
+    report = retrieve_candidates(["aortic root aneurysm"], graph)
+
+    assert "FBN1" not in report.condition_names
+    assert "marfan syndrome" in report.condition_names
+
+
+def test_the_traversal_still_passes_through_a_gene_to_reach_what_it_causes():
+    """Excluding genes as candidates must not cut the path: a gene reached
+    from a finding leads on to the diseases it causes, which are candidates.
+    That is the whole point of adding the gene layer."""
+    from melampo.memory.candidate_retrieval import retrieve_candidates
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+    from melampo.memory.gene_annotations import (
+        RELATION_ASSOCIATED_GENE,
+        RELATION_CAUSES_DISEASE,
+    )
+
+    # The only route from finding to disease runs through the gene.
+    graph = InMemoryConceptGraph.from_edges(
+        [
+            ConceptEdge("FBN1", RELATION_ASSOCIATED_GENE, "ectopia lentis", 1.0),
+            ConceptEdge("FBN1", RELATION_CAUSES_DISEASE, "marfan syndrome", 1.0),
+        ]
+    )
+
+    report = retrieve_candidates(["ectopia lentis"], graph)
+
+    assert "marfan syndrome" in report.condition_names, "the gene must be a waypoint, not a dead end"
+    assert "FBN1" not in report.condition_names

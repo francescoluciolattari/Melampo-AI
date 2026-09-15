@@ -134,9 +134,53 @@ class ConceptGraphView(Protocol):
 
 @dataclass
 class InMemoryConceptGraph:
-    """Offline graph view. Traversal is undirected: a relation is navigable both ways."""
+    """Offline graph view. Traversal is undirected: a relation is navigable both ways.
+
+    Indexed by normalised concept on construction. The original
+    implementation scanned the whole edge list twice per `edges_from` call,
+    re-normalising both endpoints of every edge each time -- fine on the
+    33-edge hand-written fixture the bench used, and quadratic on the real
+    HPO import: 286,651 edges means over half a million normalisations per
+    neighbour lookup, and a single traversal makes thousands of lookups.
+    Loading the real graph did not finish inside five minutes because of it.
+
+    The index is built once and the edge list is kept alongside it, so
+    `edges` stays available to anything that iterates the graph wholesale
+    (the persistence layer counts edges that way) while lookups become
+    dictionary hits.
+    """
 
     edges: list[ConceptEdge] = field(default_factory=list)
+    _outgoing: dict[str, list[ConceptEdge]] = field(default_factory=dict, repr=False, compare=False)
+    _incoming: dict[str, list[ConceptEdge]] = field(default_factory=dict, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        self._rebuild_index()
+
+    def _rebuild_index(self) -> None:
+        """Group edges by normalised source and target, once.
+
+        Inverse edges are built here rather than on every lookup: they were
+        previously constructed fresh inside each `edges_from` call, which
+        allocated a new ConceptEdge per matching edge per call. Building them
+        once costs memory proportional to the edge count and saves that
+        allocation on every traversal step.
+        """
+        self._outgoing = {}
+        self._incoming = {}
+        for edge in self.edges:
+            self._outgoing.setdefault(normalise_concept(edge.source), []).append(edge)
+            self._incoming.setdefault(normalise_concept(edge.target), []).append(
+                ConceptEdge(
+                    source=edge.target,
+                    relation=f"inverse_{edge.relation}",
+                    target=edge.source,
+                    weight=edge.weight,
+                    provenance=edge.provenance,
+                    lower=edge.lower,
+                    upper=edge.upper,
+                )
+            )
 
     @classmethod
     def from_edges(cls, edges: Iterable[ConceptEdge]) -> "InMemoryConceptGraph":
@@ -144,19 +188,7 @@ class InMemoryConceptGraph:
 
     def edges_from(self, concept: str) -> Sequence[ConceptEdge]:
         key = normalise_concept(concept)
-        outgoing = [edge for edge in self.edges if normalise_concept(edge.source) == key]
-        incoming = [
-            ConceptEdge(
-                source=edge.target,
-                relation=f"inverse_{edge.relation}",
-                target=edge.source,
-                weight=edge.weight,
-                provenance=edge.provenance,
-            )
-            for edge in self.edges
-            if normalise_concept(edge.target) == key
-        ]
-        return outgoing + incoming
+        return [*self._outgoing.get(key, []), *self._incoming.get(key, [])]
 
     def concepts(self) -> set[str]:
         found: set[str] = set()

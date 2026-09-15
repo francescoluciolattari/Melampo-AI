@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .concept_paths import ConceptGraphView, normalise_concept, resolve_concept
+from .gene_annotations import RELATION_ASSOCIATED_GENE, RELATION_CAUSES_DISEASE
 
 # A condition reachable from a finding in more hops than this is not being
 # "connected to the case" in a useful sense -- at three or four hops nearly
@@ -149,7 +150,25 @@ def retrieve_candidates(
                     continue
                 seen.add(target)
                 reached_by_reverse = edge.relation.startswith("inverse_")
-                if target not in excluded and reached_by_reverse:
+                # A gene is not a diagnosis. Gene edges point gene -> phenotype
+                # and gene -> disease, so traversing one backwards from a
+                # finding lands on a *gene*, which passes the
+                # reached-by-reverse test but is not something to rank in a
+                # differential. Verified against the real graph: without this,
+                # retrieval for "Aortic root aneurysm" returned AEBP1, ALG9
+                # and B3GALT6 alongside the actual syndromes.
+                is_gene_node = edge.relation == f"inverse_{RELATION_ASSOCIATED_GENE}"
+                # A disease reached *forward* from a gene is a candidate even
+                # though it was not reached by a reverse edge. The general
+                # reverse-only rule encodes "diseases sit on the source side
+                # of their edges", which holds for has_phenotype and breaks
+                # for causes_disease, where the disease is the target. A first
+                # version of this fix omitted this and turned every gene into
+                # a dead end -- the gene layer's whole value is that a finding
+                # reaches a gene, and the gene reaches what it causes.
+                is_disease_from_gene = edge.relation == RELATION_CAUSES_DISEASE
+                admissible = (reached_by_reverse and not is_gene_node) or is_disease_from_gene
+                if target not in excluded and admissible:
                     linked, best_hops = reached.get(target, (set(), hops + 1))
                     linked.add(finding)
                     reached[target] = (linked, min(best_hops, hops + 1))

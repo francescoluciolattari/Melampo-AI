@@ -2213,3 +2213,56 @@ use.
 Edge weight is uniform (1.0) rather than invented: neither file carries a
 per-association strength the way `phenotype.hpoa`'s frequency column does,
 and assigning one would fabricate precision the source data does not have.
+
+### The real HPO data arrived, and it exposed four defects the fixture had hidden
+
+With `phenotype.hpoa`, `hp.obo`, and the gene annotation files placed in
+`data/`, the graph could finally be loaded for real. It did not load. Each
+problem below was invisible on the 33-edge hand-written fixture and obvious
+within minutes of running against 573,302 real edges.
+
+**1. A quadratic lookup.** `InMemoryConceptGraph.edges_from` scanned the
+whole edge list *twice* per call, re-normalising both endpoints of every
+edge and allocating a fresh inverse ConceptEdge for each match. Loading the
+real graph did not finish inside five minutes. Indexed by normalised concept
+on construction, with inverse edges pre-built once: **over 300s to 2.8s**. A
+regression test asserts 200 lookups on a 20,000-edge graph complete in under
+half a second, so the fixture can never hide this again. A second defect
+surfaced while writing that index -- the pre-built inverse dropped
+`lower`/`upper`, silently turning an interval-valued edge into a point
+estimate the moment it was traversed backwards -- caught by its own test.
+
+**2. Phenotypes were bare HPO ids.** `phenotype.hpoa` identifies phenotypes
+only as `HP:0001166`, and `annotation_to_edge` already had a `label_for`
+parameter for exactly this, which nothing passed. Worse than unreadable: every
+comparison downstream works on clinical text, and `HP:0001166` is not text
+anyone writes, so an id-shaped graph would have matched nothing while
+appearing to work. `hp.obo` supplies the map, and `GraphSource.detail` now
+records which case applied.
+
+**3. `genes_to_disease.txt` has no disease name column at all.** The real
+header is `ncbi_gene_id`, `gene_symbol`, `association_type`, `disease_id`,
+`source`. The parser required a `disease_name` field and silently dropped
+every row -- `FBN1 -> causes_disease` returned nothing. Names are recovered
+from `phenotype.hpoa`, which indexes the same identifiers and does carry
+them; a row with no name available still yields an edge targeting the bare
+id, which is at least traversable and visibly an id rather than silently
+absent.
+
+**4. Genes were being proposed as diagnoses.** Gene edges point
+gene -> phenotype, so traversing one backwards from a finding lands on a
+gene, which passes `candidate_retrieval`'s reached-by-reverse test. Retrieval
+for an aortic finding returned AEBP1, ALG9 and B3GALT6 alongside the actual
+syndromes. Excluding them exposed a second, subtler error in the first fix:
+it turned every gene into a dead end, because a disease reached *forward*
+from a gene via `causes_disease` is not reached by a reverse edge. The
+reverse-only rule encodes "diseases sit on the source side of their edges",
+which holds for `has_phenotype` and breaks for `causes_disease`. Both are now
+admissible, and two tests pin the distinction: a gene is never a candidate,
+and a gene is always a waypoint.
+
+The graph now loads in **6.1 seconds: 1,273,466 edges across 29,053
+concepts**, including 333,983 gene-annotation edges. `FBN1 -> causes_disease`
+returns Marfan syndrome, MASS syndrome and familial ectopia lentis by name,
+and retrieval from two connective-tissue findings returns connective-tissue
+syndromes rather than gene symbols.

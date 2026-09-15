@@ -47,6 +47,8 @@ GENE_PHENOTYPE_FIELD_ALIASES = {
 GENE_DISEASE_FIELD_ALIASES = {
     "gene_symbol": ("gene_symbol", "entrez_gene_symbol"),
     "disease_id": ("disease_id", "database_id"),
+    # Optional: the real file does not have it, and the name is recovered
+    # from phenotype.hpoa instead (see gene_disease_edges).
     "disease_name": ("disease_name",),
 }
 
@@ -198,15 +200,33 @@ def gene_phenotype_edges(associations: Iterable[GenePhenotypeAssociation]) -> It
         )
 
 
-def gene_disease_edges(associations: Iterable[GeneDiseaseAssociation]) -> Iterator[ConceptEdge]:
-    """Turn gene-disease associations into graph edges, on the same uniform-weight basis."""
+def gene_disease_edges(
+    associations: Iterable[GeneDiseaseAssociation], *, name_for_disease_id: dict[str, str] | None = None
+) -> Iterator[ConceptEdge]:
+    """Turn gene-disease associations into graph edges, on the same uniform-weight basis.
+
+    The real `genes_to_disease.txt` carries no disease *name* at all -- only
+    `ncbi_gene_id`, `gene_symbol`, `association_type`, `disease_id`,
+    `source`. An edge whose target is `OMIM:212050` is useless to every
+    comparison downstream, all of which work on clinical text, so
+    `name_for_disease_id` supplies the names from `phenotype.hpoa`, which
+    indexes the same identifiers and does carry them.
+
+    Without that map an association still yields an edge, targeting the bare
+    id -- an id-shaped target is at least traversable and visibly an id,
+    where skipping the row entirely would silently drop every gene-disease
+    link (which is exactly what an earlier version of this function did,
+    since it required a `disease_name` field the file does not have).
+    """
+    name_for_disease_id = name_for_disease_id or {}
     for association in associations:
-        if not association.disease_name:
+        target = association.disease_name or name_for_disease_id.get(association.disease_id) or association.disease_id
+        if not target:
             continue
         yield ConceptEdge(
             source=association.gene_symbol,
             relation=RELATION_CAUSES_DISEASE,
-            target=association.disease_name,
+            target=target,
             weight=1.0,
             provenance=f"hpo_gene_annotation:{association.disease_id}",
         )
