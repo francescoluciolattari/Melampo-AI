@@ -87,6 +87,12 @@ class MechanismVerification:
     # the fully deterministic pass or a walk whose specific path depended on
     # which model was calling it.
     via_guided_expansion: bool = False
+    # Which normalisation tier resolved the mechanism, when lexical matching
+    # alone could not. None means lexical matching sufficed (or nothing
+    # resolved it at all) -- kept distinct so a reader can tell a grounding
+    # that rested on an exact match from one that rested on an embedding
+    # neighbourhood or a model-extracted structure.
+    normalisation_tier: str | None = None
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -113,6 +119,7 @@ class MechanismVerification:
             "grounding": self.grounding,
             "is_grounded": self.is_grounded,
             "via_guided_expansion": self.via_guided_expansion,
+            "normalisation_tier": self.normalisation_tier,
             "graph_supports_any_connection": self.graph_supports_any_connection,
             "matched_concept": self.matched_concept,
             "matched_activation": round(self.matched_activation, 4),
@@ -155,6 +162,7 @@ def verify_mechanism(
     table: InformationContentTable | None = None,
     support_threshold: float = MECHANISM_SUPPORT_THRESHOLD,
     fallback_model: Callable[[str], str] | None = None,
+    cascade: Any = None,
     **spread_kwargs: Any,
 ) -> MechanismVerification:
     """Check a claimed mechanism against what the graph independently supports.
@@ -224,6 +232,31 @@ def verify_mechanism(
             verification.grounding = GROUNDING_SUPPORTED
             verification.matched_concept = candidate.concept
             verification.matched_activation = candidate.weighted_activation
+            return verification
+
+    # Lexical matching found nothing. If a normalisation cascade is
+    # configured, try the tiers it adds -- embedding similarity, then
+    # structural comparison -- against the same supported candidates, never
+    # against the whole graph. Restricting the pool matters: these tiers are
+    # looser than lexical matching by construction, and letting them roam the
+    # full concept set would let a distant concept that happens to embed
+    # closely pass as a mechanism the graph never connected to this case.
+    if cascade is not None and supported:
+        normalisation = cascade.resolve(
+            verification.claimed_mechanism, [item.concept for item in supported]
+        )
+        if normalisation.resolved:
+            verification.grounding = GROUNDING_SUPPORTED
+            verification.matched_concept = normalisation.concept
+            verification.matched_activation = next(
+                (item.weighted_activation for item in supported if item.concept == normalisation.concept),
+                0.0,
+            )
+            verification.normalisation_tier = normalisation.tier
+            verification.notes.append(
+                f"lexical matching found nothing; resolved via the {normalisation.tier} tier "
+                f"({normalisation.detail})"
+            )
             return verification
 
     if supported:
