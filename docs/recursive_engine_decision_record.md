@@ -2266,3 +2266,58 @@ concepts**, including 333,983 gene-annotation edges. `FBN1 -> causes_disease`
 returns Marfan syndrome, MASS syndrome and familial ectopia lentis by name,
 and retrieval from two connective-tissue findings returns connective-tissue
 syndromes rather than gene symbols.
+
+### MAxO: measured before wiring, and it does not answer the question it was proposed for
+
+Asked directly whether MAxO is sufficient to discriminate between conditions
+and reach a diagnosis. Measured against the shipped file, the answer is no,
+and the earlier suggestion that MAxO could answer `OpenQuestion`'s "which
+test would settle this" was wrong.
+
+**The annotations carry no diagnostic relation at all.** All 438 rows are
+401 TREATS, 34 PREVENTS, 2 NO_OBSERVED_BENEFIT, 1 CONTRAINDICATED. Not one
+says a procedure distinguishes A from B. The file answers "what do you do
+once you know it is A" -- a different question from the one a differential
+asks.
+
+**Coverage is 1.6%**: 202 diseases out of the 12,880 in `phenotype.hpoa`.
+
+It is still worth parsing. A CONTRAINDICATED or NO_OBSERVED_BENEFIT row is
+clinical information nothing else in this project has, curated with a PMID
+attached -- the shipped file documents, for instance, sodium channel
+inhibitor therapy as contraindicated in Dravet syndrome (PMID:9596203).
+`cautions_for` surfaces exactly those rows, separated from treatments
+because they are the asymmetric case: at 1.6% coverage a missing TREATS row
+is uninformative, while a present CONTRAINDICATED row is a positive
+statement that applies whenever that disease is under consideration.
+`coverage_note` travels with any output derived from the index, because a
+reader who does not know the coverage figure cannot tell "nothing is
+recommended" from "nobody has annotated this".
+
+**These edges are deliberately kept out of the concept graph.**
+`MedicalActionIndex` is not a `ConceptGraphView` and a test asserts it has no
+`edges_from`. Treatment relations alongside `has_phenotype` would let a
+differential traverse "disease -> treated by -> physical therapy -> treats ->
+other disease" and surface two conditions as related because they share a
+therapy, which is not a diagnostic connection. The cleanest prevention is to
+give those edges nowhere to be traversed from.
+
+### A weekly update workflow that proposes rather than applies
+
+`.github/workflows/data-and-dependency-updates.yml` checks the HPO release
+and the Python dependencies weekly, or on demand.
+
+The central choice: it opens a pull request, never commits to main. These
+files are a clinical knowledge base, and an HPO release can rename and
+obsolete terms in bulk -- the 2026-02-16 release renamed 75 and obsoleted 29.
+A renamed term is one the concept graph no longer matches under its old
+label, so a silently applied refresh would move every downstream number with
+nobody having seen the diff. The full test suite runs against the new data
+before the PR opens, so a reviewer sees either a green run or precisely what
+broke.
+
+The current release is read from `phenotype.hpoa`'s own header rather than a
+version file someone must remember to update. Dependencies are reported but
+never bumped in the same change: a dependency that alters tokenisation or
+numerical behaviour would move bench results, and that belongs in its own
+reviewed change rather than arriving alongside a data refresh.

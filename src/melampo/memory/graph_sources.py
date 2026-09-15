@@ -60,6 +60,11 @@ DEFAULT_GENES_TO_PHENOTYPE_FILENAMES = ("genes_to_phenotype.txt", "phenotype_to_
 GENES_TO_DISEASE_ENV = "MELAMPO_GENES_TO_DISEASE_PATH"
 DEFAULT_GENES_TO_DISEASE_FILENAMES = ("genes_to_disease.txt",)
 
+# MAxO medical action annotations. Loaded into their own index, never into
+# the concept graph -- see medical_actions.MedicalActionIndex for why.
+MAXO_PATH_ENV = "MELAMPO_MAXO_PATH"
+DEFAULT_MAXO_FILENAMES = ("maxo-annotations.tsv",)
+
 
 @dataclass(frozen=True)
 class GraphSource:
@@ -229,6 +234,29 @@ def _find_file(explicit: str | Path | None, env_var: str, filenames: tuple[str, 
         if candidate.is_file():
             return candidate
     return None
+
+
+def load_medical_actions(explicit_path: str | Path | None = None) -> Any:
+    """Load the MAxO medical action index, or None if the file is absent.
+
+    Returns None rather than an empty index, the same distinction
+    `load_synonym_index` draws: "no MAxO file" and "a file that parsed into
+    nothing" are different situations and only the second is a fault.
+
+    Deliberately not folded into `load_hpoa_graph`: these annotations must
+    not enter the concept graph, and returning them from the graph loader
+    would invite exactly that.
+    """
+    from .medical_actions import (
+        MedicalActionIndex,
+        parse_maxo_annotations,
+    )
+
+    path = _find_file(explicit_path, MAXO_PATH_ENV, DEFAULT_MAXO_FILENAMES)
+    if path is None:
+        return None
+    lines = path.read_text(encoding="utf-8-sig", errors="ignore").splitlines()
+    return MedicalActionIndex.from_annotations(parse_maxo_annotations(lines))
 
 
 def find_hp_obo_file(explicit_path: str | Path | None = None) -> Path | None:

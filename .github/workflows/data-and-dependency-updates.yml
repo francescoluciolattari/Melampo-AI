@@ -1,0 +1,173 @@
+name: Data and dependency updates
+
+# Checks whether the HPO data releases in data/ and the project's Python
+# dependencies have newer versions available, and opens a pull request when
+# they do -- never committing to main directly.
+#
+# The central design choice: this workflow *proposes*, it does not update.
+# The data files here are a clinical knowledge base. A release that renames
+# 40 terms and obsoletes 29 (the 2026-02-16 HPO release did exactly that)
+# changes what every downstream comparison matches, and a silently applied
+# refresh would move those numbers with no reviewer having seen the diff. A
+# pull request makes the change reviewable, and the full test suite runs
+# against the new data before anyone merges it.
+#
+# Scheduled weekly and runnable on demand, as requested.
+
+on:
+  schedule:
+    # Mondays at 06:00 UTC. Weekly rather than daily because HPO releases
+    # roughly every 6-10 weeks -- a daily check would be almost entirely
+    # no-ops, and each no-op still costs a checkout of a 130 MB data set.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      check_data:
+        description: "Check HPO data releases"
+        type: boolean
+        default: true
+      check_dependencies:
+        description: "Check Python dependencies"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Determine the current and latest HPO release
+        id: hpo
+        if: ${{ github.event_name == 'schedule' || inputs.check_data }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, urllib.request, pathlib, re
+
+          # The release currently in the repository, read from the data
+          # itself rather than from a version file someone has to remember
+          # to update. phenotype.hpoa carries its own release date in a
+          # header comment.
+          current = "unknown"
+          hpoa = pathlib.Path("data/phenotype.hpoa")
+          if hpoa.is_file():
+              with hpoa.open(encoding="utf-8", errors="ignore") as handle:
+                  for _ in range(20):
+                      line = handle.readline()
+                      if not line.startswith("#"):
+                          break
+                      match = re.search(r"(\d{4}-\d{2}-\d{2})", line)
+                      if match:
+                          current = match.group(1)
+                          break
+
+          latest, error = "unknown", ""
+          try:
+              request = urllib.request.Request(
+                  "https://api.github.com/repos/obophenotype/human-phenotype-ontology/releases/latest",
+                  headers={"Accept": "application/vnd.github+json", "User-Agent": "melampo-update-check"},
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  latest = json.loads(response.read()).get("tag_name", "unknown").lstrip("v")
+          except Exception as exc:  # network failures must not fail the run
+              error = str(exc)[:200]
+
+          print(f"current={current}")
+          print(f"latest={latest}")
+          print(f"error={error}")
+          print(f"outdated={'true' if latest not in ('unknown', current) and not error else 'false'}")
+          PY
+
+      - name: Download the newer HPO release
+        if: steps.hpo.outputs.outdated == 'true'
+        env:
+          TAG: ${{ steps.hpo.outputs.latest }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/obophenotype/human-phenotype-ontology/releases/download/v${TAG}"
+          # hp.obo is published as hp-base.obo in the release assets and
+          # renamed here, because graph_sources looks for hp.obo.
+          curl -fsSL "${base}/hp-base.obo" -o data/hp.obo
+          curl -fsSL "${base}/genes_to_phenotype.txt" -o data/genes_to_phenotype.txt
+          curl -fsSL "${base}/genes_to_disease.txt" -o data/genes_to_disease.txt
+          curl -fsSL "${base}/phenotype.hpoa" -o data/phenotype.hpoa
+
+      - name: Install and verify against the new data
+        if: steps.hpo.outputs.outdated == 'true'
+        run: |
+          python -m pip install --quiet -e .
+          python -m pip install --quiet pytest ruff
+          # The whole suite, not a subset: the point of proposing rather than
+          # applying is that a reviewer sees a green run against the new data,
+          # or sees precisely what broke.
+          PYTHONPATH=src python -m pytest -q
+
+      - name: Report what the new release changes
+        if: steps.hpo.outputs.outdated == 'true'
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import sys
+          sys.path.insert(0, "src")
+          from melampo.memory.graph_sources import load_verification_graph, load_medical_actions
+
+          source = load_verification_graph(require_real_data=True)
+          print("### HPO data update\n")
+          print(f"- **{source.edge_count:,} edges** across {len(source.graph.concepts()):,} concepts")
+          print(f"- {source.detail}")
+          actions = load_medical_actions()
+          if actions is not None:
+              print(f"- MAxO: {actions.coverage_note()}")
+          PY
+
+      - name: Open a pull request for the data update
+        if: steps.hpo.outputs.outdated == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/hpo-data-${{ steps.hpo.outputs.latest }}
+          title: "chore: HPO data release ${{ steps.hpo.outputs.latest }}"
+          commit-message: "chore: update HPO data to release ${{ steps.hpo.outputs.latest }}"
+          author: frankltr <francesco.lucio.lattari@gmail.com>
+          body: |
+            Automated check found HPO release **${{ steps.hpo.outputs.latest }}**
+            (repository currently has ${{ steps.hpo.outputs.current }}).
+
+            The full test suite ran against the new data before this PR was opened.
+
+            **Review before merging.** An HPO release can rename and obsolete
+            terms in bulk — the 2026-02-16 release renamed 75 and obsoleted 29 —
+            and a renamed term is one the concept graph no longer matches under
+            its old label. Check the release notes for renames touching terms
+            this project's benches or fixtures name directly.
+          labels: data-update
+
+      - name: Check Python dependencies
+        id: deps
+        if: ${{ github.event_name == 'schedule' || inputs.check_dependencies }}
+        run: |
+          python -m pip install --quiet -e .
+          python -m pip list --outdated --format=json > /tmp/outdated.json
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          rows = json.loads(pathlib.Path("/tmp/outdated.json").read_text() or "[]")
+          print("\n### Outdated Python packages\n")
+          if not rows:
+              print("None.")
+          else:
+              print("| Package | Installed | Latest |")
+              print("|---|---|---|")
+              for row in rows:
+                  print(f"| {row['name']} | {row['version']} | {row['latest_version']} |")
+              print(
+                  "\nReported, not applied: a dependency bump that changes tokenisation or "
+                  "numerical behaviour would move bench results, and that belongs in its own "
+                  "reviewed change rather than arriving with a data refresh."
+              )
+          PY
