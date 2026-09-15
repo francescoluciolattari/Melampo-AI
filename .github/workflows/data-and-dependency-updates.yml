@@ -16,10 +16,15 @@ name: Data and dependency updates
 
 on:
   schedule:
-    # Mondays at 06:00 UTC. Weekly rather than daily because HPO releases
-    # roughly every 6-10 weeks -- a daily check would be almost entirely
-    # no-ops, and each no-op still costs a checkout of a 130 MB data set.
+    # Mondays at 06:00 UTC: HPO data and dependencies. HPO releases roughly
+    # every 6-10 weeks -- a daily check would be almost entirely no-ops, and
+    # each no-op still costs a checkout of a 130 MB data set.
     - cron: "0 6 * * 1"
+    # Daily at 05:00 UTC: literature. PubMed and ClinicalTrials.gov content
+    # appears daily, at a genuinely different rate from HPO releases, so it
+    # gets its own schedule rather than sharing the weekly one -- one cron
+    # per source cadence, not one compromise cadence for both.
+    - cron: "0 5 * * *"
   workflow_dispatch:
     inputs:
       check_data:
@@ -30,6 +35,10 @@ on:
         description: "Check Python dependencies"
         type: boolean
         default: true
+      check_literature:
+        description: "Refresh literature for tracked concepts"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -38,6 +47,13 @@ permissions:
 jobs:
   check-updates:
     runs-on: ubuntu-latest
+    # Runs on the weekly cron or on manual dispatch -- but not on the daily
+    # literature cron, which shares this workflow file but must not trigger
+    # an HPO/dependency check every day. github.event.schedule carries which
+    # cron string triggered this run.
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 6 * * 1') ||
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -92,6 +108,10 @@ jobs:
           TAG: ${{ steps.hpo.outputs.latest }}
         run: |
           set -euo pipefail
+          # Keep the previous ontology file under a different name so the
+          # rename/obsoletion diff below can compare against it -- the main
+          # download overwrites data/hp.obo itself.
+          cp data/hp.obo /tmp/hp-previous.obo
           base="https://github.com/obophenotype/human-phenotype-ontology/releases/download/v${TAG}"
           # hp.obo is published as hp-base.obo in the release assets and
           # renamed here, because graph_sources looks for hp.obo.
@@ -99,6 +119,47 @@ jobs:
           curl -fsSL "${base}/genes_to_phenotype.txt" -o data/genes_to_phenotype.txt
           curl -fsSL "${base}/genes_to_disease.txt" -o data/genes_to_disease.txt
           curl -fsSL "${base}/phenotype.hpoa" -o data/phenotype.hpoa
+
+      - name: Record every rename and obsoletion, so no name is ever lost
+        if: steps.hpo.outputs.outdated == 'true'
+        env:
+          TAG: ${{ steps.hpo.outputs.latest }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import sys
+          sys.path.insert(0, "src")
+          from melampo.memory.concept_resolution import parse_obo
+          from melampo.memory.term_history import TermHistoryStore, diff_releases
+
+          previous = list(parse_obo(open("/tmp/hp-previous.obo", encoding="utf-8", errors="ignore")))
+          current = list(parse_obo(open("data/hp.obo", encoding="utf-8", errors="ignore")))
+
+          previous_terms = {t.term_id: t.name for t in previous if t.name}
+          current_terms = {t.term_id: t.name for t in current if t.name and not t.obsolete}
+          current_obsolete = {t.term_id: None for t in current if t.obsolete}
+
+          renames, obsoletions = diff_releases(
+              previous_terms, current_terms, current_obsolete=current_obsolete, release="${{ steps.hpo.outputs.latest }}"
+          )
+
+          store = TermHistoryStore(__import__("pathlib").Path("data"))
+          n_renames = store.append_renames(renames)
+          n_obsoletions = store.append_obsoletions(obsoletions)
+
+          print(f"### Term history\n")
+          print(
+              f"- **{n_renames} renamed terms** recorded as permanent synonyms in "
+              f"`data/term_renames.jsonl` -- the old name will still resolve"
+          )
+          print(f"- **{n_obsoletions} obsoleted terms** recorded in `data/term_obsoletions.jsonl`")
+          if renames:
+              print("\n<details><summary>Renamed terms</summary>\n")
+              for rename in renames[:50]:
+                  print(f"- `{rename.term_id}`: {rename.old_name!r} -> {rename.new_name!r}")
+              if len(renames) > 50:
+                  print(f"- ... and {len(renames) - 50} more")
+              print("</details>")
+          PY
 
       - name: Install and verify against the new data
         if: steps.hpo.outputs.outdated == 'true'
@@ -170,4 +231,59 @@ jobs:
                   "numerical behaviour would move bench results, and that belongs in its own "
                   "reviewed change rather than arriving with a data refresh."
               )
+          PY
+
+  refresh-literature:
+    # A separate job with its own schedule, not folded into check-updates
+    # above. HPO releases every 6-10 weeks, which is why that job runs
+    # weekly; PubMed and ClinicalTrials.gov content appears daily, and
+    # checking it on the same weekly cadence would leave newly published,
+    # directly relevant literature unindexed for up to a week. The two
+    # sources change at genuinely different rates and get genuinely
+    # different schedules rather than one compromise cadence for both.
+    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 5 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.check_literature)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet -e .
+
+      - name: Refresh literature for concepts already in the index
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import sys, json, pathlib
+          sys.path.insert(0, "src")
+          from melampo.connectors.europe_pmc import EuropePmcConnector
+          from melampo.connectors.clinical_trials import ClinicalTrialsConnector
+          from melampo.memory.literature_index import LiteratureIndex
+
+          # Refreshes concepts the index already knows about rather than
+          # crawling the whole HPO term set daily -- a literature index grows
+          # around the concepts this project has actually reasoned about
+          # (cases seen, hypotheses vetted), and a blind daily crawl of
+          # thousands of HPO terms would mostly fetch literature for concepts
+          # nothing has ever asked about.
+          index_path = pathlib.Path("data/literature_index_concepts.json")
+          if not index_path.is_file():
+              print("### Literature refresh\n\nNo tracked concept list yet (data/literature_index_concepts.json); nothing to refresh.")
+              sys.exit(0)
+
+          concepts = json.loads(index_path.read_text())
+          index = LiteratureIndex()
+          pmc_added = EuropePmcConnector().populate(index, " OR ".join(f'"{c}"' if " " in c else c for c in concepts))
+          trials_added = ClinicalTrialsConnector().populate(index, " OR ".join(concepts))
+
+          print("### Literature refresh\n")
+          print(f"- {len(concepts)} tracked concepts")
+          print(f"- {pmc_added} new Europe PMC passages")
+          print(f"- {trials_added} new ClinicalTrials.gov passages")
+          print(
+              "\nNot committed automatically: the literature index this produces is runtime "
+              "state, not a versioned data file, and is left for the deployment's own storage "
+              "to pick up rather than opening a PR for every day's new abstracts."
+          )
           PY

@@ -36,8 +36,10 @@ correct degradation: tier 3 unavailable is a narrower system, not a broken
 one.
 """
 
+import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from .concept_paths import normalise_concept
@@ -163,6 +165,12 @@ class ConceptDescriptionStore:
     structure -- so it can be regenerated wholesale when the literature
     updates, the same posture `graph_store` takes toward the derivable
     imported layer.
+
+    Persisted the same way: JSONL, append-only. A description that took a
+    model call to extract is exactly as expensive to lose as a promoted
+    graph edge, and gets the same discipline -- appending a new description
+    never rewrites the file, so a truncated write costs one line rather than
+    the whole store.
     """
 
     structures: dict[str, ExtractedStructure] = field(default_factory=dict)
@@ -175,6 +183,57 @@ class ConceptDescriptionStore:
 
     def __len__(self) -> int:
         return len(self.structures)
+
+    def to_record(self, concept: str) -> dict[str, Any] | None:
+        structure = self.get(concept)
+        if structure is None:
+            return None
+        return {
+            "concept": normalise_concept(concept),
+            "source_text": structure.source_text,
+            "entities": list(structure.entities),
+            "relations": [relation.as_dict() for relation in structure.relations],
+        }
+
+    def append_to(self, path: Path, concept: str) -> bool:
+        """Write one concept's description to a JSONL file, without rewriting it.
+
+        Returns False and writes nothing if the concept has no stored
+        description -- there is nothing to persist, and silently writing an
+        empty record would let a later load mistake "never extracted" for
+        "extracted as nothing".
+        """
+        record = self.to_record(concept)
+        if record is None:
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        return True
+
+    @classmethod
+    def load(cls, path: Path) -> "ConceptDescriptionStore":
+        """Read every persisted description. A missing file yields an empty store.
+
+        The normal state of a fresh checkout, before tier 3 has ever run --
+        not an error, the same posture `LearnedEdgeStore.load` takes.
+        """
+        store = cls()
+        if not path.exists():
+            return store
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            record = json.loads(stripped)
+            store.structures[record["concept"]] = ExtractedStructure(
+                source_text=record.get("source_text", ""),
+                entities=tuple(record.get("entities", ())),
+                relations=tuple(
+                    ExtractedRelation(**relation) for relation in record.get("relations", ())
+                ),
+            )
+        return store
 
     @property
     def described_concepts(self) -> set[str]:
