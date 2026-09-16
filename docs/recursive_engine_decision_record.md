@@ -2472,3 +2472,71 @@ no target to shape toward -- a test asserts a flattering, unrelated structure
 resolves to nothing. What the design buys is fidelity: the model that formed
 the claim reports its structure better than a second model parsing the
 sentence afterwards, and one model call is saved per resolution.
+
+### LiteratureIndex finally persists, using infrastructure this project already built and never connected
+
+An audit confirmed what was suspected: `LiteratureIndex` had no persistence
+at all, and this should not have needed building from scratch.
+`vector_memory.py` is a complete, provider-neutral vector store --
+`PersistentJsonlVectorStore` with durable JSONL persistence, Weaviate named
+as the recommended production backend, a documented object-property schema
+-- never instantiated anywhere in production. The same pattern this project
+has now found and fixed eight times over: built, tested, never connected.
+
+**What this integration deliberately does not do: change how relevance is
+judged.** `PersistentJsonlVectorStore.search` ranks by embedding cosine
+similarity; `literature_index.py`'s own docstring already states why that
+was rejected for this purpose -- a RAG system asked about heart failure
+retrieves "acute coronary syndrome" because it sits close in latent space,
+not because it answers the question. Routing literature retrieval through
+vector search now would have undone that decision by accident, through a
+persistence change nobody meant as a relevance change. The vector store here
+is storage only: passages persist and survive a restart, and
+`LiteratureIndex.search` still does its own concept matching over whatever
+was loaded. The embedding each record carries exists only because the
+store's API requires one; nothing reads it back for ranking. Verified
+directly: a passage persisted by one store instance and loaded by a second,
+independent instance (the actual restart scenario) is found through
+`LiteratureIndex.search`'s ordinary concept matching, not vector similarity.
+
+One store for both sources: `EuropePmcConnector.populate` and
+`ClinicalTrialsConnector.populate` both gained an optional `store` parameter
+persisting to the same `PersistentJsonlVectorStore`, deduplicating by the
+passage's own id so a passage rediscovered by a later refresh updates in
+place rather than duplicating.
+
+### The tracked-concept queue, and the daily workflow wired to the real architecture
+
+Confirmed directly: "29,053" was the graph's total concept count, cited
+earlier only to illustrate why an unbounded crawl is the wrong shape --
+never a literal scope for literature refresh. The chosen strategy is
+Dream-Engine style: bounded, nightly, working through concepts this project
+has actually reasoned about, growing as real use grows it.
+
+`tracked_concepts.py` is a queue, not a bare list -- a bare set of names
+cannot answer "which ones are overdue", and PubMed's unauthenticated rate
+limit (3 requests/second) means a nightly run can only ever touch a bounded
+slice regardless of how many concepts are tracked. Every entry carries when
+it was added, why, and when it was last refreshed; `next_batch` prioritises
+never-refreshed concepts first, then the ones refreshed longest ago.
+`seed_from_vetting_bench` gives the queue ~40 concepts to start from with
+zero curation effort, since the vetting bench's cases already establish
+that they matter.
+
+The daily workflow job was rewritten to the real architecture rather than
+reading a file that never existed: seeds from the vetting bench on first
+run, pulls a rate-limit-bounded batch (20 concepts) from the queue, persists
+every result through `literature_persistence.py` into
+`data/literature_vectors.jsonl`, and commits the refreshed queue and store
+back to the repository.
+
+**That commit step reverses an earlier design note, stated directly rather
+than silently overwritten.** An earlier version of this workflow
+deliberately did not commit its output, reasoning that "the literature
+index is runtime state, not a versioned data file" -- true only because no
+real persistence existed then. A GitHub Actions runner is itself discarded
+after every run; not committing now would mean every night starts from an
+empty store again, defeating the point of today's work. Growth is modest at
+this batch size (tens of KB per night) and committing daily is reasonable
+for now, flagged directly as worth revisiting if the tracked-concept list or
+batch size grows enough to change that.
