@@ -2514,14 +2514,26 @@ Dream-Engine style: bounded, nightly, working through concepts this project
 has actually reasoned about, growing as real use grows it.
 
 `tracked_concepts.py` is a queue, not a bare list -- a bare set of names
-cannot answer "which ones are overdue", and PubMed's unauthenticated rate
-limit (3 requests/second) means a nightly run can only ever touch a bounded
-slice regardless of how many concepts are tracked. Every entry carries when
-it was added, why, and when it was last refreshed; `next_batch` prioritises
-never-refreshed concepts first, then the ones refreshed longest ago.
-`seed_from_vetting_bench` gives the queue ~40 concepts to start from with
-zero curation effort, since the vetting bench's cases already establish
-that they matter.
+cannot answer "which ones are overdue", and a bounded batch keeps each
+nightly run short regardless of how many concepts are tracked. Every entry
+carries when it was added, why, and when it was last refreshed;
+`next_batch` prioritises never-refreshed concepts first, then the ones
+refreshed longest ago. `seed_from_vetting_bench` gives the queue ~40
+concepts to start from with zero curation effort, since the vetting bench's
+cases already establish that they matter.
+
+*Correction, recorded rather than silently edited away:* this section
+originally justified the batch limit by citing "PubMed's unauthenticated
+rate limit (3 requests/second)". That figure is real but belongs to NCBI
+E-utilities, a service this project's literature connectors do not call --
+`pmc_case_reports.py` uses it for a different job entirely. Verified
+directly: Europe PMC's actual limit is 10 requests/second (500/minute,
+confirmed by EBI staff), and ClinicalTrials.gov publishes no single
+documented ceiling at all. Neither connector requires or accepts an API
+key; an earlier statement that the literature workflow was "inert until a
+key arrives" was also wrong and is corrected here rather than only in the
+code. The batch size (20) exists to keep each run short and its summary
+readable, not because either service would be strained by more.
 
 The daily workflow job was rewritten to the real architecture rather than
 reading a file that never existed: seeds from the vetting bench on first

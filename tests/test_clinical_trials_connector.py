@@ -129,3 +129,12 @@ def test_terminated_trials_are_excluded_by_default():
 def test_the_status_filter_is_sent_as_part_of_the_query_config():
     connector = ClinicalTrialsConnector()
     assert connector.config.statuses == DEFAULT_STATUSES
+
+
+def test_the_default_rate_stays_below_every_reported_figure():
+    """ClinicalTrials.gov publishes no single documented ceiling, unlike
+    Europe PMC's confirmed 10 req/s -- kept conservative given the genuine
+    uncertainty, not pinned to an unverified number."""
+    from melampo.connectors.clinical_trials import DEFAULT_REQUESTS_PER_SECOND
+
+    assert 1.0 <= DEFAULT_REQUESTS_PER_SECOND <= 5.0

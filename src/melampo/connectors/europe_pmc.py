@@ -32,11 +32,16 @@ from ..memory.literature_index import LiteratureIndex, LiteraturePassage
 
 EUROPE_PMC_BASE = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 
-# Europe PMC publishes no strict per-second contract the way NCBI does; this
-# is a conservative default for an unregistered client, matched to the same
-# discipline `connectors/pmc_case_reports.py` applies to NCBI -- polite by
-# choice, not because the API enforces it.
-DEFAULT_REQUESTS_PER_SECOND = 2.0
+# Europe PMC's real limit, confirmed directly by EBI staff on the developer
+# forum: 10 requests per second, 500 per minute, for every client -- no key
+# exists to raise it, and none is needed to reach it. An earlier version of
+# this constant used 2.0 as an unverified conservative guess "matched to
+# NCBI's discipline"; NCBI's 3 req/s figure belongs to a different service
+# (E-utilities, used by connectors/pmc_case_reports.py, not this one) and
+# never applied here. Left below the confirmed ceiling rather than at
+# exactly 10.0, so per-request timing jitter does not tip an occasional call
+# over the edge.
+DEFAULT_REQUESTS_PER_SECOND = 8.0
 
 DEFAULT_PAGE_SIZE = 25
 
