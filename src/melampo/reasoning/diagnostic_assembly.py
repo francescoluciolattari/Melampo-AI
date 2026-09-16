@@ -59,6 +59,12 @@ class DiagnosticAssembly:
     yield_model: HypothesisYieldModel
     table: InformationContentTable
     learned_edge_count: int = 0
+    # Optional: the vector-evolution space (training/vector_evolution_engine.py)
+    # for surfacing non-obvious correlations between cases. None by default,
+    # matching every other optional component's graceful-degradation contract
+    # -- a deployment without it loses the correlation-discovery capability,
+    # not the rest of the assembly.
+    vector_space: Any = None
 
     def run_case(
         self,
@@ -87,6 +93,30 @@ class DiagnosticAssembly:
                 )
 
         return CaseResult(bridge_result=bridge_result, conjectures_recorded=recorded)
+
+    def record_hypothesis_vector(self, case_id: str, hypothesis: str, embedder: Any, *, now: float | None = None) -> Any:
+        """Embed and record a hypothesis in the vector-evolution space, if one is configured.
+
+        Does nothing and returns None without a configured `vector_space` --
+        this capability is additive, and a caller running `record_hypothesis_vector`
+        unconditionally after every case must not need to check first whether
+        the space exists.
+        """
+        if self.vector_space is None:
+            return None
+        vector = tuple(embedder.embed(hypothesis))
+        return self.vector_space.update(case_id, hypothesis, vector, now=now)
+
+    def cross_case_correlations(self, *, min_overlap: float = 0.85) -> list[Any]:
+        """Hypotheses from different cases whose vectors now overlap above threshold.
+
+        An empty list, not an error, when no vector space is configured --
+        the same posture every optional tier in this project takes toward
+        its own absence.
+        """
+        if self.vector_space is None:
+            return []
+        return self.vector_space.find_cross_case_correlations(min_overlap=min_overlap)
 
     def promote_confirmed(
         self,

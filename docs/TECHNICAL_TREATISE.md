@@ -268,13 +268,34 @@ Collegato direttamente a questo ciclo: ogni volta che un arco viene promosso —
 
 `training/hypothesis_yield.py`, classe `HypothesisYieldModel`: impara, da esiti confermati nel tempo, quali *forme* di ipotesi (non quali ipotesi specifiche) tendono a essere confermate — non una rete neurale appresa per gradiente, ma un modello statistico trasparente sugli stessi intervalli di Wilson usati altrove nel progetto, per coerenza con l'esigenza di auditabilità normativa.
 
-## 6.5 Una discrepanza architetturale, dichiarata onestamente
+## 6.5 Una discrepanza architetturale, dichiarata onestamente — e una correzione successiva alla prima stesura
 
 Verificato direttamente per questo documento: `training/dream_trainer.py` espone un punto di aggancio (`enumerator: Any = None`) pensato per ricevere un `MechanismEnumerator` reale — quando presente, il Dream Trainer enumera ipotesi vere dal grafo invece di ricadere su etichette segnaposto di ripiego. `reasoning/diagnostic_assembly.py` (Parte 6.2) fornisce `dream_context_for()`, una funzione pensata esattamente per alimentare questo aggancio con candidati recuperati dal grafo.
 
-**Ma i due punti reali in cui `DreamTrainer` viene istanziato in questo repository** — `reasoning/clinical_pipeline.py` e `reasoning/clinical_pipeline_refined.py` — **non passano `enumerator=`**. Il Dream Trainer, nella pipeline preesistente, cade ancora sul ramo di ripiego con etichette segnaposto.
+**Il punto reale in cui `DreamTrainer` viene istanziato in questo repository** — `reasoning/clinical_pipeline.py`, dentro `_build_runtime_components()` — **non passa `enumerator=`**. Il Dream Trainer, nella pipeline in produzione, cade ancora sul ramo di ripiego con etichette segnaposto.
 
-Questo significa che esistono, oggi, **due catene parallele non riconciliate**: `diagnostic_assembly.py`, costruita e verificata end-to-end in questo lavoro, con persistenza reale, cascata di normalizzazione completa, e ciclo di apprendimento chiuso; e `clinical_pipeline.py`/`clinical_pipeline_refined.py`, preesistenti, che orchestrano `DreamTrainer` senza i miglioramenti descritti in questa Parte VI. Se `diagnostic_assembly.py` debba sostituire, integrare, o essere riconciliata con la pipeline preesistente è una domanda architetturale aperta, non risolta in questo documento — e va trattata come tale, non presunta.
+**Correzione rispetto alla prima stesura di questa sezione**: qui si affermava l'esistenza di "due catene parallele non riconciliate", citando `clinical_pipeline.py` e `clinical_pipeline_refined.py` come pari. Un'indagine successiva, richiesta esplicitamente e condotta con la cronologia Git, ha trovato che `clinical_pipeline_refined.py` non era una seconda catena in uso, ma **codice orfano**: creato otto giorni dopo `clinical_pipeline.py` (non prima), toccato da due soli commit contro sedici, e — punto decisivo — **mai importato da `app.py`, da alcun test, o da qualunque altro modulo**. `app.py`, il vero punto d'ingresso dell'applicazione (`build_default_runtime()`), costruisce ed usa esclusivamente `ClinicalInferencePipeline` da `clinical_pipeline.py`, con tutte e sedici le sue dipendenze concrete. Il file `clinical_pipeline_refined.py` è stato rimosso da questo repository per questo motivo, e non compare più.
+
+Resta quindi **una sola catena in produzione** — `clinical_pipeline.py`, tramite `app.py` — e la vera domanda architetturale aperta è più semplice di quanto sembrasse: se e come `diagnostic_assembly.py` (verificata end-to-end in questo lavoro, con persistenza reale, cascata di normalizzazione completa, e ciclo di apprendimento chiuso) debba sostituire o integrarsi con `clinical_pipeline.py`, l'unica pipeline oggi realmente collegata all'applicazione. Non risolta in questo documento — e va trattata come tale, non presunta.
+
+## 6.6 Il motore neuro-vettoriale di evoluzione delle ipotesi
+
+Proposto inizialmente come uno "strato neuro-quantistico" che avrebbe fatto evolvere i vettori delle ipotesi diagnostiche con l'equazione di Schrödinger e il formalismo di Dirac, misurando la loro sovrapposizione con l'integrale di overlap quantistico. Respinto **su base tecnica**, non estetica, prima di essere costruito, per due ragioni verificate:
+
+**Matematicamente non avrebbe aggiunto nulla.** L'integrale di sovrapposizione quantistica, $\langle\psi_A|\psi_B\rangle = \int \psi_A^*(x)\psi_B(x)\,dx$, è il prodotto interno di due funzioni. Per vettori a valori reali — quali sono, qui e ovunque in questo progetto, i vettori diagnostici — quel prodotto interno **è** il prodotto scalare, e normalizzato **è** il coseno di similarità: la stessa identica operazione già usata dall'infrastruttura di `vector_memory.py` e dal livello 2 della cascata di normalizzazione (SapBERT, Parte 3.3). Scriverlo in notazione bra-ket non avrebbe calcolato nulla di diverso — avrebbe solo implicato un processo fisico, una fase complessa, e una sovrapposizione quantistica assenti in quello che resta, di fatto, un punteggio di similarità fra due vettori ordinari.
+
+**Fisicamente la costante non si applica.** L'equazione di Schrödinger dipendente dal tempo, $i\hbar \frac{d}{dt}|\psi(t)\rangle = \hat{H}|\psi(t)\rangle$, descrive come lo stato quantistico di un sistema fisico **reale** evolve sotto un Hamiltoniano che rappresenta l'energia di quel sistema. $\hbar$ ($\approx 1{,}0546\times10^{-34}$ J·s) è una costante fisica dell'universo, non un parametro libero da riutilizzare. Non esiste un Hamiltoniano per "un'ipotesi diagnostica", e nessuna energia fisica viene conservata quando un'ipotesi si aggiorna.
+
+**Cosa è stato costruito al suo posto**: `training/vector_evolution_engine.py` — matematicamente equivalente a quanto proposto, con un nome e una documentazione che riflettono cosa fa davvero. Due modelli reali e citabili, non metaforici:
+
+- **Integratore leaky** (Dayan & Abbott, *Theoretical Neuroscience*, 2001 — il modello standard di come il potenziale di membrana di un neurone accumula segnale sinaptico decadendo verso una base) per l'evoluzione continua nel tempo: `leaky_integrate()` risolve in forma chiusa l'equazione $\frac{dv}{dt} = -\frac{v - \text{input}}{\tau}$ — una vecchia evidenza decade esponenzialmente verso la nuova, mai sostituita di netto.
+- **Rinforzo hebbiano** (Hebb, *The Organization of Behavior*, 1949 — "i neuroni che si attivano insieme si collegano insieme") per il caso d'uso richiesto specificamente: quando una correlazione fra due casi trovata da questo spazio viene confermata clinicamente, `hebbian_reinforce()` avvicina i due vettori, così lo spazio migliora nel trovare correlazioni simili in futuro — applicato solo su conferme reali, mai su ogni confronto, per la stessa ragione per cui un arco del grafo richiede conferme multiple prima di essere promosso (Parte 6.2).
+
+**La scoperta di correlazioni fra casi**, l'obiettivo dichiarato della richiesta originale, funziona esattamente come descritto concettualmente: `HypothesisVectorSpace.find_cross_case_correlations()` confronta ogni coppia di ipotesi **provenienti da casi diversi** (mai due ipotesi dello stesso differenziale, che si sovrapporrebbero per costruzione, non per scoperta) e restituisce quelle sopra una soglia di coseno di similarità. Verificato con un esempio concreto: due ipotesi testualmente diverse ("sarcoidosi polmonare" da un caso, "sarcoidosi con coinvolgimento polmonare" da un altro) vengono trovate correlate automaticamente.
+
+**Persistenza append-only, cifrata.** Ogni aggiornamento o rinforzo si registra come evento, mai sovrascrive — lo stato corrente si ricostruisce ripercorrendo il registro, la stessa disciplina di `graph_store.py` e `term_history.py`. Il registro usa `encrypted_store.py` (Parte 7.2): un vettore d'ipotesi deriva da un caso clinico reale, e in un contesto regolato MDR merita la stessa protezione a riposo già data ai dati UMLS, non uno standard inferiore perché il contenuto è numerico anziché testuale.
+
+**Collegato a `DiagnosticAssembly`** come capacità opzionale e additiva (`vector_space: Any = None`) — `record_hypothesis_vector()` e `cross_case_correlations()` degradano in modo gentile a `None`/lista vuota quando non configurato, senza richiedere a chi chiama di controllare prima se il componente esiste.
 
 
 ---
@@ -316,7 +337,9 @@ Il ciclo giornaliero interroga tutti e cinque i connettori di letteratura per un
 
 Il repository contiene **180 moduli Python** in `src/melampo/`. Di questi, **64 (36%) portano un docstring di modulo** e sono stati letti, testati e verificati nel lavoro che ha prodotto questo documento — sono descritti nelle Parti II–VII. I restanti **116 (64%) non hanno alcun docstring di modulo**, e la loro descrizione qui si limita al nome del file e della cartella che li contiene — mai a un'affermazione su cosa facciano o se siano collegati a qualcos'altro.
 
-Questa non è una lista di moduli inutili o abbandonati — molti nomi suggeriscono lavoro serio e specifico (`quantum_belief_layer.py`, `pathology_encoder.py`, `illness_script.py` con docstring, `metacognition.py`). È, semplicemente, lavoro che precede questa sessione di sviluppo e che questo trattato non può descrivere onestamente senza averlo letto.
+Questa non è una lista di moduli inutili o abbandonati — molti nomi suggeriscono lavoro serio e specifico (`pathology_encoder.py`, `illness_script.py` con docstring, `metacognition.py`). È, semplicemente, lavoro che precede questa sessione di sviluppo e che questo trattato non può descrivere onestamente senza averlo letto.
+
+**Un'eccezione, aggiornata rispetto alla prima stesura di questa parte**: `models/quantum_belief_layer.py` e `models/quantum_research.py` **sono stati letti per intero** in un'indagine successiva, richiesta esplicitamente. Il primo dichiara nel proprio docstring di non rivendicare un'implementazione quantomeccanica letterale, ed è in realtà una combinazione lineare pesata di punteggi scalari con terminologia presa in prestito dal lessico quantistico; il secondo è un segnaposto di nove righe. Nessuna equazione di Schrödinger, nessuna notazione di Dirac, nessun formalismo quantistico reale in nessun punto del repository — verificato con una ricerca su tutto il codice. La Parte 6.6 descrive il motore reale (`vector_evolution_engine.py`, integratore leaky più rinforzo hebbiano) costruito appositamente per la capacità che era stata richiesta con terminologia quantistica, con matematica onesta al suo posto.
 
 ## 8.2 Sottosistemi interamente non verificati in questa sessione
 
@@ -324,7 +347,7 @@ Questa non è una lista di moduli inutili o abbandonati — molti nomi suggerisc
 
 **`orchestration/` — 10 file su 10 senza docstring.** `a2a_adapter.py`, `bootstrap.py`, `contracts.py`, `mcp_adapter.py`, `model_execution_trace.py`, `model_router.py`, `runtime_services.py`, `service_registry.py`, `specialist_runtime.py`. Una sola eccezione con docstring in tutta la cartella: `orchestration/model_capability_registry.py`, letto e modificato in questa sessione (le voci Nemotron-Parse e LlamaParse, Parte non applicabile qui).
 
-**`reasoning/` — 18 file su 31 senza docstring**, incluse le due pipeline preesistenti già discusse (`clinical_pipeline.py`, `clinical_pipeline_refined.py`, Parte 6.5) e altri moduli dal nome rilevante: `diagnostic_orchestrator.py`, `differential_engine.py`, `intuition_engine.py`, `metacognition.py`, `neuro_dynamics.py`, `critique_loop.py`, `policy_stack.py`, `escalation.py`.
+**`reasoning/` — 17 file su 30 senza docstring** (`clinical_pipeline_refined.py` rimosso, Parte 6.5), incluso `clinical_pipeline.py` — la pipeline preesistente, unica in produzione — e altri moduli dal nome rilevante: `diagnostic_orchestrator.py`, `differential_engine.py`, `intuition_engine.py`, `metacognition.py`, `neuro_dynamics.py`, `critique_loop.py`, `policy_stack.py`, `escalation.py`.
 
 **`training/` — 14 file su 22 senza docstring**, incluso lo stesso `dream_trainer.py` il cui punto di aggancio è discusso alla Parte 6.5 — il file ha un comportamento verificato in un punto preciso (`enumerator`), ma il resto della sua logica non è stato letto interamente. Altri nomi rilevanti: `self_evolution.py`, `promotion_policy.py`, `rational_control_validator.py`, `ewc.py` (probabilmente Elastic Weight Consolidation), `generative_replay.py`, `curriculum.py`, `meta_learning.py`.
 
@@ -528,6 +551,10 @@ OWASP Foundation. *Password Storage Cheat Sheet* — raccomandazione sulle itera
 Regolamento (UE) 2017/745 del Parlamento Europeo e del Consiglio, relativo ai dispositivi medici (Medical Device Regulation) — vincolo regolatorio di riferimento per l'intera architettura (Parte 1.1).
 
 SNOMED International. *Affiliate Licence Agreement* e elenco dei paesi membri — `snomed.org/members`, verificato senza conferma definitiva dello stato dell'Italia (Parte 1.3).
+
+Dayan P., Abbott L.F. *Theoretical Neuroscience: Computational and Mathematical Modeling of Neural Systems.* MIT Press, 2001 — il modello dell'integratore leaky, base matematica dell'evoluzione temporale dei vettori d'ipotesi (Parte 6.6).
+
+Hebb D.O. *The Organization of Behavior: A Neuropsychological Theory.* Wiley, 1949 — il principio di plasticità hebbiana, base del rinforzo delle correlazioni confermate fra casi (Parte 6.6).
 
 ---
 
