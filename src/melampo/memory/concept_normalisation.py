@@ -114,6 +114,7 @@ class NormalisationCascade:
     graph: ConceptGraphView
     synonym_index: Any = None
     term_history: Any = None
+    umls: Any = None
     embedder: Callable[[str], Sequence[float]] | None = None
     structural_resolver: Callable[[str, Sequence[str]], str | None] | None = None
     embedding_threshold: float = DEFAULT_EMBEDDING_THRESHOLD
@@ -212,6 +213,16 @@ class NormalisationCascade:
             historical = self.term_history.synonyms_by_term_id()
             for term_id in term_ids:
                 synonyms.extend(historical.get(term_id, []))
+
+        if self.umls is not None and term_ids:
+            # UMLS crosswalk requires the HPO id in its own "HP:0001947"
+            # form, which is exactly term_id here -- HPO term ids and
+            # crosswalk source ids share the same shape by construction, so
+            # no translation is needed between the two.
+            for term_id in term_ids:
+                for result in self.umls.crosswalk_from_hpo(term_id):
+                    if result.name:
+                        synonyms.append(result.name)
 
         return synonyms
 

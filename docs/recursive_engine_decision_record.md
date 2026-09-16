@@ -2602,3 +2602,75 @@ directly at snomed.org/members before any cost planning depends on it: if
 Italy is not a member, SNOMED CT licensing falls under the fee-based
 non-member path (World Bank Territory Band pricing) rather than the free
 Member-country path UMLS's own SNOMED CT bundling would otherwise imply.
+
+### UMLS connected: search, HPO-to-anything crosswalk, and genuine encryption at rest
+
+Built after confirming the real UTS REST API directly against NLM's own
+documentation (base `https://uts-ws.nlm.nih.gov/rest`, `apiKey` query
+parameter). The connector's central capability is `/crosswalk`, and NLM's
+own documentation uses this project's exact scenario as its worked example:
+crosswalking an HPO code to SNOMED CT. Every concept in this project's graph
+is already an HPO code, so crosswalk needs no free-text search first -- it
+takes what the graph already has and returns whatever other vocabulary
+(RxNorm, MeSH, LOINC, SNOMED CT when available) shares its CUI. Verified
+directly against the documented example (`HP:0001947` -> SNOMEDCT_US
+`233604007`, sharing CUI `C0022099`).
+
+**A test's first version passed for the wrong reason, caught before commit.**
+A first attempt at verifying "a UMLS-crosswalked synonym resolves through the
+cascade" used the phrase "distal renal tubular acidosis" against the node
+"Renal tubular acidosis" -- which turned out to already match via the
+existing word-set tier, containment alone, with no UMLS involvement at all.
+Rewritten with "RTA", a genuine abbreviation sharing no words with the node,
+with an explicit assertion that resolution fails without UMLS configured --
+the only way to confirm the test isolates what it claims to.
+
+**Genuine encryption at rest, not obfuscation.** `encrypted_store.py` uses
+Fernet (AES-128-CBC with an HMAC, from the `cryptography` library, now a
+core dependency) with a key derived from `DB_PASSWORD` via PBKDF2HMAC
+(600,000 iterations, OWASP's 2023 minimum) rather than using the password
+directly as a key. A per-store random salt is generated once and reused on
+every reopen -- a fresh salt on each open would derive a different key each
+time and nothing previously written would ever decrypt again, a mistake
+caught by a test that reopens a store and confirms the salt is unchanged.
+Verified directly: the raw bytes on disk contain neither the plaintext nor
+any recognisable structure, and a wrong password raises `WrongPasswordError`
+explicitly rather than silently returning nothing.
+
+A file-based store rather than a database server, for the same reason every
+other persistent store in this project is one: no existing database
+infrastructure to build on, and a single encrypted file costs far less
+operationally than standing up a server this project has no other use for.
+
+**A caching bug caught by the restart test, not by the happy path.** The
+first version of `UmlsCache._ensure_loaded` appended each cached record's
+result list as a single nested element (`.append(record["result"])`),
+producing a list of lists rather than a flat list -- invisible until a
+second process reopened the cache and tried to reconstruct
+`CrosswalkResult` objects from what was actually a list, not a mapping.
+Fixed to overwrite by key rather than accumulate, matching normal cache
+semantics: the most recently written entry for a key wins.
+
+`pyproject.toml` also corrected in the same change: `docling>=2.0` was still
+declared as an optional dependency months after Docling's removal from the
+codebase -- a stale declaration nobody had reason to notice until adding a
+genuinely new dependency required looking at the file directly.
+
+### EMA's PMS Public API: complement to DailyMed, not a replacement, built on the confirmed live beta
+
+DailyMed carries the FDA's US formulary; PMS carries the EU's centrally
+authorised one. The two overlap substantially for major international drugs
+but are not identical, and for an Italian clinical context PMS is the more
+directly authoritative source -- a drug centrally authorised in the EU and
+prescribed in Italy may have no DailyMed entry at all. Both are kept,
+feeding the same literature index, because neither alone covers what the
+other does.
+
+Built on the confirmed-live beta (verified against EMA's own July 2026 FAQ
+document): base `https://api.pms.ema.europa.eu/public/v1`,
+`MedicinalProductDefinition` resources in FHIR R5, `PMS_EMA_API_KEY` required
+since registration is mandatory -- unlike the three prior connectors, this
+one is not open by default. The request shape is isolated into one method
+specifically because EMA's own documentation calls this a beta: when the
+public contract stabilises into something different, one method needs
+updating, not every caller.

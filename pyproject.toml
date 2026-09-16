@@ -11,7 +11,9 @@ requires-python = ">=3.11"
 authors = [
   { name = "Francesco Lattari e altri" }
 ]
-dependencies = []
+dependencies = [
+  "cryptography>=42.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -26,9 +28,9 @@ clinical = [
   "pydantic-settings>=2.2",
   "PyYAML>=6.0",
 ]
-document = [
-  "docling>=2.0",
-]
+# document extra removed: Docling was replaced by Nemotron-Parse/LlamaParse
+# (see docs/recursive_engine_decision_record.md); this declaration was left
+# behind when the code was removed and is corrected here.
 retrieval = [
   "weaviate-client>=4.5",
   "faiss-cpu>=1.8",
