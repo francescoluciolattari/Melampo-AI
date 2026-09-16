@@ -282,8 +282,15 @@ jobs:
           # Dream-Engine style: bounded, nightly, working through concepts
           # this project has actually reasoned about -- never a crawl of the
           # graph's full ~29,000 concepts, and never all tracked concepts at
-          # once. PubMed's unauthenticated rate limit (3 req/s) is what sets
-          # the real ceiling on a single run, not how many concepts exist.
+          # once. Neither Europe PMC (confirmed 10 req/s, 500/min, no key
+          # exists) nor ClinicalTrials.gov (no single documented ceiling, no
+          # key exists) is the real constraint at this batch size -- 20
+          # concepts is chosen to keep each nightly run short and its
+          # summary readable, not because either service would be strained
+          # by more. An earlier version of this comment cited "PubMed's
+          # unauthenticated rate limit (3 req/s)" -- that figure belongs to
+          # NCBI E-utilities, a different service this workflow does not
+          # call, and never applied here.
           BATCH_SIZE = 20
 
           concepts_path = pathlib.Path("data/literature_index_concepts.json")

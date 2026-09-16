@@ -152,3 +152,14 @@ def test_first_call_never_waits():
     start = time.monotonic()
     limiter.wait()
     assert time.monotonic() - start < 0.05
+
+
+def test_the_default_rate_reflects_the_confirmed_europe_pmc_ceiling():
+    """10 req/s, 500/min, confirmed directly by EBI staff -- not the
+    unrelated 3 req/s NCBI E-utilities figure this project once conflated
+    it with. Kept below 10.0 for timing-jitter headroom, not because the
+    real ceiling is lower."""
+    from melampo.connectors.europe_pmc import DEFAULT_REQUESTS_PER_SECOND
+
+    assert DEFAULT_REQUESTS_PER_SECOND < 10.0
+    assert DEFAULT_REQUESTS_PER_SECOND >= 5.0

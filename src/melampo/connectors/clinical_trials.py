@@ -32,7 +32,15 @@ from .europe_pmc import RateLimiter
 
 CLINICAL_TRIALS_BASE = "https://clinicaltrials.gov/api/v2/studies"
 
-DEFAULT_REQUESTS_PER_SECOND = 2.0
+# Unlike Europe PMC's confirmed 10 req/s, ClinicalTrials.gov publishes no
+# single official ceiling -- independent sources report figures from
+# "no documented limit, be considerate" through informal guidance of roughly
+# 50 requests/minute (~0.8/s) up to observed comfortable operation near 7-8
+# req/s. No key exists to raise or confirm a number either way. Set below
+# every figure found rather than at the top of the range, since the
+# uncertainty here is genuine and this project has no relationship with the
+# service to fall back on if it guesses wrong.
+DEFAULT_REQUESTS_PER_SECOND = 3.0
 DEFAULT_PAGE_SIZE = 25
 
 # Recruitment statuses worth surfacing for "further investigation" purposes.
