@@ -175,9 +175,24 @@ class EuropePmcConnector:
             return []
         return self.search(" OR ".join(terms), max_results=max_results)
 
-    def populate(self, index: LiteratureIndex, query: str, *, max_results: int = 25) -> int:
-        """Search and add results directly to an index, returning how many were added."""
-        return index.add_many(self.search(query, max_results=max_results))
+    def populate(self, index: LiteratureIndex, query: str, *, max_results: int = 25, store: Any = None) -> int:
+        """Search and add results directly to an index, returning how many were added.
+
+        ``store``, when given a `PersistentJsonlVectorStore`, persists each
+        added passage immediately -- the same store `clinical_trials.py`'s
+        connector writes to, so PubMed and trial content share one durable
+        backend rather than two.
+        """
+        passages = self.search(query, max_results=max_results)
+        added = index.add_many(passages)
+        if store is not None:
+            from ..memory.literature_persistence import (
+                persist_passage,
+            )
+
+            for passage in passages:
+                persist_passage(store, passage)
+        return added
 
     def _fetch_page(self, query: str, cursor: str) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()

@@ -123,8 +123,21 @@ class ClinicalTrialsConnector:
             return []
         return self.search(" OR ".join(terms), max_results=max_results)
 
-    def populate(self, index: LiteratureIndex, condition_query: str, *, max_results: int = 25) -> int:
-        return index.add_many(self.search(condition_query, max_results=max_results))
+    def populate(self, index: LiteratureIndex, condition_query: str, *, max_results: int = 25, store: Any = None) -> int:
+        """Search and add results directly to an index, returning how many were added.
+
+        ``store`` persists each added passage into the same
+        `PersistentJsonlVectorStore` `europe_pmc.py`'s connector writes to --
+        one durable backend for both sources, not two.
+        """
+        passages = self.search(condition_query, max_results=max_results)
+        added = index.add_many(passages)
+        if store is not None:
+            from ..memory.literature_persistence import persist_passage
+
+            for passage in passages:
+                persist_passage(store, passage)
+        return added
 
     def _fetch_page(self, condition_query: str) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()

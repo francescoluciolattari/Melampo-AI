@@ -255,35 +255,74 @@ jobs:
       - name: Refresh literature for concepts already in the index
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import sys, json, pathlib
+          import sys, pathlib
           sys.path.insert(0, "src")
+
+          # A reversal from an earlier version of this workflow, worth
+          # stating directly: that version deliberately did not commit its
+          # output, reasoning that "the literature index is runtime state,
+          # not a versioned data file". That was true only because no real
+          # persistence existed yet -- literature_persistence.py and
+          # TrackedConceptStore now exist specifically to survive a restart,
+          # and a GitHub Actions runner is itself thrown away after every
+          # run. Not committing here would mean every night starts from an
+          # empty store again, defeating the entire point of today's work.
+          # Growth is modest at this batch size (roughly tens of KB per
+          # night) and committing daily is reasonable for now; revisit if
+          # the tracked-concept list or batch size grows enough to change
+          # that.
           from melampo.connectors.europe_pmc import EuropePmcConnector
           from melampo.connectors.clinical_trials import ClinicalTrialsConnector
           from melampo.memory.literature_index import LiteratureIndex
+          from melampo.memory.literature_persistence import persist_all
+          from melampo.memory.tracked_concepts import TrackedConceptStore, seed_from_vetting_bench
+          from melampo.memory.vector_memory import PersistentJsonlVectorStore
+          from melampo.evaluation.vetting_bench import VETTING_CASES
 
-          # Refreshes concepts the index already knows about rather than
-          # crawling the whole HPO term set daily -- a literature index grows
-          # around the concepts this project has actually reasoned about
-          # (cases seen, hypotheses vetted), and a blind daily crawl of
-          # thousands of HPO terms would mostly fetch literature for concepts
-          # nothing has ever asked about.
-          index_path = pathlib.Path("data/literature_index_concepts.json")
-          if not index_path.is_file():
-              print("### Literature refresh\n\nNo tracked concept list yet (data/literature_index_concepts.json); nothing to refresh.")
-              sys.exit(0)
+          # Dream-Engine style: bounded, nightly, working through concepts
+          # this project has actually reasoned about -- never a crawl of the
+          # graph's full ~29,000 concepts, and never all tracked concepts at
+          # once. PubMed's unauthenticated rate limit (3 req/s) is what sets
+          # the real ceiling on a single run, not how many concepts exist.
+          BATCH_SIZE = 20
 
-          concepts = json.loads(index_path.read_text())
+          concepts_path = pathlib.Path("data/literature_index_concepts.json")
+          store = TrackedConceptStore.load(concepts_path)
+          if len(store) == 0:
+              # First run: seed from the vetting bench's own cases -- ~40
+              # concepts already known to matter, so the queue has
+              # something meaningful the first night rather than starting
+              # empty and waiting for cases or promotions to populate it.
+              seed_from_vetting_bench(store, VETTING_CASES)
+
+          batch = store.next_batch(limit=BATCH_SIZE)
+          vector_store = PersistentJsonlVectorStore(path=pathlib.Path("data/literature_vectors.jsonl"))
           index = LiteratureIndex()
-          pmc_added = EuropePmcConnector().populate(index, " OR ".join(f'"{c}"' if " " in c else c for c in concepts))
-          trials_added = ClinicalTrialsConnector().populate(index, " OR ".join(concepts))
+          pmc_connector, trials_connector = EuropePmcConnector(), ClinicalTrialsConnector()
+
+          pmc_added = trials_added = 0
+          for entry in batch:
+              pmc_added += pmc_connector.populate(index, entry.concept, max_results=5, store=vector_store)
+              trials_added += trials_connector.populate(index, entry.concept, max_results=5, store=vector_store)
+              store.mark_refreshed(entry.concept, passage_count=len(index.passages))
+
+          store.save(concepts_path)
 
           print("### Literature refresh\n")
-          print(f"- {len(concepts)} tracked concepts")
-          print(f"- {pmc_added} new Europe PMC passages")
-          print(f"- {trials_added} new ClinicalTrials.gov passages")
-          print(
-              "\nNot committed automatically: the literature index this produces is runtime "
-              "state, not a versioned data file, and is left for the deployment's own storage "
-              "to pick up rather than opening a PR for every day's new abstracts."
-          )
+          print(f"- {len(store)} tracked concepts, {len(batch)} refreshed this run (batch size {BATCH_SIZE})")
+          print(f"- {pmc_added} Europe PMC passages, {trials_added} ClinicalTrials.gov passages")
+          print(f"- persisted to data/literature_vectors.jsonl ({len(vector_store.records)} total records)")
+          if batch:
+              print("\n<details><summary>Concepts refreshed this run</summary>\n")
+              for entry in batch:
+                  print(f"- {entry.concept} (tracked since {entry.added_from})")
+              print("</details>")
           PY
+
+      - name: Commit the refreshed tracked-concept list and literature store
+        run: |
+          git config user.name "frankltr"
+          git config user.email "francesco.lucio.lattari@gmail.com"
+          git add data/literature_index_concepts.json data/literature_vectors.jsonl
+          git diff --staged --quiet || git commit -m "chore: literature refresh $(date -u +%Y-%m-%d)"
+          git push
