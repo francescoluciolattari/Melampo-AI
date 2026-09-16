@@ -252,9 +252,47 @@ class StructuralResolver:
     extractor: Callable[[str], ExtractedStructure] | None = None
     overlap_threshold: float = DEFAULT_OVERLAP_THRESHOLD
     last_comparison: StructuralComparison | None = None
+    # Which route produced the last claim structure: "model_emitted" when the
+    # vetting model supplied its own, "extractor" when a model call was made,
+    # None when neither could. Recorded because the two are not equally
+    # reliable -- a model reporting its own claim is more faithful than a
+    # second model re-reading its prose -- and a reader should be able to
+    # tell which happened without re-running anything.
+    last_structure_source: str | None = None
+
+    def _structure_for(self, phrase: str) -> ExtractedStructure | None:
+        """The claim's structure, preferring what the model emitted over re-extraction.
+
+        A vetting model prompted with `canonical_format_example` emits its
+        own structure alongside its prose. Using it skips a model call and,
+        more importantly, skips a lossy round-trip: the model that formed the
+        claim knows its structure better than a second model parsing the
+        sentence afterwards. Falling back to the extractor keeps every model
+        that was not prompted that way -- or chose not to comply -- working
+        exactly as before.
+        """
+        from .description_population import (
+            parse_model_emitted_structure,
+        )
+
+        emitted = parse_model_emitted_structure(phrase)
+        if emitted is not None and not emitted.is_empty:
+            self.last_structure_source = "model_emitted"
+            return emitted
+
+        if self.extractor is None:
+            self.last_structure_source = None
+            return None
+        try:
+            structure = self.extractor(phrase)
+        except Exception:  # noqa: BLE001 - a failing extractor degrades this tier, never breaks the cascade
+            self.last_structure_source = None
+            return None
+        self.last_structure_source = "extractor"
+        return structure
 
     def __call__(self, phrase: str, candidates: Sequence[str]) -> str | None:
-        if self.extractor is None or not phrase:
+        if not phrase:
             return None
 
         described = [concept for concept in candidates if self.store.get(concept) is not None]
@@ -264,11 +302,8 @@ class StructuralResolver:
             # model call to learn nothing.
             return None
 
-        try:
-            claim_structure = self.extractor(phrase)
-        except Exception:  # noqa: BLE001 - a failing extractor degrades this tier, never breaks the cascade
-            return None
-        if claim_structure.is_empty:
+        claim_structure = self._structure_for(phrase)
+        if claim_structure is None or claim_structure.is_empty:
             return None
 
         best_concept, best_comparison = None, None
