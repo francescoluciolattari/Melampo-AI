@@ -78,6 +78,12 @@ class OntologyTerm:
     term_id: str
     name: str
     synonyms: tuple[tuple[str, str, str], ...] = ()
+    # The term's curated prose definition, with its bracketed reference
+    # stripped. 17,441 of HPO's terms carry one, each with a PMID attached --
+    # already in data/hp.obo since the file was first downloaded, parsed by
+    # nothing until the description store needed source text to extract
+    # structure from.
+    definition: str = ""
     alt_ids: tuple[str, ...] = ()
     obsolete: bool = False
     parents: tuple[str, ...] = ()
@@ -118,6 +124,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
     alt_ids: list[str] = []
     parents: list[str] = []
     obsolete = False
+    definition = ""
     inside = False
 
     def flush() -> OntologyTerm | None:
@@ -127,6 +134,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             term_id=term_id,
             name=name,
             synonyms=tuple(synonyms),
+            definition=definition,
             alt_ids=tuple(alt_ids),
             obsolete=obsolete,
             parents=tuple(parents),
@@ -140,6 +148,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
                 yield finished
             inside = line.strip() == "[Term]"
             term_id, name, synonyms, alt_ids, parents, obsolete = "", "", [], [], [], False
+            definition = ""
             continue
         if not inside or not line:
             continue
@@ -148,6 +157,8 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             term_id = value.strip()
         elif key == "name":
             name = value.strip()
+        elif key == "def":
+            definition = _parse_definition(value)
         elif key == "alt_id":
             alt_ids.append(value.strip())
         elif key == "is_a":
@@ -162,6 +173,22 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
     finished = flush()
     if finished is not None:
         yield finished
+
+
+def _parse_definition(value: str) -> str:
+    """Read ``"text" [refs]`` into just the text.
+
+    The bracketed reference list is dropped rather than kept: it names where
+    the definition came from (usually a PMID), which matters for provenance
+    but would be noise inside text an extractor is meant to pull biomedical
+    entities out of -- "pmid:19125436" is not a clinical concept, and leaving
+    it in would put it in front of every extraction.
+    """
+    text = value.strip()
+    if not text.startswith('"'):
+        return text
+    closing = text.find('"', 1)
+    return text[1:closing] if closing > 0 else ""
 
 
 def _parse_synonym(value: str) -> tuple[str, str, str] | None:

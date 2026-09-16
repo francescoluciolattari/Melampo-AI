@@ -2427,3 +2427,48 @@ actually reasoned about, and a blind daily crawl of thousands of terms would
 mostly fetch literature nothing has asked about. Not committed automatically:
 the literature index is runtime state, not a versioned data file, unlike the
 HPO release update, which does open a reviewable pull request.
+
+### The description store's source was already on disk, and one format now governs both sides of tier 3
+
+Two pieces built together, because the second is what makes the first safe
+to run at scale.
+
+**17,441 curated definitions, downloaded and never parsed.** `hp.obo` carries
+a prose definition for most of its terms, each with a PMID attached -- exactly
+the source text tier 3's concept side needs, already licensed and versioned
+with the release. `parse_obo` captured names, synonyms, parents and
+obsoletion flags, and dropped the `def:` line entirely. Now parsed, with the
+bracketed reference stripped: it is provenance, not clinical text, and
+leaving "pmid:19125436" in would have put it in front of every extraction.
+Verified on the real file: 456 descriptions from the first 500 terms, with
+skips counted separately for "no definition to work from" and "extraction
+yielded nothing" -- two different situations a single count would blur.
+
+**The canonical format, raised directly in discussion, and the reason it
+matters more than it first appears.** The proposal was to have a vetting
+model emit structure alongside its prose rather than have the extractor
+re-read the answer, with the format derived from the extractor so changes
+cannot desynchronise the two sides. That last clause is load-bearing:
+`compare_structures` matches entity and relation strings literally, so if the
+cached concept descriptions were extracted under one convention and claims
+arrive under another -- "required_for" against "requires", "1-alpha-hydroxylase"
+against "1α-hydroxylase" -- the arithmetic returns a low score for two
+structures describing the same mechanism, and the failure reads as
+disagreement rather than as drift. `canonical_format_example` generates the
+prompt fragment from the same `ExtractedStructure` the extractor produces,
+and a test round-trips the generated example back through
+`parse_model_emitted_structure` to assert the two halves still agree.
+
+`StructuralResolver` now prefers a model-emitted structure and falls back to
+the extractor otherwise, recording which route ran in
+`last_structure_source`. Verified: with a `STRUCTURE:` line present the
+extractor is called zero times; without one, the previous behaviour is
+unchanged.
+
+**What emitting its own structure does not let a model do.** It does not let
+it grade itself. The comparison stays arithmetic, against a cached
+description the model never sees. A structure shaped to look agreeable has
+no target to shape toward -- a test asserts a flattering, unrelated structure
+resolves to nothing. What the design buys is fidelity: the model that formed
+the claim reports its structure better than a second model parsing the
+sentence afterwards, and one model call is saved per resolution.
