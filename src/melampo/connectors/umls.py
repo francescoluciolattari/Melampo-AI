@@ -45,6 +45,20 @@ class UmlsConfig:
     tool: str = "melampo-literature-connector"
     version: str = "current"
 
+    @classmethod
+    def from_env(cls) -> "UmlsConfig":
+        """Read UMLS_API_KEY from the environment.
+
+        The bridge that was missing: the connector accepted `api_key` as a
+        constructor argument from the start, but nothing in this project
+        ever read the environment variable a deployment would actually set
+        it through -- `UMLS_API_KEY` existed only inside error messages and
+        documentation, unconnected to anything that would populate it.
+        """
+        import os
+
+        return cls(api_key=os.environ.get("UMLS_API_KEY"))
+
 
 @dataclass(frozen=True)
 class UmlsConcept:

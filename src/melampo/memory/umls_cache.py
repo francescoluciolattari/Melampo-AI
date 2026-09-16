@@ -12,6 +12,7 @@ that obligation rather than working against it.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .encrypted_store import EncryptedJsonlStore
@@ -56,6 +57,60 @@ class UmlsCache:
     def put(self, hpo_id: str, target_source: str | None, results: list[dict[str, Any]]) -> None:
         self.store.append({"key": self._key(hpo_id, target_source), "result": results})
         self._ensure_loaded()[self._key(hpo_id, target_source)] = results
+
+
+@dataclass
+class CachedUmlsConnector:
+    """A UMLS connector backed by an encrypted cache, matching the single-method
+    contract `NormalisationCascade.umls` actually calls.
+
+    `NormalisationCascade._synonyms_for` calls `self.umls.crosswalk_from_hpo(term_id)`
+    directly on whatever object is configured -- it has no idea a cache
+    exists underneath. This adapter is what lets `crosswalk_with_cache`
+    (which needs both a connector and a cache as separate arguments) present
+    itself as that one expected method.
+    """
+
+    connector: Any
+    cache: UmlsCache | None
+
+    def crosswalk_from_hpo(self, hpo_id: str, target_source: str | None = None) -> list[Any]:
+        if self.cache is None:
+            # No DB_PASSWORD configured: never fall back to caching UMLS
+            # content in plaintext, since that would defeat the exact
+            # protection obligation this cache exists to satisfy. Live
+            # calls still work for the current session; nothing persists.
+            return self.connector.crosswalk_from_hpo(hpo_id, target_source=target_source)
+        return crosswalk_with_cache(self.connector, self.cache, hpo_id, target_source=target_source)
+
+
+def build_umls_for_cascade(cache_path: Path | str = "data/umls_cache.jsonl") -> CachedUmlsConnector | None:
+    """Assemble a cache-backed UMLS connector from UMLS_API_KEY and DB_PASSWORD, or None if unconfigured.
+
+    Returns None -- not a connector that will silently do nothing -- when
+    `UMLS_API_KEY` is absent, so a caller building a `NormalisationCascade`
+    can pass this straight through as `umls=...` and get exactly the
+    graceful degradation every other tier already has: no key, no UMLS tier,
+    no error.
+
+    A configured key with no `DB_PASSWORD` still returns a working
+    connector -- live lookups only, never persisted -- rather than treating
+    the missing password as equivalent to the missing key. The two secrets
+    protect different things (API access versus data at rest) and failing
+    one should not silently disable the other.
+    """
+    import os
+
+    from ..connectors.umls import UmlsConfig, UmlsConnector
+
+    config = UmlsConfig.from_env()
+    if not config.api_key:
+        return None
+
+    connector = UmlsConnector(config=config)
+    password = os.environ.get("DB_PASSWORD")
+    cache = UmlsCache(store=EncryptedJsonlStore(path=Path(cache_path), password=password)) if password else None
+    return CachedUmlsConnector(connector=connector, cache=cache)
 
 
 def crosswalk_with_cache(

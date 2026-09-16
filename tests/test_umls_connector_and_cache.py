@@ -223,3 +223,92 @@ def test_without_umls_configured_the_cascade_behaves_as_before():
     result = cascade.resolve("rta", candidates=["Renal tubular acidosis"])
 
     assert result.resolved is False
+
+
+# --------------------------------------------------------------------------
+# from_env(): the bridge that was missing -- a secret name in error
+# messages and docs, never actually read from the environment
+# --------------------------------------------------------------------------
+
+
+def test_umls_config_from_env_reads_the_named_variable(monkeypatch):
+    monkeypatch.setenv("UMLS_API_KEY", "a-real-key-from-secrets")
+    config = UmlsConfig.from_env()
+    assert config.api_key == "a-real-key-from-secrets"
+
+
+def test_umls_config_from_env_with_nothing_set_yields_no_key(monkeypatch):
+    monkeypatch.delenv("UMLS_API_KEY", raising=False)
+    assert UmlsConfig.from_env().api_key is None
+
+
+# --------------------------------------------------------------------------
+# build_umls_for_cascade: the three real configuration states
+# --------------------------------------------------------------------------
+
+
+def test_no_key_returns_none_not_a_connector_that_silently_does_nothing(monkeypatch):
+    monkeypatch.delenv("UMLS_API_KEY", raising=False)
+    monkeypatch.delenv("DB_PASSWORD", raising=False)
+
+    from melampo.memory.umls_cache import build_umls_for_cascade
+
+    assert build_umls_for_cascade() is None
+
+
+def test_key_without_password_returns_a_connector_with_no_cache(monkeypatch, tmp_path):
+    """The two secrets protect different things -- a missing DB_PASSWORD
+    must not silently disable UMLS access entirely, only its persistence."""
+    monkeypatch.setenv("UMLS_API_KEY", "a-real-key")
+    monkeypatch.delenv("DB_PASSWORD", raising=False)
+
+    from melampo.memory.umls_cache import build_umls_for_cascade
+
+    result = build_umls_for_cascade(cache_path=tmp_path / "umls.jsonl")
+
+    assert result is not None
+    assert result.cache is None
+
+
+def test_key_and_password_returns_a_connector_with_an_encrypted_cache(monkeypatch, tmp_path):
+    monkeypatch.setenv("UMLS_API_KEY", "a-real-key")
+    monkeypatch.setenv("DB_PASSWORD", "a-real-password")
+
+    from melampo.memory.umls_cache import build_umls_for_cascade
+
+    result = build_umls_for_cascade(cache_path=tmp_path / "umls.jsonl")
+
+    assert result is not None
+    assert result.cache is not None
+
+
+def test_without_a_password_a_configured_key_still_makes_live_calls(monkeypatch, tmp_path):
+    """No DB_PASSWORD must never mean caching UMLS content in plaintext as a
+    fallback -- it means no persistence at all, live calls only."""
+    monkeypatch.setenv("UMLS_API_KEY", "a-real-key")
+    monkeypatch.delenv("DB_PASSWORD", raising=False)
+
+    from melampo.memory.umls_cache import build_umls_for_cascade
+
+    result = build_umls_for_cascade(cache_path=tmp_path / "umls.jsonl")
+    result.connector.crosswalk_from_hpo = lambda hpo_id, target_source=None: [
+        CrosswalkResult("233604007", "RTA", "SNOMEDCT_US", "C0022099")
+    ]
+
+    first_call = result.crosswalk_from_hpo("HP:0001947")
+    second_call = result.crosswalk_from_hpo("HP:0001947")
+
+    assert first_call[0].name == "RTA"
+    assert second_call[0].name == "RTA"
+    assert not (tmp_path / "umls.jsonl").exists(), "nothing must be written to disk without a password"
+
+
+def test_cached_umls_connector_matches_the_cascades_expected_contract():
+    """NormalisationCascade calls self.umls.crosswalk_from_hpo(term_id)
+    directly -- the adapter must expose exactly that single method."""
+    from melampo.memory.umls_cache import CachedUmlsConnector
+
+    adapter = CachedUmlsConnector(connector=_FakeUmls(), cache=None)
+    result = adapter.crosswalk_from_hpo("HP:0001947")
+
+    assert result[0].name == "Distal renal tubular acidosis"
