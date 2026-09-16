@@ -2552,3 +2552,53 @@ empty store again, defeating the point of today's work. Growth is modest at
 this batch size (tens of KB per night) and committing daily is reasonable
 for now, flagged directly as worth revisiting if the tracked-concept list or
 batch size grows enough to change that.
+
+### DailyMed: the direct complement to MAxO's measured 1.6% contraindication gap
+
+Built after verifying the real API directly against NIH's own documentation
+rather than any third-party scraper description: base URL
+`dailymed.nlm.nih.gov/dailymed/services/v2/`, JSON by file extension, GET
+only, no key required or accepted.
+
+Chosen specifically because it targets a gap this project already measured
+and could not fill: MAxO's contraindication annotations cover 202 of 12,880
+diseases (1.6%), with a single genuine `CONTRAINDICATED` row in the entire
+file. DailyMed carries the Structured Product Label for every FDA-approved
+drug -- the entire formulary, not a curator's incidental annotations.
+
+**A documented limitation, not a silent gap.** `/spls.json` and
+`/spls/{SETID}/packaging.json` return structured metadata -- title, active
+ingredients, packaging -- not the prose contraindications and warnings
+sections, which live inside the full SPL document (an HL7-standard XML
+structure, downloadable as ZIP) and would need its own LOINC-coded-section
+parser, a distinct and larger piece of work not built here. This connector
+gives citable, checkable drug identification -- enough to recognise a drug
+a vetting model names and resolve it to its official label -- not yet the
+contraindication text itself. Verified against the real, documented example
+from NIH's own API help pages (ZOCOR/simvastatin).
+
+### AIFA and SNOMED CT for Italy: researched, neither built, for different honest reasons
+
+Two follow-up questions -- does Italy have an equivalent drug database, and
+what is Italy's SNOMED CT status -- were researched rather than assumed or
+built past.
+
+**AIFA's Banca Dati Farmaci is real and exactly on-target** (RCP and Foglio
+Illustrativo for every drug authorised in Italy, including contraindications
+and interactions per the AIFA Medicinali app's own description) but every
+source found describes a searchable web portal and a mobile app, never a
+documented REST API. Building a connector against an undocumented HTML
+portal would break the discipline every other connector in this project
+follows -- confirmed, official, documented APIs only. Not built; flagged as
+worth a direct inquiry to AIFA about institutional data-sharing access,
+the same posture UMLS licensing already requires.
+
+**Italy's SNOMED International membership could not be confirmed present**
+across multiple sources checked (Wikipedia's member enumeration, SNOMED
+International's own members page) -- both list comparable European
+countries (Spain, Belgium, and France as a recent addition) without Italy
+appearing. Not a certain finding, stated as such, and worth verifying
+directly at snomed.org/members before any cost planning depends on it: if
+Italy is not a member, SNOMED CT licensing falls under the fee-based
+non-member path (World Bank Territory Band pricing) rather than the free
+Member-country path UMLS's own SNOMED CT bundling would otherwise imply.
