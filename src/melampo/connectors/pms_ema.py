@@ -51,6 +51,13 @@ class PmsEmaConfig:
     tool: str = "melampo-literature-connector"
     requests_per_second: float = DEFAULT_REQUESTS_PER_SECOND
 
+    @classmethod
+    def from_env(cls) -> "PmsEmaConfig":
+        """Read PMS_EMA_API_KEY from the environment, the same bridge UmlsConfig.from_env() adds."""
+        import os
+
+        return cls(api_key=os.environ.get("PMS_EMA_API_KEY"))
+
 
 @dataclass(frozen=True)
 class PmsEmaAvailability:

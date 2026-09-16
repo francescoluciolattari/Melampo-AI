@@ -142,3 +142,13 @@ def test_populate_persists_when_given_a_store(tmp_path):
     connector.populate(index, "pembrolizumab", store=store)
 
     assert len(store.records) == 1
+
+
+def test_pms_ema_config_from_env_reads_the_named_variable(monkeypatch):
+    monkeypatch.setenv("PMS_EMA_API_KEY", "a-real-key-from-secrets")
+    assert PmsEmaConfig.from_env().api_key == "a-real-key-from-secrets"
+
+
+def test_pms_ema_config_from_env_with_nothing_set_yields_no_key(monkeypatch):
+    monkeypatch.delenv("PMS_EMA_API_KEY", raising=False)
+    assert PmsEmaConfig.from_env().api_key is None

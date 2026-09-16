@@ -2674,3 +2674,46 @@ one is not open by default. The request shape is isolated into one method
 specifically because EMA's own documentation calls this a beta: when the
 public contract stabilises into something different, one method needs
 updating, not every caller.
+
+### The secrets were named but never read: UMLS_API_KEY, DB_PASSWORD, PMS_EMA_API_KEY wired to real code
+
+An audit prompted by a direct question -- confirm these three secrets are
+used correctly -- found they were not used at all. `UMLS_API_KEY` and
+`PMS_EMA_API_KEY` appeared only inside error messages ("UMLS_API_KEY not
+configured") and documentation; `DB_PASSWORD` only inside
+`encrypted_store.py`'s own docstrings. Nothing anywhere called
+`os.environ.get` for any of the three, and the daily workflow never
+imported `UmlsConnector` or `PmsEmaConnector` at all. Adding the three
+secrets to the repository would have changed nothing.
+
+Fixed with `UmlsConfig.from_env()` / `PmsEmaConfig.from_env()`, and
+`build_umls_for_cascade()` -- the assembly point that reads both
+`UMLS_API_KEY` and `DB_PASSWORD` and returns a ready `CachedUmlsConnector`,
+or `None` when no key is configured, matching the graceful-degradation
+contract every other tier already has. Three configuration states verified
+directly: no key (`None`, not a connector that silently does nothing); key
+without password (a working connector making live calls, never falling back
+to caching UMLS content in plaintext); key and password together (connector
+plus encrypted cache). `CachedUmlsConnector` is the adapter that lets a
+connector-plus-cache pair present itself as the single
+`crosswalk_from_hpo(hpo_id)` method `NormalisationCascade` actually calls.
+
+A bug introduced while writing this fix, caught before commit: an edit
+meant to insert `CachedUmlsConnector` and `build_umls_for_cascade` ahead of
+`crosswalk_with_cache` matched only that function's signature line,
+orphaning its entire body as unreachable code stuffed after a `return`
+statement in a different function -- syntactically valid Python (dead code
+raises no `SyntaxError`), so `ast.parse` reported success while
+`crosswalk_with_cache` had silently stopped existing. Caught by the test
+suite, not by the syntax check, which is the reason this project runs both.
+
+The daily workflow's literature-refresh job now declares all three as `env:`
+via `secrets.*`, and actually uses them: `PmsEmaConnector` populates
+alongside Europe PMC, ClinicalTrials.gov and DailyMed for each batch
+concept (the same audit found DailyMed itself had never been wired into the
+automated workflow either, despite needing no key at all -- added in the
+same pass); `build_umls_for_cascade()` pre-warms the encrypted crosswalk
+cache for the batch's concepts, resolved to their HPO ids through the same
+`hp.obo` synonym index the normalisation cascade itself uses, so a live
+cascade run later finds this batch's results already cached rather than
+making its own first-use network call.
