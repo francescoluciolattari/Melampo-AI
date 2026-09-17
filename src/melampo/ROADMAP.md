@@ -45,16 +45,30 @@ accumularsi sulla catena sbagliata, o su entrambe.
 alto — l'unica voce di questo documento dove *aspettare* ha un costo
 composto.
 
-### B1 — `MechanismEnumerator` dentro `_alternative_hypotheses()`
-**Stato**: Aperta, confermata. **Sforzo**: rivisto da 2-3 giorni (stima
-originale) a probabilmente meno — `dream_context_for()`, che fornisce
-esattamente i candidati che questo aggancio si aspetta, esiste già da
-questa settimana. Resta da passare `enumerator=` nei due punti reali di
-costruzione di `DreamTrainer` (`clinical_pipeline.py`) e collegare
-`dream_context_for()` alla chiamata.
-**Perché in cima**: sblocca `rlm.dream_hypotheses_add_value` (claim non
-bloccante ma fermo da settimane per mancanza di questo collegamento), a un
-costo ora inferiore a quello stimato in origine.
+### ~~B1~~ — `MechanismEnumerator` dentro `_alternative_hypotheses()`
+**Chiusa.** `clinical_pipeline.py` ora collega un `MechanismEnumerator`
+reale, costruito contro il grafo HPO vero (non più `KnowledgeGraphClient`,
+il segnaposto da 7 righe che c'era prima), attaccato al `DreamTrainer`
+solo quando un caso fornisce reperti — mai a costruzione fissa, per non
+caricare il grafo reale (6,6s) su richieste che non ne hanno bisogno.
+Verificato end-to-end: ipotesi enumerate reali, con cammini del grafo
+autentici (inclusi collegamenti genici) come provenienza.
+
+**Una scoperta di prestazioni non prevista, che rafforza H3**:
+`MechanismEnumerator.run()` costa circa 3,5-4 secondi **per candidato**
+contro il grafo reale (misurato: 2 candidati ~7s, 5 ~20s, 10 ~40s —
+lineare, non un costo fisso) — mai misurato prima, perché l'enumeratore
+era sempre stato esercitato solo su grafi fixture piccoli. Un limite di
+sicurezza (`DREAM_ENUMERATION_CANDIDATE_CAP = 8`) tiene il ramo dream
+utilizzabile oggi; il costo per candidato resta un problema di
+prestazioni a sé, non risolto qui.
+
+**Un difetto trovato e corretto durante la chiusura**: una prima versione
+caricava il grafo reale a ogni chiamata di `_build_runtime_components()`,
+indipendentemente dalla presenza di reperti — ha rallentato l'intera
+suite di test da 13 a 99 secondi, perché una dozzina di test preesistenti
+esercita questa pipeline senza reperti. Corretto collegando l'enumeratore
+solo quando serve davvero.
 
 ---
 
@@ -139,10 +153,14 @@ esigenza di protezione dei confini si applica ai blocchi prodotti dal
 nuovo estrattore — da riformulare per quello, non da completare come
 scritta in origine. **Sforzo**: 1 settimana.
 
-### H3 — Prestazioni della ricerca in ampiezza sul grafo reale
-**Nuova**: una singola interrogazione `retrieve_candidates` contro il
-grafo reale (1,27 milioni di archi) impiega 3,4 secondi — misurato,
-mai indagato. Rilevante per qualunque uso realmente interattivo.
+### H3 — Prestazioni sul grafo reale (rafforzata dalla chiusura di B1)
+Due misure distinte, entrambe reali: una singola interrogazione
+`retrieve_candidates` contro il grafo reale impiega 3,4 secondi;
+`MechanismEnumerator.run()` costa circa 3,5-4 secondi **per candidato**,
+lineare — con la decina di candidati tipica di un caso reale, minuti,
+non secondi. Un limite di sicurezza (`DREAM_ENUMERATION_CANDIDATE_CAP`)
+tiene il secondo problema sotto controllo per ora; nessuno dei due è
+stato ottimizzato. Rilevante per qualunque uso realmente interattivo.
 **Sforzo**: 3-5 giorni di indagine prima di poter stimare una correzione.
 
 ### H4 — Popolamento del deposito UMLS cifrato

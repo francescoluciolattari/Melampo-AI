@@ -2792,3 +2792,48 @@ richiedono risorse fuori dalla portata di una sessione di scrittura di
 codice.
 
 13 nuovi test, 1294 totali passanti, lint pulito.
+
+### B1 chiusa: MechanismEnumerator collegato a DreamTrainer, con una scoperta di prestazioni non prevista
+
+Verificato prima di scrivere codice: `self.knowledge_graph` in
+`clinical_pipeline.py` era `KnowledgeGraphClient`, un segnaposto da sette
+righe con un `.lookup()` fisso — non un grafo reale. Collegare
+l'enumeratore a quello avrebbe prodotto ipotesi contro un grafo senza
+archi veri, indistinguibile dal ripiego che questo lavoro doveva
+sostituire.
+
+Risolto caricando il grafo reale (`graph_sources.load_verification_graph()`)
+indipendentemente dalla domanda più ampia di riconciliazione fra
+`clinical_pipeline.py` e `diagnostic_assembly.py` (H1, decisione ancora
+aperta) — il caricamento del grafo è un'utilità condivisa, non parte della
+domanda su quale catena di apprendimento/persistenza sia autorevole.
+
+**Una scoperta di prestazioni non prevista, trovata verificando l'esito
+end-to-end**: `MechanismEnumerator.run()` costa circa 3,5-4 secondi per
+candidato contro il grafo reale — misurato con 2, 5, 10 candidati (7s,
+20s, 40s — lineare). Mai misurato prima, perché l'enumeratore era sempre
+stato esercitato solo su grafi fixture piccoli in questa sessione.
+Con i 40 candidati tipici restituiti da `retrieve_candidates` su un caso
+reale, l'enumerazione completa avrebbe richiesto oltre due minuti.
+Risolto con un limite di sicurezza (`DREAM_ENUMERATION_CANDIDATE_CAP = 8`),
+non una correzione del costo sottostante — rafforza H3 nella roadmap.
+
+**Un secondo difetto, trovato dalla suite di test stessa, non dalla
+verifica manuale**: la prima versione caricava il grafo reale
+incondizionatamente a ogni chiamata di `_build_runtime_components()` —
+chiamata dentro `run()`, quindi a ogni caso elaborato. La suite di test
+completa è passata da 13 a 99 secondi, perché una dozzina di test
+preesistenti esercita questa pipeline senza mai fornire reperti.
+Corretto collegando l'enumeratore solo quando `payload` contiene
+reperti reali — la stessa disciplina di degrado gentile usata ovunque
+in questo progetto, applicata qui al momento giusto (per chiamata, non
+per istanza).
+
+Verificato end-to-end tramite il vero punto di costruzione
+(`app.py:build_default_runtime()`), non con finti a mano: ipotesi
+enumerate reali, con cammini del grafo autentici come provenienza,
+incluso un collegamento genico via SMAD3 per "aneurysm-osteoarthritis
+syndrome" a partire da tre reperti di Marfan.
+
+9 nuovi test, veloci (0,12s, grafo fixture, non quello reale), 1303
+totali passanti, lint pulito.
