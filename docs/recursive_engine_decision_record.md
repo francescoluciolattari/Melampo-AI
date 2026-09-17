@@ -2837,3 +2837,73 @@ syndrome" a partire da tre reperti di Marfan.
 
 9 nuovi test, veloci (0,12s, grafo fixture, non quello reale), 1303
 totali passanti, lint pulito.
+
+### DifferentialEngine promuove ipotesi reali del grafo: il primo collegamento concreto di H1
+
+Prima di scrivere codice, un'indagine più approfondita ha corretto la
+cornice stessa di H1. `docs/rlm_on_memory_decision_record.md` (1-6
+settembre, mai letto prima di questa settimana) specifica già che
+`IntuitionEngine` e `DifferentialEngine` sono **due motori dentro la
+stessa pipeline** (`clinical_pipeline.py`), pensati per ricevere recuperi
+diversi in base al loro carattere — non due pipeline alternative fra cui
+scegliere.
+
+**Verificato con numeri, non presunto**: lo stesso documento dichiara il
+recupero ricorsivo degrada le ricerche semplici di 15-30 punti (a seconda
+della profondità) ed è soggetto a "overreach" — narrazioni composte da
+frammenti la cui connessione non ha fonte, che superano comunque il
+controllo di provenienza perché ogni citazione singola resta valida. Il
+recupero a un passaggio fallisce nel modo opposto, per omissione. Questa è
+la reale giustificazione del doppio percorso — non "quale motore vince",
+ma il fatto che i due falliscono in direzioni opposte.
+
+**`IntuitionEngine` letto per intero, per la prima volta**: si
+autodichiara *"research scaffold for biologically inspired
+inductive-deductive intuition"*. Verificato nel dettaglio: le sue
+ipotesi primarie sono letteralmente `candidate_1`, `candidate_2` —
+indici nella lista delle prove classificate, non nomi di diagnosi. I
+venti parametri "neuro-dinamici" che pesano le sue decisioni derivano da
+`neuro_dynamics.py`, i cui pesi (`AreaInteractionPrior`) sono costanti
+scelte a mano con una stringa di motivazione, non derivate da dati. Alla
+radice: `CaseContextArea.integrate()` calcola la salienza come
+`0.1 * len(keys)` — il numero di chiavi di un dizionario, non il suo
+contenuto; `VisualDiagnosticArea` segue lo stesso schema.
+
+**Il collegamento**: `DifferentialEngine.rank()` (`reasoning/differential_engine.py`)
+ora rileva quando l'ipotesi primaria proveniente da `IntuitionEngine` è un
+segnaposto (corrisponde al modello `candidate_\d+`) e, se esiste
+un'ipotesi reale fra le alternative del ramo dream (`kind ==
+"enumerated_mechanism"`, prodotta da B1), promuove la migliore per
+plausibilità a ipotesi primaria — con provenienza distinta
+(`source="graph_enumeration"` contro `source="intuition_engine"`), mai
+confusa. Il contributo dell'intuizione **non viene scartato**: retrocesso
+a `hypothesis_type="revision_alternative"`, resta visibile.
+
+**Un difetto trovato e corretto durante la verifica**: una prima versione
+non escludeva l'ipotesi appena promossa dal ciclo che elenca le altre
+alternative del ramo dream, producendo una voce duplicata quando
+l'ipotesi promossa capitava fra le prime tre alternative. Corretto
+filtrando per identità dell'oggetto prima del ciclo.
+
+**Verificato end-to-end** tramite il vero punto di costruzione
+(`app.py:build_default_runtime()`): con reperti reali di Marfan, la
+diagnosi primaria diventa *"aneurysm-osteoarthritis syndrome"*, con 19
+cammini reali del grafo come provenienza, al posto di `candidate_1`.
+Senza reperti, nessuna regressione — la primaria resta quella
+dell'intuizione, esattamente come prima.
+
+**Un limite onesto, notato durante la verifica, non nascosto**: i
+punteggi delle due fonti non sono sulla stessa scala — la formula di
+`IntuitionEngine` somma molti termini pesati senza un limite finale
+(osservato: 7,791), mentre `plausibility` del grafo resta in [0,1]
+(osservato: 1,0). Confrontare i punteggi direttamente fra fonti diverse
+oggi sarebbe fuorviante — segnalato, non corretto qui: la formula di
+`IntuitionEngine` è essa stessa il problema più grande, non ancora
+affrontato.
+
+**Ancora aperto**: `D1` (`ModelRouter`) resta lo stub che decide *quanti*
+percorsi far girare, non ancora costruito; le aree a monte restano
+segnaposto; le scale dei punteggi restano da armonizzare.
+
+12 nuovi test, veloci (0,03s, dati finti — mai il grafo reale), 1315
+totali passanti, lint pulito.
