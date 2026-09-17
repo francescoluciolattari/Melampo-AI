@@ -65,10 +65,33 @@ verificato end-to-end: "aneurysm-osteoarthritis syndrome" con 19 cammini
 di provenienza reale, al posto di "candidate_1". Il contributo
 dell'intuizione non viene scartato, solo retrocesso.
 
+**Secondo collegamento fatto**: `IntuitionEngine` produce ora nomi di
+diagnosi reali (`rank_differential()`, la stessa similarità fenotipica
+pesata per specificità già costruita e mai collegata a produzione),
+sostituendo `candidate_1`/`candidate_2` — risalita fino alla radice del
+problema: `SemanticMemoryStore` in `app.py` è vuoto, quindi il recupero a
+un passaggio ricade sempre su tre prove inventate a mano
+(`grounding_score` fisso a 0,58/0,46/0,5). Il collegamento non risolve
+quel vuoto — dà a `IntuitionEngine` una seconda fonte indipendente di
+contenuto reale. Verificato: quando l'intuizione produce già un'etichetta
+vera, `DifferentialEngine` correttamente **non promuove più nulla sopra
+di essa** — la rete di sicurezza della sezione precedente resta intatta
+solo per quando serve davvero.
+
+**Una scoperta interessante durante la verifica**: le due fonti reali
+(similarità fenotipica e enumerazione di meccanismi) danno **risposte
+diverse** sugli stessi reperti — "contractural arachnodactyly, congenital"
+contro "aneurysm-osteoarthritis syndrome". Non è un difetto: è
+esattamente il disaccordo informativo che l'intera architettura a doppio
+percorso prevede.
+
 **Ancora aperto**: il vero cancello D1 (instrada *quanti* percorsi
-girare, non quale) resta uno stub; le aree a monte restano segnaposto; le
-scale dei punteggi fra le due fonti non sono comparabili (verificato: uno
-7,791, l'altro 1,0 — nessuna normalizzazione condivisa).
+girare, non quale) resta codice morto, mai chiamato in `run()`, e fa
+instradamento di protocollo, non valutazione di complessità clinica; le
+aree a monte (`CaseContextArea`, `EpidemiologyArea`) restano segnaposto;
+le scale dei punteggi fra le due fonti restano non comparabili (verificato
+ancora: 7,341 contro un massimo di 1,0 sul lato grafo) — la formula di
+`IntuitionEngine` resta il problema più grande, non affrontato.
 
 ### ~~B1~~ — `MechanismEnumerator` dentro `_alternative_hypotheses()`
 **Chiusa.** `clinical_pipeline.py` ora collega un `MechanismEnumerator`

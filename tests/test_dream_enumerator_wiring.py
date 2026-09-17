@@ -176,3 +176,46 @@ def test_dream_trainer_enumerator_field_defaults_to_none():
 
     signature = inspect.signature(DreamTrainer.__init__)
     assert signature.parameters["enumerator"].default is None
+
+
+# --------------------------------------------------------------------------
+# _graph_candidates_for: real IC-weighted candidates for IntuitionEngine,
+# reusing the same cached graph as the dream branch's enumerator
+# --------------------------------------------------------------------------
+
+
+def test_no_findings_returns_an_empty_list_without_touching_the_graph(monkeypatch):
+    calls = {"n": 0}
+
+    def _counting_load_graph(*args, **kwargs):
+        calls["n"] += 1
+        graph = differential_graph()
+        return GraphSource(graph=graph, source="fixture", edge_count=len(graph.edges), detail="test")
+
+    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _counting_load_graph)
+    pipeline = _minimal_pipeline(monkeypatch)
+    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _counting_load_graph)
+
+    result = pipeline._graph_candidates_for([])
+
+    assert result == []
+    assert calls["n"] == 0
+
+
+def test_real_findings_produce_real_ic_weighted_candidates(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+
+    result = pipeline._graph_candidates_for(["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"])
+
+    assert result
+    assert all("condition" in item and "specificity_score" in item for item in result)
+
+
+def test_the_ic_table_loads_only_once_across_multiple_calls(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+
+    pipeline._graph_candidates_for(["bilateral hilar lymphadenopathy"])
+    table_after_first = pipeline._dream_ic_table
+    pipeline._graph_candidates_for(["hypercalcaemia"])
+
+    assert pipeline._dream_ic_table is table_after_first
