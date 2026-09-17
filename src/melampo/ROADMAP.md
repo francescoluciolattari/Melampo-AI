@@ -33,17 +33,42 @@ Queste voci sono in cima non perché lo fossero in origine, ma perché il
 lavoro di questa settimana ne ha abbassato il costo o ne ha rivelato
 l'urgenza.
 
-### H1 — Riconciliare `diagnostic_assembly.py` con `clinical_pipeline.py`
-**Stato**: Aperta. **Sforzo**: la *decisione* costa un pomeriggio;
-l'implementazione della scelta è più lunga e non ancora stimata.
-Due catene di ragionamento esistono oggi, non riconciliate: una verificata
-end-to-end questa settimana (persistenza reale, cascata di normalizzazione
-completa, ciclo di apprendimento chiuso), una collegata a `app.py` in
-produzione. Ogni giorno senza una decisione è lavoro che rischia di
-accumularsi sulla catena sbagliata, o su entrambe.
-**Perché in cima**: costo di decisione bassissimo, rischio di rimandare
-alto — l'unica voce di questo documento dove *aspettare* ha un costo
-composto.
+### ~~H1~~ — Riconciliare `diagnostic_assembly.py` con `clinical_pipeline.py`
+**Riformulata, non "chiusa" nel senso semplice.** Un'indagine più
+approfondita (`docs/rlm_on_memory_decision_record.md`, 1-6 settembre,
+mai letto prima di questa settimana) ha mostrato che H1 era una domanda
+mal posta: non "quale pipeline tenere", ma la ricostruzione di un piano
+già esistente — `IntuitionEngine` (veloce, associativo) e
+`DifferentialEngine` (seriale, controllato) sono **due motori già dentro
+`clinical_pipeline.py`**, pensati per ricevere due tipi di recupero
+diversi (a un passaggio per l'intuizione, ricorsivo per il differenziale)
+ma oggi alimentati dallo stesso recupero superficiale.
+
+**Verificato con numeri, non un'opinione**: il recupero ricorsivo degrada
+le ricerche semplici di circa 15-30 punti (dipendenza dalla profondità),
+ed è soggetto a "overreach" (narrazioni senza fonte che superano
+comunque il controllo di provenienza). Il recupero a un passaggio fallisce
+nel modo opposto, per omissione. Il doppio percorso è giustificato dalla
+loro asimmetria, non dalla superiorità di uno dei due.
+
+**`IntuitionEngine` verificato per intero**: si autodichiara *"research
+scaffold"*, e lo è — le sue ipotesi primarie sono etichette segnaposto
+(`candidate_1`, `candidate_2`), alimentate da metriche neuro-dinamiche i
+cui pesi (`AreaInteractionPrior`) sono numeri scelti a mano, a loro volta
+alimentate da aree (`CaseContextArea`, `EpidemiologyArea`) che calcolano
+la salienza contando le chiavi di un dizionario, non il contenuto.
+
+**Un primo collegamento reale è stato fatto**: `DifferentialEngine.rank()`
+ora promuove la migliore ipotesi reale e collegata al grafo (prodotta da
+B1, sopra) quando la primaria di `IntuitionEngine` è un segnaposto —
+verificato end-to-end: "aneurysm-osteoarthritis syndrome" con 19 cammini
+di provenienza reale, al posto di "candidate_1". Il contributo
+dell'intuizione non viene scartato, solo retrocesso.
+
+**Ancora aperto**: il vero cancello D1 (instrada *quanti* percorsi
+girare, non quale) resta uno stub; le aree a monte restano segnaposto; le
+scale dei punteggi fra le due fonti non sono comparabili (verificato: uno
+7,791, l'altro 1,0 — nessuna normalizzazione condivisa).
 
 ### ~~B1~~ — `MechanismEnumerator` dentro `_alternative_hypotheses()`
 **Chiusa.** `clinical_pipeline.py` ora collega un `MechanismEnumerator`
