@@ -2750,3 +2750,45 @@ sulle prestazioni della ricerca in ampiezza su un grafo di quella
 dimensione -- non affrontata qui, segnalata per lavoro futuro.
 
 4 nuovi test (800 permutazioni), 1281 totali passanti.
+
+### La cognizione quantistica come campo reale: Tappa A della verifica
+
+Una domanda diretta sul confine fra la cognizione quantistica come campo
+accademico legittimo (Huang et al. 2025, Fuyama et al. 2025, Busemeyer &
+Bruza 2012 -- verificati come pubblicazioni reali) e l'errore concreto già
+corretto in questo progetto (l'equazione di Schrödinger letterale, con
+$\hbar$ fisico, per confrontare vettori reali) ha portato a un piano di
+validazione in tre tappe, concordato esplicitamente. Tappa A: verificare
+che il formalismo matematico sia implementato correttamente, prima di
+qualunque affermazione sull'utilità clinica.
+
+`training/quantum_cognition_order_model.py`: spazio di Hilbert complesso
+reale, proiettori verificati come Hermitiani e idempotenti alla
+costruzione (non assunti), collasso sequenziale secondo il postulato di
+Lüders. La proprietà centrale, dimostrabile e verificata direttamente:
+**l'effetto d'ordine è esattamente zero quando i proiettori commutano, e
+diverso da zero quando non commutano** -- verificato con un esempio in
+stile Clinton-Gore (due domande binarie, base ruotata di 30 gradi):
+P(prima A poi B) = 0.270, P(prima B poi A) = 0.634, una differenza reale,
+non un artefatto. La conservazione della probabilità totale
+(P(sì)+P(no)=1, esatta a 10 cifre) e il rifiuto di matrici non valide sono
+verificati altrettanto direttamente.
+
+**Dichiarato esplicitamente, non taciuto**: questo modulo non è mai
+collegato al ragionamento del sistema stesso, che resta indipendente
+dall'ordine per costruzione (verificato separatamente). Predice
+un'eventuale distorsione nel giudizio del *lettore umano*, non modifica
+mai la conclusione del sistema. E un limite noto del campo stesso, non di
+questa implementazione: gli effetti d'ordine e la ripetibilità della
+risposta non si modellano ancora simultaneamente nel formalismo
+standard in spazio di Hilbert -- un problema aperto in letteratura, non
+affrontato qui.
+
+Le Tappe B (confronto con studi clinici già pubblicati sull'ancoraggio
+diagnostico -- individuato un candidato concreto: uno studio randomizzato
+su medici in formazione con la posizione del reperto fuorviante
+manipolata) e C (uno studio prospettico proprio) restano non tentate,
+richiedono risorse fuori dalla portata di una sessione di scrittura di
+codice.
+
+13 nuovi test, 1294 totali passanti, lint pulito.
