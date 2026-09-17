@@ -1,9 +1,11 @@
 # Technical Roadmap — versione ottimizzata e unificata
 
 **Sostituisce** la precedente versione a 4 fasi di questo file e il Report
-EG #10 come unica fonte operativa. Entrambi restano leggibili in
-`docs/UNIFIED_ROADMAP_RECONCILIATION.md` per la riconciliazione completa,
-verificata voce per voce, che ha prodotto questa versione.
+EG #10 come unica fonte operativa — questa è **l'unica roadmap**.
+`docs/ROADMAP_VERIFICATION_LOG.md` non è una seconda roadmap: è il
+registro delle verifiche contro il codice reale che ha prodotto questa
+versione, utile solo a chi voglia capire perché una voce è segnata chiusa
+o aperta.
 
 **Aggiornata al**: 17 settembre 2026. **Non definitiva** — verificare lo
 stato di ogni voce contro il codice reale prima di assumerla vera, la
@@ -203,9 +205,9 @@ concetti), B0c/B0d, B2, B3, C1 (`rlm_engine.py`, letteralmente etichettato
 ## Nota di chiusura
 
 Questa versione sostituisce sia le 4 fasi precedenti di questo file sia il
-Report EG #10 come piano operativo di riferimento. La riconciliazione
-completa che l'ha prodotta, con ogni verifica documentata singolarmente,
-resta in `docs/UNIFIED_ROADMAP_RECONCILIATION.md`. Non è definitiva: le
+Report EG #10 — è l'unica roadmap. Il registro di verifica che l'ha
+prodotta, con ogni controllo documentato singolarmente, resta in
+`docs/ROADMAP_VERIFICATION_LOG.md`. Non è definitiva: le
 voci del blocco E non riverificate (E1, E3, E4) e l'intero blocco F
 andrebbero controllate con la stessa disciplina di verifica diretta contro
 il codice prima di pianificarle con fiducia.
