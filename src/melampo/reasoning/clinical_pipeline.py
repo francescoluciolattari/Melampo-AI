@@ -8,6 +8,8 @@ from ..areas.epidemiology_area import EpidemiologyArea
 from ..areas.language_listening_area import LanguageListeningArea
 from ..areas.visual_diagnostic_area import VisualDiagnosticArea
 from ..evaluation.quantum_gate import QuantumResearchGate
+from ..memory.candidate_retrieval import retrieve_candidates
+from ..memory.graph_sources import load_verification_graph
 from ..memory.retriever import MemoryRetriever
 from ..memory.visual_imprint import VisualImprintBuilder
 from ..models.abstention import AbstentionPolicy
@@ -18,6 +20,7 @@ from ..orchestration.runtime_services import RuntimeServices
 from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.dream_trainer import DreamTrainer
+from ..training.mechanism_enumeration import MechanismEnumerator
 from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
 from .area_coherence import AreaCoherenceAnalyzer
@@ -27,6 +30,10 @@ from .escalation import EscalationPolicy
 from .intuition_engine import IntuitionEngine
 from .pipeline_coordinator import PipelineCoordinator
 from .policy_stack import PolicyStack
+
+# Capped for MechanismEnumerator.run()'s real per-candidate cost -- see the
+# comment at its call site in _dream_case_context for the measurement.
+DREAM_ENUMERATION_CANDIDATE_CAP = 8
 
 
 
@@ -158,6 +165,14 @@ class ClinicalInferencePipeline:
     quantum_layer: object
     replay_engine: object
     logger: object
+    # Lazily populated cache for the real concept graph and the
+    # MechanismEnumerator built from it -- loaded once per pipeline
+    # instance, not per case. _build_runtime_components() runs inside
+    # run(), called once per request; without this cache, a 1.27M-edge
+    # graph load (roughly six seconds, measured against the real data)
+    # would repeat on every single case.
+    _dream_graph_source: Any = None
+    _dream_enumerator: Any = None
 
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
@@ -178,6 +193,14 @@ class ClinicalInferencePipeline:
                 replay_filter=ReplayFilter(),
                 sampler=CounterfactualSampler(),
                 belief_layer=QuantumBeliefLayer(),
+                # enumerator stays unset here, deliberately -- see
+                # _dream_case_context, which attaches a real one only when
+                # a case actually supplies findings. Loading the real graph
+                # unconditionally on every call regressed the test suite
+                # from ~13s to ~99s: a dozen pre-existing tests exercise
+                # this pipeline with no findings at all, and each one paid
+                # the real graph's ~6.6s load cost for an enumerator it was
+                # never going to use.
             ),
             "intuition_engine": IntuitionEngine(belief_layer=QuantumBeliefLayer()),
             "visual_area": VisualDiagnosticArea(),
@@ -292,6 +315,81 @@ class ClinicalInferencePipeline:
             ),
         }
 
+    def _dream_enumerator_instance(self) -> Any:
+        """The real MechanismEnumerator, built once against the real concept graph and cached.
+
+        Deliberately independent of the diagnostic_assembly.py reconciliation
+        question (an open architectural decision -- see ROADMAP.md, H1): this
+        wires only the enumerator itself, a read-only graph traversal for
+        hypothesis generation, using graph_sources.load_verification_graph()
+        directly rather than diagnostic_assembly.py's full assembly (which
+        also carries the learned-edge store and conjecture ledger, a larger
+        question this change does not settle). Loaded once per pipeline
+        instance, not reimplemented via diagnostic_assembly.dream_context_for
+        to avoid pulling in that module's own dependency chain for a helper
+        this pipeline can compute directly from what it already imports.
+
+        Before this, self.knowledge_graph (KnowledgeGraphClient) was the only
+        graph-shaped object available here -- a seven-line placeholder whose
+        `.lookup()` returns a fixed dict, not a real graph. Wiring the
+        enumerator to it would have produced hypotheses from a graph with no
+        real edges, indistinguishable from the rehearsal-label fallback this
+        change replaces.
+        """
+        if self._dream_enumerator is None:
+            self._dream_graph_source = load_verification_graph()
+            self._dream_enumerator = MechanismEnumerator(graph=self._dream_graph_source.graph)
+        return self._dream_enumerator
+
+    def _dream_case_context(
+        self, *, case: CaseContext, payload: dict[str, Any], bundle: dict[str, Any],
+        area_dynamics: dict[str, Any], governance_scores: dict[str, Any], visual_imprints: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """The dream branch's case context, enriched with findings and candidate conditions when available.
+
+        `payload.get("findings")` is the caller-supplied finding list --
+        absent, this enriches nothing and the dream trainer's enumerator
+        stays unset (see `_run_dream_branch`), falling back to rehearsal
+        labels exactly as before. Present, `candidate_conditions` is
+        derived from the real graph via `retrieve_candidates`, matching
+        `diagnostic_assembly.dream_context_for`'s own logic without
+        importing that module.
+        """
+        findings = [str(item) for item in (payload.get("findings") or []) if str(item).strip()]
+        candidate_conditions: list[str] = []
+        if findings:
+            # Capped rather than passing every candidate through: verified
+            # directly against the real graph that MechanismEnumerator.run()
+            # costs roughly 3.5-4 seconds per candidate (2 candidates ~7s, 5
+            # ~20s, 10 ~40s -- linear, not a fixed overhead), a real
+            # performance limitation discovered while wiring this, not
+            # previously measured because MechanismEnumerator had only ever
+            # been exercised against small fixture graphs. Uncapped, a case
+            # with retrieve_candidates' typical yield (dozens of candidates)
+            # would make this branch take minutes. The cap keeps the branch
+            # usable now; the underlying per-candidate cost is a distinct,
+            # deeper question -- see ROADMAP.md, H3.
+            report = retrieve_candidates(
+                findings, self._dream_enumerator_instance().graph, max_candidates=DREAM_ENUMERATION_CANDIDATE_CAP
+            )
+            candidate_conditions = [item.condition for item in report.candidates]
+        return {
+            "case_id": case.case_id,
+            "bundle_keys": list(bundle.keys()),
+            "demographics": case.demographics,
+            "provenance": case.provenance,
+            "report_text": case.report_text,
+            "patient_complaints": payload.get("patient_complaints", ""),
+            "exposures": payload.get("exposures", {}),
+            "area_dynamics": area_dynamics,
+            "governance_scores": governance_scores,
+            "visual_imprints": visual_imprints,
+            "diagnostic_visual_imprints": visual_imprints,
+            "concept_memory_imprints": payload.get("concept_memory_imprints", []),
+            "findings": findings,
+            "candidate_conditions": candidate_conditions,
+        }
+
     def _run_dream_branch(
         self,
         components: dict[str, Any],
@@ -302,21 +400,20 @@ class ClinicalInferencePipeline:
         governance_scores: dict[str, Any],
         visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        # The real graph and MechanismEnumerator load only when there is
+        # something for them to do -- attached here, not at
+        # _build_runtime_components() time, so the dozens of existing
+        # callers that never supply findings never pay for a graph they
+        # will not use. Once attached, the same instance is cached on
+        # self._dream_enumerator (_dream_enumerator_instance) and reused
+        # for the rest of this pipeline instance's lifetime.
+        if payload.get("findings"):
+            components["dream_trainer"].enumerator = self._dream_enumerator_instance()
         return components["dream_trainer"].run(
-            case_context={
-                "case_id": case.case_id,
-                "bundle_keys": list(bundle.keys()),
-                "demographics": case.demographics,
-                "provenance": case.provenance,
-                "report_text": case.report_text,
-                "patient_complaints": payload.get("patient_complaints", ""),
-                "exposures": payload.get("exposures", {}),
-                "area_dynamics": area_dynamics,
-                "governance_scores": governance_scores,
-                "visual_imprints": visual_imprints,
-                "diagnostic_visual_imprints": visual_imprints,
-                "concept_memory_imprints": payload.get("concept_memory_imprints", []),
-            },
+            case_context=self._dream_case_context(
+                case=case, payload=payload, bundle=bundle, area_dynamics=area_dynamics,
+                governance_scores=governance_scores, visual_imprints=visual_imprints,
+            ),
             coherence=governance_scores["dream_coherence"],
             risk=governance_scores["risk"],
         )
