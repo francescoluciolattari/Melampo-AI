@@ -1,20 +1,211 @@
-# Technical Roadmap
+# Technical Roadmap — versione ottimizzata e unificata
 
-## Stage 1
-- keep the new `src/melampo/` package as the canonical implementation path
-- complete smoke coverage for the main scaffolding components
-- finish legacy transition and reduce ambiguity in old paths
+**Sostituisce** la precedente versione a 4 fasi di questo file e il Report
+EG #10 come unica fonte operativa. Entrambi restano leggibili in
+`docs/UNIFIED_ROADMAP_RECONCILIATION.md` per la riconciliazione completa,
+verificata voce per voce, che ha prodotto questa versione.
 
-## Stage 2
-- replace placeholders with concrete adapters for imaging, pathology, text, retrieval, and service orchestration
-- enrich schemas and validation contracts
-- add real calibration, risk-coverage, and OOD evaluation utilities
+**Aggiornata al**: 17 settembre 2026. **Non definitiva** — verificare lo
+stato di ogni voce contro il codice reale prima di assumerla vera, la
+stessa disciplina che ha prodotto questa versione dalla precedente.
 
-## Stage 3
-- connect the reasoning stack to auditable evidence traces and selective prediction
-- evolve generative replay into a configurable offline training subsystem
-- add benchmark harnesses for differential reasoning and reader-study support
+**Non contiene** la rotazione del token GitHub, di proposito — gestita
+separatamente, fuori da questo documento.
 
-## Stage 4
-- expand the optional theoretical-quantum track under explicit falsification criteria
-- keep classical and non-classical baselines comparable and auditable
+---
+
+## Come leggere questa roadmap
+
+Ogni voce ha uno stato (**Aperta**, **Parziale**, **Chiusa**), uno sforzo
+stimato, e le dipendenze reali. Le priorità (P0-P3) non replicano l'ordine
+di EG #10 — sono state **ricalcolate** sul valore e costo di oggi, non su
+quelli del 2 settembre, perché diverse voci sono cambiate di costo da
+allora (alcune sono diventate più economiche perché il lavoro propedeutico
+è stato fatto; altre sono rimaste ferme).
+
+---
+
+## P0 — valore alto, costo basso oggi (non c'era a settembre)
+
+Queste voci sono in cima non perché lo fossero in origine, ma perché il
+lavoro di questa settimana ne ha abbassato il costo o ne ha rivelato
+l'urgenza.
+
+### H1 — Riconciliare `diagnostic_assembly.py` con `clinical_pipeline.py`
+**Stato**: Aperta. **Sforzo**: la *decisione* costa un pomeriggio;
+l'implementazione della scelta è più lunga e non ancora stimata.
+Due catene di ragionamento esistono oggi, non riconciliate: una verificata
+end-to-end questa settimana (persistenza reale, cascata di normalizzazione
+completa, ciclo di apprendimento chiuso), una collegata a `app.py` in
+produzione. Ogni giorno senza una decisione è lavoro che rischia di
+accumularsi sulla catena sbagliata, o su entrambe.
+**Perché in cima**: costo di decisione bassissimo, rischio di rimandare
+alto — l'unica voce di questo documento dove *aspettare* ha un costo
+composto.
+
+### B1 — `MechanismEnumerator` dentro `_alternative_hypotheses()`
+**Stato**: Aperta, confermata. **Sforzo**: rivisto da 2-3 giorni (stima
+originale) a probabilmente meno — `dream_context_for()`, che fornisce
+esattamente i candidati che questo aggancio si aspetta, esiste già da
+questa settimana. Resta da passare `enumerator=` nei due punti reali di
+costruzione di `DreamTrainer` (`clinical_pipeline.py`) e collegare
+`dream_context_for()` alla chiamata.
+**Perché in cima**: sblocca `rlm.dream_hypotheses_add_value` (claim non
+bloccante ma fermo da settimane per mancanza di questo collegamento), a un
+costo ora inferiore a quello stimato in origine.
+
+---
+
+## P1 — blocchi reali su altro lavoro, costo moderato
+
+### A3.1 — Set di riferimento per la copertura
+**Stato**: Aperta. **Sforzo**: 1 settimana, curatela clinica.
+**Blocca**: B4 (valutazione clinica). Senza denominatore, `measure_coverage`
+non misura nulla. **Decisione ancora pendente**: chi la cura — la
+decisione più costosa rispetto al proprio beneficio in tutto il documento
+precedente, e resta tale.
+
+### D1 — `ModelRouter` come gate di complessità reale
+**Stato**: Aperta. Letto per intero: 20 righe, instradamento fisso,
+nessuna logica di complessità. **Sforzo**: 1 settimana.
+**Blocca**: l'intero blocco D (D2-D5) — un vero collo di bottiglia, non
+solo una voce fra tante.
+
+### A3.3 + G3 — Stato SNOMED e riconciliazione concettuale (fuse)
+**Stato**: Parziale. La verifica sullo stato di appartenenza dell'Italia a
+SNOMED International è stata tentata questa settimana — assenza
+consistente su più fonti, non conferma certa. La riconciliazione
+concettuale (G3) è già parzialmente indirizzata, ma non tramite MONDO come
+previsto in origine — tramite crosswalk UMLS, in attesa di registrazione.
+**Sforzo residuo**: 1 giorno per la conferma diretta con SNOMED
+International; il resto dipende dalla registrazione UMLS, già in corso.
+**Perché fuse**: entrambe dipendono dalla stessa incertezza di licenza, e
+risolverla una volta serve a entrambe.
+
+---
+
+## P2 — valore reale, costo alto o sequenza-dipendente
+
+### A1 — Equivalente ricorsivo del grounding
+**Stato**: Aperta, invariata. **Sforzo**: 1-2 settimane.
+**Vincolo non negoziabile, ereditato da EG #10 e confermato ancora
+valido**: deve precedere D5 — un A/B eseguito senza questo confronta
+grandezze non commensurabili.
+
+### A2 — Corpus di validazione longitudinale
+**Stato**: Aperta, nessuna evidenza di lavoro iniziato. **Sforzo**: 2
+settimane. Nessun blocco diretto su altro lavoro identificato — può
+scorrere in parallelo, non in cima.
+
+### B0b → B0c → B0d — Estrazione guidata dall'indice
+**Stato**: B0c/B0d **chiuse** questa settimana passata (verificato:
+`assertion.py`, 2-6 settembre). **B0b resta aperta**, bloccata da due
+decisioni mai prese: lingua di riferimento per il collegamento
+concettuale, ampiezza del lessico nella prima versione. **Sforzo**: 2-3
+settimane una volta decise.
+
+### B4 — Valutazione clinica su casi selezionati per densità
+**Stato**: Aperta. **Blocca su**: B1 (ora più vicina), A3.1 (ancora
+lontana). **Sforzo**: 2 settimane.
+
+### D2, D3, D4, D5 — Dual-path diagnostico
+**Stato**: Aperte, bloccate da D1 e (per D5) da A1. Sforzo invariato da
+EG #10: 1-2 settimane ciascuna, D5 in coda per il vincolo d'ordine.
+
+### A3.2 — Importatori LOINC, ATC, ECTO
+**Stato**: Aperta. **Bloccata da**: decisione sulle categorie oltre il
+fenotipo, in ordine di priorità — ancora non presa. **Sforzo**: 1-2
+settimane ciascuno, meccanico una volta decise le categorie.
+
+---
+
+## P3 — continuo, o dipendente da eventi esterni
+
+### E2 — Sostituire "Gemma 4" con un artefatto verificabile
+**Stato**: Aperta. Verificato: "Gemma 4" compare letteralmente in quattro
+file (`model_capability_registry.py`, `specialist_adapters.py`,
+`rlm_model_adapter.py`, `specialist_runtime.py`) come segnaposto per *"un
+modello di ragionamento generale a pesi aperti"* — non confermato se
+corrisponda a un modello realmente rilasciato con questo nome esatto.
+**Sforzo**: 3 giorni, principalmente verifica, non implementazione.
+
+### E5 — Protezione dei confini contestuali nei blocchi di testo
+**Riscritta rispetto a EG #10**: la voce originale parlava di blocchi
+Docling. Docling è stato rimosso dal progetto (rimosso prima di questa
+sessione di analisi, sostituito da Nemotron-Parse/LlamaParse). La stessa
+esigenza di protezione dei confini si applica ai blocchi prodotti dal
+nuovo estrattore — da riformulare per quello, non da completare come
+scritta in origine. **Sforzo**: 1 settimana.
+
+### H3 — Prestazioni della ricerca in ampiezza sul grafo reale
+**Nuova**: una singola interrogazione `retrieve_candidates` contro il
+grafo reale (1,27 milioni di archi) impiega 3,4 secondi — misurato,
+mai indagato. Rilevante per qualunque uso realmente interattivo.
+**Sforzo**: 3-5 giorni di indagine prima di poter stimare una correzione.
+
+### H4 — Popolamento del deposito UMLS cifrato
+**Nuova**: dipende dal completamento della registrazione UMLS, in corso.
+Una volta ottenuta la chiave, il popolamento (crosswalk per i concetti già
+tracciati) è meccanico. **Sforzo**: 1-2 giorni una volta sbloccata.
+
+### E1, E3, E4 — Consolidamento
+**Stato**: non riverificate in questa ottimizzazione — sforzo e stato
+invariati da EG #10 (2 settimane, 2-3 settimane, 2 settimane
+rispettivamente). Da controllare con la stessa disciplina prima di
+pianificarle.
+
+### F1-F5 — Privacy e oracolo a predicati
+**Stato**: Aperte, nessuna evidenza di lavoro iniziato su nessuna delle
+cinque. Sforzo invariato da EG #10. Tre claim bloccanti dipendono in
+parte da questo blocco (vedi sotto).
+
+### G1, G2, G4 — Vocabolario e curatela
+**Stato**: Aperte, nessuna evidenza. Sforzo invariato da EG #10.
+
+---
+
+## Voci chiuse — verificate, non ripetute oltre questo elenco
+
+A0 (risoluzione concetti), A3 nella sua parte meccanica (grafo reale
+popolato, ben oltre l'ambizione originale: 1.273.466 archi, 29.053
+concetti), B0c/B0d, B2, B3, C1 (`rlm_engine.py`, letteralmente etichettato
+"Block C" nel proprio commit), C2 nella sua parte sostanziale
+(`context_environment.py`).
+
+---
+
+## Decisioni ancora pendenti, con priorità aggiornata
+
+| # | Decisione | Blocca | Priorità |
+|---|---|---|---|
+| 1 | Chi cura il set di riferimento per la copertura | A3.1 → B4 | **La più urgente**: costo di decisione basso, beneficio alto |
+| 2 | Lingua di riferimento per il collegamento concettuale | B0b | Alta |
+| 3 | Ampiezza del lessico nella prima versione | B0b, ne determina la durata | Alta |
+| 4 | Categorie oltre il fenotipo, in ordine di priorità | A3.2 | Media |
+| 5 | Classificatore di asserzione: locale o addestrato di dominio | Probabilmente risolta implicitamente da `assertion.py` — da confermare | Bassa, verifica |
+
+---
+
+## Claim bloccanti — stato aggiornato
+
+| Claim | Bloccante | Stato oggi |
+|---|---|---|
+| `rlm.dual_path_beats_single_path` | Sì | Aperto — misurabile dopo A1 |
+| `rlm.disagreement_is_informative` | Sì | Aperto — misurabile dopo D2 |
+| `privacy.predicate_budget_prevents_reconstruction` | Sì | Aperto — nessuno strumento ancora (blocco F) |
+| `rlm.dream_hypotheses_add_value` | No | Aperto — **più vicino a essere misurabile** ora che B1 è a basso costo |
+| `rlm.coverage_predicts_grounding` | No | Aperto |
+| `rlm.open_weight_root_is_sufficient` | Dormiente | Invariato |
+| `rlm.recursive_helps_only_on_complex_cases` | — | Ritirato |
+
+---
+
+## Nota di chiusura
+
+Questa versione sostituisce sia le 4 fasi precedenti di questo file sia il
+Report EG #10 come piano operativo di riferimento. La riconciliazione
+completa che l'ha prodotta, con ogni verifica documentata singolarmente,
+resta in `docs/UNIFIED_ROADMAP_RECONCILIATION.md`. Non è definitiva: le
+voci del blocco E non riverificate (E1, E3, E4) e l'intero blocco F
+andrebbero controllate con la stessa disciplina di verifica diretta contro
+il codice prima di pianificarle con fiducia.

@@ -1,5 +1,10 @@
 # Riconciliazione delle roadmap — Report EG #10 vs ROADMAP.md, e proposta unificata
 
+> **Nota**: questo documento ha prodotto la versione ottimizzata e unificata
+> ora in vigore in `src/melampo/ROADMAP.md`. Resta qui come riconciliazione
+> verificata voce per voce — la fonte delle decisioni, non il piano
+> operativo corrente. Per il piano attivo, vedere `ROADMAP.md`.
+
 **Autore:** Francesco Lattari (analisi e verifica: sessione di sviluppo)
 **Data:** 17 settembre 2026
 **Stato:** documento vivo, non definitivo
