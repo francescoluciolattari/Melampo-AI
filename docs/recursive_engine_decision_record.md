@@ -2907,3 +2907,56 @@ segnaposto; le scale dei punteggi restano da armonizzare.
 
 12 nuovi test, veloci (0,03s, dati finti — mai il grafo reale), 1315
 totali passanti, lint pulito.
+
+### IntuitionEngine produce nomi di diagnosi reali: risalita alla radice del problema
+
+Richiesto direttamente: `rank_differential()` era già usato da qualche
+parte? Verificato: no — definito e testato, mai chiamato fuori dal proprio
+modulo. Collegato ora a `IntuitionEngine`, la cui domanda di fondo era
+"com'è implementato, e con quale modello genera ipotesi?" — la risposta,
+risalendo tutta la catena fino alla radice: `SemanticMemoryStore` in
+`app.py:build_default_runtime()` viene costruito **vuoto**, nessun
+documento viene mai aggiunto. `MemoryRetriever.retrieve()` cerca in un
+deposito vuoto, non trova nulla, e ricade su tre prove inventate a mano
+(`_fallback_evidence()`): valori come `f"analogy_for:{query[:40]}"`, con
+`grounding_score` fisso a 0,58/0,46/0,5 — non misurano nulla.
+`IntuitionEngine` riceve queste prove finte e ne estrae `candidate_1`,
+`candidate_2` — non un difetto della sua logica, un difetto di ciò che
+riceve in ingresso.
+
+**Nessun nuovo modello necessario**: il carattere "veloce, associativo"
+che il documento di decisione chiede per l'intuizione è esattamente ciò
+che `rank_differential()` già fa — confronto per coseno pesato per
+specificità, senza percorrere il grafo, senza chiamate a modelli.
+Collegato con la stessa disciplina di B1: `IntuitionEngine.infer()` accetta
+ora un parametro opzionale `graph_candidates`, e sostituisce le etichette
+segnaposto una per una con nomi reali quando disponibili — **senza
+toccare la formula di punteggio esistente**, che resta un problema
+separato e più grande, segnalato ma non affrontato qui.
+
+**Verificata la composizione con la modifica precedente**: quando
+`IntuitionEngine` produce già un'etichetta reale, il controllo di
+`DifferentialEngine` (che cerca il prefisso `candidate_`) la riconosce
+correttamente come non-segnaposto e **non promuove più nulla sopra di
+essa** — verificato con un test dedicato. La rete di sicurezza resta
+intatta solo per il caso in cui `rank_differential()` non trovi nulla
+(nessun reperto condiviso col grafo) pur in presenza di reperti.
+
+**Una scoperta emersa dalla verifica end-to-end, non cercata
+deliberatamente**: le due fonti reali disaccordano sugli stessi reperti —
+similarità fenotipica sceglie "contractural arachnodactyly, congenital",
+enumerazione di meccanismi sceglie "aneurysm-osteoarthritis syndrome".
+Non un difetto: è esattamente il disaccordo informativo che l'intera
+architettura a doppio percorso è stata pensata per sfruttare.
+
+**Il limite di scala dei punteggi, verificato di nuovo, non ancora
+risolto**: 7,341 (intuizione, formula non limitata) contro un massimo di
+1,0 (grafo, per costruzione). Non toccato in questo lavoro — la formula
+di `IntuitionEngine` è il problema più grande, a sé.
+
+Verificato che la cache del grafo e la nuova tabella IC si costruiscono
+una sola volta per istanza (stesso schema di B1) — nessuna ripetizione
+della regressione di prestazioni della sessione precedente.
+
+12 nuovi test, veloci (dati finti, mai il grafo reale), 1327 totali
+passanti, lint pulito.

@@ -94,7 +94,11 @@ class IntuitionEngine:
             3,
         )
 
-    def infer(self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool, area_signals: dict | None = None, area_dynamics: dict | None = None) -> dict:
+    def infer(
+        self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool,
+        area_signals: dict | None = None, area_dynamics: dict | None = None,
+        graph_candidates: list | None = None,
+    ) -> dict:
         area_signals = area_signals or {}
         area_dynamics = area_dynamics or {}
         neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
@@ -129,14 +133,30 @@ class IntuitionEngine:
         coherence_score_ext = float(area_dynamics.get("coherence_score", 0.0))
         mismatch_score_ext = float(area_dynamics.get("mismatch_score", 0.0))
 
-        inductive_candidates = [
-            {
-                "label": f"candidate_{index + 1}",
-                "support_weight": item.get("weight", 1),
-                "source": item.get("item", {}).get("source", "unknown"),
-            }
-            for index, item in enumerate(ranked_evidence[:3])
-        ]
+        # Real, graph-grounded candidate names (rank_differential's own
+        # IC-weighted specificity score, already bounded to [0, 1] the same
+        # way plausibility is on the RLM/differential side -- fixing both
+        # the placeholder-label problem and the scale mismatch it caused
+        # against DifferentialEngine's promoted hypotheses in one change,
+        # without touching the scoring formulas below at all) replace the
+        # positional "candidate_N" placeholders one-for-one, oldest-first.
+        # Fewer real candidates than ranked_evidence entries means the
+        # remaining positions keep the placeholder they always had --
+        # additive, never a hard requirement on the caller to supply enough
+        # for every slot.
+        graph_candidates = graph_candidates or []
+        inductive_candidates = []
+        for index, item in enumerate(ranked_evidence[:3]):
+            if index < len(graph_candidates):
+                candidate = graph_candidates[index]
+                label = candidate.get("condition", f"candidate_{index + 1}")
+                support_weight = candidate.get("specificity_score", item.get("weight", 1))
+            else:
+                label = f"candidate_{index + 1}"
+                support_weight = item.get("weight", 1)
+            inductive_candidates.append(
+                {"label": label, "support_weight": support_weight, "source": item.get("item", {}).get("source", "unknown")}
+            )
         area_ranking, top_areas, convergence_score, conflict_score = self._rank_areas(area_signals)
         area_pair_bonus = self._area_pair_bonus(
             top_areas,

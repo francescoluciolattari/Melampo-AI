@@ -9,7 +9,9 @@ from ..areas.language_listening_area import LanguageListeningArea
 from ..areas.visual_diagnostic_area import VisualDiagnosticArea
 from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.candidate_retrieval import retrieve_candidates
+from ..memory.differential_ranking import rank_differential
 from ..memory.graph_sources import load_verification_graph
+from ..memory.information_content import InformationContentTable
 from ..memory.retriever import MemoryRetriever
 from ..memory.visual_imprint import VisualImprintBuilder
 from ..models.abstention import AbstentionPolicy
@@ -173,6 +175,7 @@ class ClinicalInferencePipeline:
     # would repeat on every single case.
     _dream_graph_source: Any = None
     _dream_enumerator: Any = None
+    _dream_ic_table: Any = None
 
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
@@ -314,6 +317,28 @@ class ClinicalInferencePipeline:
                 exposures=payload.get("exposures", {}),
             ),
         }
+
+    def _graph_candidates_for(self, findings: list[str]) -> list[dict[str, Any]]:
+        """Real, IC-weighted candidate diagnoses for IntuitionEngine, or an empty list without findings.
+
+        Reuses the same cached graph `_dream_enumerator_instance` already
+        loads for B1 -- no second real-graph load. `InformationContentTable`
+        is cached the same way, measured at 0.43s to build against the real
+        graph (far cheaper than the graph load itself, but still worth not
+        repeating on every request). Empty findings mean an empty list, not
+        an error: `intuition_engine.infer` already treats an empty
+        `graph_candidates` as "nothing to promote", falling back to its
+        previous placeholder behaviour exactly.
+        """
+        if not findings:
+            return []
+        enumerator = self._dream_enumerator_instance()
+        if self._dream_ic_table is None:
+            self._dream_ic_table = InformationContentTable.from_graph_structure(enumerator.graph)
+        report = retrieve_candidates(findings, enumerator.graph, max_candidates=DREAM_ENUMERATION_CANDIDATE_CAP)
+        candidate_names = [item.condition for item in report.candidates]
+        ranked = rank_differential(findings, candidate_names, enumerator.graph, self._dream_ic_table)
+        return [item.as_dict() for item in ranked]
 
     def _dream_enumerator_instance(self) -> Any:
         """The real MechanismEnumerator, built once against the real concept graph and cached.
@@ -507,6 +532,7 @@ class ClinicalInferencePipeline:
             quantum_allowed=quantum_allowed,
             area_signals=area_signals,
             area_dynamics=area_dynamics,
+            graph_candidates=self._graph_candidates_for(payload.get("findings") or []),
         )
         evidence = self._coordination_evidence(
             bundle=bundle,
