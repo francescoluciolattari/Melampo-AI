@@ -2717,3 +2717,36 @@ cache for the batch's concepts, resolved to their HPO ids through the same
 `hp.obo` synonym index the normalisation cascade itself uses, so a live
 cascade run later finds this batch's results already cached rather than
 making its own first-use network call.
+
+### Il controllo di indipendenza dall'ordine, e una scoperta collaterale sulle prestazioni
+
+Richiesto direttamente, dopo aver discusso gli effetti d'ordine della
+cognizione quantistica: il sistema stesso potrebbe cambiare conclusione a
+seconda dell'ordine in cui i reperti arrivano? Per uno strumento diagnostico
+regolato questo sarebbe un difetto, non una caratteristica -- distinto
+esplicitamente dalla domanda, diversa e legittima, se un **lettore umano**
+possa mostrare bias di ancoraggio in base all'ordine di presentazione.
+
+Verificato empiricamente, non presunto dalla lettura del codice: 30
+permutazioni casuali contro il grafo HPO reale (1.273.466 archi) su
+`retrieve_candidates` e `rank_differential`, 50 su `MechanismEnumerator`
+contro una fixture -- **zero risultati dipendenti dall'ordine** in tutte le
+esecuzioni. La struttura del codice spiega perché: `breadth` si calcola per
+unione di insiemi, `nearest_hops` per minimo progressivo -- entrambe
+operazioni indipendenti dall'ordine per costruzione -- e l'ordinamento
+finale dei candidati usa il nome come spareggio esplicito, mai l'ordine di
+iterazione del dizionario.
+
+Una suite di regressione permanente e veloce (`tests/test_order_invariance.py`)
+ripete lo stesso controllo su grafi fixture piccoli -- 800 permutazioni
+totali in 0,23 secondi -- così la proprietà resta verificata ad ogni
+esecuzione della suite, senza il costo del grafo reale.
+
+**Scoperta collaterale, non richiesta ma rilevante**: una singola chiamata
+a `retrieve_candidates` contro il grafo reale impiega **3,4 secondi**. Le 30
+permutazioni di verifica hanno richiesto 102 secondi totali. Per un
+contesto genuinamente in tempo reale questo merita un'indagine separata
+sulle prestazioni della ricerca in ampiezza su un grafo di quella
+dimensione -- non affrontata qui, segnalata per lavoro futuro.
+
+4 nuovi test (800 permutazioni), 1281 totali passanti.
