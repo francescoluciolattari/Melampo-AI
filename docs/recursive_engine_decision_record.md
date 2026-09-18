@@ -2960,3 +2960,56 @@ della regressione di prestazioni della sessione precedente.
 
 12 nuovi test, veloci (dati finti, mai il grafo reale), 1327 totali
 passanti, lint pulito.
+
+### Il rinforzo hebbiano diventa dipendente dall'attivazione, dopo aver verificato che l'ICA letterale avrebbe la direzione sbagliata
+
+Proposto inizialmente come "Regola Hebbiana Non-Lineare (ICA)" — Hyvärinen
+& Oja, 1998. Verificato prima di implementare, la stessa disciplina già
+usata per la domanda sulla cognizione quantistica: **l'ICA esiste per
+massimizzare l'indipendenza statistica fra segnali mescolati — separa,
+decorrela**. Il compito di `hebbian_reinforce()` è l'opposto — avvicinare
+due vettori **già** riconosciuti come correlati e confermati clinicamente.
+Applicare la regola ICA qui avrebbe ottimizzato nella direzione sbagliata
+sullo stesso tipo di operazione.
+
+**Cosa è stato usato al suo posto, reale e citabile a sé**: il postulato
+originale di Hebb (1949) è dipendente dall'attivazione, non cieco ad essa
+— il rinforzo scala con quanto le due unità sono "attive insieme", non con
+una costante fissa applicata comunque. La versione precedente lo
+ignorava: ogni coppia confermata si spostava dello stesso `learning_rate`
+fisso, che fosse appena sopra la soglia di conferma o già quasi identica.
+Ora `learning_rate` è scalato per la sovrapposizione coseno corrente della
+coppia — la loro reale "coattivazione" — prima di essere applicato.
+
+**Verificato con numeri concreti**: una coppia debolmente correlata ma
+comunque confermata (overlap 0,40) si sposta di circa un quarto rispetto
+al tasso fisso precedente (nuovo overlap 0,438 contro 0,488); una coppia
+già fortemente correlata resta quasi invariata, perché il suo overlap è
+già vicino a 1.
+
+**Un limite onesto trovato scrivendo i test, non nascosto**: con
+sovrapposizione iniziale esattamente zero, il tasso effettivo diventa
+zero — nessun rinforzo, coerente col postulato letterale (nessuna
+coattivazione, nessun rinforzo). Non è un difetto pratico: `reinforce()`
+viene chiamato solo su coppie che `find_cross_case_correlations()` ha già
+fatto emergere sopra la soglia minima (0,85 di default), quindi il caso
+overlap-zero non si presenta mai nell'uso reale — ma è stato documentato
+con un test dedicato, non taciuto.
+
+**Un mio stesso errore trovato scrivendo i test**: un primo tentativo di
+verificare "il rinforzo scala con la correlazione" confrontava l'overlap
+risultante fra una coppia debole e una forte — fallito per il motivo
+sbagliato, perché l'overlap è limitato a 1,0 e la coppia forte, già vicina
+al tetto, ha poco margine per muoversi indipendentemente dal tasso
+effettivo usato. Corretto verificando direttamente la forma chiusa che la
+funzione applica.
+
+**Non è la regola di Oja**, e non pretende di esserlo — nessun termine di
+decadimento per la normalizzazione esatta, nessun obiettivo di
+indipendenza. È il postulato di Hebb stesso, preso alla lettera, dove la
+versione precedente ne aveva silenziosamente perso la parte che ne è il
+contenuto reale.
+
+2 nuovi test, 2 test esistenti corretti per usare scenari di sovrapposizione
+realistici (mai esattamente zero in produzione), 1329 totali passanti,
+lint pulito.
