@@ -3182,3 +3182,65 @@ corretta, documentata e testata (5 nuovi test dedicati, inclusa la
 verifica dell'ordine), ma non collegata al percorso critico.
 
 5 nuovi test per `edges_from_many`, 1354 totali passanti, lint pulito.
+
+### H3 chiusa: attraversamento Cypher nativo, dopo aver verificato a fondo algo.BFS e trovato la causa reale
+
+Richiesto direttamente: verificare con la massima attenzione `algo.BFS`
+prima di scartarlo — codice sorgente, altri test, ricerca su altri
+progetti — altrimenti procedere con il precalcolo.
+
+**Verifica approfondita di `algo.BFS`, con prove concrete**: FalkorDB è
+open source (implementazione Rust). Trovate due segnalazioni **aperte**
+nel repository ufficiale, datate 4 settembre 2026 — due settimane prima
+di questa sessione — che descrivono esattamente lo schema di difetto
+riscontrato: `algo.BFS` composto con altre clausole Cypher (`MATCH...WHERE...WITH`)
+si comporta in modo scorretto **specificamente nel motore Rust**, mentre
+il motore C di controllo funziona correttamente. Verificato con
+`strings` sul binario incorporato: `falkordblite` usa il motore Rust
+(stringhe `rustc/...` ovunque nel file `falkordb.so`) — lo stesso motore
+citato nelle segnalazioni.
+
+**Corroborato da un secondo progetto reale, indipendente**: getzep/graphiti,
+un framework di memoria a grafo comparabile al nostro uso, ha
+un'intera segnalazione di coordinamento che cataloga 23 difetti
+specifici di FalkorDB, incluso lo stesso schema esatto — *"le letture
+rispondono con il grafo dell'ultimo gruppo scritto, restituendo
+silenziosamente vuoto per gli altri gruppi"*. Un terzo caso reale
+(agent-infra) descrive lo stesso sintomo sotto un'altra causa (container
+fermo): *"un grafo assente si legge come uno vuoto"*.
+
+Con questa base di prove — non solo il mio test isolato — `algo.BFS`
+è stato scartato con fiducia.
+
+**La scoperta che ha risolto il problema**: la corrispondenza di
+percorso Cypher **nativa** (`-[:CONCEPT_EDGE*1..N]-`, una funzionalità
+fondamentale di OpenCypher, non la procedura `algo.*` dove vivono i
+difetti trovati) funziona correttamente **e** velocemente. Verificato
+sul caso che `algo.BFS` falliva silenziosamente ("aortic root aneurysm"):
+2.814 candidati grezzi corretti, non zero.
+
+**Costruito `shortest_path_last_edges()`**: per ogni concetto
+raggiungibile, restituisce solo l'ultimo arco del cammino più corto —
+non tutti gli archi di tutti i nodi visitati, la causa del fallimento
+del tentativo precedente. La logica di ammissibilità (distinzione
+gene/malattia) resta **in Python, invariata**, mai spostata dentro
+Cypher — lo stesso rischio già scartato all'inizio dell'indagine.
+
+**Una scoperta durante la verifica finale, non prevista**: il primo
+confronto end-to-end su cinque casi reali mostrava un'accelerazione
+deludente (0,6x-1,1x) nonostante il singolo test isolato fosse 8-20
+volte più veloce. Causa trovata: `resolve_concept()` chiama
+`graph.concepts()` una volta per ogni reperto — gratuito su
+`InMemoryConceptGraph` (un insieme Python già in memoria), ma un vero
+andata-ritorno su FalkorDB (0,12s, 31.317 concetti trasferiti). Corretto
+con una cache sull'istanza di `FalkorConceptGraph`, invalidata
+correttamente da `clear()` e `load_edges()`.
+
+**Risultato finale, verificato su cinque casi reali, inclusi tutti
+quelli critici delle indagini precedenti**: risultati **identici**
+all'implementazione Python in ogni caso — stessi candidati, stessi
+salti, stessa provenienza — con accelerazione da **0,9x a 4,3x**, mai
+più lenta in modo significativo.
+
+11 nuovi test, veloci, tutti contro istanze reali, 1365 totali
+passanti, lint pulito. H3 chiusa in `ROADMAP.md`.
