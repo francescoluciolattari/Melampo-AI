@@ -3120,3 +3120,65 @@ invece che una misura isolata.
 
 12 nuovi test, tutti contro istanze incorporate reali (mai finte), 1349
 totali passanti, lint pulito.
+
+### Il tentativo di riscrittura per query native: respinto con prove, la causa era più profonda del previsto
+
+Richiesto direttamente: riscrivere `retrieve_candidates` (e probabilmente
+`MechanismEnumerator`) per usare query Cypher native invece
+dell'orchestrazione passo per passo in Python, dato che il collo di
+bottiglia era stato identificato in 533 andata-ritorno separati.
+
+**Prima decisione presa con cura**: non spostare la logica di
+ammissibilità (la distinzione gene/malattia, dipendente dal tipo e dalla
+direzione dell'ultimo arco del percorso) dentro la query Cypher stessa —
+rischio di correttezza troppo alto per un sistema diagnostico senza poter
+riusare direttamente i test già esistenti contro quella logica.
+Costruito invece `FalkorConceptGraph.edges_from_many()`: recupera gli
+archi di **molti** nodi in una sola andata-ritorno, lasciando l'intera
+logica di ammissibilità in Python, invariata e già testata.
+
+**Verificato con grande cura prima di fidarsi**: l'algoritmo originale
+dipende dall'ordine in cui gli archi vengono incontrati (il primo arco
+verso un bersaglio "vince", anche se non ammissibile). Verificato con
+uno stress test dedicato che `edges_from_many()` preserva l'ordine esatto
+di `edges_from()`, non solo il contenuto — ripetuto tre volte per
+escludere non-determinismo.
+
+`retrieve_candidates` riscritto per elaborare un intero livello del
+fronte di ricerca alla volta invece che un nodo alla volta, con
+degradazione automatica a `edges_from()` per grafi senza il metodo
+massivo (`InMemoryConceptGraph` e ogni altra implementazione di
+`ConceptGraphView`).
+
+**Il risultato, verificato su tre casi reali, non uno solo**: **peggio,
+non meglio**, su tutti e tre — 0,5x, 0,7x, 0,2x la velocità originale.
+Un lotto con dimensione limitata a 150 concetti (nel tentativo di
+bilanciare il numero di andata-ritorno contro il volume dei dati) non
+ha risolto il caso peggiore (0,19x, ancora più lento).
+
+**La causa reale, trovata e non presunta**: reperti comuni come
+"epatomegalia" espandono a **1.396 concetti** al secondo livello di
+ricerca, e recuperare i loro archi — raggruppati o no — restituisce
+**oltre 100.000 archi** in una singola risposta. Il collo di bottiglia
+non era il numero di andata-ritorno (che la prima ipotesi aveva
+identificato correttamente come costoso) — era il **volume di dati**
+trasferito per nodi ad alto grado, e raggruppare le richieste in lotti
+più piccoli non riduce il volume totale che deve comunque attraversare
+la connessione.
+
+**Verificato anche per `MechanismEnumerator`, prima di tentare qualunque
+correzione**: 20,25 secondi su FalkorDB contro 3,04 in Python — ancora
+più lento, senza nemmeno restringere il caso a un reperto ad alto grado.
+La prova era già sufficiente a non procedere con lo stesso approccio
+lì.
+
+**Correttezza, mai in discussione**: ogni test di equivalenza fra i due
+motori ha continuato a dare risultati identici durante l'intera indagine
+— il problema è sempre stato di prestazioni, mai di esattezza.
+
+`retrieve_candidates.py` riportato alla versione originale, funzionante
+e più veloce. `edges_from_many()` resta nel codice come infrastruttura
+corretta, documentata e testata (5 nuovi test dedicati, inclusa la
+verifica dell'ordine), ma non collegata al percorso critico.
+
+5 nuovi test per `edges_from_many`, 1354 totali passanti, lint pulito.

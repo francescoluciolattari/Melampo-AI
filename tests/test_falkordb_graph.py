@@ -144,3 +144,52 @@ def test_clear_removes_every_node_and_edge(falkor_graph):
     falkor_graph.clear()
     assert falkor_graph.edge_count() == 0
     assert falkor_graph.concepts() == set()
+
+
+# --------------------------------------------------------------------------
+# edges_from_many: correctness and order, kept as documented infrastructure
+# even though it was found not to help retrieve_candidates' BFS -- see
+# ROADMAP.md, H3, for why (result-set volume on hub concepts, not round-trip
+# count, is the real bottleneck for that access pattern).
+# --------------------------------------------------------------------------
+
+
+def test_edges_from_many_matches_individual_edges_from_calls_exactly(falkor_graph):
+    individually = {
+        "marfan syndrome": _comparable(falkor_graph.edges_from("marfan syndrome")),
+        "aortic root aneurysm": _comparable(falkor_graph.edges_from("aortic root aneurysm")),
+    }
+    bulk = falkor_graph.edges_from_many(["marfan syndrome", "aortic root aneurysm"])
+    bulk_comparable = {key: _comparable(value) for key, value in bulk.items()}
+    assert individually == bulk_comparable
+
+
+def test_edges_from_many_preserves_the_exact_order_edges_from_would_give(falkor_graph):
+    """The property retrieve_candidates' admissibility logic depends on when
+    it does use batched fetching: the first edge encountered to a given
+    target decides admissibility, so order must match exactly, not just set
+    contents."""
+    individual_order = [(e.relation, e.target) for e in falkor_graph.edges_from("marfan syndrome")]
+    bulk_order = [(e.relation, e.target) for e in falkor_graph.edges_from_many(["marfan syndrome"])["marfan syndrome"]]
+    assert individual_order == bulk_order
+
+
+def test_edges_from_many_with_an_empty_list_returns_an_empty_dict(falkor_graph):
+    assert falkor_graph.edges_from_many([]) == {}
+
+
+def test_edges_from_many_includes_an_entry_for_a_concept_with_no_edges(falkor_graph):
+    result = falkor_graph.edges_from_many(["nonexistent concept"])
+    assert result == {"nonexistent concept": []}
+
+
+def test_edges_from_many_respects_a_small_batch_size_without_changing_results(falkor_graph):
+    """Chunking is an internal performance knob -- results must be identical
+    regardless of batch_size."""
+    default_batch = falkor_graph.edges_from_many(["marfan syndrome", "aortic root aneurysm", "loeys-dietz syndrome"])
+    tiny_batches = falkor_graph.edges_from_many(
+        ["marfan syndrome", "aortic root aneurysm", "loeys-dietz syndrome"], batch_size=1
+    )
+    default_comparable = {key: _comparable(value) for key, value in default_batch.items()}
+    tiny_comparable = {key: _comparable(value) for key, value in tiny_batches.items()}
+    assert default_comparable == tiny_comparable

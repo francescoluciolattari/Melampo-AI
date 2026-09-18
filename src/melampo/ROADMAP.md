@@ -201,20 +201,37 @@ esigenza di protezione dei confini si applica ai blocchi prodotti dal
 nuovo estrattore — da riformulare per quello, non da completare come
 scritta in origine. **Sforzo**: 1 settimana.
 
-### H3 — Prestazioni sul grafo reale (causa ora precisa, non solo misurata)
-Tre misure, tutte reali. `retrieve_candidates` contro il grafo reale:
-3,4s in Python, **3,4-3,7s su FalkorDB — non più veloce**, causa
-identificata: 533 chiamate separate a `edges_from()` per una sola
-invocazione, ognuna con il proprio andata-ritorno verso il database.
-`MechanismEnumerator.run()`: circa 3,5-4 secondi per candidato, lineare.
-Il livello di connessione FalkorDB (`falkordb_graph.py`) è verificato
-corretto e il caricamento massivo è genuinamente veloce (47.162
-archi/secondo) — il problema è che l'algoritmo di attraversamento sopra
-di esso orchestra la ricerca passo per passo in Python invece di
-emettere query Cypher native a più salti in una sola andata-ritorno.
-**Sforzo**: riscrivere `retrieve_candidates` (e probabilmente
-`MechanismEnumerator`) per il traversal nativo — 1-2 settimane, non più
-"indagine" ma implementazione diretta, dato che la causa è ora nota.
+### H3 — Prestazioni sul grafo reale (tentativo di correzione fatto, respinto con prove, causa più profonda del previsto)
+**Tentato**: raggruppare le chiamate `edges_from()` per livello del
+fronte di ricerca invece di farne una per nodo (`FalkorConceptGraph.edges_from_many()`),
+per ridurre 533 andata-ritorno a una manciata. **Risultato: peggio, non
+meglio, su tutti e tre i casi reali testati** (0,5x, 0,7x, 0,2x la
+velocità originale) — un lotto con dimensione limitata (150 concetti)
+non ha risolto il caso peggiore. Causa trovata, non presunta: reperti
+comuni come "epatomegalia" espandono a 1.396 concetti al secondo
+livello, e recuperare i loro archi — anche raggruppati — restituisce
+oltre 100.000 archi in una singola risposta. **Il collo di bottiglia si
+è spostato dal numero di andata-ritorno al volume di dati trasferiti**,
+e raggruppare le richieste non riduce il volume totale. La stessa causa
+è stata verificata anche per `MechanismEnumerator`: 20,25s su FalkorDB
+contro 3,04s in Python, ancora più lento, senza nemmeno tentare una
+correzione — la prova era già sufficiente a non procedere.
+
+`edges_from_many()` resta nel codice come infrastruttura corretta e
+testata (12 test dedicati), ma **non collegata al percorso critico** di
+`retrieve_candidates`, che è stato riportato alla versione originale
+funzionante.
+
+**Cosa resta da valutare, non ancora deciso**: (a) spostare la logica di
+ammissibilità (la distinzione gene/malattia) dentro la query Cypher
+stessa, cosa che ridurrebbe il volume trasferito a soli i candidati
+finali ammissibili — respinto finora per il rischio di replicare una
+regola a più condizioni senza poter riusare i test esistenti
+direttamente contro di essa; (b) un modello ibrido, dove FalkorDB resta
+la fonte di verità persistente ma il livello di attraversamento a caldo
+continua a usare una cache in memoria costruita da FalkorDB all'avvio —
+non ancora esplorato. **Sforzo**: 1-2 settimane per (a) con validazione
+rigorosa, o alcuni giorni per (b).
 
 ### H4 — Popolamento del deposito UMLS cifrato
 **Nuova**: dipende dal completamento della registrazione UMLS, in corso.
