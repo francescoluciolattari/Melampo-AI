@@ -201,15 +201,20 @@ esigenza di protezione dei confini si applica ai blocchi prodotti dal
 nuovo estrattore — da riformulare per quello, non da completare come
 scritta in origine. **Sforzo**: 1 settimana.
 
-### H3 — Prestazioni sul grafo reale (rafforzata dalla chiusura di B1)
-Due misure distinte, entrambe reali: una singola interrogazione
-`retrieve_candidates` contro il grafo reale impiega 3,4 secondi;
-`MechanismEnumerator.run()` costa circa 3,5-4 secondi **per candidato**,
-lineare — con la decina di candidati tipica di un caso reale, minuti,
-non secondi. Un limite di sicurezza (`DREAM_ENUMERATION_CANDIDATE_CAP`)
-tiene il secondo problema sotto controllo per ora; nessuno dei due è
-stato ottimizzato. Rilevante per qualunque uso realmente interattivo.
-**Sforzo**: 3-5 giorni di indagine prima di poter stimare una correzione.
+### H3 — Prestazioni sul grafo reale (causa ora precisa, non solo misurata)
+Tre misure, tutte reali. `retrieve_candidates` contro il grafo reale:
+3,4s in Python, **3,4-3,7s su FalkorDB — non più veloce**, causa
+identificata: 533 chiamate separate a `edges_from()` per una sola
+invocazione, ognuna con il proprio andata-ritorno verso il database.
+`MechanismEnumerator.run()`: circa 3,5-4 secondi per candidato, lineare.
+Il livello di connessione FalkorDB (`falkordb_graph.py`) è verificato
+corretto e il caricamento massivo è genuinamente veloce (47.162
+archi/secondo) — il problema è che l'algoritmo di attraversamento sopra
+di esso orchestra la ricerca passo per passo in Python invece di
+emettere query Cypher native a più salti in una sola andata-ritorno.
+**Sforzo**: riscrivere `retrieve_candidates` (e probabilmente
+`MechanismEnumerator`) per il traversal nativo — 1-2 settimane, non più
+"indagine" ma implementazione diretta, dato che la causa è ora nota.
 
 ### H4 — Popolamento del deposito UMLS cifrato
 **Nuova**: dipende dal completamento della registrazione UMLS, in corso.

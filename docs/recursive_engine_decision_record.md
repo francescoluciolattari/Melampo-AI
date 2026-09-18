@@ -3053,3 +3053,70 @@ quel lavoro futuro si appoggerà.
 
 8 nuovi test, tutti contro istanze incorporate reali (mai finte), 1337
 totali passanti, lint pulito.
+
+### Livello di attraversamento migrato a FalkorDB — correttezza provata, prestazioni non ancora migliorate, causa precisa identificata
+
+Verificato prima di scrivere codice: `ConceptGraphView` era già un
+`Protocol` astratto con due soli metodi richiesti (`edges_from`,
+`concepts`), e il proprio docstring dichiarava già *"Adapter-neutral...
+production wiring goes through the semantic memory adapter's graph
+traversal"* — il modulo era stato progettato fin dall'inizio per
+esattamente questo tipo di sostituzione. `retrieve_candidates`,
+`MechanismEnumerator`, `find_paths`, `rank_differential` sono tutti
+tipizzati contro il protocollo astratto, non contro `InMemoryConceptGraph`
+direttamente — confermato leggendo ciascuno prima di scrivere una riga.
+
+`memory/falkordb_graph.py`: `FalkorConceptGraph` implementa lo stesso
+protocollo sostenuto da FalkorDB. Schema: un solo tipo di relazione Cypher
+(`CONCEPT_EDGE`) per ogni arco, con la vera relazione clinica come
+proprietà — i tipi di relazione Cypher devono essere letterali nella
+query, non parametrizzabili, il che avrebbe richiesto un lotto UNWIND per
+ogni relazione distinta contro un vocabolario ampio e guidato dai dati
+come il nostro.
+
+**Un difetto di prestazioni trovato e corretto durante la verifica**: un
+lotto di 5.000 archi andava in timeout. Causa: nessun indice su
+`Concept.norm`, quindi ogni `MERGE` scansionava tutti i nodi esistenti.
+Corretto con `CREATE INDEX FOR (c:Concept) ON (c.norm)` prima di qualunque
+caricamento — dopo la correzione, 50.000 archi sintetici si caricano in
+1,1s (47.162 archi/secondo), e il grafo HPO reale completo (636.733
+archi, non 1.273.466 — quella cifra citata in precedenza contava
+entrambe le direzioni di attraversamento, non gli archi grezzi) si carica
+in 13,4 secondi.
+
+**Correttezza, provata rigorosamente**: `edges_from()` e `concepts()`
+producono risultati identici a `InMemoryConceptGraph` per lo stesso
+insieme di archi, inclusa la direzione inversa con prefisso
+`inverse_`. `find_paths`, `MechanismEnumerator`, `retrieve_candidates`
+funzionano **senza alcuna modifica** contro FalkorDB, verificato con gli
+stessi identici risultati dei due motori sullo stesso caso.
+
+**Le prestazioni, verificate con onestà, non ancora migliorate per
+l'operazione che conta**: una singola `edges_from()` sul grafo reale è
+più lenta su FalkorDB (0,078s) che in Python (istantanea) — atteso, un
+salto di processo costa sempre più di una lettura di dizionario in
+memoria. Ma il vero banco di prova era `retrieve_candidates()`, il
+collo di bottiglia già misurato e documentato (H3): **3,4-3,7 secondi su
+FalkorDB contro 2,4 secondi in Python — più lento, non più veloce**,
+riprodotto su tre tentativi consecutivi.
+
+**La causa, precisa, non presunta**: una singola chiamata a
+`retrieve_candidates()` fa **533 chiamate separate a `edges_from()`** —
+ognuna paga il proprio andata-ritorno verso FalkorDB (~6,4ms l'una), e la
+somma di 533 andata-ritorno supera il costo di 533 letture di dizionario
+in memoria. Il livello di connessione e il caricamento massivo sono
+genuinamente più veloci di prima — ma l'algoritmo di attraversamento
+sopra di essi è stato scritto assumendo che `edges_from()` fosse a costo
+zero, un'assunzione vera in memoria e falsa contro un database reale.
+
+**La conclusione onesta**: la migrazione dell'adattatore è completa e
+corretta, ma non risolve da sola H3. Per ottenere il beneficio di
+prestazioni reale servirebbe riscrivere `retrieve_candidates` (e
+probabilmente `MechanismEnumerator`) per emettere query Cypher native a
+più salti in una sola andata-ritorno, invece di orchestrare la ricerca in
+ampiezza passo per passo in Python — un lavoro separato, non affrontato
+qui, che rafforza ulteriormente H3 nella roadmap con una causa precisa
+invece che una misura isolata.
+
+12 nuovi test, tutti contro istanze incorporate reali (mai finte), 1349
+totali passanti, lint pulito.
