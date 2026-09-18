@@ -3013,3 +3013,43 @@ contenuto reale.
 2 nuovi test, 2 test esistenti corretti per usare scenari di sovrapposizione
 realistici (mai esattamente zero in produzione), 1329 totali passanti,
 lint pulito.
+
+### FalkorDBLite scelto per il progetto, con commutazione a FalkorDB Service tramite un solo file
+
+Deciso direttamente, dopo una valutazione che ha respinto sia Weaviate sia
+Qdrant (Parte precedente di questo registro): FalkorDB è una categoria di
+strumento diversa dai due — un motore che fa attraversamento di grafo
+**e** ricerca vettoriale nello stesso sistema (indice vettoriale nativo su
+nodi via Cypher: `CREATE VECTOR INDEX FOR (p:Product) ON (p.embedding)`),
+mentre Weaviate e Qdrant fanno solo la seconda. Dato che il problema
+centrale del progetto — `retrieve_candidates`, `MechanismEnumerator`, ogni
+cammino del grafo — è attraversamento di grafo, non ricerca per
+somiglianza, FalkorDB corrisponde alla forma reale dell'architettura
+meglio di entrambe le alternative considerate a maggio.
+
+**Verificato prima di scegliere `falkordblite`**, non assunto dal nome:
+pacchetto reale, ufficiale, mantenuto dal team FalkorDB stesso
+(`github.com/FalkorDB/falkordblite`), versione 0.10.0 installata,
+compatibile con Python 3.12. La sua stessa documentazione dichiara la
+proprietà richiesta esplicitamente: *"L'API di falkordblite è progettata
+per rispecchiare il client standard falkordb-py. Per passare dal motore
+locale a un cluster remoto, basta cambiare l'inizializzazione."*
+
+`memory/falkordb_connection.py`: un'unica funzione `connect()`, che legge
+`data/falkordb_config.toml` (creato con la modalità `lite` di default al
+primo utilizzo, così il progetto funziona da subito senza configurazione
+manuale) e restituisce una connessione — incorporata o remota — dietro la
+stessa interfaccia. Verificato end-to-end con query Cypher reali, mai
+finte: creazione di nodi e relazioni, attraversamento, e la commutazione
+di modalità cambiando **solo** il contenuto del file, senza toccare una
+riga di codice.
+
+**Cosa questo lavoro non fa, dichiarato esplicitamente**: non migra
+`InMemoryConceptGraph`, `candidate_retrieval.py`, o `MechanismEnumerator`
+a interrogare FalkorDB via Cypher — è un lavoro separato e più ampio
+(riscrivere il livello di attraversamento del grafo stesso), non ancora
+affrontato. Questo stabilisce e verifica la base di connessione su cui
+quel lavoro futuro si appoggerà.
+
+8 nuovi test, tutti contro istanze incorporate reali (mai finte), 1337
+totali passanti, lint pulito.
