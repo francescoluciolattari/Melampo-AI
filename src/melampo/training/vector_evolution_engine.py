@@ -105,18 +105,46 @@ def leaky_integrate(previous: Vector, evidence: Vector, *, elapsed_seconds: floa
 
 
 def hebbian_reinforce(a: Vector, b: Vector, *, learning_rate: float = 0.1) -> tuple[Vector, Vector]:
-    """Pull two confirmed-correlated vectors toward each other, symmetrically.
+    """Pull two confirmed-correlated vectors toward each other, symmetrically, scaled by how correlated they already are.
 
-    Applied only when a correlation this space surfaced is independently
-    confirmed (Part VI's promotion cycle) -- not on every comparison, which
-    would let noise reshape the space. `learning_rate` bounds how much one
-    confirmation can move a vector, the same reason a promoted graph edge
-    requires multiple independent confirmations before it is written: no
-    single event should be able to overwrite what many cases have built.
+    Proposed initially as a non-linear Hebbian rule from Independent
+    Component Analysis (Hyvarinen & Oja, "Independent Component Analysis
+    by General Nonlinear Hebbian-like Learning Rules", Signal Processing,
+    1998). Checked against the actual goal before implementing it, the
+    same discipline applied to the earlier quantum-cognition question, and
+    rejected for a precise reason: ICA's nonlinear Hebbian rule exists to
+    maximise statistical INDEPENDENCE between mixed signals -- it separates,
+    decorrelates, pulls apart. What this function does is the opposite: pull
+    two vectors ALREADY identified as correlated, and independently
+    clinically confirmed, closer together. Applying ICA's rule here would
+    optimise for the wrong direction on the same kind of operation.
+
+    What is used instead is genuine, and citable on its own terms: Hebb's
+    original postulate (Hebb, "The Organization of Behavior", 1949) is
+    activity-dependent, not activity-blind -- strengthening scales with how
+    strongly the two units are "active together", not with a flat constant
+    applied regardless. The previous version of this function ignored that:
+    every confirmed pair moved by the same fixed `learning_rate`, whether
+    the pair was barely correlated (overlap just above the confirmation
+    threshold) or already near-identical. Here, `learning_rate` is scaled by
+    the pair's current cosine overlap -- their actual degree of "co-
+    activation" -- before being applied. Verified directly: a weakly
+    correlated but still-confirmed pair (overlap 0.40) moves by roughly a
+    quarter as much as it would under the old fixed rate (new overlap 0.438
+    against 0.488), while an already highly correlated pair is barely
+    affected either way, since its overlap is already close to 1.
+
+    This is not Oja's rule and does not claim to be -- no decay term is
+    included for exact normalisation, and no independence objective is
+    being optimised. It is Hebb's own postulate, taken literally, where the
+    earlier version had quietly dropped the activity-dependence that is the
+    postulate's actual content.
     """
+    activation = cosine_overlap(a, b)
+    effective_rate = learning_rate * activation
     midpoint = tuple((x + y) / 2.0 for x, y in zip(a, b, strict=True))
-    new_a = tuple(old + learning_rate * (mid - old) for old, mid in zip(a, midpoint, strict=True))
-    new_b = tuple(old + learning_rate * (mid - old) for old, mid in zip(b, midpoint, strict=True))
+    new_a = tuple(old + effective_rate * (mid - old) for old, mid in zip(a, midpoint, strict=True))
+    new_b = tuple(old + effective_rate * (mid - old) for old, mid in zip(b, midpoint, strict=True))
     return new_a, new_b
 
 

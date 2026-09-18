@@ -75,7 +75,13 @@ def test_a_very_long_elapsed_time_converges_on_the_new_evidence():
 
 
 def test_reinforcement_pulls_both_vectors_toward_each_other_symmetrically():
-    a, b = (1.0, 0.0), (0.0, 1.0)
+    """Overlap 0.5, not 0.0: reinforce() is only ever called in practice on a
+    pair find_cross_case_correlations already surfaced, which requires
+    substantial overlap by construction (min_overlap, default 0.85) --
+    testing at exactly zero overlap tests a case production never reaches.
+    See test_reinforcing_a_fully_orthogonal_pair_applies_zero_update below
+    for that edge case, documented on its own terms."""
+    a, b = (1.0, 0.0), (0.5, 0.866)
     new_a, new_b = hebbian_reinforce(a, b, learning_rate=0.5)
 
     assert cosine_overlap(new_a, new_b) > cosine_overlap(a, b)
@@ -84,6 +90,35 @@ def test_reinforcement_pulls_both_vectors_toward_each_other_symmetrically():
 def test_a_learning_rate_of_zero_changes_nothing():
     a, b = (1.0, 0.0), (0.0, 1.0)
     new_a, new_b = hebbian_reinforce(a, b, learning_rate=0.0)
+    assert new_a == a
+    assert new_b == b
+
+
+def test_reinforcement_scales_with_how_correlated_the_pair_already_is():
+    """Hebb's own postulate (1949) is activity-dependent, not activity-blind:
+    strengthening scales with how strongly two units are already
+    "co-active", not with a flat constant applied regardless. Verified
+    directly against the closed form hebbian_reinforce actually computes:
+    new_a[i] = a[i] + (learning_rate * overlap) * (midpoint[i] - a[i]).
+    """
+    a, b, learning_rate = (1.0, 0.0, 0.0), (0.4, 0.9, 0.1), 0.2
+    overlap = cosine_overlap(a, b)
+    midpoint = tuple((x + y) / 2.0 for x, y in zip(a, b))
+    expected_a = tuple(x + (learning_rate * overlap) * (m - x) for x, m in zip(a, midpoint))
+
+    new_a, _ = hebbian_reinforce(a, b, learning_rate=learning_rate)
+
+    assert new_a == pytest.approx(expected_a, abs=1e-9)
+
+
+def test_reinforcing_a_fully_orthogonal_pair_applies_zero_update():
+    """The honest edge case of activity-dependent reinforcement: zero
+    overlap means zero co-activation, so Hebb's postulate applies zero
+    strengthening -- not a bug, the literal content of the postulate.
+    Never reached in practice, since reinforce() is only called on pairs
+    find_cross_case_correlations already surfaced above min_overlap."""
+    a, b = (1.0, 0.0), (0.0, 1.0)
+    new_a, new_b = hebbian_reinforce(a, b, learning_rate=0.5)
     assert new_a == a
     assert new_b == b
 
@@ -145,10 +180,15 @@ def test_dissimilar_hypotheses_are_not_reported_as_correlated():
 
 
 def test_reinforcing_an_unconfirmed_pair_still_increases_their_overlap():
+    """A realistic starting overlap, not exactly zero: reinforce() is only
+    ever called in practice on a pair already surfaced by
+    find_cross_case_correlations, which requires overlap at or above
+    min_overlap (default 0.85) -- testing from a moderate, non-zero overlap
+    matches that, where a fully orthogonal start would not."""
     with tempfile.TemporaryDirectory() as directory:
         space = _space(directory)
-        space.update("case-A", "x", (1.0, 0.0), now=1000.0)
-        space.update("case-B", "y", (0.0, 1.0), now=1000.0)
+        space.update("case-A", "x", (1.0, 0.0, 0.0), now=1000.0)
+        space.update("case-B", "y", (0.4, 0.9, 0.1), now=1000.0)
         before = space.overlap("case-A::x", "case-B::y")
 
         space.reinforce("case-A::x", "case-B::y", learning_rate=0.3, now=1001.0)
