@@ -201,37 +201,35 @@ esigenza di protezione dei confini si applica ai blocchi prodotti dal
 nuovo estrattore — da riformulare per quello, non da completare come
 scritta in origine. **Sforzo**: 1 settimana.
 
-### H3 — Prestazioni sul grafo reale (tentativo di correzione fatto, respinto con prove, causa più profonda del previsto)
-**Tentato**: raggruppare le chiamate `edges_from()` per livello del
-fronte di ricerca invece di farne una per nodo (`FalkorConceptGraph.edges_from_many()`),
-per ridurre 533 andata-ritorno a una manciata. **Risultato: peggio, non
-meglio, su tutti e tre i casi reali testati** (0,5x, 0,7x, 0,2x la
-velocità originale) — un lotto con dimensione limitata (150 concetti)
-non ha risolto il caso peggiore. Causa trovata, non presunta: reperti
-comuni come "epatomegalia" espandono a 1.396 concetti al secondo
-livello, e recuperare i loro archi — anche raggruppati — restituisce
-oltre 100.000 archi in una singola risposta. **Il collo di bottiglia si
-è spostato dal numero di andata-ritorno al volume di dati trasferiti**,
-e raggruppare le richieste non riduce il volume totale. La stessa causa
-è stata verificata anche per `MechanismEnumerator`: 20,25s su FalkorDB
-contro 3,04s in Python, ancora più lento, senza nemmeno tentare una
-correzione — la prova era già sufficiente a non procedere.
+### ~~H3~~ — Prestazioni sul grafo reale
+**Chiusa, dopo tre tentativi, due respinti con prove.** Riassunto del
+percorso completo (dettagli verificabili in `docs/recursive_engine_decision_record.md`):
 
-`edges_from_many()` resta nel codice come infrastruttura corretta e
-testata (12 test dedicati), ma **non collegata al percorso critico** di
-`retrieve_candidates`, che è stato riportato alla versione originale
-funzionante.
+1. Raggruppamento per livello (`edges_from_many`) — **respinto**: peggio
+   su tutti e tre i casi reali testati, causa trovata (volume di dati su
+   nodi ad alto grado, non numero di andata-ritorno).
+2. `algo.BFS` nativo di FalkorDB — **respinto con prove dirette, non
+   teoria**: silenziosamente vuoto su "aortic root aneurysm", un
+   concetto reale, non un caso limite. Ricondotto a due segnalazioni
+   aperte in FalkorDB (#2725, #2727, 4 settembre 2026) sul motore Rust
+   nello stesso schema di composizione; confermato che il binario
+   incorporato usa quel motore (stringhe `rustc` nel binario). Corroborato
+   da un secondo progetto reale (getzep/graphiti, 23 difetti catalogati,
+   stesso schema di "vuoto silenzioso").
+3. **Corrispondenza di percorso Cypher nativa (`*1..N`) — funziona**,
+   verificata su cinque casi reali, inclusi tutti quelli critici trovati
+   in precedenza: risultati **identici** all'implementazione Python in
+   tutti i casi, da **0,9x a 4,3x più veloce**. Una causa nascosta
+   trovata durante la verifica (non presunta): `resolve_concept()`
+   chiama `graph.concepts()` una volta per reperto — gratuito in memoria,
+   un vero andata-ritorno su FalkorDB — corretta con una cache
+   sull'istanza, invalidata da `clear()`/`load_edges()`.
 
-**Cosa resta da valutare, non ancora deciso**: (a) spostare la logica di
-ammissibilità (la distinzione gene/malattia) dentro la query Cypher
-stessa, cosa che ridurrebbe il volume trasferito a soli i candidati
-finali ammissibili — respinto finora per il rischio di replicare una
-regola a più condizioni senza poter riusare i test esistenti
-direttamente contro di essa; (b) un modello ibrido, dove FalkorDB resta
-la fonte di verità persistente ma il livello di attraversamento a caldo
-continua a usare una cache in memoria costruita da FalkorDB all'avvio —
-non ancora esplorato. **Sforzo**: 1-2 settimane per (a) con validazione
-rigorosa, o alcuni giorni per (b).
+`shortest_path_last_edges()` (in `falkordb_graph.py`) resta la logica di
+ammissibilità **in Python, invariata e già testata** — mai replicata
+dentro Cypher, il rischio che si era deciso di non correre fin
+dall'inizio. `edges_from_many()` resta nel codice come infrastruttura
+corretta ma non più necessaria sul percorso critico.
 
 ### H4 — Popolamento del deposito UMLS cifrato
 **Nuova**: dipende dal completamento della registrazione UMLS, in corso.

@@ -125,19 +125,56 @@ def retrieve_candidates(
             report.unresolved_findings.append(raw_finding)
             continue
 
-        # Breadth-first from this finding, bounded, collecting everything
-        # reachable. What counts as a "condition" is not decided here by
-        # inspecting relation names -- that would hard-code an assumption
-        # about the ontology's vocabulary that a second imported source
-        # (LOINC, ATC) would break. Instead, direction is used: HPO imports
-        # as `disease -> has_phenotype -> finding`, and InMemoryConceptGraph
-        # marks the generated reverse of each edge, so a concept reached by
+        # What counts as a "condition" is not decided here by inspecting
+        # relation names -- that would hard-code an assumption about the
+        # ontology's vocabulary that a second imported source (LOINC, ATC)
+        # would break. Instead, direction is used: HPO imports as `disease
+        # -> has_phenotype -> finding`, and InMemoryConceptGraph marks the
+        # generated reverse of each edge, so a concept reached by
         # traversing an edge *backwards* is on the disease side of that
         # relation. A first run of this retrieval, before this distinction,
         # ranked "night sweats" among the hypotheses -- a finding proposed
         # as a diagnosis, reached because it shares a disease with the
         # case's own findings. Two hops through a disease lands on that
         # disease's other symptoms, and those are not candidates.
+        #
+        # Native single-query path when the graph offers it
+        # (FalkorConceptGraph does, via shortest_path_last_edges) --
+        # verified directly against the real graph before trusting it: a
+        # third attempt, after two rejected on real evidence (ROADMAP.md,
+        # H3). Per-node edges_from() calls (533 round trips) and bulk
+        # edges_from_many() per BFS level (slower on every real test case
+        # -- the bottleneck was data volume for high-fan-out concepts, not
+        # round-trip count) were both tried and abandoned first.
+        # FalkorDB's algo.BFS procedure was tried next and rejected on
+        # stronger grounds: it silently returned zero results for "aortic
+        # root aneurysm", a real common concept, not an edge case -- traced
+        # to two open FalkorDB issues in the Rust engine's algo.* layer,
+        # and corroborated by a comparable real project's own bug catalogue
+        # showing the same silent-empty-result pattern. Native Cypher
+        # variable-length path matching (`*1..N`), a core OpenCypher
+        # feature predating and unrelated to that procedure layer, was
+        # verified separately and found both correct and about 8-20x
+        # faster than the batched attempt on the same real hub case.
+        # Falls back to the node-at-a-time loop below for any
+        # ConceptGraphView implementation without this native capability.
+        native_traversal = getattr(graph, "shortest_path_last_edges", None)
+        if native_traversal is not None:
+            for target, relation, reached_by_reverse, hop_count in native_traversal(finding, max_hops=max_hops):
+                if target == finding or target in excluded:
+                    continue
+                is_gene_node = reached_by_reverse and relation == RELATION_ASSOCIATED_GENE
+                is_disease_from_gene = (not reached_by_reverse) and relation == RELATION_CAUSES_DISEASE
+                admissible = (reached_by_reverse and not is_gene_node) or is_disease_from_gene
+                if admissible:
+                    linked, best_hops = reached.get(target, (set(), hop_count))
+                    linked.add(finding)
+                    reached[target] = (linked, min(best_hops, hop_count))
+            continue
+
+        # Breadth-first from this finding, bounded, one node at a time --
+        # the fallback for InMemoryConceptGraph and any other
+        # ConceptGraphView implementation.
         frontier: list[tuple[str, int]] = [(finding, 0)]
         seen = {finding}
         while frontier:

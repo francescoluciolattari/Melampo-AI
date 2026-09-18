@@ -32,7 +32,7 @@ a caller cannot tell the two backends apart from result shape alone.
 """
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .concept_paths import ConceptEdge, normalise_concept
@@ -48,6 +48,7 @@ class FalkorConceptGraph:
 
     connection: Any
     graph_name: str = DEFAULT_GRAPH_NAME
+    _concepts_cache: set[str] | None = field(default=None, repr=False)
 
     @classmethod
     def open(cls, config: FalkorDBConfig | None = None, graph_name: str = DEFAULT_GRAPH_NAME) -> "FalkorConceptGraph":
@@ -109,6 +110,68 @@ class FalkorConceptGraph:
                 grouped[concept_norm].append(edge)
         return grouped
 
+    def shortest_path_last_edges(self, start: str, *, max_hops: int) -> list[tuple[str, str, bool, int]]:
+        """For every concept reachable from `start` within max_hops, the (candidate, relation,
+        reached_by_reverse, hop_count) needed to apply retrieve_candidates' admissibility and
+        ranking logic -- in one native, server-side traversal.
+
+        The third real attempt at this problem, after two rejected on real
+        evidence (ROADMAP.md, H3): per-node edges_from() calls (533 round
+        trips, slow); bulk edges_from_many() per BFS level (worse on all
+        three real test cases -- the bottleneck was data volume, not round
+        trips, for high-fan-out concepts). algo.BFS was tried next and
+        rejected on stronger grounds: verified directly against this real
+        graph, it silently returned zero results for "aortic root
+        aneurysm" -- a real, common concept, not an edge case -- while
+        working correctly for others. Traced to two open FalkorDB issues
+        (#2725, #2727, filed 2026-09-04) describing exactly this failure
+        mode in the Rust engine when algo.BFS is composed with other Cypher
+        clauses, and corroborated independently by a real, comparable
+        project (getzep/graphiti) cataloguing 23 FalkorDB bugs, several
+        describing the same silent-empty-result pattern under different
+        conditions. Confirmed the bundled FalkorDBLite binary is built with
+        the Rust engine (rustc strings throughout), the same engine those
+        issues name -- not assumed, verified directly against the binary.
+
+        This uses native Cypher variable-length path matching instead --
+        `-[:CONCEPT_EDGE*1..N]-`, a core OpenCypher feature predating and
+        unrelated to the algo.* procedure layer where the bugs above live
+        -- verified directly on the same real graph, same real cases: 0.098s
+        for the "hepatomegaly" hub case that made every batching attempt
+        slower (H3), correct and non-empty for "aortic root aneurysm"
+        where algo.BFS silently failed.
+
+        Returns only the shortest path's last edge per candidate, not every
+        edge of every node visited -- the reason this stays fast where bulk
+        edges_from_many() did not: a candidate's admissibility depends only
+        on the final edge of its shortest path (see retrieve_candidates'
+        own comments), so nothing else needs to leave the database.
+        `reached_by_reverse` says whether the candidate was arrived at via
+        the edge's original source (True) or target (False), matching
+        edges_from()'s own inverse-direction convention exactly -- the
+        caller applies the same admissibility rule retrieve_candidates
+        already has and already tests, unchanged. `hop_count` is the
+        shortest path's length, for the same breadth-then-proximity
+        ranking retrieve_candidates already applies.
+        """
+        key = normalise_concept(start)
+        if not key:
+            return []
+        result = self._graph().query(
+            "MATCH path = (s:Concept {norm: $norm})-[:CONCEPT_EDGE*1.." + str(max_hops) + "]-(candidate:Concept) "
+            "WITH candidate, path, length(path) AS hop_count "
+            "ORDER BY hop_count ASC "
+            "WITH candidate, collect(path)[0] AS shortest, collect(hop_count)[0] AS shortest_hop_count "
+            "WITH candidate, last(relationships(shortest)) AS edge, shortest_hop_count "
+            "RETURN candidate.norm, edge.relation, edge.source_name, edge.target_name, shortest_hop_count",
+            params={"norm": key},
+        )
+        out: list[tuple[str, str, bool, int]] = []
+        for candidate_norm, relation, source_name, target_name, hop_count in result.result_set:
+            reached_by_reverse = normalise_concept(source_name) == candidate_norm
+            out.append((candidate_norm, relation, reached_by_reverse, int(hop_count)))
+        return out
+
     def edges_from(self, concept: str) -> Sequence[ConceptEdge]:
         key = normalise_concept(concept)
         if not key:
@@ -140,8 +203,21 @@ class FalkorConceptGraph:
         return edges
 
     def concepts(self) -> set[str]:
-        result = self._graph().query("MATCH (c:Concept) RETURN c.norm")
-        return {row[0] for row in result.result_set}
+        """Every concept name in the graph, cached after the first call.
+
+        Found necessary, not assumed: `resolve_concept()` (concept_paths.py)
+        calls this once per finding via `mentioned_concepts()`, which is
+        free against InMemoryConceptGraph (an in-memory set) but was
+        measured costing ~0.12s per call here -- transferring 31,317
+        concept names over the connection each time. With three findings,
+        that alone was ~0.36s of hidden overhead masking the native
+        traversal's real speed. Invalidated by clear() and load_edges(),
+        the only two operations that change which concepts exist.
+        """
+        if self._concepts_cache is None:
+            result = self._graph().query("MATCH (c:Concept) RETURN c.norm")
+            self._concepts_cache = {row[0] for row in result.result_set}
+        return self._concepts_cache
 
     def edge_count(self) -> int:
         result = self._graph().query("MATCH ()-[rel:CONCEPT_EDGE]->() RETURN count(rel)")
@@ -198,6 +274,7 @@ class FalkorConceptGraph:
                 batch = []
         if batch:
             loaded += self._load_batch(graph, batch)
+        self._concepts_cache = None
         return loaded
 
     @staticmethod
@@ -217,6 +294,7 @@ class FalkorConceptGraph:
     def clear(self) -> None:
         """Delete every node and edge in this graph -- for tests and reloads, not production use."""
         self._graph().query("MATCH (n) DETACH DELETE n")
+        self._concepts_cache = None
 
 
 def build_falkor_graph(
