@@ -8,7 +8,7 @@ different conclusion depending only on which finding a referral letter
 mentions first, and the answer must be no.
 
 Verified empirically here, not assumed from reading the code: 30 random
-permutations against the real 1,273,466-edge HPO graph (retrieve_candidates,
+permutations against the real 636,733-edge HPO graph (retrieve_candidates,
 rank_differential) and 50 against a fixture graph (MechanismEnumerator)
 found zero order-dependent results, one real run each, reported in the
 project's decision record. These fixture-graph tests are the permanent,
