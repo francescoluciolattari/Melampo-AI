@@ -74,18 +74,28 @@ Tre categorie di vincolo esterno hanno guidato scelte tecniche specifiche, docum
 
 ## 2.1 Il grafo dei concetti: struttura e scala reale
 
-Il nucleo di conoscenza del sistema è un grafo non orientato di concetti clinici (`memory/concept_paths.py`, classe `InMemoryConceptGraph`), i cui archi sono attraversabili in entrambe le direzioni — un arco `malattia → ha_fenotipo → reperto` genera automaticamente l'arco inverso `reperto → inverse_ha_fenotipo → malattia`, con la stessa forza e lo stesso intervallo di confidenza.
+Il nucleo di conoscenza del sistema è un grafo non orientato di concetti clinici, accessibile tramite `ConceptGraphView` (`memory/concept_paths.py`) — un `Protocol` astratto con due soli metodi richiesti (`edges_from`, `concepts`), non legato a una singola implementazione. I suoi archi sono attraversabili in entrambe le direzioni — un arco `malattia → ha_fenotipo → reperto` genera automaticamente l'arco inverso `reperto → inverse_ha_fenotipo → malattia`, con la stessa forza e lo stesso intervallo di confidenza.
 
 **Costruzione dal dato reale.** Il grafo si costruisce da `phenotype.hpoa` (l'annotazione ufficiale dell'Human Phenotype Ontology, formato TSV con intestazione dichiarata) e, quando disponibile, da `hp.obo` (l'ontologia stessa, per risolvere gli identificativi HPO in nomi leggibili). Caricato dai dati reali presenti in questo repository:
 
 ```
-1.273.466 archi, 29.053 concetti, caricamento in 6,1 secondi
+636.733 archi diretti, 29.053 concetti, caricamento in 6,1 secondi
 di cui 333.983 archi derivati dalle annotazioni geniche
 ```
 
-Questo numero non è teorico: è il risultato di un'esecuzione verificata di `memory/graph_sources.load_verification_graph()` sui file effettivamente presenti in `data/` in questo repository.
+Il numero "1.273.466" citato nelle prime versioni di questo trattato contava entrambe le direzioni di attraversamento (ogni arco diretto più il suo inverso generato), non gli archi grezzi — corretto qui dopo essere stato scoperto durante la verifica del caricamento su FalkorDB (Parte 2.1bis). Questo numero non è teorico: è il risultato di un'esecuzione verificata di `memory/graph_sources.load_verification_graph()` sui file effettivamente presenti in `data/` in questo repository.
 
 **Un difetto di prestazioni trovato e corretto.** La prima implementazione di `edges_from()` scandiva l'intera lista di archi due volte per ogni chiamata, ricalcolando la normalizzazione del testo su ogni arco — invisibile su un grafo di prova da 33 archi, e responsabile di un tempo di caricamento superiore ai 300 secondi (interrotto) sul grafo reale. Corretto indicizzando gli archi per concetto normalizzato alla costruzione (`__post_init__`), portando il tempo a 2,8 secondi sul solo `phenotype.hpoa`.
+
+## 2.1bis Due motori dietro la stessa interfaccia: `InMemoryConceptGraph` e `FalkorConceptGraph`
+
+`ConceptGraphView` esiste dall'inizio come `Protocol` astratto, con una frase nel proprio docstring che si è rivelata profetica: *"Adapter-neutral. InMemoryConceptGraph keeps the logic testable offline; production wiring goes through the semantic memory adapter's graph traversal."* Ogni funzione che ragiona sul grafo (`retrieve_candidates`, `MechanismEnumerator`, `find_paths`, `rank_differential`) è tipizzata contro questa interfaccia, non contro un'implementazione specifica.
+
+**`InMemoryConceptGraph`** resta l'implementazione di riferimento — l'intero grafo in memoria come oggetto Python, indicizzato per attraversamento O(1).
+
+**`FalkorConceptGraph`** (`memory/falkordb_graph.py`, introdotta in questa sessione) è una seconda implementazione dello stesso protocollo, sostenuta da FalkorDB — scelta dopo aver verificato che è l'unico motore fra quelli considerati (Weaviate, Qdrant, FalkorDB) a fare attraversamento di grafo **e** ricerca vettoriale nello stesso sistema, corrispondendo alla forma reale del problema (il nucleo del progetto è attraversamento di grafo, non ricerca per somiglianza). Configurabile fra una modalità incorporata (FalkorDBLite, senza installazione) e un servizio remoto reale, cambiando **solo** un file di configurazione (`data/falkordb_config.toml`), mai il codice — verificato direttamente, non solo dichiarato dalla documentazione di FalkorDB.
+
+**Il percorso per arrivarci non è stato diretto, ed è documentato per intero in `docs/recursive_engine_decision_record.md`.** Tre tentativi per rendere `retrieve_candidates` veloce quanto corretto su FalkorDB: raggruppare le chiamate per livello del fronte di ricerca (respinto — peggiore su ogni caso reale testato, causa: volume di dati su concetti ad alto grado come "epatomegalia", non numero di richieste); la procedura nativa `algo.BFS` di FalkorDB (respinta con prove dirette — silenziosamente vuota su un concetto reale e comune, ricondotta a due difetti aperti nel motore Rust del progetto FalkorDB stesso, corroborati da un secondo progetto reale indipendente con lo stesso sintomo); infine la corrispondenza di percorso Cypher **nativa** (`-[:CONCEPT_EDGE*1..N]-`, una funzionalità di base del linguaggio, non la procedura dove vivevano i difetti) — verificata corretta e da 0,9 a 4,3 volte più veloce su cinque casi reali, con risultati **identici** all'implementazione Python in ognuno. La logica di ammissibilità (la distinzione gene/malattia che governa quali nodi raggiunti contano come candidati diagnostici) resta interamente in Python, mai replicata dentro Cypher — il rischio di correttezza che si è deciso di non correre fin dall'inizio dell'indagine.
 
 ## 2.2 Fonti di dati integrate nel grafo
 
@@ -376,7 +386,7 @@ flowchart TB
         HPO["phenotype.hpoa + hp.obo"]
         GENI["genes_to_phenotype / genes_to_disease"]
         MAXO["maxo-annotations.tsv"]
-        GRAFO["InMemoryConceptGraph\n1.273.466 archi verificati"]
+        GRAFO["ConceptGraphView (protocollo)\nInMemoryConceptGraph | FalkorConceptGraph\n636.733 archi diretti verificati"]
         STORICO["term_history.py\nrinomini permanenti"]
         HPO --> GRAFO
         GENI --> GRAFO

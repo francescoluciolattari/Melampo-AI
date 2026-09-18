@@ -255,8 +255,9 @@ parte da questo blocco (vedi sotto).
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
 A0 (risoluzione concetti), A3 nella sua parte meccanica (grafo reale
-popolato, ben oltre l'ambizione originale: 1.273.466 archi, 29.053
-concetti), B0c/B0d, B2, B3, C1 (`rlm_engine.py`, letteralmente etichettato
+popolato, ben oltre l'ambizione originale: 636.733 archi diretti, 29.053
+concetti, ora anche migrato a FalkorDB con un secondo motore verificato
+equivalente — vedi H3), B0c/B0d, B2, B3, C1 (`rlm_engine.py`, letteralmente etichettato
 "Block C" nel proprio commit), C2 nella sua parte sostanziale
 (`context_environment.py`).
 
