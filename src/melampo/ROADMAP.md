@@ -254,6 +254,18 @@ parte da questo blocco (vedi sotto).
 
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
+**NexusTrainer → NexusScheduler collegati** (trovato durante l'analisi
+architetturale con l'utente): erano due fasi di un'unica catena prevista
+mai assemblate — `NexusScheduler.enqueue()` accettava già esattamente
+la forma dell'output di `NexusTrainer` come proprio parametro. Collegato
+in `clinical_pipeline.py`, con una scelta deliberata: `run_once()` (che
+richiede metriche di attività reali e va eseguito in bassa attività)
+**non** viene mai chiamato sincronamente dentro `run()` — resta un
+innesco separato, non ancora costruito, coerente con i flussi
+settimanali/giornalieri già usati per la letteratura. Verificato
+end-to-end con la pipeline reale: i casi mettono in coda, una
+simulazione di bassa attività elabora la coda con successo.
+
 A0 (risoluzione concetti), A3 nella sua parte meccanica (grafo reale
 popolato, ben oltre l'ambizione originale: 636.733 archi diretti, 29.053
 concetti, ora anche migrato a FalkorDB con un secondo motore verificato
