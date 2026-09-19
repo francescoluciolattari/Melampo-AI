@@ -14,6 +14,8 @@ authors = [
 dependencies = [
   "cryptography>=42.0",
   "falkordblite>=0.10.0",
+  "requests>=2.31",
+  "pdf2image>=1.17",
 ]
 
 [project.optional-dependencies]

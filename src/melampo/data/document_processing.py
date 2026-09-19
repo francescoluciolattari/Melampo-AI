@@ -40,6 +40,39 @@ def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, value))
 
 
+def _parse_nemotron_parse_response(response: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """The model's raw output, from the documented response envelope.
+
+    Verified against NVIDIA's own published API docs: a Nemotron-Parse
+    response is an OpenAI-style chat completion, with the parsed page
+    content in `response["choices"][0]["message"]["content"]`.
+
+    **What is not verified, stated plainly rather than guessed at**:
+    NVIDIA's own worked examples post-process that content through a
+    `postprocessing` helper module (`extract_classes_bboxes`,
+    `transform_bbox_to_original`, `postprocess_text`) to recover
+    structured classes, bounding boxes and clean text from the model's
+    layout markup -- that helper's exact grammar was not published
+    alongside the API reference this was built from, so it is not
+    replicated here. This returns the raw message content as the page's
+    text (usable as-is for chunking, entity extraction and ontology
+    matching, which is everything downstream of this function actually
+    needs) and a minimal metadata dict noting that bounding-box
+    structure was not decoded. A deployment that needs page-element
+    bounding boxes specifically should verify the live endpoint's exact
+    output grammar and extend this function accordingly -- guessing at
+    a proprietary format here would risk silently corrupting text no
+    differently than the pdfplumber/Pydantic issue a comparable project
+    reported hitting with a different parser under the same pressure to
+    guess rather than verify.
+    """
+    try:
+        content = response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as error:
+        raise ValueError(f"unexpected Nemotron-Parse response shape: {error}") from error
+    return str(content), {"bounding_boxes_decoded": False}
+
+
 @dataclass(slots=True)
 class ClinicalDocumentChunk:
     chunk_id: str
@@ -237,14 +270,93 @@ class ClinicalDocumentProcessor:
             "metadata": {"parser": "llamaparse", "source_path": str(path), "layout_preserved": True, **layout_metadata},
         }
 
-    def _call_nemotron_parse(self, path: str | Path) -> tuple[str, dict[str, Any]]:  # pragma: no cover - network call
-        """The actual HTTP call, isolated so tests can monkeypatch it.
+    def _call_nemotron_parse(self, path: str | Path) -> tuple[str, dict[str, Any]]:
+        """The real HTTP call to a Nemotron-Parse-v1.2 NIM endpoint.
 
-        Left unimplemented at the transport level deliberately: the specific
-        NIM/OpenRouter request shape depends on how the endpoint is deployed,
-        a configuration decision, not something to hard-code here.
+        Nemotron-Parse is a vision-language model, not a text-in parser: it
+        takes a page rendered as an image through the standard OpenAI-style
+        `/v1/chat/completions` contract (`image_url` content block, base64
+        data URL) and returns text with embedded layout markup in
+        `response["choices"][0]["message"]["content"]`. Verified against
+        NVIDIA's own published Nemotron-Parse-v1.2 API documentation before
+        writing this, not assumed from the model's name.
+
+        A real, documented divergence exists between the hosted NVIDIA
+        Build endpoint (model `nvidia/nemotron-parse`) and the self-hosted
+        NIM (`nemotron-parse-v1.2`): they expect different request
+        contracts, and sending a self-hosted-style request to the hosted
+        endpoint can return HTTP 400 ("model does not support text input").
+        This targets the self-hosted NIM contract specifically -- consistent
+        with why Nemotron-Parse was chosen over LlamaParse in the first
+        place (open weights, no vendor API dependency, genuine on-premise
+        operation) -- so a deployment pointed at the hosted Build endpoint
+        instead should expect to adjust the payload shape.
+
+        PDF pages are rendered to images via pdf2image (poppler) before the
+        call, since the model has no raw-PDF input path. Non-PDF image
+        inputs are sent directly.
         """
-        raise NotImplementedError("configure nemotron_parse_endpoint and implement the HTTP call for this deployment")
+        path = Path(path)
+        images = self._render_pages_as_images(path)
+        if not images:
+            raise ValueError(f"no renderable pages found for {path}")
+
+        page_texts: list[str] = []
+        page_metadata: list[dict[str, Any]] = []
+        for page_number, image_bytes in enumerate(images, start=1):
+            response = self._post_nemotron_parse_page(image_bytes)
+            text, layout = _parse_nemotron_parse_response(response)
+            page_texts.append(text)
+            page_metadata.append({"page": page_number, **layout})
+        return "\n\n".join(page_texts), {"page_count": len(images), "pages": page_metadata}
+
+    def _render_pages_as_images(self, path: Path) -> list[bytes]:
+        """Each page as PNG bytes -- pdf2image for PDFs, the file itself for an image input."""
+        suffix = path.suffix.lower()
+        if suffix in {".png", ".jpg", ".jpeg"}:
+            return [path.read_bytes()]
+        if suffix != ".pdf":
+            raise ValueError(f"Nemotron-Parse needs an image or PDF input, got {suffix!r}")
+        from io import BytesIO
+
+        from pdf2image import (
+            convert_from_path,
+        )
+
+        rendered = []
+        for page_image in convert_from_path(str(path), dpi=200):
+            buffer = BytesIO()
+            page_image.save(buffer, format="PNG")
+            rendered.append(buffer.getvalue())
+        return rendered
+
+    def _post_nemotron_parse_page(self, image_bytes: bytes) -> dict[str, Any]:
+        """One page, one request -- the isolated network call, mocked directly in tests."""
+        import base64
+
+        import requests
+
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+        payload = {
+            "model": "nvidia/nemotron-parse-v1.2",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
+                        {"type": "text", "text": "Parse this document page: extract all text, tables and layout structure."},
+                    ],
+                }
+            ],
+        }
+        response = requests.post(
+            f"{self.nemotron_parse_endpoint.rstrip('/')}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {self.nemotron_parse_api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=60,
+        )
+        response.raise_for_status()
+        return response.json()
 
     def _call_llamaparse(self, path: str | Path) -> tuple[str, dict[str, Any]]:  # pragma: no cover - network call
         raise NotImplementedError("configure llamaparse_api_key and implement the HTTP call for this deployment")
