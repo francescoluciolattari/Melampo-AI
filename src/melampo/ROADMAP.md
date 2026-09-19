@@ -254,6 +254,20 @@ parte da questo blocco (vedi sotto).
 
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
+**`_auto_evolution_plan()` consolidato, non eliminato in blocco** (trovato
+durante l'analisi con l'utente: eliminarlo del tutto avrebbe rotto sia la
+soglia di promozione offline sia una bandiera di sicurezza dal vivo).
+`candidate_score` — l'unico campo letto davvero da `promotion_policy` e
+`rational_control_validator` — spostato dentro
+`NexusSelfEvolutionLoop.generate_candidate()`, calcolato dagli stessi
+ingressi ma nella catena offline dove viene davvero usato. `status` —
+letto dal vivo da `safety/rails.py` per ogni caso, prima che la catena
+offline giri mai — resta in `NexusTrainer`, ridotto al solo campo
+necessario. Gli altri campi (`learning_targets`,
+`rational_control_required`, ecc.) rimossi: nessun consumatore trovato.
+Verificato end-to-end: entrambe le catene continuano a funzionare
+correttamente separate.
+
 **NexusTrainer → NexusScheduler collegati** (trovato durante l'analisi
 architetturale con l'utente): erano due fasi di un'unica catena prevista
 mai assemblate — `NexusScheduler.enqueue()` accettava già esattamente
