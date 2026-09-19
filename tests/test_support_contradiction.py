@@ -10,7 +10,7 @@ def test_support_contradiction_analyzer_returns_typed_profiles():
             {"source": "intuition", "kind": "candidate"},
         ],
         intuition={"deductive_filter": {"reasoning_mode": "contradiction_revision"}},
-        dream={"rehearsal_profile": {"boundary_case_hint": True, "coherence_guidance": "multimodal_support"}},
+        nexus={"rehearsal_profile": {"boundary_case_hint": True, "coherence_guidance": "multimodal_support"}},
         area_dynamics={
             "mismatch_score": 0.65,
             "coherence_score": 0.5,

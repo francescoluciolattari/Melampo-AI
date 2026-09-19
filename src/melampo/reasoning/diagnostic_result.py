@@ -35,7 +35,7 @@ class MelampoMetrics:
     conflict_load: float = 0.0
     inhibitory_control: float = 0.0
     revision_pressure: float = 0.0
-    dream_plasticity: float = 0.0
+    nexus_plasticity: float = 0.0
     bias_suppression_score: float = 0.0
     interdependence_index: float = 0.0
     evidence_integration_score: float = 0.0
@@ -59,7 +59,7 @@ class MelampoMetrics:
             "conflict_load": _round_unit(self.conflict_load),
             "inhibitory_control": _round_unit(self.inhibitory_control),
             "revision_pressure": _round_unit(self.revision_pressure),
-            "dream_plasticity": _round_unit(self.dream_plasticity),
+            "nexus_plasticity": _round_unit(self.nexus_plasticity),
             "bias_suppression_score": _round_unit(self.bias_suppression_score),
             "interdependence_index": _round_unit(self.interdependence_index),
             "evidence_integration_score": _round_unit(self.evidence_integration_score),
@@ -87,13 +87,13 @@ class IntuitionSummary:
 
 
 @dataclass(frozen=True, slots=True)
-class DreamSummary:
+class NexusSummary:
     accepted: bool = False
     auto_evolution_plan: dict[str, Any] = field(default_factory=dict)
     alternative_hypotheses: list[dict[str, Any]] = field(default_factory=list)
     promotion_policy: dict[str, Any] = field(
         default_factory=lambda: {
-            "dream_outputs_are_candidate_only": True,
+            "nexus_outputs_are_candidate_only": True,
             "automatic_clinical_promotion_allowed": False,
             "promotion_requires": [
                 "source_grounding",
@@ -131,7 +131,7 @@ class DiagnosticResult:
     support: dict[str, Any]
     policy: dict[str, Any]
     critique: dict[str, Any]
-    dream: DreamSummary
+    nexus: NexusSummary
     model_capability_decision_record: dict[str, Any]
     audit_trace: dict[str, Any]
     schema_version: str = "diagnostic_result.v1"
@@ -150,7 +150,7 @@ class DiagnosticResult:
             "support": dict(self.support),
             "policy": dict(self.policy),
             "critique": dict(self.critique),
-            "dream": self.dream.as_dict(),
+            "nexus": self.nexus.as_dict(),
             "model_capability_decision_record": dict(self.model_capability_decision_record),
             "audit_trace": {
                 **dict(self.audit_trace),

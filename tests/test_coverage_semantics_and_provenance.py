@@ -94,10 +94,10 @@ def test_rails_still_flag_synthetic_candidates_used_as_fact():
     synthetic = [
         {
             "text": "generated alternative",
-            "source": "synthetic_dream_candidate",
+            "source": "synthetic_nexus_candidate",
             "record_id": "cand_1",
             "learning_status": "candidate",
-            "metadata": {"source_type": "synthetic_dream_candidate"},
+            "metadata": {"source_type": "synthetic_nexus_candidate"},
         }
     ]
     decision = rails.evaluate_retrieval(synthetic)

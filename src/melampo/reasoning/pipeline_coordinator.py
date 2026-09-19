@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from .pipeline_state import PipelineState
-from .policy_stack import PolicyStack
 from .decision_trace import DecisionTrace
 from .differential_engine import DifferentialEngine
+from .pipeline_state import PipelineState
+from .policy_stack import PolicyStack
 
 
 @dataclass
@@ -13,9 +13,9 @@ class PipelineCoordinator:
     differential_engine: DifferentialEngine
     policy_stack: PolicyStack
 
-    def run(self, case_id: str, evidence: list, risk: float, uncertainty: float, intuition: dict | None = None, dream: dict | None = None, area_dynamics: dict | None = None) -> dict:
+    def run(self, case_id: str, evidence: list, risk: float, uncertainty: float, intuition: dict | None = None, nexus: dict | None = None, area_dynamics: dict | None = None) -> dict:
         state = PipelineState(case_id=case_id, evidence=list(evidence), risk=risk, uncertainty=uncertainty)
-        differential = self.differential_engine.rank(evidence, intuition=intuition, dream=dream, area_dynamics=area_dynamics)
+        differential = self.differential_engine.rank(evidence, intuition=intuition, nexus=nexus, area_dynamics=area_dynamics)
         policy = self.policy_stack.evaluate(risk=risk, uncertainty=uncertainty)
         reasoning_mode = differential.get("reasoning_mode", "rapid_intuition")
         top_hypothesis = differential.get("hypotheses", [{"label": "none", "hypothesis_domain": "multimodal_led"}])[0]

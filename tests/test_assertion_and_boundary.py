@@ -201,7 +201,7 @@ def test_every_rejection_names_where_the_item_belongs_instead():
     assert result.rejected[0].route == "documented_exclusion"
 
 
-def test_a_synthetic_dream_hypothesis_cannot_enter_the_findings():
+def test_a_synthetic_nexus_hypothesis_cannot_enter_the_findings():
     result = assemble([_candidate("Amyloidosis", role="exclusion_hypothesis")])
     assert result.admitted == []
     assert result.rejected[0].reason == REJECT_SYNTHETIC

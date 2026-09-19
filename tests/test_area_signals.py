@@ -27,7 +27,7 @@ def test_area_signals_feed_intuition_engine():
             {"rank": 1, "weight": 2, "item": {"source": "semantic_memory"}},
             {"rank": 2, "weight": 1, "item": {"source": "episodic_memory"}},
         ],
-        dream={
+        nexus={
             "belief": {"mode": "quantum_like_belief_update"},
             "rehearsal_profile": {"contradiction_rehearsal": False, "revision_bias": "exploratory", "post_error_adjustment": "stabilize_primary"},
             "alternative_hypotheses": [{"label": "case-2_alt_1"}, {"label": "case-2_alt_2"}],

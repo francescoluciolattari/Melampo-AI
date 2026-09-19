@@ -116,7 +116,7 @@ class SpecialistModelResponse:
         default_status: str = "completed",
         provenance: dict[str, Any] | None = None,
         limitations: list[str] | None = None,
-    ) -> "SpecialistModelResponse":
+    ) -> SpecialistModelResponse:
         payload = payload if isinstance(payload, dict) else {}
         confidence = payload.get("confidence", payload.get("score", 0.0))
         uncertainty = payload.get("uncertainty", 1.0 - _clamp(float(confidence or 0.0)))

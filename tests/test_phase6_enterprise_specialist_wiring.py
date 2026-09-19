@@ -1,8 +1,13 @@
 from melampo.areas.language_listening_area import LanguageListeningArea
 from melampo.areas.visual_diagnostic_area import VisualDiagnosticArea
 from melampo.orchestration.specialist_runtime import SpecialistRuntime
-from melampo.reasoning.diagnostic_result import DiagnosticResult, DreamSummary, IntuitionSummary, MelampoMetrics
 from melampo.reasoning.area_coherence import AreaCoherenceAnalyzer
+from melampo.reasoning.diagnostic_result import (
+    DiagnosticResult,
+    IntuitionSummary,
+    MelampoMetrics,
+    NexusSummary,
+)
 
 
 def test_specialist_runtime_is_safe_by_default():
@@ -83,7 +88,7 @@ def test_diagnostic_result_serializes_enterprise_contract():
         support={},
         policy={"abstain": True, "reasons": ["test"]},
         critique={},
-        dream=DreamSummary(),
+        nexus=NexusSummary(),
         model_capability_decision_record={"strategy": "test"},
         audit_trace={},
     ).as_dict()
@@ -92,7 +97,7 @@ def test_diagnostic_result_serializes_enterprise_contract():
     assert result["audit_trace"]["final_authority"] == "MelampoDiagnosticOrchestrator"
     assert result["audit_trace"]["external_models_are_not_final_arbiters"] is True
     assert "not a validated medical device" in result["audit_trace"]["clinical_warning"]
-    assert result["dream"]["promotion_policy"]["automatic_clinical_promotion_allowed"] is False
+    assert result["nexus"]["promotion_policy"]["automatic_clinical_promotion_allowed"] is False
 
 
 def test_neuro_metrics_include_deep_inference_and_action_potential_gate():

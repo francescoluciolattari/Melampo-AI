@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable
-
+from typing import Any
 
 PredictionFn = Callable[[dict[str, Any]], dict[str, Any]]
 
@@ -60,7 +60,7 @@ class ClinicalBenchmarkRecord:
     provenance: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_jsonl(cls, item: dict[str, Any]) -> "ClinicalBenchmarkRecord":
+    def from_jsonl(cls, item: dict[str, Any]) -> ClinicalBenchmarkRecord:
         payload = dict(item.get("payload", {}))
         case_id = str(item.get("case_id", payload.get("case_id", "unknown_case")))
         labels = [_normalize_label(label) for label in _as_list(item.get("gold_labels", item.get("gold_label")))]

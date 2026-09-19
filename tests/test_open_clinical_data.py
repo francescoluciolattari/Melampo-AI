@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 
-from melampo.datasets.open_catalog import datasets_by_modality, list_open_clinical_datasets
+from melampo.datasets.open_catalog import (
+    datasets_by_modality,
+    list_open_clinical_datasets,
+)
 from melampo.prototype import run_prototype_case
 
 

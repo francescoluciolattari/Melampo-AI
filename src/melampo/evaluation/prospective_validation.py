@@ -52,7 +52,7 @@ class ProspectiveValidationRegistry:
         case_id = str(case_payload.get("case_id", diagnostic_result.get("case_id", "unknown_case")))
         payload_hash = _hash_payload(case_payload)
         timestamp = time.time()
-        prediction_id = hashlib.sha256(f"{protocol_id}:{case_id}:{payload_hash}:{timestamp}".encode("utf-8")).hexdigest()[:24]
+        prediction_id = hashlib.sha256(f"{protocol_id}:{case_id}:{payload_hash}:{timestamp}".encode()).hexdigest()[:24]
         prediction = ProspectivePrediction(
             case_id=case_id,
             prediction_id=prediction_id,
@@ -121,7 +121,7 @@ class ProspectiveValidationRegistry:
         Path(path).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
     @classmethod
-    def load_jsonl(cls, path: str | Path) -> "ProspectiveValidationRegistry":
+    def load_jsonl(cls, path: str | Path) -> ProspectiveValidationRegistry:
         registry = cls()
         path = Path(path)
         if not path.exists():

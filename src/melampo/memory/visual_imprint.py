@@ -85,7 +85,7 @@ def _concept_terms(concept: str) -> set[str]:
     return {term for term in _TOKEN_RE.findall(concept.casefold()) if len(term) >= 3 and term not in _STOP_TERMS}
 
 
-def _semantic_relation(left: "VisualRecognitionImprint", right: "VisualRecognitionImprint") -> dict[str, Any]:
+def _semantic_relation(left: VisualRecognitionImprint, right: VisualRecognitionImprint) -> dict[str, Any]:
     if left.semantic_concept == right.semantic_concept:
         return {
             "score": 1.0,
@@ -123,7 +123,7 @@ class VisualRecognitionImprint:
 
     The imprint is a governed vector/matrix signature associated with a clinical
     semantic concept. It is not an image and is not a diagnosis; it is a
-    searchable, auditable memory object for multimodal RAG and dream replay.
+    searchable, auditable memory object for multimodal RAG and nexus replay.
     """
 
     imprint_id: str
@@ -140,7 +140,7 @@ class VisualRecognitionImprint:
     created_at: float = field(default_factory=time.time)
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any], *, default_concept: str = "visual_pattern") -> "VisualRecognitionImprint":
+    def from_payload(cls, payload: dict[str, Any], *, default_concept: str = "visual_pattern") -> VisualRecognitionImprint:
         payload = payload if isinstance(payload, dict) else {}
         concept = str(payload.get("semantic_concept") or payload.get("concept") or payload.get("normalized_entity") or default_concept)
         variant_label = str(payload.get("variant_label") or payload.get("label") or payload.get("name") or "observed_variant")
@@ -227,7 +227,7 @@ class VisualImprintBuilder:
 
 @dataclass(slots=True)
 class VisualImprintMorpher:
-    """Dream-safe morphing of visual recognition imprints in vector space.
+    """Nexus-safe morphing of visual recognition imprints in vector space.
 
     Morphing is deterministic interpolation of matrix footprints that share a
     semantic concept. It does not synthesize clinical images and never promotes
@@ -244,7 +244,7 @@ class VisualImprintMorpher:
     def _as_imprints(self, payloads: list[dict[str, Any]] | None) -> list[VisualRecognitionImprint]:
         return [VisualRecognitionImprint.from_payload(payload) for payload in payloads or [] if isinstance(payload, dict)]
 
-    def dream_morph(
+    def nexus_morph(
         self,
         concept_imprints: list[dict[str, Any]] | None,
         diagnostic_imprints: list[dict[str, Any]] | None = None,
@@ -266,12 +266,12 @@ class VisualImprintMorpher:
         pi_score = _safe_float(neuro.get("pi_score", area_dynamics.get("pi_score", 0.0)))
         prediction_error = _safe_float(neuro.get("prediction_error", area_dynamics.get("prediction_error", 0.0)))
         mismatch_index = _safe_float(neuro.get("mismatch_index", area_dynamics.get("mismatch_index", 0.0)))
-        dream_plasticity = _safe_float(neuro.get("dream_plasticity", 0.0))
+        nexus_plasticity = _safe_float(neuro.get("nexus_plasticity", 0.0))
         action_gate = _safe_float(neuro.get("action_potential_gate", 0.0))
 
         morphs: list[dict[str, Any]] = []
         semantic_links: list[dict[str, Any]] = []
-        alpha_base = _clamp(self.interpolation_alpha + (dream_plasticity - mismatch_index) * 0.1, 0.2, 0.8)
+        alpha_base = _clamp(self.interpolation_alpha + (nexus_plasticity - mismatch_index) * 0.1, 0.2, 0.8)
         evaluated_pair_count = 0
         pair_budget_exhausted = False
         for left_index, left in enumerate(source_imprints):
@@ -323,13 +323,13 @@ class VisualImprintMorpher:
                     + target_similarity * 0.14
                     + pi_score * 0.08
                     + action_gate * 0.06
-                    + dream_plasticity * 0.04
+                    + nexus_plasticity * 0.04
                     - prediction_error * 0.10
                     - mismatch_index * 0.08
                 )
                 interference = _clamp(
                     (source_similarity * 0.45 + semantic_relation_score * 0.35 + target_semantic_score * 0.20)
-                    * (0.55 + action_gate * 0.25 + dream_plasticity * 0.20)
+                    * (0.55 + action_gate * 0.25 + nexus_plasticity * 0.20)
                     - prediction_error * 0.12
                 )
                 intuitive_link_score = _clamp(
@@ -382,7 +382,7 @@ class VisualImprintMorpher:
                         "semantic_concept": semantic_concept,
                         "morph_id": morph["morph_id"],
                         "target_imprint_id": morph["target_imprint_id"],
-                        "relationship": "dream_morphed_visual_imprint_suggests_diagnostic_correlation",
+                        "relationship": "nexus_morphed_visual_imprint_suggests_diagnostic_correlation",
                         "semantic_match_type": relation["match_type"],
                         "semantic_relation_score": round(semantic_relation_score, 3),
                         "score": round(intuitive_link_score, 3),
@@ -394,7 +394,7 @@ class VisualImprintMorpher:
         top_score = morphs[0]["intuitive_link_score"] if morphs else 0.0
         return {
             "status": "completed",
-            "operation": "visual_imprint_dream_morphing",
+            "operation": "visual_imprint_nexus_morphing",
             "source_imprint_count": len(source_imprints),
             "diagnostic_imprint_count": len(diagnostic),
             "morph_count": len(morphs),
@@ -405,7 +405,7 @@ class VisualImprintMorpher:
             "semantic_links": semantic_links[:limit],
             "visual_morph_coherence": round(top_score, 3),
             "visual_prediction_link_score": round(top_score, 3),
-            "visual_morph_intuition_gain": round(_clamp(top_score * 0.55 + dream_plasticity * 0.25 + action_gate * 0.20 - prediction_error * 0.15), 3),
+            "visual_morph_intuition_gain": round(_clamp(top_score * 0.55 + nexus_plasticity * 0.25 + action_gate * 0.20 - prediction_error * 0.15), 3),
             "neuroquantum_trace": {
                 "formalism": "quantum_like_latent_interference_not_physical_quantum_claim",
                 "morphing_mode": "inferential_semantic_matrix_morphing",
@@ -414,7 +414,7 @@ class VisualImprintMorpher:
                 "pi_score": round(pi_score, 3),
                 "prediction_error": round(prediction_error, 3),
                 "mismatch_index": round(mismatch_index, 3),
-                "dream_plasticity": round(dream_plasticity, 3),
+                "nexus_plasticity": round(nexus_plasticity, 3),
                 "action_potential_gate": round(action_gate, 3),
             },
             "governance": {

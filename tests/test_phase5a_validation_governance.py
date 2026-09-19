@@ -1,10 +1,16 @@
 from melampo.evaluation.calibration import ConfidenceCalibrationEvaluator
-from melampo.evaluation.clinical_benchmark import ClinicalBenchmarkRecord, ClinicalBenchmarkRunner
+from melampo.evaluation.clinical_benchmark import (
+    ClinicalBenchmarkRecord,
+    ClinicalBenchmarkRunner,
+)
 from melampo.evaluation.dataset_manifest import DatasetManifest, DatasetManifestRegistry
 from melampo.evaluation.model_release_gate import ModelReleaseGate
-from melampo.evaluation.rag_evaluation import RAGEvaluator, RAGEvaluationRecord
+from melampo.evaluation.rag_evaluation import RAGEvaluationRecord, RAGEvaluator
 from melampo.evaluation.slice_analysis import SliceAnalysisRunner
-from melampo.evaluation.validation_protocol import ValidationProtocol, ValidationProtocolRegistry
+from melampo.evaluation.validation_protocol import (
+    ValidationProtocol,
+    ValidationProtocolRegistry,
+)
 from melampo.governance.change_control import ChangeControlRegistry, ChangeRecord
 from melampo.safety.rails import ClinicalSafetyRails
 
@@ -185,7 +191,7 @@ def test_clinical_safety_rails_block_unsafe_retrieval_and_output():
     assert input_decision.status == "pass"
 
     retrieval_decision = rails.evaluate_retrieval(
-        [{"source": "synthetic", "learning_status": "candidate", "metadata": {"source_type": "synthetic_dream_trace"}}]
+        [{"source": "synthetic", "learning_status": "candidate", "metadata": {"source_type": "synthetic_nexus_trace"}}]
     )
     assert retrieval_decision.status == "block"
     assert "retrieval_provenance_below_threshold" in retrieval_decision.reasons

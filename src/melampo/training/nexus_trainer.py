@@ -18,7 +18,7 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 
 @dataclass(frozen=True, slots=True)
-class DreamRuntimeContext:
+class NexusRuntimeContext:
     case_context: dict[str, Any]
     filter_assessment: dict[str, Any]
     sampled: dict[str, Any]
@@ -36,7 +36,7 @@ class DreamRuntimeContext:
     coherence_pairs: list[Any]
     convergence_index: float
     revision_pressure: float
-    dream_plasticity: float
+    nexus_plasticity: float
     pi_score: float
     variant_focus: str
     visual_morphing: dict[str, Any]
@@ -45,8 +45,8 @@ class DreamRuntimeContext:
 
 
 @dataclass
-class DreamTrainer:
-    """Offline dream-replay trainer with optional quantum-like belief updates."""
+class NexusTrainer:
+    """Offline nexus-replay trainer with optional quantum-like belief updates."""
 
     replay_filter: ReplayFilter
     sampler: CounterfactualSampler
@@ -54,7 +54,7 @@ class DreamTrainer:
     visual_morpher: VisualImprintMorpher = field(default_factory=VisualImprintMorpher)
     enumerator: Any = None
 
-    def _runtime_context(self, case_context: dict, coherence: float, risk: float) -> DreamRuntimeContext:
+    def _runtime_context(self, case_context: dict, coherence: float, risk: float) -> NexusRuntimeContext:
         case_context = case_context or {}
         filter_assessment = self.replay_filter.assess(coherence=coherence, risk=risk)
         sampled = self.sampler.sample(case_context)
@@ -63,12 +63,12 @@ class DreamTrainer:
         visual_imprints = list(case_context.get("visual_imprints", [])) if isinstance(case_context.get("visual_imprints", []), list) else []
         concept_memory_imprints = list(case_context.get("concept_memory_imprints", [])) if isinstance(case_context.get("concept_memory_imprints", []), list) else []
         diagnostic_visual_imprints = list(case_context.get("diagnostic_visual_imprints", visual_imprints)) if isinstance(case_context.get("diagnostic_visual_imprints", visual_imprints), list) else visual_imprints
-        visual_morphing = self.visual_morpher.dream_morph(
+        visual_morphing = self.visual_morpher.nexus_morph(
             concept_imprints=concept_memory_imprints + visual_imprints,
             diagnostic_imprints=diagnostic_visual_imprints,
             area_dynamics=area_dynamics,
         )
-        return DreamRuntimeContext(
+        return NexusRuntimeContext(
             case_context=case_context,
             filter_assessment=filter_assessment,
             sampled=sampled,
@@ -86,7 +86,7 @@ class DreamTrainer:
             coherence_pairs=area_dynamics.get("coherence_pairs", []) if isinstance(area_dynamics, dict) else [],
             convergence_index=_safe_float(neuro_metrics.get("convergence_index", 0.0)),
             revision_pressure=_safe_float(neuro_metrics.get("revision_pressure", 0.0)),
-            dream_plasticity=_safe_float(neuro_metrics.get("dream_plasticity", 0.0)),
+            nexus_plasticity=_safe_float(neuro_metrics.get("nexus_plasticity", 0.0)),
             pi_score=_safe_float(neuro_metrics.get("pi_score", area_dynamics.get("pi_score", 0.0) if isinstance(area_dynamics, dict) else 0.0)),
             variant_focus=sampled.get("variant_focus", "context"),
             visual_morphing=visual_morphing,
@@ -94,7 +94,7 @@ class DreamTrainer:
             visual_prediction_link_score=_safe_float(visual_morphing.get("visual_prediction_link_score", 0.0)),
         )
 
-    def _rehearsal_profile(self, context: DreamRuntimeContext) -> dict[str, Any]:
+    def _rehearsal_profile(self, context: NexusRuntimeContext) -> dict[str, Any]:
         contradiction_rehearsal = bool(
             (not context.accepted)
             or context.risk > 0.2
@@ -111,7 +111,7 @@ class DreamTrainer:
             "replay_mode": context.filter_assessment["replay_mode"],
             "acceptance_score": context.filter_assessment["acceptance_score"],
             "variant_focus": context.variant_focus,
-            "dream_plasticity": context.dream_plasticity,
+            "nexus_plasticity": context.nexus_plasticity,
             "convergence_index": context.convergence_index,
             "revision_pressure": context.revision_pressure,
             "pi_score": context.pi_score,
@@ -120,7 +120,7 @@ class DreamTrainer:
             "visual_prediction_link_score": round(context.visual_prediction_link_score, 3),
         }
 
-    def _alternative_hypotheses(self, context: DreamRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
+    def _alternative_hypotheses(self, context: NexusRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
         """Alternative hypotheses for this case.
 
         With an ``enumerator`` configured these are found by path enumeration
@@ -139,7 +139,7 @@ class DreamTrainer:
             return enumerated
         return self._rehearsal_labels(context, rehearsal_profile)
 
-    def _enumerated_hypotheses(self, context: DreamRuntimeContext) -> list[dict[str, Any]] | None:
+    def _enumerated_hypotheses(self, context: NexusRuntimeContext) -> list[dict[str, Any]] | None:
         """Enumerate over the graph, or return None when no enumerator is wired.
 
         Returns the branch's own register: under sparse local coverage the
@@ -192,7 +192,7 @@ class DreamTrainer:
             for item in payload["hypotheses"]
         ]
 
-    def _rehearsal_labels(self, context: DreamRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
+    def _rehearsal_labels(self, context: NexusRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
         hypotheses: list[dict[str, Any]] = [
             {
                 "label": f"{context.base_label}_alt_1",
@@ -233,13 +233,13 @@ class DreamTrainer:
             )
         return hypotheses
 
-    def _auto_evolution_plan(self, context: DreamRuntimeContext) -> dict[str, Any]:
+    def _auto_evolution_plan(self, context: NexusRuntimeContext) -> dict[str, Any]:
         auto_evolution_candidate = bool(
             context.accepted
             and context.pi_score >= 0.55
             and context.convergence_index >= 0.45
             and context.risk <= 0.25
-            and context.dream_plasticity >= 0.35
+            and context.nexus_plasticity >= 0.35
         )
         return {
             "status": "candidate" if auto_evolution_candidate else "hold_for_more_evidence",
@@ -259,7 +259,7 @@ class DreamTrainer:
             "candidate_score": round(
                 context.pi_score * 0.32
                 + context.convergence_index * 0.27
-                + context.dream_plasticity * 0.18
+                + context.nexus_plasticity * 0.18
                 + context.visual_morph_gain * 0.08
                 - context.risk * 0.15,
                 3,
@@ -271,7 +271,7 @@ class DreamTrainer:
 
     def _belief_context(
         self,
-        context: DreamRuntimeContext,
+        context: NexusRuntimeContext,
         rehearsal_profile: dict[str, Any],
         alternative_hypotheses: list[dict[str, Any]],
         auto_evolution_plan: dict[str, Any],

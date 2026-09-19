@@ -8,7 +8,7 @@ from ..memory.learning_status import validate_learning_transition
 
 @dataclass(slots=True)
 class PromotionPolicy:
-    """Decide how validated dream candidates move through governed memory states."""
+    """Decide how validated nexus candidates move through governed memory states."""
 
     allow_automatic_promotion: bool = False
     promote_to_review_by_default: bool = True

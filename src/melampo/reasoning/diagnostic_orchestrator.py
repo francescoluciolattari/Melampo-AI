@@ -4,7 +4,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..orchestration.model_capability_registry import ModelCapabilityRegistry
-from .diagnostic_result import DiagnosticResult, DreamSummary, IntuitionSummary, MelampoMetrics
+from .diagnostic_result import (
+    DiagnosticResult,
+    IntuitionSummary,
+    MelampoMetrics,
+    NexusSummary,
+)
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -95,7 +100,7 @@ class MelampoDiagnosticOrchestrator:
         intuition = pipeline_result.get("intuition", {})
         area_dynamics = pipeline_result.get("area_dynamics", {})
         neuro = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
-        dream = pipeline_result.get("dream", {})
+        nexus = pipeline_result.get("nexus", {})
         critique = pipeline_result.get("critique", {})
         orchestration_policy = self.policy.evaluate(pipeline_result)
 
@@ -126,7 +131,7 @@ class MelampoDiagnosticOrchestrator:
             conflict_load=neuro.get("conflict_load", 0.0),
             inhibitory_control=neuro.get("inhibitory_control", 0.0),
             revision_pressure=neuro.get("revision_pressure", 0.0),
-            dream_plasticity=neuro.get("dream_plasticity", 0.0),
+            nexus_plasticity=neuro.get("nexus_plasticity", 0.0),
             bias_suppression_score=neuro.get("bias_suppression_score", 0.0),
             interdependence_index=neuro.get("interdependence_index", 0.0),
             evidence_integration_score=neuro.get("evidence_integration_score", 0.0),
@@ -150,10 +155,10 @@ class MelampoDiagnosticOrchestrator:
             support=support,
             policy=orchestration_policy,
             critique=critique,
-            dream=DreamSummary(
-                accepted=dream.get("accepted", False) if isinstance(dream, dict) else False,
-                auto_evolution_plan=dream.get("auto_evolution_plan", {}) if isinstance(dream, dict) else {},
-                alternative_hypotheses=dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else [],
+            nexus=NexusSummary(
+                accepted=nexus.get("accepted", False) if isinstance(nexus, dict) else False,
+                auto_evolution_plan=nexus.get("auto_evolution_plan", {}) if isinstance(nexus, dict) else {},
+                alternative_hypotheses=nexus.get("alternative_hypotheses", []) if isinstance(nexus, dict) else [],
             ),
             model_capability_decision_record=self.registry.decision_record(),
             audit_trace={

@@ -27,7 +27,7 @@ def test_policy_and_belief_layers_expose_structured_assessments():
 
     belief = QuantumBeliefLayer().update(
         prior={"case_id": "x", "candidate_count": 2},
-        context={"dream_mode": "quantum_like_belief_update", "area_count": 4, "reasoning_mode": "rapid_intuition"},
+        context={"nexus_mode": "quantum_like_belief_update", "area_count": 4, "reasoning_mode": "rapid_intuition"},
     )
     assert belief["mode"] == "quantum_like_belief_update"
     assert belief["contextuality_score"] >= 0.0

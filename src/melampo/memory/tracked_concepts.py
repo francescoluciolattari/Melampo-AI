@@ -4,7 +4,7 @@ Answers a question raised directly: not every one of the graph's 29,053
 concepts, and not a blind crawl of all of them -- that count is the graph's
 total size, not a sensible literature-refresh scope, and was cited earlier
 only to illustrate why an unbounded nightly crawl is the wrong shape at all.
-The chosen strategy is Dream-Engine style: bounded, nightly, working through
+The chosen strategy is Nexus-Engine style: bounded, nightly, working through
 concepts this project has actually reasoned about, growing as real use
 grows it -- never touching the full ontology.
 

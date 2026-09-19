@@ -268,7 +268,7 @@ def merge_hypotheses(
 
     They are appended after the model's own entries and carry their origin, so a
     synthetic alternative is never read as the model's reading of the case. This
-    is the integration point for the dream branch: it contributes *entries*, and
+    is the integration point for the nexus branch: it contributes *entries*, and
     it does so where a differential already exists rather than replacing one.
 
     Already-present conditions are skipped: a candidate the model has raised is

@@ -3,20 +3,21 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 from ..memory.vector_memory import InMemoryVectorStore
-from .dream_candidate_store import DreamCandidateStore
+from .nexus_candidate_store import NexusCandidateStore
 from .promotion_policy import PromotionPolicy
 from .rational_control_validator import RationalControlValidator
-from .self_evolution import DreamSelfEvolutionLoop
+from .self_evolution import NexusSelfEvolutionLoop
 
 
 def _job_id(case_context: dict[str, Any], scheduled_at: float) -> str:
     case_id = str(case_context.get("case_id", "unknown_case"))
-    digest = hashlib.sha256(f"job:{case_id}:{json.dumps(case_context, sort_keys=True, default=str)}:{scheduled_at}".encode("utf-8")).hexdigest()
-    return f"dream_job:{case_id}:{digest[:12]}"
+    digest = hashlib.sha256(f"job:{case_id}:{json.dumps(case_context, sort_keys=True, default=str)}:{scheduled_at}".encode()).hexdigest()
+    return f"nexus_job:{case_id}:{digest[:12]}"
 
 
 @dataclass(slots=True)
@@ -48,11 +49,11 @@ class LowActivityPolicy:
 
 
 @dataclass(slots=True)
-class DreamReplayJob:
+class NexusReplayJob:
     job_id: str
     case_context: dict[str, Any]
     area_dynamics: dict[str, Any]
-    dream: dict[str, Any] = field(default_factory=dict)
+    nexus: dict[str, Any] = field(default_factory=dict)
     retrieval_context: dict[str, Any] = field(default_factory=dict)
     governance_scores: dict[str, Any] = field(default_factory=dict)
     scheduled_at: float = field(default_factory=time.time)
@@ -63,7 +64,7 @@ class DreamReplayJob:
             "job_id": self.job_id,
             "case_context": self.case_context,
             "area_dynamics": self.area_dynamics,
-            "dream": self.dream,
+            "nexus": self.nexus,
             "retrieval_context": self.retrieval_context,
             "governance_scores": self.governance_scores,
             "scheduled_at": self.scheduled_at,
@@ -72,32 +73,32 @@ class DreamReplayJob:
 
 
 @dataclass(slots=True)
-class DreamScheduler:
-    """Synchronous low-activity dream replay scheduler with promotion guardrails."""
+class NexusScheduler:
+    """Synchronous low-activity nexus replay scheduler with promotion guardrails."""
 
-    candidate_store: DreamCandidateStore = field(default_factory=DreamCandidateStore)
+    candidate_store: NexusCandidateStore = field(default_factory=NexusCandidateStore)
     vector_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore.enterprise_default)
-    self_evolution_loop: DreamSelfEvolutionLoop = field(default_factory=DreamSelfEvolutionLoop)
+    self_evolution_loop: NexusSelfEvolutionLoop = field(default_factory=NexusSelfEvolutionLoop)
     validator: RationalControlValidator = field(default_factory=RationalControlValidator)
     promotion_policy: PromotionPolicy = field(default_factory=PromotionPolicy)
     low_activity_policy: LowActivityPolicy = field(default_factory=LowActivityPolicy)
-    queue: list[DreamReplayJob] = field(default_factory=list)
+    queue: list[NexusReplayJob] = field(default_factory=list)
     execution_log: list[dict[str, Any]] = field(default_factory=list)
 
     def enqueue(
         self,
         case_context: dict[str, Any],
         area_dynamics: dict[str, Any],
-        dream: dict[str, Any] | None = None,
+        nexus: dict[str, Any] | None = None,
         retrieval_context: dict[str, Any] | None = None,
         governance_scores: dict[str, Any] | None = None,
-    ) -> DreamReplayJob:
+    ) -> NexusReplayJob:
         scheduled_at = time.time()
-        job = DreamReplayJob(
+        job = NexusReplayJob(
             job_id=_job_id(case_context=case_context or {}, scheduled_at=scheduled_at),
             case_context=case_context or {},
             area_dynamics=area_dynamics or {},
-            dream=dream or {},
+            nexus=nexus or {},
             retrieval_context=retrieval_context or {},
             governance_scores=governance_scores or {},
             scheduled_at=scheduled_at,
@@ -106,28 +107,28 @@ class DreamScheduler:
         self.execution_log.append({"event": "job_enqueued", "job_id": job.job_id, "timestamp": scheduled_at})
         return job
 
-    def enqueue_many(self, cases: Iterable[dict[str, Any]]) -> list[DreamReplayJob]:
+    def enqueue_many(self, cases: Iterable[dict[str, Any]]) -> list[NexusReplayJob]:
         jobs = []
         for item in cases:
             jobs.append(
                 self.enqueue(
                     case_context=dict(item.get("case_context", item)),
                     area_dynamics=dict(item.get("area_dynamics", {})),
-                    dream=dict(item.get("dream", {})),
+                    nexus=dict(item.get("nexus", {})),
                     retrieval_context=dict(item.get("retrieval_context", {})),
                     governance_scores=dict(item.get("governance_scores", {})),
                 )
             )
         return jobs
 
-    def _execute_job(self, job: DreamReplayJob) -> dict[str, Any]:
+    def _execute_job(self, job: NexusReplayJob) -> dict[str, Any]:
         candidate_payload = self.self_evolution_loop.generate_candidate(
             case_context=job.case_context,
             area_dynamics=job.area_dynamics,
-            dream=job.dream,
+            nexus=job.nexus,
         )
         metadata = dict(candidate_payload.get("metadata", {}))
-        auto_plan = job.dream.get("auto_evolution_plan", {}) if isinstance(job.dream, dict) else {}
+        auto_plan = job.nexus.get("auto_evolution_plan", {}) if isinstance(job.nexus, dict) else {}
         candidate_payload = {
             **candidate_payload,
             "case_id": job.case_context.get("case_id", metadata.get("case_id", "unknown_case")),
@@ -141,13 +142,13 @@ class DreamScheduler:
                 "retrieval_coverage": job.governance_scores.get("retrieval_coverage", job.retrieval_context.get("retrieval_coverage", 0.0)),
                 "provenance_quality": job.governance_scores.get("provenance_quality", metadata.get("provenance_quality", 0.0)),
                 "auto_evolution_plan": auto_plan,
-                "source": "dream_scheduler",
+                "source": "nexus_scheduler",
             },
         }
         record = self.candidate_store.create_candidate(
             payload=candidate_payload,
             case_id=str(candidate_payload.get("case_id", "unknown_case")),
-            source="dream_scheduler",
+            source="nexus_scheduler",
             learning_status="candidate",
         )
         validation = self.validator.evaluate(

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from .escalation import EscalationPolicy
 from ..models.abstention import AbstentionPolicy
 from ..models.risk_gate import RiskGate
+from .escalation import EscalationPolicy
 
 
 @dataclass

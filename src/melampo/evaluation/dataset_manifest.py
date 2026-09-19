@@ -47,7 +47,7 @@ class DatasetManifest:
     governance: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "DatasetManifest":
+    def from_dict(cls, payload: dict[str, Any]) -> DatasetManifest:
         return cls(
             dataset_id=_clean_string(payload.get("dataset_id", payload.get("id", "unknown_dataset"))),
             name=_clean_string(payload.get("name", "unknown_dataset")),

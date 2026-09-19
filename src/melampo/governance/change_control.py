@@ -6,8 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-
-_HIGH_RISK_COMPONENTS = {"model", "memory", "retriever", "policy", "dream_branch", "orchestrator"}
+_HIGH_RISK_COMPONENTS = {"model", "memory", "retriever", "policy", "nexus_branch", "orchestrator"}
 
 
 def _hash_change(payload: dict[str, Any]) -> str:

@@ -4,7 +4,7 @@ Identified directly as the bottleneck the rest of the evolution depends on:
 `InMemoryConceptGraph` is a Python list, rebuilt from the HPO file on every
 start. An edge promoted by `ConjectureLedger` after three independent
 confirmations exists until the process exits and is then silently lost --
-which makes the dream-replay work, the confirmation ledger, and any weight
+which makes the nexus-replay work, the confirmation ledger, and any weight
 adjustment from real outcomes ceremonial rather than real.
 
 **The central design choice: learned edges are stored apart from imported

@@ -380,7 +380,7 @@ class ClinicalDocumentProcessor:
             "publication_date": publication_date,
             "provenance_quality": round(_clamp(provenance_quality), 3),
             "governance_status": "complete" if provenance_quality >= 0.8 else "needs_review",
-            "synthetic_source": source_type in {"synthetic", "dream_trace", "counterfactual"},
+            "synthetic_source": source_type in {"synthetic", "nexus_trace", "counterfactual"},
         }
 
     def split_sections(self, text: str) -> list[dict[str, Any]]:
@@ -557,7 +557,7 @@ class ClinicalDocumentProcessor:
                 "track source license and publication date",
                 "separate peer-reviewed literature, guidelines, local protocols and synthetic traces",
                 "retain page/section provenance for every RAG answer",
-                "never promote dream-generated traces without rational-control validation",
+                "never promote nexus-generated traces without rational-control validation",
                 "mark incomplete provenance as needs_review",
                 "preserve ontology_refs and relations for graph expansion",
             ],

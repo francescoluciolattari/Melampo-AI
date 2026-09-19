@@ -136,7 +136,7 @@ class DiagnosticAssembly:
 
         ``description_store``/``description_extractor`` are optional and
         both must be supplied for this to do anything: every newly promoted
-        edge -- whether the conjecture came from the Dream Engine's offline
+        edge -- whether the conjecture came from the Nexus Engine's offline
         exploration or from a confirmed RLM hypothesis -- gets a tier-3
         description built and persisted for its target concept, if one does
         not already exist. Without both, promotion behaves exactly as
@@ -246,9 +246,9 @@ def assemble(
 
 
 def candidate_conditions_for(findings: Sequence[str], graph: ConceptGraphView) -> list[str]:
-    """The candidate list `DreamTrainer` needs but has no way to produce.
+    """The candidate list `NexusTrainer` needs but has no way to produce.
 
-    `DreamTrainer._enumerated` returns None unless the case context already
+    `NexusTrainer._enumerated` returns None unless the case context already
     carries `candidate_conditions`, and nothing in the pipeline put them
     there -- which is why the trainer fell through to rehearsal labels on
     every real case. Exposed here so a caller populating that context has
@@ -257,8 +257,8 @@ def candidate_conditions_for(findings: Sequence[str], graph: ConceptGraphView) -
     return retrieve_candidates(findings, graph).condition_names
 
 
-def dream_context_for(findings: Sequence[str], graph: ConceptGraphView, **extra: Any) -> dict[str, Any]:
-    """A case context with the candidates filled in, ready for DreamTrainer.
+def nexus_context_for(findings: Sequence[str], graph: ConceptGraphView, **extra: Any) -> dict[str, Any]:
+    """A case context with the candidates filled in, ready for NexusTrainer.
 
     The concrete fix for the hook that was never valorised: pass this as the
     trainer's `case_context` and `_enumerated` finds what it needs instead of

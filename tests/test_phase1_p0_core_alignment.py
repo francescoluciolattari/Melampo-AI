@@ -138,4 +138,4 @@ def test_governance_scores_are_runtime_derived_not_hardcoded():
     assert low_risk["derivation"] == "runtime_governance_scores_not_hardcoded_constants"
     assert high_risk["risk"] > low_risk["risk"]
     assert high_risk["uncertainty"] > low_risk["uncertainty"]
-    assert high_risk["dream_coherence"] < low_risk["dream_coherence"]
+    assert high_risk["nexus_coherence"] < low_risk["nexus_coherence"]

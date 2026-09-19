@@ -1,7 +1,7 @@
 from melampo.memory.semantic_memory import SemanticMemoryStore
 from melampo.reasoning.area_coherence import AreaCoherenceAnalyzer
 from melampo.reasoning.neuro_dynamics import NeuroDynamicMetrics
-from melampo.training.self_evolution import DreamSelfEvolutionLoop
+from melampo.training.self_evolution import NexusSelfEvolutionLoop
 
 
 def test_neuro_dynamic_metrics_are_emitted_by_area_coherence():
@@ -48,8 +48,8 @@ def test_semantic_memory_indexes_documents_in_vector_memory():
     assert memory.describe()["vector_store"]["record_count"] == 1
 
 
-def test_dream_self_evolution_promotes_only_favorable_candidates():
-    loop = DreamSelfEvolutionLoop()
+def test_nexus_self_evolution_promotes_only_favorable_candidates():
+    loop = NexusSelfEvolutionLoop()
     favorable = loop.rehearse(
         case_context={"case_id": "case-good", "report_text": "cough opacity", "patient_complaints": "fever"},
         area_dynamics={

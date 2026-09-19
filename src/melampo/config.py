@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
 
 
 @dataclass(slots=True)
 class ServiceConfig:
     provider: str
-    endpoint: Optional[str] = None
-    api_key_env: Optional[str] = None
+    endpoint: str | None = None
+    api_key_env: str | None = None
     timeout_seconds: int = 30
     enabled: bool = True
 
@@ -35,7 +34,7 @@ class RuntimeConfig:
     calibration_bin_count: int = 15
     runtime_profile: str = "local_research"
     imaging_provider_strategy: str = "local_metadata"
-    service_registry: Dict[str, ServiceConfig] = field(default_factory=dict)
+    service_registry: dict[str, ServiceConfig] = field(default_factory=dict)
 
     def describe(self) -> dict:
         enabled = {name: service.describe() for name, service in self.service_registry.items() if service.enabled}

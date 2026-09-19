@@ -1,6 +1,6 @@
 """Learn which hypothesis shapes turn out to matter, from confirmed outcomes.
 
-The dream branch can produce a model the engine then uses, and this is that
+The nexus branch can produce a model the engine then uses, and this is that
 model — but what trains it decides whether it is learning or circularity.
 
 A model trained on the hypotheses the system generated would learn to reproduce

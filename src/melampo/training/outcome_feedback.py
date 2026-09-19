@@ -7,12 +7,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.vector_memory import InMemoryVectorStore
-from .dream_candidate_store import DreamCandidateStore
+from .nexus_candidate_store import NexusCandidateStore
 
 
 def _stable_feedback_id(case_id: str, payload: dict[str, Any]) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str)
-    digest = hashlib.sha256(f"feedback:{case_id}:{canonical}:{time.time()}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"feedback:{case_id}:{canonical}:{time.time()}".encode()).hexdigest()
     return f"feedback:{case_id}:{digest[:16]}"
 
 
@@ -46,7 +46,7 @@ class OutcomeFeedbackRecord:
 
 @dataclass(slots=True)
 class OutcomeFeedbackIngestor:
-    """Attach reviewed outcomes to dream candidates and optional memory traces."""
+    """Attach reviewed outcomes to nexus candidates and optional memory traces."""
 
     default_source: str = "reviewed_outcome"
 
@@ -75,7 +75,7 @@ class OutcomeFeedbackIngestor:
 
     def attach_to_candidate(
         self,
-        store: DreamCandidateStore,
+        store: NexusCandidateStore,
         candidate_id: str,
         diagnostic_result: dict[str, Any],
         outcome: dict[str, Any],

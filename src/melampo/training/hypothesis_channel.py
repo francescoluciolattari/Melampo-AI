@@ -1,4 +1,4 @@
-"""Isolated channel delivering dream candidates as exclusion hypotheses.
+"""Isolated channel delivering nexus candidates as exclusion hypotheses.
 
 A synthetic candidate is not evidence and must never enter the differential as
 support for a conclusion. It can legitimately enter as a *hypothesis to be
@@ -70,7 +70,7 @@ class IndeterminacyGate:
         return bool(self.evaluate(dynamics, risk=risk)["open"])
 
     def evaluate_context(self, context: Any) -> dict[str, Any]:
-        """Evaluate against a dream runtime context, reading the real metrics.
+        """Evaluate against a nexus runtime context, reading the real metrics.
 
         ``convergence_index`` and ``risk`` sit directly on the context;
         ``conflict_load`` is produced by the neuro-dynamic layer and arrives
@@ -88,11 +88,11 @@ class IndeterminacyGate:
 
 @dataclass
 class HypothesisEnvelope:
-    """A dream candidate wrapped for consumption by the differential engine only."""
+    """A nexus candidate wrapped for consumption by the differential engine only."""
 
     label: str
     rationale: str = ""
-    origin: str = "dream_branch"
+    origin: str = "nexus_branch"
     novelty_score: float = 0.0
     supporting_patterns: list[str] = field(default_factory=list)
 
@@ -106,7 +106,7 @@ class HypothesisEnvelope:
             "supporting_patterns": list(self.supporting_patterns),
             "namespace": HYPOTHESIS_NAMESPACE,
             "learning_status": "candidate",
-            "source_type": "synthetic_dream_candidate",
+            "source_type": "synthetic_nexus_candidate",
             "synthetic_candidate_not_clinical_truth": True,
             "usable_as_evidence": False,
             "human_review_before_clinical_use": True,

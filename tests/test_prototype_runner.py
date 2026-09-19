@@ -1,4 +1,8 @@
-from melampo.prototype import ClinicalPrototypeRunner, PrototypeInputValidator, run_prototype_case
+from melampo.prototype import (
+    ClinicalPrototypeRunner,
+    PrototypeInputValidator,
+    run_prototype_case,
+)
 
 
 def test_prototype_input_validator_rejects_missing_case_id():

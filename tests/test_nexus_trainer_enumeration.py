@@ -1,8 +1,8 @@
 from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
 from melampo.models.quantum_belief_layer import QuantumBeliefLayer
 from melampo.training.counterfactual_sampler import CounterfactualSampler
-from melampo.training.dream_trainer import DreamTrainer
 from melampo.training.mechanism_enumeration import MechanismEnumerator
+from melampo.training.nexus_trainer import NexusTrainer
 from melampo.training.replay_filter import ReplayFilter
 
 PROFILE = {"rare_case_hint": False, "boundary_case_hint": False, "contradiction_rehearsal": False}
@@ -24,12 +24,12 @@ def _sparse_graph() -> InMemoryConceptGraph:
     )
 
 
-def _trainer(graph=None, **kwargs) -> DreamTrainer:
+def _trainer(graph=None, **kwargs) -> NexusTrainer:
     enumerator = MechanismEnumerator(graph=graph, max_hops=3, **kwargs) if graph else None
-    return DreamTrainer(ReplayFilter(), CounterfactualSampler(), QuantumBeliefLayer(), enumerator=enumerator)
+    return NexusTrainer(ReplayFilter(), CounterfactualSampler(), QuantumBeliefLayer(), enumerator=enumerator)
 
 
-def _context(trainer: DreamTrainer, **case):
+def _context(trainer: NexusTrainer, **case):
     payload = {
         "case_id": "c1",
         "findings": ["bibasilar opacities", "pleural effusion"],
@@ -39,7 +39,7 @@ def _context(trainer: DreamTrainer, **case):
     return trainer._runtime_context(payload, coherence=0.8, risk=0.6)
 
 
-def _hypotheses(trainer: DreamTrainer, **case):
+def _hypotheses(trainer: NexusTrainer, **case):
     return trainer._alternative_hypotheses(_context(trainer, **case), PROFILE)
 
 

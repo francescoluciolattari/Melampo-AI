@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..models.specialist_adapters import ClaudeCritiqueAdapter, Gemma4ClinicalReasoningAdapter, Pillar0RadiologyAdapter
+from ..models.specialist_adapters import (
+    ClaudeCritiqueAdapter,
+    Gemma4ClinicalReasoningAdapter,
+    Pillar0RadiologyAdapter,
+)
 from .model_capability_registry import ModelCapabilityRegistry
 
 

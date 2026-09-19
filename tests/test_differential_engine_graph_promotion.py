@@ -83,7 +83,7 @@ def test_a_real_hypothesis_is_promoted_over_a_placeholder_primary():
     result = engine.rank(
         evidence=["finding a", "finding b"],
         intuition=_placeholder_intuition(),
-        dream={"alternative_hypotheses": [_real_hypothesis("marfan syndrome", plausibility=0.82)]},
+        nexus={"alternative_hypotheses": [_real_hypothesis("marfan syndrome", plausibility=0.82)]},
     )
     assert result["hypotheses"][0]["label"] == "marfan syndrome"
     assert result["hypotheses"][0]["source"] == "graph_enumeration"
@@ -93,7 +93,7 @@ def test_the_demoted_intuition_hypothesis_is_kept_not_dropped():
     engine = DifferentialEngine()
     result = engine.rank(
         evidence=["a"], intuition=_placeholder_intuition("candidate_1"),
-        dream={"alternative_hypotheses": [_real_hypothesis()]},
+        nexus={"alternative_hypotheses": [_real_hypothesis()]},
     )
     labels = [h["label"] for h in result["hypotheses"]]
     assert "candidate_1" in labels
@@ -109,7 +109,7 @@ def test_a_real_intuition_label_is_not_treated_as_a_placeholder():
     engine = DifferentialEngine()
     result = engine.rank(
         evidence=["a"], intuition=_real_intuition("marfan syndrome"),
-        dream={"alternative_hypotheses": [_real_hypothesis("loeys-dietz syndrome", plausibility=0.95)]},
+        nexus={"alternative_hypotheses": [_real_hypothesis("loeys-dietz syndrome", plausibility=0.95)]},
     )
     assert result["hypotheses"][0]["label"] == "marfan syndrome"
     assert result["hypotheses"][0]["source"] == "intuition_engine"
@@ -119,27 +119,27 @@ def test_no_real_hypotheses_available_leaves_the_placeholder_as_before():
     engine = DifferentialEngine()
     result = engine.rank(
         evidence=["a"], intuition=_placeholder_intuition("candidate_1"),
-        dream={"alternative_hypotheses": [_rehearsal_hypothesis("alt_1")]},
+        nexus={"alternative_hypotheses": [_rehearsal_hypothesis("alt_1")]},
     )
     assert result["hypotheses"][0]["label"] == "candidate_1"
     assert result["hypotheses"][0]["source"] == "intuition_engine"
 
 
-def test_no_dream_data_at_all_leaves_the_placeholder_as_before():
+def test_no_nexus_data_at_all_leaves_the_placeholder_as_before():
     engine = DifferentialEngine()
-    result = engine.rank(evidence=["a"], intuition=_placeholder_intuition("candidate_1"), dream={})
+    result = engine.rank(evidence=["a"], intuition=_placeholder_intuition("candidate_1"), nexus={})
     assert result["hypotheses"][0]["label"] == "candidate_1"
 
 
 def test_the_promoted_hypothesis_is_never_duplicated_in_its_own_alternatives_list():
     """The real defect this guards against: a first version appended every
-    dream alternative to the list below the primary, including the one just
+    nexus alternative to the list below the primary, including the one just
     promoted to primary -- listing it twice."""
     real = _real_hypothesis("marfan syndrome", plausibility=0.82)
     engine = DifferentialEngine()
     result = engine.rank(
         evidence=["a"], intuition=_placeholder_intuition(),
-        dream={"alternative_hypotheses": [real, _rehearsal_hypothesis("alt_1")]},
+        nexus={"alternative_hypotheses": [real, _rehearsal_hypothesis("alt_1")]},
     )
     marfan_entries = [h for h in result["hypotheses"] if h["label"] == "marfan syndrome"]
     assert len(marfan_entries) == 1
@@ -150,7 +150,7 @@ def test_a_promoted_hypothesis_carries_its_real_graph_paths_as_provenance():
     engine = DifferentialEngine()
     result = engine.rank(
         evidence=["a"], intuition=_placeholder_intuition(),
-        dream={"alternative_hypotheses": [_real_hypothesis(paths=paths)]},
+        nexus={"alternative_hypotheses": [_real_hypothesis(paths=paths)]},
     )
     assert result["hypotheses"][0]["paths"] == paths
 
@@ -161,7 +161,7 @@ def test_other_real_hypotheses_still_appear_as_ordinary_alternatives():
     engine = DifferentialEngine()
     result = engine.rank(
         evidence=["a"], intuition=_placeholder_intuition(),
-        dream={
+        nexus={
             "alternative_hypotheses": [
                 _real_hypothesis("best", plausibility=0.9),
                 _real_hypothesis("second", plausibility=0.5),

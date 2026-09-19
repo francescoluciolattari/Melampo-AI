@@ -5,7 +5,7 @@ Closes a gap found by checking the code rather than recalling a summary:
 (governance/confirmation_registry.py) both existed, both well-designed, both
 never connected to each other and never instantiated anywhere production code
 would reach. The same shape of gap found five times earlier in this project
-(Muse Glimmer, root_model_cross_check, mechanism_verification, the dream
+(Muse Glimmer, root_model_cross_check, mechanism_verification, the nexus
 trainer's enumerator hook, the conjecture ledger) — a module built, tested,
 and never wired to a caller.
 

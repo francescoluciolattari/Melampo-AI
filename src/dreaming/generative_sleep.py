@@ -1,6 +1,7 @@
 import torch
-import torch.nn as nn
-from torch_geometric.nn import GATConv # Graph Attention Network
+from torch import nn
+from torch_geometric.nn import GATConv  # Graph Attention Network
+
 
 class NeuroSynapticDreamer(nn.Module):
     """

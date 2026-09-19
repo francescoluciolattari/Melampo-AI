@@ -247,7 +247,7 @@ def _adapter_with_candidate() -> WeaviateEnterpriseMemoryAdapter:
     )
     adapter.fallback_store.upsert(
         text="amyloidosis considered as a synthetic alternative",
-        metadata={"class_name": QUARANTINED_HYPOTHESIS_CLASS, "document_id": "cand_1", "source_type": "synthetic_dream_candidate"},
+        metadata={"class_name": QUARANTINED_HYPOTHESIS_CLASS, "document_id": "cand_1", "source_type": "synthetic_nexus_candidate"},
         learning_status="candidate",
     )
     return adapter
