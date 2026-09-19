@@ -3308,3 +3308,48 @@ attivi, non registri storici.
 
 1365 test totali passanti (nessuno aggiunto né rimosso, solo rinominati
 dove il nome del file lo richiedeva), lint pulito sul pacchetto melampo.
+
+### NexusTrainer collegato a NexusScheduler — il collegamento identificato durante l'analisi architetturale
+
+Il collegamento preciso trovato leggendo entrambi i moduli per intero:
+`NexusScheduler.enqueue(case_context, area_dynamics, nexus, ...)`
+accettava già esattamente la forma dell'output di `NexusTrainer.run()`
+come proprio parametro `nexus` — erano state progettate per incastrarsi,
+mai nessuna riga le aveva effettivamente collegate.
+
+Aggiunto un metodo cache `_nexus_scheduler_instance()` a
+`ClinicalInferencePipeline`, stesso schema di `_nexus_enumerator_instance()`
+— la coda deve persistere fra le richieste sulla stessa istanza, non
+essere ricostruita (e svuotata) ogni volta. Dopo `_run_nexus_branch()`,
+`run()` ora chiama `enqueue()` con un contesto minimo (solo `case_id`,
+`report_text`, `patient_complaints` — lo scheduler non ha bisogno dei
+reperti/candidati che servono all'enumeratore).
+
+**Una decisione deliberata, dichiarata esplicitamente nel codice**:
+`run_once()` — che elabora davvero la coda, applicando validazione e
+promozione — non viene mai chiamato sincronamente dentro `run()`.
+Richiede metriche di attività reali (richieste attive, secondi di
+inattività) che una richiesta in corso non può fornire onestamente, e
+chiamarlo dentro una richiesta vanificherebbe l'intero scopo di
+eseguirlo in bassa attività. Resta un innesco separato — un job
+periodico, coerente con i flussi settimanale/giornaliero già costruiti
+per la letteratura — non ancora presente.
+
+**Due difetti trovati scrivendo i test, non prima**: (1) un comando
+`cat >>` diretto al vecchio nome del file (`test_dream_enumerator_wiring.py`,
+già rinominato in `test_nexus_enumerator_wiring.py` durante la
+ridenominazione) ha creato un file estraneo vuoto invece di aggiungere
+al file corretto — trovato subito dall'errore `NameError` sugli
+aiutanti di test mancanti, il file estraneo eliminato. (2)
+L'assistente di test `_minimal_pipeline` inizializzava il nuovo campo
+`_nexus_scheduler` con un `object()` generico invece di `None`,
+mascherando la cache — trovato dall'`AttributeError` sulla coda
+mancante, corretto insieme a `_nexus_ic_table`, che soffriva dello
+stesso problema preesistente mai notato prima d'ora.
+
+Verificato end-to-end tramite la pipeline reale
+(`app.py:build_default_runtime()`): due casi reali mettono in coda due
+lavori, una simulazione di bassa attività (`run_once(activity={"active_requests":
+0, "idle_seconds": 100})`) li elabora entrambi con successo.
+
+5 nuovi test, veloci, 1370 totali passanti, lint pulito.

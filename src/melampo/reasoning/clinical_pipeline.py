@@ -22,6 +22,7 @@ from ..orchestration.runtime_services import RuntimeServices
 from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.mechanism_enumeration import MechanismEnumerator
+from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
 from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
@@ -176,6 +177,7 @@ class ClinicalInferencePipeline:
     _nexus_graph_source: Any = None
     _nexus_enumerator: Any = None
     _nexus_ic_table: Any = None
+    _nexus_scheduler: Any = None
 
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
@@ -339,6 +341,36 @@ class ClinicalInferencePipeline:
         candidate_names = [item.condition for item in report.candidates]
         ranked = rank_differential(findings, candidate_names, enumerator.graph, self._nexus_ic_table)
         return [item.as_dict() for item in ranked]
+
+    def _nexus_scheduler_instance(self) -> NexusScheduler:
+        """The queue NexusTrainer's output feeds, for offline promotion during low-activity windows.
+
+        Cached per pipeline instance, the same pattern as the enumerator:
+        the queue is in-memory state that must persist across requests on
+        the same running instance, not be rebuilt (and emptied) each time.
+
+        Connects the two halves of what was one intended pipeline, split
+        into a live stage and an offline one, that had never actually been
+        wired together: NexusTrainer runs synchronously on every case and
+        NexusScheduler.enqueue() accepts exactly its output shape as a
+        parameter -- the two were designed to compose, and nothing called
+        the second with the first's result.
+
+        Deliberately does NOT call `run_once()` here, or anywhere in this
+        class. `run_once()` is gated by `LowActivityPolicy`, checking real
+        activity metrics (active requests, idle seconds) this
+        request-handling method has no business supplying -- calling it
+        synchronously inside a request would run the validation and
+        promotion work at exactly the wrong time, defeating the reason it
+        exists as a separate low-activity stage at all. Queued jobs
+        accumulate here; a genuine low-activity trigger (a scheduled job,
+        matching the daily/weekly workflow pattern this project already
+        uses for literature refresh) is separate, not-yet-built
+        infrastructure, not part of this change.
+        """
+        if self._nexus_scheduler is None:
+            self._nexus_scheduler = NexusScheduler()
+        return self._nexus_scheduler
 
     def _nexus_enumerator_instance(self) -> Any:
         """The real MechanismEnumerator, built once against the real concept graph and cached.
@@ -523,6 +555,24 @@ class ClinicalInferencePipeline:
             area_dynamics=area_dynamics,
             governance_scores=governance_scores,
             visual_imprints=visual_imprints,
+        )
+        # The connection found missing while reading both modules in full:
+        # NexusScheduler.enqueue()'s `nexus` parameter accepts exactly this
+        # dict's shape, unmodified. A minimal case_context is built here
+        # rather than reusing NexusTrainer's own enriched one (which also
+        # carries findings/candidate_conditions the scheduler's own
+        # candidate-text generation does not read) -- the scheduler only
+        # needs case_id, report_text and patient_complaints.
+        self._nexus_scheduler_instance().enqueue(
+            case_context={
+                "case_id": case.case_id,
+                "report_text": case.report_text,
+                "patient_complaints": payload.get("patient_complaints", ""),
+            },
+            area_dynamics=area_dynamics,
+            nexus=nexus,
+            retrieval_context=retrieval,
+            governance_scores=governance_scores,
         )
         intuition_engine = components["intuition_engine"]
         intuition = intuition_engine.infer(

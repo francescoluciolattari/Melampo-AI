@@ -51,6 +51,8 @@ def _minimal_pipeline(monkeypatch) -> ClinicalInferencePipeline:
     kwargs["normalizer"] = _StubNormalizer()
     kwargs["_nexus_graph_source"] = None
     kwargs["_nexus_enumerator"] = None
+    kwargs["_nexus_ic_table"] = None
+    kwargs["_nexus_scheduler"] = None
     return ClinicalInferencePipeline(**kwargs)
 
 
@@ -219,3 +221,92 @@ def test_the_ic_table_loads_only_once_across_multiple_calls(monkeypatch):
     pipeline._graph_candidates_for(["hypercalcaemia"])
 
     assert pipeline._nexus_ic_table is table_after_first
+
+
+# --------------------------------------------------------------------------
+# NexusTrainer -> NexusScheduler: the connection between the live stage and
+# the offline promotion stage, missing until now -- NexusScheduler.enqueue()
+# already accepted exactly NexusTrainer's output shape as its `nexus`
+# parameter; nothing called the second with the first's result. Exercises
+# the connection the same way run() does -- _run() above bypasses run()
+# entirely (the stub dependencies cannot support its full flow), so these
+# call _nexus_scheduler_instance().enqueue() directly with a real nexus
+# branch output, matching run()'s own call exactly.
+# --------------------------------------------------------------------------
+
+
+def test_the_scheduler_is_cached_across_calls(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+    first = pipeline._nexus_scheduler_instance()
+    second = pipeline._nexus_scheduler_instance()
+    assert first is second
+
+
+def test_enqueue_adds_a_job_carrying_the_nexus_branch_own_output(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+    nexus = _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"]})
+    scheduler = pipeline._nexus_scheduler_instance()
+
+    scheduler.enqueue(
+        case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
+        area_dynamics={},
+        nexus=nexus,
+        retrieval_context={},
+        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+    )
+
+    assert len(scheduler.queue) == 1
+    assert scheduler.queue[0].case_context["case_id"] == "c1"
+    assert "alternative_hypotheses" in scheduler.queue[0].nexus
+    assert "auto_evolution_plan" in scheduler.queue[0].nexus
+
+
+def test_multiple_enqueued_jobs_accumulate_in_the_same_queue(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+    scheduler = pipeline._nexus_scheduler_instance()
+
+    for case_id in ("c1", "c2", "c3"):
+        nexus = _run(pipeline, {"case_id": case_id})
+        scheduler.enqueue(
+            case_context={"case_id": case_id, "report_text": "", "patient_complaints": ""},
+            area_dynamics={}, nexus=nexus, retrieval_context={},
+            governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+        )
+
+    assert len(scheduler.queue) == 3
+    assert all(job.status == "queued" for job in scheduler.queue)
+
+
+def test_a_queued_job_processes_successfully_during_simulated_low_activity(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+    scheduler = pipeline._nexus_scheduler_instance()
+    nexus = _run(pipeline, {"case_id": "c1"})
+    scheduler.enqueue(
+        case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
+        area_dynamics={}, nexus=nexus, retrieval_context={},
+        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+    )
+
+    result = scheduler.run_once(activity={"active_requests": 0, "idle_seconds": 100})
+
+    assert result["status"] == "completed"
+    assert result["processed_jobs"] == 1
+
+
+def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypatch):
+    """The gate this whole design exists for: enqueue always succeeds,
+    run_once refuses to drain the queue while the system is busy."""
+    pipeline = _minimal_pipeline(monkeypatch)
+    scheduler = pipeline._nexus_scheduler_instance()
+    nexus = _run(pipeline, {"case_id": "c1"})
+    scheduler.enqueue(
+        case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
+        area_dynamics={}, nexus=nexus, retrieval_context={},
+        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+    )
+
+    result = scheduler.run_once(activity={"active_requests": 50, "idle_seconds": 0})
+
+    assert result["status"] == "skipped"
+    assert len(scheduler.queue) == 1
+    assert scheduler.queue[0].status == "queued"
