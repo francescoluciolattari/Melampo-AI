@@ -3353,3 +3353,55 @@ lavori, una simulazione di bassa attività (`run_once(activity={"active_requests
 0, "idle_seconds": 100})`) li elabora entrambi con successo.
 
 5 nuovi test, veloci, 1370 totali passanti, lint pulito.
+
+### `_auto_evolution_plan()` consolidato con `NexusSelfEvolutionLoop`, non eliminato in blocco
+
+Richiesto: eliminare `_auto_evolution_plan()`. Prima di procedere,
+verificato con precisione ogni consumatore del suo output — non solo
+`self_evolution.py` (che infatti non lo legge affatto, verificato in
+precedenza), ma anche `nexus_scheduler.py`, `rational_control_validator.py`,
+`promotion_policy.py`, e `safety/rails.py`. Trovato che due campi erano
+genuinamente usati, non ridondanti:
+
+- **`candidate_score`** — letto da `promotion_policy.decide()` come
+  **soglia principale di promozione** (`candidate_score < self.min_candidate_score`),
+  e da `rational_control_validator.py` come ripiego.
+- **`status`** — letto da `safety/rails.py` **dal vivo, per ogni caso**
+  (`diagnostic_result["nexus"]["auto_evolution_plan"]["status"] == "candidate"`),
+  per aggiungere un'azione di verifica di sicurezza.
+
+**Una distinzione strutturale trovata solo verificando a fondo**: i due
+campi appartengono a catene diverse. `candidate_score` serve solo alla
+catena offline (`NexusScheduler` → validazione → promozione) — spostarlo
+in `NexusSelfEvolutionLoop.generate_candidate()` è sicuro. `status` serve
+dal vivo, prima che la catena offline giri mai (oggi non si innesca mai
+da sola) — spostarlo nella stessa catena offline avrebbe **disattivato
+silenziosamente** quella verifica di sicurezza, dato che
+`NexusSelfEvolutionLoop` non ha ancora elaborato nulla nel momento in cui
+il risultato di un caso viene prodotto.
+
+**Eseguito**: `candidate_score` ora si calcola dentro
+`generate_candidate()`, con un nuovo parametro `governance_scores` (da
+cui prende `risk`, prima assente lì) — stessa formula di prima,
+stessi ingressi, fonte diversa. `_auto_evolution_plan()` ridotto al solo
+`status`. Verificato che `QuantumBeliefLayer` non ne risente: legge la
+dimensione del dizionario esterno (`len(context)`), mai il contenuto di
+`auto_evolution_plan` — semplificarne la struttura interna non cambia
+nulla per lui. Verificato che il controllo dei `promotion_guardrails` in
+`rational_control_validator.py` degrada in modo innocuo quando vuoto
+(`if guardrails and ...` — salta il controllo, non fallisce) — e che il
+loro contenuto era comunque sempre lo stesso testo fisso, mai specifico
+per caso.
+
+Verificato end-to-end tramite la pipeline reale: l'output dal vivo di
+`NexusTrainer` contiene solo `{"status": "hold_for_more_evidence"}`;
+`generate_candidate()` calcola un `candidate_score` reale (0,427 nel
+caso di prova); l'intera catena offline (`run_once`) elabora con
+successo.
+
+`rational_control_validator.py` e `promotion_policy.py` **non toccati
+affatto** — la loro catena di ripiego esistente (`auto_plan.get(X,
+metadata.get(X, default))`) trova già `candidate_score` dentro
+`metadata`, senza bisogno di modifiche.
+
+6 nuovi test, 1376 totali passanti, lint pulito.

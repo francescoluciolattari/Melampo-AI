@@ -126,22 +126,24 @@ class NexusScheduler:
             case_context=job.case_context,
             area_dynamics=job.area_dynamics,
             nexus=job.nexus,
+            governance_scores=job.governance_scores,
         )
         metadata = dict(candidate_payload.get("metadata", {}))
-        auto_plan = job.nexus.get("auto_evolution_plan", {}) if isinstance(job.nexus, dict) else {}
+        # candidate_score now comes from generate_candidate()'s own
+        # metadata (consolidated there from NexusTrainer's former
+        # _auto_evolution_plan(), the only field of it this chain actually
+        # used) -- auto_evolution_plan itself is no longer read here.
         candidate_payload = {
             **candidate_payload,
             "case_id": job.case_context.get("case_id", metadata.get("case_id", "unknown_case")),
             "area_dynamics": job.area_dynamics,
             "retrieval_context": job.retrieval_context,
             "governance_scores": job.governance_scores,
-            "auto_evolution_plan": auto_plan,
             "metadata": {
                 **metadata,
                 "risk": job.governance_scores.get("risk", metadata.get("risk", 0.0)),
                 "retrieval_coverage": job.governance_scores.get("retrieval_coverage", job.retrieval_context.get("retrieval_coverage", 0.0)),
                 "provenance_quality": job.governance_scores.get("provenance_quality", metadata.get("provenance_quality", 0.0)),
-                "auto_evolution_plan": auto_plan,
                 "source": "nexus_scheduler",
             },
         }

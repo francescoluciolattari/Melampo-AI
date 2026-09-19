@@ -234,6 +234,26 @@ class NexusTrainer:
         return hypotheses
 
     def _auto_evolution_plan(self, context: NexusRuntimeContext) -> dict[str, Any]:
+        """Whether this case is a candidate for offline auto-evolution -- status only.
+
+        Reduced from its original form after consolidation: this method
+        used to also compute `candidate_score`, but that field was the
+        only one promotion_policy.decide() and rational_control_validator.py
+        actually read, and both are part of the OFFLINE promotion chain
+        (NexusScheduler -> NexusSelfEvolutionLoop), not this live, per-case
+        path -- so candidate_score now lives in
+        NexusSelfEvolutionLoop.generate_candidate() instead, computed fresh
+        there from the same inputs.
+
+        `status` stays here, live, because safety/rails.py reads it
+        synchronously from this trainer's own output
+        (diagnostic_result["nexus"]["auto_evolution_plan"]["status"]) to
+        flag cases needing extra verification -- a check that runs on
+        every case, before NexusScheduler ever processes anything offline.
+        Moving it to the offline loop would have silently disabled that
+        safety flag, since the offline stage has not run yet by the time a
+        case's own result is produced.
+        """
         auto_evolution_candidate = bool(
             context.accepted
             and context.pi_score >= 0.55
@@ -241,33 +261,7 @@ class NexusTrainer:
             and context.risk <= 0.25
             and context.nexus_plasticity >= 0.35
         )
-        return {
-            "status": "candidate" if auto_evolution_candidate else "hold_for_more_evidence",
-            "learning_status": "candidate",
-            "promotion_state": "requires_validation",
-            "promotion_guardrails": [
-                "requires rational-control validation",
-                "requires provenance and source labeling",
-                "requires no clinical deployment without prospective validation",
-                "promote only to vector memory candidate or synthetic curriculum, never directly to production diagnosis",
-            ],
-            "learning_targets": [
-                "strengthen high-convergence multimodal pathways",
-                "generate counterfactual variants around unresolved mismatch",
-                "retain contradictions as diagnostic safeguards instead of deleting them",
-            ],
-            "candidate_score": round(
-                context.pi_score * 0.32
-                + context.convergence_index * 0.27
-                + context.nexus_plasticity * 0.18
-                + context.visual_morph_gain * 0.08
-                - context.risk * 0.15,
-                3,
-            ),
-            "rational_control_required": True,
-            "human_review_before_clinical_use": True,
-            "synthetic_candidate_not_clinical_truth": True,
-        }
+        return {"status": "candidate" if auto_evolution_candidate else "hold_for_more_evidence"}
 
     def _belief_context(
         self,

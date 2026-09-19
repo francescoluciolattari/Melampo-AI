@@ -79,3 +79,78 @@ def test_nexus_self_evolution_promotes_only_favorable_candidates():
     )
     assert unfavorable["evaluation"]["accepted"] is False
     assert unfavorable["memory_record"]["learning_status"] == "candidate"
+
+
+# --------------------------------------------------------------------------
+# candidate_score: consolidated here from NexusTrainer's former
+# _auto_evolution_plan(), the only field promotion_policy.decide() and
+# rational_control_validator.py actually read from it -- computed fresh
+# from area_dynamics, nexus (visual_morphing), and the newly added
+# governance_scores parameter.
+# --------------------------------------------------------------------------
+
+
+def _area_dynamics(pi_score=0.6, convergence_index=0.5, nexus_plasticity=0.4):
+    return {
+        "coherence_pairs": [],
+        "mismatch_pairs": [],
+        "neuro_dynamic_metrics": {
+            "pi_score": pi_score,
+            "convergence_index": convergence_index,
+            "nexus_plasticity": nexus_plasticity,
+            "prediction_error": 0.1,
+            "bias_suppression_score": 0.8,
+        },
+    }
+
+
+def test_candidate_score_is_computed_from_area_dynamics_and_nexus():
+    loop = NexusSelfEvolutionLoop()
+    candidate = loop.generate_candidate(
+        case_context={"case_id": "c1"},
+        area_dynamics=_area_dynamics(pi_score=0.8, convergence_index=0.7, nexus_plasticity=0.6),
+        nexus={"visual_morphing": {"visual_morph_intuition_gain": 0.5}},
+        governance_scores={"risk": 0.1},
+    )
+    expected = round(0.8 * 0.32 + 0.7 * 0.27 + 0.6 * 0.18 + 0.5 * 0.08 - 0.1 * 0.15, 3)
+    assert candidate["metadata"]["candidate_score"] == expected
+
+
+def test_candidate_score_defaults_to_zero_inputs_without_governance_scores():
+    loop = NexusSelfEvolutionLoop()
+    candidate = loop.generate_candidate(
+        case_context={"case_id": "c1"}, area_dynamics={"neuro_dynamic_metrics": {}}, nexus={},
+    )
+    assert candidate["metadata"]["candidate_score"] == 0.0
+
+
+def test_a_higher_risk_lowers_the_candidate_score():
+    loop = NexusSelfEvolutionLoop()
+    low_risk = loop.generate_candidate(
+        case_context={"case_id": "c1"}, area_dynamics=_area_dynamics(), nexus={}, governance_scores={"risk": 0.1},
+    )
+    high_risk = loop.generate_candidate(
+        case_context={"case_id": "c1"}, area_dynamics=_area_dynamics(), nexus={}, governance_scores={"risk": 0.9},
+    )
+    assert high_risk["metadata"]["candidate_score"] < low_risk["metadata"]["candidate_score"]
+
+
+def test_candidate_score_flows_through_to_promotion_policy_via_metadata():
+    """The end-to-end property this whole consolidation depends on:
+    promotion_policy.decide() and rational_control_validator.py read
+    candidate_score via a fallback chain (auto_plan -> metadata -> default)
+    that was never changed -- only where the value now originates."""
+    from melampo.training.promotion_policy import PromotionPolicy
+
+    loop = NexusSelfEvolutionLoop()
+    candidate = loop.generate_candidate(
+        case_context={"case_id": "c1"},
+        area_dynamics=_area_dynamics(pi_score=0.9, convergence_index=0.9, nexus_plasticity=0.9),
+        nexus={"visual_morphing": {"visual_morph_intuition_gain": 0.9}},
+        governance_scores={"risk": 0.0},
+    )
+    policy = PromotionPolicy()
+    decision = policy.decide(candidate={"metadata": candidate["metadata"]}, validation={"allowed_for_promotion": True})
+
+    assert candidate["metadata"]["candidate_score"] > 0.0
+    assert "candidate_score_below_promotion_policy_threshold" not in decision.get("reasons", [])

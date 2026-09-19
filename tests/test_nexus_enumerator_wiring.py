@@ -310,3 +310,28 @@ def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypat
     assert result["status"] == "skipped"
     assert len(scheduler.queue) == 1
     assert scheduler.queue[0].status == "queued"
+
+
+# --------------------------------------------------------------------------
+# candidate_score consolidation: moved from NexusTrainer's
+# _auto_evolution_plan() into NexusSelfEvolutionLoop.generate_candidate(),
+# since promotion_policy.decide() and rational_control_validator.py were
+# the only real readers, and both belong to the offline chain, not this
+# live one. `status` stays live in NexusTrainer, since safety/rails.py
+# reads it synchronously per case, before the offline stage ever runs.
+# --------------------------------------------------------------------------
+
+
+def test_the_live_auto_evolution_plan_contains_only_status(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+    nexus = _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy"]})
+
+    assert set(nexus["auto_evolution_plan"].keys()) == {"status"}
+    assert nexus["auto_evolution_plan"]["status"] in {"candidate", "hold_for_more_evidence"}
+
+
+def test_the_live_auto_evolution_plan_no_longer_carries_candidate_score(monkeypatch):
+    pipeline = _minimal_pipeline(monkeypatch)
+    nexus = _run(pipeline, {"case_id": "c1"})
+
+    assert "candidate_score" not in nexus["auto_evolution_plan"]
