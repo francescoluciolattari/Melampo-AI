@@ -3405,3 +3405,54 @@ metadata.get(X, default))`) trova già `candidate_score` dentro
 `metadata`, senza bisogno di modifiche.
 
 6 nuovi test, 1376 totali passanti, lint pulito.
+
+### `document_processing.py` completato — la vera chiamata HTTP a Nemotron-Parse, verificata contro la documentazione reale
+
+Verificato prima di scrivere codice: Nemotron-Parse-v1.2 è un modello
+visione-linguaggio, non un analizzatore di testo — prende una pagina
+resa come immagine tramite il contratto standard OpenAI
+`/v1/chat/completions` (blocco `image_url`, URL dati base64), restituisce
+`response["choices"][0]["message"]["content"]`. Trovata anche una
+divergenza reale e documentata: l'endpoint ospitato NVIDIA Build e il NIM
+auto-ospitato si aspettano contratti di richiesta diversi — questa
+implementazione punta al NIM auto-ospitato, coerente con la ragione
+originale della scelta di Nemotron-Parse (pesi aperti, nessuna
+dipendenza da API di terzi).
+
+**Costruito**: conversione PDF→immagine tramite `pdf2image` (verificato
+`poppler-utils` disponibile), la chiamata HTTP isolata e testabile
+(`_post_nemotron_parse_page`), l'analisi della risposta
+(`_parse_nemotron_parse_response`).
+
+**Un limite dichiarato onestamente, non nascosto**: la grammatica esatta
+del markup di livello/riquadri che gli esempi ufficiali NVIDIA
+post-elaborano (`extract_classes_bboxes`, `postprocess_text`) non è
+pubblicata insieme al riferimento API usato per questo lavoro — non
+replicata qui per non rischiare di corrompere silenziosamente il testo
+indovinando un formato proprietario. Il testo grezzo del messaggio,
+sufficiente per tutto ciò che serve a valle (suddivisione in blocchi,
+estrazione di entità), viene restituito comunque; le coordinate dei
+riquadri restano non decodificate, segnalato esplicitamente nei metadati
+(`bounding_boxes_decoded: False`).
+
+**Verificato end-to-end con una vera risposta HTTP simulata** (mai una
+rete reale disponibile in questo ambiente): immagine reale codificata
+correttamente, richiesta costruita con l'URL/modello/intestazione
+corretti, conversione PDF→immagine funzionante, l'intero
+`process_document()` completa correttamente dal PDF all'output finale.
+Verificati anche il degrado gentile senza endpoint configurato e la
+gestione di un errore HTTP reale (non un arresto, uno stato "failed").
+
+**Il collegamento alla pipeline, verificato con onestà, non forzato**:
+i connettori di letteratura (Europe PMC, ClinicalTrials) ottengono già
+testo pulito direttamente dalle risposte JSON delle rispettive API —
+nessun PDF da analizzare lì, verificato leggendo `europe_pmc.py`. Il vero
+consumatore previsto di `document_processing.py` — documenti caricati e
+allegati a un caso — richiederebbe una capacità di caricamento file che
+`payload`/`CaseContext` non hanno ancora. Non collegato per questo
+motivo genuino, non per trascuratezza — resta un lavoro separato, quando
+quella capacità esisterà.
+
+9 nuovi test, tutti contro chiamate di rete simulate realistiche (mai una
+vera, mai disponibile qui), 1385 totali passanti, lint pulito sul codice
+nuovo (tre avvisi preesistenti, mai toccati, lasciati come sono).
