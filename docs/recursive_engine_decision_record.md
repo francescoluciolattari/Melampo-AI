@@ -3456,3 +3456,36 @@ quella capacità esisterà.
 9 nuovi test, tutti contro chiamate di rete simulate realistiche (mai una
 vera, mai disponibile qui), 1385 totali passanti, lint pulito sul codice
 nuovo (tre avvisi preesistenti, mai toccati, lasciati come sono).
+
+### `rehearse()` e `evaluate_candidate()` rimossi — erano codice morto, mai raggiunto dalla catena reale
+
+Richiesto dopo una discussione che ha chiarito un equivoco mio: avevo
+descritto `NexusSelfEvolutionLoop` come se decidesse da sola
+"promoted"/"candidate" senza alcun cancello — impreciso. Verificato con
+precisione: `rehearse()` (che scrive davvero "promoted" in memoria
+vettoriale con soglie proprie) **non è mai chiamato da
+`nexus_scheduler.py`** — la catena reale (`_execute_job()`) chiama solo
+`generate_candidate()`, poi passa per `NexusCandidateStore` →
+`RationalControlValidator` → `PromotionPolicy`, che con le impostazioni
+di default di questo progetto (`allow_automatic_promotion=False`,
+`require_human_review_for_promoted=True`) **non promuove mai
+automaticamente** — anche un candidato che supera ogni soglia interna
+finisce in `needs_review`, verificato con un test sulla catena reale.
+
+`rehearse()` e `evaluate_candidate()` erano quindi un percorso separato,
+mai esercitato se non da un test che li chiamava direttamente e da se
+stessi a vicenda — rimossi insieme ai tre campi soglia
+(`min_pi_score`, `max_prediction_error`, `min_bias_suppression`) che
+servivano solo a loro.
+
+**Il test che li esercitava, sostituito**: non più una chiamata isolata a
+`rehearse()`, ma la catena reale per intero —
+`generate_candidate()` → `NexusCandidateStore.create_candidate()` →
+`RationalControlValidator.evaluate()` → `PromotionPolicy.decide()` —
+verificando la proprietà che conta davvero: un candidato genuinamente
+favorevole finisce comunque in `needs_review` con le impostazioni di
+default di questo progetto, non promosso automaticamente.
+
+Suite riverificata a 1395 test totali (nessuna perdita di copertura —
+lo stesso numero di test, uno spostato dalla procedura isolata a quella
+reale).

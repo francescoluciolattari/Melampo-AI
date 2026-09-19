@@ -7,17 +7,23 @@ from ..memory.vector_memory import InMemoryVectorStore
 
 @dataclass(slots=True)
 class NexusSelfEvolutionLoop:
-    """Controlled offline self-evolution loop for nexus/intuitive rehearsal.
+    """Packages a case's rehearsal candidate for the real governance chain.
 
-    The loop promotes only candidates with favorable neuro-dynamic metrics and
-    keeps all generated memories marked as research artifacts. It is designed for
-    idle-time rehearsal, not unsupervised clinical deployment.
+    Reduced after removing rehearse() and evaluate_candidate(): both wrote
+    directly to vector memory using their own threshold check
+    (min_pi_score/max_prediction_error/min_bias_suppression), bypassing the
+    real governed chain (NexusCandidateStore -> RationalControlValidator ->
+    PromotionPolicy) nexus_scheduler.py._execute_job() actually uses -- and
+    which correctly holds every candidate at needs_review with this
+    project's default settings (PromotionPolicy.allow_automatic_promotion
+    is False), rather than auto-deciding "promoted" the way rehearse() did
+    on its own. Verified before removing: neither method was called by
+    anything except each other and a test exercising rehearse() directly,
+    never by _execute_job() or any other real caller -- generate_candidate()
+    alone is, and remains, the real interface.
     """
 
     vector_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore)
-    min_pi_score: float = 0.55
-    max_prediction_error: float = 0.45
-    min_bias_suppression: float = 0.45
 
     def generate_candidate(
         self, case_context: dict, area_dynamics: dict, nexus: dict | None = None, governance_scores: dict | None = None
@@ -67,51 +73,4 @@ class NexusSelfEvolutionLoop:
                 "candidate_score": candidate_score,
             },
             "source": "nexus_self_evolution_loop",
-        }
-
-    def evaluate_candidate(self, candidate: dict) -> dict:
-        metadata = candidate.get("metadata", {})
-        pi_score = float(metadata.get("pi_score", 0.0))
-        prediction_error = float(metadata.get("prediction_error", 1.0))
-        bias_suppression = float(metadata.get("bias_suppression_score", 0.0))
-        accepted = (
-            pi_score >= self.min_pi_score
-            and prediction_error <= self.max_prediction_error
-            and bias_suppression >= self.min_bias_suppression
-        )
-        return {
-            "accepted": accepted,
-            "pi_score": pi_score,
-            "prediction_error": prediction_error,
-            "bias_suppression_score": bias_suppression,
-            "criteria": {
-                "min_pi_score": self.min_pi_score,
-                "max_prediction_error": self.max_prediction_error,
-                "min_bias_suppression": self.min_bias_suppression,
-            },
-            "decision": "promote_to_memory" if accepted else "retain_as_candidate_only",
-        }
-
-    def rehearse(
-        self, case_context: dict, area_dynamics: dict, nexus: dict | None = None, governance_scores: dict | None = None
-    ) -> dict:
-        candidate = self.generate_candidate(
-            case_context=case_context, area_dynamics=area_dynamics, nexus=nexus, governance_scores=governance_scores
-        )
-        evaluation = self.evaluate_candidate(candidate)
-        status = "candidate"
-        if evaluation["accepted"]:
-            status = "promoted"
-        record = self.vector_store.upsert_text(
-            record_id=candidate["record_id"],
-            text=candidate["text"],
-            metadata={**candidate["metadata"], "evaluation": evaluation},
-            source=candidate["source"],
-            learning_status=status,
-        )
-        return {
-            "candidate": candidate,
-            "evaluation": evaluation,
-            "memory_record": record,
-            "vector_memory": self.vector_store.describe(),
         }

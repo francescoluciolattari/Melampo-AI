@@ -48,37 +48,42 @@ def test_semantic_memory_indexes_documents_in_vector_memory():
     assert memory.describe()["vector_store"]["record_count"] == 1
 
 
-def test_nexus_self_evolution_promotes_only_favorable_candidates():
-    loop = NexusSelfEvolutionLoop()
-    favorable = loop.rehearse(
-        case_context={"case_id": "case-good", "report_text": "cough opacity", "patient_complaints": "fever"},
-        area_dynamics={
-            "coherence_pairs": [("language_listening", "visual_diagnostic")],
-            "mismatch_pairs": [],
-            "neuro_dynamic_metrics": {
-                "pi_score": 0.8,
-                "prediction_error": 0.1,
-                "bias_suppression_score": 0.9,
-            },
-        },
-    )
-    assert favorable["evaluation"]["accepted"] is True
-    assert favorable["memory_record"]["learning_status"] == "promoted"
+def test_the_real_governed_chain_holds_a_favorable_candidate_at_needs_review_by_default():
+    """Replaces a test that exercised rehearse(), removed together with
+    evaluate_candidate() -- neither was ever called by anything except each
+    other and this test; nexus_scheduler.py._execute_job() (the real,
+    live-connected flow) only ever calls generate_candidate(), then routes
+    through NexusCandidateStore, RationalControlValidator and
+    PromotionPolicy. This exercises that real chain directly, on a
+    genuinely favorable candidate, and confirms this project's actual
+    default settings (PromotionPolicy.allow_automatic_promotion=False,
+    require_human_review_for_promoted=True) hold it at needs_review rather
+    than auto-promoting -- the property the whole redesign discussion
+    depended on being true, not assumed.
+    """
+    from melampo.training.nexus_candidate_store import NexusCandidateStore
+    from melampo.training.promotion_policy import PromotionPolicy
+    from melampo.training.rational_control_validator import RationalControlValidator
 
-    unfavorable = loop.rehearse(
-        case_context={"case_id": "case-bad", "report_text": "uncertain", "patient_complaints": ""},
-        area_dynamics={
-            "coherence_pairs": [],
-            "mismatch_pairs": [("epidemiology", "language_listening")],
-            "neuro_dynamic_metrics": {
-                "pi_score": 0.2,
-                "prediction_error": 0.8,
-                "bias_suppression_score": 0.2,
-            },
-        },
+    loop = NexusSelfEvolutionLoop()
+    area_dynamics = _area_dynamics(pi_score=0.9, convergence_index=0.9, nexus_plasticity=0.9)
+    candidate = loop.generate_candidate(
+        case_context={"case_id": "case-good", "report_text": "cough opacity", "patient_complaints": "fever"},
+        area_dynamics=area_dynamics,
+        nexus={"visual_morphing": {"visual_morph_intuition_gain": 0.9}},
+        governance_scores={"risk": 0.0},
     )
-    assert unfavorable["evaluation"]["accepted"] is False
-    assert unfavorable["memory_record"]["learning_status"] == "candidate"
+
+    store = NexusCandidateStore()
+    record = store.create_candidate(payload=candidate, case_id="case-good", source="test", learning_status="candidate")
+    validation = RationalControlValidator().evaluate(
+        candidate=candidate, area_dynamics=area_dynamics, retrieval_context={}, governance_scores={"risk": 0.0},
+    )
+    decision = PromotionPolicy().decide(candidate=store.attach_validation(record.candidate_id, validation), validation=validation)
+
+    assert candidate["metadata"]["candidate_score"] > 0.5
+    assert decision["target_learning_status"] == "needs_review"
+    assert decision["policy"]["allow_automatic_promotion"] is False
 
 
 # --------------------------------------------------------------------------
