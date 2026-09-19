@@ -3,27 +3,31 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from threading import RLock
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from threading import RLock
+from typing import Any
 
-from ..memory.learning_status import normalize_learning_status, validate_learning_transition
+from ..memory.learning_status import (
+    normalize_learning_status,
+    validate_learning_transition,
+)
 
 
 def _stable_candidate_id(case_id: str, payload: dict[str, Any], created_at: float) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str)
-    digest = hashlib.sha256(f"dream:{case_id}:{canonical}:{created_at}".encode("utf-8")).hexdigest()
-    return f"dream:{case_id}:{digest[:16]}"
+    digest = hashlib.sha256(f"nexus:{case_id}:{canonical}:{created_at}".encode()).hexdigest()
+    return f"nexus:{case_id}:{digest[:16]}"
 
 
 @dataclass(slots=True)
-class DreamCandidateRecord:
+class NexusCandidateRecord:
     candidate_id: str
     case_id: str
     created_at: float
     payload: dict[str, Any]
-    source: str = "dream_branch"
+    source: str = "nexus_branch"
     learning_status: str = "candidate"
     validation: dict[str, Any] | None = None
     promotion_decision: dict[str, Any] | None = None
@@ -51,13 +55,13 @@ class DreamCandidateRecord:
             "text": text,
             "source": self.source,
             "learning_status": self.learning_status,
-            "modality": "dream_replay_candidate",
+            "modality": "nexus_replay_candidate",
             "metadata": {
                 **metadata,
                 "record_id": self.candidate_id,
                 "candidate_id": self.candidate_id,
                 "case_id": self.case_id,
-                "memory_role": "governed_dream_replay_candidate",
+                "memory_role": "governed_nexus_replay_candidate",
                 "synthetic": True,
                 "validation_status": (self.validation or {}).get("status", "not_validated"),
             },
@@ -65,10 +69,10 @@ class DreamCandidateRecord:
 
 
 @dataclass(slots=True)
-class DreamCandidateStore:
-    """Append-style in-memory store for governed dream/self-evolution candidates."""
+class NexusCandidateStore:
+    """Append-style in-memory store for governed nexus/self-evolution candidates."""
 
-    records: dict[str, DreamCandidateRecord] = field(default_factory=dict)
+    records: dict[str, NexusCandidateRecord] = field(default_factory=dict)
     audit_log: list[dict[str, Any]] = field(default_factory=list)
     _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
@@ -76,14 +80,14 @@ class DreamCandidateStore:
         self,
         payload: dict[str, Any],
         case_id: str | None = None,
-        source: str = "dream_branch",
+        source: str = "nexus_branch",
         learning_status: str = "candidate",
-    ) -> DreamCandidateRecord:
+    ) -> NexusCandidateRecord:
         payload = payload or {}
         case_id = str(case_id or payload.get("case_id") or payload.get("metadata", {}).get("case_id") or "unknown_case")
         created_at = time.time()
         candidate_id = str(payload.get("candidate_id") or _stable_candidate_id(case_id=case_id, payload=payload, created_at=created_at))
-        record = DreamCandidateRecord(
+        record = NexusCandidateRecord(
             candidate_id=candidate_id,
             case_id=case_id,
             created_at=created_at,
@@ -97,11 +101,11 @@ class DreamCandidateStore:
             self.audit_log.append({"event": "candidate_created", "candidate_id": candidate_id, "timestamp": created_at})
         return record
 
-    def get(self, candidate_id: str) -> DreamCandidateRecord:
+    def get(self, candidate_id: str) -> NexusCandidateRecord:
         with self._lock:
             return self.records[candidate_id]
 
-    def list_by_status(self, statuses: Iterable[str] | None = None) -> list[DreamCandidateRecord]:
+    def list_by_status(self, statuses: Iterable[str] | None = None) -> list[NexusCandidateRecord]:
         normalized = {normalize_learning_status(status) for status in statuses} if statuses else set()
         with self._lock:
             records = list(self.records.values())
@@ -168,7 +172,7 @@ class DreamCandidateStore:
         Path(path).write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
 
     @classmethod
-    def load_jsonl(cls, path: str | Path) -> "DreamCandidateStore":
+    def load_jsonl(cls, path: str | Path) -> NexusCandidateStore:
         store = cls()
         path = Path(path)
         if not path.exists():
@@ -177,12 +181,12 @@ class DreamCandidateStore:
             if not line.strip():
                 continue
             item = json.loads(line)
-            record = DreamCandidateRecord(
+            record = NexusCandidateRecord(
                 candidate_id=item["candidate_id"],
                 case_id=item["case_id"],
                 created_at=float(item["created_at"]),
                 payload=dict(item.get("payload", {})),
-                source=str(item.get("source", "dream_branch")),
+                source=str(item.get("source", "nexus_branch")),
                 learning_status=normalize_learning_status(item.get("learning_status")),
                 validation=item.get("validation"),
                 promotion_decision=item.get("promotion_decision"),

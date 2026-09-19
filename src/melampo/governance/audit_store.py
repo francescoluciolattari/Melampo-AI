@@ -29,9 +29,8 @@ class AppendOnlyAuditStore:
         }
         path = Path(self.path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with self._lock:
-            with path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(event, sort_keys=True, default=str) + "\n")
+        with self._lock, path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True, default=str) + "\n")
         return event
 
     def read_all(self) -> list[dict[str, Any]]:

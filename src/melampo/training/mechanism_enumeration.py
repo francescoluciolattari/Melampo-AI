@@ -1,6 +1,6 @@
 """Hypothesis generation by path enumeration over the concept graph.
 
-``DreamTrainer._alternative_hypotheses`` currently builds scenarios by string
+``NexusTrainer._alternative_hypotheses`` currently builds scenarios by string
 concatenation — ``f"{base_label}_alt_1"`` — and ``CounterfactualSampler``
 computes novelty as ``0.2 * len(perturbation_plan)``, which is arithmetic on a
 list length rather than a measure of anything. Neither produces a scenario.

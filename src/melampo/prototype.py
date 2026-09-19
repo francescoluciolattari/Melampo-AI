@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from .app import build_default_runtime
 from .config import RuntimeConfig, build_default_config
@@ -38,7 +39,7 @@ class ClinicalPrototypeRunner:
     validator: PrototypeInputValidator = field(default_factory=PrototypeInputValidator)
 
     @classmethod
-    def from_profile(cls, runtime_profile: str = "local_research", imaging_strategy: str | None = None) -> "ClinicalPrototypeRunner":
+    def from_profile(cls, runtime_profile: str = "local_research", imaging_strategy: str | None = None) -> ClinicalPrototypeRunner:
         return cls(
             config=build_default_config(
                 runtime_profile=runtime_profile,

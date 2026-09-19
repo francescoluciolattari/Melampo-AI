@@ -6,7 +6,7 @@ from melampo.memory.graph_store import is_learned
 from melampo.reasoning.diagnostic_assembly import (
     assemble,
     candidate_conditions_for,
-    dream_context_for,
+    nexus_context_for,
 )
 
 
@@ -136,25 +136,25 @@ def test_promoting_with_nothing_confirmed_writes_nothing(tmp_path):
 
 
 # --------------------------------------------------------------------------
-# The DreamTrainer hook that was never valorised
+# The NexusTrainer hook that was never valorised
 # --------------------------------------------------------------------------
 
 
-def test_dream_context_supplies_the_candidates_the_trainer_needed(tmp_path):
-    """DreamTrainer._enumerated returns None unless case_context carries
+def test_nexus_context_supplies_the_candidates_the_trainer_needed(tmp_path):
+    """NexusTrainer._enumerated returns None unless case_context carries
     candidate_conditions, and nothing in the pipeline put them there -- which
     is why it fell through to rehearsal labels on every real case."""
     assembly = _assembly(tmp_path)
-    context = dream_context_for(["bilateral hilar lymphadenopathy", "hypercalcaemia"], assembly.graph)
+    context = nexus_context_for(["bilateral hilar lymphadenopathy", "hypercalcaemia"], assembly.graph)
 
     assert context["findings"]
     assert context["candidate_conditions"], "the field that was always empty before"
     assert "sarcoidosis" in context["candidate_conditions"]
 
 
-def test_dream_context_passes_through_extra_keys(tmp_path):
+def test_nexus_context_passes_through_extra_keys(tmp_path):
     assembly = _assembly(tmp_path)
-    context = dream_context_for(["hypercalcaemia"], assembly.graph, already_considered=["lymphoma"])
+    context = nexus_context_for(["hypercalcaemia"], assembly.graph, already_considered=["lymphoma"])
     assert context["already_considered"] == ["lymphoma"]
 
 

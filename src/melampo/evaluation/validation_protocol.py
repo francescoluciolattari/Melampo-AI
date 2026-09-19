@@ -80,7 +80,7 @@ class ValidationProtocol:
         cls,
         protocol_id: str = "melampo_phase5a_research_protocol",
         dataset_id: str = "unknown_dataset",
-    ) -> "ValidationProtocol":
+    ) -> ValidationProtocol:
         return cls(
             protocol_id=protocol_id,
             title="Melampo Phase 5A research validation protocol",

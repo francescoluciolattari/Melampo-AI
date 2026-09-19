@@ -1,5 +1,5 @@
-from melampo.reasoning.metacognition import MetacognitiveController
 from melampo.config import build_default_config
+from melampo.reasoning.metacognition import MetacognitiveController
 
 
 def test_metacognition_threshold():

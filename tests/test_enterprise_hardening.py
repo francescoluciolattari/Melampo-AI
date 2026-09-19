@@ -1,9 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from melampo.memory.vector_memory import InMemoryVectorStore
-from melampo.memory.visual_imprint import VisualRecognitionImprint, VisualImprintMorpher
+from melampo.memory.visual_imprint import VisualImprintMorpher, VisualRecognitionImprint
 from melampo.models.model_client import ModelClientConfig, SafeModelClient
-from melampo.training.dream_candidate_store import DreamCandidateStore
+from melampo.training.nexus_candidate_store import NexusCandidateStore
 
 
 def test_model_client_redacts_sensitive_payload_and_enforces_remote_allowlist():
@@ -64,8 +64,8 @@ def test_in_memory_vector_store_handles_concurrent_upserts():
     assert len(store.search("opacity fever", limit=5)) == 5
 
 
-def test_dream_candidate_store_handles_concurrent_candidate_creation():
-    store = DreamCandidateStore()
+def test_nexus_candidate_store_handles_concurrent_candidate_creation():
+    store = NexusCandidateStore()
 
     def create(index: int) -> str:
         return store.create_candidate({"text": f"candidate {index}"}, case_id=f"case-{index}").candidate_id
@@ -94,7 +94,7 @@ def test_visual_imprint_morpher_enforces_pair_budget_and_vector_suppression():
         for index in range(5)
     ]
 
-    result = VisualImprintMorpher(max_pairs=2, return_vectors=False, min_similarity=0.0).dream_morph(
+    result = VisualImprintMorpher(max_pairs=2, return_vectors=False, min_similarity=0.0).nexus_morph(
         concept_imprints=imprints,
         diagnostic_imprints=imprints[:1],
     )

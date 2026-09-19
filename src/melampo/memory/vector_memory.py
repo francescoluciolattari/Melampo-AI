@@ -4,16 +4,17 @@ import hashlib
 import json
 import math
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
-from typing import Any, Iterable
+from typing import Any
 
 from .learning_status import normalize_learning_status, validate_learning_transition
 
 
 def _stable_id(text: str, namespace: str = "melampo") -> str:
-    digest = hashlib.sha256(f"{namespace}:{text}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{namespace}:{text}".encode()).hexdigest()
     return digest[:24]
 
 
@@ -115,7 +116,7 @@ class InMemoryVectorStore:
     _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
     @classmethod
-    def enterprise_default(cls) -> "InMemoryVectorStore":
+    def enterprise_default(cls) -> InMemoryVectorStore:
         return cls(
             backend="weaviate_recommended_with_local_fallback",
             recommended_enterprise_backend="weaviate_object_property_semantic_graph_rag",

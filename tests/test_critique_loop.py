@@ -12,7 +12,7 @@ def test_critique_loop_flags_mismatch_and_revision():
         {
             "area_dynamics": {"mismatch_score": 0.8},
             "intuition": {"deductive_filter": {"reasoning_mode": "contradiction_revision"}},
-            "dream": {"rehearsal_profile": {"boundary_case_hint": True}},
+            "nexus": {"rehearsal_profile": {"boundary_case_hint": True}},
             "coordinated": {
                 "policy": {"escalate": True},
                 "differential": {

@@ -55,7 +55,7 @@ class RationalControlRubric:
 
 @dataclass(slots=True)
 class RationalControlValidator:
-    """Validate dream/self-evolution candidates before memory promotion."""
+    """Validate nexus/self-evolution candidates before memory promotion."""
 
     rubric: RationalControlRubric = field(default_factory=RationalControlRubric)
 

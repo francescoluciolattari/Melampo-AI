@@ -165,7 +165,7 @@ def test_appending_does_not_rewrite_earlier_entries():
 
 
 def test_promoting_an_edge_builds_descriptions_for_its_concepts(tmp_path):
-    """The concrete behaviour requested: every graph derived from a Dream
+    """The concrete behaviour requested: every graph derived from a Nexus
     Engine exploration or a newly confirmed assumption gets a pre-built
     description created and added automatically."""
     assembly = assemble(list(DIFFERENTIAL_GRAPH_EDGES), tmp_path / "learned.jsonl")

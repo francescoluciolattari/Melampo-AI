@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 from ..clinical.schemas import FHIRResourceEnvelope
 from ..types import CaseContext
@@ -11,7 +10,7 @@ from ..types import CaseContext
 class FHIRMapper:
     """Convert a canonical case into a minimal FHIR-like resource bundle."""
 
-    def map_case(self, case: CaseContext) -> List[FHIRResourceEnvelope]:
+    def map_case(self, case: CaseContext) -> list[FHIRResourceEnvelope]:
         resources = [FHIRResourceEnvelope("Patient", {"id": case.patient_id or case.case_id})]
         if case.report_text:
             resources.append(

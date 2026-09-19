@@ -7,7 +7,7 @@ from melampo.evaluation.case_corpus import (
     load_records,
     split_presentation,
 )
-from melampo.evaluation.dream_capture_benchmark import (
+from melampo.evaluation.nexus_capture_benchmark import (
     CaseOutcome,
     EvaluationCase,
     capture_at_k,

@@ -18,7 +18,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from .dream_capture_benchmark import EvaluationCase
+from .nexus_capture_benchmark import EvaluationCase
 
 REJECT_LEAKED_DIAGNOSIS = "presentation_contains_the_diagnosis"
 REJECT_MISSING_FIELD = "missing_presentation_or_diagnosis"

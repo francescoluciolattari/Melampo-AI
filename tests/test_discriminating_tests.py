@@ -89,9 +89,9 @@ def test_reformulated_claims_name_what_would_refute_them():
     assert "further investigation" in disagreement.statement
     assert "additional investigation" in disagreement.refutation_criterion
 
-    dream = program.get("rlm.dream_hypotheses_add_value")
-    assert "indeterminacy" in dream.statement
-    assert "no more often than chance" in dream.refutation_criterion
+    nexus = program.get("rlm.nexus_hypotheses_add_value")
+    assert "indeterminacy" in nexus.statement
+    assert "no more often than chance" in nexus.refutation_criterion
 
 
 # --------------------------------------------------------------------------

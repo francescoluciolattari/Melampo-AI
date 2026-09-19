@@ -38,8 +38,8 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["critique"]["suggestions"]
     assert result["critique"]["prioritized_actions"]
     assert result["critique"]["prioritized_actions"][0]["priority"] in ["high", "medium"]
-    assert "dream" in result
-    assert "filter_assessment" in result["dream"]
-    assert result["dream"]["filter_assessment"]["replay_mode"] in ["stabilizing_replay", "boundary_replay", "corrective_replay"]
-    assert "rehearsal_profile" in result["dream"]
-    assert len(result["dream"]["alternative_hypotheses"]) >= 2
+    assert "nexus" in result
+    assert "filter_assessment" in result["nexus"]
+    assert result["nexus"]["filter_assessment"]["replay_mode"] in ["stabilizing_replay", "boundary_replay", "corrective_replay"]
+    assert "rehearsal_profile" in result["nexus"]
+    assert len(result["nexus"]["alternative_hypotheses"]) >= 2

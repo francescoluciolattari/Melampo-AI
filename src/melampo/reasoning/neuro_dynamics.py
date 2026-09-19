@@ -135,7 +135,7 @@ class NeuroDynamicMetrics:
         coherence_score: float,
         mismatch_score: float,
         total_salience: float,
-        dream_pressure: float = 0.0,
+        nexus_pressure: float = 0.0,
         area_signals: dict[str, Any] | None = None,
     ) -> dict:
         coherent_salience = 0.0
@@ -226,8 +226,8 @@ class NeuroDynamicMetrics:
             + cross_area_synchrony * self.synchrony_gain
             - prediction_error * self.conflict_gain
         )
-        revision_pressure = _clamp(prediction_error * 0.45 + conflict_load * 0.35 + dream_pressure * 0.2 + mismatch_index * 0.2)
-        dream_plasticity = _clamp(0.35 + revision_pressure * 0.4 + (1.0 - inhibitory_control) * 0.15)
+        revision_pressure = _clamp(prediction_error * 0.45 + conflict_load * 0.35 + nexus_pressure * 0.2 + mismatch_index * 0.2)
+        nexus_plasticity = _clamp(0.35 + revision_pressure * 0.4 + (1.0 - inhibitory_control) * 0.15)
         intuition_gain = _clamp(1.0 + deductive_gate * 0.25 - revision_pressure * 0.15 + convergence_index * 0.1, 0.5, 1.35)
         pi_score = _clamp(
             precision_weighted_coherence * 0.35
@@ -236,11 +236,11 @@ class NeuroDynamicMetrics:
             + signal_precision * 0.12
             - prediction_error * 0.22
             - mismatch_index * 0.18
-            + dream_plasticity * 0.04
+            + nexus_plasticity * 0.04
         )
         bias_suppression_score = _clamp(inhibitory_control * 0.65 + signal_precision * 0.2 + prior_precision * 0.15 - mismatch_index * 0.15)
         candidate_temperature = _clamp(1.0 - deductive_gate * 0.25 + revision_pressure * 0.35, 0.35, 1.5)
-        belief_update_rate = _clamp(pi_score * 0.45 + dream_plasticity * 0.25 + convergence_index * 0.2 - conflict_load * 0.2)
+        belief_update_rate = _clamp(pi_score * 0.45 + nexus_plasticity * 0.25 + convergence_index * 0.2 - conflict_load * 0.2)
         interdependence_index = _clamp(
             cross_area_synchrony * 0.30
             + prior_precision * 0.24
@@ -283,7 +283,7 @@ class NeuroDynamicMetrics:
             - revision_pressure * 0.20
         )
         synaptic_plasticity_index = _clamp(
-            dream_plasticity * 0.30
+            nexus_plasticity * 0.30
             + revision_pressure * 0.22
             + belief_update_rate * 0.20
             + (1.0 - deductive_stability) * 0.16
@@ -304,7 +304,7 @@ class NeuroDynamicMetrics:
             "inhibitory_control": round(inhibitory_control, 3),
             "deductive_gate": round(deductive_gate, 3),
             "revision_pressure": round(revision_pressure, 3),
-            "dream_plasticity": round(dream_plasticity, 3),
+            "nexus_plasticity": round(nexus_plasticity, 3),
             "intuition_gain": round(intuition_gain, 3),
             "bias_suppression_score": round(bias_suppression_score, 3),
             "candidate_temperature": round(candidate_temperature, 3),

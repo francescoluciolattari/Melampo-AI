@@ -3244,3 +3244,67 @@ più lenta in modo significativo.
 
 11 nuovi test, veloci, tutti contro istanze reali, 1365 totali
 passanti, lint pulito. H3 chiusa in `ROADMAP.md`.
+
+### Ridenominazione completa: Dream → Nexus, in tutto il progetto
+
+Richiesto direttamente: "Dream" non descrive più cosa fa questo ramo — ora
+interroga davvero il grafo, produce diagnosi reali con cammini come prova,
+non più solo etichette di ripiego. Rinominato in "Nexus" ovunque, con la
+stessa disciplina di verifica usata per ogni altra modifica di questa
+sessione, non una sostituzione di testo alla cieca.
+
+**Portata, verificata prima di eseguire**: 56 file fra `src/melampo/` e
+`tests/` contenevano identificatori reali — non solo menzioni di
+passaggio. Rinominati sistematicamente: classi (`DreamTrainer` →
+`NexusTrainer`, `DreamScheduler` → `NexusScheduler`,
+`DreamCandidateStore` → `NexusCandidateStore`, `DreamReplayJob`,
+`DreamSelfEvolutionLoop`, `DreamCandidateRecord`, `DreamSummary`), tre
+file rinominati (`dream_trainer.py` → `nexus_trainer.py`,
+`dream_scheduler.py` → `nexus_scheduler.py`,
+`dream_candidate_store.py` → `nexus_candidate_store.py`, più
+`dream_capture_benchmark.py`), funzioni e metodi
+(`_run_dream_branch` → `_run_nexus_branch`, `dream_context_for` →
+`nexus_context_for`, `dream_morph` → `nexus_morph`), la costante
+`DREAM_ENUMERATION_CANDIDATE_CAP` → `NEXUS_ENUMERATION_CANDIDATE_CAP`
+(introdotta da B1 questa stessa settimana), il nome del claim tracciato
+`rlm.dream_hypotheses_add_value` → `rlm.nexus_hypotheses_add_value`, la
+metrica neuro-dinamica `dream_plasticity` → `nexus_plasticity`, e la
+chiave `"dream"` usata a runtime in tutta la pipeline — fino a
+`DiagnosticResult.dream` (ora `.nexus`), il campo che raggiunge l'output
+finale del sistema.
+
+**Deliberatamente non toccato, e segnalato invece di deciso in
+silenzio**: `models/statistical_dreamer.py` e la sua classe
+`StatisticalDreamer` — un concetto diverso e non collegato (generazione
+di casi sintetici per l'addestramento, non generazione di ipotesi dal
+grafo). Rinominarlo avrebbe confuso due cose distinte sotto lo stesso
+nome nuovo — esattamente l'ambiguità che questa ridenominazione doveva
+eliminare, non introdurre.
+
+**Un difetto trovato durante l'esecuzione, non prima**: una prima
+applicazione dello script a un elenco troppo ristretto di file ha
+lasciato `pipeline_coordinator.py` intatto, causando un `TypeError` a
+runtime (`got an unexpected keyword argument 'nexus'`) perché il
+chiamante era già stato rinominato ma il metodo ricevente no. Trovato
+dalla suite di test stessa, non da ispezione manuale — corretto
+allargando la ricerca a tutti i file con qualunque menzione di "dream",
+non solo quelli con gli identificatori già noti.
+
+**Un secondo difetto trovato durante la verifica del lint**: un
+`ruff --fix` lanciato con ambito troppo ampio (`src/` invece di
+`src/melampo/`) ha toccato due file di un pacchetto PyTorch completamente
+estraneo (`src/models/quantum_intuition.py`, `src/models/sensory_cortex.py`)
+mai esplorato in questa sessione — riscontrato subito nel diff, annullato
+prima del commit, mai la sostituzione Dream→Nexus in sé (che non li
+aveva mai toccati).
+
+**Verificato end-to-end**, non solo con test unitari: l'intera pipeline
+reale (`app.py:build_default_runtime()`) eseguita su un caso con reperti
+di Marfan, stessa diagnosi primaria corretta di prima, chiave `"nexus"`
+presente nel risultato finale al posto di `"dream"`.
+
+`ROADMAP.md` e `src/README.md` aggiornati per coerenza, essendo documenti
+attivi, non registri storici.
+
+1365 test totali passanti (nessuno aggiunto né rimosso, solo rinominati
+dove il nome del file lo richiedeva), lint pulito sul pacchetto melampo.

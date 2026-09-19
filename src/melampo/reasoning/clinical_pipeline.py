@@ -21,8 +21,8 @@ from ..models.risk_gate import RiskGate
 from ..orchestration.runtime_services import RuntimeServices
 from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
-from ..training.dream_trainer import DreamTrainer
 from ..training.mechanism_enumeration import MechanismEnumerator
+from ..training.nexus_trainer import NexusTrainer
 from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
 from .area_coherence import AreaCoherenceAnalyzer
@@ -34,8 +34,8 @@ from .pipeline_coordinator import PipelineCoordinator
 from .policy_stack import PolicyStack
 
 # Capped for MechanismEnumerator.run()'s real per-candidate cost -- see the
-# comment at its call site in _dream_case_context for the measurement.
-DREAM_ENUMERATION_CANDIDATE_CAP = 8
+# comment at its call site in _nexus_case_context for the measurement.
+NEXUS_ENUMERATION_CANDIDATE_CAP = 8
 
 
 
@@ -89,7 +89,7 @@ def _derive_governance_scores(
     ranked_evidence: list[dict[str, Any]],
     area_signals: dict[str, Any],
 ) -> dict[str, Any]:
-    """Derive risk, uncertainty and dream coherence from runtime signals.
+    """Derive risk, uncertainty and nexus coherence from runtime signals.
 
     Replaces P0 hardcoded constants with an auditable approximation based on
     retrieval coverage, model/area uncertainty, mismatch, prediction error,
@@ -129,11 +129,11 @@ def _derive_governance_scores(
         + prediction_error * 0.15
         + weak_provenance * 0.10
     )
-    dream_coherence = _clamp(convergence_index * 0.55 + coherence_score * 0.25 + coverage * 0.20)
+    nexus_coherence = _clamp(convergence_index * 0.55 + coherence_score * 0.25 + coverage * 0.20)
     return {
         "risk": round(risk, 3),
         "uncertainty": round(uncertainty, 3),
-        "dream_coherence": round(dream_coherence, 3),
+        "nexus_coherence": round(nexus_coherence, 3),
         "missing_evidence": round(missing_evidence, 3),
         "retrieval_coverage": round(coverage, 3),
         "mean_grounding_score": round(mean_grounding, 3),
@@ -173,9 +173,9 @@ class ClinicalInferencePipeline:
     # run(), called once per request; without this cache, a 1.27M-edge
     # graph load (roughly six seconds, measured against the real data)
     # would repeat on every single case.
-    _dream_graph_source: Any = None
-    _dream_enumerator: Any = None
-    _dream_ic_table: Any = None
+    _nexus_graph_source: Any = None
+    _nexus_enumerator: Any = None
+    _nexus_ic_table: Any = None
 
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
@@ -192,12 +192,12 @@ class ClinicalInferencePipeline:
                 ),
             ),
             "quantum_gate": QuantumResearchGate(),
-            "dream_trainer": DreamTrainer(
+            "nexus_trainer": NexusTrainer(
                 replay_filter=ReplayFilter(),
                 sampler=CounterfactualSampler(),
                 belief_layer=QuantumBeliefLayer(),
                 # enumerator stays unset here, deliberately -- see
-                # _dream_case_context, which attaches a real one only when
+                # _nexus_case_context, which attaches a real one only when
                 # a case actually supplies findings. Loading the real graph
                 # unconditionally on every call regressed the test suite
                 # from ~13s to ~99s: a dozen pre-existing tests exercise
@@ -321,7 +321,7 @@ class ClinicalInferencePipeline:
     def _graph_candidates_for(self, findings: list[str]) -> list[dict[str, Any]]:
         """Real, IC-weighted candidate diagnoses for IntuitionEngine, or an empty list without findings.
 
-        Reuses the same cached graph `_dream_enumerator_instance` already
+        Reuses the same cached graph `_nexus_enumerator_instance` already
         loads for B1 -- no second real-graph load. `InformationContentTable`
         is cached the same way, measured at 0.43s to build against the real
         graph (far cheaper than the graph load itself, but still worth not
@@ -332,15 +332,15 @@ class ClinicalInferencePipeline:
         """
         if not findings:
             return []
-        enumerator = self._dream_enumerator_instance()
-        if self._dream_ic_table is None:
-            self._dream_ic_table = InformationContentTable.from_graph_structure(enumerator.graph)
-        report = retrieve_candidates(findings, enumerator.graph, max_candidates=DREAM_ENUMERATION_CANDIDATE_CAP)
+        enumerator = self._nexus_enumerator_instance()
+        if self._nexus_ic_table is None:
+            self._nexus_ic_table = InformationContentTable.from_graph_structure(enumerator.graph)
+        report = retrieve_candidates(findings, enumerator.graph, max_candidates=NEXUS_ENUMERATION_CANDIDATE_CAP)
         candidate_names = [item.condition for item in report.candidates]
-        ranked = rank_differential(findings, candidate_names, enumerator.graph, self._dream_ic_table)
+        ranked = rank_differential(findings, candidate_names, enumerator.graph, self._nexus_ic_table)
         return [item.as_dict() for item in ranked]
 
-    def _dream_enumerator_instance(self) -> Any:
+    def _nexus_enumerator_instance(self) -> Any:
         """The real MechanismEnumerator, built once against the real concept graph and cached.
 
         Deliberately independent of the diagnostic_assembly.py reconciliation
@@ -350,7 +350,7 @@ class ClinicalInferencePipeline:
         directly rather than diagnostic_assembly.py's full assembly (which
         also carries the learned-edge store and conjecture ledger, a larger
         question this change does not settle). Loaded once per pipeline
-        instance, not reimplemented via diagnostic_assembly.dream_context_for
+        instance, not reimplemented via diagnostic_assembly.nexus_context_for
         to avoid pulling in that module's own dependency chain for a helper
         this pipeline can compute directly from what it already imports.
 
@@ -361,23 +361,23 @@ class ClinicalInferencePipeline:
         real edges, indistinguishable from the rehearsal-label fallback this
         change replaces.
         """
-        if self._dream_enumerator is None:
-            self._dream_graph_source = load_verification_graph()
-            self._dream_enumerator = MechanismEnumerator(graph=self._dream_graph_source.graph)
-        return self._dream_enumerator
+        if self._nexus_enumerator is None:
+            self._nexus_graph_source = load_verification_graph()
+            self._nexus_enumerator = MechanismEnumerator(graph=self._nexus_graph_source.graph)
+        return self._nexus_enumerator
 
-    def _dream_case_context(
+    def _nexus_case_context(
         self, *, case: CaseContext, payload: dict[str, Any], bundle: dict[str, Any],
         area_dynamics: dict[str, Any], governance_scores: dict[str, Any], visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """The dream branch's case context, enriched with findings and candidate conditions when available.
+        """The nexus branch's case context, enriched with findings and candidate conditions when available.
 
         `payload.get("findings")` is the caller-supplied finding list --
-        absent, this enriches nothing and the dream trainer's enumerator
-        stays unset (see `_run_dream_branch`), falling back to rehearsal
+        absent, this enriches nothing and the nexus trainer's enumerator
+        stays unset (see `_run_nexus_branch`), falling back to rehearsal
         labels exactly as before. Present, `candidate_conditions` is
         derived from the real graph via `retrieve_candidates`, matching
-        `diagnostic_assembly.dream_context_for`'s own logic without
+        `diagnostic_assembly.nexus_context_for`'s own logic without
         importing that module.
         """
         findings = [str(item) for item in (payload.get("findings") or []) if str(item).strip()]
@@ -395,7 +395,7 @@ class ClinicalInferencePipeline:
             # usable now; the underlying per-candidate cost is a distinct,
             # deeper question -- see ROADMAP.md, H3.
             report = retrieve_candidates(
-                findings, self._dream_enumerator_instance().graph, max_candidates=DREAM_ENUMERATION_CANDIDATE_CAP
+                findings, self._nexus_enumerator_instance().graph, max_candidates=NEXUS_ENUMERATION_CANDIDATE_CAP
             )
             candidate_conditions = [item.condition for item in report.candidates]
         return {
@@ -415,7 +415,7 @@ class ClinicalInferencePipeline:
             "candidate_conditions": candidate_conditions,
         }
 
-    def _run_dream_branch(
+    def _run_nexus_branch(
         self,
         components: dict[str, Any],
         payload: dict[str, Any],
@@ -430,16 +430,16 @@ class ClinicalInferencePipeline:
         # _build_runtime_components() time, so the dozens of existing
         # callers that never supply findings never pay for a graph they
         # will not use. Once attached, the same instance is cached on
-        # self._dream_enumerator (_dream_enumerator_instance) and reused
+        # self._nexus_enumerator (_nexus_enumerator_instance) and reused
         # for the rest of this pipeline instance's lifetime.
         if payload.get("findings"):
-            components["dream_trainer"].enumerator = self._dream_enumerator_instance()
-        return components["dream_trainer"].run(
-            case_context=self._dream_case_context(
+            components["nexus_trainer"].enumerator = self._nexus_enumerator_instance()
+        return components["nexus_trainer"].run(
+            case_context=self._nexus_case_context(
                 case=case, payload=payload, bundle=bundle, area_dynamics=area_dynamics,
                 governance_scores=governance_scores, visual_imprints=visual_imprints,
             ),
-            coherence=governance_scores["dream_coherence"],
+            coherence=governance_scores["nexus_coherence"],
             risk=governance_scores["risk"],
         )
 
@@ -515,7 +515,7 @@ class ClinicalInferencePipeline:
             ranked_evidence=ranked_evidence,
             area_signals=area_signals,
         )
-        dream = self._run_dream_branch(
+        nexus = self._run_nexus_branch(
             components=components,
             payload=payload,
             case=case,
@@ -528,7 +528,7 @@ class ClinicalInferencePipeline:
         intuition = intuition_engine.infer(
             case_id=case.case_id,
             ranked_evidence=ranked_evidence,
-            dream=dream,
+            nexus=nexus,
             quantum_allowed=quantum_allowed,
             area_signals=area_signals,
             area_dynamics=area_dynamics,
@@ -549,10 +549,10 @@ class ClinicalInferencePipeline:
             risk=governance_scores["risk"],
             uncertainty=governance_scores["uncertainty"],
             intuition=intuition,
-            dream=dream,
+            nexus=nexus,
             area_dynamics=area_dynamics,
         )
-        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "area_dynamics": area_dynamics, "dream": dream})
+        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "area_dynamics": area_dynamics, "nexus": nexus})
         pipeline_result = {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),
@@ -575,7 +575,7 @@ class ClinicalInferencePipeline:
             "coordinated": coordinated,
             "critique": critique_result,
             "quantum_allowed": quantum_allowed,
-            "dream": dream,
+            "nexus": nexus,
         }
         self._finalize_diagnostic_result(
             components=components,

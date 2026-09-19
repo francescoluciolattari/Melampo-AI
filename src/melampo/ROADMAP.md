@@ -96,7 +96,7 @@ ancora: 7,341 contro un massimo di 1,0 sul lato grafo) — la formula di
 ### ~~B1~~ — `MechanismEnumerator` dentro `_alternative_hypotheses()`
 **Chiusa.** `clinical_pipeline.py` ora collega un `MechanismEnumerator`
 reale, costruito contro il grafo HPO vero (non più `KnowledgeGraphClient`,
-il segnaposto da 7 righe che c'era prima), attaccato al `DreamTrainer`
+il segnaposto da 7 righe che c'era prima), attaccato al `NexusTrainer`
 solo quando un caso fornisce reperti — mai a costruzione fissa, per non
 caricare il grafo reale (6,6s) su richieste che non ne hanno bisogno.
 Verificato end-to-end: ipotesi enumerate reali, con cammini del grafo
@@ -107,7 +107,7 @@ autentici (inclusi collegamenti genici) come provenienza.
 contro il grafo reale (misurato: 2 candidati ~7s, 5 ~20s, 10 ~40s —
 lineare, non un costo fisso) — mai misurato prima, perché l'enumeratore
 era sempre stato esercitato solo su grafi fixture piccoli. Un limite di
-sicurezza (`DREAM_ENUMERATION_CANDIDATE_CAP = 8`) tiene il ramo dream
+sicurezza (`NEXUS_ENUMERATION_CANDIDATE_CAP = 8`) tiene il ramo nexus
 utilizzabile oggi; il costo per candidato resta un problema di
 prestazioni a sé, non risolto qui.
 
@@ -282,7 +282,7 @@ equivalente — vedi H3), B0c/B0d, B2, B3, C1 (`rlm_engine.py`, letteralmente et
 | `rlm.dual_path_beats_single_path` | Sì | Aperto — misurabile dopo A1 |
 | `rlm.disagreement_is_informative` | Sì | Aperto — misurabile dopo D2 |
 | `privacy.predicate_budget_prevents_reconstruction` | Sì | Aperto — nessuno strumento ancora (blocco F) |
-| `rlm.dream_hypotheses_add_value` | No | Aperto — **più vicino a essere misurabile** ora che B1 è a basso costo |
+| `rlm.nexus_hypotheses_add_value` | No | Aperto — **più vicino a essere misurabile** ora che B1 è a basso costo |
 | `rlm.coverage_predicts_grounding` | No | Aperto |
 | `rlm.open_weight_root_is_sufficient` | Dormiente | Invariato |
 | `rlm.recursive_helps_only_on_complex_cases` | — | Ritirato |

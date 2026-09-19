@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 ALLOWED_LEARNING_STATUSES = ("candidate", "needs_review", "promoted", "rejected", "retired")
 
 GOVERNED_TRANSITIONS: dict[str, tuple[str, ...]] = {
@@ -67,7 +66,7 @@ def validate_learning_transition(
         reasons=reasons,
         governance={
             "allowed_statuses": list(ALLOWED_LEARNING_STATUSES),
-            "dream_generated_default_status": "candidate",
+            "nexus_generated_default_status": "candidate",
             "clinical_warning": "Learning-status promotion is research memory governance only, not clinical deployment approval.",
         },
     )

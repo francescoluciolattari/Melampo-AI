@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 from .vector_memory import InMemoryVectorStore
-from .weaviate_schema import QUARANTINED_HYPOTHESIS_CLASS
 from .visual_imprint import VisualRecognitionImprint
-from .weaviate_schema import MelampoWeaviateSchema, WeaviateClassSchema
+from .weaviate_schema import (
+    QUARANTINED_HYPOTHESIS_CLASS,
+    MelampoWeaviateSchema,
+    WeaviateClassSchema,
+)
 
 
 @dataclass(slots=True)

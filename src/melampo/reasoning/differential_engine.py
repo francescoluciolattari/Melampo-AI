@@ -14,11 +14,11 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 
 def _best_graph_hypothesis(alternatives: list) -> dict | None:
-    """The highest-plausibility real, graph-grounded hypothesis among the dream branch's alternatives, if any.
+    """The highest-plausibility real, graph-grounded hypothesis among the nexus branch's alternatives, if any.
 
     `kind == "enumerated_mechanism"` is MechanismEnumerator's own marker for
     a hypothesis found by real path enumeration over the concept graph
-    (`dream_trainer.py`, `_enumerated_hypotheses`) -- distinct from
+    (`nexus_trainer.py`, `_enumerated_hypotheses`) -- distinct from
     `rare_case`/`adjacent_case`/`mismatch_resolution` rehearsal labels, which
     name what kind of alternative ought to exist rather than proposing one.
     """
@@ -30,7 +30,7 @@ def _best_graph_hypothesis(alternatives: list) -> dict | None:
 
 @dataclass
 class DifferentialEngine:
-    """Baseline differential engine using evidence, intuition, dream alternatives, and area dynamics."""
+    """Baseline differential engine using evidence, intuition, nexus alternatives, and area dynamics."""
 
     support_analyzer: SupportContradictionAnalyzer = field(default_factory=SupportContradictionAnalyzer)
 
@@ -38,9 +38,9 @@ class DifferentialEngine:
         joined = " ".join(support_signals)
         if "fusion:" in joined or "visual_diagnostic" in joined or source in ["mismatch_resolution", "contradiction_revision"]:
             return "imaging_led"
-        if "dream:language_listening" in joined:
+        if "nexus:language_listening" in joined:
             return "language_led"
-        if "dream:epidemiology" in joined:
+        if "nexus:epidemiology" in joined:
             return "epidemiology_led"
         if hypothesis_type == "mismatch_resolution":
             return "mismatch_resolution_led"
@@ -89,19 +89,19 @@ class DifferentialEngine:
                 seen.add(key)
         return deduped or [{"category": "confirmation_test", "label": "continue standard differential refinement"}]
 
-    def rank(self, evidence: list, intuition: dict | None = None, dream: dict | None = None, area_dynamics: dict | None = None) -> dict:
+    def rank(self, evidence: list, intuition: dict | None = None, nexus: dict | None = None, area_dynamics: dict | None = None) -> dict:
         intuition = intuition or {}
-        dream = dream or {}
+        nexus = nexus or {}
         area_dynamics = area_dynamics or {}
 
         candidate_scores = intuition.get("candidate_scores", [])
         top_candidate = candidate_scores[0] if candidate_scores else {"label": "working_hypothesis", "score": 0.7}
-        alternatives = dream.get("alternative_hypotheses", [])
+        alternatives = nexus.get("alternative_hypotheses", [])
         mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
         coherence_score = float(area_dynamics.get("coherence_score", 0.0))
         reasoning_mode = intuition.get("deductive_filter", {}).get("reasoning_mode", "rapid_intuition")
 
-        signals = self.support_analyzer.analyze(evidence=evidence, intuition=intuition, dream=dream, area_dynamics=area_dynamics)
+        signals = self.support_analyzer.analyze(evidence=evidence, intuition=intuition, nexus=nexus, area_dynamics=area_dynamics)
         support_signals = signals["support_signals"]
         contradiction_signals = signals["contradiction_signals"]
         support_profiles = signals["support_profiles"]
@@ -175,15 +175,15 @@ class DifferentialEngine:
                 hypothesis_type = "mismatch_resolution"
             elif alt.get("kind") == "contradiction_revision":
                 hypothesis_type = "contradiction_revision_alternative"
-            alt_support = [f"dream:{alt.get('focus', 'unknown')}"] + support_signals[:1]
+            alt_support = [f"nexus:{alt.get('focus', 'unknown')}"] + support_signals[:1]
             hypotheses.append(
                 {
                     "label": alt.get("label", f"alternative_{index + 1}"),
                     "hypothesis_type": hypothesis_type,
-                    "hypothesis_domain": self._infer_domain(alt_support, alt.get("kind", "dream_alternative"), hypothesis_type),
+                    "hypothesis_domain": self._infer_domain(alt_support, alt.get("kind", "nexus_alternative"), hypothesis_type),
                     "score": round(0.4 + mismatch_score * 0.1 - index * 0.05 + signals["contradiction_strength"] * 0.01, 3),
                     "support": max(len(evidence) - index - 1, 0),
-                    "source": alt.get("kind", "dream_alternative"),
+                    "source": alt.get("kind", "nexus_alternative"),
                     "support_signals": alt_support,
                     "contradiction_signals": contradiction_signals[:3],
                     "support_profile_classes": [item["class"] for item in support_profiles[:2]],

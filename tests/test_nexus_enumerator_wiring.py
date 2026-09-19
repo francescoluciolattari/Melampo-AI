@@ -1,4 +1,4 @@
-"""Tests for wiring MechanismEnumerator into ClinicalInferencePipeline's dream branch.
+"""Tests for wiring MechanismEnumerator into ClinicalInferencePipeline's nexus branch.
 
 Uses a small fixture graph via monkeypatching, never the real 1.27M-edge
 HPO graph -- a first version of this change loaded the real graph
@@ -15,11 +15,11 @@ from dataclasses import fields
 from melampo.evaluation.enumeration_bench import differential_graph
 from melampo.memory.graph_sources import GraphSource
 from melampo.reasoning.clinical_pipeline import ClinicalInferencePipeline
-from melampo.training.dream_trainer import DreamTrainer
+from melampo.training.nexus_trainer import NexusTrainer
 
 
 def _minimal_pipeline(monkeypatch) -> ClinicalInferencePipeline:
-    """A ClinicalInferencePipeline with every field the dream branch does not
+    """A ClinicalInferencePipeline with every field the nexus branch does not
     touch left as a bare object, and the real graph loader replaced with a
     small, fast fixture -- fast enough to run in every test invocation."""
 
@@ -49,22 +49,22 @@ def _minimal_pipeline(monkeypatch) -> ClinicalInferencePipeline:
     kwargs = dict.fromkeys(field_names, object())
     kwargs["ingestion"] = _StubIngestion()
     kwargs["normalizer"] = _StubNormalizer()
-    kwargs["_dream_graph_source"] = None
-    kwargs["_dream_enumerator"] = None
+    kwargs["_nexus_graph_source"] = None
+    kwargs["_nexus_enumerator"] = None
     return ClinicalInferencePipeline(**kwargs)
 
 
 def _run(pipeline, payload):
-    """Exercise only the pieces _run_dream_branch actually needs, bypassing
+    """Exercise only the pieces _run_nexus_branch actually needs, bypassing
     the rest of run() (multimodal encoding, retrieval, specialist signals)
     which this test's stub dependencies cannot support."""
     from melampo.types import CaseContext
 
     case = CaseContext(case_id=payload.get("case_id", "c"), report_text="", ehr_text="", demographics={}, provenance={})
     components = pipeline._build_runtime_components()
-    return pipeline._run_dream_branch(
+    return pipeline._run_nexus_branch(
         components=components, payload=payload, case=case, bundle={"a": 1},
-        area_dynamics={}, governance_scores={"dream_coherence": 0.5, "risk": 0.2}, visual_imprints=[],
+        area_dynamics={}, governance_scores={"nexus_coherence": 0.5, "risk": 0.2}, visual_imprints=[],
     )
 
 
@@ -77,7 +77,7 @@ def _run(pipeline, payload):
 def test_no_findings_never_attaches_an_enumerator(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
     _run(pipeline, {"case_id": "c1"})
-    assert pipeline._dream_enumerator is None
+    assert pipeline._nexus_enumerator is None
 
 
 def test_no_findings_produces_rehearsal_labels_not_enumerated_hypotheses(monkeypatch):
@@ -90,7 +90,7 @@ def test_no_findings_produces_rehearsal_labels_not_enumerated_hypotheses(monkeyp
 def test_an_empty_findings_list_behaves_the_same_as_no_findings_key(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
     _run(pipeline, {"case_id": "c1", "findings": []})
-    assert pipeline._dream_enumerator is None
+    assert pipeline._nexus_enumerator is None
 
 
 # --------------------------------------------------------------------------
@@ -101,7 +101,7 @@ def test_an_empty_findings_list_behaves_the_same_as_no_findings_key(monkeypatch)
 def test_findings_attach_a_real_enumerator(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
     _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"]})
-    assert pipeline._dream_enumerator is not None
+    assert pipeline._nexus_enumerator is not None
 
 
 def test_findings_produce_real_enumerated_hypotheses(monkeypatch):
@@ -157,30 +157,30 @@ def test_the_graph_loads_only_once_across_multiple_calls(monkeypatch):
 
 
 def test_candidate_conditions_are_capped():
-    from melampo.reasoning.clinical_pipeline import DREAM_ENUMERATION_CANDIDATE_CAP
+    from melampo.reasoning.clinical_pipeline import NEXUS_ENUMERATION_CANDIDATE_CAP
 
-    assert 1 <= DREAM_ENUMERATION_CANDIDATE_CAP <= 20, "cap must be small enough to keep the branch usable"
+    assert 1 <= NEXUS_ENUMERATION_CANDIDATE_CAP <= 20, "cap must be small enough to keep the branch usable"
 
 
 # --------------------------------------------------------------------------
-# The DreamTrainer field itself: unset by default, matching its own
+# The NexusTrainer field itself: unset by default, matching its own
 # documented graceful-degradation contract
 # --------------------------------------------------------------------------
 
 
-def test_dream_trainer_enumerator_field_defaults_to_none():
+def test_nexus_trainer_enumerator_field_defaults_to_none():
     """Confirms the construction site change did not quietly hard-wire an
     enumerator at construction time -- it must still be attachable, or not,
     per case."""
     import inspect
 
-    signature = inspect.signature(DreamTrainer.__init__)
+    signature = inspect.signature(NexusTrainer.__init__)
     assert signature.parameters["enumerator"].default is None
 
 
 # --------------------------------------------------------------------------
 # _graph_candidates_for: real IC-weighted candidates for IntuitionEngine,
-# reusing the same cached graph as the dream branch's enumerator
+# reusing the same cached graph as the nexus branch's enumerator
 # --------------------------------------------------------------------------
 
 
@@ -215,7 +215,7 @@ def test_the_ic_table_loads_only_once_across_multiple_calls(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
 
     pipeline._graph_candidates_for(["bilateral hilar lymphadenopathy"])
-    table_after_first = pipeline._dream_ic_table
+    table_after_first = pipeline._nexus_ic_table
     pipeline._graph_candidates_for(["hypercalcaemia"])
 
-    assert pipeline._dream_ic_table is table_after_first
+    assert pipeline._nexus_ic_table is table_after_first

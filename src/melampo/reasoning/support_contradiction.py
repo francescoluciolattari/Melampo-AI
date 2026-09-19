@@ -23,9 +23,9 @@ class SupportContradictionAnalyzer:
             return item["item"]
         return item if isinstance(item, dict) else {}
 
-    def analyze(self, evidence: list, intuition: dict | None = None, dream: dict | None = None, area_dynamics: dict | None = None) -> dict:
+    def analyze(self, evidence: list, intuition: dict | None = None, nexus: dict | None = None, area_dynamics: dict | None = None) -> dict:
         intuition = intuition or {}
-        dream = dream or {}
+        nexus = nexus or {}
         area_dynamics = area_dynamics or {}
 
         reasoning_mode = intuition.get("deductive_filter", {}).get("reasoning_mode", "rapid_intuition")
@@ -35,7 +35,7 @@ class SupportContradictionAnalyzer:
         coherence_pairs = area_dynamics.get("coherence_pairs", [])
         neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
         mismatch_index = float(neuro_metrics.get("mismatch_index", mismatch_score))
-        rehearsal_profile = dream.get("rehearsal_profile", {})
+        rehearsal_profile = nexus.get("rehearsal_profile", {})
 
         support_profiles: list[dict[str, Any]] = []
         contradiction_profiles: list[dict[str, Any]] = []
@@ -76,7 +76,7 @@ class SupportContradictionAnalyzer:
 
         if rehearsal_profile.get("coherence_guidance") == "multimodal_support":
             support_profiles.append({
-                "label": "dream:multimodal_support",
+                "label": "nexus:multimodal_support",
                 "class": "replay_supported_alignment",
                 "strength": 0.25,
             })
@@ -109,7 +109,7 @@ class SupportContradictionAnalyzer:
 
         if rehearsal_profile.get("boundary_case_hint", False):
             contradiction_profiles.append({
-                "label": "dream:boundary_case",
+                "label": "nexus:boundary_case",
                 "class": "weak_contradiction",
                 "strength": 0.15,
             })

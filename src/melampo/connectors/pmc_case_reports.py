@@ -46,7 +46,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from ..evaluation.case_corpus import LoadReport, load_records
-from ..evaluation.dream_capture_benchmark import EvaluationCase
+from ..evaluation.nexus_capture_benchmark import EvaluationCase
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 OAI_BASE = "https://www.ncbi.nlm.nih.gov/pmc/oai/oai.cgi"

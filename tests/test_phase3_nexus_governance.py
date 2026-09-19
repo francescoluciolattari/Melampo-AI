@@ -1,7 +1,7 @@
 from melampo.memory.learning_status import validate_learning_transition
 from melampo.memory.vector_memory import InMemoryVectorStore
-from melampo.training.dream_candidate_store import DreamCandidateStore
-from melampo.training.dream_scheduler import DreamScheduler, LowActivityPolicy
+from melampo.training.nexus_candidate_store import NexusCandidateStore
+from melampo.training.nexus_scheduler import LowActivityPolicy, NexusScheduler
 from melampo.training.outcome_feedback import OutcomeFeedbackIngestor
 from melampo.training.promotion_policy import PromotionPolicy
 from melampo.training.rational_control_validator import RationalControlValidator
@@ -43,8 +43,8 @@ def test_learning_status_blocks_unvalidated_promotion():
 
 def test_rational_control_validator_validates_favorable_candidate():
     candidate = {
-        "text": "Dream candidate for multimodal pneumonia-like alignment.",
-        "source": "dream_scheduler",
+        "text": "Nexus candidate for multimodal pneumonia-like alignment.",
+        "source": "nexus_scheduler",
         "metadata": {
             "case_id": "case-phase3",
             "pi_score": 0.82,
@@ -73,10 +73,10 @@ def test_rational_control_validator_validates_favorable_candidate():
 
 
 def test_promotion_policy_queues_for_review_by_default():
-    store = DreamCandidateStore()
+    store = NexusCandidateStore()
     record = store.create_candidate(
         payload={
-            "text": "validated dream candidate",
+            "text": "validated nexus candidate",
             "metadata": {"case_id": "case-review", "provenance_quality": 0.9},
             "auto_evolution_plan": {"candidate_score": 0.8},
         },
@@ -94,12 +94,12 @@ def test_promotion_policy_queues_for_review_by_default():
     assert updated["learning_status"] == "needs_review"
 
 
-def test_dream_scheduler_runs_only_in_low_activity_window():
-    scheduler = DreamScheduler(low_activity_policy=LowActivityPolicy(min_idle_seconds=10, max_active_requests=0))
+def test_nexus_scheduler_runs_only_in_low_activity_window():
+    scheduler = NexusScheduler(low_activity_policy=LowActivityPolicy(min_idle_seconds=10, max_active_requests=0))
     scheduler.enqueue(
         case_context={"case_id": "case-idle", "report_text": "opacity cough", "patient_complaints": "fever"},
         area_dynamics=_favorable_area_dynamics(),
-        dream={
+        nexus={
             "auto_evolution_plan": {
                 "candidate_score": 0.78,
                 "promotion_guardrails": [
@@ -126,7 +126,7 @@ def test_dream_scheduler_runs_only_in_low_activity_window():
 
 
 def test_outcome_feedback_attaches_to_candidate_and_memory():
-    store = DreamCandidateStore()
+    store = NexusCandidateStore()
     record = store.create_candidate({"text": "candidate", "metadata": {"case_id": "case-outcome"}}, case_id="case-outcome")
     ingestor = OutcomeFeedbackIngestor()
     updated = ingestor.attach_to_candidate(

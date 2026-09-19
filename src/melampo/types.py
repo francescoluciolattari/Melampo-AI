@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class Modality(str, Enum):
@@ -52,35 +52,35 @@ class SyntheticCaseType(str, Enum):
 class ClinicalObservation:
     code: str
     value: Any
-    unit: Optional[str] = None
-    source: Optional[str] = None
+    unit: str | None = None
+    source: str | None = None
 
 
 @dataclass(slots=True)
 class ImagingStudy:
     study_id: str
     modality: Modality
-    series_paths: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    series_paths: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
 class CaseContext:
     case_id: str
-    patient_id: Optional[str] = None
-    demographics: Dict[str, Any] = field(default_factory=dict)
-    observations: List[ClinicalObservation] = field(default_factory=list)
-    imaging: List[ImagingStudy] = field(default_factory=list)
+    patient_id: str | None = None
+    demographics: dict[str, Any] = field(default_factory=dict)
+    observations: list[ClinicalObservation] = field(default_factory=list)
+    imaging: list[ImagingStudy] = field(default_factory=list)
     report_text: str = ""
     ehr_text: str = ""
-    provenance: Dict[str, Any] = field(default_factory=dict)
+    provenance: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
 class EncodedCase:
     case_id: str
-    feature_map: Dict[str, Any] = field(default_factory=dict)
-    multimodal_embedding: Optional[Any] = None
+    feature_map: dict[str, Any] = field(default_factory=dict)
+    multimodal_embedding: Any | None = None
 
 
 @dataclass(slots=True)
@@ -88,8 +88,8 @@ class DifferentialHypothesis:
     label: str
     score: float
     rationale: str
-    supporting_evidence: List[str] = field(default_factory=list)
-    contradicting_evidence: List[str] = field(default_factory=list)
+    supporting_evidence: list[str] = field(default_factory=list)
+    contradicting_evidence: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -107,12 +107,12 @@ class UncertaintyProfile:
 @dataclass(slots=True)
 class DifferentialState:
     case_id: str
-    hypotheses: List[DifferentialHypothesis] = field(default_factory=list)
+    hypotheses: list[DifferentialHypothesis] = field(default_factory=list)
     uncertainty: UncertaintyProfile = field(default_factory=UncertaintyProfile)
     abstain: bool = False
-    escalation_reasons: List[str] = field(default_factory=list)
-    evidence_trace: List[str] = field(default_factory=list)
-    latent_state: Optional[Any] = None
+    escalation_reasons: list[str] = field(default_factory=list)
+    evidence_trace: list[str] = field(default_factory=list)
+    latent_state: Any | None = None
 
 
 @dataclass(slots=True)
@@ -122,4 +122,4 @@ class SyntheticCase:
     generated_context: CaseContext
     coherence_score: float
     accepted: bool
-    provenance: Dict[str, Any] = field(default_factory=dict)
+    provenance: dict[str, Any] = field(default_factory=dict)

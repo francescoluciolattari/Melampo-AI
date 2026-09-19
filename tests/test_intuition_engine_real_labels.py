@@ -35,14 +35,14 @@ def _real_candidate(condition="marfan syndrome", specificity_score=0.72):
 
 
 def test_no_graph_candidates_produces_the_original_placeholder_labels():
-    result = _engine().infer(case_id="c1", ranked_evidence=_ranked_evidence(), dream={}, quantum_allowed=False)
+    result = _engine().infer(case_id="c1", ranked_evidence=_ranked_evidence(), nexus={}, quantum_allowed=False)
     labels = [c["label"] for c in result["inductive_candidates"]]
     assert labels == ["candidate_1", "candidate_2", "candidate_3"]
 
 
 def test_an_empty_graph_candidates_list_behaves_identically_to_none():
     result = _engine().infer(
-        case_id="c1", ranked_evidence=_ranked_evidence(), dream={}, quantum_allowed=False, graph_candidates=[]
+        case_id="c1", ranked_evidence=_ranked_evidence(), nexus={}, quantum_allowed=False, graph_candidates=[]
     )
     labels = [c["label"] for c in result["inductive_candidates"]]
     assert labels == ["candidate_1", "candidate_2", "candidate_3"]
@@ -55,7 +55,7 @@ def test_an_empty_graph_candidates_list_behaves_identically_to_none():
 
 def test_a_real_candidate_replaces_the_first_placeholder():
     result = _engine().infer(
-        case_id="c1", ranked_evidence=_ranked_evidence(), dream={}, quantum_allowed=False,
+        case_id="c1", ranked_evidence=_ranked_evidence(), nexus={}, quantum_allowed=False,
         graph_candidates=[_real_candidate("marfan syndrome")],
     )
     labels = [c["label"] for c in result["inductive_candidates"]]
@@ -65,7 +65,7 @@ def test_a_real_candidate_replaces_the_first_placeholder():
 
 def test_fewer_real_candidates_than_evidence_slots_fills_only_what_it_has():
     result = _engine().infer(
-        case_id="c1", ranked_evidence=_ranked_evidence(), dream={}, quantum_allowed=False,
+        case_id="c1", ranked_evidence=_ranked_evidence(), nexus={}, quantum_allowed=False,
         graph_candidates=[_real_candidate("a"), _real_candidate("b")],
     )
     labels = [c["label"] for c in result["inductive_candidates"]]
@@ -74,7 +74,7 @@ def test_fewer_real_candidates_than_evidence_slots_fills_only_what_it_has():
 
 def test_the_real_candidates_own_specificity_score_becomes_the_support_weight():
     result = _engine().infer(
-        case_id="c1", ranked_evidence=_ranked_evidence(), dream={}, quantum_allowed=False,
+        case_id="c1", ranked_evidence=_ranked_evidence(), nexus={}, quantum_allowed=False,
         graph_candidates=[_real_candidate("marfan syndrome", specificity_score=0.91)],
     )
     assert result["inductive_candidates"][0]["support_weight"] == 0.91
@@ -84,7 +84,7 @@ def test_a_real_label_flows_through_to_rapid_intuition():
     """rapid_intuition reads inductive_candidates[0]["label"] directly --
     unchanged downstream logic, now fed a real name."""
     result = _engine().infer(
-        case_id="c1", ranked_evidence=_ranked_evidence(), dream={}, quantum_allowed=False,
+        case_id="c1", ranked_evidence=_ranked_evidence(), nexus={}, quantum_allowed=False,
         graph_candidates=[_real_candidate("marfan syndrome")],
     )
     assert result["rapid_intuition"] == "marfan syndrome"
@@ -95,7 +95,7 @@ def test_the_source_field_still_comes_from_ranked_evidence_not_graph_candidates(
     orthogonal to whether its name is now known -- unaffected by this fix."""
     evidence = [{"weight": 1.0, "item": {"source": "semantic_memory"}}]
     result = _engine().infer(
-        case_id="c1", ranked_evidence=evidence, dream={}, quantum_allowed=False,
+        case_id="c1", ranked_evidence=evidence, nexus={}, quantum_allowed=False,
         graph_candidates=[_real_candidate("marfan syndrome")],
     )
     assert result["inductive_candidates"][0]["source"] == "semantic_memory"
@@ -111,12 +111,12 @@ def test_differential_engine_does_not_promote_over_an_already_real_intuition_lab
     from melampo.reasoning.differential_engine import DifferentialEngine
 
     intuition = {"candidate_scores": [{"label": "marfan syndrome", "score": 7.3}]}
-    dream = {
+    nexus = {
         "alternative_hypotheses": [
             {"label": "loeys-dietz syndrome", "kind": "enumerated_mechanism", "plausibility": 0.6, "paths": []}
         ]
     }
-    result = DifferentialEngine().rank(evidence=["a"], intuition=intuition, dream=dream)
+    result = DifferentialEngine().rank(evidence=["a"], intuition=intuition, nexus=nexus)
     assert result["hypotheses"][0]["label"] == "marfan syndrome"
     assert result["hypotheses"][0]["source"] == "intuition_engine"
 
@@ -128,11 +128,11 @@ def test_differential_engine_still_promotes_when_intuition_has_no_graph_candidat
     from melampo.reasoning.differential_engine import DifferentialEngine
 
     intuition = {"candidate_scores": [{"label": "candidate_1", "score": 7.3}]}
-    dream = {
+    nexus = {
         "alternative_hypotheses": [
             {"label": "loeys-dietz syndrome", "kind": "enumerated_mechanism", "plausibility": 0.6, "paths": []}
         ]
     }
-    result = DifferentialEngine().rank(evidence=["a"], intuition=intuition, dream=dream)
+    result = DifferentialEngine().rank(evidence=["a"], intuition=intuition, nexus=nexus)
     assert result["hypotheses"][0]["label"] == "loeys-dietz syndrome"
     assert result["hypotheses"][0]["source"] == "graph_enumeration"

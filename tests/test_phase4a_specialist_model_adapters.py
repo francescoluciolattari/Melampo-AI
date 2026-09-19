@@ -1,7 +1,11 @@
 from melampo.models.model_card import default_phase4a_model_cards
 from melampo.models.model_client import ModelClientConfig, SafeModelClient
 from melampo.models.model_response_schema import ClinicalClaim, SpecialistModelResponse
-from melampo.models.specialist_adapters import ClaudeCritiqueAdapter, Gemma4ClinicalReasoningAdapter, Pillar0RadiologyAdapter
+from melampo.models.specialist_adapters import (
+    ClaudeCritiqueAdapter,
+    Gemma4ClinicalReasoningAdapter,
+    Pillar0RadiologyAdapter,
+)
 from melampo.orchestration.model_execution_trace import ModelExecutionTrace
 
 

@@ -1,6 +1,6 @@
-import torch.nn as nn
-import torch.optim as optim
-import higher # Library for differentiable inner-loops (Meta-Learning)
+import higher  # Library for differentiable inner-loops (Meta-Learning)
+from torch import nn, optim
+
 
 class MelampoTrainer:
     """

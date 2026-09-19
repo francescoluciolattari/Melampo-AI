@@ -140,7 +140,7 @@ def _default_claims() -> list[FalsifiableClaim]:
             ],
         ),
         FalsifiableClaim(
-            claim_id="rlm.dream_hypotheses_add_value",
+            claim_id="rlm.nexus_hypotheses_add_value",
             statement=(
                 "Under high diagnostic indeterminacy — cases admitting several diagnoses, or a articulated one — "
                 "hypotheses enumerated from the concept graph change the differential in a direction a clinician "

@@ -1,9 +1,13 @@
-from melampo.memory.visual_imprint import VisualImprintBuilder, VisualImprintMorpher, VisualRecognitionImprint
+from melampo.memory.visual_imprint import (
+    VisualImprintBuilder,
+    VisualImprintMorpher,
+    VisualRecognitionImprint,
+)
 from melampo.memory.weaviate_adapter import WeaviateEnterpriseMemoryAdapter
 from melampo.memory.weaviate_schema import MelampoWeaviateSchema
 from melampo.models.quantum_belief_layer import QuantumBeliefLayer
 from melampo.training.counterfactual_sampler import CounterfactualSampler
-from melampo.training.dream_trainer import DreamTrainer
+from melampo.training.nexus_trainer import NexusTrainer
 from melampo.training.replay_filter import ReplayFilter
 
 
@@ -44,7 +48,7 @@ def test_visual_imprint_morpher_supports_partial_semantic_concept_overlap():
     ]
     diagnostic = [_imprint("opacity", "diagnostic", [0.78, 0.22, 0.0, 0.0])]
 
-    result = VisualImprintMorpher(min_similarity=0.1, min_semantic_overlap=0.2).dream_morph(
+    result = VisualImprintMorpher(min_similarity=0.1, min_semantic_overlap=0.2).nexus_morph(
         concept_imprints=memory_variants,
         diagnostic_imprints=diagnostic,
         area_dynamics={
@@ -52,7 +56,7 @@ def test_visual_imprint_morpher_supports_partial_semantic_concept_overlap():
                 "pi_score": 0.72,
                 "prediction_error": 0.12,
                 "mismatch_index": 0.15,
-                "dream_plasticity": 0.55,
+                "nexus_plasticity": 0.55,
                 "action_potential_gate": 0.65,
             }
         },
@@ -74,7 +78,7 @@ def test_visual_imprint_morpher_links_same_semantic_concept_to_diagnostic_imprin
     ]
     diagnostic = [_imprint("ground glass opacity", "diagnostic", [0.8, 0.2, 0.0, 0.0])]
 
-    result = VisualImprintMorpher(min_similarity=0.1).dream_morph(
+    result = VisualImprintMorpher(min_similarity=0.1).nexus_morph(
         concept_imprints=memory_variants,
         diagnostic_imprints=diagnostic,
         area_dynamics={
@@ -82,7 +86,7 @@ def test_visual_imprint_morpher_links_same_semantic_concept_to_diagnostic_imprin
                 "pi_score": 0.75,
                 "prediction_error": 0.1,
                 "mismatch_index": 0.1,
-                "dream_plasticity": 0.6,
+                "nexus_plasticity": 0.6,
                 "action_potential_gate": 0.7,
             }
         },
@@ -95,13 +99,13 @@ def test_visual_imprint_morpher_links_same_semantic_concept_to_diagnostic_imprin
     assert result["neuroquantum_trace"]["formalism"] == "quantum_like_latent_interference_not_physical_quantum_claim"
 
 
-def test_dream_trainer_uses_visual_morphing_in_rehearsal_and_belief_update():
+def test_nexus_trainer_uses_visual_morphing_in_rehearsal_and_belief_update():
     memory_variants = [
         _imprint("opacity", "variant-a", [0.9, 0.1, 0.0, 0.0]),
         _imprint("opacity", "variant-b", [0.6, 0.4, 0.0, 0.0]),
     ]
     diagnostic = [_imprint("opacity", "diagnostic", [0.75, 0.25, 0.0, 0.0])]
-    trainer = DreamTrainer(
+    trainer = NexusTrainer(
         replay_filter=ReplayFilter(min_coherence=0.7, max_risk=0.3),
         sampler=CounterfactualSampler(),
         belief_layer=QuantumBeliefLayer(),
@@ -122,7 +126,7 @@ def test_dream_trainer_uses_visual_morphing_in_rehearsal_and_belief_update():
                     "pi_score": 0.78,
                     "convergence_index": 0.7,
                     "revision_pressure": 0.2,
-                    "dream_plasticity": 0.6,
+                    "nexus_plasticity": 0.6,
                     "prediction_error": 0.1,
                     "mismatch_index": 0.1,
                     "action_potential_gate": 0.7,

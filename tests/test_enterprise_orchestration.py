@@ -64,7 +64,7 @@ def test_diagnostic_orchestrator_abstains_when_policy_requires_it():
                 "trace": ["trace-entry"],
             },
             "intuition": {"intuition": "candidate_a", "candidate_scores": []},
-            "dream": {},
+            "nexus": {},
             "critique": {},
             "area_signals": {},
             "retrieval": {},

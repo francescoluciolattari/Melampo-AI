@@ -1,5 +1,8 @@
 from melampo.evaluation.calibration import ConfidenceCalibrationEvaluator
-from melampo.evaluation.clinical_benchmark import ClinicalBenchmarkRecord, ClinicalBenchmarkRunner
+from melampo.evaluation.clinical_benchmark import (
+    ClinicalBenchmarkRecord,
+    ClinicalBenchmarkRunner,
+)
 from melampo.evaluation.prospective_validation import ProspectiveValidationRegistry
 
 

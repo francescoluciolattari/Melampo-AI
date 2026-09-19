@@ -15,7 +15,7 @@ def test_high_pi_score_and_low_prediction_error_support_rapid_intuition():
     result = engine.infer(
         case_id="case-calibration-high-pi",
         ranked_evidence=_ranked_evidence(),
-        dream={"rehearsal_profile": {"revision_bias": "exploratory"}, "alternative_hypotheses": []},
+        nexus={"rehearsal_profile": {"revision_bias": "exploratory"}, "alternative_hypotheses": []},
         quantum_allowed=True,
         area_signals={
             "visual_diagnostic": {"salience_score": 0.8, "signal_count": 3},
@@ -49,7 +49,7 @@ def test_high_prediction_error_increases_revision_or_contradiction_pressure():
     result = engine.infer(
         case_id="case-calibration-high-error",
         ranked_evidence=_ranked_evidence(),
-        dream={
+        nexus={
             "rehearsal_profile": {
                 "contradiction_rehearsal": True,
                 "revision_bias": "conservative",

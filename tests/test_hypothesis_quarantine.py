@@ -49,7 +49,7 @@ def _adapter_with_a_candidate() -> WeaviateEnterpriseMemoryAdapter:
     adapter = WeaviateEnterpriseMemoryAdapter()
     adapter.fallback_store.upsert(
         text="amyloidosis considered as a synthetic alternative",
-        metadata={"class_name": QUARANTINED_HYPOTHESIS_CLASS, "source_type": "synthetic_dream_candidate"},
+        metadata={"class_name": QUARANTINED_HYPOTHESIS_CLASS, "source_type": "synthetic_nexus_candidate"},
         learning_status="candidate",
     )
     adapter.fallback_store.upsert(
@@ -132,7 +132,7 @@ def test_quarantine_holds_when_the_candidate_outranks_the_evidence():
 
 @dataclass
 class _Context:
-    """Stands in for DreamRuntimeContext, same attribute names."""
+    """Stands in for NexusRuntimeContext, same attribute names."""
 
     convergence_index: float = 0.3
     risk: float = 0.6

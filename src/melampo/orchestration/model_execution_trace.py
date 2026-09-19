@@ -20,7 +20,7 @@ class ModelExecutionRecord:
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def finish(self, status: str, error: str | None = None) -> "ModelExecutionRecord":
+    def finish(self, status: str, error: str | None = None) -> ModelExecutionRecord:
         self.finished_at = time.time()
         self.latency_ms = round((self.finished_at - self.started_at) * 1000.0, 3)
         self.status = status

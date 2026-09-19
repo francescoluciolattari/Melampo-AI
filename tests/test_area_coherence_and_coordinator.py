@@ -36,7 +36,7 @@ def test_area_coherence_and_pipeline_coordinator_emit_richer_metadata():
             "candidate_scores": [{"label": "candidate_1", "score": 1.1}],
             "deductive_filter": {"reasoning_mode": "rapid_intuition"},
         },
-        dream={
+        nexus={
             "alternative_hypotheses": [{"label": "alt_1", "kind": "rare_case", "focus": "epidemiology"}],
             "rehearsal_profile": {"coherence_guidance": "multimodal_support"},
         },

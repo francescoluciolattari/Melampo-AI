@@ -6,9 +6,9 @@ when optional provider integrations are not installed.
 """
 
 __all__ = [
-    "build_default_runtime",
     "ClinicalPrototypeRunner",
     "PrototypeInputValidator",
+    "build_default_runtime",
     "run_prototype_case",
 ]
 
@@ -19,7 +19,11 @@ def __getattr__(name: str):
 
         return build_default_runtime
     if name in {"ClinicalPrototypeRunner", "PrototypeInputValidator", "run_prototype_case"}:
-        from .prototype import ClinicalPrototypeRunner, PrototypeInputValidator, run_prototype_case
+        from .prototype import (
+            ClinicalPrototypeRunner,
+            PrototypeInputValidator,
+            run_prototype_case,
+        )
 
         return {
             "ClinicalPrototypeRunner": ClinicalPrototypeRunner,

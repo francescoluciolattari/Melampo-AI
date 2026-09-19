@@ -26,7 +26,7 @@ class IntuitionEngine:
             _float_metric(neuro_metrics, "inhibitory_control"),
             _float_metric(neuro_metrics, "deductive_gate"),
             _float_metric(neuro_metrics, "revision_pressure"),
-            _float_metric(neuro_metrics, "dream_plasticity"),
+            _float_metric(neuro_metrics, "nexus_plasticity"),
             _float_metric(neuro_metrics, "intuition_gain", 1.0),
             _float_metric(neuro_metrics, "bias_suppression_score"),
             _float_metric(neuro_metrics, "candidate_temperature", 1.0),
@@ -95,7 +95,7 @@ class IntuitionEngine:
         )
 
     def infer(
-        self, case_id: str, ranked_evidence: list, dream: dict, quantum_allowed: bool,
+        self, case_id: str, ranked_evidence: list, nexus: dict, quantum_allowed: bool,
         area_signals: dict | None = None, area_dynamics: dict | None = None,
         graph_candidates: list | None = None,
     ) -> dict:
@@ -111,7 +111,7 @@ class IntuitionEngine:
             inhibitory_control,
             deductive_gate,
             revision_pressure,
-            dream_plasticity,
+            nexus_plasticity,
             intuition_gain,
             bias_suppression_score,
             candidate_temperature,
@@ -125,8 +125,8 @@ class IntuitionEngine:
             deductive_stability,
         ) = self._extract_metrics(area_dynamics, neuro_metrics)
 
-        rehearsal_profile = dream.get("rehearsal_profile", {}) if isinstance(dream, dict) else {}
-        alternative_hypotheses = dream.get("alternative_hypotheses", []) if isinstance(dream, dict) else []
+        rehearsal_profile = nexus.get("rehearsal_profile", {}) if isinstance(nexus, dict) else {}
+        alternative_hypotheses = nexus.get("alternative_hypotheses", []) if isinstance(nexus, dict) else []
         contradiction_rehearsal = bool(rehearsal_profile.get("contradiction_rehearsal", False))
         revision_bias = rehearsal_profile.get("revision_bias", "exploratory")
         post_error_adjustment = rehearsal_profile.get("post_error_adjustment", "stabilize_primary")
@@ -221,7 +221,7 @@ class IntuitionEngine:
             + mismatch_score_ext * 0.18
             + prediction_error * 0.3
             + mismatch_index * 0.25
-            + dream_plasticity * 0.16
+            + nexus_plasticity * 0.16
             + synaptic_plasticity_index * 0.10
             - noise_suppression_score * 0.12,
             3,
@@ -255,7 +255,7 @@ class IntuitionEngine:
             "inhibitory_control": inhibitory_control,
             "deductive_gate": deductive_gate,
             "revision_pressure": revision_pressure,
-            "dream_plasticity": dream_plasticity,
+            "nexus_plasticity": nexus_plasticity,
             "intuition_gain": intuition_gain,
             "candidate_temperature": candidate_temperature,
             "belief_update_rate": belief_update_rate,
@@ -275,7 +275,7 @@ class IntuitionEngine:
             "reasoning_mode": reasoning_mode,
         }
         belief_context = {
-            "dream_mode": "none",
+            "nexus_mode": "none",
             "quantum_allowed": quantum_allowed,
             "area_count": len(area_signals),
             "top_areas": top_areas,
@@ -306,10 +306,10 @@ class IntuitionEngine:
             "revision_bias": revision_bias,
             "reasoning_mode": reasoning_mode,
         }
-        if isinstance(dream, dict):
-            belief = dream.get("belief", {})
+        if isinstance(nexus, dict):
+            belief = nexus.get("belief", {})
             if isinstance(belief, dict):
-                belief_context["dream_mode"] = belief.get("mode", "none")
+                belief_context["nexus_mode"] = belief.get("mode", "none")
         if quantum_allowed:
             belief_update = self.belief_layer.update(
                 prior={"case_id": case_id, "candidate_count": len(inductive_candidates)},
@@ -324,7 +324,7 @@ class IntuitionEngine:
             "contradiction_revision": contradiction_revision,
             "candidate_scores": candidate_scores,
             "inductive_candidates": inductive_candidates,
-            "dream_alternatives": alternative_hypotheses,
+            "nexus_alternatives": alternative_hypotheses,
             "deductive_filter": deductive_filter,
             "belief_update": belief_update,
             "area_signals": area_signals,
@@ -352,7 +352,7 @@ class IntuitionEngine:
             "mismatch_index": deductive.get("mismatch_index", 0.0),
             "inhibitory_control": deductive.get("inhibitory_control", 0.0),
             "deductive_gate": deductive.get("deductive_gate", 0.0),
-            "dream_plasticity": deductive.get("dream_plasticity", 0.0),
+            "nexus_plasticity": deductive.get("nexus_plasticity", 0.0),
             "candidate_temperature": deductive.get("candidate_temperature", 1.0),
             "belief_update_rate": deductive.get("belief_update_rate", 0.0),
             "interdependence_index": deductive.get("interdependence_index", 0.0),

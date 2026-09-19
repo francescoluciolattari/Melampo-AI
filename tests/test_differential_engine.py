@@ -9,7 +9,7 @@ def test_differential_engine_counts_evidence():
             "candidate_scores": [{"label": "candidate_1", "score": 1.2}],
             "deductive_filter": {"reasoning_mode": "rapid_intuition"},
         },
-        dream={
+        nexus={
             "alternative_hypotheses": [{"label": "alt_1", "kind": "rare_case", "focus": "epidemiology"}],
             "rehearsal_profile": {"coherence_guidance": "multimodal_support", "boundary_case_hint": True},
         },

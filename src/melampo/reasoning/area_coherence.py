@@ -7,7 +7,6 @@ from typing import Any
 
 from .neuro_dynamics import NeuroDynamicMetrics
 
-
 _TOKEN_RE = re.compile(r"[a-zA-Z0-9_:-]{3,}")
 _POSITIVE_POLARITIES = {"present", "positive", "observed", "detected", "suspected", "supports", "increased"}
 _NEGATIVE_POLARITIES = {"absent", "negative", "negated", "ruled_out", "excluded", "decreased", "denies"}
@@ -249,7 +248,7 @@ class AreaCoherenceAnalyzer:
             "normalized_pair_salience": round(_clamp(pair_salience / max(total_salience + 1.0, 1.0)), 3),
         }
 
-    def analyze(self, area_signals: dict, dream_pressure: float = 0.0) -> dict:
+    def analyze(self, area_signals: dict, nexus_pressure: float = 0.0) -> dict:
         names = sorted(area_signals.keys())
         coherence_pairs: list[tuple[str, str]] = []
         mismatch_pairs: list[tuple[str, str]] = []
@@ -280,7 +279,7 @@ class AreaCoherenceAnalyzer:
             coherence_score=coherence_score,
             mismatch_score=mismatch_score,
             total_salience=total_salience,
-            dream_pressure=dream_pressure,
+            nexus_pressure=nexus_pressure,
             area_signals=area_signals,
         )
         return {
@@ -299,7 +298,7 @@ class AreaCoherenceAnalyzer:
             "mismatch_index": neuro_dynamic_metrics["mismatch_index"],
             "deductive_gate": neuro_dynamic_metrics["deductive_gate"],
             "revision_pressure": neuro_dynamic_metrics["revision_pressure"],
-            "dream_plasticity": neuro_dynamic_metrics["dream_plasticity"],
+            "nexus_plasticity": neuro_dynamic_metrics["nexus_plasticity"],
             "interdependence_index": neuro_dynamic_metrics["interdependence_index"],
             "evidence_integration_score": neuro_dynamic_metrics["evidence_integration_score"],
             "noise_suppression_score": neuro_dynamic_metrics["noise_suppression_score"],

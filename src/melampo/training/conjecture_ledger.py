@@ -1,6 +1,6 @@
 """Conjectures: intuitive leaps that become knowledge when they prove true.
 
-The dream branch makes leaps — connections between two concepts that no edge
+The nexus branch makes leaps — connections between two concepts that no edge
 states directly, reached through a shared mechanism or a longer chain. Expertise
 research describes this as what clinical intuition actually is: not a random
 association but pattern recognition over encapsulated knowledge, a link whose

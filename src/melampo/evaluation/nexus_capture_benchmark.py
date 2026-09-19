@@ -1,4 +1,4 @@
-"""B4 phase one: does the dream branch catch diagnoses the differential misses?
+"""B4 phase one: does the nexus branch catch diagnoses the differential misses?
 
 The claim under test contains two questions, and only the second needs a
 clinician. The first — do the enumerated hypotheses capture diagnoses the main

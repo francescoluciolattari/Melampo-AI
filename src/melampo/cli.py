@@ -226,7 +226,10 @@ def main_openi(argv: list[str] | None = None) -> int:
 
 
 def main_weaviate_schema(argv: list[str] | None = None) -> int:
-    from .memory.weaviate_adapter import WeaviateAdapterConfig, WeaviateSemanticMemoryAdapter
+    from .memory.weaviate_adapter import (
+        WeaviateAdapterConfig,
+        WeaviateSemanticMemoryAdapter,
+    )
 
     parser = build_weaviate_schema_parser()
     args = parser.parse_args(argv)

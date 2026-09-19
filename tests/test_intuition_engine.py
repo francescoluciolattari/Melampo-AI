@@ -11,7 +11,7 @@ def test_intuition_engine_returns_candidate_and_belief_mode():
     payload = engine.infer(
         case_id="case-1",
         ranked_evidence=ranked_evidence,
-        dream={"belief": {"mode": "quantum_like_belief_update"}},
+        nexus={"belief": {"mode": "quantum_like_belief_update"}},
         quantum_allowed=True,
     )
     assert payload["intuition"] == "candidate_1"

@@ -132,9 +132,9 @@ class ClinicalSafetyRails:
             reasons.append("policy_abstain_not_reflected_in_result_label")
         if "not a validated medical device" not in warning.lower() and "research output" not in warning.lower():
             reasons.append("clinical_research_warning_missing")
-        dream = diagnostic_result.get("dream", {}) if isinstance(diagnostic_result, dict) else {}
-        if isinstance(dream, dict) and dream.get("accepted") and dream.get("auto_evolution_plan", {}).get("status") == "candidate" and result_label not in {"abstain_or_escalate", ""}:
-            actions.append("verify_dream_candidate_not_used_as_clinical_fact")
+        nexus = diagnostic_result.get("nexus", {}) if isinstance(diagnostic_result, dict) else {}
+        if isinstance(nexus, dict) and nexus.get("accepted") and nexus.get("auto_evolution_plan", {}).get("status") == "candidate" and result_label not in {"abstain_or_escalate", ""}:
+            actions.append("verify_nexus_candidate_not_used_as_clinical_fact")
         status = "block" if reasons else "pass"
         if actions and status == "pass":
             status = "warn"

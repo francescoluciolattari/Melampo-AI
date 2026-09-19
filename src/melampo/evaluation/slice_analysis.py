@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 
 def _as_rows(records: Any) -> list[dict[str, Any]]:
     if records is None:
         return []
     if hasattr(records, "records"):
-        return list(getattr(records, "records"))
+        return list(records.records)
     if isinstance(records, dict) and isinstance(records.get("records"), list):
         return list(records["records"])
     return [dict(item) for item in records]

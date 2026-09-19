@@ -12,9 +12,7 @@ class CritiqueLoop:
             category = action.get("category", "confirmation_test") if isinstance(action, dict) else "confirmation_test"
             label = action.get("label", str(action)) if isinstance(action, dict) else str(action)
             priority = "medium"
-            if category == "multimodal_reconciliation" and mismatch_score > 0.5:
-                priority = "high"
-            elif category == "disambiguation_test" and reasoning_mode == "contradiction_revision":
+            if category == "multimodal_reconciliation" and mismatch_score > 0.5 or category == "disambiguation_test" and reasoning_mode == "contradiction_revision":
                 priority = "high"
             elif category == "confirmation_test":
                 priority = "medium"
@@ -26,7 +24,7 @@ class CritiqueLoop:
     def review(self, draft: dict) -> dict:
         intuition = draft.get("intuition", {}) if isinstance(draft, dict) else {}
         area_dynamics = draft.get("area_dynamics", {}) if isinstance(draft, dict) else {}
-        dream = draft.get("dream", {}) if isinstance(draft, dict) else {}
+        nexus = draft.get("nexus", {}) if isinstance(draft, dict) else {}
         coordinated = draft.get("coordinated", {}) if isinstance(draft, dict) else {}
         differential = coordinated.get("differential", {}) if isinstance(coordinated, dict) else {}
         contradiction_profiles = differential.get("contradiction_profiles", [])
@@ -41,7 +39,7 @@ class CritiqueLoop:
             warnings.append("high_cross_area_mismatch")
         if reasoning_mode == "contradiction_revision":
             warnings.append("contradiction_revision_active")
-        if dream.get("rehearsal_profile", {}).get("boundary_case_hint", False):
+        if nexus.get("rehearsal_profile", {}).get("boundary_case_hint", False):
             warnings.append("boundary_case_review")
         if "useful_contradiction" in contradiction_classes:
             warnings.append("useful_contradiction_detected")

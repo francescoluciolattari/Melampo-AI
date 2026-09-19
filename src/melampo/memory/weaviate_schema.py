@@ -236,7 +236,7 @@ class MelampoWeaviateSchema:
             "backend": "Weaviate",
             "classes": [class_schema.as_dict() for class_schema in self.classes()],
             "governance": {
-                "dream_generated_records_default_status": "candidate",
+                "nexus_generated_records_default_status": "candidate",
                 "promotion_requires": [
                     "rational_control_validation",
                     "source_or_synthetic_provenance",

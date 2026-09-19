@@ -6,7 +6,7 @@ sixteen hand-written English terms mapped to invented references
 (``"cough": "Symptom:Cough"``). Nothing connected the two, so every traversal
 started from a concept the graph had never heard of.
 
-That failure is dangerous because of how it presents. The dream branch produces
+That failure is dangerous because of how it presents. The nexus branch produces
 nothing, local density reads zero, and the obvious reading is "the graph is too
 sparse" — while the graph holds hundreds of thousands of edges, none of them
 reachable. A resolution gap and a coverage gap look identical from the outside
