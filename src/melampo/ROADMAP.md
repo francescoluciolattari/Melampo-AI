@@ -273,6 +273,20 @@ parte da questo blocco (vedi sotto).
 
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
+**Innesco periodico reale costruito** (`scripts/run_low_activity_maintenance.py`).
+Richiedeva più di quanto sembrasse: rendere persistente
+`NexusCandidateStore` non bastava — un lavoro sta nella **coda** di
+`NexusScheduler` prima ancora di diventare un record, e quella coda era
+rimasta solo in memoria. Trovato eseguendo lo script per davvero, con
+due processi genuinamente separati, non presunto. Resa persistente
+anche la coda, stesso schema a eventi. **Dichiarato esplicitamente nello
+script**: non è un candidato per GitHub Actions (a differenza
+dell'aggiornamento della letteratura) — un esecutore CI getta via il
+proprio disco ad ogni esecuzione, e questo deposito è stato scritto in
+tempo reale dal servizio live, non dati di riferimento versionati.
+
+
+
 **Instradamento dei casi in sospeso costruito e collegato**
 (`training/pending_case_router.py`, agganciato dentro `clinical_pipeline.py`,
 non ancora dentro il vero D1 — che resta da ricostruire). Ogni `payload`
