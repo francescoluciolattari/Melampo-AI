@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..memory.encrypted_store import EncryptedJsonlStore
 from ..memory.vector_memory import InMemoryVectorStore
 from .nexus_candidate_store import NexusCandidateStore
 from .promotion_policy import PromotionPolicy
@@ -84,6 +85,53 @@ class NexusScheduler:
     low_activity_policy: LowActivityPolicy = field(default_factory=LowActivityPolicy)
     queue: list[NexusReplayJob] = field(default_factory=list)
     execution_log: list[dict[str, Any]] = field(default_factory=list)
+    password: str | None = None
+    path: Any = None
+    _encrypted_store: EncryptedJsonlStore | None = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Optional persistence for the queue itself -- the gap found running the real trigger script for the first time.
+
+        Making NexusCandidateStore persistent was not enough on its own:
+        candidate_store only gains a record once _execute_job() has
+        already processed a job, but the queue a job sits in *before*
+        that -- enqueue()'s own self.queue list -- was still pure
+        in-memory, per-process. A periodic trigger running as a genuinely
+        separate process (scripts/run_low_activity_maintenance.py) would
+        see an empty queue even when the live service had enqueued real
+        work, because that work only ever existed in the live service's
+        own process memory. Same event-sourced pattern as
+        NexusCandidateStore, same reason: password/path default to None,
+        so every existing caller (NexusScheduler() with no arguments)
+        keeps working exactly as before.
+        """
+        if self.password is None or self.path is None:
+            return
+        self._encrypted_store = EncryptedJsonlStore(path=self.path, password=self.password)
+        self._load_queue_from_disk()
+
+    def _load_queue_from_disk(self) -> None:
+        latest_by_id: dict[str, dict[str, Any]] = {}
+        for event in self._encrypted_store.load():
+            latest_by_id[event["job_id"]] = event["job"]
+        self.queue = [
+            NexusReplayJob(
+                job_id=data["job_id"],
+                case_context=dict(data.get("case_context", {})),
+                area_dynamics=dict(data.get("area_dynamics", {})),
+                nexus=dict(data.get("nexus", {})),
+                retrieval_context=dict(data.get("retrieval_context", {})),
+                governance_scores=dict(data.get("governance_scores", {})),
+                scheduled_at=float(data.get("scheduled_at", time.time())),
+                status=str(data.get("status", "queued")),
+            )
+            for data in latest_by_id.values()
+        ]
+
+    def _persist_job(self, job: NexusReplayJob) -> None:
+        if self._encrypted_store is None:
+            return
+        self._encrypted_store.append({"job_id": job.job_id, "job": job.as_dict()})
 
     def enqueue(
         self,
@@ -105,6 +153,7 @@ class NexusScheduler:
         )
         self.queue.append(job)
         self.execution_log.append({"event": "job_enqueued", "job_id": job.job_id, "timestamp": scheduled_at})
+        self._persist_job(job)
         return job
 
     def enqueue_many(self, cases: Iterable[dict[str, Any]]) -> list[NexusReplayJob]:
@@ -178,6 +227,7 @@ class NexusScheduler:
             learning_status=memory_doc["learning_status"],
         )
         job.status = "completed"
+        self._persist_job(job)
         result = {
             "job": job.as_dict(),
             "candidate": record_payload,

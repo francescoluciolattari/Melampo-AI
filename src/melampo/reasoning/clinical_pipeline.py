@@ -88,6 +88,7 @@ def _area_uncertainty(area_signals: dict[str, Any]) -> float:
 
 
 DEFAULT_NEXUS_CANDIDATE_STORE_PATH = "data/nexus_candidates.jsonl"
+DEFAULT_NEXUS_QUEUE_PATH = "data/nexus_queue.jsonl"
 
 
 def _build_nexus_candidate_store() -> NexusCandidateStore:
@@ -405,7 +406,12 @@ class ClinicalInferencePipeline:
         infrastructure, not part of this change.
         """
         if self._nexus_scheduler is None:
-            self._nexus_scheduler = NexusScheduler(candidate_store=_build_nexus_candidate_store())
+            password = os.environ.get("DB_PASSWORD")
+            scheduler_kwargs: dict[str, Any] = {"candidate_store": _build_nexus_candidate_store()}
+            if password:
+                scheduler_kwargs["password"] = password
+                scheduler_kwargs["path"] = Path(DEFAULT_NEXUS_QUEUE_PATH)
+            self._nexus_scheduler = NexusScheduler(**scheduler_kwargs)
         return self._nexus_scheduler
 
     def _nexus_enumerator_instance(self) -> Any:

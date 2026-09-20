@@ -3736,3 +3736,51 @@ stesso caso — la proprietà che serviva davvero, non solo che il
 meccanismo esista in isolamento.
 
 7 nuovi test, 1457 totali passanti, lint pulito.
+
+### L'innesco periodico reale — un secondo problema trovato solo eseguendolo per davvero
+
+Costruito `scripts/run_low_activity_maintenance.py`, seguendo la
+convenzione già usata in `scripts/` (intestazione, lettura di segreti
+dall'ambiente, mai come argomento). Chiama `NexusScheduler.run_once()` e
+`sweep_expired_pending_cases()` — entrambe esistevano e funzionavano, ma
+nessun processo le richiamava mai.
+
+**Una dichiarazione esplicita, non lasciata da scoprire**: a differenza
+del flusso di aggiornamento della letteratura
+(`.github/workflows/data-and-dependency-updates.yml`, che commette il
+proprio output su git perché un esecutore GitHub Actions getta via il
+disco ad ogni esecuzione), questo script **non è un candidato per
+GitHub Actions**. Il deposito di `NexusCandidateStore` deve essere lo
+stesso file che il servizio live scrive in tempo reale — un esecutore
+CI che parte da un checkout pulito vedrebbe un deposito vuoto o
+obsoleto, e qualunque elaborazione farebbe sparirebbe alla fine del
+lavoro invece di raggiungere mai il servizio live. La letteratura è
+dato di riferimento versionato, aggiornato occasionalmente; questo è
+stato applicativo vivo, aggiornato da ogni caso che il servizio live
+elabora — per il primo, "committi il risultato su git" è una strategia
+di persistenza ragionevole; per il secondo, no.
+
+**Un secondo problema, trovato solo eseguendo lo script con due processi
+davvero separati, non presunto**: la prima esecuzione end-to-end ha dato
+`processed_jobs: 0` nonostante un caso reale fosse stato appena
+elaborato. Causa: rendere persistente `NexusCandidateStore` non bastava
+— un lavoro vive nella **coda** di `NexusScheduler` (`self.queue`)
+prima ancora di diventare un record nel deposito, e quella coda era
+rimasta puramente in memoria, per processo. Un secondo processo,
+davvero separato (lo script), vedeva sempre una coda vuota, perché il
+lavoro accodato dal servizio live esisteva solo nella memoria di
+**quel** processo.
+
+**Corretto con lo stesso schema**: `NexusScheduler` guadagna gli stessi
+`password`/`path` opzionali, con la stessa sorgente di eventi già usata
+per `NexusCandidateStore` — ogni chiamata a `enqueue()` e ogni
+completamento di `_execute_job()` si aggiunge come evento, l'ultimo per
+`job_id` vince al caricamento.
+
+**Verificato con due processi Python davvero separati, non simulati**:
+il primo elabora un caso reale e termina; lo script, invocato
+separatamente, trova ed elabora quel lavoro con successo
+(`processed_jobs: 1`).
+
+13 nuovi test (7 per la persistenza del deposito candidati, 6 per la
+coda), 1463 totali passanti, lint pulito.
