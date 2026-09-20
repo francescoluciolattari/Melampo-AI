@@ -3611,3 +3611,34 @@ unisce i referti nell'ordine giusto.
 22 nuovi test (`pending_case_router.py`, i nuovi metodi di
 `NexusCandidateStore`, tre test end-to-end nella pipeline reale), 1425
 totali passanti, lint pulito.
+
+### Conservazione dei casi confermati — corretta: non cancellazione, conservazione protetta e anonimizzata
+
+Corretto direttamente un passaggio di progettazione precedente che
+presupponeva la cancellazione dei dati grezzi dopo l'addestramento:
+**i dati vanno conservati**, protetti in due modi indipendenti, non uno
+solo.
+
+**Cifrato a riposo, riusando `memory/encrypted_store.py`** — lo stesso
+meccanismo già costruito per la cache UMLS, stesso segreto `DB_PASSWORD`
+(verificato: esiste davvero, già in uso), stessa chiave derivata via
+PBKDF2, stessa cifratura Fernet riga per riga. Non un meccanismo nuovo —
+uno in meno da controllare.
+
+**Anonimizzato prima ancora di scrivere, sopra la cifratura, non al suo
+posto**: nome, cognome, codice fiscale sostituiti con un HMAC-SHA256,
+con `DB_PASSWORD` come chiave — non un hash semplice, che per un nome
+comune sarebbe reversibile per confronto con un dizionario a prescindere
+da quanto sia cifrato il file attorno. Usare lo stesso segreto come
+chiave dell'HMAC significa che invertire un nome anonimizzato richiede
+lo stesso segreto che servirebbe già per decifrare il record — una
+seconda barriera indipendente, non un passaggio in più che la stessa
+violazione che rompe la prima vanificherebbe comunque.
+
+Verificato: lo stesso valore con la stessa password produce sempre lo
+stesso hash (coerenza, utile per un futuro confronto); la stessa
+password sbagliata sul deposito solleva `WrongPasswordError`, mai una
+lettura silenziosamente corrotta; nessun nome/cognome/codice fiscale in
+chiaro nel file cifrato, verificato leggendo i byte grezzi.
+
+11 nuovi test, 1436 totali passanti, lint pulito.
