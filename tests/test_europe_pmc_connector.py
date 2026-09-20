@@ -134,6 +134,51 @@ def test_populate_adds_results_directly_to_an_index():
     assert len(index) == 1
 
 
+def test_populate_forwards_graph_as_source_graph_to_a_graph_aware_index():
+    """FalkorLiteratureIndex.add_many() requires source_graph to link
+    passages to the concepts they mention -- populate() must thread the
+    graph parameter through, not silently drop it."""
+
+    class _RecordingIndex:
+        def __init__(self):
+            self.calls = []
+
+        def add_many(self, passages, source_graph=None):
+            self.calls.append((list(passages), source_graph))
+            return len(passages)
+
+    connector = EuropePmcConnector()
+    connector._fetch_page = lambda q, c: {"resultList": {"result": [_record()]}, "nextCursorMark": None}
+    index = _RecordingIndex()
+    sentinel_graph = object()
+
+    connector.populate(index, "sarcoidosis", graph=sentinel_graph)
+
+    assert index.calls[0][1] is sentinel_graph
+
+
+def test_populate_skips_the_jsonl_store_when_graph_is_given():
+    """graph and store both persist -- passing graph means the index (e.g.
+    FalkorLiteratureIndex) persists itself, so writing to a separate JSONL
+    store too would duplicate the same passages into two disconnected
+    backends."""
+
+    class _StubIndex:
+        def add_many(self, passages, source_graph=None):
+            return len(list(passages))
+
+    connector = EuropePmcConnector()
+    connector._fetch_page = lambda q, c: {"resultList": {"result": [_record()]}, "nextCursorMark": None}
+
+    persisted = []
+    with __import__("unittest.mock", fromlist=["patch"]).patch(
+        "melampo.memory.literature_persistence.persist_passage", side_effect=lambda store, passage: persisted.append(passage)
+    ):
+        connector.populate(_StubIndex(), "sarcoidosis", store=object(), graph=object())
+
+    assert persisted == []
+
+
 # --------------------------------------------------------------------------
 # RateLimiter: paced, never blocking when unnecessary
 # --------------------------------------------------------------------------
