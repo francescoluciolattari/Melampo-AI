@@ -88,3 +88,57 @@ def test_a_confirmed_diagnosis_for_a_pending_case_is_recognised_but_not_yet_acte
     result = pipeline.run({"case_id": "case-pending-3", "confirmed_diagnosis": "Sarcoidosis"})
 
     assert result["pending_case_routing"]["action"] == "confirm_and_train"
+
+
+# --------------------------------------------------------------------------
+# patient_matching.py's fallback, exercised through the real pipeline:
+# a second submission for the same patient, with no case_id known, still
+# finds and merges into the first case.
+# --------------------------------------------------------------------------
+
+
+def test_a_second_submission_with_no_case_id_finds_the_same_patient(monkeypatch, tmp_path):
+    monkeypatch.setenv("DB_PASSWORD", "test-secret")
+    monkeypatch.chdir(tmp_path)
+    runtime = build_default_runtime()
+    pipeline = runtime.pipeline
+
+    first = pipeline.run({
+        "report_text": "Initial findings.",
+        "patient_name": "Mario", "patient_surname": "Rossi",
+        "case_date": "2026-09-20", "diagnostic_question": "Evaluate for aortic root aneurysm",
+    })
+    generated_case_id = first["pending_case_routing"]["case_id"]
+    assert generated_case_id != ""
+    pipeline._nexus_scheduler_instance().run_once(activity={"active_requests": 0, "idle_seconds": 100})
+
+    second = pipeline.run({
+        "report_text": "Follow-up CT.",
+        "patient_name": "MARIO", "patient_surname": "  Rossi  ",
+        "case_date": "2026-09-20", "diagnostic_question": "Suspected aortic root aneurysm",
+    })
+
+    assert second["pending_case_routing"]["action"] == "merge_and_rerun"
+    assert second["pending_case_routing"]["case_id"] == generated_case_id
+
+
+def test_a_different_patient_same_date_is_treated_as_a_new_case(monkeypatch, tmp_path):
+    monkeypatch.setenv("DB_PASSWORD", "test-secret")
+    monkeypatch.chdir(tmp_path)
+    runtime = build_default_runtime()
+    pipeline = runtime.pipeline
+
+    pipeline.run({
+        "report_text": "Initial findings.",
+        "patient_name": "Mario", "patient_surname": "Rossi",
+        "case_date": "2026-09-20", "diagnostic_question": "Evaluate for aortic root aneurysm",
+    })
+    pipeline._nexus_scheduler_instance().run_once(activity={"active_requests": 0, "idle_seconds": 100})
+
+    other = pipeline.run({
+        "report_text": "Unrelated report.",
+        "patient_name": "Luigi", "patient_surname": "Verdi",
+        "case_date": "2026-09-20", "diagnostic_question": "Evaluate for aortic root aneurysm",
+    })
+
+    assert other["pending_case_routing"]["action"] == "new_case"

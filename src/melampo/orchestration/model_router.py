@@ -67,6 +67,8 @@ class ModelRouter:
     """D1. Two entry points, called at two different points in clinical_pipeline.run() -- see pick_pending_case and pick_mode."""
 
     candidate_store: NexusCandidateStore
+    graph: Any = None
+    password: str | None = None
 
     def pick_pending_case(self, payload: dict[str, Any]) -> RoutingDecision:
         """Whether this payload is new, more data for a pending case, or a confirmation -- callable early.
@@ -77,8 +79,15 @@ class ModelRouter:
         for the rest of the pipeline to use -- area_dynamics and
         governance_scores, which pick_mode() needs, do not exist yet at
         that point.
+
+        self.graph/self.password, when configured, let route_payload()
+        fall back to patient-identifier matching (fiscal code, or
+        name+surname+date+diagnostic question together) when case_id is
+        absent or matches nothing -- see patient_matching.py. Without
+        them, matching stays case_id-only, exactly as before that
+        capability existed.
         """
-        return route_payload(payload, self.candidate_store)
+        return route_payload(payload, self.candidate_store, graph=self.graph, password=self.password)
 
     def pick_mode(
         self,

@@ -146,3 +146,113 @@ def test_the_default_retention_is_exactly_one_year():
     from melampo.training.pending_case_router import DEFAULT_RETENTION_SECONDS
 
     assert DEFAULT_RETENTION_SECONDS == 365 * 24 * 60 * 60
+
+
+# --------------------------------------------------------------------------
+# case_id generation for new_case: found necessary while verifying end to
+# end through the real pipeline -- ingestion.from_payload() requires
+# payload["case_id"] to already be present, which a payload identified
+# only by patient fields (no case_id yet) does not have.
+# --------------------------------------------------------------------------
+
+
+def test_a_payload_with_no_case_id_and_no_match_gets_one_generated():
+    store = NexusCandidateStore()
+    decision = route_payload({"report_text": "no id given"}, store)
+    assert decision.action == "new_case"
+    assert decision.case_id != ""
+
+
+def test_a_payload_with_an_explicit_case_id_keeps_it_unchanged():
+    store = NexusCandidateStore()
+    decision = route_payload({"case_id": "given-id", "report_text": "x"}, store)
+    assert decision.case_id == "given-id"
+
+
+def test_two_separate_new_case_payloads_get_different_generated_ids():
+    store = NexusCandidateStore()
+    first = route_payload({"report_text": "a"}, store)
+    second = route_payload({"report_text": "b"}, store)
+    assert first.case_id != second.case_id
+
+
+# --------------------------------------------------------------------------
+# route_payload's patient-identifier fallback: only attempted when graph
+# and password are both supplied, and only when case_id itself found
+# nothing.
+# --------------------------------------------------------------------------
+
+
+def _store_with_patient_identifiers(case_id="case-1", status="needs_review"):
+    from melampo.training.patient_matching import PatientIdentifiers
+
+    store = NexusCandidateStore()
+    identifiers = PatientIdentifiers.from_payload(
+        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
+         "diagnostic_question": "Evaluate for aortic root aneurysm"},
+        password="secret",
+    )
+    store.create_candidate(
+        payload={
+            "case_context": {"case_id": case_id, "report_text": "Initial findings."},
+            "patient_identifiers": identifiers.as_dict(),
+        },
+        case_id=case_id, learning_status=status,
+    )
+    return store
+
+
+def _real_graph():
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    return InMemoryConceptGraph.from_edges(
+        [ConceptEdge("Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9)]
+    )
+
+
+def test_patient_identifier_fallback_finds_a_case_with_no_case_id_given():
+    store = _store_with_patient_identifiers()
+    decision = route_payload(
+        {"patient_name": "MARIO", "patient_surname": "Rossi", "case_date": "2026-09-20",
+         "diagnostic_question": "Suspected aortic root aneurysm"},
+        store, graph=_real_graph(), password="secret",
+    )
+    assert decision.action == "merge_and_rerun"
+    assert decision.case_id == "case-1"
+
+
+def test_patient_identifier_fallback_is_skipped_without_graph_or_password():
+    store = _store_with_patient_identifiers()
+    decision = route_payload(
+        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
+         "diagnostic_question": "Suspected aortic root aneurysm"},
+        store,
+    )
+    assert decision.action == "new_case"
+
+
+def test_graph_may_be_a_lazy_callable_resolved_only_when_needed():
+    store = _store_with_patient_identifiers()
+    calls = {"n": 0}
+
+    def lazy_graph():
+        calls["n"] += 1
+        return _real_graph()
+
+    decision = route_payload(
+        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
+         "diagnostic_question": "Suspected aortic root aneurysm"},
+        store, graph=lazy_graph, password="secret",
+    )
+    assert decision.action == "merge_and_rerun"
+    assert calls["n"] == 1
+
+
+def test_the_lazy_graph_callable_is_never_invoked_when_case_id_matches_directly():
+    store = _pending_store()  # keyed by case_id, no patient_identifiers stored
+
+    def unexpected_call():
+        raise AssertionError("graph should not be resolved when case_id matched directly")
+
+    decision = route_payload({"case_id": "case-1", "report_text": "more data"}, store, graph=unexpected_call, password="secret")
+    assert decision.action == "merge_and_rerun"
