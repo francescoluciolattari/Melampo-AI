@@ -24,6 +24,7 @@ from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.mechanism_enumeration import MechanismEnumerator
 from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
+from ..training.pending_case_router import route_payload
 from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
 from .area_coherence import AreaCoherenceAnalyzer
@@ -510,6 +511,25 @@ class ClinicalInferencePipeline:
 
     def run(self, payload: dict) -> dict:
         case = self.ingestion.from_payload(payload)
+        # The check this whole redesign was built for: does this payload's
+        # case_id already have an open needs_review record? Reuses the
+        # SAME NexusCandidateStore the promotion chain writes to
+        # (via _nexus_scheduler_instance().candidate_store), not a second,
+        # disconnected store -- a case flagged here as pending is the same
+        # case NexusScheduler.run_once() would later act on.
+        #
+        # "confirm_and_train" is recognised but not executed here,
+        # deliberately: it needs the training-extraction and
+        # raw-data-deletion pipeline (outcome_feedback.py,
+        # preference_pairs.py, and the retention decision in
+        # recursive_engine_decision_record.md), which is separate,
+        # not-yet-built work -- the same caution applied to
+        # _auto_evolution_plan before touching it. The decision is
+        # attached to the result so a caller (or D1, once it exists) can
+        # act on it rather than it being silently dropped.
+        pending_case_routing = route_payload(payload, self._nexus_scheduler_instance().candidate_store)
+        if pending_case_routing.action == "merge_and_rerun" and pending_case_routing.merged_report_text is not None:
+            case.report_text = pending_case_routing.merged_report_text
         bundle = self.normalizer.to_fhir_bundle(case)
         components = self._build_runtime_components()
         text_features, volume_features, pathology_features, fused = self._encode_modalities(case)
@@ -633,4 +653,5 @@ class ClinicalInferencePipeline:
             retrieval=retrieval,
             ranked_evidence=ranked_evidence,
         )
+        pipeline_result["pending_case_routing"] = pending_case_routing.as_dict()
         return pipeline_result
