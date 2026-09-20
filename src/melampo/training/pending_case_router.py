@@ -24,11 +24,13 @@ those stay where they already are, called by whoever invokes this first.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from .nexus_candidate_store import NexusCandidateRecord, NexusCandidateStore
+from .patient_matching import find_matching_pending_records
 
 PENDING_STATUSES = ("candidate", "needs_review")
 
@@ -74,21 +76,53 @@ def merge_report_text(previous_text: str, new_text: str, *, new_date: str | None
     )
 
 
-def route_payload(payload: dict[str, Any], store: NexusCandidateStore) -> RoutingDecision:
+def route_payload(
+    payload: dict[str, Any], store: NexusCandidateStore, *, graph: Any = None, password: str | None = None
+) -> RoutingDecision:
     """Whether this payload is a new case, more data for a pending one, or a confirmation for one.
 
-    A payload is treated as referring to a pending case only when its
-    case_id matches an existing needs_review/candidate record -- a case_id
-    Melampo itself assigned when the case was first analysed, never a
-    name, date of birth or clinical narrative match. Confirmation is
-    signalled by `confirmed_diagnosis` being present in the payload; its
-    absence with a matching case_id means more diagnostic data arrived
-    instead.
+    case_id is tried first, unchanged. When it is absent or matches
+    nothing, and both `graph` and `password` are supplied, falls back to
+    patient_matching.find_matching_pending_records() -- fiscal code, or
+    name+surname+date+diagnostic question together (see that module's own
+    docstring for why never any one alone, and why a cryptographic hash
+    cannot be matched "approximately"). Without graph/password, this
+    fallback is skipped entirely and behaviour is exactly what it was
+    before this existed -- case_id only.
+
+    `graph` may be a ConceptGraphView directly, or a zero-argument
+    callable returning one -- resolved only inside this fallback branch,
+    never on the case_id-matched path. Found necessary, not a stylistic
+    choice: an earlier version required a resolved graph always, and
+    clinical_pipeline.py's caller had to load the real ~6s HPO graph on
+    every single case just to have one ready, even the vast majority that
+    never reach this fallback at all.
+
+    Confirmation is signalled by `confirmed_diagnosis` being present in
+    the payload; its absence with a matching case (by either route) means
+    more diagnostic data arrived instead.
     """
     case_id = str(payload.get("case_id") or "")
     existing = store.find_by_case_id(case_id, statuses=PENDING_STATUSES) if case_id else None
 
+    if existing is None and graph is not None and password:
+        resolved_graph = graph() if callable(graph) else graph
+        matches = find_matching_pending_records(payload, store, resolved_graph, password, statuses=PENDING_STATUSES)
+        if matches:
+            existing = max(matches, key=lambda record: record.created_at)
+            case_id = existing.case_id
+
     if existing is None:
+        # A payload can genuinely arrive with no case_id at all -- exactly
+        # the scenario this whole matching mechanism exists for, an
+        # external system that does not know Melampo's own id yet.
+        # ingestion.from_payload() requires case_id to be present (raises
+        # KeyError otherwise, verified directly, not assumed) -- so when
+        # nothing was found above, one is generated here rather than left
+        # for the caller to discover the gap the hard way. A caller that
+        # already had a case_id keeps it unchanged.
+        if not case_id:
+            case_id = f"case-{uuid.uuid4().hex}"
         return RoutingDecision(action="new_case", case_id=case_id)
 
     if payload.get("confirmed_diagnosis"):

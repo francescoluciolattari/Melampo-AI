@@ -3833,3 +3833,61 @@ integrazione non affrontato in questo cambiamento.
 16 nuovi test, entrambe le vie verificate end-to-end con dati reali (non
 solo test isolati) prima di scrivere la suite permanente, 1479 totali
 passanti, lint pulito.
+
+### Abbinamento del paziente senza `case_id` — costruito, con tre difetti reali trovati e corretti durante la verifica
+
+Progettato insieme, con due correzioni tecniche fatte prima di scrivere
+qualunque logica di abbinamento: un hash crittografico non ha una
+nozione di "vicinanza" (HMAC-SHA256 è progettato apposta perché un
+carattere diverso produca un digest completamente diverso — l'effetto
+valanga, proprio ciò che lo rende sicuro); e l'unico incorporamento
+testuale di questo progetto (`vector_memory.py:_text_embedding()`) non è
+semantico — dichiarato esplicitamente nel proprio codice come
+"deterministic local fallback... intentionally simple". Riusato invece
+lo stesso principio già collaudato per la letteratura: corrispondenza
+per concetti reali del grafo, non incorporamento vettoriale.
+
+**`training/patient_matching.py`**: codice fiscale come corrispondenza
+esatta preferita, quando presente; altrimenti nome+cognome (hash
+separati — mai concatenati, si romperebbero silenziosamente su ordine o
+spaziatura diversi — normalizzati: minuscolo, accenti rimossi via NFKD,
+spazi interni collassati) + data esatta + quesito diagnostico, **tutti
+e quattro richiesti insieme**.
+
+**Un limite trovato durante la verifica, non presunto**: il grafo HPO ha
+nomi di concetti in inglese ("Aortic root aneurysm"), mentre un quesito
+diagnostico italiano non troverebbe mai corrispondenza tramite
+`mentioned_concepts()`. Aggiunto un ripiego trasparente a sovrapposizione
+di parole normalizzate — non un altro incorporamento nascosto — usato
+solo quando il grafo non riconosce nulla in nessuna delle due lingue.
+
+**Tre difetti trovati eseguendo davvero il codice, non teorici**:
+1. Una mia sostituzione di testo ha cancellato per errore la riga
+   `def identifiers_match(...)`, lasciando il corpo della funzione
+   orfano — sintatticamente valido (un modulo può contenere
+   un'espressione stringa isolata), ma la funzione era sparita dal
+   modulo. Trovato subito dalla suite di test.
+2. Una prima versione risolveva il grafo reale (~6 secondi di
+   caricamento) dentro `_model_router_instance()`, chiamato ora da ogni
+   caso — la suite intera è passata da 26 a 125 secondi. Corretto
+   passando il grafo come funzione richiamabile, risolta solo quando il
+   ripiego per identificazione del paziente serve davvero.
+3. **Il più importante**: `ingestion.from_payload()` richiede
+   `payload["case_id"]` sempre presente (solleva `KeyError` altrimenti)
+   — ma il caso d'uso principale di questo lavoro (un sistema esterno
+   che non conosce ancora il case_id di Melampo) non lo fornisce mai.
+   Trovato eseguendo per davvero lo scenario a due processi, non da
+   ispezione del codice. Corretto riordinando `run()`:
+   `pick_pending_case()` gira ora **prima** dell'ingestione, sul payload
+   grezzo, e genera un `case_id` nuovo quando nessuna corrispondenza —
+   né per id né per identificatori del paziente — viene trovata.
+
+Verificato end-to-end tramite la pipeline reale, con `DB_PASSWORD`
+configurata: un caso senza `case_id` genera un identificativo nuovo; un
+secondo sistema, senza conoscere quell'identificativo, invia dati sullo
+stesso paziente e viene correttamente unito allo stesso caso; un
+paziente diverso, stessa data, non trova alcuna corrispondenza.
+
+25 nuovi test (16 per `patient_matching.py`, 6 per l'estensione di
+`pending_case_router.py`, 2 end-to-end sulla pipeline reale, 1 per la
+generazione dell'id), 1504 totali passanti, lint pulito.

@@ -10,6 +10,7 @@ from typing import Any
 from ..memory.encrypted_store import EncryptedJsonlStore
 from ..memory.vector_memory import InMemoryVectorStore
 from .nexus_candidate_store import NexusCandidateStore
+from .patient_matching import PatientIdentifiers
 from .promotion_policy import PromotionPolicy
 from .rational_control_validator import RationalControlValidator
 from .self_evolution import NexusSelfEvolutionLoop
@@ -178,6 +179,14 @@ class NexusScheduler:
             governance_scores=job.governance_scores,
         )
         metadata = dict(candidate_payload.get("metadata", {}))
+        # patient_identifiers: computed here, once, using the same
+        # DB_PASSWORD that already protects this store -- requires
+        # self.password to be configured; a pure in-memory scheduler
+        # (self.password is None) stores no identifiers, since hashing
+        # without a real secret would offer no protection worth having.
+        patient_identifiers = (
+            PatientIdentifiers.from_payload(job.case_context, self.password).as_dict() if self.password else None
+        )
         # candidate_score now comes from generate_candidate()'s own
         # metadata (consolidated there from NexusTrainer's former
         # _auto_evolution_plan(), the only field of it this chain actually
@@ -192,6 +201,7 @@ class NexusScheduler:
             # recursive_engine_decision_record.md) needs the same raw
             # context to extract training pairs before it is deleted.
             "case_context": job.case_context,
+            "patient_identifiers": patient_identifiers,
             "area_dynamics": job.area_dynamics,
             "retrieval_context": job.retrieval_context,
             "governance_scores": job.governance_scores,

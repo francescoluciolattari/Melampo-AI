@@ -374,9 +374,24 @@ class ClinicalInferencePipeline:
         and the scheduler: built lazily rather than in app.py, because it
         needs _nexus_scheduler_instance().candidate_store, which itself
         only exists once the pipeline object does.
+
+        graph is passed as a callable, not the resolved graph itself --
+        found necessary, not assumed: an earlier version resolved
+        _nexus_enumerator_instance().graph eagerly here, and the full test
+        suite went from 26s to 125s, because _model_router_instance() is
+        now called by every case (via pick_pending_case(), at the very
+        start of run()), including many that previously never touched the
+        real ~6s HPO graph load at all. A callable keeps that cost paid
+        only when patient_matching.py's fallback is actually attempted --
+        case_id absent or unmatched, with identifying fields present in
+        the payload -- not on every request regardless.
         """
         if self._model_router is None:
-            self._model_router = ModelRouter(candidate_store=self._nexus_scheduler_instance().candidate_store)
+            self._model_router = ModelRouter(
+                candidate_store=self._nexus_scheduler_instance().candidate_store,
+                graph=lambda: self._nexus_enumerator_instance().graph,
+                password=os.environ.get("DB_PASSWORD"),
+            )
         return self._model_router
 
     def _nexus_scheduler_instance(self) -> NexusScheduler:
@@ -551,13 +566,22 @@ class ClinicalInferencePipeline:
         pipeline_result["diagnostic_result"]["audit_trace"]["external_critic_is_final_arbiter"] = False
 
     def run(self, payload: dict) -> dict:
-        case = self.ingestion.from_payload(payload)
         # The check this whole redesign was built for: does this payload's
-        # case_id already have an open needs_review record? Reuses the
-        # SAME NexusCandidateStore the promotion chain writes to
-        # (via _nexus_scheduler_instance().candidate_store), not a second,
+        # case_id (or, absent that, its patient-identifying fields) already
+        # have an open needs_review record? Reuses the SAME
+        # NexusCandidateStore the promotion chain writes to (via
+        # _nexus_scheduler_instance().candidate_store), not a second,
         # disconnected store -- a case flagged here as pending is the same
         # case NexusScheduler.run_once() would later act on.
+        #
+        # Runs BEFORE ingestion, not after -- found necessary, not
+        # stylistic: ingestion.from_payload() requires payload["case_id"]
+        # to already be present (raises KeyError otherwise), which is
+        # exactly what a payload identified only by patient fields (no
+        # case_id yet, the scenario patient_matching.py exists for) does
+        # not have. pick_pending_case() resolves or generates a case_id
+        # from the raw payload first; the payload is updated with it
+        # before ingestion ever sees it.
         #
         # "confirm_and_train" is recognised but not executed here,
         # deliberately: it needs the training-extraction and
@@ -569,6 +593,8 @@ class ClinicalInferencePipeline:
         # attached to the result so a caller (or D1, once it exists) can
         # act on it rather than it being silently dropped.
         pending_case_routing = self._model_router_instance().pick_pending_case(payload)
+        payload = {**payload, "case_id": pending_case_routing.case_id}
+        case = self.ingestion.from_payload(payload)
         if pending_case_routing.action == "merge_and_rerun" and pending_case_routing.merged_report_text is not None:
             case.report_text = pending_case_routing.merged_report_text
         bundle = self.normalizer.to_fhir_bundle(case)
@@ -627,16 +653,21 @@ class ClinicalInferencePipeline:
         )
         # The connection found missing while reading both modules in full:
         # NexusScheduler.enqueue()'s `nexus` parameter accepts exactly this
-        # dict's shape, unmodified. A minimal case_context is built here
-        # rather than reusing NexusTrainer's own enriched one (which also
-        # carries findings/candidate_conditions the scheduler's own
-        # candidate-text generation does not read) -- the scheduler only
-        # needs case_id, report_text and patient_complaints.
+        # dict's shape, unmodified. patient_name/patient_surname/
+        # patient_fiscal_code/case_date/diagnostic_question are carried
+        # through unhashed here -- hashing happens once, in
+        # NexusScheduler._execute_job(), using the same DB_PASSWORD the
+        # candidate store already encrypts with, not duplicated here.
         self._nexus_scheduler_instance().enqueue(
             case_context={
                 "case_id": case.case_id,
                 "report_text": case.report_text,
                 "patient_complaints": payload.get("patient_complaints", ""),
+                "patient_name": payload.get("patient_name", ""),
+                "patient_surname": payload.get("patient_surname", ""),
+                "patient_fiscal_code": payload.get("patient_fiscal_code", ""),
+                "case_date": payload.get("case_date", ""),
+                "diagnostic_question": payload.get("diagnostic_question", ""),
             },
             area_dynamics=area_dynamics,
             nexus=nexus,
