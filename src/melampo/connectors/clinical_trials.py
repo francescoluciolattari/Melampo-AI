@@ -131,16 +131,20 @@ class ClinicalTrialsConnector:
             return []
         return self.search(" OR ".join(terms), max_results=max_results)
 
-    def populate(self, index: LiteratureIndex, condition_query: str, *, max_results: int = 25, store: Any = None) -> int:
+    def populate(
+        self, index: LiteratureIndex, condition_query: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+    ) -> int:
         """Search and add results directly to an index, returning how many were added.
 
         ``store`` persists each added passage into the same
         `PersistentJsonlVectorStore` `europe_pmc.py`'s connector writes to --
-        one durable backend for both sources, not two.
+        one durable backend for both sources, not two. Superseded by
+        ``graph`` -- see europe_pmc.py's populate() for why passing it
+        skips the separate JSONL write.
         """
         passages = self.search(condition_query, max_results=max_results)
-        added = index.add_many(passages)
-        if store is not None:
+        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        if store is not None and graph is None:
             from ..memory.literature_persistence import persist_passage
 
             for passage in passages:

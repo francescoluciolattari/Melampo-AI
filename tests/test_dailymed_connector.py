@@ -130,6 +130,26 @@ def test_populate_adds_results_directly_to_an_index():
     assert len(index) == 1
 
 
+def test_populate_forwards_graph_as_source_graph_to_a_graph_aware_index():
+    class _RecordingIndex:
+        def __init__(self):
+            self.calls = []
+
+        def add_many(self, passages, source_graph=None):
+            self.calls.append((list(passages), source_graph))
+            return len(passages)
+
+    connector = DailyMedConnector()
+    connector._fetch_search_page = lambda name: {"data": [_record()]}
+    connector._fetch_packaging = lambda setid: {"data": {"active_ingredients": []}}
+    index = _RecordingIndex()
+    sentinel_graph = object()
+
+    connector.populate(index, "simvastatin", graph=sentinel_graph)
+
+    assert index.calls[0][1] is sentinel_graph
+
+
 # --------------------------------------------------------------------------
 # Persistence, matching the other two connectors
 # --------------------------------------------------------------------------

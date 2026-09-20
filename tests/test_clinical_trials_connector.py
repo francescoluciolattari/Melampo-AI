@@ -119,6 +119,25 @@ def test_populate_adds_results_to_an_index():
     assert len(index) == 1
 
 
+def test_populate_forwards_graph_as_source_graph_to_a_graph_aware_index():
+    class _RecordingIndex:
+        def __init__(self):
+            self.calls = []
+
+        def add_many(self, passages, source_graph=None):
+            self.calls.append((list(passages), source_graph))
+            return len(passages)
+
+    connector = ClinicalTrialsConnector()
+    connector._fetch_page = lambda query: {"studies": [_study()]}
+    index = _RecordingIndex()
+    sentinel_graph = object()
+
+    connector.populate(index, "sarcoidosis", graph=sentinel_graph)
+
+    assert index.calls[0][1] is sentinel_graph
+
+
 def test_terminated_trials_are_excluded_by_default():
     """A stopped trial is not a place to refer a case or a source of an
     outcome to cite -- excluded by default, not by oversight."""

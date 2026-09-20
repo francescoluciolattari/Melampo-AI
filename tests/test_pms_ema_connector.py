@@ -131,6 +131,25 @@ def test_populate_adds_results_to_an_index():
     assert len(index) == 1
 
 
+def test_populate_forwards_graph_as_source_graph_to_a_graph_aware_index():
+    class _RecordingIndex:
+        def __init__(self):
+            self.calls = []
+
+        def add_many(self, passages, source_graph=None):
+            self.calls.append((list(passages), source_graph))
+            return len(passages)
+
+    connector = PmsEmaConnector(config=PmsEmaConfig(api_key="k"))
+    connector._fetch_search_page = lambda name: {"entry": [{"resource": _fhir_resource()}]}
+    index = _RecordingIndex()
+    sentinel_graph = object()
+
+    connector.populate(index, "pembrolizumab", graph=sentinel_graph)
+
+    assert index.calls[0][1] is sentinel_graph
+
+
 def test_populate_persists_when_given_a_store(tmp_path):
     from melampo.memory.vector_memory import PersistentJsonlVectorStore
 

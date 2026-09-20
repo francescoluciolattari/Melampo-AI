@@ -132,11 +132,17 @@ class DailyMedConnector:
                 break
         return passages[:max_results]
 
-    def populate(self, index: LiteratureIndex, drug_name: str, *, max_results: int = 25, store: Any = None) -> int:
-        """Search and add results directly to an index, optionally persisting to the shared vector store."""
+    def populate(
+        self, index: LiteratureIndex, drug_name: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+    ) -> int:
+        """Search and add results directly to an index, optionally persisting to the shared vector store.
+
+        Superseded by ``graph`` -- see europe_pmc.py's populate() for why
+        passing it skips the separate JSONL write.
+        """
         passages = self.search(drug_name, max_results=max_results)
-        added = index.add_many(passages)
-        if store is not None:
+        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        if store is not None and graph is None:
             from ..memory.literature_persistence import persist_passage
 
             for passage in passages:

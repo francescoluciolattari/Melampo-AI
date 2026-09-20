@@ -3531,3 +3531,26 @@ diventi un solo nodo (non un doppione), e che aggiungere lo stesso
 passaggio due volte non lo duplichi (il vincolo di unicità al lavoro).
 
 10 nuovi test, 1395 totali passanti, lint pulito.
+
+### I quattro connettori collegati a `FalkorLiteratureIndex`
+
+Aggiunto un parametro `graph` a `populate()` in tutti e quattro i
+connettori (Europe PMC, ClinicalTrials, DailyMed, EMA PMS) — stessa
+forma identica in ognuno, verificato prima di modificare. Quando fornito,
+viene passato come `source_graph` a `add_many()` (richiesto da
+`FalkorLiteratureIndex` per collegare ogni passaggio ai concetti che
+menziona all'ingresso); quando assente, il comportamento resta invariato
+per il vecchio `LiteratureIndex` in memoria.
+
+**Una decisione per evitare una doppia persistenza**: quando `graph` è
+fornito, il parametro `store` (il vecchio deposito JSONL) viene
+deliberatamente ignorato — `FalkorLiteratureIndex` persiste da sé, e
+scrivere anche su JSONL duplicherebbe gli stessi passaggi in due depositi
+scollegati fra loro.
+
+Verificato end-to-end con un connettore reale (Europe PMC, risposta
+simulata): i passaggi arrivano nell'indice FalkorDB, collegati al grafo,
+e la ricerca successiva li trova correttamente.
+
+6 nuovi test attraverso i quattro connettori, 1400 totali passanti, lint
+pulito.

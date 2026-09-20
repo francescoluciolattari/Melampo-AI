@@ -143,10 +143,13 @@ class PmsEmaConnector:
                 break
         return passages[:max_results]
 
-    def populate(self, index: Any, product_name: str, *, max_results: int = 25, store: Any = None) -> int:
+    def populate(
+        self, index: Any, product_name: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+    ) -> int:
+        """Superseded by ``graph`` -- see europe_pmc.py's populate() for why passing it skips the separate JSONL write."""
         passages = self.search(product_name, max_results=max_results)
-        added = index.add_many(passages)
-        if store is not None:
+        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        if store is not None and graph is None:
             from ..memory.literature_persistence import persist_passage
 
             for passage in passages:

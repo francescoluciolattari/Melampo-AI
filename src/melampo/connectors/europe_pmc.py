@@ -180,17 +180,29 @@ class EuropePmcConnector:
             return []
         return self.search(" OR ".join(terms), max_results=max_results)
 
-    def populate(self, index: LiteratureIndex, query: str, *, max_results: int = 25, store: Any = None) -> int:
+    def populate(
+        self, index: LiteratureIndex, query: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+    ) -> int:
         """Search and add results directly to an index, returning how many were added.
 
         ``store``, when given a `PersistentJsonlVectorStore`, persists each
         added passage immediately -- the same store `clinical_trials.py`'s
         connector writes to, so PubMed and trial content share one durable
-        backend rather than two.
+        backend rather than two. Superseded by ``graph``: when the index is
+        `FalkorLiteratureIndex`, persistence happens inside `add_many()`
+        itself (FalkorDB is the store), so passing ``graph`` skips the
+        separate JSONL write rather than persisting the same passages
+        twice into two disconnected backends.
+
+        ``graph``, when given a `ConceptGraphView`, is forwarded to
+        `add_many()` as `source_graph` -- required by `FalkorLiteratureIndex`
+        to link each passage to the concepts it mentions at ingestion time,
+        not read by the plain in-memory `LiteratureIndex`, which still
+        matches concepts at search time instead.
         """
         passages = self.search(query, max_results=max_results)
-        added = index.add_many(passages)
-        if store is not None:
+        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        if store is not None and graph is None:
             from ..memory.literature_persistence import (
                 persist_passage,
             )
