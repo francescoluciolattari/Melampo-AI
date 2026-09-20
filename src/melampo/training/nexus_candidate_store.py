@@ -101,6 +101,39 @@ class NexusCandidateStore:
             self.audit_log.append({"event": "candidate_created", "candidate_id": candidate_id, "timestamp": created_at})
         return record
 
+    def find_by_case_id(self, case_id: str, statuses: Iterable[str] | None = None) -> NexusCandidateRecord | None:
+        """The most recent record for this case, among the given statuses -- None if this case has no pending record.
+
+        The store keys records by candidate_id, a hash that changes every
+        time create_candidate() runs, not by case_id -- so this scans
+        rather than looking up directly. Returns the single most recent
+        match (by created_at) rather than a list: a case is meant to have
+        at most one open record at a time, so a caller checking "is this
+        case already pending" needs one answer, not a collection to
+        reduce itself.
+        """
+        normalized = {normalize_learning_status(status) for status in statuses} if statuses else set()
+        with self._lock:
+            candidates = [record for record in self.records.values() if record.case_id == case_id]
+        if normalized:
+            candidates = [record for record in candidates if record.learning_status in normalized]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: item.created_at)
+
+    def delete(self, candidate_id: str) -> None:
+        """Remove a record entirely -- for closing a confirmed case after training, or expiring one past retention.
+
+        Not a status transition: a deleted record is gone, not moved to a
+        terminal status, because the whole point of calling this is that
+        nothing about the case should remain (see docs/recursive_engine_decision_record.md
+        on why raw clinical narrative is not kept once its training use is
+        served).
+        """
+        with self._lock:
+            self.records.pop(candidate_id, None)
+            self.audit_log.append({"event": "candidate_deleted", "candidate_id": candidate_id, "timestamp": time.time()})
+
     def get(self, candidate_id: str) -> NexusCandidateRecord:
         with self._lock:
             return self.records[candidate_id]

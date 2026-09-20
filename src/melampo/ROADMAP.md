@@ -254,6 +254,25 @@ parte da questo blocco (vedi sotto).
 
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
+**Instradamento dei casi in sospeso costruito e collegato**
+(`training/pending_case_router.py`, agganciato dentro `clinical_pipeline.py`,
+non ancora dentro il vero D1 — che resta da ricostruire). Ogni `payload`
+in ingresso viene controllato contro `NexusCandidateStore` (la stessa
+istanza che la catena di promozione usa) per un `case_id` già in
+sospeso: nessuna corrispondenza → caso nuovo, invariato; una diagnosi
+confermata nel payload → riconosciuto come `confirm_and_train` ma
+**non ancora eseguito** — l'estrazione per l'addestramento e la
+cancellazione dei dati grezzi restano lavoro separato, deliberatamente
+non affrontato qui, con la stessa cautela già usata per
+`_auto_evolution_plan`; nuovi reperti senza conferma → uniti al referto
+esistente (il più recente in testa, con riferimento a quello precedente,
+nulla scartato) e il processo diagnostico riparte sui dati uniti, il
+caso resta in sospeso. Aggiunta anche una scadenza a un anno per i casi
+mai confermati (`sweep_expired_pending_cases`), non ancora innescata da
+nessun processo periodico reale.
+
+
+
 **`_auto_evolution_plan()` consolidato, non eliminato in blocco** (trovato
 durante l'analisi con l'utente: eliminarlo del tutto avrebbe rotto sia la
 soglia di promozione offline sia una bandiera di sicurezza dal vivo).

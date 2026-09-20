@@ -136,6 +136,13 @@ class NexusScheduler:
         candidate_payload = {
             **candidate_payload,
             "case_id": job.case_context.get("case_id", metadata.get("case_id", "unknown_case")),
+            # Preserved raw, not just folded into generate_candidate()'s
+            # composed text field -- pending_case_router.py's merge needs
+            # the report_text on its own to build the next update, and the
+            # eventual confirm-and-train path (see
+            # recursive_engine_decision_record.md) needs the same raw
+            # context to extract training pairs before it is deleted.
+            "case_context": job.case_context,
             "area_dynamics": job.area_dynamics,
             "retrieval_context": job.retrieval_context,
             "governance_scores": job.governance_scores,

@@ -43,3 +43,48 @@ def test_clinical_pipeline_runs_minimal_payload():
     assert result["nexus"]["filter_assessment"]["replay_mode"] in ["stabilizing_replay", "boundary_replay", "corrective_replay"]
     assert "rehearsal_profile" in result["nexus"]
     assert len(result["nexus"]["alternative_hypotheses"]) >= 2
+
+
+# --------------------------------------------------------------------------
+# pending_case_routing: the check added to run() itself, reusing the same
+# NexusCandidateStore the promotion chain writes to
+# --------------------------------------------------------------------------
+
+
+def test_a_first_time_case_is_routed_as_new():
+    runtime = build_default_runtime()
+    result = runtime.pipeline.run({"case_id": "case-pending-1", "report_text": "first report"})
+    assert result["pending_case_routing"]["action"] == "new_case"
+
+
+def test_a_case_pending_after_offline_processing_merges_new_findings():
+    """The real lifecycle: a case enqueues on its first run, only becomes
+    genuinely "pending" once a low-activity pass (run_once) has processed
+    the queue -- exactly what a real scheduled trigger would do."""
+    runtime = build_default_runtime()
+    pipeline = runtime.pipeline
+
+    pipeline.run({"case_id": "case-pending-2", "report_text": "Initial findings: persistent cough."})
+    pipeline._nexus_scheduler_instance().run_once(activity={"active_requests": 0, "idle_seconds": 100})
+
+    result = pipeline.run({"case_id": "case-pending-2", "report_text": "Follow-up CT: bilateral opacity confirmed."})
+
+    routing = result["pending_case_routing"]
+    assert routing["action"] == "merge_and_rerun"
+    assert "Follow-up CT: bilateral opacity confirmed." in routing["merged_report_text"]
+    assert "Initial findings: persistent cough." in routing["merged_report_text"]
+
+
+def test_a_confirmed_diagnosis_for_a_pending_case_is_recognised_but_not_yet_acted_on():
+    """confirm_and_train is attached to the result for a future caller to
+    act on -- executing it (training extraction, then deleting the raw
+    record) is separate, not-yet-built work, deliberately not done here."""
+    runtime = build_default_runtime()
+    pipeline = runtime.pipeline
+
+    pipeline.run({"case_id": "case-pending-3", "report_text": "Initial findings."})
+    pipeline._nexus_scheduler_instance().run_once(activity={"active_requests": 0, "idle_seconds": 100})
+
+    result = pipeline.run({"case_id": "case-pending-3", "confirmed_diagnosis": "Sarcoidosis"})
+
+    assert result["pending_case_routing"]["action"] == "confirm_and_train"

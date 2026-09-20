@@ -3554,3 +3554,60 @@ e la ricerca successiva li trova correttamente.
 
 6 nuovi test attraverso i quattro connettori, 1400 totali passanti, lint
 pulito.
+
+### L'instradamento dei casi in sospeso — costruito e collegato, con un difetto trovato e corretto
+
+Progettato insieme, verificato contro il codice reale prima di
+costruire: `NexusCandidateStore` cercava solo per `candidate_id` (un
+hash che cambia ad ogni creazione), mai per `case_id` — aggiunto
+`find_by_case_id()` (l'ultimo record per stato, non una lista da
+ridurre) e `delete()` (cancellazione vera, non una transizione di
+stato — il record deve sparire, non spostarsi in uno stato terminale).
+
+**`training/pending_case_router.py`**: decide fra tre cose per ogni
+`payload` in ingresso — caso nuovo (nessun `case_id` corrispondente in
+sospeso), unione e ripartenza (un `case_id` in sospeso, nessuna diagnosi
+confermata nel payload), conferma e addestramento (un `case_id` in
+sospeso, con `confirmed_diagnosis` nel payload — la conferma ha sempre
+priorità anche se il payload contiene anche del testo). L'identificazione
+resta solo per `case_id` — mai nome, mai anamnesi — coerente con quanto
+deciso insieme.
+
+**`merge_report_text()`**: il referto più recente in testa, con
+riferimento esplicito a quello precedente, che segue integralmente sotto
+— confermato dall'utente: mai una sostituzione, sempre un'aggiunta. Una
+catena di più aggiornamenti si impila correttamente, ognuno più recente
+del precedente, nulla scartato.
+
+**Un difetto trovato durante la verifica end-to-end, non prima**: il
+payload salvato da `NexusScheduler._execute_job()` non conservava mai
+`report_text` come campo diretto — solo incorporato in una stringa
+composta dentro `generate_candidate()`. La fusione trovava sempre un
+referto precedente vuoto. Corretto conservando `job.case_context` per
+intero nel payload salvato — utile non solo per la fusione ma anche per
+il futuro percorso di conferma, che avrà bisogno dello stesso contesto
+grezzo per estrarre le coppie di addestramento prima di cancellarlo.
+
+**Collegato dentro `clinical_pipeline.py.run()`**, non ancora dentro il
+vero D1 (che resta da ricostruire): ogni richiesta ora controlla la
+stessa istanza di `NexusCandidateStore` che la catena di promozione usa
+— non un deposito separato e scollegato. Il ramo `confirm_and_train` è
+riconosciuto e allegato al risultato (`pending_case_routing`), ma
+**deliberatamente non eseguito** — l'estrazione per l'addestramento e la
+cancellazione dei dati grezzi sono lavoro separato, con la stessa
+cautela già usata per `_auto_evolution_plan`.
+
+**Scadenza a un anno** (`sweep_expired_pending_cases`, confermata con
+l'utente): cancella ogni caso in sospeso mai confermato oltre la
+finestra di conservazione — non ancora innescata da un processo
+periodico reale, la stessa infrastruttura mancante già segnalata per
+`NexusScheduler.run_once()`.
+
+Verificato end-to-end tramite la pipeline reale: un primo caso mette in
+coda, una simulazione di bassa attività elabora la coda, un secondo
+caso con lo stesso `case_id` trova correttamente il record in sospeso e
+unisce i referti nell'ordine giusto.
+
+22 nuovi test (`pending_case_router.py`, i nuovi metodi di
+`NexusCandidateStore`, tre test end-to-end nella pipeline reale), 1425
+totali passanti, lint pulito.
