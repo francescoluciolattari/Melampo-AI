@@ -85,13 +85,14 @@ contro "aneurysm-osteoarthritis syndrome". Non è un difetto: è
 esattamente il disaccordo informativo che l'intera architettura a doppio
 percorso prevede.
 
-**Ancora aperto**: il vero cancello D1 (instrada *quanti* percorsi
-girare, non quale) resta codice morto, mai chiamato in `run()`, e fa
-instradamento di protocollo, non valutazione di complessità clinica; le
-aree a monte (`CaseContextArea`, `EpidemiologyArea`) restano segnaposto;
-le scale dei punteggi fra le due fonti restano non comparabili (verificato
-ancora: 7,341 contro un massimo di 1,0 sul lato grafo) — la formula di
-`IntuitionEngine` resta il problema più grande, non affrontato.
+**Ancora aperto**: le aree a monte (`CaseContextArea`, `EpidemiologyArea`)
+restano segnaposto; le scale dei punteggi fra le due fonti restano non
+comparabili (verificato ancora: 7,341 contro un massimo di 1,0 sul lato
+grafo) — la formula di `IntuitionEngine` resta il problema più grande,
+non affrontato. D1 (sotto) ora è reale, ma il percorso "doppio" che
+dovrebbe far girare non è ancora collegato (`RlmEngine` resta scollegato
+da `clinical_pipeline.py`) — D1 calcola il verdetto, non può ancora
+agire su di esso oltre il percorso singolo di oggi.
 
 ### ~~B1~~ — `MechanismEnumerator` dentro `_alternative_hypotheses()`
 **Chiusa.** `clinical_pipeline.py` ora collega un `MechanismEnumerator`
@@ -129,11 +130,25 @@ non misura nulla. **Decisione ancora pendente**: chi la cura — la
 decisione più costosa rispetto al proprio beneficio in tutto il documento
 precedente, e resta tale.
 
-### D1 — `ModelRouter` come gate di complessità reale
-**Stato**: Aperta. Letto per intero: 20 righe, instradamento fisso,
-nessuna logica di complessità. **Sforzo**: 1 settimana.
-**Blocca**: l'intero blocco D (D2-D5) — un vero collo di bottiglia, non
-solo una voce fra tante.
+### ~~D1~~ — `ModelRouter` ricostruito come gate di complessità reale
+**Chiusa.** Prima: 12 righe, instradamento fisso su un nome di compito,
+mai chiamato da nulla (verificato con una ricerca diretta). Ora: due
+passi, agganciati nei punti giusti di `clinical_pipeline.run()` —
+`pick_pending_case()` (presto, riusa `pending_case_router.py`) e
+`pick_mode()` (più tardi, quando `area_dynamics`/`governance_scores`
+esistono davvero), secondo la tabella di settembre.
+
+**Una scoperta durante la costruzione**: `ModelRouter` serviva già uno
+scopo reale e diverso — `RuntimeServices.resolve()` lo usava per
+instradare il protocollo di trasporto (a2a/mcp/service), non per la
+complessità clinica. Separato in `TaskProtocolRouter` (nuovo file,
+comportamento originale invariato) prima di procedere, per non rompere
+qualcosa che funzionava già per un altro scopo.
+
+**Limite dichiarato, non nascosto**: il verdetto "doppio percorso" è
+calcolato e riconosciuto, ma non ancora eseguibile — richiederebbe
+`RlmEngine` collegato a `clinical_pipeline.py`, cosa che non esiste
+ancora. Stessa cautela già usata per `confirm_and_train`.
 
 ### A3.3 + G3 — Stato SNOMED e riconciliazione concettuale (fuse)
 **Stato**: Parziale. La verifica sullo stato di appartenenza dell'Italia a
@@ -173,8 +188,12 @@ settimane una volta decise.
 lontana). **Sforzo**: 2 settimane.
 
 ### D2, D3, D4, D5 — Dual-path diagnostico
-**Stato**: Aperte, bloccate da D1 e (per D5) da A1. Sforzo invariato da
-EG #10: 1-2 settimane ciascuna, D5 in coda per il vincolo d'ordine.
+**Stato**: Aperte. D1 ora calcola il verdetto "doppio percorso" — non è
+più il collo di bottiglia che era. Restano bloccate su qualcosa di più
+concreto: `RlmEngine` non è collegato a `clinical_pipeline.py`, quindi
+D1 non ha ancora nulla su cui far agire il proprio verdetto per il
+percorso ricorsivo. D5 resta anche su A1. Sforzo invariato da EG #10:
+1-2 settimane ciascuna, D5 in coda per il vincolo d'ordine.
 
 ### A3.2 — Importatori LOINC, ATC, ECTO
 **Stato**: Aperta. **Bloccata da**: decisione sulle categorie oltre il

@@ -18,13 +18,13 @@ from ..models.abstention import AbstentionPolicy
 from ..models.evidence_ranker import EvidenceRanker
 from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..models.risk_gate import RiskGate
+from ..orchestration.model_router import ModelRouter
 from ..orchestration.runtime_services import RuntimeServices
 from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.mechanism_enumeration import MechanismEnumerator
 from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
-from ..training.pending_case_router import route_payload
 from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
 from .area_coherence import AreaCoherenceAnalyzer
@@ -155,7 +155,6 @@ def _derive_governance_scores(
 class ClinicalInferencePipeline:
     ingestion: IngestionProtocol
     normalizer: NormalizerProtocol
-    router: object
     volume_encoder: EncoderProtocol
     pathology_encoder: EncoderProtocol
     text_encoder: EncoderProtocol
@@ -179,6 +178,7 @@ class ClinicalInferencePipeline:
     _nexus_enumerator: Any = None
     _nexus_ic_table: Any = None
     _nexus_scheduler: Any = None
+    _model_router: Any = None
 
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
@@ -342,6 +342,18 @@ class ClinicalInferencePipeline:
         candidate_names = [item.condition for item in report.candidates]
         ranked = rank_differential(findings, candidate_names, enumerator.graph, self._nexus_ic_table)
         return [item.as_dict() for item in ranked]
+
+    def _model_router_instance(self) -> ModelRouter:
+        """D1, built with the SAME NexusCandidateStore the promotion chain uses -- not a second, disconnected one.
+
+        Cached per pipeline instance, the same pattern as the enumerator
+        and the scheduler: built lazily rather than in app.py, because it
+        needs _nexus_scheduler_instance().candidate_store, which itself
+        only exists once the pipeline object does.
+        """
+        if self._model_router is None:
+            self._model_router = ModelRouter(candidate_store=self._nexus_scheduler_instance().candidate_store)
+        return self._model_router
 
     def _nexus_scheduler_instance(self) -> NexusScheduler:
         """The queue NexusTrainer's output feeds, for offline promotion during low-activity windows.
@@ -527,7 +539,7 @@ class ClinicalInferencePipeline:
         # _auto_evolution_plan before touching it. The decision is
         # attached to the result so a caller (or D1, once it exists) can
         # act on it rather than it being silently dropped.
-        pending_case_routing = route_payload(payload, self._nexus_scheduler_instance().candidate_store)
+        pending_case_routing = self._model_router_instance().pick_pending_case(payload)
         if pending_case_routing.action == "merge_and_rerun" and pending_case_routing.merged_report_text is not None:
             case.report_text = pending_case_routing.merged_report_text
         bundle = self.normalizer.to_fhir_bundle(case)
@@ -566,6 +578,14 @@ class ClinicalInferencePipeline:
             retrieval=retrieval,
             ranked_evidence=ranked_evidence,
             area_signals=area_signals,
+        )
+        # D1's second step, now that real signals exist -- see
+        # ModelRouter.pick_mode's docstring for the table this implements
+        # and what it does not yet connect to (RlmEngine/dual-path).
+        routing_mode, routing_reason = self._model_router_instance().pick_mode(
+            findings=list(payload.get("findings", [])),
+            area_dynamics=area_dynamics,
+            governance_scores=governance_scores,
         )
         nexus = self._run_nexus_branch(
             components=components,
@@ -654,4 +674,6 @@ class ClinicalInferencePipeline:
             ranked_evidence=ranked_evidence,
         )
         pipeline_result["pending_case_routing"] = pending_case_routing.as_dict()
+        pipeline_result["routing_mode"] = routing_mode
+        pipeline_result["routing_reason"] = routing_reason
         return pipeline_result

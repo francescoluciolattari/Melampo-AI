@@ -2,20 +2,20 @@ from dataclasses import dataclass
 from typing import Any
 
 from .bootstrap import RegistryBootstrap
-from .model_router import ModelRouter
+from .task_protocol_router import TaskProtocolRouter
 
 
 @dataclass
 class RuntimeServices:
     """Assemble routing and service registry for runtime use."""
 
-    router: ModelRouter
+    router: TaskProtocolRouter
     registry: Any
 
     @classmethod
     def build(cls, config: object, logger: object):
         registry = RegistryBootstrap().build()
-        router = ModelRouter(config=config, logger=logger)
+        router = TaskProtocolRouter(config=config, logger=logger)
         return cls(router=router, registry=registry)
 
     def resolve(self, task_name: str) -> dict:
