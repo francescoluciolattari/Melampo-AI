@@ -3698,3 +3698,41 @@ da D1 stesso, ma dal collegamento mancante di `RlmEngine`).
 
 14 nuovi test (10 per D1, 4 per `TaskProtocolRouter`), 1450 totali
 passanti, lint pulito.
+
+### `NexusCandidateStore` reso persistente — prerequisito reale per l'innesco periodico
+
+Costruito prima degli altri due punti in sospeso, deliberatamente: un
+innesco periodico separato dal processo che serve le richieste non può
+vedere uno stato che vive solo nella memoria di quel processo — lo
+avevo segnalato la sessione scorsa, ora risolto.
+
+**Persistenza opzionale, non obbligatoria**: `password`/`path` restano
+`None` di default — ogni chiamante esistente (`NexusCandidateStore()`
+senza argomenti, l'assistente `_minimal_pipeline` nei test) continua a
+funzionare esattamente come prima, puramente in memoria. Si attiva solo
+quando entrambi sono forniti.
+
+**Con sorgente di eventi, non un singolo blocco riscritto**: ogni
+mutazione (creazione, validazione, decisione di promozione, prova di
+esito, cancellazione) si aggiunge come un evento in più al deposito
+cifrato già esistente (`EncryptedJsonlStore`, lo stesso meccanismo della
+cache UMLS e di `confirmed_case_store.py` — nessun meccanismo nuovo). Al
+caricamento, ogni candidato viene ricostruito tenendo solo l'ultimo
+evento — lo stesso principio con cui un registro delle scritture
+ricostruisce lo stato corrente da una sequenza di modifiche. Una
+cancellazione si ripropone come rimozione vera, non come una lapide che
+resta nel registro.
+
+**Collegato alla pipeline reale** tramite `_build_nexus_candidate_store()`:
+persistente quando `DB_PASSWORD` è impostata nell'ambiente (stesso
+schema di ripiego già usato da `umls_cache.py`), altrimenti in memoria
+come prima — un checkout pulito o un ambiente di test continuano a
+funzionare senza configurare nulla.
+
+Verificato end-to-end, non solo con test isolati: un caso reale mette in
+coda, la bassa attività simulata lo elabora e lo scrive; una **seconda,
+completamente separata** istanza di runtime, stessa password, trova lo
+stesso caso — la proprietà che serviva davvero, non solo che il
+meccanismo esista in isolamento.
+
+7 nuovi test, 1457 totali passanti, lint pulito.

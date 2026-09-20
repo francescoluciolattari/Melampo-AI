@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 from ..areas.case_context_area import CaseContextArea
@@ -23,6 +25,7 @@ from ..orchestration.runtime_services import RuntimeServices
 from ..orchestration.specialist_runtime import SpecialistRuntime
 from ..training.counterfactual_sampler import CounterfactualSampler
 from ..training.mechanism_enumeration import MechanismEnumerator
+from ..training.nexus_candidate_store import NexusCandidateStore
 from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
 from ..training.replay_filter import ReplayFilter
@@ -82,6 +85,26 @@ def _area_uncertainty(area_signals: dict[str, Any]) -> float:
             salience = _safe_float(payload.get("salience_score", 0.0))
             values.append(_safe_float(payload.get("uncertainty_score", 1.0 - min(salience, 1.0))))
     return _clamp(_mean(values, default=0.65))
+
+
+DEFAULT_NEXUS_CANDIDATE_STORE_PATH = "data/nexus_candidates.jsonl"
+
+
+def _build_nexus_candidate_store() -> NexusCandidateStore:
+    """Persistent when DB_PASSWORD is set, in-memory otherwise -- the same graceful-degradation pattern umls_cache.py uses.
+
+    A separate process (a scheduled trigger calling run_once() or
+    sweep_expired_pending_cases()) cannot see this store's state unless it
+    is genuinely persisted, not just held in this process's memory -- the
+    reason this exists. Falls back to plain in-memory when no DB_PASSWORD
+    is configured (a fresh checkout, a test environment) rather than
+    failing outright: the pipeline still works, it simply cannot be acted
+    on by anything outside this process, exactly as before this change.
+    """
+    password = os.environ.get("DB_PASSWORD")
+    if not password:
+        return NexusCandidateStore()
+    return NexusCandidateStore(password=password, path=Path(DEFAULT_NEXUS_CANDIDATE_STORE_PATH))
 
 
 def _derive_governance_scores(
@@ -382,7 +405,7 @@ class ClinicalInferencePipeline:
         infrastructure, not part of this change.
         """
         if self._nexus_scheduler is None:
-            self._nexus_scheduler = NexusScheduler()
+            self._nexus_scheduler = NexusScheduler(candidate_store=_build_nexus_candidate_store())
         return self._nexus_scheduler
 
     def _nexus_enumerator_instance(self) -> Any:

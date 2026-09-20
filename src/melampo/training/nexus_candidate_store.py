@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from ..memory.encrypted_store import EncryptedJsonlStore
 from ..memory.learning_status import (
     normalize_learning_status,
     validate_learning_transition,
@@ -74,7 +75,73 @@ class NexusCandidateStore:
 
     records: dict[str, NexusCandidateRecord] = field(default_factory=dict)
     audit_log: list[dict[str, Any]] = field(default_factory=list)
+    password: str | None = None
+    path: Path | None = None
     _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
+    _encrypted_store: EncryptedJsonlStore | None = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Optional persistence -- pure in-memory when password/path are left None, unchanged from before this existed.
+
+        Every existing caller (tests, _minimal_pipeline) constructs
+        NexusCandidateStore() with no arguments, and must keep working
+        exactly as before -- persistence only activates when a caller
+        explicitly opts in with both a password and a path.
+
+        Event-sourced, not a single overwritten snapshot: each mutation
+        (create_candidate, attach_validation, attach_promotion_decision,
+        attach_outcome_feedback, delete) appends the record's full current
+        state as one more encrypted line, reusing EncryptedJsonlStore
+        exactly as built for the UMLS cache and confirmed_case_store.py --
+        an append-only encrypted log, not a new persistence mechanism.
+        Loading replays every event and keeps the last one per
+        candidate_id, the same principle a database's write-ahead log
+        uses to reconstruct current state from a sequence of writes. A
+        "delete" event is replayed as an actual removal, not kept as a
+        tombstone record.
+        """
+        if self.password is None or self.path is None:
+            return
+        self._encrypted_store = EncryptedJsonlStore(path=Path(self.path), password=self.password)
+        self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        latest_by_id: dict[str, dict[str, Any]] = {}
+        deleted_ids: set[str] = set()
+        for event in self._encrypted_store.load():
+            candidate_id = event["candidate_id"]
+            if event.get("_event") == "deleted":
+                deleted_ids.add(candidate_id)
+                latest_by_id.pop(candidate_id, None)
+                continue
+            deleted_ids.discard(candidate_id)
+            latest_by_id[candidate_id] = event["record"]
+        with self._lock:
+            self.records = {
+                candidate_id: NexusCandidateRecord(
+                    candidate_id=data["candidate_id"],
+                    case_id=data["case_id"],
+                    created_at=float(data["created_at"]),
+                    payload=dict(data.get("payload", {})),
+                    source=str(data.get("source", "nexus_branch")),
+                    learning_status=normalize_learning_status(data.get("learning_status")),
+                    validation=data.get("validation"),
+                    promotion_decision=data.get("promotion_decision"),
+                    outcome_feedback=list(data.get("outcome_feedback", [])),
+                    audit=list(data.get("audit", [])),
+                )
+                for candidate_id, data in latest_by_id.items()
+            }
+
+    def _persist_current_state(self, candidate_id: str) -> None:
+        if self._encrypted_store is None:
+            return
+        self._encrypted_store.append({"candidate_id": candidate_id, "record": self.records[candidate_id].as_dict()})
+
+    def _persist_deletion(self, candidate_id: str) -> None:
+        if self._encrypted_store is None:
+            return
+        self._encrypted_store.append({"candidate_id": candidate_id, "_event": "deleted"})
 
     def create_candidate(
         self,
@@ -99,6 +166,7 @@ class NexusCandidateStore:
         with self._lock:
             self.records[candidate_id] = record
             self.audit_log.append({"event": "candidate_created", "candidate_id": candidate_id, "timestamp": created_at})
+            self._persist_current_state(candidate_id)
         return record
 
     def find_by_case_id(self, case_id: str, statuses: Iterable[str] | None = None) -> NexusCandidateRecord | None:
@@ -133,6 +201,7 @@ class NexusCandidateStore:
         with self._lock:
             self.records.pop(candidate_id, None)
             self.audit_log.append({"event": "candidate_deleted", "candidate_id": candidate_id, "timestamp": time.time()})
+            self._persist_deletion(candidate_id)
 
     def get(self, candidate_id: str) -> NexusCandidateRecord:
         with self._lock:
@@ -154,6 +223,7 @@ class NexusCandidateStore:
             event = {"event": "validation_attached", "candidate_id": candidate_id, "timestamp": time.time(), "status": validation.get("status")}
             record.audit.append(event)
             self.audit_log.append(event)
+            self._persist_current_state(candidate_id)
             return record.as_dict()
 
     def attach_promotion_decision(self, candidate_id: str, decision: dict[str, Any]) -> dict[str, Any]:
@@ -184,6 +254,7 @@ class NexusCandidateStore:
             }
             record.audit.append(event)
             self.audit_log.append(event)
+            self._persist_current_state(candidate_id)
             return record.as_dict()
 
     def attach_outcome_feedback(self, candidate_id: str, feedback: dict[str, Any]) -> dict[str, Any]:
@@ -194,6 +265,7 @@ class NexusCandidateStore:
             event = {"event": "outcome_feedback_attached", "candidate_id": candidate_id, "timestamp": feedback["attached_at"]}
             record.audit.append(event)
             self.audit_log.append(event)
+            self._persist_current_state(candidate_id)
             return record.as_dict()
 
     def export_memory_documents(self, statuses: Iterable[str] | None = None) -> list[dict[str, Any]]:
