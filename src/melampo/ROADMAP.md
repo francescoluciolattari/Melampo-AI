@@ -273,6 +273,20 @@ parte da questo blocco (vedi sotto).
 
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
+**I due percorsi di conferma costruiti** (`training/case_confirmation.py`).
+Un solo punto di ingresso condiviso, `submit_confirmed_diagnosis()`, che
+entrambe le vie alimentano — un documento con marcatori espliciti
+("ID caso:", "Diagnosi confermata:", riconosciuti automaticamente,
+deliberatamente non un tentativo di NLP generale sulla diagnosi), o un
+medico che seleziona un caso da un elenco (`list_pending_cases()`) e
+inserisce la diagnosi a mano. Chiudere un caso alimenta
+`OutcomeFeedbackIngestor` (mai chiamato prima), conserva il record
+anonimizzato e cifrato in `ConfirmedCaseStore`, e lo rimuove
+dall'elenco dei casi in sospeso — conservazione, non cancellazione,
+correggendo un passaggio di progettazione precedente.
+
+
+
 **Innesco periodico reale costruito** (`scripts/run_low_activity_maintenance.py`).
 Richiedeva più di quanto sembrasse: rendere persistente
 `NexusCandidateStore` non bastava — un lavoro sta nella **coda** di

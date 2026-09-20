@@ -3784,3 +3784,52 @@ separatamente, trova ed elabora quel lavoro con successo
 
 13 nuovi test (7 per la persistenza del deposito candidati, 6 per la
 coda), 1463 totali passanti, lint pulito.
+
+### I due percorsi di conferma — costruiti, con un punto di ingresso condiviso
+
+Costruito `training/case_confirmation.py`, seguendo esattamente il
+disegno concordato: **un solo punto di ingresso**,
+`submit_confirmed_diagnosis()`, che entrambe le vie alimentano — non due
+percorsi separati che potrebbero divergere su cosa significhi "confermato"
+o su cosa succede ai dati dopo.
+
+**Cosa fa chiudere un caso, deciso con precisione**: alimenta
+`OutcomeFeedbackIngestor` (costruito da tempo, mai chiamato prima
+d'ora) confrontando la diagnosi confermata con ciò che il ramo nexus
+aveva proposto — corretto o no, entrambi gli esiti sono segnale vero, non
+solo quello positivo. Conserva il record completo — diagnosi confermata,
+dati del caso, confronto d'esito — in `ConfirmedCaseStore`: cifrato, con
+nome/cognome/codice-fiscale-simili anonimizzati prima della scrittura.
+Conservazione, non cancellazione — la correzione fatta esplicitamente
+dopo che un passaggio precedente aveva presupposto il contrario. Rimuove
+il record da `NexusCandidateStore`, l'elenco dei casi **in sospeso** — il
+caso non è più in attesa di revisione, quindi non appartiene più
+all'elenco di ciò che lo è.
+
+**La prima via — documento riconosciuto automaticamente**: cerca marcatori
+espliciti e strutturati ("ID caso:"/"Case ID:", "Diagnosi confermata:"/"Confirmed
+diagnosis:") — **deliberatamente non un tentativo di riconoscimento NLP
+generale della diagnosi**, un problema reale e difficile mai risolto in
+questo progetto (stessa cautela già mostrata dal piccolo lessico esplicito
+di `document_processing.py`). Prendere una diagnosi mai davvero confermata
+da narrativa libera sarebbe peggio che richiedere un marcatore esplicito
+che un modello di referto reale può includere. Verificato che una
+narrazione non strutturata — anche se menziona chiaramente una diagnosi e
+un caso — non estrae nulla, per costruzione.
+
+**La seconda via — maschera per il medico**: `list_pending_cases()`
+restituisce ogni caso in sospeso con il testo del referto — necessario
+perché il medico riconosca il caso — una vista interna e autorizzata,
+diversa dal record anonimizzato di lungo periodo che
+`confirmed_case_store.py` scrive; le due servono pubblici diversi con
+esigenze diverse, non una vista sola allentata per comodità.
+
+**Cosa resta dichiaratamente non fatto**: l'estrazione delle coppie di
+addestramento DPO (`preference_pairs.py`, `dpo_config.py`) da un caso
+appena confermato — quell'infrastruttura opera sui propri record
+`Confirmation` in `ConfirmationRegistry`, un ulteriore passo di
+integrazione non affrontato in questo cambiamento.
+
+16 nuovi test, entrambe le vie verificate end-to-end con dati reali (non
+solo test isolati) prima di scrivere la suite permanente, 1479 totali
+passanti, lint pulito.
