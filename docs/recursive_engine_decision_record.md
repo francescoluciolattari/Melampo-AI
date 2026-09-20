@@ -3489,3 +3489,45 @@ default di questo progetto, non promosso automaticamente.
 Suite riverificata a 1395 test totali (nessuna perdita di copertura —
 lo stesso numero di test, uno spostato dalla procedura isolata a quella
 reale).
+
+### La letteratura in FalkorDB — persistente e collegata al grafo, non più un deposito mai istanziato
+
+Verificato prima di progettare: tutti e quattro i connettori di
+letteratura (Europe PMC, ClinicalTrials, DailyMed, EMA PMS) producono già
+la stessa `LiteraturePassage` — un'unica interfaccia comune, non quattro
+forme diverse da gestire.
+
+**Una decisione deliberata, non riaperta solo perché comoda**:
+`LiteratureIndex.search()` è concettuale, non vettoriale, per una scelta
+già misurata e documentata nel proprio codice — evita il problema reale
+di una ricerca per somiglianza che avvicinerebbe "insufficienza cardiaca"
+a "sindrome coronarica acuta" perché vicine nello spazio latente, non
+perché rispondono alla domanda. FalkorDB rende comodo l'indice
+vettoriale nativo, ma questo non è un motivo per riaprire una decisione
+già ragionata — non usato qui.
+
+**Cosa cambia, e perché resta la stessa risposta**: `mentioned_concepts()`
+(la stessa funzione, lo stesso grafo, lo stesso testo) ora gira una volta
+per passaggio, all'ingresso, invece che una volta per passaggio ad ogni
+ricerca — memorizzato come veri archi `MENTIONED_IN` da `(:Concept)` a
+`(:LiteraturePassage)`, non ricalcolato ogni volta. La ricerca diventa un
+attraversamento di grafo dai concetti cercati verso l'esterno, non una
+scansione dell'intera lista di passaggi.
+
+**Un errore di sintassi trovato e corretto durante la verifica**: FalkorDB
+non supporta `CREATE CONSTRAINT` in Cypher — genera l'errore *"Invalid
+constraint command use the GRAPH.CONSTRAINT command instead"*. Il client
+Python espone questo tramite un metodo dedicato,
+`create_node_unique_constraint(label, *properties)`, verificato
+direttamente prima di fidarsi.
+
+**Verificato identico all'implementazione in memoria**, sullo stesso
+input: stessi passaggi trovati, stesso ordine, stessa priorità per
+ampiezza (chi tocca più concetti cercati vince). Verificato anche che i
+passaggi sopravvivano a un riavvio (il problema reale che questo modulo
+risolve — `PersistentJsonlVectorStore` era stata costruita e testata ma
+mai istanziata in produzione), che lo stesso concetto da più passaggi
+diventi un solo nodo (non un doppione), e che aggiungere lo stesso
+passaggio due volte non lo duplichi (il vincolo di unicità al lavoro).
+
+10 nuovi test, 1395 totali passanti, lint pulito.
