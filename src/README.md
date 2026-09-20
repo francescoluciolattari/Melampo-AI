@@ -75,6 +75,8 @@ src/melampo/
 ## Current enterprise modules
 
 - `orchestration/model_capability_registry.py`: records Pillar-0, Gemma 4, Claude, Weaviate and Nemotron-Parse roles.
+- `orchestration/model_router.py` (`ModelRouter`, D1): decides how many reasoning paths a case needs, per `docs/rlm_on_memory_decision_record.md`'s table -- two steps, `pick_pending_case()` (early, reuses `training/pending_case_router.py`) and `pick_mode()` (later, once real signals exist). Replaces a 12-line stub that routed on a task name string, never called by anything.
+- `orchestration/task_protocol_router.py` (`TaskProtocolRouter`): the task-name-to-transport-protocol routing split out of the old `ModelRouter` stub when it was rebuilt into D1 -- a genuinely different concern (transport protocol vs. clinical complexity) that happened to share a class name; still used by `RuntimeServices.resolve()`, unchanged behaviour.
 - `reasoning/diagnostic_orchestrator.py`: final audit-first research diagnostic controller.
 - `memory/weaviate_schema.py`: object-property clinical memory schema contract.
 - `memory/weaviate_adapter.py`: safe Weaviate adapter contract and dry-run/live boundary.

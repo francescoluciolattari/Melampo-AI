@@ -14,7 +14,6 @@ from .models.pathology_encoder import PathologyEncoder
 from .models.quantum_research import QuantumResearchLayer
 from .models.report_encoder import ClinicalTextEncoder
 from .models.volume_encoder import VolumeEncoder
-from .orchestration.model_router import ModelRouter
 from .reasoning.clinical_pipeline import ClinicalInferencePipeline
 from .reasoning.critique_loop import CritiqueLoop
 from .reasoning.metacognition import MetacognitiveController
@@ -44,7 +43,6 @@ def build_default_runtime(config: RuntimeConfig | None = None) -> MelampoRuntime
 
     ingestion = ClinicalIngestionPipeline()
     normalizer = ClinicalNormalizer()
-    router = ModelRouter(config=config, logger=logger)
 
     volume_encoder = VolumeEncoder(config=config)
     pathology_encoder = PathologyEncoder(config=config)
@@ -63,7 +61,6 @@ def build_default_runtime(config: RuntimeConfig | None = None) -> MelampoRuntime
     pipeline = ClinicalInferencePipeline(
         ingestion=ingestion,
         normalizer=normalizer,
-        router=router,
         volume_encoder=volume_encoder,
         pathology_encoder=pathology_encoder,
         text_encoder=text_encoder,

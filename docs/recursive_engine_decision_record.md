@@ -3642,3 +3642,59 @@ lettura silenziosamente corrotta; nessun nome/cognome/codice fiscale in
 chiaro nel file cifrato, verificato leggendo i byte grezzi.
 
 11 nuovi test, 1436 totali passanti, lint pulito.
+
+### D1 (`ModelRouter`) ricostruito — con una scoperta che ha cambiato il piano a metà lavoro
+
+Richiesto direttamente: costruire D1 vero, sostituendo lo stub da 12
+righe che instradava su un nome di compito, mai chiamato da nulla
+(verificato con una ricerca diretta prima di toccare qualunque cosa).
+
+**Diviso in due passi, non uno**, per un vincolo reale di tempistica
+trovato leggendo `clinical_pipeline.py` per intero: il controllo sul
+caso in sospeso deve avvenire **presto**, prima che `report_text` sia
+usato dal resto della pipeline (per la fusione dei referti) — ma la
+tabella di complessità di settembre ha bisogno di `area_dynamics` e
+`governance_scores`, che a quel punto non esistono ancora. `pick_pending_case()`
+gira subito (riusa `pending_case_router.route_payload()`, costruito la
+sessione scorsa); `pick_mode()` gira più tardi, quando i segnali reali
+sono pronti.
+
+**Una scoperta che ha fermato il lavoro a metà, non ignorata**: la
+prima riscrittura ha rotto 30 test. Causa: `ModelRouter` serviva già
+uno scopo reale e diverso da quello che stavo costruendo —
+`RuntimeServices.resolve()` lo usava per instradare il protocollo di
+trasporto (a2a/mcp/service) per le chiamate ai modelli, non per la
+complessità clinica. Avevo confuso due responsabilità genuinamente
+diverse sotto lo stesso nome di classe. Separato in
+`orchestration/task_protocol_router.py` (`TaskProtocolRouter`,
+comportamento originale invariato, verificato con test dedicati) prima
+di procedere — non una correzione al volo, una vera separazione di
+responsabilità.
+
+**Le soglie della tabella**, esplicite e giustificate, non presunte:
+rischio basso ≤0,3, rischio alto ≥0,5, pochi reperti ≤2, disaccordo fra
+aree non risolto ≥0,5 su `mismatch_score` (la stessa metrica già
+verificata altrove in questo progetto, con lo stesso limite noto — conta
+segnali superficiali, non contenuto clinico vero, dichiarato onestamente
+nel codice del router stesso). La zona intermedia fra rischio basso e
+alto, con un numero moderato di reperti, non è coperta esplicitamente
+dalla tabella — risolta verso il doppio percorso come default più
+prudente, dichiarato come tale nel codice, non una scelta silenziosa.
+
+**Il limite dichiarato, non nascosto**: il verdetto "doppio percorso" è
+calcolato e allegato al risultato (`routing_mode`, `routing_reason`),
+ma non ancora eseguibile — richiederebbe `RlmEngine` collegato a
+`clinical_pipeline.py`, che oggi non esiste. Stessa cautela già usata
+per `confirm_and_train` in `pending_case_router.py`.
+
+Verificato end-to-end tramite la pipeline reale: un caso semplice
+produce `one_shot` con la motivazione corretta; un caso con molti
+reperti produce `dual_path`; `TaskProtocolRouter`, verificato
+separatamente, continua a risolvere `volume_encoder` esattamente come
+prima.
+
+`ROADMAP.md` aggiornato: D1 chiusa, D2-D5 riformulate (non più bloccate
+da D1 stesso, ma dal collegamento mancante di `RlmEngine`).
+
+14 nuovi test (10 per D1, 4 per `TaskProtocolRouter`), 1450 totali
+passanti, lint pulito.

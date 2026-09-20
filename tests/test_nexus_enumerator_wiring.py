@@ -53,6 +53,7 @@ def _minimal_pipeline(monkeypatch) -> ClinicalInferencePipeline:
     kwargs["_nexus_enumerator"] = None
     kwargs["_nexus_ic_table"] = None
     kwargs["_nexus_scheduler"] = None
+    kwargs["_model_router"] = None
     return ClinicalInferencePipeline(**kwargs)
 
 
