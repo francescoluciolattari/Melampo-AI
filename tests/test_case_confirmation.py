@@ -243,7 +243,11 @@ def _patient_payload():
             "diagnostic_question": "Evaluate for aortic root aneurysm"}
 
 
-def test_two_pending_records_for_the_same_patient_close_together(tmp_path):
+def test_only_the_referenced_case_closes_even_when_another_pending_record_matches_the_same_patient(tmp_path):
+    """Corrected directly after an earlier version closed every matching
+    record together: two open cases for the same patient must stay
+    separate -- closing by case_id must never sweep in a different
+    pending entry just because the patient identifiers happen to match."""
     candidate_store = NexusCandidateStore()
     identifiers = _identifiers_dict()
     candidate_store.create_candidate(
@@ -262,10 +266,38 @@ def test_two_pending_records_for_the_same_patient_close_together(tmp_path):
         graph=_graph(), password="secret", patient_payload=_patient_payload(),
     )
 
-    assert sorted(result.closed_case_ids) == ["visit-1", "visit-2"]
+    assert result.closed_case_ids == ["visit-1"]
     assert candidate_store.find_by_case_id("visit-1") is None
+    assert candidate_store.find_by_case_id("visit-2") is not None
+    assert len(confirmed_store) == 1
+
+
+def test_with_no_case_id_the_patient_identifier_fallback_locates_and_closes_only_the_single_most_recent_match(tmp_path):
+    """The fallback's job is to LOCATE the one correct case when case_id
+    is unknown, never to gather several."""
+    candidate_store = NexusCandidateStore()
+    identifiers = _identifiers_dict()
+    older = candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-1", "report_text": "First visit"}, "patient_identifiers": identifiers},
+        case_id="visit-1", learning_status="needs_review",
+    )
+    older.created_at = 100.0
+    newer = candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-2", "report_text": "Follow-up"}, "patient_identifiers": identifiers},
+        case_id="visit-2", learning_status="needs_review",
+    )
+    newer.created_at = 200.0
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+
+    result = submit_confirmed_diagnosis(
+        "", "Marfan syndrome", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+        graph=_graph(), password="secret", patient_payload=_patient_payload(),
+    )
+
+    assert result.closed_case_ids == ["visit-2"]
+    assert candidate_store.find_by_case_id("visit-1") is not None
     assert candidate_store.find_by_case_id("visit-2") is None
-    assert len(confirmed_store) == 2
 
 
 def test_without_graph_password_or_patient_payload_only_the_primary_case_closes(tmp_path):

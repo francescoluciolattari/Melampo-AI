@@ -182,18 +182,19 @@ def submit_confirmed_diagnosis(
     admission must say plainly what the confirmation's evidentiary basis
     actually is -- never guessed from the submission channel.
 
-    The primary record is found by case_id, unchanged. When `graph`,
-    `password` and `patient_payload` are all supplied, this ALSO looks for
-    other pending records belonging to the same patient via
+    The pending record is found by case_id when present. When absent, and
+    `graph`/`password`/`patient_payload` are all supplied, falls back to
     patient_matching.py (fiscal code, or name+surname+date+diagnostic
-    question together) -- per the design agreed on directly: a patient can
-    have more than one pending entry (recorded separately before a stable
-    case_id linked them), and a confirmed diagnosis should close and train
-    on all of them, not just the one the caller happened to reference by
-    id. Every closed record is registered as its own Confirmation, since
-    preference_pairs.py's extraction operates per case_id and each
-    record's own raised alternatives are the contrast that record's pair
-    needs.
+    question together) to LOCATE the single case case_id alone could not
+    -- never to gather several. Corrected directly after an earlier
+    version closed every matching record together: a patient can
+    genuinely have more than one open case for entirely different
+    problems, and closing them as one would train on the wrong contrast
+    and conflate case closure with case merging -- a different mechanism
+    (pending_case_router.py's merge_and_rerun, for new findings added to
+    the *same* still-open case) already built for that purpose. Among
+    several matches, the single most recent one is used, mirroring
+    route_payload()'s own pattern exactly.
 
     When `registry` (a ConfirmationRegistry) is supplied, every closure
     is also registered there -- the bridge preference_pairs.py's DPO
@@ -201,28 +202,33 @@ def submit_confirmed_diagnosis(
     path before this existed.
     """
     primary = candidate_store.find_by_case_id(case_id, statuses=PENDING_STATUSES)
-    records = [primary] if primary is not None else []
 
-    if graph is not None and password and patient_payload:
-        for match in find_matching_pending_records(patient_payload, candidate_store, graph, password):
-            if match.candidate_id not in {record.candidate_id for record in records}:
-                records.append(match)
+    if primary is None and graph is not None and password and patient_payload:
+        # Locates the single correct case when case_id is unknown -- never
+        # gathers several. Two genuinely different cases for the same
+        # patient (a real possibility, confirmed directly) must stay
+        # separate: closing them together would train on the wrong
+        # contrast and confuse case closure with case merging, which is a
+        # different mechanism (pending_case_router.py's merge_and_rerun,
+        # for new findings added to the *same* still-open case) already
+        # built for a different purpose. Mirrors route_payload()'s own
+        # pattern exactly: among every match, the single most recent one.
+        matches = find_matching_pending_records(patient_payload, candidate_store, graph, password)
+        if matches:
+            primary = max(matches, key=lambda record: record.created_at)
+            case_id = primary.case_id
 
-    if not records:
+    if primary is None:
         return ConfirmationResult(case_id=case_id, found_pending_record=False, outcome_feedback=None, confirmation=None)
 
-    closures = [
-        _close_one_record(
-            record, diagnosis, source=source, candidate_store=candidate_store,
-            confirmed_case_store=confirmed_case_store, registry=registry, confirmation_source=confirmation_source,
-            reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note,
-        )
-        for record in records
-    ]
-    primary_feedback, primary_confirmation = closures[0]
+    feedback_record, confirmation = _close_one_record(
+        primary, diagnosis, source=source, candidate_store=candidate_store,
+        confirmed_case_store=confirmed_case_store, registry=registry, confirmation_source=confirmation_source,
+        reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note,
+    )
     return ConfirmationResult(
-        case_id=case_id, found_pending_record=True, outcome_feedback=primary_feedback, confirmation=primary_confirmation,
-        closed_case_ids=[record.case_id for record in records],
+        case_id=case_id, found_pending_record=True, outcome_feedback=feedback_record, confirmation=confirmation,
+        closed_case_ids=[primary.case_id],
     )
 
 
