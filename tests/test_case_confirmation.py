@@ -100,16 +100,22 @@ def test_an_incorrect_proposal_is_recorded_as_such(tmp_path):
     assert feedback["correct"] is False
 
 
-def test_the_confirmation_source_is_carried_through(tmp_path):
+def test_the_submission_channel_is_carried_through_to_the_persisted_record(tmp_path):
+    """confirmation.source is now the clinical evidentiary basis, a
+    separate concern (see submit_confirmed_diagnosis's own docstring) --
+    the submission channel ("physician_form"/"document_recognition") is
+    what the persisted ConfirmedCaseStore record's own `source` field
+    carries."""
     candidate_store, confirmed_store = _stores(tmp_path)
     _pending_case(candidate_store)
 
-    result = submit_confirmed_diagnosis(
+    submit_confirmed_diagnosis(
         "case-1", "Sarcoidosis", source="physician_form",
         candidate_store=candidate_store, confirmed_case_store=confirmed_store,
     )
 
-    assert result.confirmation.source == "physician_form"
+    stored = next(iter(confirmed_store.load()))
+    assert stored["source"] == "physician_form"
 
 
 # --------------------------------------------------------------------------
@@ -196,11 +202,193 @@ def test_submit_confirmation_document_returns_none_without_markers(tmp_path):
     assert candidate_store.find_by_case_id("case-1") is not None  # untouched
 
 
-def test_document_path_records_its_source_as_document_recognition(tmp_path):
+def test_document_path_records_document_recognition_as_the_persisted_channel(tmp_path):
     candidate_store, confirmed_store = _stores(tmp_path)
     _pending_case(candidate_store)
     text = "Case ID: case-1\nConfirmed diagnosis: Sarcoidosis\n"
 
-    result = submit_confirmation_document(text, candidate_store=candidate_store, confirmed_case_store=confirmed_store)
+    submit_confirmation_document(text, candidate_store=candidate_store, confirmed_case_store=confirmed_store)
 
-    assert result.confirmation.source == "document_recognition"
+    stored = next(iter(confirmed_store.load()))
+    assert stored["source"] == "document_recognition"
+
+
+# --------------------------------------------------------------------------
+# Multi-match closure: when graph/password/patient_payload are supplied,
+# every pending record matching the same patient closes together, not
+# just the one the caller referenced by case_id.
+# --------------------------------------------------------------------------
+
+
+def _identifiers_dict(password="secret"):
+    from melampo.training.patient_matching import PatientIdentifiers
+
+    return PatientIdentifiers.from_payload(
+        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
+         "diagnostic_question": "Evaluate for aortic root aneurysm"},
+        password,
+    ).as_dict()
+
+
+def _graph():
+    from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
+
+    return InMemoryConceptGraph.from_edges(
+        [ConceptEdge("Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9)]
+    )
+
+
+def _patient_payload():
+    return {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
+            "diagnostic_question": "Evaluate for aortic root aneurysm"}
+
+
+def test_two_pending_records_for_the_same_patient_close_together(tmp_path):
+    candidate_store = NexusCandidateStore()
+    identifiers = _identifiers_dict()
+    candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-1", "report_text": "First visit"}, "patient_identifiers": identifiers},
+        case_id="visit-1", learning_status="needs_review",
+    )
+    candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-2", "report_text": "Follow-up"}, "patient_identifiers": identifiers},
+        case_id="visit-2", learning_status="needs_review",
+    )
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+
+    result = submit_confirmed_diagnosis(
+        "visit-1", "Marfan syndrome", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+        graph=_graph(), password="secret", patient_payload=_patient_payload(),
+    )
+
+    assert sorted(result.closed_case_ids) == ["visit-1", "visit-2"]
+    assert candidate_store.find_by_case_id("visit-1") is None
+    assert candidate_store.find_by_case_id("visit-2") is None
+    assert len(confirmed_store) == 2
+
+
+def test_without_graph_password_or_patient_payload_only_the_primary_case_closes(tmp_path):
+    """Backward compatible: the multi-match fallback is opt-in."""
+    candidate_store = NexusCandidateStore()
+    identifiers = _identifiers_dict()
+    candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-1", "report_text": "First visit"}, "patient_identifiers": identifiers},
+        case_id="visit-1", learning_status="needs_review",
+    )
+    candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-2", "report_text": "Follow-up"}, "patient_identifiers": identifiers},
+        case_id="visit-2", learning_status="needs_review",
+    )
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+
+    result = submit_confirmed_diagnosis(
+        "visit-1", "Marfan syndrome", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+    )
+
+    assert result.closed_case_ids == ["visit-1"]
+    assert candidate_store.find_by_case_id("visit-2") is not None
+
+
+def test_an_unrelated_patients_pending_record_is_never_swept_in(tmp_path):
+    candidate_store = NexusCandidateStore()
+    candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "visit-1", "report_text": "First visit"}, "patient_identifiers": _identifiers_dict()},
+        case_id="visit-1", learning_status="needs_review",
+    )
+    from melampo.training.patient_matching import PatientIdentifiers
+
+    other_identifiers = PatientIdentifiers.from_payload(
+        {"patient_name": "Luigi", "patient_surname": "Verdi", "case_date": "2026-09-20", "diagnostic_question": "unrelated"},
+        "secret",
+    ).as_dict()
+    candidate_store.create_candidate(
+        payload={"case_context": {"case_id": "other-patient", "report_text": "Unrelated"}, "patient_identifiers": other_identifiers},
+        case_id="other-patient", learning_status="needs_review",
+    )
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+
+    result = submit_confirmed_diagnosis(
+        "visit-1", "Marfan syndrome", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+        graph=_graph(), password="secret", patient_payload=_patient_payload(),
+    )
+
+    assert result.closed_case_ids == ["visit-1"]
+    assert candidate_store.find_by_case_id("other-patient") is not None
+
+
+def test_registering_with_a_confirmation_registry_admits_the_confirmation(tmp_path):
+    from melampo.governance.confirmation_registry import (
+        SOURCE_INDEPENDENT_REVIEW,
+        ConfirmationRegistry,
+    )
+
+    candidate_store = NexusCandidateStore()
+    candidate_store.create_candidate(payload={"case_context": {"case_id": "case-1"}}, case_id="case-1", learning_status="needs_review")
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+    registry = ConfirmationRegistry()
+
+    submit_confirmed_diagnosis(
+        "case-1", "Sarcoidosis", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+        registry=registry, confirmation_source=SOURCE_INDEPENDENT_REVIEW, reviewer_blinded_to_suggestion=True,
+    )
+
+    assert len(registry.admitted) == 1
+    assert registry.admitted[0].case_id == "case-1"
+
+
+def test_confirmation_source_left_at_default_is_correctly_rejected_by_the_registry(tmp_path):
+    """Not a bug to work around: ConfirmationRegistry's own automation-bias
+    guard correctly refuses an unspecified evidentiary source -- the exact
+    failure this project's own earlier conflation of "channel" and
+    "evidentiary source" produced, caught by this test."""
+    from melampo.governance.confirmation_registry import ConfirmationRegistry
+
+    candidate_store = NexusCandidateStore()
+    candidate_store.create_candidate(payload={"case_context": {"case_id": "case-1"}}, case_id="case-1", learning_status="needs_review")
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+    registry = ConfirmationRegistry()
+
+    submit_confirmed_diagnosis(
+        "case-1", "Sarcoidosis", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store, registry=registry,
+    )
+
+    assert len(registry.admitted) == 0
+    assert len(registry.rejected) == 1
+
+
+def test_without_a_registry_nothing_is_registered_and_nothing_raises(tmp_path):
+    candidate_store = NexusCandidateStore()
+    candidate_store.create_candidate(payload={"case_context": {"case_id": "case-1"}}, case_id="case-1", learning_status="needs_review")
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+
+    result = submit_confirmed_diagnosis(
+        "case-1", "Sarcoidosis", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+    )
+
+    assert result.found_pending_record is True
+
+
+def test_raised_labels_are_persisted_alongside_the_top_proposed_label(tmp_path):
+    candidate_store = NexusCandidateStore()
+    candidate_store.create_candidate(
+        payload={"case_context": {
+            "case_id": "case-1",
+            "nexus": {"alternative_hypotheses": [{"label": "Pneumonia"}, {"label": "Sarcoidosis"}, {"label": "Tuberculosis"}]},
+        }},
+        case_id="case-1", learning_status="needs_review",
+    )
+    confirmed_store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+
+    submit_confirmed_diagnosis(
+        "case-1", "Sarcoidosis", source="physician_form",
+        candidate_store=candidate_store, confirmed_case_store=confirmed_store,
+    )
+
+    stored = next(iter(confirmed_store.load()))
+    assert stored["raised_labels"] == ["Pneumonia", "Sarcoidosis", "Tuberculosis"]

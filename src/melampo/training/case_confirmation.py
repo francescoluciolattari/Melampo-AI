@@ -33,13 +33,14 @@ step, not attempted in this change.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-from ..governance.confirmation_registry import Confirmation
+from ..governance.confirmation_registry import SOURCE_UNSPECIFIED, Confirmation
 from .confirmed_case_store import ConfirmedCaseStore
 from .nexus_candidate_store import NexusCandidateRecord, NexusCandidateStore
 from .outcome_feedback import OutcomeFeedbackIngestor
+from .patient_matching import find_matching_pending_records
 
 PENDING_STATUSES = ("candidate", "needs_review")
 
@@ -52,6 +53,7 @@ class ConfirmationResult:
     found_pending_record: bool
     outcome_feedback: dict[str, Any] | None
     confirmation: Confirmation | None
+    closed_case_ids: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -59,6 +61,7 @@ class ConfirmationResult:
             "found_pending_record": self.found_pending_record,
             "outcome_feedback": self.outcome_feedback,
             "confirmation": self.confirmation.as_dict() if self.confirmation else None,
+            "closed_case_ids": self.closed_case_ids,
         }
 
 
@@ -72,42 +75,59 @@ def _proposed_label(record: NexusCandidateRecord) -> str:
     return ""
 
 
-def submit_confirmed_diagnosis(
-    case_id: str,
+def _raised_labels(record: NexusCandidateRecord) -> list[str]:
+    """Every alternative hypothesis label the nexus branch raised for this record, not just the top one.
+
+    Kept alongside proposed_label (which stays the single best-effort top
+    guess used for the live correct/incorrect outcome check) because
+    preference_pairs.py's DPO extraction needs the *whole* raised set --
+    a case where the confirmed diagnosis was raised alongside four wrong
+    ones carries four contrasts, and only ever storing the top guess would
+    silently throw three of them away before extraction ever got a chance
+    to use them.
+    """
+    hypotheses = record.payload.get("case_context", {}).get("nexus", {}).get("alternative_hypotheses", [])
+    if not hypotheses:
+        hypotheses = record.payload.get("nexus", {}).get("alternative_hypotheses", [])
+    return [str(item.get("label", "")) for item in hypotheses if isinstance(item, dict) and item.get("label")]
+
+
+def _close_one_record(
+    record: NexusCandidateRecord,
     diagnosis: str,
     *,
     source: str,
     candidate_store: NexusCandidateStore,
     confirmed_case_store: ConfirmedCaseStore,
+    registry: Any = None,
+    confirmation_source: str = SOURCE_UNSPECIFIED,
     reviewer_blinded_to_suggestion: bool | None = None,
     note: str | None = None,
-) -> ConfirmationResult:
-    """Close a pending case with a confirmed diagnosis -- the shared endpoint both confirmation paths call.
+) -> tuple[dict[str, Any], Confirmation]:
+    """Close exactly one pending record: outcome feedback, persist (retained, anonymised), remove from pending, register the confirmation.
 
-    `source` identifies which path called this (e.g. "document_recognition"
-    or "physician_form") -- carried into the persisted record and the
-    outcome feedback's own provenance, not used to change behaviour here;
-    both paths are equally valid ways of supplying the same fact.
+    Shared by every record a single submit_confirmed_diagnosis() call
+    closes -- the primary case_id match and any other pending record the
+    same patient-identifier match found (see that function's own
+    docstring for why there can be more than one).
     """
-    record = candidate_store.find_by_case_id(case_id, statuses=PENDING_STATUSES)
-    if record is None:
-        return ConfirmationResult(case_id=case_id, found_pending_record=False, outcome_feedback=None, confirmation=None)
-
     proposed_label = _proposed_label(record)
+    raised_labels = _raised_labels(record)
     ingestor = OutcomeFeedbackIngestor(default_source=source)
     feedback_record = candidate_store.attach_outcome_feedback(
         candidate_id=record.candidate_id,
         feedback=ingestor.build_feedback(
-            diagnostic_result={"case_id": case_id, "result_label": proposed_label},
+            diagnostic_result={"case_id": record.case_id, "result_label": proposed_label},
             outcome={"accepted_labels": [diagnosis], "notes": note or ""},
         ).as_dict(),
     )
 
     confirmed_case_store.persist(
         {
-            "case_id": case_id,
+            "case_id": record.case_id,
             "confirmed_diagnosis": diagnosis,
             "proposed_label": proposed_label,
+            "raised_labels": raised_labels,
             "source": source,
             "case_context": record.payload.get("case_context", {}),
             "outcome_feedback": feedback_record.get("outcome_feedback", []),
@@ -117,10 +137,93 @@ def submit_confirmed_diagnosis(
     candidate_store.delete(record.candidate_id)
 
     confirmation = Confirmation(
-        case_id=case_id, diagnosis=diagnosis, source=source,
+        case_id=record.case_id, diagnosis=diagnosis, source=confirmation_source,
         reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note,
     )
-    return ConfirmationResult(case_id=case_id, found_pending_record=True, outcome_feedback=feedback_record, confirmation=confirmation)
+    if registry is not None:
+        registry.register(confirmation)
+    return feedback_record, confirmation
+
+
+def submit_confirmed_diagnosis(
+    case_id: str,
+    diagnosis: str,
+    *,
+    source: str,
+    candidate_store: NexusCandidateStore,
+    confirmed_case_store: ConfirmedCaseStore,
+    registry: Any = None,
+    confirmation_source: str = SOURCE_UNSPECIFIED,
+    graph: Any = None,
+    password: str | None = None,
+    reviewer_blinded_to_suggestion: bool | None = None,
+    note: str | None = None,
+    patient_payload: dict[str, Any] | None = None,
+) -> ConfirmationResult:
+    """Close every pending record for this case -- the shared endpoint both confirmation paths call.
+
+    `source` identifies which path called this (e.g. "document_recognition"
+    or "physician_form") -- carried into the persisted record and the
+    outcome feedback's own provenance, not used to change behaviour here;
+    both paths are equally valid ways of supplying the same fact.
+
+    `confirmation_source` is a *different* thing, deliberately kept
+    separate rather than reusing `source` for both: ConfirmationRegistry's
+    own `source` field is not a submission channel, it is the confirmation's
+    clinical evidentiary basis (SOURCE_HISTOPATHOLOGY,
+    SOURCE_CLINICAL_OUTCOME, SOURCE_INDEPENDENT_REVIEW,
+    SOURCE_REFERENCE_STANDARD -- see governance/confirmation_registry.py),
+    a genuinely different classification this project conflated once
+    already before a test caught it: passing "physician_form" as if it
+    were an evidentiary source got every confirmation correctly rejected
+    by the registry (SOURCE_UNSPECIFIED is explicitly not admitted), which
+    is the registry doing exactly its job, not a bug in it. Left at its
+    default (SOURCE_UNSPECIFIED) here, a caller who wants registry
+    admission must say plainly what the confirmation's evidentiary basis
+    actually is -- never guessed from the submission channel.
+
+    The primary record is found by case_id, unchanged. When `graph`,
+    `password` and `patient_payload` are all supplied, this ALSO looks for
+    other pending records belonging to the same patient via
+    patient_matching.py (fiscal code, or name+surname+date+diagnostic
+    question together) -- per the design agreed on directly: a patient can
+    have more than one pending entry (recorded separately before a stable
+    case_id linked them), and a confirmed diagnosis should close and train
+    on all of them, not just the one the caller happened to reference by
+    id. Every closed record is registered as its own Confirmation, since
+    preference_pairs.py's extraction operates per case_id and each
+    record's own raised alternatives are the contrast that record's pair
+    needs.
+
+    When `registry` (a ConfirmationRegistry) is supplied, every closure
+    is also registered there -- the bridge preference_pairs.py's DPO
+    extraction was missing: nothing called registry.register() from this
+    path before this existed.
+    """
+    primary = candidate_store.find_by_case_id(case_id, statuses=PENDING_STATUSES)
+    records = [primary] if primary is not None else []
+
+    if graph is not None and password and patient_payload:
+        for match in find_matching_pending_records(patient_payload, candidate_store, graph, password):
+            if match.candidate_id not in {record.candidate_id for record in records}:
+                records.append(match)
+
+    if not records:
+        return ConfirmationResult(case_id=case_id, found_pending_record=False, outcome_feedback=None, confirmation=None)
+
+    closures = [
+        _close_one_record(
+            record, diagnosis, source=source, candidate_store=candidate_store,
+            confirmed_case_store=confirmed_case_store, registry=registry, confirmation_source=confirmation_source,
+            reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note,
+        )
+        for record in records
+    ]
+    primary_feedback, primary_confirmation = closures[0]
+    return ConfirmationResult(
+        case_id=case_id, found_pending_record=True, outcome_feedback=primary_feedback, confirmation=primary_confirmation,
+        closed_case_ids=[record.case_id for record in records],
+    )
 
 
 def list_pending_cases(candidate_store: NexusCandidateStore) -> list[dict[str, Any]]:

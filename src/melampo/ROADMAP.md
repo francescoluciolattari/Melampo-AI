@@ -273,6 +273,34 @@ parte da questo blocco (vedi sotto).
 
 ## Voci chiuse — verificate, non ripetute oltre questo elenco
 
+**Abbinamento del paziente e chiusura del caso completati**
+(`training/patient_matching.py`, estensione di `case_confirmation.py`,
+`training/training_extraction.py`). Una diagnosi confermata ora chiude
+**tutti** i casi in sospeso dello stesso paziente trovati tramite codice
+fiscale o nome+cognome+data+quesito diagnostico (mai uno solo di
+questi), non solo quello referenziato per `case_id`. Ogni chiusura si
+registra in `ConfirmationRegistry` (mai fatto prima — collegamento
+mancante trovato durante il lavoro), e `extract_and_purge()` costruisce
+le coppie di addestramento DPO da `preference_pairs.py`, cancellando
+**solo** i casi che hanno prodotto davvero una coppia utilizzabile — un
+caso senza alternative o mai confermato resta conservato, non cancellato
+come se l'addestramento l'avesse consumato quando non è vero.
+
+**Due difetti gravi trovati e corretti eseguendo il codice per davvero**:
+`ConfirmationRegistry` non aveva alcuna persistenza — stesso problema già
+trovato due volte per `NexusCandidateStore`/`NexusScheduler`, corretto
+con lo stesso schema a eventi. Un errore concettuale mio: avevo confuso
+il canale di invio di una conferma ("maschera medico") con la base
+probatoria clinica che il registro richiede per l'ammissione
+(istopatologia, esito clinico, revisione indipendente) — separati in due
+parametri distinti, trovato da un test che falliva.
+
+Collegato allo script di manutenzione periodica esistente
+(`scripts/run_low_activity_maintenance.py`), verificato end-to-end con
+un processo davvero separato dal servizio live.
+
+
+
 **I due percorsi di conferma costruiti** (`training/case_confirmation.py`).
 Un solo punto di ingresso condiviso, `submit_confirmed_diagnosis()`, che
 entrambe le vie alimentano — un documento con marcatori espliciti

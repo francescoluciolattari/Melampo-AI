@@ -3891,3 +3891,70 @@ paziente diverso, stessa data, non trova alcuna corrispondenza.
 25 nuovi test (16 per `patient_matching.py`, 6 per l'estensione di
 `pending_case_router.py`, 2 end-to-end sulla pipeline reale, 1 per la
 generazione dell'id), 1504 totali passanti, lint pulito.
+
+### Chiusura multipla del caso, registrazione delle conferme, ed estrazione con cancellazione condizionata
+
+Completato il disegno concordato: una diagnosi confermata chiude **tutti**
+i casi in sospeso dello stesso paziente, non solo quello referenziato per
+`case_id`. `submit_confirmed_diagnosis()` ora cerca anche tramite
+`patient_matching.py` (quando gliene vengono dati gli strumenti —
+`graph`, `password`, `patient_payload`), e ogni record trovato viene
+chiuso individualmente: riscontro d'esito, conservazione anonimizzata,
+rimozione dai sospesi, registrazione in `ConfirmationRegistry`.
+
+**Aggiunto `raised_labels`** ai record conservati — non solo la prima
+ipotesi proposta ma l'intero elenco, necessario perché
+`preference_pairs.py` possa costruire i contrasti.
+
+**Un errore concettuale mio, trovato da un test che falliva subito**:
+avevo dato a `Confirmation.source` lo stesso valore di `source`
+("physician_form"/"document_recognition") — il canale con cui arriva una
+conferma. Ma `ConfirmationRegistry.source` è un vocabolario diverso e
+specifico: la base probatoria clinica (istopatologia, esito clinico,
+revisione indipendente, standard di riferimento). Il registro rifiutava
+correttamente ogni conferma — **un comportamento giusto e sicuro del
+registro, non un suo difetto**. Separato in `confirmation_source`, un
+parametro distinto, lasciato a `SOURCE_UNSPECIFIED` di default — chi
+vuole l'ammissione nel registro deve dichiarare esplicitamente la base
+probatoria, mai indovinata dal canale.
+
+**`ConfirmedCaseStore.delete()` costruito** — non esisteva. Stesso
+principio a eventi già usato per `NexusCandidateStore`: un evento di
+cancellazione, non una riscrittura del file, rispettato al caricamento
+tenendo l'ultimo evento per `case_id`.
+
+**`training/training_extraction.py`**: `extract_and_purge()` costruisce
+le coppie DPO da ogni caso conservato via `preference_pairs.py`, poi
+cancella **solo** i casi che hanno prodotto davvero almeno una coppia
+utilizzabile. Un caso senza alternative da contrastare, mai registrato
+nel registro, o dove la diagnosi confermata non era mai stata proposta
+(un vero errore del sistema, degno di revisione umana, non da
+cancellare in silenzio) resta conservato — cancellare un record che
+l'estrazione non ha potuto usare non sarebbe "l'addestramento l'ha
+consumato", sarebbe solo cancellare la prova di cosa è andato storto
+prima che qualcuno la veda.
+
+**Un secondo difetto grave, trovato solo collegando lo script di
+manutenzione, non teorico**: `ConfirmationRegistry` non aveva alcuna
+persistenza — esattamente la stessa classe di problema già trovata due
+volte (`NexusCandidateStore`, la coda di `NexusScheduler`). Un servizio
+live che registra conferme e uno script di manutenzione davvero separato
+non avrebbero mai visto le stesse conferme. Corretto con lo stesso
+schema a eventi, riusando `EncryptedJsonlStore`. Verificato che il
+controllo dei duplicati (`_rejection_reason`'s `REJECT_DUPLICATE`)
+continua a funzionare correttamente anche fra processi separati — la
+proprietà di sicurezza che contava davvero, non solo che il meccanismo
+esistesse in isolamento.
+
+**Collegato allo script di manutenzione periodica**
+(`scripts/run_low_activity_maintenance.py`), verificato end-to-end con
+un processo davvero separato dal servizio live: un caso reale si chiude
+nel servizio live, lo script — invocato separatamente — trova ed estrae
+correttamente, senza cancellare nulla che non poteva davvero usare.
+
+`ROADMAP.md` aggiornato con una nuova voce chiusa.
+
+13 nuovi test (7 per `training_extraction.py`, 6 per la persistenza di
+`ConfirmationRegistry`), più le correzioni ai test esistenti di
+`case_confirmation.py` che presupponevano la struttura precedente, 1528
+totali passanti, lint pulito.
