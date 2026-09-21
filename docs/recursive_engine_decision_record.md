@@ -3958,3 +3958,36 @@ correttamente, senza cancellare nulla che non poteva davvero usare.
 `ConfirmationRegistry`), più le correzioni ai test esistenti di
 `case_confirmation.py` che presupponevano la struttura precedente, 1528
 totali passanti, lint pulito.
+
+### Corretto: la conferma chiude un solo caso, mai più insieme — un mio fraintendimento del disegno originale
+
+Segnalato direttamente: il ramo di conferma, come costruito, raccoglieva
+**tutti** i record in sospeso corrispondenti allo stesso paziente
+tramite `patient_matching.py` e li chiudeva **insieme**, come se
+fossero lo stesso caso di addestramento. Sbagliato — un paziente può
+avere due casi genuinamente diversi, aperti per problemi diversi (per
+esempio uno cardiologico e uno dermatologico), e chiuderli insieme
+addestrerebbe sul contrasto sbagliato, oltre a confondere la chiusura
+del caso con la sua unione — un meccanismo diverso
+(`pending_case_router.py`'s `merge_and_rerun`, già costruito, per nuovi
+reperti aggiunti allo **stesso** caso ancora aperto).
+
+**La frase originale "vengono aggiunti anche questi dati" descriveva
+sempre `merge_and_rerun`** — nuovi reperti che si uniscono a un caso
+già in sospeso per riprendere la stessa elaborazione diagnostica — non
+la chiusura multipla che avevo costruito nel ramo di conferma.
+
+**Corretto**: `submit_confirmed_diagnosis()` ora trova il `case_id`
+quando presente; quando assente, il ripiego tramite identificatori del
+paziente **individua** il singolo record più recente corrispondente —
+esattamente lo stesso schema già usato da `route_payload()` — non ne
+raccoglie mai più di uno. Chiude solo quel record; ogni altro caso in
+sospeso dello stesso paziente resta intatto.
+
+Verificato end-to-end con due casi genuinamente diversi per lo stesso
+paziente: chiudere quello cardiologico lascia intatto, non toccato,
+quello dermatologico.
+
+Un test aggiornato per riflettere il comportamento corretto, un nuovo
+test per la ricerca del singolo caso più recente quando `case_id` è
+assente. 1529 totali passanti, lint pulito.
