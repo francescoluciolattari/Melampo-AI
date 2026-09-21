@@ -17,3 +17,23 @@ Thumbs.db
 src/*.egg-info/
 *.egg-info/
 bench_results.json
+
+# Local-only runtime artifacts -- databases and encrypted stores built by
+# FalkorDBLite / EncryptedJsonlStore during development or test runs, never
+# meant to be committed. Found tracked by accident (a 29MB data/falkordb_lite.db
+# had been swept into a commit by `git add -A`), removed, and guarded here
+# against recurring. Named precisely, not a blanket data/*.db or data/*.jsonl
+# pattern -- data/ also holds real, tracked project data
+# (literature_vectors.jsonl, literature_index_concepts.json, phenotype.hpoa,
+# hp.obo, and the genes_to_*/maxo-annotations reference files), which a
+# broader pattern would risk shadowing.
+data/falkordb_lite.db
+data/falkordb_lite.db.salt
+data/nexus_candidates.jsonl
+data/nexus_candidates.jsonl.salt
+data/nexus_queue.jsonl
+data/nexus_queue.jsonl.salt
+data/confirmed_cases.jsonl
+data/confirmed_cases.jsonl.salt
+data/confirmation_registry.jsonl
+data/confirmation_registry.jsonl.salt
