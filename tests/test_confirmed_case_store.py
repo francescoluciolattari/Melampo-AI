@@ -114,3 +114,43 @@ def test_len_counts_persisted_records(tmp_path):
     store.persist(_RECORD)
     store.persist({**_RECORD, "case_id": "case-2"})
     assert len(store) == 2
+
+
+# --------------------------------------------------------------------------
+# delete(): a tombstone event, not a file rewrite -- the same principle
+# NexusCandidateStore's own event log already uses.
+# --------------------------------------------------------------------------
+
+
+def test_delete_removes_a_record(tmp_path):
+    store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+    store.persist({"case_id": "case-1", "confirmed_diagnosis": "Sarcoidosis"})
+    store.delete("case-1")
+    assert len(store) == 0
+    assert list(store.load()) == []
+
+
+def test_delete_leaves_other_records_untouched(tmp_path):
+    store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+    store.persist({"case_id": "case-1", "confirmed_diagnosis": "Sarcoidosis"})
+    store.persist({"case_id": "case-2", "confirmed_diagnosis": "Marfan syndrome"})
+    store.delete("case-1")
+    remaining = [record["case_id"] for record in store.load()]
+    assert remaining == ["case-2"]
+
+
+def test_a_deletion_persists_across_a_new_store_instance(tmp_path):
+    path = tmp_path / "confirmed.jsonl"
+    first = ConfirmedCaseStore(password="secret", path=path)
+    first.persist({"case_id": "case-1", "confirmed_diagnosis": "Sarcoidosis"})
+    first.delete("case-1")
+
+    second = ConfirmedCaseStore(password="secret", path=path)
+
+    assert len(second) == 0
+
+
+def test_deleting_a_nonexistent_case_id_does_not_raise(tmp_path):
+    store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
+    store.delete("never-existed")  # must not raise
+    assert len(store) == 0

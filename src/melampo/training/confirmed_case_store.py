@@ -94,8 +94,30 @@ class ConfirmedCaseStore:
         """Anonymise identifying fields, then encrypt and append -- both steps, always, never one without the other."""
         self._store.append(anonymize_identifying_fields(record, self.password))
 
+    def delete(self, case_id: str) -> None:
+        """Purge a confirmed case's record once its training use is served -- an event, not a rewrite of the file.
+
+        EncryptedJsonlStore is append-only, the same primitive already
+        used for the UMLS cache and (as an event log) NexusCandidateStore
+        -- deletion here follows the same tombstone principle rather than
+        reading and rewriting the whole file: append a marker, and have
+        load() honour the most recent event for a given case_id, in file
+        order, exactly as NexusCandidateStore's own event replay already
+        does.
+        """
+        self._store.append({"case_id": case_id, "_event": "deleted"})
+
     def load(self):
-        yield from self._store.load()
+        """Every confirmed case still retained -- the latest event per case_id, deletions honoured, in file order."""
+        latest_by_case: dict[str, dict[str, Any] | None] = {}
+        for record in self._store.load():
+            case_id = record.get("case_id")
+            if case_id is None:
+                continue
+            latest_by_case[case_id] = None if record.get("_event") == "deleted" else record
+        for record in latest_by_case.values():
+            if record is not None:
+                yield record
 
     def __len__(self) -> int:
-        return len(self._store)
+        return sum(1 for _ in self.load())

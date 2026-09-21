@@ -32,6 +32,8 @@ SOURCE_REFERENCE_STANDARD = "reference_standard"
 SOURCE_SYSTEM_ACCEPTED = "system_suggestion_accepted"
 SOURCE_UNSPECIFIED = "unspecified"
 
+DEFAULT_CONFIRMATION_REGISTRY_PATH = "data/confirmation_registry.jsonl"
+
 # Sources produced by something that did not take part in the system's
 # reasoning. Everything else is excluded, including an accepted suggestion.
 INDEPENDENT_SOURCES = frozenset(
@@ -104,14 +106,74 @@ class ConfirmationRegistry:
 
     admitted: list[Confirmation] = field(default_factory=list)
     rejected: list[RejectedConfirmation] = field(default_factory=list)
+    password: str | None = None
+    path: Any = None
+    _encrypted_store: Any = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Optional persistence -- pure in-memory when password/path are left None, unchanged from before this existed.
+
+        Found necessary while wiring training_extraction.py's periodic
+        extract_and_purge step: it runs in the same genuinely separate
+        process scripts/run_low_activity_maintenance.py already runs in,
+        and case_confirmation.py's submit_confirmed_diagnosis() (called
+        from the live service, a different process) registers into this
+        registry -- without persistence, that separate process would
+        always see an empty registry, the exact class of gap already
+        found and fixed for NexusCandidateStore and NexusScheduler's
+        queue. Same event-sourced pattern, same EncryptedJsonlStore, same
+        reason: _rejection_reason()'s duplicate check
+        (`any(item.case_id == confirmation.case_id for item in
+        self.admitted)`) only works correctly if admitted/rejected are
+        genuinely reconstructed from every process that has registered
+        into this registry, not just this one's own memory.
+        """
+        if self.password is None or self.path is None:
+            return
+        from ..memory.encrypted_store import EncryptedJsonlStore
+
+        self._encrypted_store = EncryptedJsonlStore(path=self.path, password=self.password)
+        self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        for event in self._encrypted_store.load():
+            confirmation = Confirmation(
+                case_id=event["case_id"], diagnosis=event["diagnosis"], source=event["source"],
+                reviewer_blinded_to_suggestion=event.get("reviewer_blinded_to_suggestion"),
+                confirmed_on=date.fromisoformat(event["confirmed_on"]) if event.get("confirmed_on") else None,
+                term_id=event.get("term_id"), note=event.get("note"),
+            )
+            if event["_event"] == "admitted":
+                self.admitted.append(confirmation)
+            else:
+                self.rejected.append(RejectedConfirmation(confirmation, event["reason"]))
+
+    def _persist_event(self, confirmation: Confirmation, *, admitted: bool, reason: str | None = None) -> None:
+        if self._encrypted_store is None:
+            return
+        self._encrypted_store.append(
+            {
+                "_event": "admitted" if admitted else "rejected",
+                "case_id": confirmation.case_id,
+                "diagnosis": confirmation.diagnosis,
+                "source": confirmation.source,
+                "reviewer_blinded_to_suggestion": confirmation.reviewer_blinded_to_suggestion,
+                "confirmed_on": confirmation.confirmed_on.isoformat() if confirmation.confirmed_on else None,
+                "term_id": confirmation.term_id,
+                "note": confirmation.note,
+                "reason": reason,
+            }
+        )
 
     def register(self, confirmation: Confirmation) -> bool:
         """Admit a confirmation if independent. Returns whether it was admitted."""
         reason = self._rejection_reason(confirmation)
         if reason is not None:
             self.rejected.append(RejectedConfirmation(confirmation, reason))
+            self._persist_event(confirmation, admitted=False, reason=reason)
             return False
         self.admitted.append(confirmation)
+        self._persist_event(confirmation, admitted=True)
         return True
 
     def register_many(self, confirmations: Sequence[Confirmation]) -> dict[str, int]:
