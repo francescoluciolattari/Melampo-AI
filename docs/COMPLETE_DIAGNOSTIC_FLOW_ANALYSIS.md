@@ -14,6 +14,15 @@ aggiorna ogni sezione toccata da quel lavoro (PR #90-#100), mantenendo lo
 stesso principio: cosa è verificato, cosa resta aperto, senza ambiguità
 residua.
 
+**Terza edizione.** Aggiunta la mappa concettuale grafica dello stato
+attuale (sotto), aggiornata con il lavoro di abbinamento del paziente,
+chiusura del caso, e estrazione condizionata (PR #102-#105). Ogni nodo è
+colorato secondo il proprio stato reale verificato nel codice — verde
+collegato e funzionante, giallo costruito ma non collegato, grigio mai
+toccato, rosso limite noto importante.
+
+![Mappa concettuale dello stato attuale](diagrams/architettura_stato_attuale.png)
+
 ---
 
 ## Parte 1 — Il percorso di oggi, verificato riga per riga
@@ -110,19 +119,48 @@ ClinicalInferencePipeline.run(payload)
 - `rlm_engine.py` (navigazione ricorsiva dei documenti) — **invariato**
 - `diagnostic_assembly.py` / `rlm_graph_bridge.py` — **invariato**
 - `retrieval_reconciliation.py`, `root_model_cross_check.py` — **invariato**
-- `training/case_confirmation.py` — **nuovo, costruito, ma non chiamato
-  da `clinical_pipeline.py`/`app.py`**: è infrastruttura a sé, pensata
-  per un ingresso separato dalla normale elaborazione di un caso (un
-  documento di conferma, o una maschera per il medico), non parte del
-  flusso `run()` di ogni caso
+- `training/case_confirmation.py` — **completato in questa edizione**:
+  chiude un **solo** caso per chiamata (corretto — una prima versione
+  chiudeva insieme tutti i casi in sospeso dello stesso paziente, sbagliato:
+  due casi diversi per problemi diversi non vanno mai uniti), individua il
+  caso tramite `case_id` o, quando assente, tramite `patient_matching.py`
+  (codice fiscale esatto, o nome+cognome+data+quesito diagnostico insieme).
+  Registra ogni chiusura in `ConfirmationRegistry` (nuovo, sotto). **Resta
+  non chiamato** da `clinical_pipeline.py`/`app.py` — infrastruttura a sé,
+  pensata per un ingresso separato (un documento di conferma, o una
+  maschera per il medico)
+- `training/patient_matching.py` — **nuovo**: abbinamento del paziente
+  senza `case_id`, usato sia da `pending_case_router.py` (per
+  `merge_and_rerun`) sia da `case_confirmation.py`. Un hash non si cerca
+  per vicinanza (verificato); l'unico incorporamento testuale di questo
+  progetto non è semantico (verificato) — usa invece corrispondenza per
+  concetti del grafo, con un ripiego a sovrapposizione di parole quando
+  il grafo (in inglese) non riconosce un quesito in italiano
+- `governance/confirmation_registry.py` — **ora persistente** (era già
+  presente, mai collegato a nulla prima). `case_confirmation.py` vi
+  registra ogni chiusura; il controllo dei duplicati funziona anche fra
+  processi separati
+- `training/training_extraction.py` — **nuovo**: `extract_and_purge()`
+  costruisce le coppie di addestramento DPO da `preference_pairs.py` (mai
+  chiamato prima di questa edizione) e cancella da `ConfirmedCaseStore`
+  **solo** i casi che hanno prodotto davvero una coppia utilizzabile — un
+  caso senza alternative, o dove la diagnosi confermata non era mai stata
+  proposta, resta conservato per revisione umana
 - `document_processing.py` — **completato questa sessione (la vera
   chiamata HTTP a Nemotron-Parse), ma ancora mai richiamato da nulla**;
   nemmeno da `case_confirmation.py`, che si aspetta testo già estratto
   ma non lo richiede mai davvero da questo modulo
 - `NexusScheduler.run_once()` — **ora ha un vero innesco**
-  (`scripts/run_low_activity_maintenance.py`), ma resta uno script
-  esterno, mai eseguito automaticamente da questo progetto stesso — va
-  pianificato dal deployment (cron, non GitHub Actions — vedi Parte 2bis)
+  (`scripts/run_low_activity_maintenance.py`, ora esegue anche
+  `sweep_expired_pending_cases()` e `extract_and_purge()` insieme), ma
+  resta uno script esterno, mai eseguito automaticamente da questo
+  progetto stesso — va pianificato dal deployment (cron, non GitHub
+  Actions — vedi Parte 2bis)
+- **L'addestramento vero, con cambiamento di pesi** (`dpo_config.py`) —
+  **invariato, ancora teorico**: le coppie DPO si costruiscono
+  correttamente, ma il ciclo di addestramento reale richiederebbe una GPU
+  che questo ambiente non ha — dichiarato esplicitamente dal codice
+  stesso, non presunto
 
 ---
 
