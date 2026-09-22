@@ -40,6 +40,93 @@ def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, value))
 
 
+FORMAT_PDF = "pdf"
+FORMAT_PNG = "png"
+FORMAT_JPEG = "jpeg"
+FORMAT_DICOM = "dicom"
+FORMAT_TEXT = "text"
+FORMAT_UNKNOWN = "unknown"
+
+_MIME_BY_FORMAT = {FORMAT_PNG: "image/png", FORMAT_JPEG: "image/jpeg"}
+
+
+def detect_document_format(data: bytes) -> str:
+    """The document's real format, from its own leading bytes -- never from a filename.
+
+    A filename can lie (a JPEG saved as "referto.pdf", a DICOM file with
+    no extension at all, which is common for files exported from a PACS);
+    the file's own signature cannot. Standard, published signatures only:
+    PDF begins with "%PDF"; PNG with the fixed 8-byte signature; JPEG with
+    FF D8 FF; DICOM Part 10 files carry a 128-byte preamble followed by the
+    literal "DICM" at offset 128. Anything else that decodes cleanly as
+    UTF-8 is text; everything remaining is unknown -- and is never decoded
+    as text anyway, which is exactly the failure this function exists to
+    prevent (see process_document_bytes).
+    """
+    if data.startswith(b"%PDF"):
+        return FORMAT_PDF
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return FORMAT_PNG
+    if data.startswith(b"\xff\xd8\xff"):
+        return FORMAT_JPEG
+    if len(data) >= 132 and data[128:132] == b"DICM":
+        return FORMAT_DICOM
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return FORMAT_UNKNOWN
+    return FORMAT_TEXT
+
+
+def _extract_pdf_text_layer(data: bytes) -> str | None:
+    """A digital PDF's own embedded text layer, via poppler's pdftotext, entirely in memory -- None if the tool is unavailable.
+
+    Many clinical documents (laboratory reports especially) are generated
+    digitally and carry a real, selectable text layer -- readable without
+    any OCR or vision model at all. pdftotext reads the PDF from stdin and
+    writes text to stdout ("-" for both), so no temporary file is ever
+    written, verified directly before relying on it. A scanned PDF has no
+    text layer and returns an empty string here -- honestly nothing, not
+    something invented.
+    """
+    import subprocess
+
+    try:
+        completed = subprocess.run(
+            ["pdftotext", "-layout", "-", "-"], input=data, capture_output=True, timeout=60, check=False
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.decode("utf-8", errors="replace").strip()
+
+
+def _parse_failure_types() -> tuple[type[BaseException], ...]:
+    """The failures a document parser is genuinely expected to hit -- caught and reported as "failed", never anything wider.
+
+    Network errors (requests), an input the parser cannot take or a
+    malformed response (ValueError), unreadable bytes/files (OSError), and
+    poppler/pdf2image's own errors (missing binaries, unparseable PDF,
+    timeout). Deliberately not bare `Exception`: that would also swallow a
+    genuine programming error -- a TypeError, a KeyError from a refactor --
+    and report it as "parser unavailable", hiding exactly the kind of
+    defect this project wants surfaced, not smoothed over.
+    """
+    import requests
+    from pdf2image import exceptions as pdf2image_exceptions
+
+    return (
+        requests.RequestException,
+        ValueError,
+        OSError,
+        pdf2image_exceptions.PDFInfoNotInstalledError,
+        pdf2image_exceptions.PDFPageCountError,
+        pdf2image_exceptions.PDFSyntaxError,
+        pdf2image_exceptions.PDFPopplerTimeoutError,
+    )
+
+
 def _parse_nemotron_parse_response(response: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """The model's raw output, from the documented response envelope.
 
@@ -216,22 +303,38 @@ class ClinicalDocumentProcessor:
                 "source_path": str(path),
             }
         try:
-            text, layout_metadata = self._call_nemotron_parse(path)
-        except Exception as exc:  # pragma: no cover - depends on the live endpoint/files
+            data = Path(path).read_bytes()
+        except OSError as exc:
+            return {"status": "failed", "reason": "nemotron_parse_conversion_failed", "error": str(exc), "source_path": str(path)}
+        return self.load_with_nemotron_parse_bytes(data, source_name=str(path))
+
+    def load_with_nemotron_parse_bytes(self, data: bytes, source_name: str = "<memory>") -> dict[str, Any]:
+        """load_with_nemotron_parse(), from bytes already in memory -- same result contract, same graceful degradation."""
+        availability = self._nemotron_parse_available()
+        if not availability["available"]:
+            return {
+                "status": "not_executed",
+                "reason": "nemotron_parse_unavailable",
+                "error": availability["error"],
+                "source_path": source_name,
+            }
+        try:
+            text, layout_metadata = self._call_nemotron_parse_bytes(data, source_name=source_name)
+        except _parse_failure_types() as exc:
             return {
                 "status": "failed",
                 "reason": "nemotron_parse_conversion_failed",
                 "error": str(exc),
-                "source_path": str(path),
+                "source_path": source_name,
             }
         return {
             "status": "completed",
-            "source_path": str(path),
+            "source_path": source_name,
             "text": text,
             "parser": "nemotron_parse",
             "metadata": {
                 "parser": "nemotron_parse",
-                "source_path": str(path),
+                "source_path": source_name,
                 "layout_preserved": True,
                 **layout_metadata,
             },
@@ -255,7 +358,7 @@ class ClinicalDocumentProcessor:
             }
         try:
             text, layout_metadata = self._call_llamaparse(path)
-        except Exception as exc:  # pragma: no cover - depends on the live endpoint/files
+        except (NotImplementedError, *_parse_failure_types()) as exc:  # pragma: no cover - depends on the live endpoint/files
             return {
                 "status": "failed",
                 "reason": "llamaparse_conversion_failed",
@@ -296,41 +399,54 @@ class ClinicalDocumentProcessor:
         call, since the model has no raw-PDF input path. Non-PDF image
         inputs are sent directly.
         """
-        path = Path(path)
-        images = self._render_pages_as_images(path)
+        return self._call_nemotron_parse_bytes(Path(path).read_bytes(), source_name=str(path))
+
+    def _call_nemotron_parse_bytes(self, data: bytes, source_name: str = "<memory>") -> tuple[str, dict[str, Any]]:
+        """The same Nemotron-Parse call, from bytes already in memory -- the path version above now just reads and delegates here."""
+        images = self._render_bytes_as_images(data, source_name=source_name)
         if not images:
-            raise ValueError(f"no renderable pages found for {path}")
+            raise ValueError(f"no renderable pages found for {source_name}")
 
         page_texts: list[str] = []
         page_metadata: list[dict[str, Any]] = []
-        for page_number, image_bytes in enumerate(images, start=1):
-            response = self._post_nemotron_parse_page(image_bytes)
+        for page_number, (image_bytes, mime_type) in enumerate(images, start=1):
+            response = self._post_nemotron_parse_page(image_bytes, mime_type=mime_type)
             text, layout = _parse_nemotron_parse_response(response)
             page_texts.append(text)
             page_metadata.append({"page": page_number, **layout})
         return "\n\n".join(page_texts), {"page_count": len(images), "pages": page_metadata}
 
-    def _render_pages_as_images(self, path: Path) -> list[bytes]:
-        """Each page as PNG bytes -- pdf2image for PDFs, the file itself for an image input."""
-        suffix = path.suffix.lower()
-        if suffix in {".png", ".jpg", ".jpeg"}:
-            return [path.read_bytes()]
-        if suffix != ".pdf":
-            raise ValueError(f"Nemotron-Parse needs an image or PDF input, got {suffix!r}")
+    def _render_pages_as_images(self, path: Path) -> list[tuple[bytes, str]]:
+        """Kept for callers that still hold a path -- reads once, delegates to the in-memory version."""
+        return self._render_bytes_as_images(Path(path).read_bytes(), source_name=str(path))
+
+    def _render_bytes_as_images(self, data: bytes, source_name: str = "<memory>") -> list[tuple[bytes, str]]:
+        """Each page as (image bytes, MIME type) -- pdf2image for PDFs, the bytes themselves for an image, all in memory.
+
+        Format comes from detect_document_format() (the file's own
+        signature), not a filename suffix. Returns the real MIME type with
+        each page: an earlier version labelled every image
+        "data:image/png" regardless of content, so a JPEG was sent to
+        Nemotron-Parse mislabelled as PNG -- never surfaced only because
+        nothing had ever called this module with a real JPEG.
+        """
+        document_format = detect_document_format(data)
+        if document_format in _MIME_BY_FORMAT:
+            return [(data, _MIME_BY_FORMAT[document_format])]
+        if document_format != FORMAT_PDF:
+            raise ValueError(f"Nemotron-Parse needs an image or PDF input, got {document_format!r} for {source_name}")
         from io import BytesIO
 
-        from pdf2image import (
-            convert_from_path,
-        )
+        from pdf2image import convert_from_bytes
 
         rendered = []
-        for page_image in convert_from_path(str(path), dpi=200):
+        for page_image in convert_from_bytes(data, dpi=200):
             buffer = BytesIO()
             page_image.save(buffer, format="PNG")
-            rendered.append(buffer.getvalue())
+            rendered.append((buffer.getvalue(), "image/png"))
         return rendered
 
-    def _post_nemotron_parse_page(self, image_bytes: bytes) -> dict[str, Any]:
+    def _post_nemotron_parse_page(self, image_bytes: bytes, mime_type: str = "image/png") -> dict[str, Any]:
         """One page, one request -- the isolated network call, mocked directly in tests."""
         import base64
 
@@ -343,7 +459,7 @@ class ClinicalDocumentProcessor:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}},
                         {"type": "text", "text": "Parse this document page: extract all text, tables and layout structure."},
                     ],
                 }
@@ -570,7 +686,7 @@ class ClinicalDocumentProcessor:
         self, path: str | Path, metadata: dict[str, Any] | None = None,
         prefer_structured_parser: bool = True, also_cross_check_with_llamaparse: bool = False,
     ) -> dict[str, Any]:
-        """Parse a document, preferring Nemotron-Parse, falling back to plain text.
+        """Parse a document from a path on disk -- reads it once, then delegates to process_document_bytes().
 
         ``also_cross_check_with_llamaparse`` runs the second reading agreed
         for ingestion specifically -- an ingestion error is more costly than
@@ -581,51 +697,115 @@ class ClinicalDocumentProcessor:
         unavailable on every call.
         """
         metadata = metadata or {}
-        parser_result = self.load_with_nemotron_parse(path) if prefer_structured_parser else {"status": "not_requested"}
-        cross_check_result = self.load_with_llamaparse(path) if also_cross_check_with_llamaparse else None
-
-        if parser_result.get("status") == "completed":
-            text = str(parser_result.get("text", ""))
-            raw_metadata: Any = parser_result.get("metadata", {})
-            parser_metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
-            chunks = self.chunk_text(text=text, source_path=str(path), metadata={**metadata, **parser_metadata})
-            result = {
-                "status": "completed",
-                "parser": "nemotron_parse",
-                "source_path": str(path),
-                "document_id": chunks[0].metadata.get("document_id") if chunks else self.document_id(str(path), text, metadata),
-                "chunk_count": len(chunks),
-                "documents": [chunk.to_memory_document() for chunk in chunks],
-                "governance": self.ingestion_integration_plan()["governance_requirements"],
-                "enterprise_metadata": self.infer_source_governance({**metadata, **parser_metadata, "source_path": str(path)}),
-            }
-            if cross_check_result is not None:
-                result["cross_check"] = cross_check_result
-            return result
         try:
-            documents = self.process_plain_text_file(path, metadata={**metadata, "parser": "plain_text_fallback"})
-        except Exception as exc:
+            data = Path(path).read_bytes()
+        except OSError as exc:
             return {
                 "status": "failed",
                 "parser": "plain_text_fallback",
                 "source_path": str(path),
                 "error": str(exc),
-                "parser_result": parser_result,
+                "parser_result": {"status": "not_executed", "reason": "file_unreadable"},
             }
-        document_id = documents[0]["metadata"].get("document_id") if documents else self.document_id(str(path), "", metadata)
-        result = {
-            "status": "completed",
-            "parser": "plain_text_fallback",
-            "source_path": str(path),
-            "document_id": document_id,
-            "chunk_count": len(documents),
-            "documents": documents,
+        result = self.process_document_bytes(
+            data, source_name=str(path), metadata=metadata, prefer_structured_parser=prefer_structured_parser
+        )
+        if also_cross_check_with_llamaparse:
+            result["cross_check"] = self.load_with_llamaparse(path)
+        return result
+
+    def process_document_bytes(
+        self, data: bytes, source_name: str = "<memory>", metadata: dict[str, Any] | None = None,
+        prefer_structured_parser: bool = True,
+    ) -> dict[str, Any]:
+        """Parse a document held in memory -- never written to disk, per the decision to keep a case's files in memory during processing.
+
+        Order, per document format (detected from the bytes themselves):
+        1. Nemotron-Parse, when preferred and configured -- PDF, PNG, JPEG.
+        2. Otherwise an honest format-specific fallback: UTF-8 text decoded
+           as text; a digital PDF's own embedded text layer via pdftotext
+           (_extract_pdf_text_layer); nothing else.
+        3. Everything that yields no genuine text -- an image or scanned
+           PDF with no OCR available, a DICOM file (its own handler is a
+           separate component), an unrecognised binary -- returns status
+           "no_text_extracted" with the reason, never "completed".
+
+        Step 3 corrects a real defect, verified before fixing: the previous
+        plain-text fallback decoded ANY file as UTF-8 with errors ignored,
+        so a photographed blood test with Nemotron-Parse unconfigured came
+        back as status "completed" with the JPEG's own binary header
+        ("JFIF...") presented as clinical text -- silent garbage flowing
+        into a case's report_text, the worst kind of ingestion error.
+        """
+        metadata = metadata or {}
+        document_format = detect_document_format(data)
+        parser_result = (
+            self.load_with_nemotron_parse_bytes(data, source_name=source_name)
+            if prefer_structured_parser
+            else {"status": "not_requested"}
+        )
+
+        if parser_result.get("status") == "completed":
+            raw_metadata: Any = parser_result.get("metadata", {})
+            parser_metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+            return self._completed_document_result(
+                str(parser_result.get("text", "")), source_name, metadata, "nemotron_parse", document_format,
+                parser_metadata=parser_metadata,
+            )
+
+        if document_format == FORMAT_TEXT:
+            return self._completed_document_result(
+                data.decode("utf-8"), source_name, metadata, "plain_text_fallback", document_format,
+                parser_result=parser_result,
+            )
+
+        if document_format == FORMAT_PDF:
+            text_layer = _extract_pdf_text_layer(data)
+            if text_layer:
+                return self._completed_document_result(
+                    text_layer, source_name, metadata, "pdf_text_layer", document_format, parser_result=parser_result,
+                )
+            reason = "pdftotext_unavailable" if text_layer is None else "pdf_has_no_text_layer_and_no_ocr_available"
+        elif document_format in _MIME_BY_FORMAT:
+            reason = "image_requires_nemotron_parse_for_text"
+        elif document_format == FORMAT_DICOM:
+            reason = "dicom_requires_the_dicom_handler"
+        else:
+            reason = "unrecognised_binary_format"
+
+        return {
+            "status": "no_text_extracted",
+            "parser": None,
+            "source_path": source_name,
+            "document_format": document_format,
+            "reason": reason,
+            "chunk_count": 0,
+            "documents": [],
             "parser_result": parser_result,
             "governance": self.ingestion_integration_plan()["governance_requirements"],
-            "enterprise_metadata": self.infer_source_governance({**metadata, "source_path": str(path)}),
+            "enterprise_metadata": self.infer_source_governance({**metadata, "source_path": source_name}),
         }
-        if cross_check_result is not None:
-            result["cross_check"] = cross_check_result
+
+    def _completed_document_result(
+        self, text: str, source_name: str, metadata: dict[str, Any], parser: str, document_format: str,
+        *, parser_metadata: dict[str, Any] | None = None, parser_result: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """The one "completed" result shape every successful parser path returns -- unchanged keys from before."""
+        combined_metadata = {**metadata, **(parser_metadata or {}), "parser": parser}
+        chunks = self.chunk_text(text=text, source_path=source_name, metadata=combined_metadata)
+        result = {
+            "status": "completed",
+            "parser": parser,
+            "source_path": source_name,
+            "document_format": document_format,
+            "document_id": chunks[0].metadata.get("document_id") if chunks else self.document_id(source_name, text, metadata),
+            "chunk_count": len(chunks),
+            "documents": [chunk.to_memory_document() for chunk in chunks],
+            "governance": self.ingestion_integration_plan()["governance_requirements"],
+            "enterprise_metadata": self.infer_source_governance({**metadata, **(parser_metadata or {}), "source_path": source_name}),
+        }
+        if parser_result is not None:
+            result["parser_result"] = parser_result
         return result
 
     def upsert_processed_document(self, processed: dict[str, Any], memory_adapter: Any) -> dict[str, Any]:

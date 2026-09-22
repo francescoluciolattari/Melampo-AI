@@ -3991,3 +3991,63 @@ quello dermatologico.
 Un test aggiornato per riflettere il comportamento corretto, un nuovo
 test per la ricerca del singolo caso più recente quando `case_id` è
 assente. 1529 totali passanti, lint pulito.
+
+### La CI era rotta da 26 esecuzioni — e il passo 1 dell'elaborazione dei documenti in memoria
+
+**Un difetto di processo, mio, prima di ogni altra cosa.** Dall'unione di
+PR #82 ogni esecuzione della CI su `main` è fallita — 26 consecutive —
+mentre tutte le PR successive venivano unite guardando solo la suite
+locale, mai l'esito su GitHub. Scoperto solo per caso, controllando se la
+CI avesse `poppler`. Da ora ogni PR viene unita solo dopo che la CI su
+GitHub è verde, e l'esecuzione su `main` dopo l'unione viene verificata
+anch'essa (`wait_for_ci.sh` interroga lo stato reale delle esecuzioni per
+commit).
+
+**Cause, tutte riprodotte, nessuna presunta** (il log dei runner non è
+raggiungibile dall'ambiente di sviluppo, quindi ogni fallimento è stato
+ricostruito eseguendo lo stesso comando nello stesso ambiente):
+1. `falkordblite` 0.10.0 richiede Python ≥ 3.12 (verificato su PyPI); il
+   progetto dichiarava ≥ 3.11 e la CI provava 3.11. Ora ≥ 3.12, la
+   versione già usata da ogni altro workflow (PR #108).
+2. `ci.yml` cercava `test_phase3_dream_governance.py`, rinominato dalla
+   rinomina Dream→Nexus (PR #87) senza aggiornare la CI (PR #108).
+3. Il workflow dei dati confrontava la data di **generazione** di
+   `phenotype.hpoa` (`#version: 2026-09-02`) con il tag della release
+   (`2026-09-01`): mai uguali, quindi "dati obsoleti" a ogni esecuzione.
+   I file "nuovi" erano identici byte per byte ai nostri. Ora legge la
+   release da `#hpo-version:` (PR #109). Verificato sul runner vero con
+   un'esecuzione manuale: scaricamento saltato.
+4. `poppler-utils` mai installato sul runner del workflow dei dati, e
+   PyYAML usato da un test ma dichiarato solo nell'extra `clinical`
+   (PR #109). Verificato in un ambiente virtuale pulito installato come
+   il workflow: 1529/1529.
+
+**Passo 1 — documenti elaborati in memoria.** `process_document_bytes()`
+elabora un documento dai byte, senza mai scrivere su disco (verificato da
+un test che controlla la directory di lavoro). Il formato si rileva dalla
+firma del file stesso, mai dal nome — un nome può mentire, e un file
+esportato da un PACS spesso non ha estensione. `process_document(path)`
+ora legge una volta e delega.
+
+**Due difetti reali corretti, entrambi verificati prima di correggerli**:
+- Il ripiego testuale decodificava **qualunque** file come UTF-8 ignorando
+  gli errori: un'analisi del sangue fotografata, senza Nemotron-Parse
+  configurato, tornava `completed` con l'intestazione binaria del JPEG
+  (`JFIF…`) presentata come testo clinico. Ora ogni formato ha un
+  ripiego onesto: testo decodificato come testo; PDF digitale letto dal
+  proprio strato di testo con `pdftotext` (da stdin, mai da file); tutto
+  il resto — immagine o PDF scansionato senza OCR, DICOM, binario
+  sconosciuto — restituisce `no_text_extracted` con il motivo, mai
+  `completed`.
+- Ogni immagine veniva inviata a Nemotron-Parse etichettata `image/png`,
+  quindi ogni JPEG era sempre etichettato male. Ora il tipo MIME segue il
+  formato reale.
+
+**Due `except Exception` ristretti** (già presenti su `main`, non
+introdotti da questo lavoro): ora catturano solo gli errori attesi di un
+parser — rete, input non gestibile, lettura, poppler. Un vero errore di
+programmazione non viene più fatto passare per "parser non disponibile";
+un test lo verifica.
+
+17 nuovi test, 1546 totali passanti anche in un ambiente pulito come il
+runner, lint pulito.
