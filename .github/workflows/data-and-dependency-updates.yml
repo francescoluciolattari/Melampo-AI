@@ -75,15 +75,28 @@ jobs:
           current = "unknown"
           hpoa = pathlib.Path("data/phenotype.hpoa")
           if hpoa.is_file():
+              # The HPO release is the date inside the "#hpo-version:" URL
+              # (.../releases/2026-09-01/hp.json) -- NOT the first date in the
+              # header. "#version:" is the annotation file's own generation
+              # date, typically a day after the release tag it belongs to, so
+              # comparing it against the tag reported "outdated" on every
+              # scheduled run even when the data was already current.
+              first_date = None
               with hpoa.open(encoding="utf-8", errors="ignore") as handle:
                   for _ in range(20):
                       line = handle.readline()
                       if not line.startswith("#"):
                           break
+                      if line.startswith("#hpo-version:"):
+                          release = re.search(r"releases/(\d{4}-\d{2}-\d{2})/", line)
+                          if release:
+                              current = release.group(1)
+                              break
                       match = re.search(r"(\d{4}-\d{2}-\d{2})", line)
-                      if match:
-                          current = match.group(1)
-                          break
+                      if match and first_date is None:
+                          first_date = match.group(1)
+              if current == "unknown" and first_date:
+                  current = first_date
 
           latest, error = "unknown", ""
           try:
@@ -164,8 +177,13 @@ jobs:
       - name: Install and verify against the new data
         if: steps.hpo.outputs.outdated == 'true'
         run: |
-          python -m pip install --quiet -e .
-          python -m pip install --quiet pytest ruff
+          # poppler-utils: pdf2image (Nemotron-Parse page rendering) and
+          # pdftotext (digital-PDF text layer) both call poppler binaries;
+          # two tests exercise that path and failed on a runner without it.
+          sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+          # .[dev], the same install ci.yml uses -- the bare `-e .` plus
+          # pytest missed test-only dependencies (PyYAML).
+          python -m pip install --quiet -e .[dev]
           # The whole suite, not a subset: the point of proposing rather than
           # applying is that a reviewer sees a green run against the new data,
           # or sees precisely what broke.
