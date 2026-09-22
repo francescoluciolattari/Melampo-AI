@@ -251,6 +251,7 @@ class ClinicalInferencePipeline:
                 first_study_id,
                 series_paths=list(first_study.series_paths),
                 metadata=dict(first_study.metadata),
+                in_memory_images=len(first_study.images_png),
             )
             pathology_features = self.pathology_encoder.encode(first_study_id)
         else:
@@ -592,6 +593,14 @@ class ClinicalInferencePipeline:
         # _auto_evolution_plan before touching it. The decision is
         # attached to the result so a caller (or D1, once it exists) can
         # act on it rather than it being silently dropped.
+        # Attachments first (PDF, images, DICOM -> text + imaging studies),
+        # before pending-case routing: routing merges this submission's
+        # report_text into a pending case's previous report, so extracted
+        # attachment text must already be in report_text or merge_and_rerun
+        # would drop it. Stub ingestions in tests may not implement it.
+        prepare = getattr(self.ingestion, "prepare_payload", None)
+        if prepare is not None:
+            payload = prepare(payload)
         pending_case_routing = self._model_router_instance().pick_pending_case(payload)
         payload = {**payload, "case_id": pending_case_routing.case_id}
         case = self.ingestion.from_payload(payload)

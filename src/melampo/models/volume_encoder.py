@@ -56,11 +56,13 @@ class VolumeEncoder:
                 enabled=enabled,
             )
 
-    def _infer_input_kind(self, series_paths: list[str], metadata: dict) -> str:
+    def _infer_input_kind(self, series_paths: list[str], metadata: dict, in_memory_images: int = 0) -> str:
         modality = str(metadata.get("modality", metadata.get("Modality", ""))).upper()
         suffixes = {Path(path).suffix.lower() for path in series_paths}
         if modality in {"CT", "MR", "PT"}:
             return "volumetric_dicom_or_series"
+        if in_memory_images and not series_paths:
+            return "dicom_like_series" if metadata.get("source") == "dicom_attachment" else "projection_or_image_file"
         if ".dcm" in suffixes or not suffixes and series_paths:
             return "dicom_like_series"
         if suffixes.intersection({".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}):
@@ -76,11 +78,23 @@ class VolumeEncoder:
             return "remote_provider_configured" if has_local_images else "remote_provider_waiting_for_images"
         return "unknown_strategy"
 
-    def encode(self, study_id: str, series_paths: list[str] | None = None, metadata: dict | None = None) -> dict:
+    def encode(
+        self, study_id: str, series_paths: list[str] | None = None, metadata: dict | None = None,
+        in_memory_images: int = 0,
+    ) -> dict:
+        """`in_memory_images`: frames rendered from uploaded attachments, which have no file path.
+
+        Counted so a case with an uploaded MRI is not reported as having no
+        images. The pixels themselves are not passed here: no provider
+        behind this interface analyses pixels yet (real_pixel_inference is
+        False for every strategy), and pretending otherwise would be worse
+        than saying so -- the frames stay on ImagingStudy.images_png for when
+        a real one is attached.
+        """
         series_paths = series_paths or []
         metadata = metadata or {}
-        input_kind = self._infer_input_kind(series_paths, metadata)
-        has_local_images = bool(series_paths)
+        input_kind = self._infer_input_kind(series_paths, metadata, in_memory_images)
+        has_local_images = bool(series_paths) or in_memory_images > 0
         provider_selection = self.provider_selector.select(strategy=self.provider_strategy, input_kind=input_kind)
         selection_description = provider_selection.describe()
         local_features = self.local_provider.extract(
@@ -89,6 +103,8 @@ class VolumeEncoder:
             metadata=metadata,
             input_kind=input_kind,
         )
+        if in_memory_images:
+            local_features = {**local_features, "in_memory_image_count": in_memory_images, "local_readiness": "ready_in_memory"}
         remote_result = None
         if selection_description["requires_remote"] and self.remote_client is not None:
             remote_result = self.remote_client.infer(
@@ -105,7 +121,7 @@ class VolumeEncoder:
             "provider_readiness": self._provider_readiness(has_local_images),
             "study_id": study_id,
             "series_paths": series_paths,
-            "image_count": len(series_paths),
+            "image_count": len(series_paths) + in_memory_images,
             "has_local_images": has_local_images,
             "input_kind": input_kind,
             "supported_modalities": list(self.supported_modalities),

@@ -230,6 +230,24 @@ class ClinicalDocumentProcessor:
     nemotron_parse_api_key: str | None = None
     llamaparse_api_key: str | None = None
 
+    @classmethod
+    def from_env(cls) -> ClinicalDocumentProcessor:
+        """Configured from the environment -- the only way a deployment turns Nemotron-Parse on.
+
+        Found missing while wiring attachments into ingestion: nothing in the
+        project ever read an endpoint or key from anywhere, so even a
+        deployment with a live Nemotron-Parse NIM would never have used it.
+        Unset variables leave the parser unconfigured, which degrades exactly
+        as before (digital-PDF text layer, honest "no_text_extracted").
+        """
+        import os
+
+        return cls(
+            nemotron_parse_endpoint=os.environ.get("NEMOTRON_PARSE_ENDPOINT") or None,
+            nemotron_parse_api_key=os.environ.get("NEMOTRON_PARSE_API_KEY") or None,
+            llamaparse_api_key=os.environ.get("LLAMAPARSE_API_KEY") or None,
+        )
+
     def describe(self) -> dict[str, Any]:
         return {
             "parser_backend": self.parser_backend,

@@ -4113,3 +4113,72 @@ sull'assenza di testo, ma porta comunque le immagini.
 
 20 nuovi test, 1566 totali in un ambiente pulito installato come la CI,
 lint pulito.
+
+### Passi 3 e 4 — gli allegati di un caso, collegati all'ingestione
+
+**Passo 3, `data/case_attachments.py`**: tutti i file di un caso — analisi
+del sangue in PDF, una RM in DICOM, una radiografia in JPG — elaborati una
+sola volta, ciascuno secondo il proprio tipo, poi divisi in due. Il testo
+viene unito in un blocco solo: la nota del medico per prima, poi ogni
+allegato sotto la propria intestazione ("Allegato 2 -- PDF"), senza che
+nulla sovrascriva altro, lo stesso principio dell'unione dei referti. Le
+immagini diventano `ImagingStudy`: le fette DICOM raggruppate per serie
+(StudyInstanceUID + SeriesInstanceUID) e ordinate per `InstanceNumber`.
+
+**Un JPG è ambiguo, e si risolve per dichiarazione, mai indovinando.** Lo
+stesso JPG può essere un referto di laboratorio fotografato (testo da
+leggere) o una radiografia esportata come immagine. Un allegato con una
+modalità dichiarata ("RX", "RM", "TAC", "ECOGRAFIA", "MOC") diventa uno
+studio di imaging, senza alcuna chiamata OCR; senza dichiarazione è un
+documento da leggere. Una modalità non riconosciuta viene annotata, non
+indovinata. Sarà la dashboard a chiederlo al medico.
+
+**I nomi dei file non entrano mai nel testo**: vengono spesso chiamati col
+nome del paziente ("Rossi_Mario_emocromo.pdf"), e `report_text` viene
+salvato con il caso.
+
+**Passo 4, l'ingestione**: `ClinicalIngestionPipeline.prepare_payload()`
+elabora gli allegati del payload (`attachments`: byte grezzi in `data`,
+oppure base64 in `data_base64`, la forma che userà una dashboard via HTTP),
+toglie i byte grezzi dal payload e ne mette il testo in `report_text`.
+`clinical_pipeline.run()` la chiama **per prima**, prima dell'instradamento
+dei casi in sospeso. Non è un dettaglio: l'instradamento unisce il
+`report_text` di questo invio al referto precedente del caso, quindi il
+testo degli allegati deve già esserci, altrimenti andrebbe perso proprio
+nei casi `merge_and_rerun`. Un test lo verifica. La funzione è idempotente:
+ogni file viene elaborato una volta sola, mai due chiamate Nemotron-Parse
+per la stessa pagina.
+
+`ImagingStudy` guadagna `images_png`, le immagini in memoria. Il campo è
+aggiuntivo, quindi i caricatori basati su percorsi (OpenI, ChestX-ray14)
+non cambiano. `VolumeEncoder.encode()` riceve quante immagini ci sono in
+memoria, così un caso con una RM caricata non risulta "senza immagini".
+Onestamente: il codificatore **non** usa i pixel, perché nessun fornitore
+dietro quell'interfaccia oggi analizza pixel (`real_pixel_inference` è
+falso per ogni strategia). Le immagini restano su `ImagingStudy` per quando
+ne verrà collegato uno reale.
+
+**Un collegamento mancante trovato lungo la strada**: nessun punto del
+progetto configurava Nemotron-Parse dall'ambiente, quindi anche con un
+endpoint reale disponibile non sarebbe mai stato usato. Aggiunto
+`ClinicalDocumentProcessor.from_env()`: `NEMOTRON_PARSE_ENDPOINT`,
+`NEMOTRON_PARSE_API_KEY`, `LLAMAPARSE_API_KEY`. Se non impostate, il parser
+resta non configurato e degrada come prima.
+
+**Verificato end-to-end sulla pipeline reale**: il testo del PDF arriva nel
+caso salvato; la RM arriva al codificatore (`ready_in_memory`); il nome del
+paziente nel nome del file non compare nel testo; un secondo invio per lo
+stesso paziente, con un nuovo PDF, finisce in `merge_and_rerun` conservando
+sia il nuovo testo sia il precedente.
+
+**Tre difetti preesistenti, segnalati e non corretti qui** (fuori ambito,
+per non mescolarli a questo lavoro):
+- Il risultato della pipeline contiene un oggetto `PipelineState` non
+  serializzabile in JSON, in cinque punti, con o senza allegati. Un test
+  verifica che gli allegati non ne aggiungano altri.
+- `_encode_modalities()` codifica solo `case.imaging[0]`: con più studi (una
+  RM e una radiografia) gli altri non arrivano al codificatore.
+- 13 avvisi del linter in file non toccati da questo lavoro, identici su
+  `main`.
+
+22 nuovi test, 1588 totali in un ambiente pulito installato come la CI.
