@@ -300,7 +300,7 @@ ancora nulla su cui farlo agire oltre il percorso singolo.
 | `QuantumBeliefLayer` chiamato due volte | Da decidere | **Ancora non deciso** — resta chiamato sia da `NexusTrainer` sia da `IntuitionEngine`, non toccato in questo lavoro |
 | Weaviate/Qdrant/FalkorDB | Risolta (FalkorDB scelto) | **Estesa**: anche la letteratura (i quattro connettori) ora vive in FalkorDB, non solo il grafo concettuale |
 | `retrieval_reconciliation.py` / `root_model_cross_check.py` | Da decidere insieme | **Ancora non deciso** — entrambi restano scollegati |
-| `document_processing.py` | Incompleta, da completare | **La chiamata HTTP è stata implementata** (Nemotron-Parse-v1.2, verificata contro documentazione reale) — ma il collegamento a un vero consumatore (ingestione di un documento allegato a un caso, o la Via 1 di conferma) **non è stato fatto** |
+| `document_processing.py` | Incompleta, da completare | **Completata e collegata**: la chiamata HTTP è reale, ora su Nemotron-Parse-**2.0** (aggiornata da v1.2, verificata contro la documentazione ufficiale NVIDIA — contratto di richiesta diverso, non un semplice cambio di stringa), collegata all'ingestione tramite `case_attachments.py` |
 | "Gemma 4" | Da verificare | **Non toccato in questo lavoro** |
 
 **Una nuova ridondanza potenziale, trovata in questa edizione**: due

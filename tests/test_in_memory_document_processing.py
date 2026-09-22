@@ -175,7 +175,8 @@ def test_a_jpeg_is_sent_to_nemotron_parse_as_image_jpeg():
     with patch("requests.post") as post:
         post.return_value = _fake_nemotron_response("Emoglobina 13.2")
         result = _configured().process_document_bytes(_jpeg(), source_name="emocromo.jpg")
-    url = post.call_args.kwargs["json"]["messages"][0]["content"][0]["image_url"]["url"]
+    content = post.call_args.kwargs["json"]["messages"][0]["content"]
+    url = next(block["image_url"]["url"] for block in content if block["type"] == "image_url")
     assert url.startswith("data:image/jpeg;base64,")
     assert result["status"] == "completed"
     assert result["parser"] == "nemotron_parse"
@@ -185,7 +186,8 @@ def test_a_png_is_sent_as_image_png():
     with patch("requests.post") as post:
         post.return_value = _fake_nemotron_response("x")
         _configured().process_document_bytes(_png(), source_name="x.png")
-    url = post.call_args.kwargs["json"]["messages"][0]["content"][0]["image_url"]["url"]
+    content = post.call_args.kwargs["json"]["messages"][0]["content"]
+    url = next(block["image_url"]["url"] for block in content if block["type"] == "image_url")
     assert url.startswith("data:image/png;base64,")
 
 
@@ -193,7 +195,8 @@ def test_a_pdf_is_rendered_from_bytes_and_each_page_sent_as_png():
     with patch("requests.post") as post:
         post.return_value = _fake_nemotron_response("page text")
         result = _configured().process_document_bytes(_digital_pdf("x"), source_name="lab.pdf")
-    url = post.call_args.kwargs["json"]["messages"][0]["content"][0]["image_url"]["url"]
+    content = post.call_args.kwargs["json"]["messages"][0]["content"]
+    url = next(block["image_url"]["url"] for block in content if block["type"] == "image_url")
     assert url.startswith("data:image/png;base64,")
     assert result["parser"] == "nemotron_parse"
 
@@ -202,7 +205,8 @@ def test_a_misleading_filename_does_not_change_the_detected_format():
     with patch("requests.post") as post:
         post.return_value = _fake_nemotron_response("x")
         _configured().process_document_bytes(_jpeg(), source_name="referto.pdf")
-    url = post.call_args.kwargs["json"]["messages"][0]["content"][0]["image_url"]["url"]
+    content = post.call_args.kwargs["json"]["messages"][0]["content"]
+    url = next(block["image_url"]["url"] for block in content if block["type"] == "image_url")
     assert url.startswith("data:image/jpeg;base64,")
 
 
