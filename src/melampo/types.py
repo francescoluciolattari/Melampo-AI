@@ -62,6 +62,11 @@ class ImagingStudy:
     modality: Modality
     series_paths: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Frames rendered in memory from uploaded attachments (DICOM, or an image
+    # declared as imaging) -- no file path exists for these, and none is
+    # written. Additive: path-based loaders (OpenI, ChestX-ray14) keep using
+    # series_paths unchanged.
+    images_png: list[bytes] = field(default_factory=list)
 
 
 @dataclass(slots=True)
