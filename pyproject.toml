@@ -24,6 +24,10 @@ dev = [
   "pytest-cov>=5.0",
   "ruff>=0.4",
   "mypy>=1.9",
+  # tests/test_bench_script.py parses the workflow YAML directly; PyYAML
+  # was only ever declared under the `clinical` extra, so a clean
+  # `pip install -e .[dev]` could not run the full suite.
+  "PyYAML>=6.0",
 ]
 clinical = [
   "fhir.resources>=7.1",
