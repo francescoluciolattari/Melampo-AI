@@ -13,7 +13,7 @@ server, notebook Jupyter.
 
 ## Prerequisiti
 
-- Python 3.11+, nessuna libreria oltre la libreria standard.
+- Python 3.12+ (richiesto dal pacchetto Melampo), nessuna libreria oltre la libreria standard per il connettore stesso.
 - Una email di contatto (NCBI la richiede; non è autenticazione). Il progetto
   ha un default già configurato: `francesco.lucio.lattari@gmail.com`.
 - Facoltativo ma consigliato: una API key NCBI, gratuita, da

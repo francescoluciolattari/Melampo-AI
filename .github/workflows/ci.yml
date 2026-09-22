@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
             tests/test_validation_primitives.py \
             tests/test_phase1_p0_core_alignment.py \
             tests/test_phase2_enterprise_rag.py \
-            tests/test_phase3_dream_governance.py \
+            tests/test_phase3_nexus_governance.py \
             tests/test_phase4a_specialist_model_adapters.py \
             tests/test_phase5a_validation_governance.py
 

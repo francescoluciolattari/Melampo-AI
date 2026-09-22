@@ -7,7 +7,7 @@ name = "melampo"
 version = "0.1.0"
 description = "Project Melampo baseline scaffold for multimodal clinical intuition research"
 readme = "src/README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
   { name = "Francesco Lattari e altri" }
 ]
