@@ -126,11 +126,15 @@ def test_an_unknown_binary_is_no_text_extracted():
     assert result["reason"] == "unrecognised_binary_format"
 
 
-def test_a_dicom_file_is_recognised_and_left_to_the_dicom_handler():
+def test_an_undecodable_dicom_is_routed_to_the_dicom_handler_and_reported():
+    """Only the DICM signature, no real dataset: recognised as DICOM, routed
+    to the handler, and honestly reported as not decodable."""
     result = ClinicalDocumentProcessor().process_document_bytes(_dicom_like(), source_name="rm_encefalo")
     assert result["document_format"] == FORMAT_DICOM
     assert result["status"] == "no_text_extracted"
-    assert result["reason"] == "dicom_requires_the_dicom_handler"
+    assert result["reason"] == "dicom_not_decodable"
+    assert result["dicom_images_png"] == []
+    assert result["dicom"]["status"] == "failed"
 
 
 # --------------------------------------------------------------------------

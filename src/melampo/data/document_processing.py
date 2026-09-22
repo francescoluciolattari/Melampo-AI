@@ -739,6 +739,8 @@ class ClinicalDocumentProcessor:
         """
         metadata = metadata or {}
         document_format = detect_document_format(data)
+        if document_format == FORMAT_DICOM:
+            return self._process_dicom_bytes(data, source_name, metadata)
         parser_result = (
             self.load_with_nemotron_parse_bytes(data, source_name=source_name)
             if prefer_structured_parser
@@ -768,8 +770,6 @@ class ClinicalDocumentProcessor:
             reason = "pdftotext_unavailable" if text_layer is None else "pdf_has_no_text_layer_and_no_ocr_available"
         elif document_format in _MIME_BY_FORMAT:
             reason = "image_requires_nemotron_parse_for_text"
-        elif document_format == FORMAT_DICOM:
-            reason = "dicom_requires_the_dicom_handler"
         else:
             reason = "unrecognised_binary_format"
 
@@ -785,6 +785,41 @@ class ClinicalDocumentProcessor:
             "governance": self.ingestion_integration_plan()["governance_requirements"],
             "enterprise_metadata": self.infer_source_governance({**metadata, "source_path": source_name}),
         }
+
+    def _process_dicom_bytes(self, data: bytes, source_name: str, metadata: dict[str, Any]) -> dict[str, Any]:
+        """A DICOM file: report text (SR / encapsulated PDF / CDA) as the document text, rendered images alongside.
+
+        Images are returned as `dicom_images_png` for the imaging side of
+        the case (ImagingStudy), never folded into text. A DICOM with images
+        but no report is "no_text_extracted" with reason "dicom_image_only"
+        -- honest about there being no text, while still carrying the
+        images; one that cannot be decoded at all says so, with pydicom's
+        own reason in `dicom.notes`.
+        """
+        from .dicom_handler import extract_dicom
+
+        extraction = extract_dicom(data, processor=self)
+        dicom_summary = extraction.as_dict()
+        dicom_metadata = {**metadata, "dicom_modality": extraction.modality}
+        if extraction.report_text:
+            result = self._completed_document_result(
+                extraction.report_text, source_name, dicom_metadata, f"dicom_{extraction.report_source}", FORMAT_DICOM,
+            )
+        else:
+            result = {
+                "status": "no_text_extracted",
+                "parser": None,
+                "source_path": source_name,
+                "document_format": FORMAT_DICOM,
+                "reason": "dicom_image_only" if extraction.images_png else "dicom_not_decodable",
+                "chunk_count": 0,
+                "documents": [],
+                "governance": self.ingestion_integration_plan()["governance_requirements"],
+                "enterprise_metadata": self.infer_source_governance({**dicom_metadata, "source_path": source_name}),
+            }
+        result["dicom"] = dicom_summary
+        result["dicom_images_png"] = list(extraction.images_png)
+        return result
 
     def _completed_document_result(
         self, text: str, source_name: str, metadata: dict[str, Any], parser: str, document_format: str,
