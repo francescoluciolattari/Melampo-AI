@@ -16,6 +16,17 @@ dependencies = [
   "falkordblite>=0.10.0",
   "requests>=2.31",
   "pdf2image>=1.17",
+  # DICOM is part of every case's intake (RM, TAC, RX, MOC...), not an
+  # optional extra. pydicom >=3.0: apply_modality_lut/apply_voi_lut live in
+  # pydicom.pixels only from 3.0. numpy: pydicom needs it for pixel data.
+  # Pillow: declared explicitly rather than relied on transitively via
+  # pdf2image. python-gdcm (Apache-2.0) decodes JPEG Lossless / JPEG-LS,
+  # the common PACS compressions -- chosen over pylibjpeg-libjpeg, which is
+  # GPLv3 and incompatible with distributing this BSL-1.1 project.
+  "pydicom>=3.0",
+  "numpy>=1.26",
+  "Pillow>=10.0",
+  "python-gdcm>=3.0",
 ]
 
 [project.optional-dependencies]
@@ -47,7 +58,7 @@ retrieval-milvus = [
   "pymilvus>=2.4",
 ]
 imaging = [
-  "pydicom>=2.4",
+  "pydicom>=3.0",
   "nibabel>=5.2",
   "SimpleITK>=2.3",
   "Pillow>=10.0",
@@ -90,7 +101,7 @@ enterprise = [
   "weaviate-client>=4.5",
   "faiss-cpu>=1.8",
   "sentence-transformers>=2.6",
-  "pydicom>=2.4",
+  "pydicom>=3.0",
   "nibabel>=5.2",
   "SimpleITK>=2.3",
   "Pillow>=10.0",

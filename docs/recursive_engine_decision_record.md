@@ -4051,3 +4051,65 @@ un test lo verifica.
 
 17 nuovi test, 1546 totali passanti anche in un ambiente pulito come il
 runner, lint pulito.
+
+### Passo 2 — il gestore DICOM, verificato sui file reali di pydicom
+
+`data/dicom_handler.py`: estrae da un file DICOM tenuto in memoria le
+immagini, il testo del referto e i metadati sicuri. Costruito su `pydicom`
+(MIT) e `python-gdcm` (Apache-2.0), nulla reimplementato. Verificato sui
+193 file DICOM **reali** che `pydicom` stesso distribuisce — TAC, RM,
+radiografia, ecografia a colori, referti strutturati, molte compressioni —
+non su file costruiti apposta per passare.
+
+**Cosa succede a ogni contenuto**: i dati pixel diventano PNG a 8 bit,
+applicando la Modality LUT e la VOI LUT del dataset stesso (la finestra
+radiologica) con le funzioni di `pydicom`, non un semplice stiramento
+min/max. Verificato a vista su una TAC: vertebra, osso e tessuti molli
+distinti. Un referto strutturato (SR) diventa testo; un referto PDF
+incapsulato passa per `ClinicalDocumentProcessor`, lo stesso percorso di
+qualunque PDF caricato; un CDA incapsulato diventa testo XML. I multi-frame
+vengono campionati (16 fotogrammi al massimo, primo e ultimo sempre
+inclusi), con una nota che lo dichiara.
+
+**Scelta di licenza, verificata e non presunta**: senza un plugin di
+decodifica, JPEG Lossless (Process 14) e JPEG-LS — fra le compressioni più
+comuni per TAC e RM da un PACS — non si decodificano affatto. Il plugin
+più citato, `pylibjpeg-libjpeg`, è GPLv3; questo progetto è sotto Business
+Source License 1.1, e una dipendenza copyleft sarebbe un problema reale di
+distribuzione per un dispositivo medico. `python-gdcm` (Apache-2.0)
+decodifica gli stessi formati: 88 immagini di esempio decodificate. Delle 6
+rimanenti, 4 sono volutamente malformate da `pydicom` per i propri test e 2
+sono JPEG Extended a 12 bit, non supportato da questa build: ciascuna è
+segnalata con la propria sintassi di trasferimento, mai scartata in
+silenzio.
+
+**Privacy per costruzione**: i metadati passano per una lista esplicita di
+tag clinici e tecnici ammessi. Nome, ID e data di nascita del paziente,
+medico e istituto non arrivano mai all'output, perché non vengono mai
+copiati: una lista di ammessi non può lasciar passare un tag che nessuno
+ha pensato di bloccare. I nodi SR con un nome di persona (`PNAME`, per
+esempio il refertatore) vengono esclusi dal testo del referto. Un test
+imposta un nome distintivo sul vero nodo `PNAME` e verifica che non compaia.
+
+**Due difetti trovati dai test sui campioni reali, entrambi corretti**:
+- Un tag malformato faceva crashare il gestore: `pydicom` include un
+  campione con `NumberOfFrames = "1A"`. Il numero di fotogrammi ora si
+  ricava dalla forma dell'array decodificato, e ogni tag intero si legge
+  in modo sicuro. Un valore sporco non fa più cadere l'ingestione
+  dell'intero caso.
+- Un file illeggibile sollevava `BytesLengthException`, non catturata. Ora
+  è gestita e segnalata come fallimento motivato.
+
+**Dipendenze principali**: `pydicom>=3.0` (le funzioni LUT stanno in
+`pydicom.pixels` solo dalla 3.0), `numpy`, `Pillow` (prima arrivava solo
+per via transitiva), `python-gdcm`. Il DICOM fa parte dell'immissione di
+ogni caso, non è un extra facoltativo. È una scelta reversibile.
+
+`process_document_bytes()` ora instrada un DICOM al gestore: un referto
+diventa testo del documento, le immagini viaggiano a parte in
+`dicom_images_png`, destinate al lato imaging del caso (passo 4). Un DICOM
+solo immagine è `no_text_extracted` con motivo `dicom_image_only`: onesto
+sull'assenza di testo, ma porta comunque le immagini.
+
+20 nuovi test, 1566 totali in un ambiente pulito installato come la CI,
+lint pulito.
