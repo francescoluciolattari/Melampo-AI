@@ -392,19 +392,33 @@ class ClinicalDocumentProcessor:
         }
 
     def _call_nemotron_parse(self, path: str | Path) -> tuple[str, dict[str, Any]]:
-        """The real HTTP call to a Nemotron-Parse-v1.2 NIM endpoint.
+        """The real HTTP call to a Nemotron-Parse-v2.0 NIM endpoint.
 
         Nemotron-Parse is a vision-language model, not a text-in parser: it
         takes a page rendered as an image through the standard OpenAI-style
         `/v1/chat/completions` contract (`image_url` content block, base64
         data URL) and returns text with embedded layout markup in
         `response["choices"][0]["message"]["content"]`. Verified against
-        NVIDIA's own published Nemotron-Parse-v1.2 API documentation before
+        NVIDIA's own published Nemotron-Parse-v2.0 API documentation before
         writing this, not assumed from the model's name.
+
+        v2.0 upgrade, requested and verified directly, not assumed from the
+        version number alone: a real NVIDIA release (build.nvidia.com/nvidia/nemotron-parse-2.0),
+        not v1.2 renamed. Compared with v1.2 it adds a ~20k-token vocabulary
+        expansion for multilingual OCR -- directly relevant here, an
+        Italian-language deployment -- plus chart-aware parsing. It is also a
+        genuinely different request contract, not a drop-in model-string
+        swap: v2.0's release notes state plainly that free-text prompts are
+        not supported at all -- every request needs an image AND a task
+        prompt built from its own control tokens
+        (`<predict_bbox><predict_classes><output_markdown>...`), confirmed
+        against the self-hosted NIM's own published curl example. v1.2's
+        prior prompt here ("Parse this document page: extract all text...")
+        would not have been a valid v2.0 request.
 
         A real, documented divergence exists between the hosted NVIDIA
         Build endpoint (model `nvidia/nemotron-parse`) and the self-hosted
-        NIM (`nemotron-parse-v1.2`): they expect different request
+        NIM (`nemotron-parse-v2.0`): they expect different request
         contracts, and sending a self-hosted-style request to the hosted
         endpoint can return HTTP 400 ("model does not support text input").
         This targets the self-hosted NIM contract specifically -- consistent
@@ -465,20 +479,33 @@ class ClinicalDocumentProcessor:
         return rendered
 
     def _post_nemotron_parse_page(self, image_bytes: bytes, mime_type: str = "image/png") -> dict[str, Any]:
-        """One page, one request -- the isolated network call, mocked directly in tests."""
+        """One page, one request -- the isolated network call, mocked directly in tests.
+
+        The task prompt is v2.0's own required control-token string, copied
+        verbatim from NVIDIA's self-hosted-NIM curl example (build.nvidia.com/nvidia/nemotron-parse-2.0/deploy),
+        not a free-text instruction: v2.0's release notes state that
+        text-only or freely-worded prompts are not a supported input shape.
+        <predict_text_in_pic> is included deliberately -- extraction should
+        not silently skip embedded text NVIDIA's default example leaves out
+        (<predict_no_text_in_pic>), the opposite of what a clinical document
+        parser needs.
+        """
         import base64
 
         import requests
 
         encoded = base64.b64encode(image_bytes).decode("ascii")
         payload = {
-            "model": "nvidia/nemotron-parse-v1.2",
+            "model": "nvidia/nemotron-parse-v2.0",
             "messages": [
                 {
                     "role": "user",
                     "content": [
+                        {
+                            "type": "text",
+                            "text": "</s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>",
+                        },
                         {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}},
-                        {"type": "text", "text": "Parse this document page: extract all text, tables and layout structure."},
                     ],
                 }
             ],

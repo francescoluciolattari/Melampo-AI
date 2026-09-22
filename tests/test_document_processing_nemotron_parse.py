@@ -1,4 +1,4 @@
-"""Tests for the real Nemotron-Parse-v1.2 HTTP call, completing
+"""Tests for the real Nemotron-Parse-v2.0 HTTP call, completing
 ClinicalDocumentProcessor._call_nemotron_parse() -- previously an
 unimplemented transport stub. Every network call is mocked (no live NIM
 endpoint exists to test against), but the request construction, PDF/image
@@ -84,8 +84,14 @@ def test_calls_the_configured_endpoint_with_the_documented_request_shape(tmp_pat
     assert metadata["page_count"] == 1
     args, kwargs = mock_post.call_args
     assert args[0] == "http://nim.example:8000/v1/chat/completions"
-    assert kwargs["json"]["model"] == "nvidia/nemotron-parse-v1.2"
-    assert kwargs["json"]["messages"][0]["content"][0]["type"] == "image_url"
+    assert kwargs["json"]["model"] == "nvidia/nemotron-parse-v2.0"
+    content = kwargs["json"]["messages"][0]["content"]
+    assert {block["type"] for block in content} == {"text", "image_url"}
+    prompt = next(block["text"] for block in content if block["type"] == "text")
+    # v2.0's own required control-token prompt -- copied from NVIDIA's
+    # self-hosted-NIM example, not a free-text instruction: v2.0's release
+    # notes state plainly that free-text-only prompts are not supported.
+    assert prompt == "</s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>"
     assert kwargs["headers"]["Authorization"] == "Bearer test-key"
 
 

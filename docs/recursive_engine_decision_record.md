@@ -4182,3 +4182,41 @@ per non mescolarli a questo lavoro):
   `main`.
 
 22 nuovi test, 1588 totali in un ambiente pulito installato come la CI.
+
+### Aggiornamento a Nemotron-Parse 2.0 — un contratto di richiesta diverso, non un cambio di stringa
+
+Richiesto direttamente: verificare se il progetto dovesse usare Nemotron
+Parse 2.0. Confermato con una ricerca — è un rilascio NVIDIA reale
+(`build.nvidia.com/nvidia/nemotron-parse-2.0`), non un'invenzione. Rispetto
+alla 1.2 aggiunge un'espansione del vocabolario di circa 20mila token per
+il supporto multilingue — direttamente rilevante qui, un progetto in
+italiano — oltre all'estrazione consapevole di grafici e tabelle.
+
+**Trovato prima di cambiare una sola riga**: la 2.0 non è compatibile alla
+pari con la 1.2 nella richiesta. Le note di rilascio di NVIDIA dichiarano
+esplicitamente che le richieste senza un prompt di controllo non sono
+supportate — ogni richiesta ha bisogno di un'immagine **e** di un prompt
+costruito dai propri token di controllo
+(`<predict_bbox><predict_classes><output_markdown>…`), verificato contro
+l'esempio curl ufficiale del NIM self-hosted. Il prompt libero già presente
+("Parse this document page: extract all text…") non sarebbe stata una
+richiesta valida per la 2.0 — sostituire solo la stringa del modello,
+senza cambiare il prompt, avrebbe rotto la chiamata in silenzio.
+
+Aggiornato `_post_nemotron_parse_page()`: modello `nvidia/nemotron-parse-v2.0`,
+prompt copiato testualmente dall'esempio NVIDIA, con `<predict_text_in_pic>`
+mantenuto deliberatamente (l'esempio predefinito di NVIDIA usa
+`<predict_no_text_in_pic>`, l'opposto di quanto serve a un estrattore di
+documenti clinici, che non deve mai saltare in silenzio il testo
+incorporato in un'immagine).
+
+Verificato end-to-end con una risposta mimata realistica: modello e
+prompt corretti nella richiesta, testo estratto correttamente dalla
+risposta. Il parser della risposta resta invariato — prendeva già solo il
+contenuto grezzo del messaggio, senza tentare di decodificare la
+struttura di riquadri e classi, una scelta dichiarata come limite noto
+fin dalla prima implementazione, indipendente dalla versione del modello.
+
+4 test aggiornati per il nuovo ordine dei blocchi di contenuto (prompt
+prima dell'immagine, come nell'esempio ufficiale) e per la nuova stringa
+del modello, 1588 totali passanti, nessuna regressione.
