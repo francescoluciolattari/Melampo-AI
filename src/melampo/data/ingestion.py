@@ -118,6 +118,9 @@ class ClinicalIngestionPipeline:
         provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
         if bundle is not None:
             provenance["attachments"] = bundle.summary()
+            imaging_summary = bundle.imaging_summary()
+            if imaging_summary:
+                provenance["imaging_volumes"] = imaging_summary
         if isinstance(payload.get("lab_phenotypes"), dict):
             provenance["lab_phenotypes"] = payload["lab_phenotypes"]
         return CaseContext(

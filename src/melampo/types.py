@@ -74,6 +74,10 @@ class ImagingStudy:
     # written. Additive: path-based loaders (OpenI, ChestX-ray14) keep using
     # series_paths unchanged.
     images_png: list[bytes] = field(default_factory=list)
+    # The series' own instances, de-identified by allowlist, pixel data
+    # unchanged (data/dicom_volume.py) -- what a volumetric model needs and
+    # the 8-bit frames above cannot give. In memory only, never persisted.
+    dicom_instances: list[bytes] = field(default_factory=list)
 
 
 @dataclass(slots=True)

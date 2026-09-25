@@ -36,6 +36,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..types import ClinicalObservation, ImagingStudy, Modality
+from .dicom_volume import (
+    Pillar0Eligibility,
+    VolumeAssessment,
+    assess_series,
+    deidentify_instance,
+    pillar0_eligibility,
+    preferred_series,
+)
 from .document_processing import (
     FORMAT_DICOM,
     ClinicalDocumentProcessor,
@@ -96,6 +104,9 @@ class ProcessedAttachment:
     dicom_metadata: dict[str, Any] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
     pdf_structure: str | None = None
+    dicom_instance: bytes | None = None
+    """A DICOM attachment's own instance, rebuilt from an allowlist -- identity, dates and
+    private tags gone, pixel data byte for byte (data/dicom_volume.py). None for anything else."""
     embedded_images_png: tuple[bytes, ...] = ()
     """A text PDF's own embedded pictures (an electrophoresis trace, an ECG
     snapshot alongside a typed report) -- deliberately kept apart from
@@ -125,6 +136,7 @@ class ProcessedAttachment:
             "pdf_structure": self.pdf_structure,
             "embedded_image_count": len(self.embedded_images_png),
             "laboratory": self.lab.summary(),
+            "deidentified_dicom_instance_kept": self.dicom_instance is not None,
         }
 
 
@@ -149,7 +161,9 @@ class AttachmentBundle:
         grouped: dict[tuple[str, str], list[ProcessedAttachment]] = {}
         standalone: list[ProcessedAttachment] = []
         for attachment in self.attachments:
-            if not attachment.images_png:
+            # A DICOM instance counts even when no frame could be rendered to
+            # PNG (an unsupported compression): its volume may still be usable.
+            if not attachment.images_png and attachment.dicom_instance is None:
                 continue
             if attachment.document_format == FORMAT_DICOM:
                 key = (
@@ -161,22 +175,37 @@ class AttachmentBundle:
                 standalone.append(attachment)
 
         studies: list[ImagingStudy] = []
+        assessed: list[tuple[str, VolumeAssessment, Pillar0Eligibility]] = []
         for number, ((_study_uid, series_uid), members) in enumerate(grouped.items(), start=1):
             members = sorted(members, key=lambda item: _safe_float(item.dicom_metadata.get("InstanceNumber")))
             first = members[0]
+            study_id = f"attachment-series-{number}"
+            instances = [member.dicom_instance for member in members if member.dicom_instance is not None]
+            assessment = assess_series(instances) if instances else None
+            eligibility = pillar0_eligibility(assessment) if assessment else Pillar0Eligibility(False, None, "no_deidentified_instances")
+            if assessment is not None:
+                assessed.append((study_id, assessment, eligibility))
             studies.append(
                 ImagingStudy(
-                    study_id=f"attachment-series-{number}",
+                    study_id=study_id,
                     modality=_to_modality(first.modality),
                     images_png=[image for member in members for image in member.images_png],
+                    dicom_instances=instances,
                     metadata={
                         **{k: v for k, v in first.dicom_metadata.items() if k != "InstanceNumber"},
                         "source": "dicom_attachment",
                         "instance_count": len(members),
                         "SeriesInstanceUID": series_uid,
+                        "volume": assessment.as_dict() if assessment else None,
+                        "pillar0": {**eligibility.as_dict(), "preferred_for_checkpoint": False},
                     },
                 )
             )
+        # One series per checkpoint is the one to send (thinnest slices first).
+        preferred = set(preferred_series(assessed).values())
+        for study in studies:
+            if study.study_id in preferred:
+                study.metadata["pillar0"]["preferred_for_checkpoint"] = True
         for attachment in standalone:
             studies.append(
                 ImagingStudy(
@@ -198,6 +227,20 @@ class AttachmentBundle:
 
     def summary(self) -> list[dict[str, Any]]:
         return [attachment.summary() for attachment in self.attachments]
+
+    def imaging_summary(self) -> list[dict[str, Any]]:
+        """Per DICOM series: volume assessment and Pillar-0 eligibility -- JSON-safe, no pixels, no instances."""
+        return [
+            {
+                "study_id": study.study_id,
+                "modality": study.modality.value,
+                "instance_count": len(study.dicom_instances),
+                "volume": study.metadata.get("volume"),
+                "pillar0": study.metadata.get("pillar0"),
+            }
+            for study in self.imaging_studies()
+            if study.metadata.get("source") == "dicom_attachment"
+        ]
 
 
 def _safe_float(value: Any) -> float:
@@ -259,13 +302,24 @@ def process_case_attachments(
 
         if document_format == FORMAT_DICOM:
             dicom = result.get("dicom", {})
+            # Kept only for an image: a structured report or an encapsulated
+            # PDF has no pixels and must never become an imaging study.
+            deidentified = deidentify_instance(attachment.data)
+            dicom_notes = list(dicom.get("notes", []))
+            instance = None
+            if deidentified is None:
+                dicom_notes.append("deidentified_instance_not_built")
+            elif deidentified.has_pixel_data:
+                instance = deidentified.data
+                dicom_notes.extend(deidentified.notes)
             processed.append(
                 ProcessedAttachment(
                     index=index, document_format=document_format, status=str(result.get("status")),
                     reason=result.get("reason"), text=text, parser=result.get("parser"),
                     modality=dicom.get("modality"), images_png=tuple(result.get("dicom_images_png", [])),
-                    dicom_metadata=dict(dicom.get("metadata", {})), notes=tuple(dicom.get("notes", [])),
+                    dicom_metadata=dict(dicom.get("metadata", {})), notes=tuple(dicom_notes),
                     lab=extract_lab_results(text) if text.strip() else LabExtraction(),
+                    dicom_instance=instance,
                 )
             )
             continue
