@@ -287,16 +287,24 @@ jobs:
 
       - name: Refresh literature for concepts already in the index
         env:
-          # UMLS_API_KEY / DB_PASSWORD / PMS_EMA_API_KEY: read directly by
-          # the Python code below via os.environ, not passed as script
-          # arguments -- the same pattern already used for GH_TOKEN
-          # elsewhere in this project's automation. Absent, each degrades
-          # gracefully (build_umls_for_cascade returns None; PmsEmaConnector
-          # reports unavailable) exactly as every connector in this project
-          # already does without a key.
+          # UMLS_API_KEY / DB_PASSWORD / PMS_EMA_CLIENT_ID / PMS_EMA_CLIENT_SECRET:
+          # read directly by the Python code below via os.environ, not
+          # passed as script arguments -- the same pattern already used for
+          # GH_TOKEN elsewhere in this project's automation. Absent, each
+          # degrades gracefully (build_umls_for_cascade returns None;
+          # PmsEmaConnector reports unavailable) exactly as every connector
+          # in this project already does without credentials.
+          #
+          # PMS_EMA_CLIENT_ID / PMS_EMA_CLIENT_SECRET replace the single
+          # PMS_EMA_API_KEY this workflow read until EMA moved PMS Public
+          # API registration to a Microsoft Entra ID OAuth2
+          # client-credentials flow: that secret was removed from this
+          # repository, and these two took its place (see
+          # connectors/pms_ema.py's module docstring).
           UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          PMS_EMA_API_KEY: ${{ secrets.PMS_EMA_API_KEY }}
+          PMS_EMA_CLIENT_ID: ${{ secrets.PMS_EMA_CLIENT_ID }}
+          PMS_EMA_CLIENT_SECRET: ${{ secrets.PMS_EMA_CLIENT_SECRET }}
         run: |
           uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import sys, pathlib
@@ -396,7 +404,7 @@ jobs:
                   f"({'encrypted cache active' if umls.cache is not None else 'DB_PASSWORD not set, live lookups only, nothing persisted'})"
               )
           if not pms_ema_connector.availability().available:
-              print("- EMA PMS: PMS_EMA_API_KEY not configured, skipped")
+              print("- EMA PMS: PMS_EMA_CLIENT_ID/PMS_EMA_CLIENT_SECRET not configured, skipped")
           if batch:
               print("\n<details><summary>Concepts refreshed this run</summary>\n")
               for entry in batch:
