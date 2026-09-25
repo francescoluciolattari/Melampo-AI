@@ -1,0 +1,13 @@
+md5: 38ac17c6a22f3308cf5173296b0e3cbf
+frozen: true
+deps:
+- checksum: '"0e6afda581d3831785ff42d03562b1d72ac2bddef315fca4891ef7c7b89e21fb"'
+  size: 231641
+  hash: md5
+  path: 
+    https://raw.githubusercontent.com/DiseaseOntology/SymptomOntology/7a295d9856d8ce1af613e5b53b6af84940260605/src/ontology/symp.obo
+outs:
+- md5: 0e0bbd293e527b1d4f9f7d95d17c5187
+  size: 231641
+  hash: md5
+  path: symp.obo

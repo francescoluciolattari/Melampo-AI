@@ -14,7 +14,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 STATUSES = {"present", "to_download", "to_integrate", "blocked_decision", "blocked_licence"}
-MANAGERS = {"uv", "dvc", "git", "apt", "api"}
+MANAGERS = {"uv", "dvc", "git", "apt", "api", "weights"}
 
 
 @pytest.fixture(scope="module")

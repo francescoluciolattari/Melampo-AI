@@ -3,3 +3,6 @@
 /genes_to_disease.txt
 /phenotype.hpoa
 /phenotype_to_genes.txt
+/mondo.obo
+/doid.owl
+/symp.obo

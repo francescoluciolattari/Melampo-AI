@@ -48,6 +48,13 @@ dev = [
 data = [
   "dvc>=3.60",
 ]
+# Model weights (see src/melampo/models/weights.py and melampo-storage.yaml):
+# huggingface_hub downloads pinned revisions (backends upstream / hf_mirror)
+# and uploads the private mirror. Not needed to pin revisions -- that uses
+# the Hub's HTTP API through requests.
+models = [
+  "huggingface_hub>=0.34",
+]
 clinical = [
   "fhir.resources>=7.1",
   "pydantic>=2.6",

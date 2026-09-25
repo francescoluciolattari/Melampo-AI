@@ -53,21 +53,43 @@ done
 
 All HPO files move together; a test enforces a single release across them.
 
-## Model weights and licensed data
+## Model weights: pinned in the manifest, fetched per melampo-storage.yaml
 
-These cannot be re-downloaded anonymously (gated Hugging Face models,
-licensed terminologies), so they need a **DVC storage remote** — a decision
-still open (`decisions_pending: dvc-remote` in the manifest). Once chosen:
+Which weights: every model in `melampo-assets.yaml` (`kind: model_weights`)
+carries its Hugging Face `repo`, the exact commit (`revision`) and the
+sha256 of each file. The **Pin model revisions** workflow writes them from
+the Hub's own metadata and opens a pull request; nothing is typed by hand
+(`scripts/pin_model_revisions.py`). `revision: to_pin` means it has not run
+yet for that model. Gated repositories (Pillar-0) need the `HF_TOKEN` secret
+from an account that has accepted their conditions: gated access is granted
+to users, never to organisations.
+
+Where from: `melampo-storage.yaml`, one key, `backend`:
+
+| Phase | backend | Weights come from |
+|---|---|---|
+| Now | `upstream` | the original repository, at the pinned commit |
+| First deployment | `hf_mirror` | private copies in the project's HF organisation (`scripts/mirror_models_to_hf.py`) |
+| First training run | `dvc` | a DVC remote in an EU region (the jurisdiction is enforced) |
 
 ```bash
-uv add --optional data "dvc-s3"          # or dvc-azure / dvc-gs / dvc-ssh
-uv run dvc remote add -d storage s3://<bucket>/<prefix>
-uv run dvc push
+uv run python scripts/configure_model_storage.py          # validate, show where each model comes from
+uv run python scripts/configure_model_storage.py --apply  # dvc backend: register the remote
 ```
 
-Upstream models are pinned by revision (a commit hash on Hugging Face),
-downloaded once, and pushed to the remote so the team reproduces a run
-without every member holding every upstream licence.
+Whatever the backend, every downloaded file is verified against its pinned
+sha256 (`models/weights.py`). CI never downloads weights: GitHub's standard
+runners have no GPU and 14 GB of disk. Git LFS was considered and rejected
+(2 GB per file on Free/Pro, 10 GiB/month of storage and bandwidth).
+
+## Symptom sources for all diseases
+
+`data/mondo.obo`, `data/doid.owl` and `data/symp.obo` are DVC-pinned like
+HPO (Mondo to its release, DO and SYMP to a commit of their repositories).
+`memory/symptom_sources.py` turns HPO, Disease Ontology, NCIt (via UMLS) and
+Wikidata into one `SymptomLink` shape; the **Symptom-source coverage**
+workflow measures each on `data/common_diseases_reference.tsv` and uploads
+per-disease counts and every link as an artifact.
 
 ## What never goes into DVC
 

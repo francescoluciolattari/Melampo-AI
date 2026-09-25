@@ -1,0 +1,51 @@
+name: Symptom-source coverage
+
+# Measures, on data/common_diseases_reference.tsv (141 common diseases), how
+# many diseases each candidate symptom source covers and how much of it maps
+# onto HPO -- the evidence for decisions_pending: knowledge-all-diseases in
+# melampo-assets.yaml. Manual trigger only: it makes a few hundred UMLS calls
+# and a handful of Wikidata queries, and it changes nothing in the
+# repository. Results: the job summary, and the coverage artifact (JSON with
+# per-disease counts, JSONL with every link and its source, tier and
+# reference -- the material a clinician-reviewed precision sample is drawn
+# from).
+on:
+  workflow_dispatch:
+    inputs:
+      skip_ncit:
+        description: "Skip NCIt (UMLS API)"
+        type: boolean
+        default: false
+      skip_wikidata:
+        description: "Skip Wikidata"
+        type: boolean
+        default: false
+
+jobs:
+  measure:
+    name: Measure coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked --extra data
+      - name: Fetch the pinned reference data
+        run: >-
+          uv run dvc update data/mondo.obo.dvc data/doid.owl.dvc data/symp.obo.dvc
+          data/hp.obo.dvc data/phenotype.hpoa.dvc
+          && git diff --exit-code -- 'data/*.dvc'
+      - name: Measure
+        env:
+          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
+        run: |
+          args=()
+          if [ "${{ inputs.skip_ncit }}" = "true" ]; then args+=(--skip-ncit); fi
+          if [ "${{ inputs.skip_wikidata }}" = "true" ]; then args+=(--skip-wikidata); fi
+          uv run python scripts/measure_symptom_coverage.py --out-dir symptom-coverage "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: symptom-coverage
+          path: symptom-coverage/
+          retention-days: 90

@@ -29,8 +29,10 @@ they were.
 """
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -102,6 +104,8 @@ class UmlsConnector:
     """Search UMLS and crosswalk HPO codes to other vocabularies via shared CUIs."""
 
     config: UmlsConfig = field(default_factory=UmlsConfig)
+    transport: Any = None
+    """Injectable (url, params) -> parsed JSON, for testing without the live UTS API."""
 
     def availability(self) -> UmlsAvailability:
         if not self.config.api_key:
@@ -184,6 +188,75 @@ class UmlsConnector:
         if not isinstance(results, list):
             return []
         return [str(item.get("name", "")).strip() for item in results if item.get("name")]
+
+    def source_relations(
+        self,
+        source: str,
+        code: str,
+        *,
+        additional_labels: Sequence[str] = (),
+        page_size: int = 200,
+        max_pages: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Every relation a source vocabulary asserts for one of its own codes.
+
+        ``/content/{version}/source/{source}/{code}/relations`` -- used for
+        the NCI Thesaurus finding roles (``disease_has_finding`` and
+        relatives). Unlike the methods above, this one does **not** swallow
+        errors: its caller is a coverage measurement, where a failed call
+        reported as "no relations" would be recorded as a genuine gap in
+        the source. A 404, which UTS returns for a code with no relations
+        of the requested kind, is the one error that does mean "none".
+        """
+        if not self.availability().available:
+            raise RuntimeError("UMLS_API_KEY not configured")
+        params: dict[str, str] = {"pageSize": str(page_size)}
+        if additional_labels:
+            params["includeAdditionalRelationLabels"] = ",".join(additional_labels)
+        rows: list[dict[str, Any]] = []
+        for page in range(1, max_pages + 1):
+            params["pageNumber"] = str(page)
+            try:
+                payload = self._fetch(f"{UMLS_BASE}/content/{self.config.version}/source/{source}/{code}/relations", params)
+            except HTTPError as error:
+                if error.code == 404:
+                    break
+                raise
+            result = payload.get("result", [])
+            if not isinstance(result, list) or not result:
+                break
+            rows.extend(result)
+            if len(result) < page_size:
+                break
+        return rows
+
+    def source_codes_for_cui(self, cui: str, source: str) -> list[str]:
+        """The codes a given source vocabulary uses for a CUI (via its atoms).
+
+        The fallback for a Mondo disease with a UMLS xref but no NCIT xref:
+        NCIt may still hold the concept under a code Mondo does not list.
+        """
+        if not self.availability().available:
+            raise RuntimeError("UMLS_API_KEY not configured")
+        try:
+            payload = self._fetch(
+                f"{UMLS_BASE}/content/{self.config.version}/CUI/{cui}/atoms", {"sabs": source, "pageSize": "100"}
+            )
+        except HTTPError as error:
+            if error.code == 404:
+                return []
+            raise
+        codes: list[str] = []
+        for atom in payload.get("result", []) if isinstance(payload.get("result"), list) else []:
+            code = str(atom.get("code", "")).rstrip("/").rsplit("/", 1)[-1]
+            if code and code not in codes:
+                codes.append(code)
+        return codes
+
+    def _fetch(self, url: str, params: dict[str, str]) -> dict[str, Any]:
+        if self.transport is not None:
+            return self.transport(url, params)
+        return self._get(url, params)  # pragma: no cover - network call
 
     def _get(self, url: str, params: dict[str, str]) -> dict[str, Any]:  # pragma: no cover - network call
         full_params = {**params, "apiKey": self.config.api_key}
