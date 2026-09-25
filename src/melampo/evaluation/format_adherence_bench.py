@@ -373,14 +373,6 @@ def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float =
         "the prompt is not conveying the action format, and no model choice fixes that"
     )
 
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "models": len(self.results),
-            "adherence_target": self.adherence_target,
-            "verdict": self.verdict(),
-            "results": [item.as_dict() for item in self.ranked()],
-        }
-
 
 def bench_model(
     model_name: str,
