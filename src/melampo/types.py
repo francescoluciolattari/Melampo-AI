@@ -54,6 +54,13 @@ class ClinicalObservation:
     value: Any
     unit: str | None = None
     source: str | None = None
+    # Additive, all optional: filled when an observation comes from a
+    # document (data/lab_results.py) -- the range printed with it, its
+    # status against that range, and the row's remaining detail. Observations
+    # passed in the payload keep working unchanged.
+    reference_range: dict[str, Any] | None = None
+    interpretation: str | None = None
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

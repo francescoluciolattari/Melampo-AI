@@ -35,12 +35,13 @@ import io
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..types import ImagingStudy, Modality
+from ..types import ClinicalObservation, ImagingStudy, Modality
 from .document_processing import (
     FORMAT_DICOM,
     ClinicalDocumentProcessor,
     detect_document_format,
 )
+from .lab_results import LabExtraction, extract_lab_results
 
 _FORMAT_LABELS = {"pdf": "PDF", "png": "immagine PNG", "jpeg": "immagine JPEG", "dicom": "DICOM", "text": "testo"}
 
@@ -106,6 +107,8 @@ class ProcessedAttachment:
     anywhere further -- which downstream consumer wants it, and in what
     shape, is a decision for a later step (see document_processing.py's
     classify_pdf_structure())."""
+    lab: LabExtraction = field(default_factory=LabExtraction)
+    """Laboratory and antibiogram rows read from this attachment's text (data/lab_results.py)."""
 
     def summary(self) -> dict[str, Any]:
         """JSON-safe, no image bytes, no filename -- what travels with the case result."""
@@ -121,6 +124,7 @@ class ProcessedAttachment:
             "notes": list(self.notes),
             "pdf_structure": self.pdf_structure,
             "embedded_image_count": len(self.embedded_images_png),
+            "laboratory": self.lab.summary(),
         }
 
 
@@ -183,6 +187,14 @@ class AttachmentBundle:
                 )
             )
         return studies
+
+    def observations(self) -> list[ClinicalObservation]:
+        """Every laboratory and antibiogram row, each traceable to "attachment-N:line-M" -- never to a filename."""
+        return [
+            observation
+            for attachment in self.attachments
+            for observation in attachment.lab.observations(f"attachment-{attachment.index}")
+        ]
 
     def summary(self) -> list[dict[str, Any]]:
         return [attachment.summary() for attachment in self.attachments]
@@ -253,6 +265,7 @@ def process_case_attachments(
                     reason=result.get("reason"), text=text, parser=result.get("parser"),
                     modality=dicom.get("modality"), images_png=tuple(result.get("dicom_images_png", [])),
                     dicom_metadata=dict(dicom.get("metadata", {})), notes=tuple(dicom.get("notes", [])),
+                    lab=extract_lab_results(text) if text.strip() else LabExtraction(),
                 )
             )
             continue
@@ -269,6 +282,7 @@ def process_case_attachments(
                 modality=None, notes=tuple(notes),
                 pdf_structure=result.get("pdf_structure"),
                 embedded_images_png=tuple(result.get("embedded_images_png", [])),
+                lab=extract_lab_results(text) if text.strip() else LabExtraction(),
             )
         )
     return AttachmentBundle(attachments=tuple(processed))

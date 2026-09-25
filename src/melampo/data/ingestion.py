@@ -71,6 +71,9 @@ class ClinicalIngestionPipeline:
         bundle = payload.get(ATTACHMENT_BUNDLE_KEY)
         if bundle is not None:
             imaging.extend(bundle.imaging_studies())
+            # Laboratory and antibiogram rows read from the attachments' text
+            # (data/lab_results.py), after any passed in the payload itself.
+            observations.extend(bundle.observations())
         raw_demographics = payload.get("demographics", {})
         raw_provenance = payload.get("provenance", {})
         provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
