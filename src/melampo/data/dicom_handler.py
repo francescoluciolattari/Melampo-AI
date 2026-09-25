@@ -270,7 +270,8 @@ def extract_dicom(data: bytes, processor: Any = None) -> DicomExtraction:
         pdf_bytes = bytes(dataset.EncapsulatedDocument).rstrip(b"\x00")
         parsed = processor.process_document_bytes(pdf_bytes, source_name="dicom_encapsulated_pdf")
         if parsed.get("status") == "completed":
-            report_text = "\n".join(doc["text"] for doc in parsed.get("documents", []))
+            # The whole text, not the overlapping chunks re-joined (which duplicated every overlap).
+            report_text = str(parsed.get("text", ""))
             report_source = "encapsulated_pdf"
         else:
             notes.append(f"encapsulated_pdf_no_text: {parsed.get('reason')}")

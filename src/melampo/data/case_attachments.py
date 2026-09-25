@@ -226,7 +226,9 @@ def process_case_attachments(
 
         result = processor.process_document_bytes(attachment.data, source_name=f"attachment-{index}")
         document_format = str(result.get("document_format", "unknown"))
-        text = "\n".join(doc.get("text", "") for doc in result.get("documents", [])) if result.get("status") == "completed" else ""
+        # The whole document's text, never the chunks re-joined: chunks
+        # overlap by design, so joining them duplicated every overlap.
+        text = str(result.get("text", "")) if result.get("status") == "completed" else ""
         notes: list[str] = []
 
         if document_format == FORMAT_DICOM:
