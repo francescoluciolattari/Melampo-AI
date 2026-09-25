@@ -24,9 +24,11 @@ bench_results.json
 # had been swept into a commit by `git add -A`), removed, and guarded here
 # against recurring. Named precisely, not a blanket data/*.db or data/*.jsonl
 # pattern -- data/ also holds real, tracked project data
-# (literature_vectors.jsonl, literature_index_concepts.json, phenotype.hpoa,
-# hp.obo, and the genes_to_*/maxo-annotations reference files), which a
-# broader pattern would risk shadowing.
+# (literature_vectors.jsonl, literature_index_concepts.json,
+# maxo-annotations.tsv), which a broader pattern would risk shadowing. The
+# HPO release files (hp.obo, phenotype.hpoa, genes_to_*, phenotype_to_genes)
+# are tracked by DVC, not git: their *.dvc files are committed, and DVC's
+# own data/.gitignore keeps the files themselves out of git.
 data/falkordb_lite.db
 data/falkordb_lite.db.salt
 data/nexus_candidates.jsonl

@@ -2698,6 +2698,28 @@ plus encrypted cache). `CachedUmlsConnector` is the adapter that lets a
 connector-plus-cache pair present itself as the single
 `crosswalk_from_hpo(hpo_id)` method `NormalisationCascade` actually calls.
 
+### EMA PMS moved from a static key to OAuth2 client-credentials (2026-09)
+
+`PMS_EMA_API_KEY`, described above as the connector's registered key, was
+retired by EMA's own registration process: PMS Public API access now goes
+through a Microsoft Entra ID OAuth2 client-credentials flow, verified
+against EMA's PMS Public API FAQ and its UPD Registration Guide for UI and
+API users. A client id and secret are exchanged at a tenant-specific token
+endpoint for a bearer token (documented as valid one hour), which
+authorises each call -- the client id/secret pair are never sent directly
+to `MedicinalProductDefinition` itself.
+
+`PmsEmaConfig` was changed to hold `client_id` / `client_secret` instead of
+`api_key`, reading `PMS_EMA_CLIENT_ID` / `PMS_EMA_CLIENT_SECRET` from the
+environment (the two secrets that replaced `PMS_EMA_API_KEY` in this
+project's GitHub configuration); `PmsEmaConnector` gained
+`_get_access_token`, which caches the bearer token and refreshes it 60
+seconds before its stated expiry rather than on every call. The FAQ also
+gave this project its first documented rate limit for this connector --
+500 requests/minute per IP, with 429 and `Retry-After` past that -- kept
+well under rather than matched exactly, since nothing here approaches that
+volume.
+
 A bug introduced while writing this fix, caught before commit: an edit
 meant to insert `CachedUmlsConnector` and `build_umls_for_cascade` ahead of
 `crosswalk_with_cache` matched only that function's signature line,

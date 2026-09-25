@@ -1,0 +1,432 @@
+# Melampo -- asset manifest
+#
+# Everything the project uses that is not its own source code: reference
+# data, knowledge sources, model weights, API models, external tools.
+# For each asset: what it is, who manages it, where it comes from (pinned),
+# its licence, which module consumes it, and its status.
+#
+# Managers:
+#   uv   -- Python and every Python package (pyproject.toml + uv.lock)
+#   dvc  -- data files and model weights (data/*.dvc; pinned by URL + md5)
+#   git  -- small files the project generates itself
+#   apt  -- system packages uv cannot provide (CI: .github/workflows/ci.yml)
+#   api  -- models used through a remote API: nothing to download, only a key
+#
+# Status values:
+#   present          -- in the repository or fetched by `uv run dvc update -R data`
+#   to_download      -- decided, needs downloading (and usually a storage remote)
+#   to_integrate     -- needs code in this project before it can be used
+#   blocked_decision -- waiting on a decision listed under `decisions_pending`
+#   blocked_licence  -- cannot be used until a licence is obtained or reviewed
+#
+# Licences marked "verified" were read at the source on the date above;
+# anything else says "to_verify" and must be checked before use in a
+# regulated (MDR) product. tests/test_assets_manifest.py keeps this file
+# consistent with the data/*.dvc pins.
+
+version: 1
+updated: "2026-09-25"
+
+decisions_pending:
+  - id: dvc-remote
+    question: >-
+      Which storage remote holds the project's DVC cache (S3, Azure Blob,
+      Google Cloud Storage, or an SSH/NAS server), in which region?
+    why_it_matters: >-
+      Public reference data needs no remote (it is re-downloaded from its
+      pinned release URL and verified by md5). Model weights and gated or
+      licensed data do: they cannot be re-fetched anonymously, and a team
+      must be able to reproduce a run without every member holding every
+      upstream licence. Patient data never goes into DVC, in any remote.
+    blocks: [pillar0-chest-ct, pillar0-abdomen-ct, pillar0-head-ct, pillar0-breast-mri, nemotron-parse-2-weights]
+
+  - id: knowledge-all-diseases
+    question: >-
+      Which source(s) link *all* known diseases to their symptoms, and with
+      what evidence weight? Disease identity is decided (Mondo, 2026-09-25)
+      -- this decision is now only about the symptom links Mondo does not
+      carry.
+    why_it_matters: >-
+      phenotype.hpoa annotates rare diseases only (OMIM, Orphanet,
+      DECIPHER). Out-of-range laboratory findings therefore lead to
+      rare-disease candidates, and in the LLM branch (Nemotron/Gemma) a
+      correct common-disease hypothesis has no graph node to be verified
+      against, so the grounding checks mark it unsupported. Every candidate
+      symptom source found so far has a licence complication of its own
+      (see disease-ontology, optimuskg, semmeddb, hsdn) -- none is a clean
+      drop-in the way Mondo is for disease identity.
+    blocks: [disease-ontology, optimuskg, semmeddb, hsdn]
+
+  - id: ncbi-case-corpus
+    question: >-
+      Should a scheduled workflow build/refresh a corpus of real clinical
+      cases via pmc_case_reports.py now that NCBI_API_KEY is configured,
+      and with what cadence, query terms and default licence group
+      (LICENSE_COMMERCIAL vs LICENSE_NONCOMMERCIAL)?
+    why_it_matters: >-
+      The connector is already fully built and reads NCBI_API_KEY (see
+      docs/pmc_connector_guide.md) -- nothing currently calls it
+      automatically, unlike the literature refresh's four connectors.
+      Wiring it into a workflow without a stated scope risks silently
+      growing an uncurated evaluation corpus, the same reason the literature
+      refresh is bounded to a fixed nightly batch rather than a full crawl.
+    blocks: [pmc-case-reports]
+
+  - id: tabular-labelled-data
+    question: >-
+      Which labelled dataset (laboratory panels with confirmed diagnoses)
+      and which set of target diagnoses for the tabular ensemble?
+    blocks: [tabicl-v2, autogluon]
+
+  - id: git-history-rewrite
+    question: >-
+      Purge the HPO files (about 130 MB) from git history now that DVC
+      tracks them? Requires rewriting history and a force push: every
+      clone must be re-made. Not done; the files are only untracked going
+      forward.
+    blocks: []
+
+assets:
+  # --- Reference data: present, managed by DVC ------------------------------
+  - id: hpo-ontology
+    kind: ontology
+    manager: dvc
+    status: present
+    path: data/hp.obo
+    source: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/hp.obo
+    version: v2026-09-01
+    licence: HPO licence (hpo.jax.org) -- to_verify for commercial/MDR use
+    consumers: [memory/concept_resolution.py, memory/graph_sources.py, data/lab_phenotypes.py]
+    notes: >-
+      The release's full hp.obo, not hp-base.obo: the two differ, and this
+      project's curated tables are validated against hp.obo.
+
+  - id: hpo-disease-annotations
+    kind: knowledge_source
+    manager: dvc
+    status: present
+    path: data/phenotype.hpoa
+    source: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/phenotype.hpoa
+    version: v2026-09-01
+    licence: HPO licence (hpo.jax.org) -- to_verify for commercial/MDR use
+    consumers: [memory/graph_sources.py]
+    notes: Rare diseases only (8,478 OMIM, 4,357 Orphanet, 47 DECIPHER per the file header).
+
+  - id: hpo-genes-to-phenotype
+    kind: knowledge_source
+    manager: dvc
+    status: present
+    path: data/genes_to_phenotype.txt
+    source: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/genes_to_phenotype.txt
+    version: v2026-09-01
+    licence: HPO licence (hpo.jax.org) -- to_verify for commercial/MDR use
+    consumers: [memory/gene_annotations.py, memory/graph_sources.py]
+
+  - id: hpo-genes-to-disease
+    kind: knowledge_source
+    manager: dvc
+    status: present
+    path: data/genes_to_disease.txt
+    source: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/genes_to_disease.txt
+    version: v2026-09-01
+    licence: HPO licence (hpo.jax.org) -- to_verify for commercial/MDR use
+    consumers: [memory/gene_annotations.py, memory/graph_sources.py]
+
+  - id: hpo-phenotype-to-genes
+    kind: knowledge_source
+    manager: dvc
+    status: present
+    path: data/phenotype_to_genes.txt
+    source: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/phenotype_to_genes.txt
+    version: v2026-09-01
+    licence: HPO licence (hpo.jax.org) -- to_verify for commercial/MDR use
+    consumers: [memory/graph_sources.py]
+    notes: >-
+      Read only as a fallback when genes_to_phenotype.txt is absent, so in
+      practice never read (65 MB). Candidate for removal.
+
+  # --- Data kept in git -----------------------------------------------------
+  - id: maxo-annotations
+    kind: knowledge_source
+    manager: git
+    status: present
+    path: data/maxo-annotations.tsv
+    source: to_verify (uploaded by hand; the upstream path could not be located)
+    licence: to_verify
+    consumers: [memory/medical_actions.py]
+    notes: Provenance and version to pin before it can move to DVC.
+
+  - id: literature-store
+    kind: generated
+    manager: git
+    status: present
+    path: data/literature_vectors.jsonl
+    source: generated nightly by .github/workflows/data-and-dependency-updates.yml
+    licence: per source (Europe PMC, ClinicalTrials.gov, DailyMed, EMA)
+    consumers: [memory/literature_persistence.py]
+
+  # --- Knowledge sources for ALL diseases: proposed, not yet integrated --------
+  - id: mondo
+    kind: ontology
+    manager: dvc
+    status: to_integrate
+    source: https://purl.obolibrary.org/obo/mondo.obo
+    licence: CC BY 4.0 (verified, mondo.monarchinitiative.org)
+    consumers: [to_integrate]
+    notes: >-
+      Disease backbone for common and rare diseases alike, with
+      cross-references to OMIM, Orphanet, DOID, ICD and others. A hierarchy
+      and identity layer: it does not by itself say which signs a disease
+      shows -- decided (2026-09-25) as the disease-identity layer; the
+      remaining, still-open question is where the symptom links come from
+      (see decisions_pending: knowledge-all-diseases).
+
+  - id: disease-ontology
+    kind: ontology
+    manager: dvc
+    status: blocked_decision
+    source: to_verify (Human Disease Ontology, OBO Foundry release)
+    licence: to_verify
+    consumers: [to_integrate]
+    notes: Carries has_symptom relations for part of its diseases; coverage to be measured.
+
+  - id: optimuskg
+    kind: knowledge_source
+    manager: dvc
+    status: blocked_decision
+    source: https://doi.org/10.7910/DVN/IYNGEV
+    licence: per source, including CC-BY-NC-SA components (verified statement, arXiv:2604.27269) -- review needed
+    consumers: [to_integrate]
+    notes: >-
+      36,345 diseases; 157,144 disease-phenotype edges from HPO, MedDRA and
+      Open Targets (Parquet). Successor of PrimeKG. Non-commercial parts may
+      exclude it from a commercial product.
+
+  - id: semmeddb
+    kind: knowledge_source
+    manager: dvc
+    status: blocked_decision
+    source: NLM, SemMedDB VER43_R
+    licence: UMLS licence (verified) -- UMLS_API_KEY already used by the literature workflow
+    consumers: [to_integrate]
+    notes: >-
+      Relations text-mined from all of PubMed, including disease
+      manifestations. Final release May 2024, no longer maintained after
+      2024-12-31. Machine-extracted: to enter the graph only with wide
+      uncertainty bounds, never as curated evidence.
+
+  - id: hsdn
+    kind: knowledge_source
+    manager: dvc
+    status: blocked_licence
+    source: Zhou, Menche, Barabasi & Sharma, "Human symptoms-disease network", Nature Communications 5:4212 (2014)
+    licence: >-
+      (c) 2014 Springer Nature Limited, all rights reserved (verified,
+      nature.com/articles/ncomms5212) -- this article predates Nature
+      Communications' 2016 shift to full CC BY; its supplementary data is
+      not under an open licence. Explicit permission from Springer Nature
+      would be needed before commercial/MDR use.
+    consumers: [to_integrate]
+    notes: >-
+      By far the widest documented symptom coverage found so far: 4,219
+      diseases (95.0% of MeSH disease terms), 322 symptom terms (98.5% of
+      MeSH symptom terms), 147,978 weighted symptom-disease links, mined
+      from MEDLINE co-occurrence and mapped to MeSH ids (a third-party
+      redistribution exists at github.com/dhimmel/hsdn under CC0, but that
+      licence covers only that repository's own additions, not the
+      underlying Zhou et al. dataset it redistributes). The best-fitting
+      candidate by coverage; blocked entirely on the licence, not on
+      technical integration.
+
+  - id: snomed-ct
+    kind: terminology
+    manager: dvc
+    status: blocked_licence
+    source: SNOMED International
+    licence: >-
+      Italy is not a SNOMED International Member (verified 2026-09-25,
+      nlm.nih.gov/healthit/snomedct/snomed_licensing.html) -- and a UMLS
+      Metathesaurus licence does not by itself change that: NLM's own
+      guidance is to "notify and register with IHTSDO/SNOMED International
+      before use in a Non-Member Country", fees may apply. Confirmed
+      unaffected by the new UMLS_API_KEY access (see umls asset).
+    consumers: [to_integrate]
+
+  - id: loinc
+    kind: terminology
+    manager: dvc
+    status: to_integrate
+    source: loinc.org
+    licence: >-
+      Regenstrief LOINC License (verified 2026-09-25, loinc.org/kb/license)
+      -- perpetual, royalty-free, explicit permission for "any commercial or
+      non-commercial purpose", no geographic restriction (unlike SNOMED CT
+      content bundled inside UMLS). Registration is required to download but
+      does not gate use.
+    consumers: [data/lab_results.py]
+    notes: ROADMAP A3.2 -- laboratory analyte codes; today analytes keep their printed names.
+
+  - id: umls
+    kind: terminology
+    manager: api
+    status: present
+    source: NLM UTS REST API (UMLS_API_KEY)
+    licence: >-
+      UMLS Metathesaurus License Agreement (verified, nlm.nih.gov) -- covers
+      most bundled source vocabularies (RxNorm, MeSH, ICD-9-CM/ICD-10-CM,
+      LOINC among them) for any licensee. SNOMED CT is the documented
+      exception: bundled inside UMLS but still gated by SNOMED
+      International's own Member/Affiliate terms for use outside Member
+      countries (see snomed-ct) -- a UMLS key does not clear that
+      restriction.
+    consumers: [connectors/umls.py, memory/umls_cache.py]
+    notes: >-
+      crosswalk_from_hpo() bridges an HPO code to any vocabulary UMLS
+      asserts a shared CUI with; already wired end-to-end
+      (UmlsConfig.from_env(), build_umls_for_cascade()). A live,
+      per-concept relations lookup (/content/{version}/CUI/{cui}/relations,
+      e.g. "may_be_finding_of_disease") is a candidate way to source
+      disease-symptom links through this same licensed key rather than a
+      separate bulk dataset -- not yet implemented, and it still needs
+      checking whether a relation sourced from SNOMED CT content inherits
+      the same non-Member restriction when read live rather than bulk
+      downloaded.
+
+  # --- Model weights: to download (need the DVC remote) ---------------------
+  - id: pillar0-chest-ct
+    kind: model_weights
+    manager: dvc
+    status: blocked_decision
+    source: https://huggingface.co/YalaLab/Pillar0-ChestCT
+    licence: ecl-2.0 (verified, model card); gated -- conditions must be accepted
+    consumers: [data/dicom_volume.py, models/specialist_adapters.py]
+    notes: Needs a GPU deployment; input prepared by RAVE from a DICOM series directory.
+
+  - id: pillar0-abdomen-ct
+    kind: model_weights
+    manager: dvc
+    status: blocked_decision
+    source: https://huggingface.co/YalaLab/Pillar0-AbdomenCT
+    licence: to_verify (same publisher; gated)
+    consumers: [data/dicom_volume.py, models/specialist_adapters.py]
+
+  - id: pillar0-head-ct
+    kind: model_weights
+    manager: dvc
+    status: blocked_decision
+    source: https://huggingface.co/YalaLab/Pillar0-HeadCT
+    licence: to_verify (same publisher; gated)
+    consumers: [data/dicom_volume.py, models/specialist_adapters.py]
+
+  - id: pillar0-breast-mri
+    kind: model_weights
+    manager: dvc
+    status: blocked_decision
+    source: https://huggingface.co/YalaLab/Pillar0-BreastMRI
+    licence: to_verify (same publisher; gated)
+    consumers: [data/dicom_volume.py, models/specialist_adapters.py]
+
+  - id: nemotron-parse-2-weights
+    kind: model_weights
+    manager: dvc
+    status: blocked_decision
+    source: https://huggingface.co/nvidia/NVIDIA-Nemotron-Parse-2.0
+    licence: OpenMDW-1.1; tokenizer CC-BY-4.0 (verified, model card)
+    consumers: [data/document_processing.py]
+    notes: Alternative to a self-hosted NIM endpoint (step 2 of the document plan). Needs a GPU.
+
+  - id: tabicl-v2
+    kind: model_weights
+    manager: dvc
+    status: blocked_decision
+    source: https://github.com/soda-inria/tabicl (checkpoint tabicl-classifier-v2-20260212.ckpt)
+    licence: permissive per the repository -- exact licence to_verify
+    consumers: [to_integrate]
+
+  # --- Models through an API: nothing to download ---------------------------
+  - id: root-model-nemotron-3-super
+    kind: api_model
+    manager: api
+    status: present
+    source: OpenRouter (OPENROUTER_API_KEY)
+    licence: NVIDIA open model terms -- bench-only until licence review (models/rlm_model_adapter.py)
+    consumers: [reasoning/rlm_engine.py, reasoning/root_model_cross_check.py]
+
+  - id: root-model-gemma-3-27b
+    kind: api_model
+    manager: api
+    status: present
+    source: OpenRouter (OPENROUTER_API_KEY)
+    licence: Gemma terms -- see models/rlm_model_adapter.py
+    consumers: [reasoning/rlm_engine.py, reasoning/root_model_cross_check.py]
+
+  - id: root-model-mistral-large
+    kind: api_model
+    manager: api
+    status: present
+    source: Mistral API / OpenRouter (MISTRAL_API_KEY)
+    licence: Mistral terms -- to_verify; EU-based fallback
+    consumers: [reasoning/rlm_engine.py, reasoning/root_model_cross_check.py]
+
+  - id: pms-ema
+    kind: knowledge_source
+    manager: api
+    status: present
+    source: EMA PMS Public API, https://api.pms.ema.europa.eu/public/v1 (PMS_EMA_CLIENT_ID / PMS_EMA_CLIENT_SECRET)
+    version: public beta
+    licence: >-
+      Registration required (verified, EMA's PMS Public API FAQ and UPD
+      Registration Guide) -- EU-authorised medicinal products, FHIR R5.
+      Authenticated via a Microsoft Entra ID OAuth2 client-credentials
+      exchange, not a static key (changed 2026-09; PMS_EMA_API_KEY retired).
+    consumers: [connectors/pms_ema.py]
+    notes: 500 requests/minute/IP documented (verified); this project's usage stays well under it.
+
+  - id: pmc-case-reports
+    kind: knowledge_source
+    manager: api
+    status: blocked_decision
+    source: NCBI E-utilities, PMC open-access subset (NCBI_API_KEY)
+    licence: >-
+      Per-article (verified, connectors/pmc_case_reports.py): CC0/CC
+      BY/CC-BY-SA/CC-BY-ND classed commercial-usable, CC-BY-NC classed
+      non-commercial, enforced by license_group at fetch time; unreadable
+      licences (oa_other) are never fetched.
+    consumers: [connectors/pmc_case_reports.py, evaluation/nexus_capture_benchmark.py]
+    notes: >-
+      Real clinical case reports for the B4 evaluation protocol. Already
+      fully built and reads NCBI_API_KEY (docs/pmc_connector_guide.md);
+      blocked only on deciding whether/how to automate it (see
+      decisions_pending: ncbi-case-corpus) -- nothing calls it yet.
+
+  # --- Software not yet in the environment ------------------------------------
+  - id: rave
+    kind: tool
+    manager: uv
+    status: to_integrate
+    source: https://github.com/YalaLab/rave
+    licence: to_verify
+    consumers: [data/dicom_volume.py]
+    notes: >-
+      Pillar-0's preprocessing (HU range, resampling, multi-windowing);
+      input is a CSV of DICOM series directories, which
+      dicom_volume.export_series_directory writes. To add as a git source in
+      pyproject.toml pinned to a commit, when Pillar-0 is deployed.
+
+  - id: autogluon
+    kind: library
+    manager: uv
+    status: blocked_decision
+    source: https://pypi.org/project/autogluon.tabular/
+    licence: to_verify
+    consumers: [to_integrate]
+    notes: 1.6 integrates TabICLv2, Mitra and TabPFNv2 in its `extreme` preset (GPU).
+
+  - id: poppler-utils
+    kind: system_package
+    manager: apt
+    status: present
+    source: Ubuntu archive (installed by CI)
+    licence: GPL family (exact version to_verify; external binaries, called as processes)
+    consumers: [data/document_processing.py]
+    notes: pdftotext, pdfimages, pdftoppm. Not a Python package; needs a container image outside CI.
