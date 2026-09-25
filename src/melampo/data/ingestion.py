@@ -23,6 +23,9 @@ class ClinicalIngestionPipeline:
     """
 
     document_processor: Any = None
+    # Out-of-range laboratory rows in the attachments become HPO phenotype
+    # findings (data/lab_phenotypes.py), appended after the caller's own.
+    derive_lab_findings: bool = True
 
     def prepare_payload(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Process attachments once: report_text becomes note + labelled attachment text; raw bytes leave the payload.
@@ -45,7 +48,43 @@ class ClinicalIngestionPipeline:
         prepared["report_text"] = bundle.combined_text(str(payload.get("report_text", "") or ""))
         prepared[ATTACHMENT_BUNDLE_KEY] = bundle
         prepared["attachment_summary"] = bundle.summary()
+        if self.derive_lab_findings:
+            self._add_lab_findings(prepared, bundle)
         return prepared
+
+    @staticmethod
+    def _add_lab_findings(prepared: dict[str, Any], bundle: Any) -> None:
+        """The attachments' out-of-range laboratory rows as HPO phenotype findings -- the caller's findings first, none duplicated.
+
+        Here, in prepare_payload, because this is the one point before
+        anything reads payload["findings"]: clinical_pipeline.run() calls it
+        first, then routes on and enumerates from those findings. A case
+        whose attachments carry abnormal laboratory values therefore now
+        reaches the diagnostic graph even when the physician typed no
+        findings at all -- and, with it, the graph's own load and the
+        per-candidate enumeration cost (see clinical_pipeline's
+        NEXUS_ENUMERATION_CANDIDATE_CAP). Provenance is kept beside it:
+        which phenotype came from which attachment line, and why every
+        other row was not used.
+        """
+        from .lab_phenotypes import map_observations_to_phenotypes
+
+        mapping = map_observations_to_phenotypes(bundle.observations())
+        raw = prepared.get("findings")
+        provenance = mapping.as_dict()
+        if raw is not None and not isinstance(raw, (list, tuple)):
+            # An unexpected shape is left exactly as the caller sent it.
+            provenance["added_findings"] = []
+            provenance["not_merged_reason"] = "caller_findings_not_a_list"
+            prepared["lab_phenotypes"] = provenance
+            return
+        existing = [str(item) for item in (raw or [])]
+        seen = {item.strip().lower() for item in existing}
+        added = [label for label in mapping.finding_labels() if label.strip().lower() not in seen]
+        if added:
+            prepared["findings"] = existing + added
+        provenance["added_findings"] = added
+        prepared["lab_phenotypes"] = provenance
 
     def from_payload(self, payload: Mapping[str, Any]) -> CaseContext:
         payload = self.prepare_payload(payload)
@@ -79,6 +118,8 @@ class ClinicalIngestionPipeline:
         provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
         if bundle is not None:
             provenance["attachments"] = bundle.summary()
+        if isinstance(payload.get("lab_phenotypes"), dict):
+            provenance["lab_phenotypes"] = payload["lab_phenotypes"]
         return CaseContext(
             case_id=str(payload["case_id"]),
             patient_id=str(payload["patient_id"]) if payload.get("patient_id") is not None else None,
