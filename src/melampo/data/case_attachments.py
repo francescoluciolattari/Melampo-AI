@@ -94,6 +94,18 @@ class ProcessedAttachment:
     images_png: tuple[bytes, ...] = ()
     dicom_metadata: dict[str, Any] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
+    pdf_structure: str | None = None
+    embedded_images_png: tuple[bytes, ...] = ()
+    """A text PDF's own embedded pictures (an electrophoresis trace, an ECG
+    snapshot alongside a typed report) -- deliberately kept apart from
+    `images_png`/`imaging_studies()`. That path is for a whole attachment
+    declared or detected as imaging (a DICOM series, a physician-declared
+    X-ray); an embedded picture inside an otherwise-text report is neither,
+    and folding it in would silently invent an ImagingStudy for a document
+    that is not one. Kept here instead, uncounted as text, not yet routed
+    anywhere further -- which downstream consumer wants it, and in what
+    shape, is a decision for a later step (see document_processing.py's
+    classify_pdf_structure())."""
 
     def summary(self) -> dict[str, Any]:
         """JSON-safe, no image bytes, no filename -- what travels with the case result."""
@@ -107,6 +119,8 @@ class ProcessedAttachment:
             "text_chars": len(self.text),
             "image_count": len(self.images_png),
             "notes": list(self.notes),
+            "pdf_structure": self.pdf_structure,
+            "embedded_image_count": len(self.embedded_images_png),
         }
 
 
@@ -253,6 +267,8 @@ def process_case_attachments(
                 index=index, document_format=document_format, status=str(result.get("status")),
                 reason=result.get("reason"), text=text, parser=result.get("parser"),
                 modality=None, notes=tuple(notes),
+                pdf_structure=result.get("pdf_structure"),
+                embedded_images_png=tuple(result.get("embedded_images_png", [])),
             )
         )
     return AttachmentBundle(attachments=tuple(processed))

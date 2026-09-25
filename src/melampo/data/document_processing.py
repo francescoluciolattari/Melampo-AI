@@ -170,6 +170,129 @@ def _extract_pdf_text_layer(data: bytes) -> str | None:
     return completed.stdout.decode("utf-8", errors="replace").strip()
 
 
+PDF_STRUCTURE_TEXT_NATIVE = "text_native"
+PDF_STRUCTURE_MIXED = "mixed"
+PDF_STRUCTURE_SCANNED_IMAGE_ONLY = "scanned_image_only"
+PDF_STRUCTURE_EMPTY = "empty"
+PDF_STRUCTURE_UNKNOWN = "unknown"
+
+# poppler's own type codes for a raw image XObject: an actual pictured
+# region. "smask"/"mask" are the *transparency channel* of another image in
+# the same list, not separate visual content -- counting them as pictures
+# would report an ordinary photo (one entry plus its soft mask) as "two
+# images", and could mark an otherwise pure-text page as "mixed" for no real
+# picture at all. "stencil" is content painted through a 1-bit mask -- kept,
+# since that is real drawn content (a scanned page can render this way).
+_PDFIMAGES_CONTENT_TYPES = {"image", "stencil"}
+
+
+def _list_pdf_embedded_images(data: bytes) -> list[dict[str, int]] | None:
+    """Every raster image embedded in a PDF -- page, width, height -- via poppler's pdfimages, entirely in memory.
+
+    Like pdftotext, pdfimages reads the PDF from stdin ("-" for the PDF
+    argument, no image-root needed for `-list`): no temporary file for this
+    step. Returns None when pdfimages is unavailable or the file cannot be
+    read as a PDF at all -- distinct from an empty list, which means poppler
+    read the PDF fine and found no embedded images.
+    """
+    import subprocess
+
+    try:
+        completed = subprocess.run(
+            ["pdfimages", "-list", "-"], input=data, capture_output=True, timeout=60, check=False
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    images: list[dict[str, int]] = []
+    for line in completed.stdout.decode("utf-8", errors="replace").splitlines():
+        columns = line.split()
+        # Header and the "---" separator line both fail this shape harmlessly.
+        if len(columns) < 5 or not columns[0].isdigit():
+            continue
+        if columns[2] not in _PDFIMAGES_CONTENT_TYPES:
+            continue
+        try:
+            images.append({"page": int(columns[0]), "width": int(columns[3]), "height": int(columns[4])})
+        except ValueError:
+            continue  # a dirty or reformatted row is skipped, never crashes classification
+    return images
+
+
+def classify_pdf_structure(text_layer: str | None, embedded_images: list[dict[str, int]] | None) -> str:
+    """Which of four shapes a PDF has -- decides what would be silently lost by reading only its text.
+
+    Verified defect this exists to close: a PDF with both a real text layer
+    and an embedded picture (an electrophoresis trace, an ECG snapshot, a
+    small clinical chart alongside a typed report) read as "completed" from
+    its text layer alone, with the picture dropped -- not reported missing,
+    not queued for review, gone with no trace in the result. The four
+    shapes:
+
+    - `text_native`: a real text layer, no embedded images -- the ordinary
+      digitally-generated report.
+    - `mixed`: a real text layer AND at least one embedded image -- the text
+      is genuine, but a picture sits beside it and must not be dropped.
+    - `scanned_image_only`: no text layer, but the page is a picture (most
+      commonly the whole page scanned as one image) -- needs Nemotron-Parse
+      or another vision path; already handled as "no_text_extracted" with
+      reason "pdf_has_no_text_layer_and_no_ocr_available" when none is
+      configured, not extended further here.
+    - `empty`: no text layer and no embedded image at all -- a genuinely
+      blank or vector-only (e.g. line-art-only) page.
+
+    `text_layer` is None and/or `embedded_images` is None when pdftotext or
+    pdfimages was unavailable or the bytes could not be read as a PDF at
+    all; that is reported as `unknown`, distinct from a confirmed-empty
+    page, since nothing was actually established about its content.
+    """
+    if text_layer is None or embedded_images is None:
+        return PDF_STRUCTURE_UNKNOWN
+    has_text = bool(text_layer.strip())
+    has_images = bool(embedded_images)
+    if has_text and has_images:
+        return PDF_STRUCTURE_MIXED
+    if has_text:
+        return PDF_STRUCTURE_TEXT_NATIVE
+    if has_images:
+        return PDF_STRUCTURE_SCANNED_IMAGE_ONLY
+    return PDF_STRUCTURE_EMPTY
+
+
+def _extract_pdf_embedded_images(data: bytes) -> list[bytes]:
+    """The actual PNG bytes of every embedded image `_list_pdf_embedded_images` found -- via a throwaway temp directory.
+
+    Unlike `-list`, pdfimages' extraction mode has no stdout/stream form: it
+    only writes numbered files next to an "image-root" path. This is the
+    same trade-off the project already accepts for `pdf2image.convert_from_bytes`
+    (used by the Nemotron-Parse path above): the PDF bytes momentarily touch
+    disk inside a private, process-owned temporary directory that is always
+    removed before this function returns, never the case's own persisted
+    storage -- not the case-file-never-written-to-disk decision this module
+    otherwise holds to, which is about the case's upload never being
+    persisted as a file, not about a library's own internal implementation.
+    Called only after `_list_pdf_embedded_images` already found at least one
+    image, so an empty return here (extraction failing where listing
+    succeeded) is itself worth a caller noting, not silently swallowed.
+    """
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory(prefix="melampo-pdfimages-") as tmpdir:
+        image_root = str(Path(tmpdir) / "img")
+        try:
+            completed = subprocess.run(
+                ["pdfimages", "-png", "-", image_root], input=data, capture_output=True, timeout=60, check=False
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return []
+        if completed.returncode != 0:
+            return []
+        return [path.read_bytes() for path in sorted(Path(tmpdir).glob("img-*.png"))]
+
+
 def _parse_failure_types() -> tuple[type[BaseException], ...]:
     """The failures a document parser is genuinely expected to hit -- caught and reported as "failed", never anything wider.
 
@@ -883,12 +1006,30 @@ class ClinicalDocumentProcessor:
                 parser_result=parser_result,
             )
 
+        pdf_structure: str | None = None
+        embedded_images_png: list[bytes] = []
         if document_format == FORMAT_PDF:
             text_layer = _extract_pdf_text_layer(data)
+            embedded_images = _list_pdf_embedded_images(data)
+            pdf_structure = classify_pdf_structure(text_layer, embedded_images)
+            # Extracted (its own poppler call) whenever listing found
+            # something -- "mixed" (beside real text) and
+            # "scanned_image_only" (the page's only content) alike. Verified
+            # defect this closes: a text PDF carrying an embedded picture
+            # (an electrophoresis trace, an ECG snapshot) previously came
+            # back "completed" from its text layer alone, the picture
+            # dropped with no trace anywhere in the result; a scanned page
+            # with no OCR configured came back with no content at all, not
+            # even the one image that page actually is.
+            if pdf_structure in (PDF_STRUCTURE_MIXED, PDF_STRUCTURE_SCANNED_IMAGE_ONLY):
+                embedded_images_png = _extract_pdf_embedded_images(data)
             if text_layer:
-                return self._completed_document_result(
+                result = self._completed_document_result(
                     text_layer, source_name, metadata, "pdf_text_layer", document_format, parser_result=parser_result,
                 )
+                result["pdf_structure"] = pdf_structure
+                result["embedded_images_png"] = embedded_images_png
+                return result
             reason = "pdftotext_unavailable" if text_layer is None else "pdf_has_no_text_layer_and_no_ocr_available"
         elif document_format in _MIME_BY_FORMAT:
             reason = "image_requires_nemotron_parse_for_text"
@@ -906,6 +1047,8 @@ class ClinicalDocumentProcessor:
             "parser_result": parser_result,
             "governance": self.ingestion_integration_plan()["governance_requirements"],
             "enterprise_metadata": self.infer_source_governance({**metadata, "source_path": source_name}),
+            "pdf_structure": pdf_structure,
+            "embedded_images_png": embedded_images_png,
         }
 
     def _process_dicom_bytes(self, data: bytes, source_name: str, metadata: dict[str, Any]) -> dict[str, Any]:
