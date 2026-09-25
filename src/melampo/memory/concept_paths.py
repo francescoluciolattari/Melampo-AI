@@ -125,7 +125,12 @@ class ConceptEdge:
 
 @runtime_checkable
 class ConceptGraphView(Protocol):
-    """Minimal traversal surface required by the grounding judge."""
+    """Minimal traversal surface required by the grounding judge.
+
+    Navigable both ways: if `edges_from(a)` holds an edge to b, `edges_from(b)`
+    holds one to a. find_paths() prunes from the destination's side and
+    relies on it; both implementations satisfy it by construction.
+    """
 
     def edges_from(self, concept: str) -> Sequence[ConceptEdge]: ...
 
@@ -299,15 +304,50 @@ def find_paths(
     not a weaker inference but a different kind of object, since the second
     unknown is conditioned on the first being true. Leave it unset to ignore the
     distinction, which is the behaviour for graphs of exact edges.
+
+    **Pruned from the destination's side -- same paths, same order, without
+    the blow-up.** Every partial path used to be carried to the next level,
+    whether or not it could still reach `end`: at the last level a whole new
+    frontier (one visited-set copy per path) was built and thrown away, and
+    at the level before, every path was kept although only those standing
+    next to `end` could finish. The search stops early once `max_paths` paths
+    are found, so this cost stayed hidden for well-connected destinations and
+    exploded for poorly connected ones. Measured on the real graph: a disease
+    known only through gene associations (orpha:140969, two edges, both to
+    genes) cost over 30 seconds per finding, because the three-hop tree
+    through genes' thousands of phenotype edges was enumerated in full for
+    at most a couple of paths -- and one such candidate made a single
+    pipeline run exceed two and a half minutes.
+
+    Now the concepts within k hops of `end` are computed first, from `end`
+    outwards (cheap: the destination side is usually small), and a partial
+    path is extended only to a concept that can still reach `end` in the
+    hops left. A path is dropped only when no completion exists, so the
+    paths returned, and the order they are found in -- which decides the
+    early stop -- are exactly those of the unpruned search; verified pair
+    by pair against the previous implementation on the real graph.
+
+    This relies on the graph being navigable both ways (an edge from A to B
+    means B's edges include one to A), which `ConceptGraphView` requires and
+    both implementations provide: InMemoryConceptGraph indexes every edge
+    under both endpoints, FalkorConceptGraph matches undirected. Edge weight
+    and gap limits are deliberately not applied when measuring distance from
+    `end`: counting more concepts as reachable only prunes less, never
+    wrongly.
     """
     start_key, end_key = normalise_concept(start), normalise_concept(end)
     if not start_key or not end_key or start_key == end_key:
         return []
 
+    levels = max(1, max_hops)
+    reachable = _within_hops_of(graph, end_key, levels - 1)
+
     found: list[ConceptPath] = []
     frontier: list[tuple[str, tuple[ConceptEdge, ...], frozenset[str]]] = [(start_key, (), frozenset({start_key}))]
 
-    for _ in range(max(1, max_hops)):
+    for level in range(1, levels + 1):
+        hops_left = levels - level
+        can_continue = reachable[hops_left] if hops_left > 0 else frozenset()
         next_frontier: list[tuple[str, tuple[ConceptEdge, ...], frozenset[str]]] = []
         for concept, path, visited in frontier:
             for edge in graph.edges_from(concept):
@@ -316,6 +356,8 @@ def find_paths(
                 target_key = normalise_concept(edge.target)
                 if target_key in visited:
                     continue
+                if target_key != end_key and target_key not in can_continue:
+                    continue  # cannot reach `end` in the hops left: no completion to lose
                 extended = path + (edge,)
                 if max_gap_edges is not None and sum(1 for item in extended if item.is_gap) > max_gap_edges:
                     continue
@@ -330,6 +372,24 @@ def find_paths(
             break
 
     return _ranked(found)
+
+
+def _within_hops_of(graph: ConceptGraphView, end_key: str, radius: int) -> list[frozenset[str]]:
+    """reachable[k]: every normalised concept at most k hops from `end_key`, for k = 0..radius."""
+    reachable = [frozenset({end_key})]
+    seen = {end_key}
+    frontier = {end_key}
+    for _ in range(radius):
+        next_frontier: set[str] = set()
+        for concept in frontier:
+            for edge in graph.edges_from(concept):
+                key = normalise_concept(edge.target)
+                if key and key not in seen:
+                    seen.add(key)
+                    next_frontier.add(key)
+        reachable.append(frozenset(seen))
+        frontier = next_frontier
+    return reachable
 
 
 def shared_mechanisms(
