@@ -1,5 +1,15 @@
 name: Melampo CI
 
+# The whole test suite, in the exact environment uv.lock pins, against the
+# exact reference data the data/*.dvc files pin -- on every push to main and
+# every pull request.
+#
+# Before this, CI installed with pip (no lock: any dependency release could
+# change the environment between two runs of the same commit) and ran a
+# fixed list of eight "smoke" test files, while the full suite (1,700+
+# tests) ran only locally. A green check therefore said much less than it
+# appeared to.
+
 on:
   push:
     branches: [ main ]
@@ -7,30 +17,49 @@ on:
     branches: [ main ]
 
 jobs:
-  smoke:
-    name: Enterprise smoke (${{ matrix.python-version }})
+  tests:
+    name: Full test suite (Python 3.12, uv.lock)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.12"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        # Pinned to the release commit, not a moving tag.
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
-      - name: Install package and dev tools
+      - name: Install system packages
+        # poppler-utils: pdftotext / pdfimages / pdf2image (document
+        # processing). Not a Python package -- uv cannot provide it.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+
+      - name: Create the locked environment
+        # --locked fails if uv.lock is out of date with pyproject.toml,
+        # instead of silently re-resolving.
+        run: uv sync --locked --extra dev --extra data
+
+      - name: Restore the DVC cache
+        uses: actions/cache@v4
+        with:
+          path: .dvc/cache
+          key: dvc-${{ hashFiles('data/*.dvc') }}
+
+      - name: Fetch reference data and verify it is exactly what is pinned
+        # Public sources need no storage remote: each data/*.dvc file pins a
+        # versioned release URL and the file's md5. `dvc checkout` restores
+        # from the cache when it is warm; otherwise `dvc update` downloads
+        # from the pinned URL. If the downloaded content differed from the
+        # pinned hash, dvc would rewrite the .dvc file -- the diff check
+        # turns that into a failure instead of a silent data change.
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
+          uv run dvc checkout -R data || uv run dvc update -R data
+          git diff --exit-code -- 'data/*.dvc'
 
       - name: Validate import boundaries
         run: |
-          python - <<'PY'
+          uv run python - <<'PY'
           import melampo
           from melampo.cli import main_decision_record, main_weaviate_schema
           from melampo.orchestration.model_capability_registry import ModelCapabilityRegistry
@@ -40,21 +69,12 @@ jobs:
           assert "ClinicalCase" in MelampoWeaviateSchema().class_names()
           PY
 
-      - name: Run enterprise smoke tests
-        run: |
-          pytest -q \
-            tests/test_enterprise_orchestration.py \
-            tests/test_enterprise_adapters.py \
-            tests/test_validation_primitives.py \
-            tests/test_phase1_p0_core_alignment.py \
-            tests/test_phase2_enterprise_rag.py \
-            tests/test_phase3_nexus_governance.py \
-            tests/test_phase4a_specialist_model_adapters.py \
-            tests/test_phase5a_validation_governance.py
+      - name: Run the full test suite
+        run: uv run pytest -q
 
       - name: Validate enterprise CLI commands
         run: |
-          melampo-decision-record > /tmp/melampo_decision_record.json
-          melampo-weaviate-schema > /tmp/melampo_weaviate_schema.json
-          python -m json.tool /tmp/melampo_decision_record.json > /dev/null
-          python -m json.tool /tmp/melampo_weaviate_schema.json > /dev/null
+          uv run melampo-decision-record > /tmp/melampo_decision_record.json
+          uv run melampo-weaviate-schema > /tmp/melampo_weaviate_schema.json
+          uv run python -m json.tool /tmp/melampo_decision_record.json > /dev/null
+          uv run python -m json.tool /tmp/melampo_weaviate_schema.json > /dev/null

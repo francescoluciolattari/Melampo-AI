@@ -57,9 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Create the locked environment
+        run: uv sync --locked --extra dev --extra data
 
       - name: Determine the current and latest HPO release
         id: hpo
@@ -68,13 +70,18 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json, urllib.request, pathlib, re
 
-          # The release currently in the repository, read from the data
-          # itself rather than from a version file someone has to remember
-          # to update. phenotype.hpoa carries its own release date in a
-          # header comment.
+          # The release currently pinned: the tag inside the versioned
+          # download URL that data/phenotype.hpoa.dvc records. The data file
+          # itself is no longer in the checkout (DVC fetches it), so its
+          # header is read only as a fallback when present.
           current = "unknown"
+          pin = pathlib.Path("data/phenotype.hpoa.dvc")
+          if pin.is_file():
+              pinned = re.search(r"/releases/download/v(\d{4}-\d{2}-\d{2})/", pin.read_text())
+              if pinned:
+                  current = pinned.group(1)
           hpoa = pathlib.Path("data/phenotype.hpoa")
-          if hpoa.is_file():
+          if current == "unknown" and hpoa.is_file():
               # The HPO release is the date inside the "#hpo-version:" URL
               # (.../releases/2026-09-01/hp.json) -- NOT the first date in the
               # header. "#version:" is the annotation file's own generation
@@ -121,24 +128,28 @@ jobs:
           TAG: ${{ steps.hpo.outputs.latest }}
         run: |
           set -euo pipefail
-          # Keep the previous ontology file under a different name so the
-          # rename/obsoletion diff below can compare against it -- the main
-          # download overwrites data/hp.obo itself.
+          # The currently pinned release first, so the rename/obsoletion diff
+          # below can compare against its hp.obo.
+          uv run dvc update -R data
           cp data/hp.obo /tmp/hp-previous.obo
           base="https://github.com/obophenotype/human-phenotype-ontology/releases/download/v${TAG}"
-          # hp.obo is published as hp-base.obo in the release assets and
-          # renamed here, because graph_sources looks for hp.obo.
-          curl -fsSL "${base}/hp-base.obo" -o data/hp.obo
-          curl -fsSL "${base}/genes_to_phenotype.txt" -o data/genes_to_phenotype.txt
-          curl -fsSL "${base}/genes_to_disease.txt" -o data/genes_to_disease.txt
-          curl -fsSL "${base}/phenotype.hpoa" -o data/phenotype.hpoa
+          # Re-pin every HPO file to the new release. hp.obo is the release's
+          # full hp.obo asset -- the one this project's tests and curated
+          # tables are validated against. An earlier version of this step
+          # downloaded hp-base.obo "renamed to hp.obo", on the belief that the
+          # release publishes no hp.obo: it publishes both, and they differ
+          # (verified on v2026-09-01), so the next scheduled update would
+          # have swapped the ontology variant silently.
+          for file in hp.obo phenotype.hpoa genes_to_phenotype.txt genes_to_disease.txt phenotype_to_genes.txt; do
+            uv run dvc import-url --force "${base}/${file}" "data/${file}"
+          done
 
       - name: Record every rename and obsoletion, so no name is ever lost
         if: steps.hpo.outputs.outdated == 'true'
         env:
           TAG: ${{ steps.hpo.outputs.latest }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import sys
           sys.path.insert(0, "src")
           from melampo.memory.concept_resolution import parse_obo
@@ -181,18 +192,15 @@ jobs:
           # pdftotext (digital-PDF text layer) both call poppler binaries;
           # two tests exercise that path and failed on a runner without it.
           sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
-          # .[dev], the same install ci.yml uses -- the bare `-e .` plus
-          # pytest missed test-only dependencies (PyYAML).
-          python -m pip install --quiet -e .[dev]
-          # The whole suite, not a subset: the point of proposing rather than
-          # applying is that a reviewer sees a green run against the new data,
-          # or sees precisely what broke.
-          PYTHONPATH=src python -m pytest -q
+          # The whole suite, not a subset, in the locked environment: the
+          # point of proposing rather than applying is that a reviewer sees a
+          # green run against the new data, or sees precisely what broke.
+          uv run pytest -q
 
       - name: Report what the new release changes
         if: steps.hpo.outputs.outdated == 'true'
         run: |
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import sys
           sys.path.insert(0, "src")
           from melampo.memory.graph_sources import load_verification_graph, load_medical_actions
@@ -220,6 +228,10 @@ jobs:
 
             The full test suite ran against the new data before this PR was opened.
 
+            The data files themselves are not in this diff: they are tracked by
+            DVC. What changes is each `data/*.dvc` pin -- the release URL and the
+            md5 of the file it names -- plus the term-history records.
+
             **Review before merging.** An HPO release can rename and obsolete
             terms in bulk — the 2026-02-16 release renamed 75 and obsoleted 29 —
             and a renamed term is one the concept graph no longer matches under
@@ -231,8 +243,9 @@ jobs:
         id: deps
         if: ${{ github.event_name == 'schedule' || inputs.check_dependencies }}
         run: |
-          python -m pip install --quiet -e .
-          python -m pip list --outdated --format=json > /tmp/outdated.json
+          # Against the locked environment: what uv.lock pins versus what is
+          # now available.
+          uv pip list --outdated --format=json > /tmp/outdated.json
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, pathlib
           rows = json.loads(pathlib.Path("/tmp/outdated.json").read_text() or "[]")
@@ -265,10 +278,12 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.check_literature)
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python -m pip install --quiet -e .
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked --extra data
+      # hp.obo feeds the synonym index used below; DVC fetches exactly the
+      # pinned release.
+      - run: uv run dvc update data/hp.obo.dvc
 
       - name: Refresh literature for concepts already in the index
         env:
@@ -283,7 +298,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           PMS_EMA_API_KEY: ${{ secrets.PMS_EMA_API_KEY }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import sys, pathlib
           sys.path.insert(0, "src")
 

@@ -40,6 +40,14 @@ dev = [
   # `pip install -e .[dev]` could not run the full suite.
   "PyYAML>=6.0",
 ]
+# Data and model-weight management (see docs/environment_and_data.md):
+# reference data is tracked by DVC, pinned to versioned upstream release
+# URLs, and fetched with `uv run dvc update -R data` -- no storage remote is
+# needed for public sources. A storage-remote plugin (dvc-s3, dvc-azure,
+# dvc-gs) is added here once the project's remote is chosen.
+data = [
+  "dvc>=3.60",
+]
 clinical = [
   "fhir.resources>=7.1",
   "pydantic>=2.6",
@@ -97,7 +105,8 @@ enterprise = [
   "pydantic>=2.6",
   "pydantic-settings>=2.2",
   "PyYAML>=6.0",
-  "docling>=2.0",
+  # docling removed: it was replaced by Nemotron-Parse/LlamaParse and taken
+  # out of the `document` extra, but was still installed from here.
   "weaviate-client>=4.5",
   "faiss-cpu>=1.8",
   "sentence-transformers>=2.6",
@@ -130,6 +139,13 @@ melampo-prototype-cxr = "melampo.cli:main_cxr"
 melampo-prototype-openi = "melampo.cli:main_openi"
 melampo-weaviate-schema = "melampo.cli:main_weaviate_schema"
 melampo-decision-record = "melampo.cli:main_decision_record"
+
+[tool.uv]
+# uv is the project's environment manager: `uv sync --extra dev --extra data`
+# builds exactly the environment in uv.lock. Resolution is universal (one
+# lock for Linux, macOS and Windows) and pinned to Python 3.12 via
+# .python-version.
+required-version = ">=0.9"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
