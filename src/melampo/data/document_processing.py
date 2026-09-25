@@ -9,8 +9,76 @@ from typing import Any
 
 _HEADING_RE = re.compile(r"^(#{1,6}\s+.+|[A-Z][A-Z0-9 /,:;()\-]{5,})$", re.MULTILINE)
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-_PHONE_RE = re.compile(r"(?<!\d)(?:\+?\d[\d .()\-]{7,}\d)(?!\d)")
-_DATE_RE = re.compile(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b")
+# The same separator on both sides ("12/09/2026", "12.09.2026", "12-09-2026"),
+# never mixed: a mixed form would also catch a laboratory range written
+# "4.0-10.0" ("4.0-10") and redact it as a date.
+_DATE_RE = re.compile(r"\b\d{1,2}([/.\-])\d{1,2}\1\d{2,4}\b")
+
+# Phone numbers: see _is_phone_number() for why a long run of digits alone is
+# not enough. A candidate is digit groups joined by exactly ONE separator
+# (space, dot, hyphen), optionally led by "+" and/or a parenthesised prefix:
+# a laboratory table's column alignment (two or more spaces) and a spaced
+# range (" - ") both break a candidate apart instead of gluing two values
+# into one "number".
+_PHONE_CANDIDATE_RE = re.compile(r"(?<![\w.,+])(?:\+ ?)?(?:\(\d{1,5}\) ?)?\d+(?:[ .\-]\d+)*(?!\w)")
+_PHONE_KEYWORD_BEFORE_RE = re.compile(
+    r"(?i)\b(?:tel|telefono|cell|cellulare|fax|phone|mobile|recapito)\b\.?:?\s*$"
+)
+# A dot followed by 1-3 digits that end the group ("13.5", "0.50", "11.8 10.5"):
+# a decimal value, not a dotted phone group ("06.1234.5678" keeps 4-digit groups).
+_DECIMAL_GROUP_RE = re.compile(r"\.\d{1,3}(?=[ \-]|$)")
+# (3, 3, 3) deliberately absent: a legacy 9-digit mobile written that way is
+# rare, while three single-spaced 3-digit values ("312 250 198") are common.
+_MOBILE_GROUPINGS = {(9,), (10,), (3, 6), (3, 7), (3, 3, 4), (3, 4, 3), (3, 3, 2, 2)}
+
+
+def _is_phone_number(candidate: str, preceding_text: str) -> bool:
+    """Whether a digit-group candidate is a phone number, by Italian numbering-plan shape or explicit context.
+
+    Replaces a rule that redacted ANY run of 9+ digit-or-separator
+    characters as a phone. Verified defect before this fix: in a laboratory
+    report that rule erased reference ranges ("12.0 - 16.0" ->
+    "[REDACTED_PHONE]") and even values, gluing a result to the next
+    column ("11.8   10^3/uL" -> "[REDACTED_PHONE]^3/uL") -- clinical data
+    destroyed silently in the text that becomes the case's report_text.
+
+    A candidate is a phone only when one of these holds:
+    - it starts with "+" (international form) and has 8-15 digits;
+    - it follows an explicit phone word ("Tel.", "Cell:", "Fax", ...) and
+      has 6-15 digits;
+    - it starts with 0 (every Italian geographic number, and the "00"
+      international prefix) and has 8-15 digits;
+    - it starts with 3 and has 9-10 digits (Italian mobile shape).
+    And it never looks like a decimal value (see _DECIMAL_GROUP_RE).
+
+    Accepted, stated trade-off: a bare number with no "+", no phone word
+    and neither a 0- nor 3-prefix (e.g. a toll-free "800 123456" printed
+    without "Tel.") is not redacted. Laboratory values start with any digit
+    and are common in exactly the documents this processes; a phone number
+    printed without any of those markers is rare in Italian clinical
+    documents. The previous rule's opposite trade-off destroyed data.
+    """
+    if _DECIMAL_GROUP_RE.search(candidate):
+        return False
+    digits = re.sub(r"\D", "", candidate)
+    if not 6 <= len(digits) <= 15:
+        return False
+    if candidate.startswith("+"):
+        return len(digits) >= 8
+    if _PHONE_KEYWORD_BEFORE_RE.search(preceding_text):
+        return True
+    groups = tuple(len(group) for group in re.findall(r"\d+", candidate))
+    if digits.startswith("0"):
+        # An Italian prefix is "0" plus 1-3 digits (06, 02, 0571) or the "00"
+        # international prefix -- never a lone "0", which is how a value
+        # series would start ("0 12 34 56").
+        return len(digits) >= 8 and groups[0] >= 2
+    if digits.startswith("3"):
+        # Only the ways an Italian mobile is actually written: contiguous, or
+        # a 3-digit operator code then the rest. "312 250 198" (a series of
+        # values) has the right digit count but not the shape.
+        return groups in _MOBILE_GROUPINGS
+    return False
 _CLINICAL_TERMS = {
     "cough": "Symptom:Cough",
     "fever": "Symptom:Fever",
@@ -539,9 +607,18 @@ class ClinicalDocumentProcessor:
 
             return replace
 
+        def phone(match: re.Match[str]) -> str:
+            preceding = match.string[max(0, match.start() - 20) : match.start()]
+            if _is_phone_number(match.group(0), preceding):
+                redactions.append("phone")
+                return "[REDACTED_PHONE]"
+            return match.group(0)
+
+        # Dates before phones: a dotted date starting with 0 ("03.10.2026")
+        # would otherwise match the phone shape and be labelled as one.
         redacted = _EMAIL_RE.sub(mark("email", "[REDACTED_EMAIL]"), text)
-        redacted = _PHONE_RE.sub(mark("phone", "[REDACTED_PHONE]"), redacted)
         redacted = _DATE_RE.sub(mark("date", "[REDACTED_DATE]"), redacted)
+        redacted = _PHONE_CANDIDATE_RE.sub(phone, redacted)
         return redacted, redactions
 
     def extract_clinical_entities(self, text: str) -> dict[str, Any]:
@@ -870,14 +947,26 @@ class ClinicalDocumentProcessor:
         self, text: str, source_name: str, metadata: dict[str, Any], parser: str, document_format: str,
         *, parser_metadata: dict[str, Any] | None = None, parser_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """The one "completed" result shape every successful parser path returns -- unchanged keys from before."""
+        """The one "completed" result shape every successful parser path returns.
+
+        `text` is the whole document, redacted exactly as its chunks are,
+        read once -- added because callers that needed the document's text
+        (case attachments, a DICOM's encapsulated PDF report) rebuilt it by
+        joining the chunks, and chunks overlap by `chunk_overlap` characters
+        by design (for retrieval). Verified defect: every overlap came back
+        twice -- 12 duplicated lines in a ~3,900-character document -- and
+        in a laboratory report a duplicated line reads as a repeated
+        measurement. Chunks stay as they were, for memory/RAG only.
+        """
         combined_metadata = {**metadata, **(parser_metadata or {}), "parser": parser}
         chunks = self.chunk_text(text=text, source_path=source_name, metadata=combined_metadata)
+        redacted_text, _ = self.redact_text(text)
         result = {
             "status": "completed",
             "parser": parser,
             "source_path": source_name,
             "document_format": document_format,
+            "text": redacted_text,
             "document_id": chunks[0].metadata.get("document_id") if chunks else self.document_id(source_name, text, metadata),
             "chunk_count": len(chunks),
             "documents": [chunk.to_memory_document() for chunk in chunks],

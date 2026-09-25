@@ -207,6 +207,30 @@ def test_an_encapsulated_pdf_report_goes_through_the_normal_pdf_path():
     assert "nessuna lesione" in result.report_text
 
 
+def test_an_encapsulated_pdf_report_is_not_duplicated_by_overlapping_chunks():
+    """Regression: report_text was rebuilt by joining chunks, which overlap by
+    design, so every overlap appeared twice. Tiny chunks force several overlaps
+    on a one-line report; each phrase must still appear exactly once."""
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.104.1"
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    dataset = FileDataset(None, {}, file_meta=meta, preamble=b"\0" * 128)
+    dataset.SOPClassUID = "1.2.840.10008.5.1.4.1.1.104.1"
+    dataset.Modality = "DOC"
+    dataset.MIMETypeOfEncapsulatedDocument = "application/pdf"
+    dataset.EncapsulatedDocument = _digital_pdf("Referto RM encefalo: nessuna lesione focale")
+    buffer = io.BytesIO()
+    dataset.save_as(buffer, enforce_file_format=True)
+
+    processor = ClinicalDocumentProcessor(chunk_size=20, chunk_overlap=8)
+    result = extract_dicom(buffer.getvalue(), processor=processor)
+    assert result.report_text.strip() == "Referto RM encefalo: nessuna lesione focale"
+
+
 def test_process_document_bytes_routes_a_dicom_image_and_carries_its_images():
     result = ClinicalDocumentProcessor().process_document_bytes(_bytes("CT_small.dcm"), source_name="tac")
     assert result["document_format"] == "dicom"
