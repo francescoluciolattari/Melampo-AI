@@ -87,6 +87,13 @@ class OntologyTerm:
     alt_ids: tuple[str, ...] = ()
     obsolete: bool = False
     parents: tuple[str, ...] = ()
+    # Cross-references to other vocabularies (``UMLS:C0011849``,
+    # ``DOID:9352``, ``ICD10CM:E11``), with any trailing ``{source=...}``
+    # qualifier dropped. Mondo's xrefs are how a disease is found in every
+    # other source (UMLS/NCIt, Disease Ontology, OMIM, Orphanet), so they are
+    # kept rather than skipped the way this parser used to skip every line it
+    # had no immediate use for.
+    xrefs: tuple[str, ...] = ()
 
     def surface_forms(
         self, scopes: Iterable[str] = SAFE_SCOPES, *, include_layperson: bool = False
@@ -125,6 +132,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
     parents: list[str] = []
     obsolete = False
     definition = ""
+    xrefs: list[str] = []
     inside = False
 
     def flush() -> OntologyTerm | None:
@@ -138,6 +146,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             alt_ids=tuple(alt_ids),
             obsolete=obsolete,
             parents=tuple(parents),
+            xrefs=tuple(xrefs),
         )
 
     for raw in lines:
@@ -149,6 +158,7 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             inside = line.strip() == "[Term]"
             term_id, name, synonyms, alt_ids, parents, obsolete = "", "", [], [], [], False
             definition = ""
+            xrefs = []
             continue
         if not inside or not line:
             continue
@@ -165,6 +175,10 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             parents.append(value.split("!")[0].strip())
         elif key == "is_obsolete":
             obsolete = value.strip().lower() == "true"
+        elif key == "xref":
+            xref = value.split("{")[0].split("!")[0].strip().split(" ")[0]
+            if xref:
+                xrefs.append(xref)
         elif key == "synonym":
             parsed = _parse_synonym(value)
             if parsed is not None:

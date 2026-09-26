@@ -1,0 +1,30 @@
+# Melampo -- where model weights are fetched from.
+#
+# The one switch for the storage plan decided on 2026-09-26. WHICH weights
+# (repository, commit, sha256 of every file) is in melampo-assets.yaml;
+# WHERE they come from is only this file. Whatever the backend, every file is
+# verified against its pinned sha256 before use (src/melampo/models/weights.py).
+#
+#   upstream   -- now. The original Hugging Face repository, at the pinned
+#                 commit. Nothing is stored by the project.
+#   hf_mirror  -- first deployment. Private copies in the project's own HF
+#                 organisation (scripts/mirror_models_to_hf.py), so a model
+#                 deleted or changed upstream stays available as validated.
+#   dvc        -- first training run. A DVC remote in an EU region, for the
+#                 weights the project produces itself (e.g. adapters).
+#
+# After editing: uv run python scripts/configure_model_storage.py [--apply]
+# Credentials never go in this file: HF_TOKEN / AWS_* / AZURE_* come from the
+# environment (GitHub secrets in CI).
+
+backend: upstream
+
+hf_mirror:
+  organization: ""      # e.g. melampo-ai -- required for backend: hf_mirror
+  private: true         # must stay true: a public mirror would redistribute the weights
+
+dvc:
+  remote_name: melampo-eu
+  url: ""               # e.g. s3://melampo-models/weights -- required for backend: dvc
+  region: ""            # e.g. eu-south-1 (Milan) -- required for backend: dvc
+  jurisdiction: EU      # enforced: anything else is rejected

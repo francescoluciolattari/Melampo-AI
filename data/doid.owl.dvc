@@ -1,0 +1,13 @@
+md5: d839a794072e36ef6daac2f92e2046d1
+frozen: true
+deps:
+- checksum: '"eb4f181a14e06900f90f3360a36c9f0b4481d2f42ec07e5273a94726eaf016be"'
+  size: 28639789
+  hash: md5
+  path: 
+    https://raw.githubusercontent.com/DiseaseOntology/HumanDiseaseOntology/623d48bdf7634e21cb68ef400c81aff87b1fa796/src/ontology/releases/doid.owl
+outs:
+- md5: fb58fa191e080ae1dcfca323fa7bd130
+  size: 28639789
+  hash: md5
+  path: doid.owl

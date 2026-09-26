@@ -1,0 +1,13 @@
+md5: 9582c02b4bef4a47f84ba4d65d43187d
+frozen: true
+deps:
+- checksum: '"0x8DF084EFA934604"'
+  size: 53134854
+  hash: md5
+  path: 
+    https://github.com/monarch-initiative/mondo/releases/download/v2026-09-01/mondo.obo
+outs:
+- md5: df17cd260d65d8b29339c63264d0cffd
+  size: 53134854
+  hash: md5
+  path: mondo.obo

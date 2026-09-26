@@ -1,0 +1,59 @@
+name: Pin model revisions
+
+# Writes into melampo-assets.yaml, for every Hugging Face model, the exact
+# commit and the sha256 of each file, read from the Hub's own metadata
+# (scripts/pin_model_revisions.py), and opens a pull request with the diff.
+# Manual trigger: a new pin is a deliberate change of which weights the
+# project means, reviewed like any other.
+#
+# HF_TOKEN (optional secret): needed for gated repositories (Pillar-0), from
+# a Hugging Face account that has accepted their conditions -- access to a
+# gated model is granted to a user, never to an organisation. A read-only
+# fine-grained token limited to these repositories is enough.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Space-separated asset ids to pin (empty: all)"
+        required: false
+        default: ""
+      keep_revision:
+        description: "Re-hash the recorded revision instead of moving to the latest"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked --extra dev --extra data
+      - name: Pin
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          args=()
+          if [ -n "${{ inputs.only }}" ]; then args+=(--only ${{ inputs.only }}); fi
+          if [ "${{ inputs.keep_revision }}" = "true" ]; then args+=(--keep-revision); fi
+          uv run python scripts/pin_model_revisions.py "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Check the manifest still validates
+        run: uv run pytest -q tests/test_assets_manifest.py tests/test_model_weights.py
+      - name: Open a pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/model-pins
+          title: "chore: pin model revisions"
+          commit-message: "chore: pin Hugging Face model revisions and file hashes"
+          author: frankltr <francesco.lucio.lattari@gmail.com>
+          body: |
+            Commit ids and per-file sha256 written by `scripts/pin_model_revisions.py`
+            from the Hugging Face Hub's own metadata. Review which models moved to a
+            new revision: a new revision is a different model for validation purposes.
+          labels: model-pins

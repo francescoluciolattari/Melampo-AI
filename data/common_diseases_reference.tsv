@@ -1,0 +1,146 @@
+# Reference list of common diseases for measuring symptom-source coverage.
+# Hand-compiled across specialties (not a prevalence-ranked sample); every row resolved
+# against Mondo release 2026-09-01 (data/mondo.obo). resolution: label | exact_synonym |
+# manual (chosen by hand where the everyday name has no exact Mondo label).
+mondo_id	mondo_label	query_name	icd10	specialty	resolution
+MONDO:0005148	type 2 diabetes mellitus	type 2 diabetes mellitus	E11	endocrine	label
+MONDO:0005147	type 1 diabetes mellitus	type 1 diabetes mellitus	E10	endocrine	label
+MONDO:0005420	hypothyroidism	hypothyroidism	E03.9	endocrine	label
+MONDO:0004425	hyperthyroidism	hyperthyroidism	E05	endocrine	label
+MONDO:0005364	Graves disease	Graves disease	E05.0	endocrine	label
+MONDO:0007699	Hashimoto thyroiditis	Hashimoto thyroiditis	E06.3	endocrine	label
+MONDO:0011122	obesity disorder	obesity	E66	endocrine	exact_synonym
+MONDO:0100480	autoimmune primary adrenal insufficiency	Addison disease	E27.1	endocrine	exact_synonym
+MONDO:0018912	Cushing syndrome	Cushing syndrome	E24	endocrine	label
+MONDO:0008487	polycystic ovary syndrome	polycystic ovary syndrome	E28.2	endocrine	label
+MONDO:0005298	osteoporosis	osteoporosis	M81	endocrine	label
+MONDO:0001134	essential hypertension	essential hypertension	I10	cardiovascular	label
+MONDO:0005068	myocardial infarction	myocardial infarction	I21	cardiovascular	label
+MONDO:0005010	coronary artery disorder	coronary artery disease	I25	cardiovascular	exact_synonym
+MONDO:0005252	heart failure	heart failure	I50	cardiovascular	label
+MONDO:0004981	atrial fibrillation	atrial fibrillation	I48	cardiovascular	label
+MONDO:0005279	pulmonary embolism	pulmonary embolism	I26	cardiovascular	label
+MONDO:0005399	venous thromboembolism	deep vein thrombosis	I80	cardiovascular	manual
+MONDO:0005386	peripheral arterial disease	peripheral artery disease	I73.9	cardiovascular	manual
+MONDO:0005350	abdominal aortic aneurysm	abdominal aortic aneurysm	I71.4	cardiovascular	label
+MONDO:0000565	infective endocarditis	infective endocarditis	I33	cardiovascular	label
+MONDO:0005904	pericarditis	pericarditis	I30	cardiovascular	label
+MONDO:0004496	myocarditis	myocarditis	I40	cardiovascular	label
+MONDO:0042981	aortic valve stenosis	aortic valve stenosis	I35.0	cardiovascular	label
+MONDO:0008638	varicose disease	varicose veins	I83	cardiovascular	manual
+MONDO:1060198	ischemic stroke	ischemic stroke	I63	neurology	label
+MONDO:0013792	intracerebral hemorrhage	intracerebral hemorrhage	I61	neurology	label
+MONDO:0005099	subarachnoid hemorrhage	subarachnoid hemorrhage	I60	neurology	label
+MONDO:0005264	transient ischemic attack	transient ischemic attack	G45	neurology	label
+MONDO:0005277	migraine disorder	migraine	G43	neurology	exact_synonym
+MONDO:0005027	epilepsy	epilepsy	G40	neurology	label
+MONDO:0005180	Parkinson disease	Parkinson disease	G20	neurology	label
+MONDO:0004975	Alzheimer disease	Alzheimer disease	G30	neurology	label
+MONDO:0005301	multiple sclerosis	multiple sclerosis	G35	neurology	label
+MONDO:0016218	Guillain-Barre syndrome	Guillain-Barre syndrome	G61.0	neurology	label
+MONDO:0006670	bacterial meningitis	bacterial meningitis	G00	neurology	label
+MONDO:0005665	Bell's palsy	Bell palsy	G51.0	neurology	manual
+MONDO:0007275	carpal tunnel syndrome	carpal tunnel syndrome	G56.0	neurology	label
+MONDO:0007147	obstructive sleep apnea syndrome	obstructive sleep apnea	G47.33	neurology	exact_synonym
+MONDO:0004979	asthma	asthma	J45	respiratory	label
+MONDO:0005002	chronic obstructive pulmonary disease	chronic obstructive pulmonary disease	J44	respiratory	label
+MONDO:0005249	pneumonia	pneumonia	J18	respiratory	label
+MONDO:0005812	influenza	influenza	J11	respiratory	label
+MONDO:0100096	COVID-19	COVID-19	U07.1	respiratory	label
+MONDO:0003781	bronchitis	acute bronchitis	J20	respiratory	manual
+MONDO:0002076	pneumothorax	pneumothorax	J93	respiratory	label
+MONDO:0800504	idiopathic pulmonary fibrosis	idiopathic pulmonary fibrosis	J84.112	respiratory	label
+MONDO:0019338	sarcoidosis	sarcoidosis	D86	respiratory	label
+MONDO:0018076	tuberculosis	tuberculosis	A15	respiratory	label
+MONDO:0011786	allergic rhinitis	allergic rhinitis	J30	respiratory	label
+MONDO:0005961	sinusitis	sinusitis	J32	respiratory	label
+MONDO:0002258	pharyngitis	pharyngitis	J02	respiratory	label
+MONDO:0007186	gastroesophageal reflux disease	gastroesophageal reflux disease	K21	gastro	label
+MONDO:0004247	peptic ulcer disease	peptic ulcer disease	K27	gastro	label
+MONDO:0004966	gastritis	gastritis	K29	gastro	label
+MONDO:0005052	irritable bowel syndrome	irritable bowel syndrome	K58	gastro	label
+MONDO:0005011	Crohn disease	Crohn disease	K50	gastro	label
+MONDO:0005101	ulcerative colitis	ulcerative colitis	K51	gastro	label
+MONDO:0005130	celiac disease	celiac disease	K90.0	gastro	label
+MONDO:0005649	appendicitis	appendicitis	K35	gastro	label
+MONDO:0012672	cholelithiasis	cholelithiasis	K80	gastro	label
+MONDO:0043994	acute cholecystitis	acute cholecystitis	K81.0	gastro	label
+MONDO:0006515	acute pancreatitis	acute pancreatitis	K85	gastro	label
+MONDO:0005003	chronic pancreatitis	chronic pancreatitis	K86.1	gastro	label
+MONDO:0004235	diverticulitis	diverticulitis	K57	gastro	label
+MONDO:0005155	cirrhosis of liver	liver cirrhosis	K74.6	gastro	manual
+MONDO:0013209	metabolic dysfunction-associated steatotic liver disease	nonalcoholic fatty liver disease	K76.0	gastro	exact_synonym
+MONDO:0005344	hepatitis B virus infection	hepatitis B	B18.1	gastro	exact_synonym
+MONDO:0005231	hepatitis C virus infection	hepatitis C	B18.2	gastro	manual
+MONDO:0002269	gastroenteritis	gastroenteritis	A09	gastro	label
+MONDO:0004872	hemorrhoid	hemorrhoids	K64	gastro	exact_synonym
+MONDO:0005300	chronic kidney disease	chronic kidney disease	N18	renal	label
+MONDO:0002492	acute kidney injury	acute kidney injury	N17	renal	label
+MONDO:0100338	urinary tract infection	urinary tract infection	N39.0	renal	label
+MONDO:0006939	pyelonephritis	pyelonephritis	N10	renal	label
+MONDO:0008171	nephrolithiasis	kidney stone	N20.0	renal	exact_synonym
+MONDO:0005377	nephrotic syndrome	nephrotic syndrome	N04	renal	label
+MONDO:0010811	benign prostatic hyperplasia	benign prostatic hyperplasia	N40	renal	label
+MONDO:0008383	rheumatoid arthritis	rheumatoid arthritis	M06.9	rheumatology	label
+MONDO:0005178	osteoarthritis	osteoarthritis	M19.90	rheumatology	label
+MONDO:0005393	gout	gout	M10	rheumatology	label
+MONDO:0007915	systemic lupus erythematosus	systemic lupus erythematosus	M32	rheumatology	label
+MONDO:0005306	ankylosing spondylitis	ankylosing spondylitis	M45	rheumatology	label
+MONDO:0019735	polymyalgia rheumatica	polymyalgia rheumatica	M35.3	rheumatology	label
+MONDO:0008538	temporal arteritis	giant cell arteritis	M31.6	rheumatology	exact_synonym
+MONDO:0005546	fibromyalgia	fibromyalgia	M79.7	rheumatology	label
+MONDO:0010030	Sjogren syndrome	Sjogren syndrome	M35.0	rheumatology	label
+MONDO:0011849	psoriatic arthritis	psoriatic arthritis	L40.5	rheumatology	label
+MONDO:0001356	iron deficiency anemia	iron deficiency anemia	D50	hematology	label
+MONDO:0008228	pernicious anemia	vitamin B12 deficiency anemia	D51	hematology	manual
+MONDO:0019402	beta thalassemia	beta thalassemia	D56.1	hematology	label
+MONDO:0011382	sickle cell disease	sickle cell anemia	D57	hematology	exact_synonym
+MONDO:0002048	thrombocytopenia due to immune destruction	immune thrombocytopenia	D69.3	hematology	exact_synonym
+MONDO:0010602	hemophilia A	hemophilia A	D66	hematology	label
+MONDO:1040015	infectious disease with sepsis	sepsis	A41.9	infectious	manual
+MONDO:0005109	HIV infectious disease	HIV infection	B20	infectious	exact_synonym
+MONDO:0005810	infectious mononucleosis	infectious mononucleosis	B27	infectious	label
+MONDO:0019632	Lyme disease	Lyme disease	A69.2	infectious	label
+MONDO:0005136	malaria	malaria	B54	infectious	label
+MONDO:0004619	measles	measles	B05	infectious	label
+MONDO:0005700	chickenpox	chickenpox	B01	infectious	label
+MONDO:0005609	herpes zoster	herpes zoster	B02	infectious	label
+MONDO:0005077	pertussis	pertussis	A37	infectious	label
+MONDO:0005952	scarlet fever	scarlet fever	A38	infectious	label
+MONDO:0005619	typhoid fever	typhoid fever	A01.0	infectious	label
+MONDO:0005230	cellulitis	cellulitis	L03	infectious	label
+MONDO:0005976	syphilis	syphilis	A53	infectious	label
+MONDO:0005083	psoriasis	psoriasis	L40	dermatology	label
+MONDO:0004980	atopic eczema	atopic dermatitis	L20	dermatology	exact_synonym
+MONDO:0005492	urticaria	urticaria	L50	dermatology	label
+MONDO:0011438	acne	acne vulgaris	L70.0	dermatology	exact_synonym
+MONDO:0008903	lung cancer	lung cancer	C34	oncology	label
+MONDO:0007254	breast cancer	breast cancer	C50	oncology	label
+MONDO:0005575	colorectal cancer	colorectal cancer	C18	oncology	label
+MONDO:0008315	prostate cancer	prostate cancer	C61	oncology	label
+MONDO:0009831	malignant pancreatic neoplasm	pancreatic cancer	C25	oncology	exact_synonym
+MONDO:0001056	gastric cancer	gastric cancer	C16	oncology	label
+MONDO:0007256	hepatocellular carcinoma	hepatocellular carcinoma	C22.0	oncology	label
+MONDO:0005105	melanoma	melanoma	C43	oncology	label
+MONDO:0001187	urinary bladder cancer	bladder cancer	C67	oncology	manual
+MONDO:0005086	renal cell carcinoma	renal cell carcinoma	C64	oncology	label
+MONDO:0002108	thyroid cancer	thyroid cancer	C73	oncology	label
+MONDO:0004952	Hodgkins lymphoma	Hodgkin lymphoma	C81	oncology	exact_synonym
+MONDO:0004948	B-cell chronic lymphocytic leukemia	chronic lymphocytic leukemia	C91.1	oncology	exact_synonym
+MONDO:0018874	acute myeloid leukemia	acute myeloid leukemia	C92.0	oncology	label
+MONDO:0009693	plasma cell myeloma	multiple myeloma	C90.0	oncology	exact_synonym
+MONDO:0002009	major depressive disorder	major depressive disorder	F32	psychiatry	label
+MONDO:0001942	generalized anxiety disorder	generalized anxiety disorder	F41.1	psychiatry	label
+MONDO:0004985	bipolar disorder	bipolar disorder	F31	psychiatry	label
+MONDO:0005090	schizophrenia	schizophrenia	F20	psychiatry	label
+MONDO:0007743	attention deficit-hyperactivity disorder	attention deficit hyperactivity disorder	F90	psychiatry	exact_synonym
+MONDO:0005351	anorexia nervosa	anorexia nervosa	F50.0	psychiatry	label
+MONDO:0005081	preeclampsia	preeclampsia	O14	obstetrics	label
+MONDO:0005406	gestational diabetes	gestational diabetes	O24.4	obstetrics	label
+MONDO:0000755	ectopic pregnancy	ectopic pregnancy	O00	obstetrics	label
+MONDO:0005133	endometriosis	endometriosis	N80	gynecology	label
+MONDO:0005041	glaucoma	glaucoma	H40	ophthalmology	label
+MONDO:0005129	cataract	cataract	H26.9	ophthalmology	label
+MONDO:0003799	conjunctivitis	conjunctivitis	H10	ophthalmology	label
+MONDO:0005441	otitis media	otitis media	H66	ent	label
+MONDO:0100053	anaphylaxis	anaphylaxis	T78.2	allergy	label

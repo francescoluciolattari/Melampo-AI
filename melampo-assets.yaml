@@ -11,10 +11,13 @@
 #   git  -- small files the project generates itself
 #   apt  -- system packages uv cannot provide (CI: .github/workflows/ci.yml)
 #   api  -- models used through a remote API: nothing to download, only a key
+#   weights -- model weights: pinned here (repo, revision, sha256 per file),
+#              fetched from wherever melampo-storage.yaml points
+#              (src/melampo/models/weights.py)
 #
 # Status values:
 #   present          -- in the repository or fetched by `uv run dvc update -R data`
-#   to_download      -- decided, needs downloading (and usually a storage remote)
+#   to_download      -- decided, fetched when a deployment needs it (weights: at deploy time)
 #   to_integrate     -- needs code in this project before it can be used
 #   blocked_decision -- waiting on a decision listed under `decisions_pending`
 #   blocked_licence  -- cannot be used until a licence is obtained or reviewed
@@ -25,37 +28,50 @@
 # consistent with the data/*.dvc pins.
 
 version: 1
-updated: "2026-09-25"
+updated: "2026-09-26"
+
+decisions_taken:
+  - id: model-storage
+    decided: "2026-09-26"
+    decision: >-
+      Phased, switched in one file (melampo-storage.yaml). Now: no storage;
+      every model pinned here to an exact Hugging Face commit and the sha256
+      of each file, fetched from upstream. First deployment: private copies
+      of the pinned revisions in the project's own HF organisation. First
+      training run: a DVC remote in an EU region for the weights the
+      project produces. Every download is verified against the pinned
+      sha256 whatever the backend. Git LFS on GitHub was rejected: 2 GB per
+      file on Free/Pro plans and 10 GiB/month of storage and bandwidth
+      included, so it cannot hold gpt-oss-120b and every CI checkout would
+      spend the quota.
+
+  - id: disease-identity
+    decided: "2026-09-25"
+    decision: Mondo is the disease-identity layer for common and rare diseases alike.
 
 decisions_pending:
-  - id: dvc-remote
-    question: >-
-      Which storage remote holds the project's DVC cache (S3, Azure Blob,
-      Google Cloud Storage, or an SSH/NAS server), in which region?
-    why_it_matters: >-
-      Public reference data needs no remote (it is re-downloaded from its
-      pinned release URL and verified by md5). Model weights and gated or
-      licensed data do: they cannot be re-fetched anonymously, and a team
-      must be able to reproduce a run without every member holding every
-      upstream licence. Patient data never goes into DVC, in any remote.
-    blocks: [pillar0-chest-ct, pillar0-abdomen-ct, pillar0-head-ct, pillar0-breast-mri, nemotron-parse-2-weights]
-
   - id: knowledge-all-diseases
     question: >-
-      Which source(s) link *all* known diseases to their symptoms, and with
-      what evidence weight? Disease identity is decided (Mondo, 2026-09-25)
-      -- this decision is now only about the symptom links Mondo does not
-      carry.
+      Which source(s) link all known diseases to their symptoms, and with
+      what evidence weight? Disease identity is decided (Mondo); this is
+      only about the symptom links Mondo does not carry.
     why_it_matters: >-
       phenotype.hpoa annotates rare diseases only (OMIM, Orphanet,
       DECIPHER). Out-of-range laboratory findings therefore lead to
       rare-disease candidates, and in the LLM branch (Nemotron/Gemma) a
       correct common-disease hypothesis has no graph node to be verified
-      against, so the grounding checks mark it unsupported. Every candidate
-      symptom source found so far has a licence complication of its own
-      (see disease-ontology, optimuskg, semmeddb, hsdn) -- none is a clean
-      drop-in the way Mondo is for disease identity.
-    blocks: [disease-ontology, optimuskg, semmeddb, hsdn]
+      against, so the grounding checks mark it unsupported.
+    how_it_is_decided: >-
+      By measurement, not by each source's description of itself:
+      .github/workflows/symptom-coverage.yml measures every candidate with
+      a clean licence (HPO, Disease Ontology, NCIt through UMLS, Wikidata)
+      on data/common_diseases_reference.tsv (141 common diseases). Offline
+      part measured 2026-09-26 on the pinned releases: HPO 36/141 diseases
+      with a link (21 with at least 5 findings), Disease Ontology axioms
+      34/141 (14), all offline sources together 30/141 usable, 76/141 with
+      no link at all. NCIt and Wikidata are measured in the workflow (they
+      need UMLS_API_KEY and network access this environment lacks).
+    blocks: [ncit, wikidata-symptoms, optimuskg, semmeddb, hsdn, text-mined-common-disease-hpo-annotations]
 
   - id: ncbi-case-corpus
     question: >-
@@ -169,26 +185,98 @@ assets:
   - id: mondo
     kind: ontology
     manager: dvc
-    status: to_integrate
-    source: https://purl.obolibrary.org/obo/mondo.obo
+    status: present
+    path: data/mondo.obo
+    source: https://github.com/monarch-initiative/mondo/releases/download/v2026-09-01/mondo.obo
+    version: v2026-09-01
     licence: CC BY 4.0 (verified, mondo.monarchinitiative.org)
-    consumers: [to_integrate]
+    consumers: [memory/symptom_sources.py, evaluation/symptom_coverage.py]
     notes: >-
-      Disease backbone for common and rare diseases alike, with
-      cross-references to OMIM, Orphanet, DOID, ICD and others. A hierarchy
-      and identity layer: it does not by itself say which signs a disease
-      shows -- decided (2026-09-25) as the disease-identity layer; the
-      remaining, still-open question is where the symptom links come from
-      (see decisions_pending: knowledge-all-diseases).
+      Disease-identity layer (decisions_taken: disease-identity). Only xrefs
+      Mondo marks MONDO:equivalentTo are followed to other sources -- the
+      others are broader, narrower or obsolete, and following them would
+      attach a rare subtype's annotations to a common disease.
 
   - id: disease-ontology
     kind: ontology
     manager: dvc
+    status: present
+    path: data/doid.owl
+    source: https://raw.githubusercontent.com/DiseaseOntology/HumanDiseaseOntology/623d48bdf7634e21cb68ef400c81aff87b1fa796/src/ontology/releases/doid.owl
+    version: "2026-08-31"
+    licence: CC0 1.0 (verified, obofoundry.org/ontology/doid and the file's own header)
+    consumers: [memory/symptom_sources.py, evaluation/symptom_coverage.py]
+    notes: >-
+      has_symptom (RO:0002452) axioms exist only in the OWL release, not in
+      doid.obo: measured 873 diseases, 2,268 disease-symptom pairs. A further
+      set appears only as "has_symptom <phrase>" in definition text (444
+      definitions), extracted at a lower evidence tier. Pinned to a commit
+      of the DO repository, not a moving branch. Entering the graph depends
+      on knowledge-all-diseases.
+
+  - id: symptom-ontology
+    kind: ontology
+    manager: dvc
+    status: present
+    path: data/symp.obo
+    source: https://raw.githubusercontent.com/DiseaseOntology/SymptomOntology/7a295d9856d8ce1af613e5b53b6af84940260605/src/ontology/symp.obo
+    version: "2026-07-30"
+    licence: CC0 1.0 (verified, the file's own terms:license)
+    consumers: [memory/symptom_sources.py]
+    notes: Labels for the SYMP terms Disease Ontology's has_symptom axioms point at (1,020 terms).
+
+  - id: ncit
+    kind: terminology
+    manager: api
     status: blocked_decision
-    source: to_verify (Human Disease Ontology, OBO Foundry release)
-    licence: to_verify
+    source: NCI Thesaurus through the UMLS UTS API (UMLS_API_KEY), sabs NCI
+    licence: CC BY 4.0 (verified, evs.nci.nih.gov/license) -- attribution required; the name "NCI Thesaurus" may not be used for derivatives
+    consumers: [connectors/umls.py, memory/symptom_sources.py]
+    notes: >-
+      Disease_Has_Finding (48,691 pairs in UMLS), Disease_May_Have_Finding
+      (18,671) and Disease_Excludes_Finding (30,402) -- the last is negative
+      evidence no other source here provides. NCI is a cancer institute:
+      coverage of non-oncological common diseases is exactly what the
+      coverage workflow measures. If adopted, the release itself can be
+      downloaded from NCI EVS and pinned with DVC like HPO, instead of
+      depending on live API calls.
+
+  - id: wikidata-symptoms
+    kind: knowledge_source
+    manager: api
+    status: blocked_decision
+    source: Wikidata SPARQL endpoint, property P780 (symptoms and signs), keyed by Mondo (P5270) or DOID (P699)
+    licence: CC0 1.0 (Wikidata's licence for structured data)
+    consumers: [connectors/wikidata.py, memory/symptom_sources.py]
+    notes: >-
+      Community-edited. Statements with at least one reference enter tier 3,
+      unreferenced ones tier 4; deprecated statements are excluded. If
+      adopted, a dated dump would be pinned rather than querying live.
+
+  - id: text-mined-common-disease-hpo-annotations
+    kind: knowledge_source
+    manager: dvc
+    status: blocked_decision
+    source: to_verify (Groza et al. 2015, AJHG 97:111 -- current availability of the file not confirmed)
+    licence: article CC BY 4.0; annotation file to_verify
     consumers: [to_integrate]
-    notes: Carries has_symptom relations for part of its diseases; coverage to be measured.
+    notes: >-
+      3,145 common diseases, 132,006 HPO annotations -- but text-mined, mean
+      precision 60-67% on a 41-disease curated sample. At most a low-tier
+      source.
+
+  - id: common-diseases-reference
+    kind: generated
+    manager: git
+    status: present
+    path: data/common_diseases_reference.tsv
+    source: hand-compiled by the project, resolved against Mondo v2026-09-01
+    licence: project's own
+    consumers: [evaluation/symptom_coverage.py]
+    notes: >-
+      141 common diseases across 17 specialties; 131 resolved by Mondo label
+      or exact synonym, 10 chosen by hand (marked "manual"). Not a
+      prevalence-ranked sample: a coverage probe, not an epidemiological one.
 
   - id: optimuskg
     kind: knowledge_source
@@ -245,12 +333,19 @@ assets:
     source: SNOMED International
     licence: >-
       Italy is not a SNOMED International Member (verified 2026-09-25,
-      nlm.nih.gov/healthit/snomedct/snomed_licensing.html) -- and a UMLS
-      Metathesaurus licence does not by itself change that: NLM's own
-      guidance is to "notify and register with IHTSDO/SNOMED International
-      before use in a Non-Member Country", fees may apply. Confirmed
-      unaffected by the new UMLS_API_KEY access (see umls asset).
+      nlm.nih.gov/healthit/snomedct/snomed_licensing.html). The Affiliate
+      Licence distributed with UMLS counts as use any act it permits
+      performed in a Non-Member territory (clause 9.5) -- reading a relation
+      through the API included -- and requires notice before use (9.3) and
+      fees (7.1). A UMLS key does not change this. Exemption: a Qualifying
+      Research Project (peer review, ethics approval, fixed timeframe,
+      publication) pays no fees (Appendix B 1.9) -- possibly usable in a
+      research phase, not for the commercial product.
     consumers: [to_integrate]
+    notes: >-
+      Not a symptom source even where licensed: SNOMED CT defines disorders
+      by site, morphology and cause; disease-to-manifestation links exist
+      only for a narrow subset ("has definitional manifestation").
 
   - id: loinc
     kind: terminology
@@ -292,48 +387,94 @@ assets:
       the same non-Member restriction when read live rather than bulk
       downloaded.
 
-  # --- Model weights: to download (need the DVC remote) ---------------------
+  # --- Model weights: pinned here, fetched per melampo-storage.yaml ----------
+  # revision / files are written by scripts/pin_model_revisions.py from the
+  # Hub's own metadata (commit id, sha256 of every file) -- never by hand.
+  # "to_pin" means the pin workflow has not run yet for that model.
   - id: pillar0-chest-ct
     kind: model_weights
-    manager: dvc
-    status: blocked_decision
+    manager: weights
+    status: to_download
     source: https://huggingface.co/YalaLab/Pillar0-ChestCT
-    licence: ecl-2.0 (verified, model card); gated -- conditions must be accepted
+    repo: YalaLab/Pillar0-ChestCT
+    revision: to_pin
+    files: []
+    gated: contact_info
+    licence: ECL-2.0 (verified, model card); gate asks only for contact information
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
-    notes: Needs a GPU deployment; input prepared by RAVE from a DICOM series directory.
+    notes: 94.1M parameters in F32 (about 0.4 GB). Needs a GPU deployment; input prepared by RAVE from a DICOM series directory.
 
   - id: pillar0-abdomen-ct
     kind: model_weights
-    manager: dvc
-    status: blocked_decision
+    manager: weights
+    status: to_download
     source: https://huggingface.co/YalaLab/Pillar0-AbdomenCT
+    repo: YalaLab/Pillar0-AbdomenCT
+    revision: to_pin
+    files: []
+    gated: contact_info
     licence: to_verify (same publisher; gated)
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
 
   - id: pillar0-head-ct
     kind: model_weights
-    manager: dvc
-    status: blocked_decision
+    manager: weights
+    status: to_download
     source: https://huggingface.co/YalaLab/Pillar0-HeadCT
+    repo: YalaLab/Pillar0-HeadCT
+    revision: to_pin
+    files: []
+    gated: contact_info
     licence: to_verify (same publisher; gated)
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
 
   - id: pillar0-breast-mri
     kind: model_weights
-    manager: dvc
-    status: blocked_decision
+    manager: weights
+    status: to_download
     source: https://huggingface.co/YalaLab/Pillar0-BreastMRI
+    repo: YalaLab/Pillar0-BreastMRI
+    revision: to_pin
+    files: []
+    gated: contact_info
     licence: to_verify (same publisher; gated)
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
 
   - id: nemotron-parse-2-weights
     kind: model_weights
-    manager: dvc
-    status: blocked_decision
+    manager: weights
+    status: to_download
     source: https://huggingface.co/nvidia/NVIDIA-Nemotron-Parse-2.0
-    licence: OpenMDW-1.1; tokenizer CC-BY-4.0 (verified, model card)
+    repo: nvidia/NVIDIA-Nemotron-Parse-2.0
+    revision: to_pin
+    files: []
+    gated: "no"
+    licence: OpenMDW-1.1, tokenizer CC-BY-4.0 (verified, model card) -- "ready for commercial or non-commercial use"
     consumers: [data/document_processing.py]
-    notes: Alternative to a self-hosted NIM endpoint (step 2 of the document plan). Needs a GPU.
+    notes: >-
+      Not gated. Under 1B parameters, needs an NVIDIA GPU. For testing
+      without a GPU, NVIDIA's hosted API catalog serves nemotron-parse-2.0
+      under its trial terms (synthetic documents only -- never patient data).
+
+  - id: gpt-oss-120b-weights
+    kind: model_weights
+    manager: weights
+    status: to_download
+    source: https://huggingface.co/openai/gpt-oss-120b
+    repo: openai/gpt-oss-120b
+    revision: to_pin
+    files: []
+    gated: "no"
+    include: ["*.json", "*.safetensors", "*.txt", "*.jinja", "LICENSE", "USAGE_POLICY"]
+    exclude: ["original/*", "metal/*"]
+    licence: Apache-2.0 (verified, openai.com/index/introducing-gpt-oss)
+    consumers: [to_integrate]
+    notes: >-
+      117B parameters (5.1B active), MXFP4, one 80 GB GPU; over 60 GB of
+      weights. Needed only on-premises or for the DoRA fine-tuning planned in
+      training/dora_config.py -- today it is used through OpenRouter
+      (root-model-gpt-oss-120b). The original/ and metal/ folders are
+      duplicate formats and are not pinned.
 
   - id: tabicl-v2
     kind: model_weights
@@ -367,6 +508,15 @@ assets:
     source: Mistral API / OpenRouter (MISTRAL_API_KEY)
     licence: Mistral terms -- to_verify; EU-based fallback
     consumers: [reasoning/rlm_engine.py, reasoning/root_model_cross_check.py]
+
+  - id: root-model-gpt-oss-120b
+    kind: api_model
+    manager: api
+    status: present
+    source: OpenRouter (OPENROUTER_API_KEY), slug openai/gpt-oss-120b
+    licence: Apache-2.0 (verified) -- open weights; the hosting provider's data terms apply per request
+    consumers: [evaluation/format_adherence_bench.py]
+    notes: Benched in the vetting and format-adherence benches. Weights for on-premises use are gpt-oss-120b-weights.
 
   - id: pms-ema
     kind: knowledge_source

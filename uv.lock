@@ -2336,6 +2336,9 @@ ml = [
     { name = "torchvision" },
     { name = "transformers" },
 ]
+models = [
+    { name = "huggingface-hub" },
+]
 quantum = [
     { name = "pennylane" },
     { name = "qiskit" },
@@ -2371,6 +2374,7 @@ requires-dist = [
     { name = "fhir-resources", marker = "extra == 'enterprise'", specifier = ">=7.1" },
     { name = "httpx", marker = "extra == 'api'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'enterprise'", specifier = ">=0.27" },
+    { name = "huggingface-hub", marker = "extra == 'models'", specifier = ">=0.34" },
     { name = "matplotlib", marker = "extra == 'enterprise'", specifier = ">=3.8" },
     { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.8" },
     { name = "monai", marker = "extra == 'enterprise'", specifier = ">=1.3" },
@@ -2432,7 +2436,7 @@ requires-dist = [
     { name = "weaviate-client", marker = "extra == 'enterprise'", specifier = ">=4.5" },
     { name = "weaviate-client", marker = "extra == 'retrieval'", specifier = ">=4.5" },
 ]
-provides-extras = ["dev", "data", "clinical", "retrieval", "retrieval-milvus", "imaging", "ml", "api", "quantum", "viz", "enterprise"]
+provides-extras = ["dev", "data", "models", "clinical", "retrieval", "retrieval-milvus", "imaging", "ml", "api", "quantum", "viz", "enterprise"]
 
 [[package]]
 name = "monai"
