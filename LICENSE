@@ -1,40 +1,28 @@
-Business Source License 1.1
-
+**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** License. 
 Parameters
 
 Licensor:           Francesco Lattari
 Software:           The Software and all its files in this repository.
-Change Date:        2029-05-01
-Change License:     Apache-2.0 (Effective from May 2029)
-Additional Use Grant: 
-Non-commercial use of the Software is permitted free of charge. 
-Personal use, educational use, and evaluation use are permitted. 
-Any use of the Software for commercial production purposes 
-prior to the Change Date requires a separate commercial license 
-from the Licensor.
+
+This software is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** License. 
+
+To view a copy of this license, visit: https://creativecommons.org
 
 ---
 
-Standard Business Source License Text
+### SPECIFIC ATTRIBUTION REQUIREMENTS (Pursuant to Section 3(a) of the CC BY-NC 4.0 License)
 
-1. The Licensor hereby grants you a right to copy, modify, create derivative 
-works, redistribute, and keep the Software, subject to the terms of this License.
+As the Licensor of this software, the Author exercises the right to specify the reasonable manner of attribution. Any user, redistributor, or developer of derivative works **MUST strictly comply** with the following enforcement conditions:
 
-2. You may use the Software for all Non-Commercial purposes. "Non-Commercial" 
-means any use that is not intended for or directed toward commercial 
-advantage or monetary compensation.
+1. **Graphical User Interface (GUI) or Prompt
+   Attribution:** If the software, or any work derived from it, features a Graphical User Interface (GUI), a clear, permanent, and easily accessible credit to the original Author and source repository **MUST be displayed within the user interface itself** (e.g., in the "About" screen, "Credits" section, or prominently in the application footer).
+3. **Required Format:** The attribution within the GUI must remain visible to the end-user and must include the following text (or a substantially identical equivalent):  
+   *"Based on MelampoAI by Francesco Lattari — Source: https://github.com/francescoluciolattari/Melampo-AI"*
+4. **Source Code Preservation:** All existing copyright notices, author credits, and license files within the source code must be preserved intact and unaltered in all copies or modifications.
 
-3. Your right to use the Software for commercial purposes is limited by the 
-Additional Use Grant specified above. If no Additional Use Grant is specified, 
-commercial use is prohibited.
+**Failure to comply with these specific attribution terms constitutes a material breach of the license agreement and an immediate infringement of copyright, resulting in the automatic termination of your rights to use, modify, or distribute this software.**
 
-4. On the Change Date, or such earlier date as the Licensor may specify, the 
-Software shall be licensed under the Change License.
-
-5. You must include this License and any copyright notices of the Licensor 
-in all copies of the Software.
-
-6. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+**THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
