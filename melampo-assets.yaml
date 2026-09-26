@@ -50,6 +50,21 @@ decisions_taken:
     decision: Mondo is the disease-identity layer for common and rare diseases alike.
 
 decisions_pending:
+  - id: imaging-vector-model
+    question: >-
+      Which encoders produce the vectors of the textual object (report
+      findings, normalised) and of the visual object (the region found in
+      the volume), in one shared space as VL-JEPA does? Meta's VL-JEPA
+      weights are non-commercial (see vl-jepa-weights); options are an own
+      VL-JEPA-style model or interim encoders whose vectors are re-computed
+      later (docs/imaging_decision_record.md, 2026-09-26).
+    how_it_is_decided: >-
+      Licence of each component, a 3D visual encoder available for CT/MRI,
+      and paired (visual object, textual object) data to train the shared
+      space. Vectors are always stored with the id and version of the
+      encoder that produced them.
+    blocks: [embeddinggemma-300m]
+
   - id: knowledge-all-diseases
     question: >-
       Which source(s) link all known diseases to their symptoms, and with
@@ -564,6 +579,69 @@ assets:
       CSV itself is not written by anything yet (an earlier version of this
       note said it was -- corrected 2026-09-26). To add as a git source in
       pyproject.toml pinned to a commit, when Pillar-0 is deployed.
+
+  - id: totalsegmentator
+    kind: library
+    manager: uv
+    status: to_integrate
+    source: https://github.com/wasserth/TotalSegmentator
+    licence: >-
+      Apache-2.0 for the code and for the free tasks (verified, README,
+      2026-09-26): total (incl. 5 lung lobes, vertebrae C1-S1, ribs),
+      liver_segments and liver_segments_mr (Couinaud I-VIII), liver_lesions
+      and liver_lesions_mr, lung_nodules, kidney_cysts, liver_vessels,
+      vertebrae_*, pleural_pericard_effusion. Tasks such as brain_structures,
+      tissue_types, heartchambers_highres, coronary_arteries need a
+      commercial licence; brain_aneurysm is non-commercial only.
+    consumers: [to_integrate]
+    notes: >-
+      Region named in the report -> anatomical mask; lesion candidates inside
+      it. Starred tasks (liver_segments, liver_lesions, ...) are declared less
+      robust. Published liver accuracy: Couinaud Dice 0.897 CT / 0.847 MR;
+      lesions sensitivity 75.8% (CT) / 62.7% (MR).
+
+  - id: vl-jepa-weights
+    kind: model_weights_reference
+    manager: weights
+    status: blocked_licence
+    source: https://huggingface.co/delong-chen/VL-JEPA
+    licence: >-
+      fair-noncommercial-research-license, gated (verified, Hugging Face
+      card, 2026-09-26): no commercial use. No official code repository
+      found. Paper arXiv 2512.10942 (Meta FAIR).
+    consumers: [to_integrate]
+    notes: >-
+      Architecture per the paper: frozen V-JEPA 2 ViT-L vision encoder
+      (video/2D frames, not 3D volumes), predictor from the last 8 layers of
+      Llama-3.2-1B, text Y-encoder initialised from EmbeddingGemma-300M and
+      fine-tuned, projections to a 1,536-d space, bi-directional InfoNCE.
+      Recorded as a reference design, not as a usable artefact.
+
+  - id: voxtell-weights
+    kind: model_weights_reference
+    manager: weights
+    status: blocked_licence
+    source: https://huggingface.co/mrokuss/VoxTell
+    licence: >-
+      Weights CC-BY-NC-SA-4.0 (non-commercial); code Apache-2.0 at
+      github.com/MIC-DKFZ/VoxTell (verified 2026-09-26).
+    consumers: [to_integrate]
+    notes: >-
+      Strongest free-text 3D grounding found (CT/MR/PET, sentence -> mask):
+      Dice 50.2 on real report sentences (203 patients), 28.2 on
+      ReXGroundingCT. The Apache code could be re-trained on data Melampo is
+      licensed to use; the released weights cannot be used commercially.
+
+  - id: embeddinggemma-300m
+    kind: model_weights_reference
+    manager: weights
+    status: blocked_decision
+    source: https://huggingface.co/google/embeddinggemma-300m
+    licence: Gemma Terms of Use, gated -- to_verify for this medical use
+    consumers: [to_integrate]
+    notes: >-
+      VL-JEPA's text-side starting point; a candidate interim encoder for
+      normalised textual objects (see decisions_pending imaging-vector-model).
 
   - id: autogluon
     kind: library

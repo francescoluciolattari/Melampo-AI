@@ -2,7 +2,7 @@
 
 Decisions, measurements and defects for Melampo's imaging work: lesions in CT/MRI, their measurement over time for the same patient, and their comparison across patients. Entries are appended with their date; earlier entries are not rewritten.
 
-The full evaluation behind these entries (sources, licences, alternatives considered) is the project document "valutazione_pipeline_imaging_2026-09-26" (rev. 3).
+The full evaluation behind these entries (sources, licences, alternatives considered) is the project document "valutazione_pipeline_imaging_2026-09-26" (rev. 4).
 
 ---
 
@@ -141,17 +141,73 @@ The `rave` note in `melampo-assets.yaml` said that `export_series_directory` wri
 - RAVE: ECL-2.0 (LICENSE file);
 - Pillar-0 AbdomenCT, HeadCT and BreastMRI: ECL-2.0 (model cards).
 
-## Open decisions (from the evaluation, rev. 3)
+## 2026-09-26 — Scope clarified: the report says what, the image says where and how
+
+**Decided by the owner, correcting a misunderstanding that ran through the earlier entries.**
+
+- **The radiology report is the source of what is in the exam.** Analysing reports is not the imaging model's job. The imaging model only has to **find in the image what the report describes**, isolate it, identify it, and apply the transformations needed to compare it with:
+  - other exams of the same patient (evolution of the disease);
+  - diagnosed cases in the medical literature.
+- **Normalisation happens before any vector is made.** The findings already decoded in the report are normalised to the project's own synonyms and disease database by the existing text pipeline, with the Nemotron/Gemma control models. VL-JEPA and energy-based models then work only on those normalised terms. They do not find anything themselves.
+- **Two paired objects.**
+  - **Textual object** (from the report): finding, anatomical region at the finest granularity, size, consistency, invasiveness (which regions, how).
+  - **Visual object** (from the image): the region those attributes refer to.
+
+  Both become vectors in one space, compared by concept and through the project's morphing.
+- **All vectors are kept in memory** (symptoms, diagnoses, reports, visual objects) for the "intuition" model, which is still to be built.
+
+**Consequences for earlier entries.**
+
+- **Invasiveness is the radiologist's statement**, carried in the textual object. The geometric contact measure is its visual counterpart, used to locate and to follow it over time. The earlier concern that geometry cannot certify infiltration no longer applies: certification was never this model's task.
+- **The unguided reading "always in parallel" was a safeguard against missing unreported findings**, which is discrepancy detection and out of scope. It is proposed for withdrawal; the owner decides. What remains is grounding quality: when no candidate, or more than one, matches the description, the visual object is reported as not found or ambiguous, never forced.
+- **Registration is not needed to find a finding in its own exam.** It serves:
+  - the same patient over time: correspondence of a lesion across exams, and the direction of change;
+  - reports that describe a finding only relative to the previous exam ("invariato", "in riduzione"), where the location must come from the earlier exam.
+
+**Facts that shape the design (verified 2026-09-26).**
+
+- **VL-JEPA** (arXiv 2512.10942) has three parts:
+  - a frozen V-JEPA 2 ViT-L vision encoder (video/2D frames);
+  - a predictor from Llama-3.2-1B;
+  - a text Y-encoder initialised from EmbeddingGemma-300M and fine-tuned, with 1,536-d projections.
+
+  Its only weights are under a FAIR non-commercial research licence. No medical or 3D version exists. An own VL-JEPA-style model with commercially usable components, trained on paired objects, is the route that fits an MDR product (decision `imaging-vector-model` in the manifest).
+- **Text embeddings are unreliable with numbers.** Retrieval between texts differing only in a number averaged 0.54 across 13 models, near chance (Deng et al., EACL 2026). Sizes and other measurements stay as structured numbers beside the vector, never only inside it.
+- **Report-to-volume grounding models are all non-commercial or unlicensed**, and the benchmarks and grounded datasets are mostly chest-only and English-only:
+  - VoxTell: weights CC-BY-NC-SA; best on real report sentences, Dice 50.2;
+  - BiomedParse v2: weights CC-BY-NC-SA;
+  - SAT: no licence.
+
+  The best result on ReXGroundingCT is Dice 0.32. The commercially usable route is:
+  1. anatomical segmentation of the region named in the report (TotalSegmentator free tasks);
+  2. lesion candidates inside that region;
+  3. selection by reported size and density.
+
+  Candidates that are not selected are discarded, never shown: showing them would be unreported-finding detection by another route. "Not found" and "ambiguous" describe the localisation, never an error in the report.
+
+  No published accuracy exists for step 3, so it must be measured on Melampo's own data.
+- **Diagnosed cases with commercial rights are few:**
+  - TCIA collections under CC BY;
+  - the Medical Segmentation Decathlon (CC BY-SA 4.0);
+  - PMC open-access figures of the commercial subset. ROCOv2 and MultiCaRe need per-image licence filtering, because their dataset licence sits on per-article licences that include CC BY-NC.
+
+  Radiopaedia, MedPix, CT-RATE, Merlin, AbdomenAtlas, KiTS and LiTS are not usable commercially. Literature figures are 2D, so comparison with them runs on key slices through the lesion plus concept-level matching.
+- **Vectors are only comparable within one encoder.** Every stored vector carries the encoder id and version, and the normalised object it came from stays the source of truth, so vectors can be recomputed when the encoder changes. Vectors derived from non-commercial data sit in a separate partition, by the same rule `connectors/pmc_case_reports.py` applies to articles. The same partition applies to training pairs: share-alike data (e.g. CC BY-SA) may pass its terms to a trained model. Using processed patient exams as training pairs is a proposal, not a decision: it needs a legal basis for secondary use of health data (GDPR art. 9), de-identification, and the phase-one rule (D14).
+
+## Open decisions (evaluation rev. 3, updated rev. 4)
 
 | # | Decision |
 |---|---|
 | D1 | Lesion isolation tools under a commercial-use constraint |
 | D2 | Anatomical vocabulary and Italian labels |
 | D3 | Brain: an atlas used only to label, never to measure (an exception to "no atlas"), and which atlas |
-| D4 | Learned block of the lesion vector: Pillar-0, a JEPA encoder, or both |
 | D5 | Geometric morphing method |
 | D6 | Acquisition requirements for declaring maximum precision (now implemented as `measurement_precision` levels; thresholds to confirm) |
-| D7 | Who confirms lesion masks |
+| D7 | Who confirms lesion masks and text-to-image pairings |
 | D8 | Surface anatomy (nasal subunits, fingertip zones): outside CT/MRI scope, or a separate photographic pipeline |
 | D9 | Where the GPU runs |
 | D10 | Archive of cases with confirmed diagnoses for scenario B |
+| D11 | Withdraw the "unguided reading always in parallel" requirement (proposed), or keep it |
+| D12 | Pillar-0's role now that VL-JEPA-style vectors are the target: candidate 3D visual encoder, or dropped |
+| D13 | Vector model (`imaging-vector-model`): own VL-JEPA-style model, interim encoders, components and licences (absorbs the former D4) |
+| D14 | Validation and training data: where exams with masks and training pairs come from, legal basis (GDPR art. 9), compatibility with the phase-one rule (synthetic or de-identified data only) |
