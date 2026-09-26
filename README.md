@@ -137,23 +137,25 @@ melampo-weaviate-schema
 
 We welcome contributors in medical imaging, clinical NLP, RAG, ontologies, validation, computational neuroscience, safety engineering and research infrastructure. See `CONTRIBUTING.md`.
 
-## ⚖️ License
+## ⚖️ License and Terms of Use
 
-This project is licensed under the **Business Source License 1.1 (BSL 1.1)**.
+This software is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** License. 
 
-### How this works:
-*   **Non-Commercial Use**: You are free to use, modify, and redistribute this software for personal, educational, or non-profit projects.
-*   **Commercial Use**: Any use for commercial purposes (production environments, selling the software, etc.) is prohibited until the **Change Date** unless a specific agreement is made with the author.
-*   **Future Open Source**: On **May 1, 2029**, this project will automatically transition to the **Apache License 2.0**, becoming fully Open Source.
+To view a copy of this license, visit: https://creativecommons.org
 
-### ✍️ Attribution
-If you use this software, you must retain the original copyright notice and credit **Francesco Lattari** as the author.
+---
 
-### 💼 Commercial Inquiries
-If you wish to use this project for commercial purposes before May 2029, please contact the author to discuss a commercial license:
-*   **Author**: Francesco Lattari
-*   **Contact**: [flattari@chandra.it](mailto:flattari@chandra.it)
-*   
+### SPECIFIC ATTRIBUTION REQUIREMENTS (Pursuant to Section 3(a) of the CC BY-NC 4.0 License)
+
+As the Licensor of this software, the Author exercises the right to specify the reasonable manner of attribution. Any user, redistributor, or developer of derivative works **MUST strictly comply** with the following enforcement conditions:
+
+1. **Graphical User Interface (GUI) or Prompt
+   Attribution:** If the software, or any work derived from it, features a Graphical User Interface (GUI), a clear, permanent, and easily accessible credit to the original Author and source repository **MUST be displayed within the user interface itself** (e.g., in the "About" screen, "Credits" section, or prominently in the application footer).
+3. **Required Format:** The attribution within the GUI must remain visible to the end-user and must include the following text (or a substantially identical equivalent):  
+   *"Based on MelampoAI by Francesco Lattari — Source: https://github.com/francescoluciolattari/Melampo-AI"*
+4. **Source Code Preservation:** All existing copyright notices, author credits, and license files within the source code must be preserved intact and unaltered in all copies or modifications.
+
+**Failure to comply with these specific attribution terms constitutes a material breach of the license agreement and an immediate infringement of copyright, resulting in the automatic termination of your rights to use, modify, or distribute this software.**
 
 See `LICENSE`.
 
