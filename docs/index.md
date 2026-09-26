@@ -43,3 +43,4 @@ Melampo is a research scaffold. It is not a validated medical device and must no
 - [RLM-on-Memory decision record](rlm_on_memory_decision_record.md)
 - [Semantic extraction decision record](semantic_extraction_decision_record.md)
 - [Hypothesis stream decision record](hypothesis_stream_decision_record.md)
+- [Imaging decision record](imaging_decision_record.md)

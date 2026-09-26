@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import numbers
 import re
 import time
 from dataclasses import dataclass, field
@@ -25,12 +26,98 @@ def _normalize(vector: list[float]) -> list[float]:
 
 
 def _cosine(left: list[float], right: list[float]) -> float:
-    if not left or not right:
+    """Cosine similarity as a score in [0, 1]: 0 means unrelated *or* opposite.
+
+    Vectors of different length are not comparable and score 0 -- they used
+    to be silently truncated to the shorter one, which compared the first
+    dimensions of two unrelated spaces as if they were the same space.
+    """
+    if not left or not right or len(left) != len(right):
         return 0.0
-    length = min(len(left), len(right))
-    left_norm = math.sqrt(sum(value * value for value in left[:length])) or 1.0
-    right_norm = math.sqrt(sum(value * value for value in right[:length])) or 1.0
-    return _clamp(sum(left[index] * right[index] for index in range(length)) / (left_norm * right_norm))
+    left_norm = math.sqrt(sum(value * value for value in left)) or 1.0
+    right_norm = math.sqrt(sum(value * value for value in right)) or 1.0
+    return _clamp(sum(a * b for a, b in zip(left, right, strict=True)) / (left_norm * right_norm))
+
+
+# What an imprint's vector is. The two kinds live in unrelated spaces and are
+# never compared with each other.
+VECTOR_KIND_NUMERIC = "numeric_embedding"
+VECTOR_KIND_SIGNATURE = "hashed_signature"
+
+
+def _numeric_vector(value: Any) -> list[float] | None:
+    """A flat sequence of finite numbers, kept exactly; anything else is None.
+
+    Background (docs/imaging_decision_record.md, 2026-09-26): every vector
+    used to go through _matrix_to_vector, which keeps only the first 256
+    values, folds them into 64 buckets and applies tanh. Two 1152-value
+    embeddings differing only after position 256 came out identical, and a
+    1,000 mm3 and a 30,000 mm3 lesion scored cosine 1.000. An embedding must
+    reach the comparison unaltered.
+
+    Accepted: lists and tuples of Python or numpy numbers, numpy arrays, and
+    a single row or column wrapped in extra dimensions (shape (1, N)), as
+    encoders commonly return. Booleans, NaN and infinities are not numbers
+    here.
+
+    What this does not fix: imprints are compared by cosine, which ignores
+    scale by definition, so a measurement vector (volume, diameters, shape
+    indices) still cannot be compared through an imprint -- [1000, 0.9] and
+    [30000, 0.9] score 0.99999. Measurements need standardised features and
+    a distance, in their own comparison.
+    """
+    if hasattr(value, "tolist") and not isinstance(value, str | bytes):
+        value = value.tolist()
+    while isinstance(value, list | tuple) and len(value) == 1 and isinstance(value[0], list | tuple):
+        value = value[0]
+    if not isinstance(value, list | tuple) or not value:
+        return None
+    numbers_out: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or type(item).__name__ == "bool_" or not isinstance(item, numbers.Real):
+            return None
+        number = float(item)
+        if not math.isfinite(number):
+            return None
+        numbers_out.append(number)
+    return numbers_out
+
+
+def _unit(vector: list[float]) -> list[float]:
+    """L2-normalised, rounded like every stored vector -- and left untouched if it already is.
+
+    Re-normalising an already rounded unit vector can move its 6th decimal,
+    which changed matrix_signature_hash on every as_dict() round trip.
+    """
+    norm = math.sqrt(sum(value * value for value in vector))
+    if abs(norm - 1.0) <= _UNIT_TOLERANCE and all(round(value, 6) == value for value in vector):
+        return list(vector)
+    return _normalize(vector)
+
+
+# A stored vector is rounded to 6 decimals, so its norm can differ from 1 by
+# about 1e-6 per sqrt(dimension); anything within this is already a unit vector.
+_UNIT_TOLERANCE = 1e-4
+
+
+def _present(value: Any) -> bool:
+    """Whether a payload key holds a vector -- the old ``or`` chain's rule, without its crash on numpy arrays.
+
+    Falsy scalars (0, 0.0, False) and empty containers are skipped, as the
+    chain skipped them; a numpy array counts if it has any element (a 0-d
+    array is a scalar and follows the scalar rule).
+    """
+    if value is None:
+        return False
+    if hasattr(value, "ndim") and hasattr(value, "size"):
+        return bool(value) if value.ndim == 0 else value.size > 0
+    if isinstance(value, str | bytes | list | tuple | dict | set | frozenset):
+        return len(value) > 0
+    return bool(value)
+
+
+def _comparable(left: VisualRecognitionImprint, right: VisualRecognitionImprint) -> bool:
+    return left.vector_kind == right.vector_kind and len(left.vector) == len(right.vector)
 
 
 def _stable_vector(seed: str, dimensions: int = 64) -> list[float]:
@@ -43,6 +130,13 @@ def _stable_vector(seed: str, dimensions: int = 64) -> list[float]:
 
 
 def _matrix_to_vector(matrix: Any, fallback_seed: str, dimensions: int = 64) -> list[float]:
+    """A 64-value fingerprint of a structured payload -- the hashed_signature kind.
+
+    Lossy by design: at most 256 values are read, folded into 64 buckets
+    through tanh, and strings are hashed. It recognises the same payload
+    again; it does not preserve distances, magnitudes or geometry, so
+    numeric vectors never come through here (see _numeric_vector).
+    """
     values: list[float] = []
 
     def collect(value: Any, depth: int = 0) -> None:
@@ -124,6 +218,14 @@ class VisualRecognitionImprint:
     The imprint is a governed vector/matrix signature associated with a clinical
     semantic concept. It is not an image and is not a diagnosis; it is a
     searchable, auditable memory object for multimodal RAG and nexus replay.
+
+    ``vector_kind`` says what the vector is. A flat sequence of numbers (an
+    encoder embedding, a measurement vector) is a ``numeric_embedding`` and
+    is kept exactly, only L2-normalised. Anything else (a dict of signals, a
+    matrix, text) becomes a ``hashed_signature``: a 64-value fingerprint of
+    the payload, useful to recognise the same payload again and meaningless
+    as geometry. A payload that states its ``vector_kind`` (for example an
+    ``as_dict()`` read back) keeps it, so a round trip never re-hashes.
     """
 
     imprint_id: str
@@ -138,6 +240,7 @@ class VisualRecognitionImprint:
     provenance: dict[str, Any] = field(default_factory=dict)
     learning_status: str = "candidate"
     created_at: float = field(default_factory=time.time)
+    vector_kind: str = VECTOR_KIND_SIGNATURE
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any], *, default_concept: str = "visual_pattern") -> VisualRecognitionImprint:
@@ -145,8 +248,19 @@ class VisualRecognitionImprint:
         concept = str(payload.get("semantic_concept") or payload.get("concept") or payload.get("normalized_entity") or default_concept)
         variant_label = str(payload.get("variant_label") or payload.get("label") or payload.get("name") or "observed_variant")
         source_object_id = str(payload.get("source_object_id") or payload.get("study_id") or payload.get("object_id") or "unknown")
-        vector = payload.get("vector") or payload.get("embedding") or payload.get("matrix_signature") or payload.get("recognition_matrix")
-        dense_vector = _matrix_to_vector(vector, fallback_seed=f"{concept}:{variant_label}:{source_object_id}")
+        vector = next(
+            (payload[key] for key in ("vector", "embedding", "matrix_signature", "recognition_matrix") if _present(payload.get(key))),
+            None,
+        )
+        numeric = _numeric_vector(vector)
+        stated_kind = payload.get("vector_kind")
+        if numeric is not None and stated_kind in (None, VECTOR_KIND_NUMERIC):
+            vector_kind, dense_vector = VECTOR_KIND_NUMERIC, _unit(numeric)
+        elif numeric is not None and stated_kind == VECTOR_KIND_SIGNATURE:
+            vector_kind, dense_vector = VECTOR_KIND_SIGNATURE, _unit(numeric)  # an already-built signature, read back
+        else:
+            vector_kind = VECTOR_KIND_SIGNATURE
+            dense_vector = _matrix_to_vector(vector, fallback_seed=f"{concept}:{variant_label}:{source_object_id}")
         imprint_id = str(payload.get("imprint_id") or f"vimprint:{_hash_vector(dense_vector)}")
         return cls(
             imprint_id=imprint_id,
@@ -160,6 +274,7 @@ class VisualRecognitionImprint:
             ontology_refs=[str(ref) for ref in payload.get("ontology_refs", [])] if isinstance(payload.get("ontology_refs", []), list) else [],
             provenance=dict(payload.get("provenance", {})) if isinstance(payload.get("provenance", {}), dict) else {},
             learning_status=str(payload.get("learning_status", "candidate")),
+            vector_kind=vector_kind,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -170,6 +285,7 @@ class VisualRecognitionImprint:
             "source_object_id": self.source_object_id,
             "modality": self.modality,
             "matrix_signature_hash": _hash_vector(self.vector),
+            "vector_kind": self.vector_kind,
             "vector": list(self.vector),
             "salience": round(_clamp(self.salience), 3),
             "uncertainty": round(_clamp(self.uncertainty), 3),
@@ -232,6 +348,12 @@ class VisualImprintMorpher:
     Morphing is deterministic interpolation of matrix footprints that share a
     semantic concept. It does not synthesize clinical images and never promotes
     generated associations to clinical truth.
+
+    Only imprints of the same ``vector_kind`` and dimension are paired or
+    compared; the rest are counted in ``incomparable_pair_count``. This is a
+    morphing of vectors, not of shapes: it cannot compare lesion geometry,
+    and the "bridge" term added to each morph is a hash of the concept names,
+    not a learned direction (open item in docs/imaging_decision_record.md).
     """
 
     interpolation_alpha: float = 0.5
@@ -273,6 +395,7 @@ class VisualImprintMorpher:
         semantic_links: list[dict[str, Any]] = []
         alpha_base = _clamp(self.interpolation_alpha + (nexus_plasticity - mismatch_index) * 0.1, 0.2, 0.8)
         evaluated_pair_count = 0
+        incomparable_pair_count = 0
         pair_budget_exhausted = False
         for left_index, left in enumerate(source_imprints):
             if pair_budget_exhausted:
@@ -282,6 +405,10 @@ class VisualImprintMorpher:
                     pair_budget_exhausted = True
                     break
                 evaluated_pair_count += 1
+                if not _comparable(left, right):
+                    # Different kinds or dimensions: interpolating them would mix unrelated spaces.
+                    incomparable_pair_count += 1
+                    continue
                 relation = _semantic_relation(left, right)
                 semantic_relation_score = float(relation["score"])
                 if semantic_relation_score < self.min_semantic_overlap:
@@ -305,12 +432,13 @@ class VisualImprintMorpher:
                     for index in range(min(len(left.vector), len(right.vector), len(bridge_vector)))
                 ])
                 source_similarity = _cosine(left.vector, right.vector)
+                comparable_targets = [item for item in diagnostic if _comparable(left, item)]
                 related_targets = [
                     item
-                    for item in diagnostic
+                    for item in comparable_targets
                     if _semantic_relation(left, item)["score"] >= self.min_semantic_overlap
                     or _semantic_relation(right, item)["score"] >= self.min_semantic_overlap
-                ] or diagnostic
+                ] or comparable_targets
                 best_target = max(related_targets, key=lambda item: _cosine(morphed_vector, item.vector), default=None)
                 target_similarity = _cosine(morphed_vector, best_target.vector) if best_target else 0.0
                 target_relation = _semantic_relation(left, best_target) if best_target else {"score": 0.0, "match_type": "none", "shared_terms": [], "shared_ontology_refs": []}
@@ -357,6 +485,7 @@ class VisualImprintMorpher:
                     "right_imprint_id": right.imprint_id,
                     "target_imprint_id": best_target.imprint_id if best_target else "none",
                     "morphing_mode": "inferential_semantic_matrix_morphing",
+                    "vector_kind": left.vector_kind,
                     "semantic_match_type": relation["match_type"],
                     "semantic_relation_score": round(semantic_relation_score, 3),
                     "target_semantic_relation_score": round(target_semantic_score, 3),
@@ -399,8 +528,14 @@ class VisualImprintMorpher:
             "diagnostic_imprint_count": len(diagnostic),
             "morph_count": len(morphs),
             "evaluated_pair_count": evaluated_pair_count,
+            "incomparable_pair_count": incomparable_pair_count,
             "pair_budget_exhausted": pair_budget_exhausted,
             "max_pairs": self.max_pairs,
+            "warnings": (
+                [f"incomparable_vectors_skipped:{incomparable_pair_count} pairs of different vector_kind or dimension"]
+                if incomparable_pair_count
+                else []
+            ),
             "visual_morph_candidates": morphs[:limit],
             "semantic_links": semantic_links[:limit],
             "visual_morph_coherence": round(top_score, 3),
@@ -422,6 +557,7 @@ class VisualImprintMorpher:
                 "does_not_generate_clinical_images": True,
                 "morphs_total_or_partial_semantic_concepts": True,
                 "pair_budget_enforced": True,
+                "incomparable_vectors_never_mixed": True,
                 "return_vectors": self.return_vectors,
                 "synthetic_morphs_are_candidate_only": True,
                 "automatic_clinical_promotion_allowed": False,

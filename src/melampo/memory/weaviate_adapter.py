@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .vector_memory import InMemoryVectorStore
-from .visual_imprint import VisualRecognitionImprint
+from .visual_imprint import VECTOR_KIND_NUMERIC, VisualRecognitionImprint
 from .weaviate_schema import (
     QUARANTINED_HYPOTHESIS_CLASS,
     MelampoWeaviateSchema,
@@ -248,6 +248,10 @@ class WeaviateEnterpriseMemoryAdapter(WeaviateSemanticMemoryAdapter):
     fallback_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore.enterprise_default)
     object_graph: dict[str, dict[str, Any]] = field(default_factory=dict)
     relation_index: list[dict[str, Any]] = field(default_factory=list)
+    # Weaviate fixes a named vector's dimension at the first insert. Numeric
+    # imprint embeddings therefore share one dimension per store: set by the
+    # first one stored (or configured here), and any other is refused.
+    imprint_embedding_dimension: int | None = None
 
     def describe(self) -> dict[str, Any]:
         base = super().describe()
@@ -534,6 +538,19 @@ class WeaviateEnterpriseMemoryAdapter(WeaviateSemanticMemoryAdapter):
     def upsert_visual_imprint(self, imprint_payload: dict[str, Any]) -> dict[str, Any]:
         imprint = VisualRecognitionImprint.from_payload(imprint_payload)
         imprint_dict = imprint.as_dict()
+        numeric = imprint.vector_kind == VECTOR_KIND_NUMERIC
+        if numeric:
+            if self.imprint_embedding_dimension is None:
+                self.imprint_embedding_dimension = len(imprint.vector)
+            elif len(imprint.vector) != self.imprint_embedding_dimension:
+                return {
+                    "status": "rejected_embedding_dimension_mismatch",
+                    "operation": "upsert_visual_imprint",
+                    "imprint_id": imprint.imprint_id,
+                    "expected_dimension": self.imprint_embedding_dimension,
+                    "received_dimension": len(imprint.vector),
+                    "governance": {"hidden_network_call": False, "stored": False},
+                }
         concept_id = str(imprint_dict["semantic_concept"]).replace(" ", "_")
         concept_properties = {
             "name": imprint_dict["semantic_concept"],
@@ -570,7 +587,9 @@ class WeaviateEnterpriseMemoryAdapter(WeaviateSemanticMemoryAdapter):
             },
             references=references,
             vectors={
-                "recognition_matrix_vector": imprint.vector,
+                # Signatures (always 64 values) and embeddings live in separate named vectors:
+                # they are unrelated spaces, and Weaviate fixes each named vector's dimension.
+                ("numeric_embedding_vector" if numeric else "recognition_matrix_vector"): imprint.vector,
                 "semantic_concept_vector": self.fallback_store.embedding_model.embed(imprint.semantic_concept),
             },
         )
