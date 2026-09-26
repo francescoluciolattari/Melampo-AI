@@ -413,7 +413,7 @@ assets:
     revision: to_pin
     files: []
     gated: contact_info
-    licence: to_verify (same publisher; gated)
+    licence: ECL-2.0 (verified, model card, 2026-09-26); gate asks only for contact information
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
 
   - id: pillar0-head-ct
@@ -425,7 +425,7 @@ assets:
     revision: to_pin
     files: []
     gated: contact_info
-    licence: to_verify (same publisher; gated)
+    licence: ECL-2.0 (verified, model card, 2026-09-26); gate asks only for contact information
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
 
   - id: pillar0-breast-mri
@@ -437,7 +437,7 @@ assets:
     revision: to_pin
     files: []
     gated: contact_info
-    licence: to_verify (same publisher; gated)
+    licence: ECL-2.0 (verified, model card, 2026-09-26); gate asks only for contact information
     consumers: [data/dicom_volume.py, models/specialist_adapters.py]
 
   - id: nemotron-parse-2-weights
@@ -555,12 +555,14 @@ assets:
     manager: uv
     status: to_integrate
     source: https://github.com/YalaLab/rave
-    licence: to_verify
+    licence: ECL-2.0 (verified, LICENSE file in the repository, 2026-09-26)
     consumers: [data/dicom_volume.py]
     notes: >-
       Pillar-0's preprocessing (HU range, resampling, multi-windowing);
-      input is a CSV of DICOM series directories, which
-      dicom_volume.export_series_directory writes. To add as a git source in
+      input is a CSV listing DICOM series directories.
+      dicom_volume.export_series_directory writes one such directory; the
+      CSV itself is not written by anything yet (an earlier version of this
+      note said it was -- corrected 2026-09-26). To add as a git source in
       pyproject.toml pinned to a commit, when Pillar-0 is deployed.
 
   - id: autogluon

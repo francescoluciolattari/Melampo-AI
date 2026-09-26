@@ -161,6 +161,7 @@ class MelampoWeaviateSchema:
                     WeaviateProperty("semantic_concept", "text", "Normalized semantic concept represented by the imprint."),
                     WeaviateProperty("variant_label", "text", "Observed, retrieved, morphed or reviewed variant label."),
                     WeaviateProperty("matrix_signature_hash", "text", "Hash of the recognition-matrix footprint or embedding."),
+                    WeaviateProperty("vector_kind", "text", "numeric_embedding (values kept as given) or hashed_signature (bucketed fingerprint of a structured payload); never compared across kinds."),
                     WeaviateProperty("source_object_id", "text", "Source image, study, finding, concept or morph object identifier."),
                     WeaviateProperty("modality", "text", "CT, MRI, XR, pathology, multimodal or unknown."),
                     WeaviateProperty("salience", "number", "Signal salience or reviewed score."),
@@ -174,7 +175,7 @@ class MelampoWeaviateSchema:
                     WeaviateReference("derivedFromStudy", "ImagingStudy", "Imaging study from which the imprint was derived."),
                     WeaviateReference("derivedFromFinding", "ImagingFinding", "Finding from which the imprint was derived."),
                 ),
-                named_vectors=("recognition_matrix_vector", "semantic_concept_vector", "morphed_imprint_vector"),
+                named_vectors=("recognition_matrix_vector", "numeric_embedding_vector", "semantic_concept_vector", "morphed_imprint_vector"),
             ),
             WeaviateClassSchema(
                 name="ClinicalDocument",
