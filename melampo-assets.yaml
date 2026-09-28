@@ -63,7 +63,7 @@ decisions_pending:
       and paired (visual object, textual object) data to train the shared
       space. Vectors are always stored with the id and version of the
       encoder that produced them.
-    blocks: [embeddinggemma-300m]
+    blocks: [embeddinggemma-300m, qwen3-embedding-8b]
 
   - id: knowledge-all-diseases
     question: >-
@@ -642,6 +642,19 @@ assets:
     notes: >-
       VL-JEPA's text-side starting point; a candidate interim encoder for
       normalised textual objects (see decisions_pending imaging-vector-model).
+
+  - id: qwen3-embedding-8b
+    kind: model_weights_reference
+    manager: weights
+    status: blocked_decision
+    source: https://huggingface.co/Qwen/Qwen3-Embedding-8B
+    licence: Apache-2.0 (model card, checked 2026-09-28); "over 100 languages" (Italian not named explicitly)
+    consumers: [to_integrate]
+    notes: >-
+      Proposed text encoder for normalised concepts (decision
+      imaging-vector-model). Pillar-0's image encoder was trained against
+      this model's embedding space; whether the released Pillar-0 weights
+      include the text projection is unverified (gated files).
 
   - id: autogluon
     kind: library

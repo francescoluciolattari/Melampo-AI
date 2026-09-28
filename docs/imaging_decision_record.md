@@ -194,7 +194,41 @@ The `rave` note in `melampo-assets.yaml` said that `export_series_directory` wri
   Radiopaedia, MedPix, CT-RATE, Merlin, AbdomenAtlas, KiTS and LiTS are not usable commercially. Literature figures are 2D, so comparison with them runs on key slices through the lesion plus concept-level matching.
 - **Vectors are only comparable within one encoder.** Every stored vector carries the encoder id and version, and the normalised object it came from stays the source of truth, so vectors can be recomputed when the encoder changes. Vectors derived from non-commercial data sit in a separate partition, by the same rule `connectors/pmc_case_reports.py` applies to articles. The same partition applies to training pairs: share-alike data (e.g. CC BY-SA) may pass its terms to a trained model. Using processed patient exams as training pairs is a proposal, not a decision: it needs a legal basis for secondary use of health data (GDPR art. 9), de-identification, and the phase-one rule (D14).
 
-## Open decisions (evaluation rev. 3, updated rev. 4)
+## 2026-09-28 — Every image-bearing exam; measurements beside the vector; the licence question
+
+**Decided by the owner.**
+- **Every image-bearing exam is in scope**, not only CT and MRI: X-ray (including mammography), ultrasound and the other exams that come with images. The semantic association concerns a normalised medical term and the image region it describes, in every modality.
+- **Measurements stay as numeric fields beside the vector**, and the vector encodes the normalised concept. This was agreed after the 2026-09-26 evidence that text embeddings handle numbers near chance.
+
+**Licence question: changing Melampo's own licence does not lift third-party restrictions.** This is an engineering reading of primary texts, not legal advice, and it is to be confirmed by a lawyer (D15).
+- **A licensee cannot widen the rights it received.** CC BY-NC 4.0 grants its rights "for NonCommercial purposes only" (Section 2(a)(1)) and nothing lets a licensee extend them. "NonCommercial" is defined by the purpose of the use ("not primarily intended for or directed towards commercial advantage or monetary compensation"), not by the user's own licence.
+- **MDR Art. 2(27):** making a device available on the market is supply "in the course of a commercial activity, whether in return for payment or free of charge". In our reading, a device made available on the market is supplied commercially even when free. Whether this regulatory definition settles the meaning of "NonCommercial" in CC or FAIR terms is interpretation.
+- **MDR Art. 5(5)** (manufactured and used only within one health institution, "not transferred to another legal entity", no equivalent device on the market) is the only route that avoids placing on the market. Whether such use counts as non-commercial under third-party licences is a separate question.
+- **The FAIR Noncommercial Research License** (VL-JEPA weights) permits only noncommercial research uses. Derivatives stay under the same terms, and its acceptable-use policy bars medical professional services without proper licensing.
+- **ShareAlike** may extend to models trained or fine-tuned on SA material. Creative Commons has not said whether a trained model is Adapted Material.
+- **Creative Commons recommends against CC licences for software** (CC0 excepted).
+- **Text and data mining exceptions (Directive 2019/790):**
+  - Art. 4 (general TDM) can yield to contracts: Art. 7(1) protects only Arts. 3, 5 and 6 from contractual override. Terms accepted to access gated models or data may therefore prevail; whether a particular agreement binds is a contract-law question.
+  - Art. 3 (research organisations) is contract-proof, but covers research, not a product.
+- **The repository LICENSE file** calls itself Business Source License 1.1 but paraphrases it. The official text allows only its parameters to change ("Not to modify this License in any other way").
+- **The planned commercial licensing and the 2029 change to Apache-2.0** are, in our reading, incompatible with non-commercial components inside the product.
+- **Routes:**
+  - a research partition that never enters the product (the rule `connectors/pmc_case_reports.py` already applies);
+  - commercial licences on request (Stanford AIMI about USD 70,000 per dataset per year; PadChest and BIMCV case by case; HyperKvasir by written permission);
+  - retraining permissively licensed code on permissively licensed data;
+  - hospital partnerships with a legal basis for secondary use, which would also supply Italian reports.
+
+**Sources surveyed** (full map in the project document "fonti_modelli_dati_per_modalita_2026-09-28").
+- **Commercially usable encoders:**
+  - CT/MRI: Pillar-0 (ECL-2.0, aligned to Qwen3-Embedding-8B), CT-FM (Apache-2.0), Merlin (weights MIT, abdominal CT; trained on the non-commercial Merlin data, so a training-data risk).
+  - Chest X-ray: MedSigLIP and CXR Foundation (Google HAI-DEF terms: commercial use allowed; derivatives, including distillation, stay bound; Google must not become a device "manufacturer").
+  - Text: Qwen3-Embedding (Apache-2.0, over 100 languages; Italian not named explicitly on the card), BGE-M3 and multilingual-e5 (MIT).
+- **Gaps:** no commercially licensed text-aligned model for brain MRI, mammography or ultrasound.
+- **Several MIT-licensed Microsoft models state "research only"** on their cards (RAD-DINO, BiomedCLIP, COLIPRI) and need legal review. A permissive weight licence does not clear restrictions on the training data (Merlin, M3D-CLIP, CheXagent).
+- **No public dataset pairs images with free-text reports under a clearly commercial licence**, and none exists in Italian. The commercially usable ones carry structured descriptors: LIDC-IDRI, CBIS-DDSM, CMMD, Breast-Lesions-USG, BraTS 2021, NLST images, OpenNeuro CC0, the CC0/CC BY part of ISIC. The Medical Segmentation Decathlon is CC BY-SA, with the share-alike caveat above.
+- **This fits the design:** the textual object is a set of normalised concepts, not free text, so structured descriptors convert directly into textual objects for training pairs.
+
+## Open decisions (updated 2026-09-28)
 
 | # | Decision |
 |---|---|
@@ -211,3 +245,6 @@ The `rave` note in `melampo-assets.yaml` said that `export_series_directory` wri
 | D12 | Pillar-0's role now that VL-JEPA-style vectors are the target: candidate 3D visual encoder, or dropped |
 | D13 | Vector model (`imaging-vector-model`): own VL-JEPA-style model, interim encoders, components and licences (absorbs the former D4) |
 | D14 | Validation and training data: where exams with masks and training pairs come from, legal basis (GDPR art. 9), compatibility with the phase-one rule (synthetic or de-identified data only) |
+| D15 | Legal review of licences: intended use (research, in-house under MDR Art. 5(5), or placing on the market), the repository LICENSE text, and how NC, SA, HAI-DEF and FAIR materials are handled |
+| D16 | Visual encoder per modality: X-ray (HAI-DEF models or RAD-DINO after legal review), mammography and ultrasound (to train), brain MRI |
+| D17 | Text encoder for normalised concepts: Qwen3-Embedding proposed (Apache-2.0, over 100 languages, Pillar-0's text space); its Italian quality is to be measured |
