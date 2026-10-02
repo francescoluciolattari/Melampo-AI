@@ -1,0 +1,63 @@
+{"id": "spleen", "task": "total", "it": "milza", "en": "spleen"}
+{"id": "kidney_right", "task": "total", "it": "rene destro", "en": "right kidney"}
+{"id": "kidney_left", "task": "total", "it": "rene sinistro", "en": "left kidney"}
+{"id": "gallbladder", "task": "total", "it": "colecisti", "en": "gallbladder"}
+{"id": "liver", "task": "total", "it": "fegato", "en": "liver"}
+{"id": "stomach", "task": "total", "it": "stomaco", "en": "stomach"}
+{"id": "pancreas", "task": "total", "it": "pancreas", "en": "pancreas"}
+{"id": "adrenal_gland_right", "task": "total", "it": "ghiandola surrenale destra", "en": "right adrenal gland"}
+{"id": "adrenal_gland_left", "task": "total", "it": "ghiandola surrenale sinistra", "en": "left adrenal gland"}
+{"id": "lung_upper_lobe_left", "task": "total", "it": "lobo superiore del polmone sinistro", "en": "left upper lobe of the lung"}
+{"id": "lung_lower_lobe_left", "task": "total", "it": "lobo inferiore del polmone sinistro", "en": "left lower lobe of the lung"}
+{"id": "lung_upper_lobe_right", "task": "total", "it": "lobo superiore del polmone destro", "en": "right upper lobe of the lung"}
+{"id": "lung_middle_lobe_right", "task": "total", "it": "lobo medio del polmone destro", "en": "right middle lobe of the lung"}
+{"id": "lung_lower_lobe_right", "task": "total", "it": "lobo inferiore del polmone destro", "en": "right lower lobe of the lung"}
+{"id": "esophagus", "task": "total", "it": "esofago", "en": "esophagus"}
+{"id": "trachea", "task": "total", "it": "trachea", "en": "trachea"}
+{"id": "thyroid_gland", "task": "total", "it": "tiroide", "en": "thyroid gland"}
+{"id": "small_bowel", "task": "total", "it": "intestino tenue", "en": "small bowel"}
+{"id": "duodenum", "task": "total", "it": "duodeno", "en": "duodenum"}
+{"id": "colon", "task": "total", "it": "colon", "en": "colon"}
+{"id": "urinary_bladder", "task": "total", "it": "vescica urinaria", "en": "urinary bladder"}
+{"id": "prostate", "task": "total", "it": "prostata", "en": "prostate"}
+{"id": "heart", "task": "total", "it": "cuore", "en": "heart"}
+{"id": "aorta", "task": "total", "it": "aorta", "en": "aorta"}
+{"id": "inferior_vena_cava", "task": "total", "it": "vena cava inferiore", "en": "inferior vena cava"}
+{"id": "superior_vena_cava", "task": "total", "it": "vena cava superiore", "en": "superior vena cava"}
+{"id": "portal_vein_and_splenic_vein", "task": "total", "it": "vena porta e vena splenica", "en": "portal vein and splenic vein"}
+{"id": "sacrum", "task": "total", "it": "sacro", "en": "sacrum"}
+{"id": "vertebrae_L1", "task": "total", "it": "prima vertebra lombare", "en": "first lumbar vertebra (L1)"}
+{"id": "vertebrae_L4", "task": "total", "it": "quarta vertebra lombare", "en": "fourth lumbar vertebra (L4)"}
+{"id": "vertebrae_T12", "task": "total", "it": "dodicesima vertebra toracica", "en": "twelfth thoracic vertebra (T12)"}
+{"id": "spinal_cord", "task": "total", "it": "midollo spinale", "en": "spinal cord"}
+{"id": "brain", "task": "total", "it": "encefalo", "en": "brain"}
+{"id": "skull", "task": "total", "it": "cranio", "en": "skull"}
+{"id": "sternum", "task": "total", "it": "sterno", "en": "sternum"}
+{"id": "femur_left", "task": "total", "it": "femore sinistro", "en": "left femur"}
+{"id": "femur_right", "task": "total", "it": "femore destro", "en": "right femur"}
+{"id": "hip_left", "task": "total", "it": "anca sinistra", "en": "left hip bone"}
+{"id": "hip_right", "task": "total", "it": "anca destra", "en": "right hip bone"}
+{"id": "iliopsoas_left", "task": "total", "it": "muscolo ileopsoas sinistro", "en": "left iliopsoas muscle"}
+{"id": "iliopsoas_right", "task": "total", "it": "muscolo ileopsoas destro", "en": "right iliopsoas muscle"}
+{"id": "humerus_left", "task": "total", "it": "omero sinistro", "en": "left humerus"}
+{"id": "humerus_right", "task": "total", "it": "omero destro", "en": "right humerus"}
+{"id": "clavicula_right", "task": "total", "it": "clavicola destra", "en": "right clavicle"}
+{"id": "clavicula_left", "task": "total", "it": "clavicola sinistra", "en": "left clavicle"}
+{"id": "rib_right_10", "task": "total", "it": "decima costa destra", "en": "right tenth rib"}
+{"id": "rib_left_10", "task": "total", "it": "decima costa sinistra", "en": "left tenth rib"}
+{"id": "rib_left_7", "task": "total", "it": "settima costa sinistra", "en": "left seventh rib"}
+{"id": "common_carotid_artery_left", "task": "total", "it": "arteria carotide comune sinistra", "en": "left common carotid artery"}
+{"id": "common_carotid_artery_right", "task": "total", "it": "arteria carotide comune destra", "en": "right common carotid artery"}
+{"id": "iliac_artery_right", "task": "total", "it": "arteria iliaca destra", "en": "right iliac artery"}
+{"id": "iliac_artery_left", "task": "total", "it": "arteria iliaca sinistra", "en": "left iliac artery"}
+{"id": "iliac_vena_left", "task": "total", "it": "vena iliaca sinistra", "en": "left iliac vein"}
+{"id": "iliac_vena_right", "task": "total", "it": "vena iliaca destra", "en": "right iliac vein"}
+{"id": "atrial_appendage_left", "task": "total", "it": "auricola sinistra", "en": "left atrial appendage"}
+{"id": "liver_segment_1", "task": "liver_segments", "it": "segmento epatico I", "en": "liver segment 1 (Couinaud)"}
+{"id": "liver_segment_2", "task": "liver_segments", "it": "segmento epatico II", "en": "liver segment 2 (Couinaud)"}
+{"id": "liver_segment_3", "task": "liver_segments", "it": "segmento epatico III", "en": "liver segment 3 (Couinaud)"}
+{"id": "liver_segment_4", "task": "liver_segments", "it": "segmento epatico IV", "en": "liver segment 4 (Couinaud)"}
+{"id": "liver_segment_5", "task": "liver_segments", "it": "segmento epatico V", "en": "liver segment 5 (Couinaud)"}
+{"id": "liver_segment_6", "task": "liver_segments", "it": "segmento epatico VI", "en": "liver segment 6 (Couinaud)"}
+{"id": "liver_segment_7", "task": "liver_segments", "it": "segmento epatico VII", "en": "liver segment 7 (Couinaud)"}
+{"id": "liver_segment_8", "task": "liver_segments", "it": "segmento epatico VIII", "en": "liver segment 8 (Couinaud)"}

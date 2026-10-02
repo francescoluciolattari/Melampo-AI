@@ -285,11 +285,40 @@ This fits the 2026-09-26 scope ("the report says what, the image says where and 
 
 **Precision is unchanged by this architecture.** None of the three stages raises the information limit measured on 2026-09-26. Same-patient precision still rests on DICOM geometry, rigid alignment on bone and sub-voxel estimation of high-contrast points.
 
-## Open decisions (updated 2026-10-02)
+## 2026-10-03 — Decisions, the encoder question, and the encoder bench
+
+**Decided by the owner.**
+- **D15 closed for the VoxTell weights:** they may be used.
+- **D18:** a shared-decoder SDF with one latent code per lesion. Gaussian splatting is eliminated, including for visualisation. Fitting the decoder is deferred: until a need appears, shape is described by computed descriptors (volume, sphericity, elongation, surface-to-volume ratio, boundary irregularity), which need no training.
+- **Training:** the only model Melampo trains is the diagnostic model. Report reading, segmentation and perception modules are used frozen. Consequence: D13 (an own VL-JEPA-style pairing model) is suspended, and no visual encoder is needed on this path for now (D12, D16). The Pillar-0 report-versus-image comparison had already left scope.
+- **D19:** staged, with an explicit check between stages. When VoxTell and TotalSegmentator disagree, the node says so, the image part is ignored, and the vector is built from the report text only. The node records three distinct states -- concordant, discordant, not found or ambiguous -- and "visual evidence absent" is an explicit flag, never zeros, so the diagnostic model cannot read a missing density as a density of zero.
+- **D20:** Melampo's normalisation cascade writes the VoxTell prompt. It has to be extended beyond disease concepts to fine anatomy, laterality, measures and consistency, with negation as an explicit field (encoders place "nodule present" and "nodule absent" close together, so negation must not live in the vector). Anatomy maps to TotalSegmentator class names, which is also what the agreement check needs. The prompt language, Italian or English from a fixed vocabulary, is still to be measured.
+
+**Refinement of D19.** With nothing upstream trained, the remaining risk is training the diagnostic model on idealised inputs and deploying it on VoxTell masks of Dice 50. It is trained on the pipeline's real outputs, failures included, with the outcomes of the checks as inputs, and evaluated on a negative set (cases where the named lesion is not there). Cases discarded as unusable are kept as that negative set rather than thrown away; the discarding must not be decided by the model's own output, or only the easy cases remain.
+
+**Corrections to the 2026-10-02 entries.**
+- The list of "trained things" there was wrong: only the diagnostic model is trained. The SDF decoder and the VL-JEPA-style pairing are optional components, not obligations.
+- Pillar-0 was mentioned as an encoder candidate only because the manifest ties its image encoder to the Qwen3 text space. That is not a requirement.
+- What the repository holds for the "Nemotron and Gemma" normalisation, checked 2026-10-03: the cascade in `memory/concept_normalisation.py` (lexical match with curated synonyms from HPO and UMLS, then SapBERT, then an injected language model) links phrases to graph concepts; the Gemma 4 contracts are disabled by default and run no live inference; Nemotron-Parse serves document extraction. No Nemotron or Gemma normaliser for imaging terms is wired in.
+
+**D21: the text encoder. Not decided; this is what was established.**
+- There is no universal embedding space. Each encoder defines its own, and vectors from two encoders are not comparable even at the same dimension. A swap cannot be avoided by a clever choice; it can only be made cheap.
+- Under discussion: one encoder with open weights, pinned in `melampo-assets.yaml`; its identity kept at index level (one index per encoder, queries from a different encoder refused) rather than on every vector; vectors regenerated from the stored source (the normalised object, later the crop and mask) by an automatic migration -- build the new index, recalibrate thresholds, run a regression gate, generate the change-control report, obtain human approval, switch the pointer, keep the old index for rollback. Retraining is needed only where a learned model takes vectors as input; where vectors are only compared, rebuilding the index and recalibrating the thresholds is enough. The intuition model is proposed to learn at the level of concept codes and measures, with a case memory, and to see vectors only through a small per-encoder adapter.
+- Ruled out as the encoder: gpt-oss-120b (generative, not trained to produce embeddings; tying the vector space to the reasoning model would force a migration with every change of root model). Hosted-only encoders (OpenAI text-embedding-3, Voyage, mistral-embed) cannot be pinned and are kept in the bench only as references. Anthropic offers no embedding model (its documentation says so and recommends Voyage AI).
+- Shortlist: Qwen3-Embedding-8B (Apache-2.0, over 100 languages, 70.58 on MTEB multilingual at release, 4,096 dimensions, which is FalkorDB's limit). Non-Chinese alternatives asked for by the owner: IBM Granite Embedding Multilingual R2 (Apache-2.0, Italian among 52 enhanced languages), EmbeddingGemma-300M (Gemma terms, to verify), NVIDIA Nemotron 3 Embed 1B (licence to verify), multilingual-e5-large (MIT). Several western encoders are fine-tuned from Chinese base models; provenance is checked model card by model card.
+- For the legal review: the encoder receives only the normalised object, never the raw report, and an automatic check must show the normalised object carries no names, dates or places. The raw report is processed only locally or under a data-processing agreement. Pseudonymised data remains personal data under the GDPR.
+
+**The encoder bench** (`src/melampo/evaluation/encoder_bench.py`, `scripts/run_encoder_bench.py`, `.github/workflows/encoder-bench.yml`, gold data in `data/encoder_bench/`). It decides D17 and D21 by measurement.
+- *Concept linking:* 189 Italian anatomical phrases (formal, abbreviated, colloquial) must retrieve the right one of 63 structures, identified by TotalSegmentator class names (`total` and `liver_segments`, read from totalsegmentator 2.18.0). The pool is embedded with Italian labels, English labels and both, which also informs D20.
+- *Hard triplets:* 68 cases where a paraphrase must score above a near-miss that differs in laterality, adjacent organ, liver segment, vertebral level, negation, units, comparison with a prior exam, or consistency. Reported per category, with 95% Wilson intervals.
+- All phrases are synthetic and hand-written, so nothing patient-related is sent to a hosted endpoint. The result is a screen that removes unsuitable encoders, not a clinical validation; the sets are small and a gap inside the interval is not a gap.
+- **Not yet run live.** The session that built it could not reach OpenRouter and held no key. The code is tested offline (23 tests; the whole suite passes). Run it from GitHub Actions (manual, needs the `OPENROUTER_API_KEY` secret). Encoders that are not on OpenRouter (Granite R2, EmbeddingGemma) need a local backend, which is not built.
+
+## Open decisions (updated 2026-10-03)
 
 | # | Decision |
 |---|---|
-| D1 | Lesion isolation: **VoxTell chosen by the owner (2026-10-02)**, subject to D15; TotalSegmentator kept as the organ/segment cross-check |
+| D1 | Lesion isolation: **VoxTell chosen by the owner (2026-10-02), weights approved for use (D15, 2026-10-03)**; TotalSegmentator kept as the organ/segment cross-check; on disagreement the image part is ignored |
 | D2 | Anatomical vocabulary and Italian labels |
 | D3 | Brain: an atlas used only to label, never to measure (an exception to "no atlas"), and which atlas |
 | D5 | Geometric morphing method: shared-decoder SDF latent codes proposed (2026-10-02, item 7) |
@@ -299,13 +328,13 @@ This fits the 2026-09-26 scope ("the report says what, the image says where and 
 | D9 | Where the GPU runs |
 | D10 | Archive of cases with confirmed diagnoses for scenario B |
 | D11 | Withdraw the "unguided reading always in parallel" requirement (proposed), or keep it |
-| D12 | Pillar-0's role now that VL-JEPA-style vectors are the target: candidate 3D visual encoder, or dropped |
-| D13 | Vector model (`imaging-vector-model`): own VL-JEPA-style model over the VoxTell crop (and SDF latent code) and the normalised textual object; components and licences (absorbs the former D4) |
+| D12 | Pillar-0: no role on the current path (2026-10-03). The image is described by measures and shape descriptors; no visual encoder is needed while D13 is suspended |
+| D13 | **Suspended (2026-10-03).** Own VL-JEPA-style vector model: only the diagnostic model is trained, so the pairing model is not built unless a need appears (absorbs the former D4) |
 | D14 | Validation and training data: where exams with masks and training pairs come from, legal basis (GDPR art. 9), compatibility with the phase-one rule (synthetic or de-identified data only) |
-| D15 | Legal review: intended use (research, in-house under MDR Art. 5(5), or placing on the market), the new CC BY-NC 4.0 LICENSE text and its added terms, and how NC, SA, HAI-DEF and FAIR materials are handled |
-| D16 | Visual encoder per modality: X-ray (HAI-DEF models or RAD-DINO after legal review), mammography and ultrasound (to train), brain MRI |
-| D17 | Text encoder for normalised concepts: Qwen3-Embedding proposed (Apache-2.0, over 100 languages, Pillar-0's text space; VoxTell uses the 4B model); its Italian quality is to be measured |
-| D18 | Neural geometry: shared-decoder SDF (proposed) or per-lesion networks; Gaussian splatting only for visualisation |
-| D19 | Training: staged with frozen, separately validated modules (proposed), or end to end |
-| D20 | Language of VoxTell prompts: Italian normalised terms, or their English equivalents from the vocabulary; to be measured |
-| D21 | Encoder identity on every stored vector (id and version), and comparison only between vectors of the same encoder |
+| D15 | Legal review. **Closed for the use of the VoxTell weights (2026-10-03).** Still for the review: intended use (research, in-house under MDR Art. 5(5), or placing on the market), the CC BY-NC 4.0 LICENSE text and its added terms, NC, SA, HAI-DEF and FAIR materials, and hosted-API use with de-identification of anything sent out |
+| D16 | Visual encoder per modality: not needed on the current path (2026-10-03); reopens only if a visual vector is wanted |
+| D17 | Text encoder for normalised concepts: to be decided by `encoder_bench` (2026-10-03); Qwen3-Embedding-8B is the reference candidate, with non-Chinese alternatives in the shortlist |
+| D18 | **Decided 2026-10-03:** shared-decoder SDF with one latent code per lesion; Gaussian splatting eliminated. Fitting the decoder deferred; shape descriptors meanwhile |
+| D19 | **Decided 2026-10-03:** staged, with an explicit check between stages; on VoxTell and TotalSegmentator disagreement the vector comes from the report text only |
+| D20 | The normalisation cascade writes the VoxTell prompt (**decided 2026-10-03**); prompt language, Italian or English from the vocabulary: to be measured (linking pools in `encoder_bench`, then VoxTell Dice on the four prompt types) |
+| D21 | Open (2026-10-03). Encoder to pin: chosen by `encoder_bench`. Proposed: identity at index level, automatic migration with a regression gate and human approval; see the 2026-10-03 entry |

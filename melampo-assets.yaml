@@ -28,7 +28,7 @@
 # consistent with the data/*.dvc pins.
 
 version: 1
-updated: "2026-10-02"
+updated: "2026-10-03"
 
 decisions_taken:
   - id: model-storage
@@ -623,7 +623,7 @@ assets:
   - id: voxtell-weights
     kind: model_weights_reference
     manager: weights
-    status: blocked_licence
+    status: to_download
     source: https://huggingface.co/mrokuss/VoxTell
     licence: >-
       Weights CC-BY-NC-SA-4.0 (non-commercial); code Apache-2.0 at
@@ -637,9 +637,11 @@ assets:
       2026-10-02: chosen by the owner for lesion isolation
       (docs/imaging_decision_record.md, new imaging architecture). Melampo's
       own licence is now CC BY-NC 4.0, so the weights fit its declared
-      non-commercial use in our reading; status stays blocked_licence until
-      the legal review (D15) confirms it. Fine-tuned weights stay
-      CC BY-NC-SA. Always cross-checked against TotalSegmentator.
+      non-commercial use in our reading. 2026-10-03: the owner closed D15 for
+      these weights -- they may be used (status moved from blocked_licence to
+      to_download). Fine-tuned weights stay CC BY-NC-SA. Always cross-checked
+      against TotalSegmentator; when the two disagree the image part is
+      ignored and the vector is built from the report text only.
 
   - id: voxtell
     kind: library
