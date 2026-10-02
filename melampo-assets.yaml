@@ -28,7 +28,7 @@
 # consistent with the data/*.dvc pins.
 
 version: 1
-updated: "2026-09-26"
+updated: "2026-10-02"
 
 decisions_taken:
   - id: model-storage
@@ -616,6 +616,9 @@ assets:
       Llama-3.2-1B, text Y-encoder initialised from EmbeddingGemma-300M and
       fine-tuned, projections to a 1,536-d space, bi-directional InfoNCE.
       Recorded as a reference design, not as a usable artefact.
+      2026-10-02: the owner's architecture uses an own VL-JEPA-style model;
+      the FAIR licence is research-only, narrower than Melampo's
+      CC BY-NC 4.0, so these weights stay unusable as they are.
 
   - id: voxtell-weights
     kind: model_weights_reference
@@ -631,6 +634,28 @@ assets:
       Dice 50.2 on real report sentences (203 patients), 28.2 on
       ReXGroundingCT. The Apache code could be re-trained on data Melampo is
       licensed to use; the released weights cannot be used commercially.
+      2026-10-02: chosen by the owner for lesion isolation
+      (docs/imaging_decision_record.md, new imaging architecture). Melampo's
+      own licence is now CC BY-NC 4.0, so the weights fit its declared
+      non-commercial use in our reading; status stays blocked_licence until
+      the legal review (D15) confirms it. Fine-tuned weights stay
+      CC BY-NC-SA. Always cross-checked against TotalSegmentator.
+
+  - id: voxtell
+    kind: library
+    manager: uv
+    status: to_integrate
+    source: https://github.com/MIC-DKFZ/VoxTell
+    licence: >-
+      Apache-2.0 (verified, LICENSE file in the repository and PyPI 0.1.2
+      metadata, 2026-10-02).
+    consumers: [to_integrate]
+    notes: >-
+      Inference and fine-tuning code (voxtell-finetune since 0.1.2). Prompt
+      encoder: frozen Qwen3-Embedding-4B, downloaded at run time. Needs RAS
+      orientation; does not resample (about 1.5 mm typical). The predictor
+      thresholds logits at 0; a soft map needs a predictor change and is not
+      a calibrated probability.
 
   - id: embeddinggemma-300m
     kind: model_weights_reference

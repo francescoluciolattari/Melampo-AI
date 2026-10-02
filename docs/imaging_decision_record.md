@@ -2,7 +2,7 @@
 
 Decisions, measurements and defects for Melampo's imaging work: lesions in CT/MRI, their measurement over time for the same patient, and their comparison across patients. Entries are appended with their date; earlier entries are not rewritten.
 
-The full evaluation behind these entries (sources, licences, alternatives considered) is the project document "valutazione_pipeline_imaging_2026-09-26" (rev. 4).
+The full evaluation behind these entries (sources, licences, alternatives considered) is the project document "valutazione_pipeline_imaging_2026-09-26" (rev. 4); the 2026-10-02 architecture is in "architettura_voxtell_sdf_vljepa_2026-10-02".
 
 ---
 
@@ -228,14 +228,71 @@ The `rave` note in `melampo-assets.yaml` said that `export_series_directory` wri
 - **No public dataset pairs images with free-text reports under a clearly commercial licence**, and none exists in Italian. The commercially usable ones carry structured descriptors: LIDC-IDRI, CBIS-DDSM, CMMD, Breast-Lesions-USG, BraTS 2021, NLST images, OpenNeuro CC0, the CC0/CC BY part of ISIC. The Medical Segmentation Decathlon is CC BY-SA, with the share-alike caveat above.
 - **This fits the design:** the textual object is a set of normalised concepts, not free text, so structured descriptors convert directly into textual objects for training pairs.
 
-## Open decisions (updated 2026-09-28)
+## 2026-10-02 — Correction: the vector store is FalkorDB, not Weaviate
+
+**Found by the owner.** Graph and vector storage were decided as FalkorDB (`docs/recursive_engine_decision_record.md`, "FalkorDBLite scelto per il progetto"). `docs/architecture_consistency_matrix.md` marks the Weaviate component as superseded and not being built out. The 2026-09-26 fix nevertheless also changed `memory/weaviate_adapter.py` and `memory/weaviate_schema.py`.
+
+- **What stands.** The fix in `memory/visual_imprint.py` is storage-independent and stays. The Weaviate changes are harmless and keep their tests, but they target a component that will not be used. That work should not have been spent there.
+- **The rule carries over to FalkorDB.** A FalkorDB vector index is declared per label and property, with a fixed `dimension` (1–4096) and a `similarityFunction` (FalkorDB documentation, Cypher cheat sheet, read 2026-10-02): `CREATE VECTOR INDEX FOR (n:Label) ON (n.prop) OPTIONS {dimension: …, similarityFunction: 'cosine'}`. Vectors from different encoders therefore go into different properties, one index each, never into the same one. `memory/falkordb_graph.py` has no vector index yet.
+- **Gap found while checking.** `_comparable` in `visual_imprint.py` checks only vector kind and length. Two different encoders with the same dimension would be compared silently, and their scores would mean nothing. Imprints need the encoder id and version, and comparison must require them to match. This is not fixed here; it is listed as D21.
+
+## 2026-10-02 — Melampo's own licence changed to CC BY-NC 4.0
+
+**Decided by the owner** (commits 6a9ea65 and ba7998e on main). This supersedes the remark on the Business Source License in the 2026-09-28 entry. The observations below are an engineering reading of the CC BY-NC 4.0 legal code (SPDX copy, read 2026-10-02). They are not legal advice and go to the legal review (D15).
+
+- **The added attribution terms go beyond what the licence lets a licensor require**, in our reading. Section 3(a)(1)(A)(i) lets the licensor request "any reasonable manner" of identifying the creator. Section 3(a)(2) lets the licensee satisfy the conditions "in any reasonable manner based on the medium, means, and context", for example "by providing a URI or hyperlink". A mandatory, permanent credit inside the user interface may not be enforceable as part of the CC licence.
+- **Termination is stated incompletely.** Section 6(a) does end the rights automatically on a breach. Section 6(b) reinstates them "automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation". The LICENSE text omits the reinstatement.
+- **A modified CC licence is a different licence.** Creative Commons does not authorise its trademark "in connection with any unauthorized modifications to any of its public licenses" (closing notice of the legal code). Either the plain CC BY-NC 4.0 is used, or a custom licence is written that does not carry the CC name.
+- **Form.**
+  - The LICENSE file links only the Creative Commons home page, not the licence deed or legal code (https://creativecommons.org/licenses/by-nc/4.0/).
+  - Its conditions are numbered 1, 3, 4.
+  - The licence grants no patent rights (Section 2(b)(2)).
+  - Creative Commons recommends against CC licences for software (2026-09-28 entry).
+- **The licensor is not bound by its own licence.** The owner can still grant separate commercial licences. Contributions from others received under CC BY-NC would need a contributor agreement for that to remain possible. The README no longer gives a commercial contact.
+- **Effect on third-party non-commercial components.**
+  - With the project now non-commercial, using non-commercial weights such as VoxTell's (CC BY-NC-SA 4.0) is consistent with the project's declared use, in our reading.
+  - ShareAlike: VoxTell weights fine-tuned by us would have to be shared under CC BY-NC-SA, not under Melampo's CC BY-NC. Calling the weights from our code does not, in our reading, make the code Adapted Material of them.
+  - The FAIR Noncommercial Research License (Meta's VL-JEPA weights) is narrower: research only. Its acceptable-use policy bars medical professional services without proper licensing.
+  - The MDR applies or not according to how the software is used and supplied, not according to its licence.
+  - A future commercial version would need every non-commercial component replaced. The licence partition per component therefore stays.
+
+## 2026-10-02 — New imaging architecture: VoxTell → neural geometry → VL-JEPA-style pairing → graph nodes
+
+**Decided by the owner.** The pipeline has four stages:
+1. **VoxTell** isolates the region the report describes.
+2. **A neural geometric representation** models the lesion's continuous geometry and distances: a signed distance field (SDF), or 3D Gaussian splatting.
+3. **A VL-JEPA-style model** pairs the semantic meaning with that geometry.
+4. **The result is a node in the knowledge graph**, with edges carrying continuous proximity to neighbouring structures.
+
+No mesh, B-rep or VTK. The repository uses no VTK today.
+
+This fits the 2026-09-26 scope ("the report says what, the image says where and how"). VoxTell is a tool for finding in the image what the report names. Each claim in the proposal was checked; the table records what holds and what changes.
+
+| # | Claim in the proposal | Finding | Consequence |
+|---|---|---|---|
+| 1 | VoxTell maps report text to a 3D region | Holds. Free-text prompts → volumetric masks on CT, PET and MRI. Its prompt encoder is the frozen Qwen3-Embedding-4B. Images must be in RAS orientation, and they are not resampled (about 1.5 mm is typical). `voxtell-finetune` exists since v0.1.2 (README and PyPI 0.1.2, read 2026-10-02). | The prompt is the normalised textual object (finding, fine region, laterality), not the raw report. The published prompts are English; Italian prompts are unmeasured (D20). Orientation comes from `dicom_volume`'s affine. |
+| 2 | VoxTell outputs a probabilistic field, not a binary mask | Partly. The predictor thresholds the logits at 0, which is sigmoid > 0.5 (`voxtell/inference/predictor.py`). The logits exist before the threshold, so a soft map is obtainable by changing the predictor. | A sigmoid output is not a calibrated probability. Calibration would have to be measured before the soft map is read as confidence. |
+| 3 | VoxTell isolates the region reliably | Not established. Dice 50.2 on real report sentences (2026-09-26 survey). VoxTell returns a mask for any prompt. | The outcomes found / not found / ambiguous must stay possible. The VoxTell mask is checked against the organ and segment from TotalSegmentator (free tasks) and against the reported size and density before it is accepted. |
+| 4 | VoxTell is usable | Code Apache-2.0 (verified 2026-10-02). Weights CC BY-NC-SA 4.0 (verified 2026-09-26; Hugging Face unreachable from this session on 2026-10-02). | Usable within the project's non-commercial licence, subject to D15. Fine-tuned weights stay CC BY-NC-SA. |
+| 5 | An SDF gives "infinite resolution" of the boundary | Does not hold as information. The zero level set interpolates between voxels. Boundary accuracy stays bounded by voxel spacing, partial volume and the segmentation (2026-09-26 simulation). A neural SDF trained with an eikonal term is only approximately a distance away from the surface. | The SDF gives a smooth sub-voxel surface and fast queries, not new information. It does not move the 0.1 mm goal. Every measure carries `measurement_precision`. |
+| 6 | Lesion–vessel distance is a subtraction of two SDFs | Does not hold as stated. The minimum distance is the minimum of the vessel's SDF over points on the lesion's surface: sample, then evaluate, which is fast on GPU. | The vessel needs its own segmentation (TotalSegmentator `liver_vessels`, free). An exact Euclidean distance transform on the voxel masks gives the same quantity at voxel precision and is the cross-check. Edges store distance, method, precision level and uncertainty. |
+| 7 | One small network per lesion (`weights/sdf_lesion_001.pt`) | Works for one lesion, but networks fitted separately cannot be compared. | Proposed instead: one shared decoder with a latent code per lesion (DeepSDF, Park et al., CVPR 2019). The lesion is fitted after removing position, orientation and scale, which are kept as numeric fields. The latent code is then a shape vector comparable across patients. Interpolating between two codes is a geometric morph. This is scenario B (size and rotation transformable) and answers D5. |
+| 8 | Gaussian splatting represents infiltration: opacity α near 1 is tumour, falling to 0 is microscopic infiltration | No support. In medical imaging, Gaussian splatting is used for reconstruction and rendering (for example CT reconstruction from projections). α is a rendering parameter with no ground truth for infiltration, and CT/MRI do not resolve microscopic infiltration. | The SDF (option A) is used for measurement. Option B is at most a visualisation (D18). |
+| 9 | VL-JEPA takes the 3D patch and the text and gives a 768-d vector, self-supervised | Partly. Meta's VL-JEPA has a 1,536-d shared space, a 2D video encoder and FAIR non-commercial research weights. It is trained on paired data with InfoNCE, not on unpaired data. | An own VL-JEPA-style model (D13). X = the VoxTell crop, possibly with the SDF latent code. Y = the normalised textual object. The vector says *what* the lesion is; position and measures stay as fields. |
+| 10 | The whole pipeline is trained end to end | Possible in principle. | Three problems. Paired training data is needed (D14). Training the segmentation to agree with the semantic vector pushes it to find what the report names even where there is nothing, which conflicts with "not found". MDR verification is simpler with modules frozen and validated separately. Proposed: staged training with frozen interfaces; end-to-end only later, with negative cases (D19). |
+| 11 | The node is a purely neural object in a "neural knowledge graph" | The graph is FalkorDB. | The node stores the latent code with decoder id and version, not a path to per-lesion weights. It stores one vector property per encoder (2026-10-02 correction), the normalised text and structured fields as the source of truth, and the raw report sentence as provenance. A graph neural network over these nodes is the future intuition model. |
+| 12 | Digital twins: simulating how the lesion deforms under pressure or breathing | Needs a biomechanical model and tissue properties. | Out of current scope. |
+
+**Precision is unchanged by this architecture.** None of the three stages raises the information limit measured on 2026-09-26. Same-patient precision still rests on DICOM geometry, rigid alignment on bone and sub-voxel estimation of high-contrast points.
+
+## Open decisions (updated 2026-10-02)
 
 | # | Decision |
 |---|---|
-| D1 | Lesion isolation tools under a commercial-use constraint |
+| D1 | Lesion isolation: **VoxTell chosen by the owner (2026-10-02)**, subject to D15; TotalSegmentator kept as the organ/segment cross-check |
 | D2 | Anatomical vocabulary and Italian labels |
 | D3 | Brain: an atlas used only to label, never to measure (an exception to "no atlas"), and which atlas |
-| D5 | Geometric morphing method |
+| D5 | Geometric morphing method: shared-decoder SDF latent codes proposed (2026-10-02, item 7) |
 | D6 | Acquisition requirements for declaring maximum precision (now implemented as `measurement_precision` levels; thresholds to confirm) |
 | D7 | Who confirms lesion masks and text-to-image pairings |
 | D8 | Surface anatomy (nasal subunits, fingertip zones): outside CT/MRI scope, or a separate photographic pipeline |
@@ -243,8 +300,12 @@ The `rave` note in `melampo-assets.yaml` said that `export_series_directory` wri
 | D10 | Archive of cases with confirmed diagnoses for scenario B |
 | D11 | Withdraw the "unguided reading always in parallel" requirement (proposed), or keep it |
 | D12 | Pillar-0's role now that VL-JEPA-style vectors are the target: candidate 3D visual encoder, or dropped |
-| D13 | Vector model (`imaging-vector-model`): own VL-JEPA-style model, interim encoders, components and licences (absorbs the former D4) |
+| D13 | Vector model (`imaging-vector-model`): own VL-JEPA-style model over the VoxTell crop (and SDF latent code) and the normalised textual object; components and licences (absorbs the former D4) |
 | D14 | Validation and training data: where exams with masks and training pairs come from, legal basis (GDPR art. 9), compatibility with the phase-one rule (synthetic or de-identified data only) |
-| D15 | Legal review of licences: intended use (research, in-house under MDR Art. 5(5), or placing on the market), the repository LICENSE text, and how NC, SA, HAI-DEF and FAIR materials are handled |
+| D15 | Legal review: intended use (research, in-house under MDR Art. 5(5), or placing on the market), the new CC BY-NC 4.0 LICENSE text and its added terms, and how NC, SA, HAI-DEF and FAIR materials are handled |
 | D16 | Visual encoder per modality: X-ray (HAI-DEF models or RAD-DINO after legal review), mammography and ultrasound (to train), brain MRI |
-| D17 | Text encoder for normalised concepts: Qwen3-Embedding proposed (Apache-2.0, over 100 languages, Pillar-0's text space); its Italian quality is to be measured |
+| D17 | Text encoder for normalised concepts: Qwen3-Embedding proposed (Apache-2.0, over 100 languages, Pillar-0's text space; VoxTell uses the 4B model); its Italian quality is to be measured |
+| D18 | Neural geometry: shared-decoder SDF (proposed) or per-lesion networks; Gaussian splatting only for visualisation |
+| D19 | Training: staged with frozen, separately validated modules (proposed), or end to end |
+| D20 | Language of VoxTell prompts: Italian normalised terms, or their English equivalents from the vocabulary; to be measured |
+| D21 | Encoder identity on every stored vector (id and version), and comparison only between vectors of the same encoder |
