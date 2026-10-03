@@ -157,7 +157,14 @@ class UmlsConnector:
         source_cui = ""
         crosswalked = []
         for item in results:
-            cui = str(item.get("concepts", [{}])[0].get("ui", "")) if item.get("concepts") else ""
+            # UMLS can answer with bare strings (e.g. "NONE") instead of
+            # objects when a code has no crosswalk; that is "nothing found",
+            # not a crash -- this killed the nightly literature refresh.
+            if not isinstance(item, dict):
+                continue
+            concepts = item.get("concepts")
+            first = concepts[0] if isinstance(concepts, list) and concepts else {}
+            cui = str(first.get("ui", "")) if isinstance(first, dict) else ""
             source_cui = source_cui or cui
             crosswalked.append(
                 CrosswalkResult(
