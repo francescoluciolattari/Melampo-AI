@@ -338,3 +338,26 @@ This fits the 2026-09-26 scope ("the report says what, the image says where and 
 | D19 | **Decided 2026-10-03:** staged, with an explicit check between stages; on VoxTell and TotalSegmentator disagreement the vector comes from the report text only |
 | D20 | The normalisation cascade writes the VoxTell prompt (**decided 2026-10-03**); prompt language, Italian or English from the vocabulary: to be measured (linking pools in `encoder_bench`, then VoxTell Dice on the four prompt types) |
 | D21 | Open (2026-10-03). Encoder to pin: chosen by `encoder_bench`. Proposed: identity at index level, automatic migration with a regression gate and human approval; see the 2026-10-03 entry |
+
+## 2026-10-03 (later) — Encoder bench: first results and the local backend
+
+First run through OpenRouter (7 encoders, 63 structures, 189 phrases, 68 triplets).
+Screening order: gemini-embedding-001 0.802, qwen3-embedding-8b with instruction
+0.779, qwen3-embedding-8b 0.748, openai text-embedding-3-large 0.747,
+qwen3-embedding-4b 0.742, bge-m3 0.714, mistral-embed 0.707. The top two are not
+separable (95% intervals overlap). No encoder is reliable on size/unit
+(0-25%), consistency (17-50%) or negation (50-75%): those stay structured fields,
+never carried by the vector. Indexing Italian and English labels together lifts
+linking to 83-89% for every encoder. The instruction prefix helps Qwen3-8B on
+English queries only.
+
+Extension: the bench now also covers every OpenRouter embedding model that can
+handle Italian (Gemini embedding 2, OpenAI 3-small, Voyage 4/large/lite,
+Nemotron 3 Embed 1B, Perplexity pplx-embed 4B/0.6B, Liquid LFM 2.5 350M,
+multilingual-e5-large) and, through a local sentence-transformers backend run on
+the Actions runner, IBM Granite Multilingual R2 (311M, 97M), EmbeddingGemma-300M,
+Snowflake Arctic-Embed-L v2 and Nomic Embed v2 MoE. Models that document
+document-side or symmetric-task prefixes get them (e5, EmbeddingGemma, Nomic).
+English-only models are left out deliberately. Run: Actions > "Text encoder bench",
+scope `both`; EmbeddingGemma needs the secret `HF_TOKEN` of an account that accepted
+the Gemma terms. D17/D21 stay open until these results are read.

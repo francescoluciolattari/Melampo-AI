@@ -411,3 +411,127 @@ def test_extra_slugs_join_the_roster_without_replacing_it(script):
         "bge-m3",
         "vendor-some-embed",
     ] and unknown == []
+
+
+# --------------------------------------------------------------------------
+# Document/triplet prefixes and the local backend
+# --------------------------------------------------------------------------
+
+
+def test_document_and_triplet_prefixes_reach_the_right_texts():
+    seen = []
+
+    def spy(texts):
+        seen.extend(texts)
+        return [[1.0, 1.0] for _ in texts]
+
+    eb.evaluate_encoder(
+        spy, _tiny_gold(), query_prefix="Q ", document_prefix="D ", triplet_prefix="T "
+    )
+    assert "D rene destro" in seen and "rene destro" not in seen
+    assert "Q rene sn" in seen
+    assert "T rene dx" in seen and "rene dx" not in seen
+
+
+def test_local_embedder_wraps_a_loader_and_returns_plain_floats():
+    class FakeModel:
+        def __init__(self, model_id, trust_remote_code=False):
+            self.model_id = model_id
+            self.trust_remote_code = trust_remote_code
+
+        def encode(self, texts, **kwargs):
+            return [[float(len(text)), 1.0] for text in texts]
+
+    embedder = eb.LocalEmbedder("org/model", loader=FakeModel, trust_remote_code=True)
+    assert embedder(["ab", "abc"]) == [[2.0, 1.0], [3.0, 1.0]]
+    assert embedder._model.trust_remote_code is True
+
+
+def test_local_embedder_reports_a_load_failure_as_an_encoder_error():
+    def broken(model_id, trust_remote_code=False):
+        raise OSError("gated repo, no token")
+
+    with pytest.raises(eb.EncoderError, match="could not load org/model"):
+        eb.LocalEmbedder("org/model", loader=broken)
+
+
+def test_local_candidates_run_through_the_script_and_a_failure_is_isolated(
+    script, tmp_path, monkeypatch
+):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    import zlib
+
+    def toy(texts):
+        out = []
+        for text in texts:
+            vector = [0.0] * 16
+            for token in text.lower().replace("/", " ").split():
+                vector[zlib.crc32(token.encode()) % 16] += 1.0
+            out.append(vector)
+        return out
+
+    class FakeLocal:
+        def __init__(self, model_id, trust_remote_code=False):
+            if "gemma" in model_id:
+                raise eb.EncoderError(f"could not load {model_id}: gated")
+
+        def __call__(self, texts):
+            return toy(texts)
+
+    monkeypatch.setattr(script, "LocalEmbedder", FakeLocal)
+    out = tmp_path / "r.json"
+    code = script.main(
+        [
+            "--backend",
+            "local",
+            "--roster",
+            "granite-97m-multilingual-r2,embeddinggemma-300m",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 0
+    report = json.loads(out.read_text())
+    assert [row["name"] for row in report["results"]] == ["granite-97m-multilingual-r2"]
+    assert "gated" in report["preflight"]["embeddinggemma-300m"]
+
+
+def test_backend_local_without_roster_runs_only_local_candidates(
+    script, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "key")
+    calls = []
+
+    class Spy:
+        def __init__(self, *args, **kwargs):
+            calls.append(args)
+            raise eb.EncoderError("stop")
+
+    monkeypatch.setattr(script, "OpenRouterEmbedder", Spy)
+    monkeypatch.setattr(script, "LocalEmbedder", Spy)
+    out = tmp_path / "r.json"
+    script.main(["--backend", "local", "--out", str(out)])
+    report = json.loads(out.read_text())
+    assert set(report["preflight"]) == {e["name"] for e in script.LOCAL_CANDIDATES}
+
+
+def test_every_candidate_name_is_unique_across_both_backends(script):
+    names = [entry[0] for entry in script.CANDIDATE_ENCODERS] + [
+        e["name"] for e in script.LOCAL_CANDIDATES
+    ]
+    assert len(names) == len(set(names))
+
+
+def test_a_local_only_roster_makes_the_openrouter_backend_a_no_op(script, tmp_path):
+    out = tmp_path / "r.json"
+    code = script.main(
+        [
+            "--backend",
+            "openrouter",
+            "--roster",
+            "granite-97m-multilingual-r2",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 0 and not out.exists()

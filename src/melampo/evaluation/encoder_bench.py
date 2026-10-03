@@ -202,9 +202,15 @@ def _rank_of_target(scores: list[float], target_index: int) -> int:
 
 
 def _retrieval(
-    lookup: dict[str, list[float]], gold: Gold, mode: str, query_prefix: str
+    lookup: dict[str, list[float]],
+    gold: Gold,
+    mode: str,
+    query_prefix: str,
+    document_prefix: str = "",
 ) -> dict[str, Any]:
-    pool_vectors = [lookup[pool_text(entry, mode)] for entry in gold.pool]
+    pool_vectors = [
+        lookup[document_prefix + pool_text(entry, mode)] for entry in gold.pool
+    ]
     index_of = {entry["id"]: position for position, entry in enumerate(gold.pool)}
     hits1 = hits3 = 0
     reciprocal = 0.0
@@ -242,15 +248,17 @@ def _retrieval(
     }
 
 
-def _triplets(lookup: dict[str, list[float]], gold: Gold) -> dict[str, Any]:
+def _triplets(
+    lookup: dict[str, list[float]], gold: Gold, triplet_prefix: str = ""
+) -> dict[str, Any]:
     by_category: dict[str, list[float]] = defaultdict(list)
     failures: list[dict[str, Any]] = []
     margins: list[float] = []
     for row in gold.triplets:
-        anchor = lookup[row["anchor"]]
-        margin = cosine_similarity(anchor, lookup[row["positive"]]) - cosine_similarity(
-            anchor, lookup[row["negative"]]
-        )
+        anchor = lookup[triplet_prefix + row["anchor"]]
+        margin = cosine_similarity(
+            anchor, lookup[triplet_prefix + row["positive"]]
+        ) - cosine_similarity(anchor, lookup[triplet_prefix + row["negative"]])
         margins.append(margin)
         by_category[row["category"]].append(margin)
         if margin <= 0 and len(failures) < _MAX_RECORDED_FAILURES:
@@ -275,25 +283,36 @@ def _triplets(lookup: dict[str, list[float]], gold: Gold) -> dict[str, Any]:
 
 
 def evaluate_encoder(
-    embedder: Embedder, gold: Gold, query_prefix: str = ""
+    embedder: Embedder,
+    gold: Gold,
+    query_prefix: str = "",
+    document_prefix: str = "",
+    triplet_prefix: str = "",
 ) -> dict[str, Any]:
-    """Run both measurements for one encoder. `query_prefix` goes on retrieval queries only.
+    """Run both measurements for one encoder.
 
-    Triplets are scored on the raw texts for every encoder: they test
-    paraphrase against near-miss symmetrically, where a retrieval instruction
-    would not mean the same thing.
+    `query_prefix` goes on retrieval queries, `document_prefix` on the pool
+    texts they are matched against (models such as multilingual-e5 and
+    EmbeddingGemma are trained with a marker on each side), and
+    `triplet_prefix` on all three texts of a triplet. Triplets are
+    paraphrase against near-miss, a symmetric task, so a retrieval
+    instruction would not mean the same thing there; the default is no
+    prefix, and a model that documents a symmetric-task prefix gets that one.
     """
     texts: list[str] = []
     for mode in POOL_MODES:
-        texts.extend(pool_text(entry, mode) for entry in gold.pool)
+        texts.extend(document_prefix + pool_text(entry, mode) for entry in gold.pool)
     texts.extend(query_prefix + row["query"] for row in gold.queries)
     for row in gold.triplets:
-        texts.extend((row["anchor"], row["positive"], row["negative"]))
+        texts.extend(
+            triplet_prefix + row[key] for key in ("anchor", "positive", "negative")
+        )
     lookup = _embed_unique(embedder, texts)
     retrieval = {
-        mode: _retrieval(lookup, gold, mode, query_prefix) for mode in POOL_MODES
+        mode: _retrieval(lookup, gold, mode, query_prefix, document_prefix)
+        for mode in POOL_MODES
     }
-    triplets = _triplets(lookup, gold)
+    triplets = _triplets(lookup, gold, triplet_prefix)
     mean_recall = sum(retrieval[mode]["recall_at_1"] for mode in POOL_MODES) / len(
         POOL_MODES
     )
@@ -305,6 +324,52 @@ def evaluate_encoder(
         # hard triplets. The components are always reported beside it.
         "screening_score": round((mean_recall + triplets["accuracy"]) / 2, 4),
     }
+
+
+# --------------------------------------------------------------------------
+# Local backend (sentence-transformers), for encoders OpenRouter does not serve
+# --------------------------------------------------------------------------
+class LocalEmbedder:
+    """Embeddings computed in-process with sentence-transformers.
+
+    The import is lazy so that the rest of the module (and the offline test
+    suite) never needs torch. Weights are downloaded from Hugging Face on
+    first use; a gated model (EmbeddingGemma) needs HF_TOKEN in the
+    environment from an account that accepted its terms.
+    """
+
+    def __init__(
+        self,
+        model_id: str,
+        *,
+        batch_size: int = 16,
+        trust_remote_code: bool = False,
+        loader: Callable[..., Any] | None = None,
+    ) -> None:
+        self.model_id = model_id
+        self.batch_size = batch_size
+        try:
+            if loader is None:
+                from sentence_transformers import SentenceTransformer as loader
+            self._model = loader(model_id, trust_remote_code=trust_remote_code)
+        except Exception as error:  # noqa: BLE001 - any load failure is one EncoderError
+            raise EncoderError(
+                f"could not load {model_id}: {type(error).__name__}: {error}"
+            ) from None
+
+    def __call__(self, texts: Sequence[str]) -> list[list[float]]:
+        try:
+            matrix = self._model.encode(
+                list(texts),
+                batch_size=self.batch_size,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+            )
+        except Exception as error:  # noqa: BLE001
+            raise EncoderError(
+                f"{self.model_id} failed to embed: {type(error).__name__}: {error}"
+            ) from None
+        return [[float(value) for value in row] for row in matrix]
 
 
 # --------------------------------------------------------------------------
