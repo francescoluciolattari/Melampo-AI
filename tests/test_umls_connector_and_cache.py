@@ -66,6 +66,22 @@ def test_crosswalk_matches_the_confirmed_nlm_documentation_example():
     assert results[0].source_cui == "C0022099"
 
 
+def test_crosswalk_ignores_non_object_entries_instead_of_crashing():
+    """Regression: the 2026-09-25 CI run died with AttributeError on a str item."""
+    connector = UmlsConnector(config=UmlsConfig(api_key="k"))
+    connector._get = lambda url, params: {
+        "result": [
+            "NONE",
+            {"ui": "233604007", "name": "x", "rootSource": "SNOMEDCT_US", "concepts": ["C0022099"]},
+        ]
+    }
+
+    results = connector.crosswalk_from_hpo("HP:0001947")
+
+    assert [r.ui for r in results] == ["233604007"]
+    assert results[0].source_cui == ""
+
+
 def test_crosswalk_with_no_results_returns_an_empty_list():
     connector = UmlsConnector(config=UmlsConfig(api_key="k"))
     connector._get = lambda url, params: {"result": []}

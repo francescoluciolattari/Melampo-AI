@@ -383,8 +383,11 @@ jobs:
               if umls is not None and synonym_index is not None:
                   term_ids = synonym_index.by_surface.get(entry.concept.strip().lower(), [])
                   for term_id in term_ids:
-                      umls.crosswalk_from_hpo(term_id)
-                      umls_warmed += 1
+                      try:
+                          umls.crosswalk_from_hpo(term_id)
+                          umls_warmed += 1
+                      except Exception as error:  # a cache warm-up must never block the refresh commit
+                          print(f"::warning::UMLS crosswalk skipped for {term_id}: {error}")
               store.mark_refreshed(entry.concept, passage_count=len(index.passages))
 
           store.save(concepts_path)
