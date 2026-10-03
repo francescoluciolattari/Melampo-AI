@@ -361,3 +361,10 @@ document-side or symmetric-task prefixes get them (e5, EmbeddingGemma, Nomic).
 English-only models are left out deliberately. Run: Actions > "Text encoder bench",
 scope `both`; EmbeddingGemma needs the secret `HF_TOKEN` of an account that accepted
 the Gemma terms. D17/D21 stay open until these results are read.
+
+Added the same day: Cohere Embed v5 Pro and Fast (direct API, `COHERE_API_KEY`;
+the two share one embedding space, so one can index and the other query; roles are
+sent as `input_type`). NV-Embed-v2 is opt-in only (`--backend local --roster
+nv-embed-v2`): 7.9B parameters (no standard runner can hold it) and CC-BY-NC-4.0,
+which this project could not ship, so it is measured only for reference and on
+the owner's own hardware.

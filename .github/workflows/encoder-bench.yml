@@ -29,7 +29,7 @@ on:
 
 jobs:
   bench:
-    name: Encoder bench (OpenRouter)
+    name: Encoder bench (OpenRouter and Cohere)
     if: ${{ inputs.scope != 'local' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -43,12 +43,14 @@ jobs:
       - name: Run the bench
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Optional: without it the two Cohere candidates are reported as skipped.
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           ROSTER: ${{ inputs.roster }}
           EXTRA_SLUGS: ${{ inputs.extra_slugs }}
         # Inputs go through the environment, never interpolated into the shell
         # line, so a stray quote in a slug cannot become a command.
         run: |
-          args=(--backend openrouter --out encoder_results.json --markdown encoder_summary.md)
+          args=(--backend remote --out encoder_results.json --markdown encoder_summary.md)
           if [ -n "$ROSTER" ]; then args+=(--roster "$ROSTER"); fi
           if [ -n "$EXTRA_SLUGS" ]; then args+=(--extra-slugs "$EXTRA_SLUGS"); fi
           uv run python scripts/run_encoder_bench.py "${args[@]}"
