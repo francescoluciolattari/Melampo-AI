@@ -512,7 +512,9 @@ def test_backend_local_without_roster_runs_only_local_candidates(
     out = tmp_path / "r.json"
     script.main(["--backend", "local", "--out", str(out)])
     report = json.loads(out.read_text())
-    assert set(report["preflight"]) == {e["name"] for e in script.LOCAL_CANDIDATES}
+    assert set(report["preflight"]) == {
+        e["name"] for e in script.LOCAL_CANDIDATES if not e.get("opt_in")
+    }
 
 
 def test_every_candidate_name_is_unique_across_both_backends(script):
@@ -535,3 +537,59 @@ def test_a_local_only_roster_makes_the_openrouter_backend_a_no_op(script, tmp_pa
         ]
     )
     assert code == 0 and not out.exists()
+
+
+# --------------------------------------------------------------------------
+# Cohere
+# --------------------------------------------------------------------------
+
+
+def test_cohere_embedder_sends_the_role_of_each_text_and_keeps_order(monkeypatch):
+    sent = []
+
+    def fake_urlopen(request, timeout):
+        body = json.loads(request.data)
+        sent.append((body["input_type"], body["texts"]))
+        vectors = [[float(len(text)), 1.0] for text in body["texts"]]
+        return _Response({"embeddings": {"float": vectors}})
+
+    monkeypatch.setattr(eb.urllib.request, "urlopen", fake_urlopen)
+    embedder = eb.CohereEmbedder("embed-v5.0-pro", "key", sleep=lambda s: None)
+    texts = [
+        eb.COHERE_ROLE_QUERY + "abc",
+        "doc",
+        eb.COHERE_ROLE_DOCUMENT + "de",
+        eb.COHERE_ROLE_SYMMETRIC + "f",
+    ]
+    vectors = embedder(texts)
+    assert [v[0] for v in vectors] == [3.0, 3.0, 2.0, 1.0]  # input order restored
+    assert ("search_query", ["abc"]) in sent
+    assert ("search_document", ["doc", "de"]) in sent
+    assert ("clustering", ["f"]) in sent
+
+
+def test_cohere_unreadable_payload_is_an_encoder_error(monkeypatch):
+    monkeypatch.setattr(
+        eb.urllib.request,
+        "urlopen",
+        lambda request, timeout: _Response({"message": "invalid model"}),
+    )
+    with pytest.raises(eb.EncoderError, match="unreadable"):
+        eb.CohereEmbedder("m", "key", sleep=lambda s: None)(["x"])
+
+
+def test_cohere_candidates_need_their_own_key_and_are_reported_without_it(
+    script, tmp_path, monkeypatch
+):
+    monkeypatch.delenv("COHERE_API_KEY", raising=False)
+    out = tmp_path / "r.json"
+    assert script.main(["--backend", "cohere", "--out", str(out)]) == 1
+    report = json.loads(out.read_text())
+    assert set(report["preflight"].values()) == {"COHERE_API_KEY not set"}
+    assert set(report["preflight"]) == {"cohere-embed-v5-pro", "cohere-embed-v5-fast"}
+
+
+def test_nv_embed_v2_runs_only_when_named(script):
+    assert "nv-embed-v2" not in [e["name"] for e in script._select_local(None, "local")]
+    named = script._select_local("nv-embed-v2", "local")
+    assert [e["name"] for e in named] == ["nv-embed-v2"]

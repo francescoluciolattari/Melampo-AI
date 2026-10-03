@@ -55,6 +55,12 @@ from ..memory.concept_normalisation import cosine_similarity
 
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "encoder_bench"
 OPENROUTER_EMBEDDINGS_URL = "https://openrouter.ai/api/v1/embeddings"
+COHERE_EMBED_URL = "https://api.cohere.com/v2/embed"
+# Cohere wants a role for every text (document, query, symmetric). The bench
+# passes roles the only way it can, as prefixes; CohereEmbedder strips them.
+COHERE_ROLE_QUERY = "\x00cohere:search_query\x00"
+COHERE_ROLE_DOCUMENT = "\x00cohere:search_document\x00"
+COHERE_ROLE_SYMMETRIC = "\x00cohere:clustering\x00"
 POOL_MODES = ("it", "en", "both")
 
 Embedder = Callable[[Sequence[str]], list[list[float]]]
@@ -410,9 +416,7 @@ class OpenRouterEmbedder:
         return vectors
 
     def _embed_batch(self, batch: list[str]) -> list[list[float]]:
-        body = json.dumps(
-            {"model": self.slug, "input": batch, "encoding_format": "float"}
-        ).encode("utf-8")
+        body = json.dumps(self._payload(batch)).encode("utf-8")
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -441,6 +445,9 @@ class OpenRouterEmbedder:
             return self._parse(payload, len(batch))
         raise EncoderError(f"no response from {self.slug}")  # pragma: no cover
 
+    def _payload(self, batch: list[str]) -> dict[str, Any]:
+        return {"model": self.slug, "input": batch, "encoding_format": "float"}
+
     def _parse(self, payload: Any, expected: int) -> list[list[float]]:
         if isinstance(payload, dict) and payload.get("error"):
             raise EncoderError(
@@ -455,6 +462,69 @@ class OpenRouterEmbedder:
         except (KeyError, TypeError, ValueError, AttributeError) as error:
             raise EncoderError(
                 f"{self.slug} returned an unreadable embedding payload"
+            ) from error
+        if len(vectors) != expected:
+            raise EncoderError(
+                f"{self.slug} returned {len(vectors)} embeddings for {expected} inputs"
+            )
+        return vectors
+
+
+class CohereEmbedder(OpenRouterEmbedder):
+    """Cohere's v2 embed endpoint. Reuses the retry, batching and error handling.
+
+    Texts may start with one of the COHERE_ROLE_* markers; the marker is
+    removed and sets `input_type` for that text. Unmarked texts are documents.
+    """
+
+    _DEFAULT_ROLE = "search_document"
+
+    def __init__(
+        self,
+        model: str,
+        api_key: str,
+        *,
+        endpoint: str = COHERE_EMBED_URL,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(model, api_key, endpoint=endpoint, **kwargs)
+        self._input_type = self._DEFAULT_ROLE
+
+    @staticmethod
+    def _split_role(text: str) -> tuple[str, str]:
+        for marker in (COHERE_ROLE_QUERY, COHERE_ROLE_DOCUMENT, COHERE_ROLE_SYMMETRIC):
+            if text.startswith(marker):
+                return marker.split(":")[1].rstrip("\x00"), text[len(marker) :]
+        return CohereEmbedder._DEFAULT_ROLE, text
+
+    def __call__(self, texts: Sequence[str]) -> list[list[float]]:
+        tagged = [self._split_role(text) for text in texts]
+        out: list[list[float] | None] = [None] * len(tagged)
+        for role in dict.fromkeys(role for role, _ in tagged):
+            positions = [i for i, (r, _) in enumerate(tagged) if r == role]
+            self._input_type = role
+            vectors = super().__call__([tagged[i][1] for i in positions])
+            for position, vector in zip(positions, vectors, strict=True):
+                out[position] = vector
+        return [vector for vector in out if vector is not None]
+
+    def _payload(self, batch: list[str]) -> dict[str, Any]:
+        return {
+            "model": self.slug,
+            "texts": batch,
+            "input_type": self._input_type,
+            "embedding_types": ["float"],
+        }
+
+    def _parse(self, payload: Any, expected: int) -> list[list[float]]:
+        try:
+            rows = payload["embeddings"]["float"]
+            vectors = [[float(x) for x in row] for row in rows]
+        except (KeyError, TypeError, ValueError) as error:
+            message = payload.get("message") if isinstance(payload, dict) else None
+            raise EncoderError(
+                f"{self.slug} returned an unreadable embedding payload"
+                + (f": {str(message)[:200]}" if message else "")
             ) from error
         if len(vectors) != expected:
             raise EncoderError(

@@ -32,8 +32,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from melampo.evaluation.encoder_bench import (
+    COHERE_ROLE_DOCUMENT,
+    COHERE_ROLE_QUERY,
+    COHERE_ROLE_SYMMETRIC,
     DEFAULT_DATA_DIR,
     QWEN_QUERY_INSTRUCTION,
+    CohereEmbedder,
     EncoderError,
     LocalEmbedder,
     OpenRouterEmbedder,
@@ -168,6 +172,23 @@ CANDIDATE_ENCODERS = [
     ),
 ]
 
+# Cohere candidates (direct API; they are not on OpenRouter). Needs COHERE_API_KEY.
+# Pro and Fast share one embedding space, so Pro can index and Fast can query.
+COHERE_CANDIDATES = [
+    {
+        "name": "cohere-embed-v5-pro",
+        "model": "embed-v5.0-pro",
+        "origin": "Canada (Cohere)",
+        "access": "API only (also single-tenant Model Vault)",
+    },
+    {
+        "name": "cohere-embed-v5-fast",
+        "model": "embed-v5.0-fast",
+        "origin": "Canada (Cohere)",
+        "access": "API only (also single-tenant Model Vault)",
+    },
+]
+
 # Local candidates, computed on the machine that runs the script with
 # sentence-transformers (see LocalEmbedder). They are the open, non-Chinese
 # encoders OpenRouter does not serve. Model ids are Hugging Face ids; the
@@ -202,6 +223,19 @@ LOCAL_CANDIDATES = [
         "query_prefix": "query: ",
     },
     {
+        # Opt-in only: a 7.9B-parameter model (needs a GPU or 32 GB of RAM, so it
+        # cannot run on a standard Actions runner) under CC-BY-NC-4.0, which this
+        # project cannot ship. Run it on your own machine to know how it scores:
+        # --backend local --roster nv-embed-v2
+        "name": "nv-embed-v2",
+        "model_id": "nvidia/NV-Embed-v2",
+        "origin": "USA (NVIDIA)",
+        "access": "open weights, CC-BY-NC-4.0 (non-commercial)",
+        "query_prefix": "Instruct: Given a query, retrieve the anatomical structure it names\nQuery: ",
+        "trust_remote_code": True,
+        "opt_in": True,
+    },
+    {
         "name": "nomic-embed-text-v2-moe",
         "model_id": "nomic-ai/nomic-embed-text-v2-moe",
         "origin": "USA (Nomic)",
@@ -227,7 +261,11 @@ def _select(
     wanted = (
         {name.strip() for name in roster.split(",") if name.strip()} if roster else None
     )
-    known = {entry[0] for entry in CANDIDATE_ENCODERS} | set(_local_names())
+    known = (
+        {entry[0] for entry in CANDIDATE_ENCODERS}
+        | set(_local_names())
+        | {entry["name"] for entry in COHERE_CANDIDATES}
+    )
     unknown = sorted(wanted - known) if wanted else []
     chosen = [
         entry for entry in CANDIDATE_ENCODERS if wanted is None or entry[0] in wanted
@@ -240,14 +278,25 @@ def _select(
     return chosen, unknown
 
 
+def _wanted(roster: str | None) -> set[str]:
+    return {name.strip() for name in (roster or "").split(",") if name.strip()}
+
+
 def _select_local(roster: str | None, backend: str) -> list[dict]:
-    """Local candidates for this backend: the roster's, else all of them."""
-    if backend == "openrouter":
+    """Local candidates for this backend: the roster's, else every one not marked opt-in."""
+    if backend not in ("local", "all"):
         return []
     if roster:
-        wanted = {name.strip() for name in roster.split(",") if name.strip()}
-        return [entry for entry in LOCAL_CANDIDATES if entry["name"] in wanted]
-    return list(LOCAL_CANDIDATES)
+        return [e for e in LOCAL_CANDIDATES if e["name"] in _wanted(roster)]
+    return [e for e in LOCAL_CANDIDATES if not e.get("opt_in")]
+
+
+def _select_cohere(roster: str | None, backend: str) -> list[dict]:
+    if backend not in ("cohere", "remote", "all"):
+        return []
+    if roster:
+        return [e for e in COHERE_CANDIDATES if e["name"] in _wanted(roster)]
+    return list(COHERE_CANDIDATES)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -260,10 +309,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--roster", help="comma-separated candidate names; default all")
     parser.add_argument(
         "--backend",
-        choices=("openrouter", "local", "all"),
+        choices=("openrouter", "cohere", "remote", "local", "all"),
         default="openrouter",
-        help="which candidates run when --roster is empty; local ones are computed "
-        "here with sentence-transformers (needs torch, downloads weights)",
+        help="which candidates run: openrouter, cohere (needs COHERE_API_KEY), "
+        "remote (both), local (computed here with sentence-transformers; needs "
+        "torch, downloads weights) or all. A roster names candidates inside the "
+        "chosen backend.",
     )
     parser.add_argument(
         "--extra-slugs", help="comma-separated OpenRouter slugs to add for this run"
@@ -277,15 +328,22 @@ def main(argv: list[str] | None = None) -> int:
 
     chosen, unknown = _select(args.roster, args.extra_slugs)
     if args.list_candidates:
-        print(json.dumps([entry[0] for entry in CANDIDATE_ENCODERS] + _local_names()))
+        print(
+            json.dumps(
+                [entry[0] for entry in CANDIDATE_ENCODERS]
+                + [entry["name"] for entry in COHERE_CANDIDATES]
+                + _local_names()
+            )
+        )
         return 0
     if unknown:
         print(f"Unknown candidate name(s) in --roster: {unknown}", file=sys.stderr)
         return 1
-    if args.backend == "local":
-        chosen = [entry for entry in chosen if entry[4] == "unspecified"]
+    if args.backend not in ("openrouter", "remote", "all"):
+        chosen = []
     local = _select_local(args.roster, args.backend)
-    if not chosen and not local:
+    cohere = _select_cohere(args.roster, args.backend)
+    if not chosen and not local and not cohere:
         print("Nothing to run for this backend and roster.")
         return 0
 
@@ -334,6 +392,32 @@ def main(argv: list[str] | None = None) -> int:
         report["preflight"][name] = "ok"
         measure(
             name, slug, embedder, origin, access, {"query_prefix": prefix, **options}
+        )
+
+    cohere_key = os.environ.get("COHERE_API_KEY")
+    for entry in cohere:
+        name = entry["name"]
+        if not cohere_key:
+            report["preflight"][name] = "COHERE_API_KEY not set"
+            continue
+        embedder = CohereEmbedder(entry["model"], cohere_key)
+        try:
+            embedder(PREFLIGHT_PROBE)
+        except EncoderError as error:
+            report["preflight"][name] = str(error)
+            continue
+        report["preflight"][name] = "ok"
+        measure(
+            name,
+            entry["model"],
+            embedder,
+            entry["origin"],
+            entry["access"],
+            {
+                "query_prefix": COHERE_ROLE_QUERY,
+                "document_prefix": COHERE_ROLE_DOCUMENT,
+                "triplet_prefix": COHERE_ROLE_SYMMETRIC,
+            },
         )
 
     for entry in local:
