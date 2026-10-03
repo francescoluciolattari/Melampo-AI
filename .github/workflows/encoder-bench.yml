@@ -21,10 +21,16 @@ on:
         description: "Extra OpenRouter embedding slugs to include for this run, comma-separated"
         required: false
         default: ""
+      scope:
+        description: "Which candidates run when the roster is empty"
+        type: choice
+        options: [openrouter, local, both]
+        default: both
 
 jobs:
   bench:
-    name: Encoder bench
+    name: Encoder bench (OpenRouter)
+    if: ${{ inputs.scope != 'local' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -42,7 +48,7 @@ jobs:
         # Inputs go through the environment, never interpolated into the shell
         # line, so a stray quote in a slug cannot become a command.
         run: |
-          args=(--out encoder_results.json --markdown encoder_summary.md)
+          args=(--backend openrouter --out encoder_results.json --markdown encoder_summary.md)
           if [ -n "$ROSTER" ]; then args+=(--roster "$ROSTER"); fi
           if [ -n "$EXTRA_SLUGS" ]; then args+=(--extra-slugs "$EXTRA_SLUGS"); fi
           uv run python scripts/run_encoder_bench.py "${args[@]}"
@@ -65,5 +71,55 @@ jobs:
           path: |
             encoder_results.json
             encoder_summary.md
+          retention-days: 90
+          if-no-files-found: warn
+
+  # Encoders OpenRouter does not serve (IBM Granite R2, EmbeddingGemma,
+  # Snowflake Arctic, Nomic) are computed on the runner itself, on CPU, with
+  # sentence-transformers. No key is needed; weights come from Hugging Face.
+  # EmbeddingGemma is gated: accept its terms on the Hugging Face account that
+  # owns HF_TOKEN, otherwise that one candidate is reported as unloadable and
+  # the others still run.
+  local:
+    name: Encoder bench (local models)
+    if: ${{ inputs.scope != 'openrouter' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+          # CPU-only torch: the default Linux wheel pulls gigabytes of CUDA libraries.
+          uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install sentence-transformers
+
+      - name: Run the bench
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ROSTER: ${{ inputs.roster }}
+        run: |
+          args=(--backend local --out encoder_results_local.json --markdown encoder_summary_local.md)
+          if [ -n "$ROSTER" ]; then args+=(--roster "$ROSTER"); fi
+          uv run --no-sync python scripts/run_encoder_bench.py "${args[@]}"
+
+      - name: Summarise results
+        if: always()
+        run: |
+          if [ -f encoder_summary_local.md ]; then
+            cat encoder_summary_local.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Local encoder bench did not produce a summary" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encoder-bench-local-results
+          path: |
+            encoder_results_local.json
+            encoder_summary_local.md
           retention-days: 90
           if-no-files-found: warn
