@@ -1,0 +1,189 @@
+{"query": "milza", "target": "spleen", "kind": "formal"}
+{"query": "a livello splenico", "target": "spleen", "kind": "short_or_abbreviated"}
+{"query": "parenchima della milza", "target": "spleen", "kind": "colloquial_or_alternative"}
+{"query": "rene destro", "target": "kidney_right", "kind": "formal"}
+{"query": "rene di destra", "target": "kidney_right", "kind": "short_or_abbreviated"}
+{"query": "rene dx", "target": "kidney_right", "kind": "colloquial_or_alternative"}
+{"query": "rene sinistro", "target": "kidney_left", "kind": "formal"}
+{"query": "rene di sinistra", "target": "kidney_left", "kind": "short_or_abbreviated"}
+{"query": "rene sn", "target": "kidney_left", "kind": "colloquial_or_alternative"}
+{"query": "colecisti", "target": "gallbladder", "kind": "formal"}
+{"query": "cistifellea", "target": "gallbladder", "kind": "short_or_abbreviated"}
+{"query": "a carico della colecisti", "target": "gallbladder", "kind": "colloquial_or_alternative"}
+{"query": "fegato", "target": "liver", "kind": "formal"}
+{"query": "parenchima epatico", "target": "liver", "kind": "short_or_abbreviated"}
+{"query": "a livello epatico", "target": "liver", "kind": "colloquial_or_alternative"}
+{"query": "stomaco", "target": "stomach", "kind": "formal"}
+{"query": "parete gastrica", "target": "stomach", "kind": "short_or_abbreviated"}
+{"query": "regione gastrica", "target": "stomach", "kind": "colloquial_or_alternative"}
+{"query": "pancreas", "target": "pancreas", "kind": "formal"}
+{"query": "ghiandola pancreatica", "target": "pancreas", "kind": "short_or_abbreviated"}
+{"query": "a livello pancreatico", "target": "pancreas", "kind": "colloquial_or_alternative"}
+{"query": "surrene destro", "target": "adrenal_gland_right", "kind": "formal"}
+{"query": "ghiandola surrenale di destra", "target": "adrenal_gland_right", "kind": "short_or_abbreviated"}
+{"query": "loggia surrenalica destra", "target": "adrenal_gland_right", "kind": "colloquial_or_alternative"}
+{"query": "surrene sinistro", "target": "adrenal_gland_left", "kind": "formal"}
+{"query": "ghiandola surrenale di sinistra", "target": "adrenal_gland_left", "kind": "short_or_abbreviated"}
+{"query": "loggia surrenalica sinistra", "target": "adrenal_gland_left", "kind": "colloquial_or_alternative"}
+{"query": "lobo superiore sinistro", "target": "lung_upper_lobe_left", "kind": "formal"}
+{"query": "LSS", "target": "lung_upper_lobe_left", "kind": "short_or_abbreviated"}
+{"query": "lobo polmonare superiore di sinistra", "target": "lung_upper_lobe_left", "kind": "colloquial_or_alternative"}
+{"query": "lobo inferiore sinistro", "target": "lung_lower_lobe_left", "kind": "formal"}
+{"query": "LIS", "target": "lung_lower_lobe_left", "kind": "short_or_abbreviated"}
+{"query": "lobo polmonare inferiore di sinistra", "target": "lung_lower_lobe_left", "kind": "colloquial_or_alternative"}
+{"query": "lobo superiore destro", "target": "lung_upper_lobe_right", "kind": "formal"}
+{"query": "LSD", "target": "lung_upper_lobe_right", "kind": "short_or_abbreviated"}
+{"query": "lobo polmonare superiore di destra", "target": "lung_upper_lobe_right", "kind": "colloquial_or_alternative"}
+{"query": "lobo medio", "target": "lung_middle_lobe_right", "kind": "formal"}
+{"query": "LM", "target": "lung_middle_lobe_right", "kind": "short_or_abbreviated"}
+{"query": "lobo polmonare medio di destra", "target": "lung_middle_lobe_right", "kind": "colloquial_or_alternative"}
+{"query": "lobo inferiore destro", "target": "lung_lower_lobe_right", "kind": "formal"}
+{"query": "LID", "target": "lung_lower_lobe_right", "kind": "short_or_abbreviated"}
+{"query": "lobo polmonare inferiore di destra", "target": "lung_lower_lobe_right", "kind": "colloquial_or_alternative"}
+{"query": "esofago", "target": "esophagus", "kind": "formal"}
+{"query": "tratto esofageo", "target": "esophagus", "kind": "short_or_abbreviated"}
+{"query": "a carico dell'esofago", "target": "esophagus", "kind": "colloquial_or_alternative"}
+{"query": "trachea", "target": "trachea", "kind": "formal"}
+{"query": "lume tracheale", "target": "trachea", "kind": "short_or_abbreviated"}
+{"query": "a livello tracheale", "target": "trachea", "kind": "colloquial_or_alternative"}
+{"query": "tiroide", "target": "thyroid_gland", "kind": "formal"}
+{"query": "ghiandola tiroidea", "target": "thyroid_gland", "kind": "short_or_abbreviated"}
+{"query": "lobo tiroideo", "target": "thyroid_gland", "kind": "colloquial_or_alternative"}
+{"query": "intestino tenue", "target": "small_bowel", "kind": "formal"}
+{"query": "anse del tenue", "target": "small_bowel", "kind": "short_or_abbreviated"}
+{"query": "anse ileali e digiunali", "target": "small_bowel", "kind": "colloquial_or_alternative"}
+{"query": "duodeno", "target": "duodenum", "kind": "formal"}
+{"query": "seconda porzione duodenale", "target": "duodenum", "kind": "short_or_abbreviated"}
+{"query": "cornice duodenale", "target": "duodenum", "kind": "colloquial_or_alternative"}
+{"query": "colon", "target": "colon", "kind": "formal"}
+{"query": "intestino crasso", "target": "colon", "kind": "short_or_abbreviated"}
+{"query": "parete colica", "target": "colon", "kind": "colloquial_or_alternative"}
+{"query": "vescica", "target": "urinary_bladder", "kind": "formal"}
+{"query": "vescica urinaria", "target": "urinary_bladder", "kind": "short_or_abbreviated"}
+{"query": "parete vescicale", "target": "urinary_bladder", "kind": "colloquial_or_alternative"}
+{"query": "prostata", "target": "prostate", "kind": "formal"}
+{"query": "ghiandola prostatica", "target": "prostate", "kind": "short_or_abbreviated"}
+{"query": "zona periferica prostatica", "target": "prostate", "kind": "colloquial_or_alternative"}
+{"query": "cuore", "target": "heart", "kind": "formal"}
+{"query": "profilo cardiaco", "target": "heart", "kind": "short_or_abbreviated"}
+{"query": "silhouette cardiaca", "target": "heart", "kind": "colloquial_or_alternative"}
+{"query": "aorta", "target": "aorta", "kind": "formal"}
+{"query": "aorta toracica", "target": "aorta", "kind": "short_or_abbreviated"}
+{"query": "aorta addominale", "target": "aorta", "kind": "colloquial_or_alternative"}
+{"query": "vena cava inferiore", "target": "inferior_vena_cava", "kind": "formal"}
+{"query": "VCI", "target": "inferior_vena_cava", "kind": "short_or_abbreviated"}
+{"query": "cava inferiore", "target": "inferior_vena_cava", "kind": "colloquial_or_alternative"}
+{"query": "vena cava superiore", "target": "superior_vena_cava", "kind": "formal"}
+{"query": "VCS", "target": "superior_vena_cava", "kind": "short_or_abbreviated"}
+{"query": "cava superiore", "target": "superior_vena_cava", "kind": "colloquial_or_alternative"}
+{"query": "vena porta", "target": "portal_vein_and_splenic_vein", "kind": "formal"}
+{"query": "asse spleno-portale", "target": "portal_vein_and_splenic_vein", "kind": "short_or_abbreviated"}
+{"query": "tronco portale", "target": "portal_vein_and_splenic_vein", "kind": "colloquial_or_alternative"}
+{"query": "sacro", "target": "sacrum", "kind": "formal"}
+{"query": "osso sacro", "target": "sacrum", "kind": "short_or_abbreviated"}
+{"query": "a livello sacrale", "target": "sacrum", "kind": "colloquial_or_alternative"}
+{"query": "L1", "target": "vertebrae_L1", "kind": "formal"}
+{"query": "prima vertebra lombare", "target": "vertebrae_L1", "kind": "short_or_abbreviated"}
+{"query": "corpo vertebrale di L1", "target": "vertebrae_L1", "kind": "colloquial_or_alternative"}
+{"query": "L4", "target": "vertebrae_L4", "kind": "formal"}
+{"query": "quarta vertebra lombare", "target": "vertebrae_L4", "kind": "short_or_abbreviated"}
+{"query": "corpo vertebrale di L4", "target": "vertebrae_L4", "kind": "colloquial_or_alternative"}
+{"query": "D12", "target": "vertebrae_T12", "kind": "formal"}
+{"query": "dodicesima vertebra dorsale", "target": "vertebrae_T12", "kind": "short_or_abbreviated"}
+{"query": "corpo vertebrale di D12", "target": "vertebrae_T12", "kind": "colloquial_or_alternative"}
+{"query": "midollo spinale", "target": "spinal_cord", "kind": "formal"}
+{"query": "midollo", "target": "spinal_cord", "kind": "short_or_abbreviated"}
+{"query": "canale midollare", "target": "spinal_cord", "kind": "colloquial_or_alternative"}
+{"query": "encefalo", "target": "brain", "kind": "formal"}
+{"query": "parenchima cerebrale", "target": "brain", "kind": "short_or_abbreviated"}
+{"query": "cervello", "target": "brain", "kind": "colloquial_or_alternative"}
+{"query": "cranio", "target": "skull", "kind": "formal"}
+{"query": "teca cranica", "target": "skull", "kind": "short_or_abbreviated"}
+{"query": "calotta cranica", "target": "skull", "kind": "colloquial_or_alternative"}
+{"query": "sterno", "target": "sternum", "kind": "formal"}
+{"query": "manubrio e corpo sternale", "target": "sternum", "kind": "short_or_abbreviated"}
+{"query": "piano sternale", "target": "sternum", "kind": "colloquial_or_alternative"}
+{"query": "femore sinistro", "target": "femur_left", "kind": "formal"}
+{"query": "femore di sinistra", "target": "femur_left", "kind": "short_or_abbreviated"}
+{"query": "femore sn", "target": "femur_left", "kind": "colloquial_or_alternative"}
+{"query": "femore destro", "target": "femur_right", "kind": "formal"}
+{"query": "femore di destra", "target": "femur_right", "kind": "short_or_abbreviated"}
+{"query": "femore dx", "target": "femur_right", "kind": "colloquial_or_alternative"}
+{"query": "anca sinistra", "target": "hip_left", "kind": "formal"}
+{"query": "emibacino sinistro", "target": "hip_left", "kind": "short_or_abbreviated"}
+{"query": "anca sn", "target": "hip_left", "kind": "colloquial_or_alternative"}
+{"query": "anca destra", "target": "hip_right", "kind": "formal"}
+{"query": "emibacino destro", "target": "hip_right", "kind": "short_or_abbreviated"}
+{"query": "anca dx", "target": "hip_right", "kind": "colloquial_or_alternative"}
+{"query": "ileopsoas sinistro", "target": "iliopsoas_left", "kind": "formal"}
+{"query": "muscolo ileo-psoas di sinistra", "target": "iliopsoas_left", "kind": "short_or_abbreviated"}
+{"query": "psoas sn", "target": "iliopsoas_left", "kind": "colloquial_or_alternative"}
+{"query": "ileopsoas destro", "target": "iliopsoas_right", "kind": "formal"}
+{"query": "muscolo ileo-psoas di destra", "target": "iliopsoas_right", "kind": "short_or_abbreviated"}
+{"query": "psoas dx", "target": "iliopsoas_right", "kind": "colloquial_or_alternative"}
+{"query": "omero sinistro", "target": "humerus_left", "kind": "formal"}
+{"query": "omero di sinistra", "target": "humerus_left", "kind": "short_or_abbreviated"}
+{"query": "omero sn", "target": "humerus_left", "kind": "colloquial_or_alternative"}
+{"query": "omero destro", "target": "humerus_right", "kind": "formal"}
+{"query": "omero di destra", "target": "humerus_right", "kind": "short_or_abbreviated"}
+{"query": "omero dx", "target": "humerus_right", "kind": "colloquial_or_alternative"}
+{"query": "clavicola destra", "target": "clavicula_right", "kind": "formal"}
+{"query": "clavicola di destra", "target": "clavicula_right", "kind": "short_or_abbreviated"}
+{"query": "clavicola dx", "target": "clavicula_right", "kind": "colloquial_or_alternative"}
+{"query": "clavicola sinistra", "target": "clavicula_left", "kind": "formal"}
+{"query": "clavicola di sinistra", "target": "clavicula_left", "kind": "short_or_abbreviated"}
+{"query": "clavicola sn", "target": "clavicula_left", "kind": "colloquial_or_alternative"}
+{"query": "decima costa destra", "target": "rib_right_10", "kind": "formal"}
+{"query": "X costa di destra", "target": "rib_right_10", "kind": "short_or_abbreviated"}
+{"query": "costa 10 dx", "target": "rib_right_10", "kind": "colloquial_or_alternative"}
+{"query": "decima costa sinistra", "target": "rib_left_10", "kind": "formal"}
+{"query": "X costa di sinistra", "target": "rib_left_10", "kind": "short_or_abbreviated"}
+{"query": "costa 10 sn", "target": "rib_left_10", "kind": "colloquial_or_alternative"}
+{"query": "settima costa sinistra", "target": "rib_left_7", "kind": "formal"}
+{"query": "VII costa di sinistra", "target": "rib_left_7", "kind": "short_or_abbreviated"}
+{"query": "costa 7 sn", "target": "rib_left_7", "kind": "colloquial_or_alternative"}
+{"query": "carotide comune sinistra", "target": "common_carotid_artery_left", "kind": "formal"}
+{"query": "arteria carotide comune di sinistra", "target": "common_carotid_artery_left", "kind": "short_or_abbreviated"}
+{"query": "CCA sn", "target": "common_carotid_artery_left", "kind": "colloquial_or_alternative"}
+{"query": "carotide comune destra", "target": "common_carotid_artery_right", "kind": "formal"}
+{"query": "arteria carotide comune di destra", "target": "common_carotid_artery_right", "kind": "short_or_abbreviated"}
+{"query": "CCA dx", "target": "common_carotid_artery_right", "kind": "colloquial_or_alternative"}
+{"query": "arteria iliaca destra", "target": "iliac_artery_right", "kind": "formal"}
+{"query": "iliaca comune di destra", "target": "iliac_artery_right", "kind": "short_or_abbreviated"}
+{"query": "asse iliaco arterioso dx", "target": "iliac_artery_right", "kind": "colloquial_or_alternative"}
+{"query": "arteria iliaca sinistra", "target": "iliac_artery_left", "kind": "formal"}
+{"query": "iliaca comune di sinistra", "target": "iliac_artery_left", "kind": "short_or_abbreviated"}
+{"query": "asse iliaco arterioso sn", "target": "iliac_artery_left", "kind": "colloquial_or_alternative"}
+{"query": "vena iliaca sinistra", "target": "iliac_vena_left", "kind": "formal"}
+{"query": "iliaca venosa di sinistra", "target": "iliac_vena_left", "kind": "short_or_abbreviated"}
+{"query": "asse iliaco venoso sn", "target": "iliac_vena_left", "kind": "colloquial_or_alternative"}
+{"query": "vena iliaca destra", "target": "iliac_vena_right", "kind": "formal"}
+{"query": "iliaca venosa di destra", "target": "iliac_vena_right", "kind": "short_or_abbreviated"}
+{"query": "asse iliaco venoso dx", "target": "iliac_vena_right", "kind": "colloquial_or_alternative"}
+{"query": "auricola sinistra", "target": "atrial_appendage_left", "kind": "formal"}
+{"query": "auricola atriale sinistra", "target": "atrial_appendage_left", "kind": "short_or_abbreviated"}
+{"query": "appendice atriale di sinistra", "target": "atrial_appendage_left", "kind": "colloquial_or_alternative"}
+{"query": "segmento I", "target": "liver_segment_1", "kind": "formal"}
+{"query": "segmento epatico I", "target": "liver_segment_1", "kind": "short_or_abbreviated"}
+{"query": "S1 epatico", "target": "liver_segment_1", "kind": "colloquial_or_alternative"}
+{"query": "segmento II", "target": "liver_segment_2", "kind": "formal"}
+{"query": "segmento epatico II", "target": "liver_segment_2", "kind": "short_or_abbreviated"}
+{"query": "S2 epatico", "target": "liver_segment_2", "kind": "colloquial_or_alternative"}
+{"query": "segmento III", "target": "liver_segment_3", "kind": "formal"}
+{"query": "segmento epatico III", "target": "liver_segment_3", "kind": "short_or_abbreviated"}
+{"query": "S3 epatico", "target": "liver_segment_3", "kind": "colloquial_or_alternative"}
+{"query": "segmento IV", "target": "liver_segment_4", "kind": "formal"}
+{"query": "segmento epatico IV", "target": "liver_segment_4", "kind": "short_or_abbreviated"}
+{"query": "S4 epatico", "target": "liver_segment_4", "kind": "colloquial_or_alternative"}
+{"query": "segmento V", "target": "liver_segment_5", "kind": "formal"}
+{"query": "segmento epatico V", "target": "liver_segment_5", "kind": "short_or_abbreviated"}
+{"query": "S5 epatico", "target": "liver_segment_5", "kind": "colloquial_or_alternative"}
+{"query": "segmento VI", "target": "liver_segment_6", "kind": "formal"}
+{"query": "segmento epatico VI", "target": "liver_segment_6", "kind": "short_or_abbreviated"}
+{"query": "S6 epatico", "target": "liver_segment_6", "kind": "colloquial_or_alternative"}
+{"query": "segmento VII", "target": "liver_segment_7", "kind": "formal"}
+{"query": "segmento epatico VII", "target": "liver_segment_7", "kind": "short_or_abbreviated"}
+{"query": "S7 epatico", "target": "liver_segment_7", "kind": "colloquial_or_alternative"}
+{"query": "segmento VIII", "target": "liver_segment_8", "kind": "formal"}
+{"query": "segmento epatico VIII", "target": "liver_segment_8", "kind": "short_or_abbreviated"}
+{"query": "S8 epatico", "target": "liver_segment_8", "kind": "colloquial_or_alternative"}

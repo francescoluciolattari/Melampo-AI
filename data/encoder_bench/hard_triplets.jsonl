@@ -1,0 +1,68 @@
+{"anchor": "rene di destra", "positive": "rene destro", "negative": "rene sinistro", "category": "laterality"}
+{"anchor": "surrene sinistro", "positive": "ghiandola surrenale sinistra", "negative": "ghiandola surrenale destra", "category": "laterality"}
+{"anchor": "femore dx", "positive": "femore destro", "negative": "femore sinistro", "category": "laterality"}
+{"anchor": "anca sn", "positive": "anca sinistra", "negative": "anca destra", "category": "laterality"}
+{"anchor": "lobo superiore di destra", "positive": "lobo superiore del polmone destro", "negative": "lobo superiore del polmone sinistro", "category": "laterality"}
+{"anchor": "clavicola dx", "positive": "clavicola destra", "negative": "clavicola sinistra", "category": "laterality"}
+{"anchor": "omero di sinistra", "positive": "omero sinistro", "negative": "omero destro", "category": "laterality"}
+{"anchor": "psoas dx", "positive": "muscolo ileopsoas destro", "negative": "muscolo ileopsoas sinistro", "category": "laterality"}
+{"anchor": "iliaca comune di destra", "positive": "arteria iliaca destra", "negative": "arteria iliaca sinistra", "category": "laterality"}
+{"anchor": "iliaca venosa di sinistra", "positive": "vena iliaca sinistra", "negative": "vena iliaca destra", "category": "laterality"}
+{"anchor": "carotide comune di sinistra", "positive": "arteria carotide comune sinistra", "negative": "arteria carotide comune destra", "category": "laterality"}
+{"anchor": "decima costa di destra", "positive": "decima costa destra", "negative": "decima costa sinistra", "category": "laterality"}
+{"anchor": "lesione al rene sinistro", "positive": "nodulo nel rene di sinistra", "negative": "nodulo nel rene di destra", "category": "laterality"}
+{"anchor": "mammella di destra", "positive": "mammella destra", "negative": "mammella sinistra", "category": "laterality"}
+{"anchor": "surrene destro", "positive": "ghiandola surrenale destra", "negative": "rene destro", "category": "adjacent_or_similar_name"}
+{"anchor": "ghiandola surrenale di sinistra", "positive": "surrene sinistro", "negative": "rene sinistro", "category": "adjacent_or_similar_name"}
+{"anchor": "vena cava inferiore", "positive": "VCI", "negative": "vena cava superiore", "category": "adjacent_or_similar_name"}
+{"anchor": "lobo medio", "positive": "lobo medio del polmone destro", "negative": "lobo superiore del polmone destro", "category": "adjacent_or_similar_name"}
+{"anchor": "duodeno", "positive": "cornice duodenale", "negative": "intestino tenue", "category": "adjacent_or_similar_name"}
+{"anchor": "vena porta", "positive": "tronco portale", "negative": "vena cava inferiore", "category": "adjacent_or_similar_name"}
+{"anchor": "esofago", "positive": "tratto esofageo", "negative": "trachea", "category": "adjacent_or_similar_name"}
+{"anchor": "colecisti", "positive": "cistifellea", "negative": "fegato", "category": "adjacent_or_similar_name"}
+{"anchor": "prostata", "positive": "ghiandola prostatica", "negative": "vescica urinaria", "category": "adjacent_or_similar_name"}
+{"anchor": "midollo spinale", "positive": "canale midollare", "negative": "encefalo", "category": "adjacent_or_similar_name"}
+{"anchor": "segmento VI", "positive": "segmento epatico VI", "negative": "segmento epatico VII", "category": "liver_segment"}
+{"anchor": "segmento VII", "positive": "S7 epatico", "negative": "S6 epatico", "category": "liver_segment"}
+{"anchor": "segmento IV", "positive": "segmento epatico IV", "negative": "segmento epatico I", "category": "liver_segment"}
+{"anchor": "segmento VIII", "positive": "segmento epatico VIII", "negative": "segmento epatico V", "category": "liver_segment"}
+{"anchor": "segmento II", "positive": "segmento epatico II", "negative": "segmento epatico III", "category": "liver_segment"}
+{"anchor": "segmento I (lobo caudato)", "positive": "segmento epatico I", "negative": "segmento epatico IV", "category": "liver_segment"}
+{"anchor": "vertebra L4", "positive": "quarta vertebra lombare", "negative": "prima vertebra lombare", "category": "vertebral_level"}
+{"anchor": "D12", "positive": "dodicesima vertebra dorsale", "negative": "prima vertebra lombare", "category": "vertebral_level"}
+{"anchor": "corpo vertebrale di L1", "positive": "prima vertebra lombare", "negative": "quarta vertebra lombare", "category": "vertebral_level"}
+{"anchor": "settima costa di sinistra", "positive": "settima costa sinistra", "negative": "decima costa sinistra", "category": "vertebral_level"}
+{"anchor": "non si evidenziano noduli epatici", "positive": "assenza di noduli nel fegato", "negative": "presenza di noduli nel fegato", "category": "negation"}
+{"anchor": "nodulo epatico presente", "positive": "è presente un nodulo del fegato", "negative": "non è presente alcun nodulo del fegato", "category": "negation"}
+{"anchor": "nessuna lesione focale renale", "positive": "assenza di lesioni focali nei reni", "negative": "lesione focale renale", "category": "negation"}
+{"anchor": "non linfoadenopatie", "positive": "assenza di linfonodi ingrossati", "negative": "linfonodi ingrossati", "category": "negation"}
+{"anchor": "non versamento pleurico", "positive": "assenza di versamento nella pleura", "negative": "versamento pleurico", "category": "negation"}
+{"anchor": "si segnala versamento pericardico", "positive": "presenza di versamento nel pericardio", "negative": "nessun versamento pericardico", "category": "negation"}
+{"anchor": "non infiltrazione dei vasi", "positive": "vasi indenni da infiltrazione", "negative": "infiltrazione dei vasi", "category": "negation"}
+{"anchor": "pancreas privo di lesioni", "positive": "nessuna lesione pancreatica", "negative": "lesione pancreatica", "category": "negation"}
+{"anchor": "calcolo nella colecisti", "positive": "litiasi della colecisti", "negative": "colecisti libera da calcoli", "category": "negation"}
+{"anchor": "senza evidenza di metastasi", "positive": "assenza di localizzazioni secondarie", "negative": "metastasi presenti", "category": "negation"}
+{"anchor": "noduli polmonari multipli", "positive": "presenza di più noduli nel polmone", "negative": "nessun nodulo polmonare", "category": "negation"}
+{"anchor": "non pneumotorace", "positive": "assenza di aria nella cavità pleurica", "negative": "pneumotorace", "category": "negation"}
+{"anchor": "nodulo di 12 mm", "positive": "nodulo di 1,2 cm", "negative": "nodulo di 12 cm", "category": "size_and_unit"}
+{"anchor": "lesione di 8 mm", "positive": "lesione di 0,8 cm", "negative": "lesione di 8 cm", "category": "size_and_unit"}
+{"anchor": "diametro massimo 5 mm", "positive": "diametro massimo di mezzo centimetro", "negative": "diametro massimo 5 cm", "category": "size_and_unit"}
+{"anchor": "formazione di 3 cm", "positive": "formazione di 30 mm", "negative": "formazione di 3 mm", "category": "size_and_unit"}
+{"anchor": "nodulo di circa 15 mm", "positive": "nodulo di un centimetro e mezzo", "negative": "nodulo di circa 15 cm", "category": "size_and_unit"}
+{"anchor": "lesione di 20 mm", "positive": "lesione di 2 cm", "negative": "lesione di 20 cm", "category": "size_and_unit"}
+{"anchor": "asse maggiore 7 mm", "positive": "asse maggiore di 0,7 cm", "negative": "asse maggiore di 7 cm", "category": "size_and_unit"}
+{"anchor": "nodulo subcentimetrico", "positive": "nodulo inferiore a 10 mm", "negative": "nodulo di oltre 3 cm", "category": "size_and_unit"}
+{"anchor": "stabile rispetto al precedente", "positive": "invariato rispetto all'esame precedente", "negative": "in aumento rispetto all'esame precedente", "category": "temporal_comparison"}
+{"anchor": "in aumento dimensionale", "positive": "accresciuto rispetto al controllo precedente", "negative": "ridotto rispetto al controllo precedente", "category": "temporal_comparison"}
+{"anchor": "ridotto di dimensioni", "positive": "regredito rispetto al precedente", "negative": "progredito rispetto al precedente", "category": "temporal_comparison"}
+{"anchor": "di nuova insorgenza", "positive": "non presente nell'esame precedente", "negative": "già presente nell'esame precedente", "category": "temporal_comparison"}
+{"anchor": "già nota", "positive": "presente anche nell'esame precedente", "negative": "di nuova comparsa", "category": "temporal_comparison"}
+{"anchor": "regressione completa", "positive": "scomparsa della lesione rispetto al precedente", "negative": "persistenza della lesione rispetto al precedente", "category": "temporal_comparison"}
+{"anchor": "progressione di malattia", "positive": "aumento delle lesioni rispetto al precedente", "negative": "riduzione delle lesioni rispetto al precedente", "category": "temporal_comparison"}
+{"anchor": "risposta parziale", "positive": "riduzione delle dimensioni della lesione", "negative": "aumento delle dimensioni della lesione", "category": "temporal_comparison"}
+{"anchor": "lesione solida", "positive": "formazione di aspetto solido", "negative": "formazione cistica", "category": "consistency"}
+{"anchor": "lesione cistica", "positive": "formazione a contenuto fluido", "negative": "formazione solida", "category": "consistency"}
+{"anchor": "nodulo ipodenso", "positive": "nodulo a bassa densità", "negative": "nodulo iperdenso", "category": "consistency"}
+{"anchor": "nodulo iperintenso in T2", "positive": "nodulo con alto segnale in T2", "negative": "nodulo ipointenso in T2", "category": "consistency"}
+{"anchor": "margini netti", "positive": "contorni ben definiti", "negative": "margini sfumati", "category": "consistency"}
+{"anchor": "contorni spiculati", "positive": "margini irregolari con spicule", "negative": "contorni lisci", "category": "consistency"}

@@ -1,0 +1,69 @@
+name: Text encoder bench (synthetic Italian anatomical phrases)
+
+# Manual trigger only, same discipline as the other bench workflows: it makes
+# real, billed calls to OpenRouter (embeddings, a few hundred short phrases per
+# candidate, cents in total) and must never fire on every commit.
+#
+# It answers D17/D21 in docs/imaging_decision_record.md: which text encoder to
+# pin for normalised clinical terms. The phrases are synthetic and hand
+# written, so no patient data is sent anywhere. What is measured, and what the
+# result does and does not establish, is in
+# src/melampo/evaluation/encoder_bench.py. The candidate list lives in
+# scripts/run_encoder_bench.py, the only place slugs are declared.
+on:
+  workflow_dispatch:
+    inputs:
+      roster:
+        description: "Comma-separated candidate names (empty = all)"
+        required: false
+        default: ""
+      extra_slugs:
+        description: "Extra OpenRouter embedding slugs to include for this run, comma-separated"
+        required: false
+        default: ""
+
+jobs:
+  bench:
+    name: Encoder bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Run the bench
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ROSTER: ${{ inputs.roster }}
+          EXTRA_SLUGS: ${{ inputs.extra_slugs }}
+        # Inputs go through the environment, never interpolated into the shell
+        # line, so a stray quote in a slug cannot become a command.
+        run: |
+          args=(--out encoder_results.json --markdown encoder_summary.md)
+          if [ -n "$ROSTER" ]; then args+=(--roster "$ROSTER"); fi
+          if [ -n "$EXTRA_SLUGS" ]; then args+=(--extra-slugs "$EXTRA_SLUGS"); fi
+          uv run python scripts/run_encoder_bench.py "${args[@]}"
+
+      - name: Summarise results
+        if: always()
+        run: |
+          if [ -f encoder_summary.md ]; then
+            cat encoder_summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Encoder bench did not produce a summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "Check the 'Run the bench' step log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encoder-bench-results
+          path: |
+            encoder_results.json
+            encoder_summary.md
+          retention-days: 90
+          if-no-files-found: warn
