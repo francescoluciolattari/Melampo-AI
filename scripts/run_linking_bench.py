@@ -29,6 +29,9 @@ ENCODERS = {
     "nemotron-3-embed-1b": "nvidia/nemotron-3-embed-1b:free",
     "qwen3-embedding-8b": "qwen/qwen3-embedding-8b",
 }
+# Gemini answers HTTP 429 (per-minute quota) when sent ~25 large batches back to
+# back, as the contextual stage does: smaller batches, a pause between them.
+PACING = {"google-gemini-embedding-001": {"batch_size": 16, "pause": 4.0, "retries": 8}}
 DEFAULT_ENCODERS = (
     "google-gemini-embedding-001",
     "voyage-4-large",
@@ -38,6 +41,12 @@ CHAT_MODELS = {
     "nemotron-3-super": "nvidia/nemotron-3-super-120b-a12b",
     "gemma-3-27b": "google/gemma-3-27b-it",
 }
+
+
+def _embedder(name: str, key: str) -> OpenRouterEmbedder:
+    return OpenRouterEmbedder(
+        ENCODERS[name], key, **({"retries": 6} | PACING.get(name, {}))
+    )
 
 
 def _names(
@@ -95,13 +104,13 @@ def main(argv: list[str] | None = None) -> int:
         for name in _names(args.encoders, ENCODERS, DEFAULT_ENCODERS):
             try:
                 report["contextual"][name] = lb.evaluate_contextual(
-                    OpenRouterEmbedder(ENCODERS[name], key, retries=6), gold, cases
+                    _embedder(name, key), gold, cases
                 )
             except EncoderError as error:
                 report["contextual"][name] = {"error": str(error)[:300]}
 
     if args.mode in ("deepel", "all"):
-        embedder = OpenRouterEmbedder(ENCODERS[args.deepel_encoder], key, retries=6)
+        embedder = _embedder(args.deepel_encoder, key)
         report["deepel"] = {}
         for name in _names(args.chat_models, CHAT_MODELS, tuple(CHAT_MODELS)):
             try:
@@ -124,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
             }
 
     if args.mode in ("chain", "all"):
-        embedder = OpenRouterEmbedder(ENCODERS[args.deepel_encoder], key, retries=6)
+        embedder = _embedder(args.deepel_encoder, key)
         report["chain"] = {}
         for name in _names(args.chat_models, CHAT_MODELS, tuple(CHAT_MODELS)):
             try:

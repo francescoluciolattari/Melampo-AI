@@ -335,3 +335,13 @@ def test_render_includes_the_chain_section(gold, cases):
         }
     )
     assert "Chain: CIFSYN-style" in text and "boom" in text and "fixed" in text
+
+
+def test_gemini_is_paced_and_other_encoders_are_not():
+    spec = importlib.util.spec_from_file_location("linking_script3", _SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    gemini = module._embedder("google-gemini-embedding-001", "k")
+    other = module._embedder("voyage-4-large", "k")
+    assert gemini.pause > 0 and gemini.batch_size < other.batch_size
+    assert other.pause == 0 and other.retries == 6
