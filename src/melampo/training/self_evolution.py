@@ -26,13 +26,29 @@ class NexusSelfEvolutionLoop:
     vector_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore)
 
     def generate_candidate(
-        self, case_context: dict, area_dynamics: dict, nexus: dict | None = None, governance_scores: dict | None = None
+        self,
+        case_context: dict,
+        area_dynamics: dict,
+        nexus: dict | None = None,
+        governance_scores: dict | None = None,
     ) -> dict:
         nexus = nexus or {}
         governance_scores = governance_scores or {}
-        neuro = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
-        top_pairs = area_dynamics.get("coherence_pairs", [])[:2] if isinstance(area_dynamics, dict) else []
-        mismatch_pairs = area_dynamics.get("mismatch_pairs", [])[:2] if isinstance(area_dynamics, dict) else []
+        neuro = (
+            area_dynamics.get("neuro_dynamic_metrics", {})
+            if isinstance(area_dynamics, dict)
+            else {}
+        )
+        top_pairs = (
+            area_dynamics.get("coherence_pairs", [])[:2]
+            if isinstance(area_dynamics, dict)
+            else []
+        )
+        mismatch_pairs = (
+            area_dynamics.get("mismatch_pairs", [])[:2]
+            if isinstance(area_dynamics, dict)
+            else []
+        )
         case_id = case_context.get("case_id", "unknown_case")
         text = (
             f"Nexus rehearsal for {case_id}. "
@@ -50,7 +66,11 @@ class NexusSelfEvolutionLoop:
         # read directly from `nexus` (NexusTrainer's own output) and the
         # newly added `governance_scores` parameter -- nothing here needs
         # NexusTrainer to keep computing it.
-        visual_morphing = nexus.get("visual_morphing", {}) if isinstance(nexus.get("visual_morphing", {}), dict) else {}
+        visual_morphing = (
+            nexus.get("visual_morphing", {})
+            if isinstance(nexus.get("visual_morphing", {}), dict)
+            else {}
+        )
         candidate_score = round(
             float(neuro.get("pi_score", 0.0)) * 0.32
             + float(neuro.get("convergence_index", 0.0)) * 0.27
@@ -65,9 +85,13 @@ class NexusSelfEvolutionLoop:
             "metadata": {
                 "case_id": case_id,
                 "pi_score": neuro.get("pi_score", area_dynamics.get("pi_score", 0.0)),
-                "prediction_error": neuro.get("prediction_error", area_dynamics.get("prediction_error", 0.0)),
+                "prediction_error": neuro.get(
+                    "prediction_error", area_dynamics.get("prediction_error", 0.0)
+                ),
                 "bias_suppression_score": neuro.get("bias_suppression_score", 0.0),
-                "reasoning_mode": nexus.get("rehearsal_profile", {}).get("replay_mode", "nexus_rehearsal"),
+                "reasoning_mode": nexus.get("rehearsal_profile", {}).get(
+                    "replay_mode", "nexus_rehearsal"
+                ),
                 "coherence_pairs": top_pairs,
                 "mismatch_pairs": mismatch_pairs,
                 "candidate_score": candidate_score,

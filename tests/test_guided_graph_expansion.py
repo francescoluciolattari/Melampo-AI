@@ -15,7 +15,9 @@ def _chain_graph() -> InMemoryConceptGraph:
     return InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
-            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
+            ConceptEdge(
+                "connective tissue weakness", "causes", "aortic root dilation", 0.85
+            ),
         ]
     )
 
@@ -32,8 +34,12 @@ def _scripted(*outputs: str):
 
 def test_a_walk_that_reaches_a_final_concept_is_marked_found():
     result = guided_expand(
-        _chain_graph(), "marfan syndrome", "aortic root dilation",
-        _scripted("neighbor(connective tissue weakness)", "final(connective tissue weakness)"),
+        _chain_graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        _scripted(
+            "neighbor(connective tissue weakness)", "final(connective tissue weakness)"
+        ),
     )
     assert result.found_something is True
     assert result.final_concept == "connective tissue weakness"
@@ -41,7 +47,12 @@ def test_a_walk_that_reaches_a_final_concept_is_marked_found():
 
 
 def test_a_model_giving_up_is_a_distinct_named_outcome():
-    result = guided_expand(_chain_graph(), "marfan syndrome", "aortic root dilation", _scripted("give_up()"))
+    result = guided_expand(
+        _chain_graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        _scripted("give_up()"),
+    )
     assert result.found_something is False
     assert result.stop_reason == STOP_GAVE_UP
 
@@ -78,16 +89,25 @@ def test_moving_to_a_concept_never_offered_is_refused_not_followed():
     anything else is not an invented edge silently taken -- it is treated as
     an ill-formed action, the same as any other output the walk cannot parse."""
     result = guided_expand(
-        _chain_graph(), "marfan syndrome", "aortic root dilation",
+        _chain_graph(),
+        "marfan syndrome",
+        "aortic root dilation",
         _scripted("neighbor(a concept that does not exist anywhere)"),
     )
     assert result.stop_reason == STOP_NO_ACTION
     assert result.found_something is False
-    assert result.visited_path == ("marfan syndrome",), "no move away from the start happened"
+    assert result.visited_path == ("marfan syndrome",), (
+        "no move away from the start happened"
+    )
 
 
 def test_an_unparseable_output_stops_the_walk_rather_than_guessing():
-    result = guided_expand(_chain_graph(), "marfan syndrome", "aortic root dilation", _scripted("I am not sure."))
+    result = guided_expand(
+        _chain_graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        _scripted("I am not sure."),
+    )
     assert result.stop_reason == STOP_NO_ACTION
 
 
@@ -96,10 +116,18 @@ def test_every_concept_in_the_visited_path_is_a_real_graph_node():
     actually walked, every step in it must be a concept the graph itself
     names via an edge -- never something the model introduced."""
     graph = _chain_graph()
-    real_concepts = {"marfan syndrome", "connective tissue weakness", "aortic root dilation"}
+    real_concepts = {
+        "marfan syndrome",
+        "connective tissue weakness",
+        "aortic root dilation",
+    }
     result = guided_expand(
-        graph, "marfan syndrome", "aortic root dilation",
-        _scripted("neighbor(connective tissue weakness)", "final(connective tissue weakness)"),
+        graph,
+        "marfan syndrome",
+        "aortic root dilation",
+        _scripted(
+            "neighbor(connective tissue weakness)", "final(connective tissue weakness)"
+        ),
     )
     assert set(result.visited_path) <= real_concepts
 
@@ -113,22 +141,42 @@ def test_every_result_is_marked_as_coming_from_a_guided_walk():
     """Whatever the outcome, a caller must never mistake this for the
     deterministic pass's output."""
     for outputs in (("final(x)",), ("give_up()",), ("garbage",)):
-        result = guided_expand(_chain_graph(), "marfan syndrome", "aortic root dilation", _scripted(*outputs))
+        result = guided_expand(
+            _chain_graph(),
+            "marfan syndrome",
+            "aortic root dilation",
+            _scripted(*outputs),
+        )
         assert result.via_guided_expansion is True
 
 
 def test_the_visited_path_starts_at_the_given_origin():
-    result = guided_expand(_chain_graph(), "marfan syndrome", "aortic root dilation", _scripted("give_up()"))
+    result = guided_expand(
+        _chain_graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        _scripted("give_up()"),
+    )
     assert result.visited_path[0] == "marfan syndrome"
 
 
 def test_as_dict_carries_what_a_reviewer_needs():
     result = guided_expand(
-        _chain_graph(), "marfan syndrome", "aortic root dilation",
-        _scripted("neighbor(connective tissue weakness)", "final(connective tissue weakness)"),
+        _chain_graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        _scripted(
+            "neighbor(connective tissue weakness)", "final(connective tissue weakness)"
+        ),
     )
     payload = result.as_dict()
-    for key in ("final_concept", "visited_path", "stop_reason", "via_guided_expansion", "found_something"):
+    for key in (
+        "final_concept",
+        "visited_path",
+        "stop_reason",
+        "via_guided_expansion",
+        "found_something",
+    ):
         assert key in payload
 
 
@@ -146,5 +194,7 @@ def test_a_disallowed_relation_is_never_offered_as_a_neighbour():
     )
     # A model told to move to "c" -- reachable only by a disallowed relation --
     # must find that move refused, since "c" is never in its offered neighbours.
-    result = guided_expand(graph, "a", "b", _scripted("neighbor(c)"), allowed_relations={"causes"})
+    result = guided_expand(
+        graph, "a", "b", _scripted("neighbor(c)"), allowed_relations={"causes"}
+    )
     assert result.stop_reason == STOP_NO_ACTION

@@ -32,8 +32,8 @@ EXTRACTION_SYSTEM_PROMPT = (
     "no prose, no markdown fences, in exactly this shape: "
     '{"entities": ["...", "..."], "relations": [{"subject": "...", "relation": "...", "object": "..."}]}. '
     "Entities are biomedical concepts named in the text (genes, proteins, findings, processes). "
-    "Relations connect two entities with a short verb phrase (e.g. \"required_for\", \"causes\", "
-    "\"enables\"). Extract only what the text states; never infer a relation the text does not name."
+    'Relations connect two entities with a short verb phrase (e.g. "required_for", "causes", '
+    '"enables"). Extract only what the text states; never infer a relation the text does not name.'
 )
 
 
@@ -95,13 +95,17 @@ def _parse_extraction(source_text: str, raw: str) -> ExtractedStructure:
     parse failure would degrade tier 3 on the most common well-formed
     response shape, not just on genuinely malformed ones.
     """
-    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.MULTILINE).strip()
+    cleaned = re.sub(
+        r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.MULTILINE
+    ).strip()
     try:
         payload: dict[str, Any] = json.loads(cleaned)
     except (json.JSONDecodeError, TypeError):
         return ExtractedStructure(source_text=source_text)
 
-    entities = tuple(str(item).strip() for item in payload.get("entities", []) if str(item).strip())
+    entities = tuple(
+        str(item).strip() for item in payload.get("entities", []) if str(item).strip()
+    )
     relations = tuple(
         ExtractedRelation(
             subject=str(item.get("subject", "")).strip(),
@@ -109,6 +113,11 @@ def _parse_extraction(source_text: str, raw: str) -> ExtractedStructure:
             object=str(item.get("object", "")).strip(),
         )
         for item in payload.get("relations", [])
-        if isinstance(item, dict) and item.get("subject") and item.get("relation") and item.get("object")
+        if isinstance(item, dict)
+        and item.get("subject")
+        and item.get("relation")
+        and item.get("object")
     )
-    return ExtractedStructure(source_text=source_text, entities=entities, relations=relations)
+    return ExtractedStructure(
+        source_text=source_text, entities=entities, relations=relations
+    )

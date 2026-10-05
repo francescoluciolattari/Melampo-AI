@@ -109,13 +109,17 @@ def test_comments_and_header_are_skipped():
 
 
 def test_the_not_qualifier_marks_an_exclusion():
-    annotations = {item.disease_id: item for item in parse_hpoa(HPOA_SAMPLE.splitlines())}
+    annotations = {
+        item.disease_id: item for item in parse_hpoa(HPOA_SAMPLE.splitlines())
+    }
     assert annotations["ORPHA:199310"].is_excluded is True
     assert annotations["OMIM:613094"].is_excluded is False
 
 
 def test_edges_carry_the_state_the_annotation_expresses():
-    edges = {edge.source: edge for edge in build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()))}
+    edges = {
+        edge.source: edge for edge in build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()))
+    }
 
     very_frequent = edges["Microphthalmia isolated 4"]
     assert very_frequent.bounds == (0.80, 0.99)
@@ -132,7 +136,9 @@ def test_edges_carry_the_state_the_annotation_expresses():
 
 def test_an_exclusion_and_an_unstated_frequency_are_not_the_same_edge():
     """The distinction the whole interval representation exists to carry."""
-    edges = {edge.source: edge for edge in build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()))}
+    edges = {
+        edge.source: edge for edge in build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()))
+    }
     excluded = edges["Tetragametic chimerism syndrome"]
     unknown = edges["Some disease"]
 
@@ -142,13 +148,17 @@ def test_an_exclusion_and_an_unstated_frequency_are_not_the_same_edge():
 
 def test_edges_keep_their_source_reference():
     edges = build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()))
-    assert all(edge.provenance and edge.provenance.startswith("hpoa:") for edge in edges)
+    assert all(
+        edge.provenance and edge.provenance.startswith("hpoa:") for edge in edges
+    )
     assert any("PMID:20207978" in (edge.provenance or "") for edge in edges)
 
 
 def test_unstated_frequencies_can_be_dropped_instead_of_imported_as_gaps():
     kept = build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()))
-    dropped = build_edges(parse_hpoa(HPOA_SAMPLE.splitlines()), unstated_frequency_is_gap=False)
+    dropped = build_edges(
+        parse_hpoa(HPOA_SAMPLE.splitlines()), unstated_frequency_is_gap=False
+    )
     assert len(dropped) == len(kept) - 1
 
 
@@ -208,7 +218,10 @@ def test_coverage_separates_present_gap_and_absent():
 def test_the_two_queues_are_kept_apart_because_they_are_different_work():
     report = measure_coverage(
         _coverage_graph(),
-        [ReferenceRelation("disease b", "finding b"), ReferenceRelation("disease c", "finding c")],
+        [
+            ReferenceRelation("disease b", "finding b"),
+            ReferenceRelation("disease c", "finding c"),
+        ],
     )
     assert [item.target for item in report.calibration_queue()] == ["finding b"]
     assert [item.target for item in report.completion_queue()] == ["finding c"]
@@ -224,13 +237,18 @@ def test_an_attested_path_is_preferred_over_one_crossing_a_gap():
     )
     report = measure_coverage(graph, [ReferenceRelation("d", "f")])
     assert report.results[0].outcome == OUTCOME_PRESENT
-    assert report.results[0].hops == 2, "the two-hop attested path beats the one-hop unknown"
+    assert report.results[0].hops == 2, (
+        "the two-hop attested path beats the one-hop unknown"
+    )
 
 
 def test_low_coverage_marks_an_evaluation_as_uninterpretable():
     report = measure_coverage(
         _coverage_graph(),
-        [ReferenceRelation("disease c", "finding c"), ReferenceRelation("disease d", "finding d")],
+        [
+            ReferenceRelation("disease c", "finding c"),
+            ReferenceRelation("disease d", "finding d"),
+        ],
     )
     verdict = evaluation_is_interpretable(report)
     assert verdict["interpretable"] is False
@@ -238,7 +256,9 @@ def test_low_coverage_marks_an_evaluation_as_uninterpretable():
 
 
 def test_sufficient_coverage_marks_an_evaluation_as_interpretable():
-    graph = InMemoryConceptGraph.from_edges([ConceptEdge("d", "has_phenotype", "f", 0.9)])
+    graph = InMemoryConceptGraph.from_edges(
+        [ConceptEdge("d", "has_phenotype", "f", 0.9)]
+    )
     report = measure_coverage(graph, [ReferenceRelation("d", "f")])
     assert evaluation_is_interpretable(report)["interpretable"] is True
 

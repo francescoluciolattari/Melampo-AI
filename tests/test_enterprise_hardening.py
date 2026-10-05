@@ -22,7 +22,10 @@ def test_model_client_redacts_sensitive_payload_and_enforces_remote_allowlist():
     result = client.execute({"case_id": "case-1", "api_key": "secret-value"})
 
     assert result["status"] == "blocked"
-    assert result["reason"] in {"endpoint_must_be_https_or_loopback", "endpoint_host_not_allowlisted"}
+    assert result["reason"] in {
+        "endpoint_must_be_https_or_loopback",
+        "endpoint_host_not_allowlisted",
+    }
     assert result["payload"]["api_key"] == "[REDACTED]"
     assert client.trace.dump()[0]["metadata"]["payload"]["api_key"] == "[REDACTED]"
 
@@ -68,7 +71,9 @@ def test_nexus_candidate_store_handles_concurrent_candidate_creation():
     store = NexusCandidateStore()
 
     def create(index: int) -> str:
-        return store.create_candidate({"text": f"candidate {index}"}, case_id=f"case-{index}").candidate_id
+        return store.create_candidate(
+            {"text": f"candidate {index}"}, case_id=f"case-{index}"
+        ).candidate_id
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         candidate_ids = list(executor.map(create, range(30)))
@@ -90,11 +95,15 @@ def _imprint(concept: str, label: str, vector: list[float]) -> dict:
 
 def test_visual_imprint_morpher_enforces_pair_budget_and_vector_suppression():
     imprints = [
-        _imprint("opacity", f"variant-{index}", [1.0 - index * 0.05, index * 0.05, 0.0, 0.0])
+        _imprint(
+            "opacity", f"variant-{index}", [1.0 - index * 0.05, index * 0.05, 0.0, 0.0]
+        )
         for index in range(5)
     ]
 
-    result = VisualImprintMorpher(max_pairs=2, return_vectors=False, min_similarity=0.0).nexus_morph(
+    result = VisualImprintMorpher(
+        max_pairs=2, return_vectors=False, min_similarity=0.0
+    ).nexus_morph(
         concept_imprints=imprints,
         diagnostic_imprints=imprints[:1],
     )

@@ -12,7 +12,13 @@ class EscalationPolicy:
         if uncertainty > 0.65:
             reasons.append("uncertainty_above_threshold")
         escalate = bool(reasons)
-        level = "high" if (risk > 0.5 or uncertainty > 0.8) else "moderate" if escalate else "low"
+        level = (
+            "high"
+            if (risk > 0.5 or uncertainty > 0.8)
+            else "moderate"
+            if escalate
+            else "low"
+        )
         return {
             "escalate": escalate,
             "risk": risk,

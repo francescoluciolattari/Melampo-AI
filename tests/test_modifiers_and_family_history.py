@@ -84,7 +84,9 @@ def test_ancestors_are_transitive_and_memoised():
     assert index.ancestors("HP:0012832") == frozenset({CLINICAL_MODIFIER_ROOT})
     assert index.ancestors("HP:0012832") == index.ancestors("HP:0012832")
     assert index.descends_from("HP:0012832", CLINICAL_MODIFIER_ROOT)
-    assert index.descends_from("HP:0012823", CLINICAL_MODIFIER_ROOT), "a root descends from itself"
+    assert index.descends_from("HP:0012823", CLINICAL_MODIFIER_ROOT), (
+        "a root descends from itself"
+    )
 
 
 def test_modifiers_and_inheritance_are_separated_from_findings():
@@ -113,13 +115,17 @@ def test_modifiers_become_attributes_of_the_nearest_finding():
 
 
 def test_a_modifier_never_appears_among_the_findings():
-    result = attach_modifiers(_resolver().resolve_text("Bilateral pleural effusion noted."))
+    result = attach_modifiers(
+        _resolver().resolve_text("Bilateral pleural effusion noted.")
+    )
     assert "Bilateral" not in result.concepts
     assert result.concepts == ["Pleural effusion"]
 
 
 def test_an_isolated_modifier_collapses_and_the_discard_is_reported():
-    result = attach_modifiers(_resolver().resolve_text("The course has been progressive."))
+    result = attach_modifiers(
+        _resolver().resolve_text("The course has been progressive.")
+    )
     assert result.findings == []
     assert [item.label for item in result.collapsed_modifiers] == ["Progressive"]
 
@@ -134,7 +140,9 @@ def test_a_modifier_beyond_the_window_does_not_attach():
 def test_inheritance_statements_are_separated_from_findings():
     concepts = _resolver().resolve_text("Autosomal dominant inheritance with cough.")
     result = attach_modifiers(concepts)
-    assert [item.label for item in result.inheritance_statements] == ["Autosomal dominant inheritance"]
+    assert [item.label for item in result.inheritance_statements] == [
+        "Autosomal dominant inheritance"
+    ]
     assert result.concepts == ["Cough"]
 
 
@@ -185,8 +193,12 @@ def test_a_dominant_mode_shifts_the_prior_more_than_a_polygenic_one():
 
 def test_a_distant_relative_attenuates_toward_no_effect_rather_than_reversing():
     channel = FamilyHistoryChannel()
-    first = channel.prior_shift(_entry(inheritance=INHERITANCE_AUTOSOMAL_DOMINANT, degree=DEGREE_FIRST))
-    second = channel.prior_shift(_entry(inheritance=INHERITANCE_AUTOSOMAL_DOMINANT, degree=DEGREE_SECOND))
+    first = channel.prior_shift(
+        _entry(inheritance=INHERITANCE_AUTOSOMAL_DOMINANT, degree=DEGREE_FIRST)
+    )
+    second = channel.prior_shift(
+        _entry(inheritance=INHERITANCE_AUTOSOMAL_DOMINANT, degree=DEGREE_SECOND)
+    )
     assert 1.0 < second[0] < first[0]
     assert 1.0 < second[1] < first[1]
 
@@ -200,7 +212,10 @@ def test_a_sporadic_condition_is_blocked():
 def test_an_adult_onset_condition_is_blocked_for_a_child():
     entries = [_entry(onset_age_years=40)]
     channel = FamilyHistoryChannel()
-    assert channel.evaluate(entries, patient_age_years=8).blocked[0].reason == BLOCK_ONSET_NOT_REACHED
+    assert (
+        channel.evaluate(entries, patient_age_years=8).blocked[0].reason
+        == BLOCK_ONSET_NOT_REACHED
+    )
     assert channel.evaluate(entries, patient_age_years=55).screening
 
 
@@ -222,7 +237,11 @@ def test_unknown_inheritance_is_admitted_by_default_but_configurable():
 
 def test_prior_shifts_are_exposed_per_condition():
     result = FamilyHistoryChannel().evaluate(
-        [_entry(condition="Long QT syndrome", inheritance=INHERITANCE_AUTOSOMAL_DOMINANT)]
+        [
+            _entry(
+                condition="Long QT syndrome", inheritance=INHERITANCE_AUTOSOMAL_DOMINANT
+            )
+        ]
     )
     shifts = result.prior_shifts()
     assert "Long QT syndrome" in shifts

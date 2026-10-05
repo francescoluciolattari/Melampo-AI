@@ -46,7 +46,11 @@ def key_values(key: str, identifiers: Iterable[str]) -> list[str]:
         if not identifier:
             continue
         if key == KEY_MONDO:
-            local = identifier.split(":", 1)[1] if identifier.upper().startswith("MONDO:") else identifier
+            local = (
+                identifier.split(":", 1)[1]
+                if identifier.upper().startswith("MONDO:")
+                else identifier
+            )
             candidates = [local, f"MONDO:{local}"]
         else:
             candidates = [identifier]
@@ -91,11 +95,15 @@ class WikidataConnector:
     transport: Any = None
     """Injectable (query) -> parsed JSON, for testing without the live endpoint."""
 
-    def symptom_bindings(self, key: str, identifiers: Sequence[str]) -> list[dict[str, Any]]:
+    def symptom_bindings(
+        self, key: str, identifiers: Sequence[str]
+    ) -> list[dict[str, Any]]:
         """Every result row for the identifiers, batched. Errors propagate: a
         coverage measurement must not mistake a failed query for "no symptoms"."""
         rows: list[dict[str, Any]] = []
-        unique = list(dict.fromkeys(identifier for identifier in identifiers if identifier))
+        unique = list(
+            dict.fromkeys(identifier for identifier in identifiers if identifier)
+        )
         for start in range(0, len(unique), self.batch_size):
             batch = unique[start : start + self.batch_size]
             payload = self._query(symptom_query(key, batch))

@@ -38,10 +38,15 @@ class ExtractionAndPurgeReport:
     purged_case_ids: list[str]
 
     def as_dict(self) -> dict[str, Any]:
-        return {"extraction": self.extraction.as_dict(), "purged_case_ids": self.purged_case_ids}
+        return {
+            "extraction": self.extraction.as_dict(),
+            "purged_case_ids": self.purged_case_ids,
+        }
 
 
-def extract_and_purge(confirmed_store: ConfirmedCaseStore, registry: ConfirmationRegistry) -> ExtractionAndPurgeReport:
+def extract_and_purge(
+    confirmed_store: ConfirmedCaseStore, registry: ConfirmationRegistry
+) -> ExtractionAndPurgeReport:
     """Build DPO pairs from every confirmed case currently retained, then delete the ones extraction could use.
 
     `raised_by_case` and `prompt_for_case` are both built here from
@@ -63,10 +68,14 @@ def extract_and_purge(confirmed_store: ConfirmedCaseStore, registry: Confirmatio
         if question:
             prompt_for_case[case_id] = question
 
-    report = extract_preference_pairs(raised_by_case, registry, prompt_for_case=prompt_for_case)
+    report = extract_preference_pairs(
+        raised_by_case, registry, prompt_for_case=prompt_for_case
+    )
 
     usable_case_ids = {pair.case_id for pair in report.pairs}
     for case_id in usable_case_ids:
         confirmed_store.delete(case_id)
 
-    return ExtractionAndPurgeReport(extraction=report, purged_case_ids=sorted(usable_case_ids))
+    return ExtractionAndPurgeReport(
+        extraction=report, purged_case_ids=sorted(usable_case_ids)
+    )

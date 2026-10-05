@@ -40,7 +40,9 @@ def test_cli_attaches_local_image_paths_with_raw_output(tmp_path, capsys):
         encoding="utf-8",
     )
 
-    exit_code = main([str(payload_path), "--image-path", str(image_path), "--include-raw"])
+    exit_code = main(
+        [str(payload_path), "--image-path", str(image_path), "--include-raw"]
+    )
     captured = capsys.readouterr()
     output = json.loads(captured.out)
     assert exit_code == 0
@@ -64,20 +66,25 @@ def test_cli_passes_imaging_strategy_to_volume_encoder(tmp_path, capsys):
         encoding="utf-8",
     )
 
-    exit_code = main([
-        str(payload_path),
-        "--image-path",
-        str(image_path),
-        "--imaging-strategy",
-        "remote_radiology_vlm",
-        "--include-raw",
-    ])
+    exit_code = main(
+        [
+            str(payload_path),
+            "--image-path",
+            str(image_path),
+            "--imaging-strategy",
+            "remote_radiology_vlm",
+            "--include-raw",
+        ]
+    )
     captured = capsys.readouterr()
     output = json.loads(captured.out)
     volume = output["raw_result"]["volume_features"]
     assert exit_code == 0
     assert volume["provider_strategy"] == "remote_radiology_vlm"
-    assert volume["provider_selection"]["provider_kind"] == "remote_projection_radiology_vlm"
+    assert (
+        volume["provider_selection"]["provider_kind"]
+        == "remote_projection_radiology_vlm"
+    )
     assert volume["remote_result"]["fallback_required"] is True
 
 

@@ -11,7 +11,9 @@ def test_critique_loop_flags_mismatch_and_revision():
     result = loop.review(
         {
             "area_dynamics": {"mismatch_score": 0.8},
-            "intuition": {"deductive_filter": {"reasoning_mode": "contradiction_revision"}},
+            "intuition": {
+                "deductive_filter": {"reasoning_mode": "contradiction_revision"}
+            },
             "nexus": {"rehearsal_profile": {"boundary_case_hint": True}},
             "coordinated": {
                 "policy": {"escalate": True},
@@ -21,8 +23,14 @@ def test_critique_loop_flags_mismatch_and_revision():
                         {"class": "spurious_conflict"},
                     ],
                     "recommended_actions": [
-                        {"category": "multimodal_reconciliation", "label": "recheck multimodal alignment"},
-                        {"category": "disambiguation_test", "label": "review alternative hypotheses"},
+                        {
+                            "category": "multimodal_reconciliation",
+                            "label": "recheck multimodal alignment",
+                        },
+                        {
+                            "category": "disambiguation_test",
+                            "label": "review alternative hypotheses",
+                        },
                     ],
                 },
             },

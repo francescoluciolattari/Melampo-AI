@@ -9,10 +9,13 @@ from melampo.connectors.europe_pmc import (
 
 def _record(**overrides):
     base = {
-        "id": "1", "pmid": "12345678", "pmcid": "PMC1234567",
+        "id": "1",
+        "pmid": "12345678",
+        "pmcid": "PMC1234567",
         "title": "Hypercalcaemia in sarcoidosis: mechanisms and management",
         "abstractText": "Granulomatous macrophages express 1-alpha-hydroxylase, producing excess calcitriol.",
-        "journalInfo": {"journal": {"title": "Chest"}}, "pubYear": "2024",
+        "journalInfo": {"journal": {"title": "Chest"}},
+        "pubYear": "2024",
     }
     base.update(overrides)
     return base
@@ -75,8 +78,14 @@ def test_a_non_numeric_year_does_not_crash_parsing():
 
 def test_search_paginates_until_max_results_or_no_more_pages():
     connector = EuropePmcConnector()
-    pages = {"*": {"resultList": {"result": [_record()]}, "nextCursorMark": "next", "request": {"cursorMark": "*"}},
-             "next": {"resultList": {"result": []}, "nextCursorMark": None}}
+    pages = {
+        "*": {
+            "resultList": {"result": [_record()]},
+            "nextCursorMark": "next",
+            "request": {"cursorMark": "*"},
+        },
+        "next": {"resultList": {"result": []}, "nextCursorMark": None},
+    }
     connector._fetch_page = lambda query, cursor: pages[cursor]
 
     results = connector.search("sarcoidosis", max_results=10)
@@ -89,7 +98,11 @@ def test_search_stops_once_max_results_is_reached_without_fetching_more_pages():
 
     def fetch(query, cursor):
         calls["n"] += 1
-        return {"resultList": {"result": [_record(id=str(i)) for i in range(5)]}, "nextCursorMark": "x", "request": {"cursorMark": cursor}}
+        return {
+            "resultList": {"result": [_record(id=str(i)) for i in range(5)]},
+            "nextCursorMark": "x",
+            "request": {"cursorMark": cursor},
+        }
 
     connector._fetch_page = fetch
     results = connector.search("sarcoidosis", max_results=2)
@@ -112,12 +125,16 @@ def test_multi_word_concepts_are_quoted_as_phrases():
     connector.search_for_concepts(["sarcoidosis", "connective tissue weakness"])
 
     assert '"connective tissue weakness"' in captured["query"]
-    assert "sarcoidosis" in captured["query"] and '"sarcoidosis"' not in captured["query"]
+    assert (
+        "sarcoidosis" in captured["query"] and '"sarcoidosis"' not in captured["query"]
+    )
 
 
 def test_search_for_concepts_with_nothing_makes_no_call():
     connector = EuropePmcConnector()
-    connector._fetch_page = lambda *a: (_ for _ in ()).throw(AssertionError("should not be called"))
+    connector._fetch_page = lambda *a: (_ for _ in ()).throw(
+        AssertionError("should not be called")
+    )
     assert connector.search_for_concepts([]) == []
 
 
@@ -125,7 +142,10 @@ def test_populate_adds_results_directly_to_an_index():
     from melampo.memory.literature_index import LiteratureIndex
 
     connector = EuropePmcConnector()
-    connector._fetch_page = lambda q, c: {"resultList": {"result": [_record()]}, "nextCursorMark": None}
+    connector._fetch_page = lambda q, c: {
+        "resultList": {"result": [_record()]},
+        "nextCursorMark": None,
+    }
     index = LiteratureIndex()
 
     added = connector.populate(index, "sarcoidosis")
@@ -148,7 +168,10 @@ def test_populate_forwards_graph_as_source_graph_to_a_graph_aware_index():
             return len(passages)
 
     connector = EuropePmcConnector()
-    connector._fetch_page = lambda q, c: {"resultList": {"result": [_record()]}, "nextCursorMark": None}
+    connector._fetch_page = lambda q, c: {
+        "resultList": {"result": [_record()]},
+        "nextCursorMark": None,
+    }
     index = _RecordingIndex()
     sentinel_graph = object()
 
@@ -168,11 +191,15 @@ def test_populate_skips_the_jsonl_store_when_graph_is_given():
             return len(list(passages))
 
     connector = EuropePmcConnector()
-    connector._fetch_page = lambda q, c: {"resultList": {"result": [_record()]}, "nextCursorMark": None}
+    connector._fetch_page = lambda q, c: {
+        "resultList": {"result": [_record()]},
+        "nextCursorMark": None,
+    }
 
     persisted = []
     with __import__("unittest.mock", fromlist=["patch"]).patch(
-        "melampo.memory.literature_persistence.persist_passage", side_effect=lambda store, passage: persisted.append(passage)
+        "melampo.memory.literature_persistence.persist_passage",
+        side_effect=lambda store, passage: persisted.append(passage),
     ):
         connector.populate(_StubIndex(), "sarcoidosis", store=object(), graph=object())
 

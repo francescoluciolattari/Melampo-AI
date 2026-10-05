@@ -37,7 +37,9 @@ def _simple_extractor(text: str) -> ExtractedStructure:
     return ExtractedStructure(
         source_text=text,
         entities=tuple(words),
-        relations=(ExtractedRelation(words[0], "related_to", words[-1]),) if len(words) > 1 else (),
+        relations=(ExtractedRelation(words[0], "related_to", words[-1]),)
+        if len(words) > 1
+        else (),
     )
 
 
@@ -71,7 +73,9 @@ def test_a_definition_does_not_leak_into_the_next_term():
 
 def test_population_describes_terms_that_have_definitions():
     store = ConceptDescriptionStore()
-    report = populate_from_ontology(parse_obo(_OBO.splitlines()), store, _simple_extractor)
+    report = populate_from_ontology(
+        parse_obo(_OBO.splitlines()), store, _simple_extractor
+    )
 
     assert report.described == 1
     assert store.get("Macrocephaly") is not None
@@ -81,7 +85,9 @@ def test_a_term_with_no_definition_is_counted_separately_from_a_failed_extractio
     """Two different situations that a single 'skipped' count would blur:
     nothing to work from, versus something that yielded nothing."""
     store = ConceptDescriptionStore()
-    report = populate_from_ontology(parse_obo(_OBO.splitlines()), store, _simple_extractor)
+    report = populate_from_ontology(
+        parse_obo(_OBO.splitlines()), store, _simple_extractor
+    )
 
     assert report.skipped_no_definition == 1
     assert report.skipped_extraction_empty == 0
@@ -104,7 +110,10 @@ def test_only_concepts_restricts_the_run():
     actually being reasoned about reaches useful coverage first."""
     store = ConceptDescriptionStore()
     report = populate_from_ontology(
-        parse_obo(_OBO.splitlines()), store, _simple_extractor, only_concepts=["something else entirely"]
+        parse_obo(_OBO.splitlines()),
+        store,
+        _simple_extractor,
+        only_concepts=["something else entirely"],
     )
     assert report.described == 0
 
@@ -118,7 +127,10 @@ def test_one_failing_term_does_not_abort_the_run():
             raise RuntimeError("model hiccup")
         return _simple_extractor(text)
 
-    obo = _OBO + '\n[Term]\nid: HP:0000002\nname: Second\ndef: "Another definition entirely here." [pmid:1]\n'
+    obo = (
+        _OBO
+        + '\n[Term]\nid: HP:0000002\nname: Second\ndef: "Another definition entirely here." [pmid:1]\n'
+    )
     store = ConceptDescriptionStore()
     report = populate_from_ontology(parse_obo(obo.splitlines()), store, flaky_extractor)
 
@@ -130,7 +142,9 @@ def test_population_persists_when_given_a_path():
     store = ConceptDescriptionStore()
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "descriptions.jsonl"
-        populate_from_ontology(parse_obo(_OBO.splitlines()), store, _simple_extractor, store_path=path)
+        populate_from_ontology(
+            parse_obo(_OBO.splitlines()), store, _simple_extractor, store_path=path
+        )
 
         assert len(ConceptDescriptionStore.load(path)) == 1
 
@@ -138,7 +152,9 @@ def test_population_persists_when_given_a_path():
 def test_obsolete_terms_are_not_described():
     obo = '[Term]\nid: HP:0000003\nname: Retired\ndef: "An obsolete definition here." [pmid:1]\nis_obsolete: true\n'
     store = ConceptDescriptionStore()
-    report = populate_from_ontology(parse_obo(obo.splitlines()), store, _simple_extractor)
+    report = populate_from_ontology(
+        parse_obo(obo.splitlines()), store, _simple_extractor
+    )
     assert report.described == 0
 
 
@@ -185,7 +201,9 @@ def test_a_model_emitted_structure_is_parsed_from_a_prose_answer():
 def test_prose_with_no_structure_line_yields_none_not_an_error():
     """A normal outcome, not a fault: a model that answers in prose only
     falls through to the extractor exactly as before."""
-    assert parse_model_emitted_structure("Just a prose answer with no structure.") is None
+    assert (
+        parse_model_emitted_structure("Just a prose answer with no structure.") is None
+    )
 
 
 def test_a_malformed_structure_line_yields_none():
@@ -193,7 +211,10 @@ def test_a_malformed_structure_line_yields_none():
 
 
 def test_an_empty_structure_line_yields_none():
-    assert parse_model_emitted_structure('STRUCTURE: {"entities": [], "relations": []}') is None
+    assert (
+        parse_model_emitted_structure('STRUCTURE: {"entities": [], "relations": []}')
+        is None
+    )
 
 
 # --------------------------------------------------------------------------
@@ -208,7 +229,11 @@ def _store_with_hypercalcaemia() -> ConceptDescriptionStore:
         ExtractedStructure(
             source_text="definition",
             entities=("calcitriol", "intestinal calcium absorption"),
-            relations=(ExtractedRelation("calcitriol", "increases", "intestinal calcium absorption"),),
+            relations=(
+                ExtractedRelation(
+                    "calcitriol", "increases", "intestinal calcium absorption"
+                ),
+            ),
         ),
     )
     return store
@@ -223,7 +248,9 @@ def test_a_model_emitted_structure_skips_the_extractor_entirely():
         calls["n"] += 1
         return ExtractedStructure(source_text=text)
 
-    resolver = StructuralResolver(store=_store_with_hypercalcaemia(), extractor=counting_extractor)
+    resolver = StructuralResolver(
+        store=_store_with_hypercalcaemia(), extractor=counting_extractor
+    )
     answer = (
         "Excess calcitriol raises absorption.\n"
         'STRUCTURE: {"entities": ["calcitriol", "intestinal calcium absorption"], '
@@ -238,7 +265,9 @@ def test_a_model_emitted_structure_skips_the_extractor_entirely():
 
 
 def test_prose_without_structure_falls_back_to_the_extractor():
-    resolver = StructuralResolver(store=_store_with_hypercalcaemia(), extractor=_simple_extractor)
+    resolver = StructuralResolver(
+        store=_store_with_hypercalcaemia(), extractor=_simple_extractor
+    )
     resolver("prose about calcitriol and absorption", ["hypercalcaemia"])
     assert resolver.last_structure_source == "extractor"
 
@@ -254,10 +283,17 @@ def test_a_model_cannot_grade_itself_through_an_emitted_structure():
     arithmetic against a cached description the model never saw, so a
     structure shaped to look agreeable has no target to shape toward."""
     resolver = StructuralResolver(store=_store_with_hypercalcaemia(), extractor=None)
-    flattering = (
-        "STRUCTURE: "
-        + json.dumps({"entities": ["something unrelated"], "relations": [
-            {"subject": "something unrelated", "relation": "is", "object": "definitely correct"}]})
+    flattering = "STRUCTURE: " + json.dumps(
+        {
+            "entities": ["something unrelated"],
+            "relations": [
+                {
+                    "subject": "something unrelated",
+                    "relation": "is",
+                    "object": "definitely correct",
+                }
+            ],
+        }
     )
 
     assert resolver(flattering, ["hypercalcaemia"]) is None

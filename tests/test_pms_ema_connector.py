@@ -95,7 +95,9 @@ def test_a_client_secret_without_an_id_is_still_unavailable():
 
 def test_search_returns_passages():
     connector = _configured_connector()
-    connector._fetch_search_page = lambda name: {"entry": [{"resource": _fhir_resource()}]}
+    connector._fetch_search_page = lambda name: {
+        "entry": [{"resource": _fhir_resource()}]
+    }
 
     results = connector.search("pembrolizumab")
 
@@ -138,7 +140,9 @@ def test_search_for_concepts_queries_once_per_concept():
 
 def test_populate_adds_results_to_an_index():
     connector = _configured_connector()
-    connector._fetch_search_page = lambda name: {"entry": [{"resource": _fhir_resource()}]}
+    connector._fetch_search_page = lambda name: {
+        "entry": [{"resource": _fhir_resource()}]
+    }
     index = LiteratureIndex()
 
     added = connector.populate(index, "pembrolizumab")
@@ -157,7 +161,9 @@ def test_populate_forwards_graph_as_source_graph_to_a_graph_aware_index():
             return len(passages)
 
     connector = _configured_connector()
-    connector._fetch_search_page = lambda name: {"entry": [{"resource": _fhir_resource()}]}
+    connector._fetch_search_page = lambda name: {
+        "entry": [{"resource": _fhir_resource()}]
+    }
     index = _RecordingIndex()
     sentinel_graph = object()
 
@@ -170,7 +176,9 @@ def test_populate_persists_when_given_a_store(tmp_path):
     from melampo.memory.vector_memory import PersistentJsonlVectorStore
 
     connector = _configured_connector()
-    connector._fetch_search_page = lambda name: {"entry": [{"resource": _fhir_resource()}]}
+    connector._fetch_search_page = lambda name: {
+        "entry": [{"resource": _fhir_resource()}]
+    }
     store = PersistentJsonlVectorStore(path=tmp_path / "lit.jsonl")
     index = LiteratureIndex()
 
@@ -226,10 +234,15 @@ def test_get_access_token_refreshes_once_the_cached_token_is_stale():
 
     connector = _configured_connector()
     tokens = iter(["tok-1", "tok-2"])
-    connector._request_token = lambda: {"access_token": next(tokens), "expires_in": 3600}
+    connector._request_token = lambda: {
+        "access_token": next(tokens),
+        "expires_in": 3600,
+    }
 
     first = connector._get_access_token()
-    connector._token_expiry = time.monotonic() - 1  # force the cached token to look expired
+    connector._token_expiry = (
+        time.monotonic() - 1
+    )  # force the cached token to look expired
 
     second = connector._get_access_token()
 
@@ -281,7 +294,9 @@ def test_search_fetches_a_token_through_the_real_fetch_path(monkeypatch):
         def read(self):
             import json
 
-            return json.dumps({"entry": [{"resource": _fhir_resource()}]}).encode("utf-8")
+            return json.dumps({"entry": [{"resource": _fhir_resource()}]}).encode(
+                "utf-8"
+            )
 
     def fake_urlopen(request, timeout=30):
         captured_auth["Authorization"] = request.get_header("Authorization")

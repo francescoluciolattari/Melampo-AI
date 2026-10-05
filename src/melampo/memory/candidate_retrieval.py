@@ -160,12 +160,20 @@ def retrieve_candidates(
         # ConceptGraphView implementation without this native capability.
         native_traversal = getattr(graph, "shortest_path_last_edges", None)
         if native_traversal is not None:
-            for target, relation, reached_by_reverse, hop_count in native_traversal(finding, max_hops=max_hops):
+            for target, relation, reached_by_reverse, hop_count in native_traversal(
+                finding, max_hops=max_hops
+            ):
                 if target == finding or target in excluded:
                     continue
-                is_gene_node = reached_by_reverse and relation == RELATION_ASSOCIATED_GENE
-                is_disease_from_gene = (not reached_by_reverse) and relation == RELATION_CAUSES_DISEASE
-                admissible = (reached_by_reverse and not is_gene_node) or is_disease_from_gene
+                is_gene_node = (
+                    reached_by_reverse and relation == RELATION_ASSOCIATED_GENE
+                )
+                is_disease_from_gene = (
+                    not reached_by_reverse
+                ) and relation == RELATION_CAUSES_DISEASE
+                admissible = (
+                    reached_by_reverse and not is_gene_node
+                ) or is_disease_from_gene
                 if admissible:
                     linked, best_hops = reached.get(target, (set(), hop_count))
                     linked.add(finding)
@@ -204,7 +212,9 @@ def retrieve_candidates(
                 # a dead end -- the gene layer's whole value is that a finding
                 # reaches a gene, and the gene reaches what it causes.
                 is_disease_from_gene = edge.relation == RELATION_CAUSES_DISEASE
-                admissible = (reached_by_reverse and not is_gene_node) or is_disease_from_gene
+                admissible = (
+                    reached_by_reverse and not is_gene_node
+                ) or is_disease_from_gene
                 if target not in excluded and admissible:
                     linked, best_hops = reached.get(target, (set(), hops + 1))
                     linked.add(finding)
@@ -212,10 +222,14 @@ def retrieve_candidates(
                 frontier.append((target, hops + 1))
 
     resolved_findings = {
-        item for item in (resolve_concept(raw, graph) for raw in findings) if item is not None
+        item
+        for item in (resolve_concept(raw, graph) for raw in findings)
+        if item is not None
     }
     candidates = [
-        CandidateCondition(condition=name, findings_linked=tuple(sorted(linked)), nearest_hops=hops)
+        CandidateCondition(
+            condition=name, findings_linked=tuple(sorted(linked)), nearest_hops=hops
+        )
         for name, (linked, hops) in reached.items()
         if name not in resolved_findings
     ]

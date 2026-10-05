@@ -87,7 +87,9 @@ class ModelRouter:
         them, matching stays case_id-only, exactly as before that
         capability existed.
         """
-        return route_payload(payload, self.candidate_store, graph=self.graph, password=self.password)
+        return route_payload(
+            payload, self.candidate_store, graph=self.graph, password=self.password
+        )
 
     def pick_mode(
         self,
@@ -104,15 +106,28 @@ class ModelRouter:
         mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
 
         if mismatch_score >= UNRESOLVED_MISMATCH_THRESHOLD:
-            return MODE_DUAL_PATH_EXTENDED_BUDGET, f"unresolved area mismatch ({mismatch_score:.2f} >= {UNRESOLVED_MISMATCH_THRESHOLD})"
+            return (
+                MODE_DUAL_PATH_EXTENDED_BUDGET,
+                f"unresolved area mismatch ({mismatch_score:.2f} >= {UNRESOLVED_MISMATCH_THRESHOLD})",
+            )
         if risk >= HIGH_RISK_THRESHOLD or len(findings) > FEW_FINDINGS_THRESHOLD:
-            reason = f"risk {risk:.2f} >= {HIGH_RISK_THRESHOLD}" if risk >= HIGH_RISK_THRESHOLD else f"{len(findings)} findings > {FEW_FINDINGS_THRESHOLD}"
+            reason = (
+                f"risk {risk:.2f} >= {HIGH_RISK_THRESHOLD}"
+                if risk >= HIGH_RISK_THRESHOLD
+                else f"{len(findings)} findings > {FEW_FINDINGS_THRESHOLD}"
+            )
             return MODE_DUAL_PATH, reason
         if risk <= LOW_RISK_THRESHOLD and len(findings) <= FEW_FINDINGS_THRESHOLD:
-            return MODE_ONE_SHOT, f"low risk ({risk:.2f}) and few findings ({len(findings)})"
+            return (
+                MODE_ONE_SHOT,
+                f"low risk ({risk:.2f}) and few findings ({len(findings)})",
+            )
         # Between the low- and high-risk bands with a moderate finding
         # count: the table names only the two extremes plus the mismatch
         # case, not this middle ground -- dual_path is the safer default
         # of the two live-path modes when neither extreme clearly applies,
         # not a silent guess dressed up as a rule.
-        return MODE_DUAL_PATH, f"neither clearly low-risk/few-findings nor high-risk/many-findings (risk={risk:.2f}, findings={len(findings)})"
+        return (
+            MODE_DUAL_PATH,
+            f"neither clearly low-risk/few-findings nor high-risk/many-findings (risk={risk:.2f}, findings={len(findings)})",
+        )

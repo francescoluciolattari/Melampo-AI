@@ -17,14 +17,19 @@ def test_runtime_config_profiles_and_runtime_description():
     assert remote_description["imaging_provider_strategy"] == "hybrid_multimodal"
     assert "theoretical_quantum" in remote_description["enabled_services"]
 
-    explicit = build_default_config(runtime_profile="remote_research", imaging_provider_strategy="remote_dicom_3d")
+    explicit = build_default_config(
+        runtime_profile="remote_research", imaging_provider_strategy="remote_dicom_3d"
+    )
     explicit_description = explicit.describe()
     assert explicit_description["imaging_provider_strategy"] == "remote_dicom_3d"
 
     runtime = build_default_runtime(config=remote)
     runtime_description = runtime.describe()
     assert runtime_description["config"]["runtime_profile"] == "remote_research"
-    assert runtime_description["config"]["imaging_provider_strategy"] == "hybrid_multimodal"
+    assert (
+        runtime_description["config"]["imaging_provider_strategy"]
+        == "hybrid_multimodal"
+    )
     assert runtime_description["pipeline"] == "ClinicalInferencePipeline"
     assert runtime_description["validator"]["runtime_profile"] == "remote_research"
     assert runtime_description["validator"]["theoretical_quantum"] == "enabled_research"

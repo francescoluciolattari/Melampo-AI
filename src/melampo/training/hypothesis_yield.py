@@ -59,7 +59,9 @@ class HypothesisFeatures:
         support_label = next(
             label for low, high, label in SUPPORT_BUCKETS if low <= self.support < high
         )
-        hop_label = next(label for low, high, label in HOP_BUCKETS if low <= self.hops < high)
+        hop_label = next(
+            label for low, high, label in HOP_BUCKETS if low <= self.hops < high
+        )
         corroboration_label = "corroborated" if self.corroboration >= 2 else "single"
         gap_label = "with_gap" if self.gap_count else "attested"
         return f"{hop_label}|{support_label}|{corroboration_label}|{gap_label}"
@@ -155,10 +157,16 @@ class HypothesisYieldModel:
         matching = [item for item in self.outcomes if item.features.bucket() == bucket]
         confirmed = sum(1 for item in matching if item.confirmed)
         if not matching:
-            return YieldEstimate(bucket=bucket, confirmed=0, observed=0, lower=0.0, upper=1.0)
+            return YieldEstimate(
+                bucket=bucket, confirmed=0, observed=0, lower=0.0, upper=1.0
+            )
         lower, upper = wilson_interval(confirmed, len(matching))
         return YieldEstimate(
-            bucket=bucket, confirmed=confirmed, observed=len(matching), lower=lower, upper=upper
+            bucket=bucket,
+            confirmed=confirmed,
+            observed=len(matching),
+            lower=lower,
+            upper=upper,
         )
 
     def rank(self, hypotheses: Sequence[Any]) -> list[tuple[Any, YieldEstimate]]:
@@ -170,7 +178,10 @@ class HypothesisYieldModel:
         behaviour — a pattern nobody has measured is a reason to look, not a
         reason to suppress.
         """
-        scored = [(item, self.estimate(HypothesisFeatures.from_hypothesis(item))) for item in hypotheses]
+        scored = [
+            (item, self.estimate(HypothesisFeatures.from_hypothesis(item)))
+            for item in hypotheses
+        ]
         scored.sort(key=lambda pair: (-pair[1].upper, -pair[1].lower))
         return scored
 
@@ -234,7 +245,8 @@ def outcomes_from_confirmations(
                 case_id=case_id,
                 condition=condition,
                 features=features,
-                confirmed=_normalise(condition) == _normalise(getattr(confirmation, "diagnosis", "")),
+                confirmed=_normalise(condition)
+                == _normalise(getattr(confirmation, "diagnosis", "")),
                 confirmation_source=str(getattr(confirmation, "source", "")),
             )
         )

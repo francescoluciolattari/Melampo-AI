@@ -5,15 +5,25 @@ from melampo.training.mechanism_enumeration import MechanismEnumerator
 from melampo.training.nexus_trainer import NexusTrainer
 from melampo.training.replay_filter import ReplayFilter
 
-PROFILE = {"rare_case_hint": False, "boundary_case_hint": False, "contradiction_rehearsal": False}
+PROFILE = {
+    "rare_case_hint": False,
+    "boundary_case_hint": False,
+    "contradiction_rehearsal": False,
+}
 
 
 def _graph() -> InMemoryConceptGraph:
     return InMemoryConceptGraph.from_edges(
         [
-            ConceptEdge("bibasilar opacities", "caused_by", "pulmonary oedema", 0.9, "radiology"),
-            ConceptEdge("pulmonary oedema", "caused_by", "cardiac failure", 0.9, "cardiology"),
-            ConceptEdge("pleural effusion", "caused_by", "cardiac failure", 0.8, "cardiology"),
+            ConceptEdge(
+                "bibasilar opacities", "caused_by", "pulmonary oedema", 0.9, "radiology"
+            ),
+            ConceptEdge(
+                "pulmonary oedema", "caused_by", "cardiac failure", 0.9, "cardiology"
+            ),
+            ConceptEdge(
+                "pleural effusion", "caused_by", "cardiac failure", 0.8, "cardiology"
+            ),
         ]
     )
 
@@ -25,8 +35,15 @@ def _sparse_graph() -> InMemoryConceptGraph:
 
 
 def _trainer(graph=None, **kwargs) -> NexusTrainer:
-    enumerator = MechanismEnumerator(graph=graph, max_hops=3, **kwargs) if graph else None
-    return NexusTrainer(ReplayFilter(), CounterfactualSampler(), QuantumBeliefLayer(), enumerator=enumerator)
+    enumerator = (
+        MechanismEnumerator(graph=graph, max_hops=3, **kwargs) if graph else None
+    )
+    return NexusTrainer(
+        ReplayFilter(),
+        CounterfactualSampler(),
+        QuantumBeliefLayer(),
+        enumerator=enumerator,
+    )
 
 
 def _context(trainer: NexusTrainer, **case):
@@ -117,5 +134,8 @@ def test_a_case_without_findings_falls_back_to_rehearsal_labels():
 
 
 def test_a_case_without_candidate_conditions_falls_back():
-    labels = [item["label"] for item in _hypotheses(_trainer(_graph()), candidate_conditions=[])]
+    labels = [
+        item["label"]
+        for item in _hypotheses(_trainer(_graph()), candidate_conditions=[])
+    ]
     assert labels == ["c1_alt_1", "c1_alt_2"]

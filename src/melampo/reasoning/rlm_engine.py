@@ -63,7 +63,17 @@ VERB_SEARCH = "search"
 VERB_EXPAND = "expand"
 VERB_QUERY = "query"
 VERB_FINAL = "final"
-VERBS = frozenset({VERB_DESCRIBE, VERB_GREP, VERB_SLICE, VERB_SEARCH, VERB_EXPAND, VERB_QUERY, VERB_FINAL})
+VERBS = frozenset(
+    {
+        VERB_DESCRIBE,
+        VERB_GREP,
+        VERB_SLICE,
+        VERB_SEARCH,
+        VERB_EXPAND,
+        VERB_QUERY,
+        VERB_FINAL,
+    }
+)
 
 MAX_DEPTH = 1
 
@@ -73,7 +83,9 @@ STOP_WALL_CLOCK = "wall_clock_budget_exhausted"
 STOP_NO_ACTION = "model_emitted_no_action"
 STOP_ROOT_ERROR = "root_model_error"
 
-_ACTION_LINE = re.compile(r"^\s*(describe|grep|slice|search|expand|query|final)\s*\((.*)\)\s*$", re.IGNORECASE)
+_ACTION_LINE = re.compile(
+    r"^\s*(describe|grep|slice|search|expand|query|final)\s*\((.*)\)\s*$", re.IGNORECASE
+)
 
 
 class DataClassViolation(ValueError):
@@ -257,7 +269,9 @@ class RlmEngine:
 
     def __post_init__(self) -> None:
         if self.depth < 0 or self.depth > MAX_DEPTH:
-            raise ValueError(f"depth must be 0 or {MAX_DEPTH}; {self.depth} is not permitted")
+            raise ValueError(
+                f"depth must be 0 or {MAX_DEPTH}; {self.depth} is not permitted"
+            )
         if self.depth == 0:
             self.sub_model = None
 
@@ -276,7 +290,9 @@ class RlmEngine:
             documents, search_fn=search_fn, graph_expand_fn=graph_expand_fn
         )
         budget = budget or Budget()
-        trajectory = Trajectory(case_id=case_id, data_class=data_class, depth=self.depth)
+        trajectory = Trajectory(
+            case_id=case_id, data_class=data_class, depth=self.depth
+        )
         history: list[str] = []
 
         while True:
@@ -319,19 +335,25 @@ class RlmEngine:
         trajectory.budget = budget.as_dict()
         return trajectory
 
-    def to_retrieval_payload(self, trajectory: Trajectory, question: str) -> dict[str, Any]:
+    def to_retrieval_payload(
+        self, trajectory: Trajectory, question: str
+    ) -> dict[str, Any]:
         """Render a completed trajectory in the shared retrieval contract.
 
         A run that did not complete yields an empty evidence list with the stop
         reason attached, never the partial fragments as if they were the answer.
         """
         evidence = trajectory.evidence() if trajectory.completed else []
-        grounding = [float(item.get("grounding_score", 0.0) or 0.0) for item in evidence]
+        grounding = [
+            float(item.get("grounding_score", 0.0) or 0.0) for item in evidence
+        ]
         return {
             "query": question,
             "focus": "recursive",
             "target_areas": [],
-            "status": "grounded_retrieval_ready" if evidence else "insufficient_grounded_evidence",
+            "status": "grounded_retrieval_ready"
+            if evidence
+            else "insufficient_grounded_evidence",
             "retrieval_mode": RETRIEVAL_MODE_RLM,
             "evidence": evidence,
             "evidence_count": len(evidence),
@@ -339,7 +361,9 @@ class RlmEngine:
                 "memory_backed": True,
                 "coverage": float(trajectory.coverage.get("coverage_ratio", 0.0)),
                 "coverage_basis": "corpus_characters",
-                "mean_grounding_score": round(sum(grounding) / len(grounding), 3) if grounding else 0.0,
+                "mean_grounding_score": round(sum(grounding) / len(grounding), 3)
+                if grounding
+                else 0.0,
                 "fallback_used": False,
                 "stop_reason": trajectory.stop_reason,
                 "completed": trajectory.completed,
@@ -348,7 +372,10 @@ class RlmEngine:
         }
 
     def _check_data_class(self, documents: Sequence[EnvironmentDocument]) -> str:
-        classes = {str(document.metadata.get("data_class", "")).lower() for document in documents}
+        classes = {
+            str(document.metadata.get("data_class", "")).lower()
+            for document in documents
+        }
         if not documents:
             raise DataClassViolation("no documents supplied")
         unmarked = "" in classes
@@ -365,7 +392,9 @@ class RlmEngine:
             )
         return next(iter(classes)) if len(classes) == 1 else DATA_CLASS_DEIDENTIFIED
 
-    def _prompt(self, question: str, environment: ContextEnvironment, history: Sequence[str]) -> str:
+    def _prompt(
+        self, question: str, environment: ContextEnvironment, history: Sequence[str]
+    ) -> str:
         verbs = "describe(), grep(pattern), slice(document_id, start, end), search(query), expand(concept)"
         if self.depth >= 1 and self.sub_model is not None:
             verbs += ", query(question, document_id, start, end)"
@@ -379,41 +408,65 @@ class RlmEngine:
         )
 
     def _dispatch(
-        self, action: Action, environment: ContextEnvironment, budget: Budget, trajectory: Trajectory
+        self,
+        action: Action,
+        environment: ContextEnvironment,
+        budget: Budget,
+        trajectory: Trajectory,
     ) -> TrajectoryStep:
         iteration = budget.iterations
         try:
             if action.verb == VERB_DESCRIBE:
                 described = environment.describe()
-                return TrajectoryStep(iteration, action, f"{described['document_count']} document(s)")
+                return TrajectoryStep(
+                    iteration, action, f"{described['document_count']} document(s)"
+                )
             if action.verb == VERB_GREP:
                 fragments = environment.grep(_arg(action, 0), limit=self.fragment_limit)
                 return self._fragment_step(iteration, action, fragments, "grep")
             if action.verb == VERB_SLICE:
-                fragment = environment.slice(_arg(action, 0), int(_arg(action, 1)), int(_arg(action, 2)))
+                fragment = environment.slice(
+                    _arg(action, 0), int(_arg(action, 1)), int(_arg(action, 2))
+                )
                 return self._fragment_step(iteration, action, [fragment], "slice")
             if action.verb == VERB_SEARCH:
-                fragments = environment.search(_arg(action, 0), limit=self.fragment_limit)
+                fragments = environment.search(
+                    _arg(action, 0), limit=self.fragment_limit
+                )
                 return self._fragment_step(iteration, action, fragments, "search")
             if action.verb == VERB_EXPAND:
                 hits = environment.graph_expand(_arg(action, 0))
-                return TrajectoryStep(iteration, action, f"{len(hits)} graph neighbour(s)")
+                return TrajectoryStep(
+                    iteration, action, f"{len(hits)} graph neighbour(s)"
+                )
             if action.verb == VERB_QUERY:
                 return self._query_step(iteration, action, environment, budget)
             if action.verb == VERB_FINAL:
                 return TrajectoryStep(iteration, action, "final")
         except (KeyError, ValueError, IndexError) as error:
             return TrajectoryStep(iteration, action, "error", error=str(error))
-        return TrajectoryStep(iteration, action, "unknown verb", error=f"unknown verb {action.verb}")
+        return TrajectoryStep(
+            iteration, action, "unknown verb", error=f"unknown verb {action.verb}"
+        )
 
     def _query_step(
-        self, iteration: int, action: Action, environment: ContextEnvironment, budget: Budget
+        self,
+        iteration: int,
+        action: Action,
+        environment: ContextEnvironment,
+        budget: Budget,
     ) -> TrajectoryStep:
         if self.depth < 1 or self.sub_model is None:
-            return TrajectoryStep(iteration, action, "refused", error="query is not available at depth 0")
+            return TrajectoryStep(
+                iteration, action, "refused", error="query is not available at depth 0"
+            )
         if budget.sub_model_calls >= budget.max_sub_model_calls:
-            return TrajectoryStep(iteration, action, "refused", error="sub-model call budget exhausted")
-        fragment = environment.slice(_arg(action, 1), int(_arg(action, 2)), int(_arg(action, 3)))
+            return TrajectoryStep(
+                iteration, action, "refused", error="sub-model call budget exhausted"
+            )
+        fragment = environment.slice(
+            _arg(action, 1), int(_arg(action, 2)), int(_arg(action, 3))
+        )
         budget.sub_model_calls += 1
         environment.ledger.record_llm_call()
         answer = self.sub_model(_arg(action, 0), fragment.text)
@@ -424,8 +477,16 @@ class RlmEngine:
     def _fragment_step(
         self, iteration: int, action: Action, fragments: Sequence[Fragment], label: str
     ) -> TrajectoryStep:
-        rendered = [fragment.as_evidence(rank=index, focus="recursive") for index, fragment in enumerate(fragments, 1)]
-        return TrajectoryStep(iteration, action, f"{label}: {len(fragments)} fragment(s)", fragments=rendered)
+        rendered = [
+            fragment.as_evidence(rank=index, focus="recursive")
+            for index, fragment in enumerate(fragments, 1)
+        ]
+        return TrajectoryStep(
+            iteration,
+            action,
+            f"{label}: {len(fragments)} fragment(s)",
+            fragments=rendered,
+        )
 
 
 def _arg(action: Action, index: int) -> str:

@@ -82,19 +82,27 @@ class DiagnosticAssembly:
         the cases someone thought were interesting at the time.
         """
         bridge_result = bridge(
-            trajectory, self.graph, enumerator=self.enumerator, table=self.table, rlm_claims=rlm_claims
+            trajectory,
+            self.graph,
+            enumerator=self.enumerator,
+            table=self.table,
+            rlm_claims=rlm_claims,
         )
 
         recorded = 0
         if record_conjectures and bridge_result.outcome:
             for hypothesis in bridge_result.outcome.hypotheses:
                 recorded += len(
-                    self.ledger.record_from_hypothesis(hypothesis, getattr(trajectory, "case_id", "unknown"))
+                    self.ledger.record_from_hypothesis(
+                        hypothesis, getattr(trajectory, "case_id", "unknown")
+                    )
                 )
 
         return CaseResult(bridge_result=bridge_result, conjectures_recorded=recorded)
 
-    def record_hypothesis_vector(self, case_id: str, hypothesis: str, embedder: Any, *, now: float | None = None) -> Any:
+    def record_hypothesis_vector(
+        self, case_id: str, hypothesis: str, embedder: Any, *, now: float | None = None
+    ) -> Any:
         """Embed and record a hypothesis in the vector-evolution space, if one is configured.
 
         Does nothing and returns None without a configured `vector_space` --
@@ -164,13 +172,26 @@ class DiagnosticAssembly:
             self.store.append_many(promoted)
             self.learned_edge_count += len(promoted)
 
-        if promoted and description_store is not None and description_extractor is not None:
-            self._describe_promoted_concepts(promoted, description_store, description_extractor, description_store_path)
+        if (
+            promoted
+            and description_store is not None
+            and description_extractor is not None
+        ):
+            self._describe_promoted_concepts(
+                promoted,
+                description_store,
+                description_extractor,
+                description_store_path,
+            )
 
         return promoted
 
     def _describe_promoted_concepts(
-        self, promoted: list[ConceptEdge], description_store: Any, description_extractor: Any, store_path: Any
+        self,
+        promoted: list[ConceptEdge],
+        description_store: Any,
+        description_extractor: Any,
+        store_path: Any,
     ) -> None:
         """Build and persist a description for every promoted edge's concepts that lacks one.
 
@@ -208,7 +229,10 @@ class CaseResult:
         return self.bridge_result.outcome
 
     def as_dict(self) -> dict[str, Any]:
-        return {**self.bridge_result.as_dict(), "conjectures_recorded": self.conjectures_recorded}
+        return {
+            **self.bridge_result.as_dict(),
+            "conjectures_recorded": self.conjectures_recorded,
+        }
 
 
 def assemble(
@@ -245,7 +269,9 @@ def assemble(
     )
 
 
-def candidate_conditions_for(findings: Sequence[str], graph: ConceptGraphView) -> list[str]:
+def candidate_conditions_for(
+    findings: Sequence[str], graph: ConceptGraphView
+) -> list[str]:
     """The candidate list `NexusTrainer` needs but has no way to produce.
 
     `NexusTrainer._enumerated` returns None unless the case context already
@@ -257,7 +283,9 @@ def candidate_conditions_for(findings: Sequence[str], graph: ConceptGraphView) -
     return retrieve_candidates(findings, graph).condition_names
 
 
-def nexus_context_for(findings: Sequence[str], graph: ConceptGraphView, **extra: Any) -> dict[str, Any]:
+def nexus_context_for(
+    findings: Sequence[str], graph: ConceptGraphView, **extra: Any
+) -> dict[str, Any]:
     """A case context with the candidates filled in, ready for NexusTrainer.
 
     The concrete fix for the hook that was never valorised: pass this as the

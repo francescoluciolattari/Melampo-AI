@@ -18,7 +18,9 @@ class ChestXray14CsvLoader:
     image_root: str | None = None
     source_name: str = "NIH ChestX-ray14-style metadata"
 
-    def _find(self, row: Mapping[str, str], candidates: Iterable[str], default: str = "") -> str:
+    def _find(
+        self, row: Mapping[str, str], candidates: Iterable[str], default: str = ""
+    ) -> str:
         for candidate in candidates:
             if candidate in row and row[candidate] is not None:
                 value = str(row[candidate]).strip()
@@ -27,13 +29,21 @@ class ChestXray14CsvLoader:
         return default
 
     def row_to_payload(self, row: Mapping[str, str], row_index: int = 0) -> dict:
-        image_id = self._find(row, ["Image Index", "image_id", "image", "filename"], f"cxr-row-{row_index}")
-        findings = self._find(row, ["Finding Labels", "findings", "labels"], "No Finding")
+        image_id = self._find(
+            row,
+            ["Image Index", "image_id", "image", "filename"],
+            f"cxr-row-{row_index}",
+        )
+        findings = self._find(
+            row, ["Finding Labels", "findings", "labels"], "No Finding"
+        )
         age = self._find(row, ["Patient Age", "age"], "")
         sex = self._find(row, ["Patient Gender", "Patient Sex", "sex", "gender"], "")
         view_position = self._find(row, ["View Position", "view_position"], "")
         follow_up = self._find(row, ["Follow-up #", "follow_up"], "")
-        patient_id = self._find(row, ["Patient ID", "patient_id"], f"synthetic-cxr-patient-{row_index}")
+        patient_id = self._find(
+            row, ["Patient ID", "patient_id"], f"synthetic-cxr-patient-{row_index}"
+        )
 
         series_paths = []
         if self.image_root:

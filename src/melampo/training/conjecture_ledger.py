@@ -129,7 +129,9 @@ class ConjectureLedger:
             entry.raised_in.append(conjecture.origin_case)
         return entry
 
-    def record_from_hypothesis(self, hypothesis: Any, case_id: str) -> list[ConjectureRecord]:
+    def record_from_hypothesis(
+        self, hypothesis: Any, case_id: str
+    ) -> list[ConjectureRecord]:
         """Record the leaps a mechanism hypothesis embodies, one per linked finding."""
         entries: list[ConjectureRecord] = []
         condition = str(getattr(hypothesis, "condition", "")).strip()
@@ -148,14 +150,18 @@ class ConjectureLedger:
                         target=condition,
                         via=tuple(getattr(path, "intermediates", ()) or ()),
                         hops=int(getattr(path, "hops", len(edges))),
-                        strength_upper=float(getattr(path, "strength_upper", 0.0) or 0.0),
+                        strength_upper=float(
+                            getattr(path, "strength_upper", 0.0) or 0.0
+                        ),
                         origin_case=case_id,
                     )
                 )
             )
         return entries
 
-    def test(self, source: str, target: str, case_id: str, confirmation: Any) -> bool | None:
+    def test(
+        self, source: str, target: str, case_id: str, confirmation: Any
+    ) -> bool | None:
         """Test a conjecture against a confirmation. Returns the verdict, or None if not applicable.
 
         Only an independent confirmation counts. An accepted suggestion is not
@@ -180,7 +186,11 @@ class ConjectureLedger:
         ]
 
     def pending(self) -> list[ConjectureRecord]:
-        return [entry for entry in self.records.values() if not entry.is_promotable(self.min_confirmations)]
+        return [
+            entry
+            for entry in self.records.values()
+            if not entry.is_promotable(self.min_confirmations)
+        ]
 
     def report(self) -> dict[str, Any]:
         promotable = self.promotable()

@@ -16,8 +16,13 @@ def _study(clear: str | None = None, **overrides):
     """
     base = {
         "protocolSection": {
-            "identificationModule": {"nctId": "NCT01234567", "briefTitle": "Calcitriol trial in sarcoidosis"},
-            "descriptionModule": {"briefSummary": "Trial studying hypercalcaemia treatment."},
+            "identificationModule": {
+                "nctId": "NCT01234567",
+                "briefTitle": "Calcitriol trial in sarcoidosis",
+            },
+            "descriptionModule": {
+                "briefSummary": "Trial studying hypercalcaemia treatment."
+            },
             "statusModule": {"startDateStruct": {"date": "2023-05"}},
             "conditionsModule": {"conditions": ["Sarcoidosis", "Hypercalcaemia"]},
         }
@@ -102,7 +107,9 @@ def test_search_stops_at_max_results():
 
 def test_search_for_concepts_with_nothing_makes_no_call():
     connector = ClinicalTrialsConnector()
-    connector._fetch_page = lambda *a: (_ for _ in ()).throw(AssertionError("should not be called"))
+    connector._fetch_page = lambda *a: (_ for _ in ()).throw(
+        AssertionError("should not be called")
+    )
     assert connector.search_for_concepts([]) == []
 
 

@@ -46,7 +46,9 @@ RELATION_NO_OBSERVED_BENEFIT = "NO_OBSERVED_BENEFIT"
 # because they are the asymmetric case: a missing TREATS row is
 # uninformative at 1.6% coverage, but a present CONTRAINDICATED row is a
 # positive statement worth surfacing every time it applies.
-CAUTIONARY_RELATIONS = frozenset({RELATION_CONTRAINDICATED, RELATION_NO_OBSERVED_BENEFIT})
+CAUTIONARY_RELATIONS = frozenset(
+    {RELATION_CONTRAINDICATED, RELATION_NO_OBSERVED_BENEFIT}
+)
 
 
 @dataclass(frozen=True)
@@ -137,7 +139,9 @@ class MedicalActionIndex:
         for action in actions:
             index.by_disease_id.setdefault(action.disease_id, []).append(action)
             if action.disease_name:
-                index.by_disease_name.setdefault(action.disease_name.strip().lower(), []).append(action)
+                index.by_disease_name.setdefault(
+                    action.disease_name.strip().lower(), []
+                ).append(action)
         return index
 
     def __len__(self) -> int:
@@ -149,7 +153,11 @@ class MedicalActionIndex:
 
     def for_disease(self, disease: str) -> list[MedicalAction]:
         """Actions for a disease, by id or by name. Empty means unannotated, not untreatable."""
-        return self.by_disease_id.get(disease) or self.by_disease_name.get(disease.strip().lower()) or []
+        return (
+            self.by_disease_id.get(disease)
+            or self.by_disease_name.get(disease.strip().lower())
+            or []
+        )
 
     def cautions_for(self, disease: str) -> list[MedicalAction]:
         """Only the contraindicated / no-observed-benefit rows for a disease.

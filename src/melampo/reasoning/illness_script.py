@@ -115,7 +115,9 @@ class IllnessScript:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "enabling_conditions": [item.as_dict() for item in self.enabling_conditions],
+            "enabling_conditions": [
+                item.as_dict() for item in self.enabling_conditions
+            ],
             "fault": self.fault.as_dict() if self.fault else None,
             "consequences": [item.as_dict() for item in self.consequences],
             "differential": [item.as_dict() for item in self.differential],
@@ -125,15 +127,21 @@ class IllnessScript:
     def from_payload(cls, payload: dict[str, Any]) -> "IllnessScript":
         """Build a script from a model's structured output, tolerating omissions."""
         return cls(
-            enabling_conditions=[_element(item) for item in _listing(payload, "enabling_conditions")],
-            fault=_element(payload["fault"]) if isinstance(payload.get("fault"), dict) else None,
+            enabling_conditions=[
+                _element(item) for item in _listing(payload, "enabling_conditions")
+            ],
+            fault=_element(payload["fault"])
+            if isinstance(payload.get("fault"), dict)
+            else None,
             consequences=[_element(item) for item in _listing(payload, "consequences")],
             differential=[
                 DifferentialEntry(
                     condition=str(item.get("condition", "")).strip(),
                     term_id=item.get("term_id"),
                     rank=int(item.get("rank", index + 1) or index + 1),
-                    discriminating_features=tuple(item.get("discriminating_features", ()) or ()),
+                    discriminating_features=tuple(
+                        item.get("discriminating_features", ()) or ()
+                    ),
                     origin=str(item.get("origin", ORIGIN_MODEL)),
                 )
                 for index, item in enumerate(_listing(payload, "differential"))
@@ -222,18 +230,26 @@ class ScriptVerifier:
     max_hops: int = 3
     min_edge_weight: float = 0.0
 
-    def verify(self, script: IllnessScript, case_findings: Sequence[str]) -> ScriptVerification:
+    def verify(
+        self, script: IllnessScript, case_findings: Sequence[str]
+    ) -> ScriptVerification:
         observed = {_normalise(item) for item in case_findings if str(item).strip()}
         verification = ScriptVerification()
 
         for element in script.consequences:
-            verification.consequences.append(self._verify_element(element.label, observed, observed))
+            verification.consequences.append(
+                self._verify_element(element.label, observed, observed)
+            )
 
         if script.fault is not None:
-            verification.fault = self._verify_element(script.fault.label, observed, observed)
+            verification.fault = self._verify_element(
+                script.fault.label, observed, observed
+            )
 
         for entry in script.differential:
-            verification.differential.append(self._verify_element(entry.condition, observed, observed))
+            verification.differential.append(
+                self._verify_element(entry.condition, observed, observed)
+            )
 
         return verification
 
@@ -241,14 +257,26 @@ class ScriptVerifier:
         self, label: str, observed: set[str], anchors: set[str]
     ) -> ElementVerdict:
         if _normalise(label) in observed:
-            return ElementVerdict(element=label, verdict=VERDICT_GROUNDED_IN_CASE, strength_lower=1.0, strength_upper=1.0)
+            return ElementVerdict(
+                element=label,
+                verdict=VERDICT_GROUNDED_IN_CASE,
+                strength_lower=1.0,
+                strength_upper=1.0,
+            )
 
         best: ConceptPath | None = None
         for anchor in sorted(anchors):
             for path in find_paths(
-                self.graph, anchor, label, max_hops=self.max_hops, min_edge_weight=self.min_edge_weight
+                self.graph,
+                anchor,
+                label,
+                max_hops=self.max_hops,
+                min_edge_weight=self.min_edge_weight,
             ):
-                if best is None or (path.hops, -path.strength_upper) < (best.hops, -best.strength_upper):
+                if best is None or (path.hops, -path.strength_upper) < (
+                    best.hops,
+                    -best.strength_upper,
+                ):
                     best = path
         if best is None:
             return ElementVerdict(element=label, verdict=VERDICT_UNSUPPORTED)
@@ -262,7 +290,10 @@ class ScriptVerifier:
 
 
 def merge_hypotheses(
-    script: IllnessScript, hypotheses: Sequence[dict[str, Any]], *, origin: str = ORIGIN_HYPOTHESIS_CHANNEL
+    script: IllnessScript,
+    hypotheses: Sequence[dict[str, Any]],
+    *,
+    origin: str = ORIGIN_HYPOTHESIS_CHANNEL,
 ) -> IllnessScript:
     """Add channel hypotheses to a script's differential, marked as candidates.
 
@@ -289,7 +320,9 @@ def merge_hypotheses(
                 condition=label,
                 term_id=item.get("term_id"),
                 rank=next_rank,
-                discriminating_features=tuple(item.get("discriminating_features", ()) or ()),
+                discriminating_features=tuple(
+                    item.get("discriminating_features", ()) or ()
+                ),
                 origin=origin,
             )
         )
@@ -298,7 +331,11 @@ def merge_hypotheses(
 
 def _listing(payload: dict[str, Any], key: str) -> list[dict[str, Any]]:
     value = payload.get(key)
-    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+    return (
+        [item for item in value if isinstance(item, dict)]
+        if isinstance(value, list)
+        else []
+    )
 
 
 def _element(item: dict[str, Any]) -> ScriptElement:

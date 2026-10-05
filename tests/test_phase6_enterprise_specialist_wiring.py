@@ -84,7 +84,9 @@ def test_diagnostic_result_serializes_enterprise_contract():
         top_hypothesis={"label": "none", "score": 0.0},
         differential=[],
         intuition=IntuitionSummary(),
-        melampo_metrics=MelampoMetrics(pi_score=0.2, mismatch_index=0.9, action_potential_gate=0.1),
+        melampo_metrics=MelampoMetrics(
+            pi_score=0.2, mismatch_index=0.9, action_potential_gate=0.1
+        ),
         support={},
         policy={"abstain": True, "reasons": ["test"]},
         critique={},
@@ -97,14 +99,25 @@ def test_diagnostic_result_serializes_enterprise_contract():
     assert result["audit_trace"]["final_authority"] == "MelampoDiagnosticOrchestrator"
     assert result["audit_trace"]["external_models_are_not_final_arbiters"] is True
     assert "not a validated medical device" in result["audit_trace"]["clinical_warning"]
-    assert result["nexus"]["promotion_policy"]["automatic_clinical_promotion_allowed"] is False
+    assert (
+        result["nexus"]["promotion_policy"]["automatic_clinical_promotion_allowed"]
+        is False
+    )
 
 
 def test_neuro_metrics_include_deep_inference_and_action_potential_gate():
     dynamics = AreaCoherenceAnalyzer().analyze(
         {
-            "visual_diagnostic": {"salience_score": 0.8, "signal_count": 3, "claims": [{"normalized_entity": "opacity"}]},
-            "language_listening": {"salience_score": 0.6, "signal_count": 2, "claims": [{"normalized_entity": "opacity"}]},
+            "visual_diagnostic": {
+                "salience_score": 0.8,
+                "signal_count": 3,
+                "claims": [{"normalized_entity": "opacity"}],
+            },
+            "language_listening": {
+                "salience_score": 0.6,
+                "signal_count": 2,
+                "claims": [{"normalized_entity": "opacity"}],
+            },
             "case_context": {"salience_score": 0.3, "signal_count": 1},
         }
     )

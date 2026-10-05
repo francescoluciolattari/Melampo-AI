@@ -162,26 +162,61 @@ FRAME_EVOKING_UNITS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         FRAME_RELEVANCE,
         (
-            "bearing on", "bear on", "bears on", "relevant to", "relevance of",
-            "correlate with", "correlates with", "correlation between",
-            "have any bearing", "does .* affect", "implication", "implications of",
-            "significance of", "in light of", "given the", "account for",
+            "bearing on",
+            "bear on",
+            "bears on",
+            "relevant to",
+            "relevance of",
+            "correlate with",
+            "correlates with",
+            "correlation between",
+            "have any bearing",
+            "does .* affect",
+            "implication",
+            "implications of",
+            "significance of",
+            "in light of",
+            "given the",
+            "account for",
         ),
     ),
     (
         FRAME_ATTRIBUTION,
-        ("which document", "what document", "reported by", "which source", "reports it", "supports the"),
+        (
+            "which document",
+            "what document",
+            "reported by",
+            "which source",
+            "reports it",
+            "supports the",
+        ),
     ),
-    (FRAME_MEDICATION, ("what dose", "which dose", "what drug", "which drug", "prescribed", "dosed at")),
+    (
+        FRAME_MEDICATION,
+        (
+            "what dose",
+            "which dose",
+            "what drug",
+            "which drug",
+            "prescribed",
+            "dosed at",
+        ),
+    ),
     (
         FRAME_FINDING,
         (
-            "what finding", "which finding", "what diagnosis", "which diagnosis",
+            "what finding",
+            "which finding",
+            "what diagnosis",
+            "which diagnosis",
             # "is X present" / "was X present" -- a yes/no about a finding, which
             # is the finding frame with the answer carried by the polarity slot
             # rather than a separate one.
-            "is .* present", "was .* present", "present according to",
-            "described as", "confirmed",
+            "is .* present",
+            "was .* present",
+            "present according to",
+            "described as",
+            "confirmed",
         ),
     ),
     (FRAME_MEASUREMENT, ("what value", "how much", "rise or fall", "trend")),
@@ -223,7 +258,9 @@ def frame_prompt_instruction(frame: str) -> str:
     """
     slots = FRAME_SLOTS.get(frame)
     if not slots:
-        raise ValueError(f"unknown frame {frame!r}; known frames: {sorted(FRAME_SLOTS)}")
+        raise ValueError(
+            f"unknown frame {frame!r}; known frames: {sorted(FRAME_SLOTS)}"
+        )
     if frame == FRAME_FREE_TEXT:
         return "State your answer as a single short sentence."
     slot_list = f" {SLOT_SEPARATOR} ".join(slots)
@@ -271,7 +308,9 @@ def parse_frame_answer(frame: str, answer: str | None) -> FrameAnswer:
     """
     slots = FRAME_SLOTS.get(frame)
     if not slots:
-        raise ValueError(f"unknown frame {frame!r}; known frames: {sorted(FRAME_SLOTS)}")
+        raise ValueError(
+            f"unknown frame {frame!r}; known frames: {sorted(FRAME_SLOTS)}"
+        )
     raw = answer or ""
     if frame == FRAME_FREE_TEXT:
         return FrameAnswer(frame=frame, slots={"text": raw.strip()}, raw=raw)
@@ -315,7 +354,10 @@ class SlotComparison:
             return False
         if self.primary_value == self.secondary_value:
             return True
-        return self.primary_value in self.secondary_value or self.secondary_value in self.primary_value
+        return (
+            self.primary_value in self.secondary_value
+            or self.secondary_value in self.primary_value
+        )
 
     @property
     def conflicts(self) -> bool:
@@ -419,13 +461,19 @@ class FrameComparison:
         }
 
 
-def compare_frame_answers(frame: str, primary: str | None, secondary: str | None) -> FrameComparison:
+def compare_frame_answers(
+    frame: str, primary: str | None, secondary: str | None
+) -> FrameComparison:
     """Compare two answers to the same question, slot by slot."""
     left = parse_frame_answer(frame, primary)
     right = parse_frame_answer(frame, secondary)
     comparison = FrameComparison(frame=frame)
     for slot in FRAME_SLOTS[frame]:
         comparison.slots.append(
-            SlotComparison(slot=slot, primary_value=left.value(slot), secondary_value=right.value(slot))
+            SlotComparison(
+                slot=slot,
+                primary_value=left.value(slot),
+                secondary_value=right.value(slot),
+            )
         )
     return comparison

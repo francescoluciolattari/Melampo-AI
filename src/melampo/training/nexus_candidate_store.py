@@ -16,9 +16,13 @@ from ..memory.learning_status import (
 )
 
 
-def _stable_candidate_id(case_id: str, payload: dict[str, Any], created_at: float) -> str:
+def _stable_candidate_id(
+    case_id: str, payload: dict[str, Any], created_at: float
+) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str)
-    digest = hashlib.sha256(f"nexus:{case_id}:{canonical}:{created_at}".encode()).hexdigest()
+    digest = hashlib.sha256(
+        f"nexus:{case_id}:{canonical}:{created_at}".encode()
+    ).hexdigest()
     return f"nexus:{case_id}:{digest[:16]}"
 
 
@@ -50,8 +54,16 @@ class NexusCandidateRecord:
         }
 
     def to_memory_document(self) -> dict[str, Any]:
-        text = str(self.payload.get("text") or self.payload.get("summary") or json.dumps(self.payload, sort_keys=True, default=str))
-        metadata = dict(self.payload.get("metadata", {})) if isinstance(self.payload.get("metadata", {}), dict) else {}
+        text = str(
+            self.payload.get("text")
+            or self.payload.get("summary")
+            or json.dumps(self.payload, sort_keys=True, default=str)
+        )
+        metadata = (
+            dict(self.payload.get("metadata", {}))
+            if isinstance(self.payload.get("metadata", {}), dict)
+            else {}
+        )
         return {
             "text": text,
             "source": self.source,
@@ -64,7 +76,9 @@ class NexusCandidateRecord:
                 "case_id": self.case_id,
                 "memory_role": "governed_nexus_replay_candidate",
                 "synthetic": True,
-                "validation_status": (self.validation or {}).get("status", "not_validated"),
+                "validation_status": (self.validation or {}).get(
+                    "status", "not_validated"
+                ),
             },
         }
 
@@ -78,7 +92,9 @@ class NexusCandidateStore:
     password: str | None = None
     path: Path | None = None
     _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
-    _encrypted_store: EncryptedJsonlStore | None = field(default=None, repr=False, compare=False)
+    _encrypted_store: EncryptedJsonlStore | None = field(
+        default=None, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         """Optional persistence -- pure in-memory when password/path are left None, unchanged from before this existed.
@@ -102,7 +118,9 @@ class NexusCandidateStore:
         """
         if self.password is None or self.path is None:
             return
-        self._encrypted_store = EncryptedJsonlStore(path=Path(self.path), password=self.password)
+        self._encrypted_store = EncryptedJsonlStore(
+            path=Path(self.path), password=self.password
+        )
         self._load_from_disk()
 
     def _load_from_disk(self) -> None:
@@ -124,7 +142,9 @@ class NexusCandidateStore:
                     created_at=float(data["created_at"]),
                     payload=dict(data.get("payload", {})),
                     source=str(data.get("source", "nexus_branch")),
-                    learning_status=normalize_learning_status(data.get("learning_status")),
+                    learning_status=normalize_learning_status(
+                        data.get("learning_status")
+                    ),
                     validation=data.get("validation"),
                     promotion_decision=data.get("promotion_decision"),
                     outcome_feedback=list(data.get("outcome_feedback", [])),
@@ -136,12 +156,19 @@ class NexusCandidateStore:
     def _persist_current_state(self, candidate_id: str) -> None:
         if self._encrypted_store is None:
             return
-        self._encrypted_store.append({"candidate_id": candidate_id, "record": self.records[candidate_id].as_dict()})
+        self._encrypted_store.append(
+            {
+                "candidate_id": candidate_id,
+                "record": self.records[candidate_id].as_dict(),
+            }
+        )
 
     def _persist_deletion(self, candidate_id: str) -> None:
         if self._encrypted_store is None:
             return
-        self._encrypted_store.append({"candidate_id": candidate_id, "_event": "deleted"})
+        self._encrypted_store.append(
+            {"candidate_id": candidate_id, "_event": "deleted"}
+        )
 
     def create_candidate(
         self,
@@ -151,9 +178,19 @@ class NexusCandidateStore:
         learning_status: str = "candidate",
     ) -> NexusCandidateRecord:
         payload = payload or {}
-        case_id = str(case_id or payload.get("case_id") or payload.get("metadata", {}).get("case_id") or "unknown_case")
+        case_id = str(
+            case_id
+            or payload.get("case_id")
+            or payload.get("metadata", {}).get("case_id")
+            or "unknown_case"
+        )
         created_at = time.time()
-        candidate_id = str(payload.get("candidate_id") or _stable_candidate_id(case_id=case_id, payload=payload, created_at=created_at))
+        candidate_id = str(
+            payload.get("candidate_id")
+            or _stable_candidate_id(
+                case_id=case_id, payload=payload, created_at=created_at
+            )
+        )
         record = NexusCandidateRecord(
             candidate_id=candidate_id,
             case_id=case_id,
@@ -161,15 +198,29 @@ class NexusCandidateStore:
             payload=payload,
             source=source,
             learning_status=normalize_learning_status(learning_status),
-            audit=[{"event": "candidate_created", "timestamp": created_at, "source": source}],
+            audit=[
+                {
+                    "event": "candidate_created",
+                    "timestamp": created_at,
+                    "source": source,
+                }
+            ],
         )
         with self._lock:
             self.records[candidate_id] = record
-            self.audit_log.append({"event": "candidate_created", "candidate_id": candidate_id, "timestamp": created_at})
+            self.audit_log.append(
+                {
+                    "event": "candidate_created",
+                    "candidate_id": candidate_id,
+                    "timestamp": created_at,
+                }
+            )
             self._persist_current_state(candidate_id)
         return record
 
-    def find_by_case_id(self, case_id: str, statuses: Iterable[str] | None = None) -> NexusCandidateRecord | None:
+    def find_by_case_id(
+        self, case_id: str, statuses: Iterable[str] | None = None
+    ) -> NexusCandidateRecord | None:
         """The most recent record for this case, among the given statuses -- None if this case has no pending record.
 
         The store keys records by candidate_id, a hash that changes every
@@ -180,11 +231,19 @@ class NexusCandidateStore:
         case already pending" needs one answer, not a collection to
         reduce itself.
         """
-        normalized = {normalize_learning_status(status) for status in statuses} if statuses else set()
+        normalized = (
+            {normalize_learning_status(status) for status in statuses}
+            if statuses
+            else set()
+        )
         with self._lock:
-            candidates = [record for record in self.records.values() if record.case_id == case_id]
+            candidates = [
+                record for record in self.records.values() if record.case_id == case_id
+            ]
         if normalized:
-            candidates = [record for record in candidates if record.learning_status in normalized]
+            candidates = [
+                record for record in candidates if record.learning_status in normalized
+            ]
         if not candidates:
             return None
         return max(candidates, key=lambda item: item.created_at)
@@ -200,43 +259,74 @@ class NexusCandidateStore:
         """
         with self._lock:
             self.records.pop(candidate_id, None)
-            self.audit_log.append({"event": "candidate_deleted", "candidate_id": candidate_id, "timestamp": time.time()})
+            self.audit_log.append(
+                {
+                    "event": "candidate_deleted",
+                    "candidate_id": candidate_id,
+                    "timestamp": time.time(),
+                }
+            )
             self._persist_deletion(candidate_id)
 
     def get(self, candidate_id: str) -> NexusCandidateRecord:
         with self._lock:
             return self.records[candidate_id]
 
-    def list_by_status(self, statuses: Iterable[str] | None = None) -> list[NexusCandidateRecord]:
-        normalized = {normalize_learning_status(status) for status in statuses} if statuses else set()
+    def list_by_status(
+        self, statuses: Iterable[str] | None = None
+    ) -> list[NexusCandidateRecord]:
+        normalized = (
+            {normalize_learning_status(status) for status in statuses}
+            if statuses
+            else set()
+        )
         with self._lock:
             records = list(self.records.values())
         if normalized:
-            records = [record for record in records if record.learning_status in normalized]
+            records = [
+                record for record in records if record.learning_status in normalized
+            ]
         records.sort(key=lambda item: item.created_at)
         return records
 
-    def attach_validation(self, candidate_id: str, validation: dict[str, Any]) -> dict[str, Any]:
+    def attach_validation(
+        self, candidate_id: str, validation: dict[str, Any]
+    ) -> dict[str, Any]:
         with self._lock:
             record = self.records[candidate_id]
             record.validation = validation
-            event = {"event": "validation_attached", "candidate_id": candidate_id, "timestamp": time.time(), "status": validation.get("status")}
+            event = {
+                "event": "validation_attached",
+                "candidate_id": candidate_id,
+                "timestamp": time.time(),
+                "status": validation.get("status"),
+            }
             record.audit.append(event)
             self.audit_log.append(event)
             self._persist_current_state(candidate_id)
             return record.as_dict()
 
-    def attach_promotion_decision(self, candidate_id: str, decision: dict[str, Any]) -> dict[str, Any]:
+    def attach_promotion_decision(
+        self, candidate_id: str, decision: dict[str, Any]
+    ) -> dict[str, Any]:
         with self._lock:
             record = self.records[candidate_id]
             record.promotion_decision = decision
-            target_status = normalize_learning_status(decision.get("target_learning_status", record.learning_status))
+            target_status = normalize_learning_status(
+                decision.get("target_learning_status", record.learning_status)
+            )
             transition = validate_learning_transition(
                 current=record.learning_status,
                 target=target_status,
                 evidence={
-                    "rational_control_validation": bool((record.validation or {}).get("allowed_for_promotion", False)),
-                    "provenance_available": bool((record.validation or {}).get("observed", {}).get("provenance_available", False)),
+                    "rational_control_validation": bool(
+                        (record.validation or {}).get("allowed_for_promotion", False)
+                    ),
+                    "provenance_available": bool(
+                        (record.validation or {})
+                        .get("observed", {})
+                        .get("provenance_available", False)
+                    ),
                     "clinical_deployment": False,
                 },
             )
@@ -257,24 +347,40 @@ class NexusCandidateStore:
             self._persist_current_state(candidate_id)
             return record.as_dict()
 
-    def attach_outcome_feedback(self, candidate_id: str, feedback: dict[str, Any]) -> dict[str, Any]:
+    def attach_outcome_feedback(
+        self, candidate_id: str, feedback: dict[str, Any]
+    ) -> dict[str, Any]:
         with self._lock:
             record = self.records[candidate_id]
             feedback = {**feedback, "attached_at": time.time()}
             record.outcome_feedback.append(feedback)
-            event = {"event": "outcome_feedback_attached", "candidate_id": candidate_id, "timestamp": feedback["attached_at"]}
+            event = {
+                "event": "outcome_feedback_attached",
+                "candidate_id": candidate_id,
+                "timestamp": feedback["attached_at"],
+            }
             record.audit.append(event)
             self.audit_log.append(event)
             self._persist_current_state(candidate_id)
             return record.as_dict()
 
-    def export_memory_documents(self, statuses: Iterable[str] | None = None) -> list[dict[str, Any]]:
-        return [record.to_memory_document() for record in self.list_by_status(statuses=statuses)]
+    def export_memory_documents(
+        self, statuses: Iterable[str] | None = None
+    ) -> list[dict[str, Any]]:
+        return [
+            record.to_memory_document()
+            for record in self.list_by_status(statuses=statuses)
+        ]
 
     def save_jsonl(self, path: str | Path) -> None:
         with self._lock:
-            rows = [json.dumps(record.as_dict(), sort_keys=True, default=str) for record in self.records.values()]
-        Path(path).write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
+            rows = [
+                json.dumps(record.as_dict(), sort_keys=True, default=str)
+                for record in self.records.values()
+            ]
+        Path(path).write_text(
+            "\n".join(rows) + ("\n" if rows else ""), encoding="utf-8"
+        )
 
     @classmethod
     def load_jsonl(cls, path: str | Path) -> NexusCandidateStore:

@@ -74,7 +74,9 @@ def test_leaps_are_read_off_enumerated_hypotheses():
 def test_an_independent_confirmation_tests_the_conjecture():
     ledger = ConjectureLedger()
     ledger.record(_leap("c1"))
-    held = ledger.test("bibasilar opacities", "amyloidosis", "c1", _histology("c1", "amyloidosis"))
+    held = ledger.test(
+        "bibasilar opacities", "amyloidosis", "c1", _histology("c1", "amyloidosis")
+    )
     assert held is True
     assert ledger.records[_leap().key].confirmed_in == ["c1"]
 
@@ -82,7 +84,9 @@ def test_an_independent_confirmation_tests_the_conjecture():
 def test_a_different_confirmed_diagnosis_refutes_the_leap():
     ledger = ConjectureLedger()
     ledger.record(_leap("c1"))
-    held = ledger.test("bibasilar opacities", "amyloidosis", "c1", _histology("c1", "pneumonia"))
+    held = ledger.test(
+        "bibasilar opacities", "amyloidosis", "c1", _histology("c1", "pneumonia")
+    )
     assert held is False
     assert ledger.records[_leap().key].refuted_in == ["c1"]
 
@@ -99,8 +103,15 @@ def test_an_accepted_suggestion_does_not_test_anything():
 def test_a_case_tests_a_conjecture_once():
     ledger = ConjectureLedger()
     ledger.record(_leap("c1"))
-    ledger.test("bibasilar opacities", "amyloidosis", "c1", _histology("c1", "amyloidosis"))
-    assert ledger.test("bibasilar opacities", "amyloidosis", "c1", _histology("c1", "amyloidosis")) is None
+    ledger.test(
+        "bibasilar opacities", "amyloidosis", "c1", _histology("c1", "amyloidosis")
+    )
+    assert (
+        ledger.test(
+            "bibasilar opacities", "amyloidosis", "c1", _histology("c1", "amyloidosis")
+        )
+        is None
+    )
     assert ledger.records[_leap().key].tested == 1
 
 
@@ -117,9 +128,19 @@ def _ledger_with(confirmed: int, refuted: int = 0) -> ConjectureLedger:
     ledger = ConjectureLedger()
     ledger.record(_leap("c0"))
     for index in range(confirmed):
-        ledger.test("bibasilar opacities", "amyloidosis", f"ok{index}", _histology(f"ok{index}", "amyloidosis"))
+        ledger.test(
+            "bibasilar opacities",
+            "amyloidosis",
+            f"ok{index}",
+            _histology(f"ok{index}", "amyloidosis"),
+        )
     for index in range(refuted):
-        ledger.test("bibasilar opacities", "amyloidosis", f"no{index}", _histology(f"no{index}", "pneumonia"))
+        ledger.test(
+            "bibasilar opacities",
+            "amyloidosis",
+            f"no{index}",
+            _histology(f"no{index}", "pneumonia"),
+        )
     return ledger
 
 

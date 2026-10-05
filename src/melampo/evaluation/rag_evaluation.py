@@ -6,7 +6,11 @@ from typing import Any
 
 
 def _tokenize(text: str) -> set[str]:
-    return {token.strip(".,;:()[]{}!?\"'`)._").lower() for token in str(text).split() if token.strip(".,;:()[]{}!?\"'`)._")}
+    return {
+        token.strip(".,;:()[]{}!?\"'`)._").lower()
+        for token in str(text).split()
+        if token.strip(".,;:()[]{}!?\"'`)._")
+    }
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -68,7 +72,9 @@ class RAGEvaluator:
 
     min_relevant_overlap: float = 0.15
 
-    def evaluate_record(self, record: RAGEvaluationRecord | dict[str, Any]) -> dict[str, Any]:
+    def evaluate_record(
+        self, record: RAGEvaluationRecord | dict[str, Any]
+    ) -> dict[str, Any]:
         if isinstance(record, dict):
             record = RAGEvaluationRecord(
                 query=str(record.get("query", "")),
@@ -90,32 +96,71 @@ class RAGEvaluator:
         evidence_terms_all: set[str] = set()
 
         for item in evidence:
-            text = str(item.get("text") or item.get("value") or item.get("summary") or "")
+            text = str(
+                item.get("text") or item.get("value") or item.get("summary") or ""
+            )
             terms = _tokenize(text)
             evidence_terms_all.update(terms)
-            overlap = len(query_terms.intersection(terms)) / max(len(query_terms), 1) if query_terms else 0.0
+            overlap = (
+                len(query_terms.intersection(terms)) / max(len(query_terms), 1)
+                if query_terms
+                else 0.0
+            )
             overlaps.append(overlap)
-            if overlap >= self.min_relevant_overlap or expected_terms.intersection(terms):
+            if overlap >= self.min_relevant_overlap or expected_terms.intersection(
+                terms
+            ):
                 relevant_count += 1
             else:
                 noise_count += 1
-            grounding_scores.append(_safe_float(item.get("score_final", item.get("grounding_score", 0.0))))
-            metadata = item.get("metadata", {}) if isinstance(item.get("metadata", {}), dict) else {}
-            provenance = item.get("provenance", {}) if isinstance(item.get("provenance", {}), dict) else metadata
-            if provenance.get("source_path") or provenance.get("source_uri") or item.get("source"):
+            grounding_scores.append(
+                _safe_float(item.get("score_final", item.get("grounding_score", 0.0)))
+            )
+            metadata = (
+                item.get("metadata", {})
+                if isinstance(item.get("metadata", {}), dict)
+                else {}
+            )
+            provenance = (
+                item.get("provenance", {})
+                if isinstance(item.get("provenance", {}), dict)
+                else metadata
+            )
+            if (
+                provenance.get("source_path")
+                or provenance.get("source_uri")
+                or item.get("source")
+            ):
                 provenance_complete += 1
-            if metadata.get("page") is not None or metadata.get("section") or item.get("record_id"):
+            if (
+                metadata.get("page") is not None
+                or metadata.get("section")
+                or item.get("record_id")
+            ):
                 citations_present += 1
 
         context_precision = relevant_count / max(len(evidence), 1)
-        context_recall = len(expected_terms.intersection(evidence_terms_all)) / max(len(expected_terms), 1) if expected_terms else (max(overlaps) if overlaps else 0.0)
+        context_recall = (
+            len(expected_terms.intersection(evidence_terms_all))
+            / max(len(expected_terms), 1)
+            if expected_terms
+            else (max(overlaps) if overlaps else 0.0)
+        )
         answer_supported_terms = answer_terms.intersection(evidence_terms_all)
-        faithfulness = len(answer_supported_terms) / max(len(answer_terms), 1) if answer_terms else 0.0
+        faithfulness = (
+            len(answer_supported_terms) / max(len(answer_terms), 1)
+            if answer_terms
+            else 0.0
+        )
         groundedness = sum(grounding_scores) / max(len(grounding_scores), 1)
         source_hits = 0
         if record.required_sources:
             for required in record.required_sources:
-                if any(required in str(item.get("source", "")) or required in str(item.get("metadata", {})) for item in evidence):
+                if any(
+                    required in str(item.get("source", ""))
+                    or required in str(item.get("metadata", {}))
+                    for item in evidence
+                ):
                     source_hits += 1
             citation_coverage = source_hits / max(len(record.required_sources), 1)
         else:
@@ -127,13 +172,17 @@ class RAGEvaluator:
             "context_recall": round(_clamp(context_recall), 3),
             "faithfulness": round(_clamp(faithfulness), 3),
             "groundedness": round(_clamp(groundedness), 3),
-            "provenance_completeness": round(provenance_complete / max(len(evidence), 1), 3),
+            "provenance_completeness": round(
+                provenance_complete / max(len(evidence), 1), 3
+            ),
             "citation_coverage": round(_clamp(citation_coverage), 3),
             "mean_grounding_score": round(_clamp(groundedness), 3),
             "noise_sensitivity": round(_clamp(noise_count / max(len(evidence), 1)), 3),
         }
 
-    def evaluate(self, records: Iterable[RAGEvaluationRecord | dict[str, Any]]) -> RAGEvaluationReport:
+    def evaluate(
+        self, records: Iterable[RAGEvaluationRecord | dict[str, Any]]
+    ) -> RAGEvaluationReport:
         evaluated = [self.evaluate_record(record) for record in records]
         sample_count = len(evaluated)
 
@@ -154,7 +203,11 @@ class RAGEvaluator:
         )
 
     @staticmethod
-    def enterprise_thresholds(report: RAGEvaluationReport, min_context_precision: float = 0.6, min_provenance: float = 0.8) -> dict[str, Any]:
+    def enterprise_thresholds(
+        report: RAGEvaluationReport,
+        min_context_precision: float = 0.6,
+        min_provenance: float = 0.8,
+    ) -> dict[str, Any]:
         failures = []
         if report.context_precision < min_context_precision:
             failures.append("context_precision_below_threshold")

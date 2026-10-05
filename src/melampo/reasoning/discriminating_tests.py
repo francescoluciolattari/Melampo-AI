@@ -66,9 +66,13 @@ class WeightedHypothesis:
     weight: float
 
     @classmethod
-    def from_differential(cls, differential: dict[str, Any]) -> list["WeightedHypothesis"]:
+    def from_differential(
+        cls, differential: dict[str, Any]
+    ) -> list["WeightedHypothesis"]:
         """Extract hypotheses from a ``DifferentialEngine`` payload."""
-        hypotheses = differential.get("hypotheses") if isinstance(differential, dict) else None
+        hypotheses = (
+            differential.get("hypotheses") if isinstance(differential, dict) else None
+        )
         if not isinstance(hypotheses, list):
             return []
         extracted: list[WeightedHypothesis] = []
@@ -78,7 +82,9 @@ class WeightedHypothesis:
             label = str(item.get("label", "")).strip()
             if not label:
                 continue
-            extracted.append(cls(label=label, weight=max(0.0, _as_float(item.get("score"), 0.0))))
+            extracted.append(
+                cls(label=label, weight=max(0.0, _as_float(item.get("score"), 0.0)))
+            )
         return extracted
 
 
@@ -108,7 +114,9 @@ class Investigation:
             "burden": round(self.burden, 3),
             "gain_per_burden": self.gain_per_burden,
             "discriminates_between": list(self.discriminates_between),
-            "likelihoods": {key: round(value, 3) for key, value in sorted(self.likelihoods.items())},
+            "likelihoods": {
+                key: round(value, 3) for key, value in sorted(self.likelihoods.items())
+            },
             "provenance": [dict(item) for item in self.provenance],
             "decision_support_only": True,
             "requires_clinician_judgement": True,
@@ -140,7 +148,11 @@ class DiscriminatingTestSelector:
                 if not self._is_test_relation(edge):
                     continue
                 name = normalise_concept(edge.target)
-                if name and name != normalise_concept(hypothesis.label) and name not in found:
+                if (
+                    name
+                    and name != normalise_concept(hypothesis.label)
+                    and name not in found
+                ):
                     found.append(name)
         return found
 
@@ -164,7 +176,11 @@ class DiscriminatingTestSelector:
         if len(prior) < 2:
             return []
 
-        tests = list(candidate_tests) if candidate_tests is not None else self.candidate_tests(hypotheses)
+        tests = (
+            list(candidate_tests)
+            if candidate_tests is not None
+            else self.candidate_tests(hypotheses)
+        )
         investigations: list[Investigation] = []
 
         for test in tests:
@@ -183,7 +199,9 @@ class DiscriminatingTestSelector:
                 Investigation(
                     name=test,
                     information_gain=gain,
-                    burden=self.burdens.get(normalise_concept(test), self.default_burden),
+                    burden=self.burdens.get(
+                        normalise_concept(test), self.default_burden
+                    ),
                     discriminates_between=discriminating,
                     likelihoods=likelihoods,
                     provenance=provenance,
@@ -192,7 +210,12 @@ class DiscriminatingTestSelector:
             )
 
         investigations.sort(
-            key=lambda item: (-item.information_gain_lower, -item.information_gain, item.burden, item.name)
+            key=lambda item: (
+                -item.information_gain_lower,
+                -item.information_gain,
+                item.burden,
+                item.name,
+            )
         )
         if include_non_discriminating:
             return investigations
@@ -205,21 +228,32 @@ class DiscriminatingTestSelector:
         return {
             "discriminating_tests": [item.as_dict() for item in ranked],
             "hypothesis_count": len(hypotheses),
-            "prior_entropy_bits": round(entropy(list(_normalise_weights(hypotheses).values())), 4),
+            "prior_entropy_bits": round(
+                entropy(list(_normalise_weights(hypotheses).values())), 4
+            ),
             "decision_support_only": True,
         }
 
-    def _likelihood_bounds(self, test: str, prior: dict[str, float]) -> dict[str, tuple[float, float]]:
+    def _likelihood_bounds(
+        self, test: str, prior: dict[str, float]
+    ) -> dict[str, tuple[float, float]]:
         """Likelihood intervals per hypothesis, widest matching edge winning."""
         bounds: dict[str, tuple[float, float]] = {}
         test_key = normalise_concept(test)
         for label in prior:
             found: tuple[float, float] | None = None
             for edge in self.graph.edges_from(label):
-                if not self._is_test_relation(edge) or normalise_concept(edge.target) != test_key:
+                if (
+                    not self._is_test_relation(edge)
+                    or normalise_concept(edge.target) != test_key
+                ):
                     continue
                 low, high = edge.bounds
-                found = (low, high) if found is None else (min(found[0], low), max(found[1], high))
+                found = (
+                    (low, high)
+                    if found is None
+                    else (min(found[0], low), max(found[1], high))
+                )
             bounds[label] = found if found is not None else self.absent_bounds
         return bounds
 
@@ -259,7 +293,9 @@ class DiscriminatingTestSelector:
         return likelihoods, tuple(provenance)
 
 
-def guaranteed_information_gain(prior: dict[str, float], bounds: dict[str, tuple[float, float]]) -> float:
+def guaranteed_information_gain(
+    prior: dict[str, float], bounds: dict[str, tuple[float, float]]
+) -> float:
     """Worst-case information gain over the likelihood intervals.
 
     Ranking by a point estimate lets ignorance masquerade as diagnostic power: a
@@ -281,7 +317,9 @@ def guaranteed_information_gain(prior: dict[str, float], bounds: dict[str, tuple
     if highest_lower <= lowest_upper:
         return 0.0
     midpoint = (highest_lower + lowest_upper) / 2.0
-    closest = {label: min(max(midpoint, low), high) for label, (low, high) in bounds.items()}
+    closest = {
+        label: min(max(midpoint, low), high) for label, (low, high) in bounds.items()
+    }
     return expected_information_gain(prior, closest)
 
 
@@ -294,7 +332,9 @@ def entropy(probabilities: Sequence[float]) -> float:
     return total
 
 
-def expected_information_gain(prior: dict[str, float], likelihoods: dict[str, float]) -> float:
+def expected_information_gain(
+    prior: dict[str, float], likelihoods: dict[str, float]
+) -> float:
     """Prior entropy minus expected posterior entropy, over a binary outcome.
 
     Never negative: on average an observation cannot increase uncertainty, and a
@@ -303,25 +343,39 @@ def expected_information_gain(prior: dict[str, float], likelihoods: dict[str, fl
     labels = list(prior)
     prior_values = [prior[label] for label in labels]
 
-    positive_probability = sum(prior[label] * likelihoods.get(label, 0.0) for label in labels)
+    positive_probability = sum(
+        prior[label] * likelihoods.get(label, 0.0) for label in labels
+    )
     negative_probability = 1.0 - positive_probability
 
-    posterior_positive = _posterior(prior, likelihoods, positive=True, evidence=positive_probability)
-    posterior_negative = _posterior(prior, likelihoods, positive=False, evidence=negative_probability)
+    posterior_positive = _posterior(
+        prior, likelihoods, positive=True, evidence=positive_probability
+    )
+    posterior_negative = _posterior(
+        prior, likelihoods, positive=False, evidence=negative_probability
+    )
 
-    expected = positive_probability * entropy(posterior_positive) + negative_probability * entropy(posterior_negative)
+    expected = positive_probability * entropy(
+        posterior_positive
+    ) + negative_probability * entropy(posterior_negative)
     return max(0.0, entropy(prior_values) - expected)
 
 
 def _posterior(
-    prior: dict[str, float], likelihoods: dict[str, float], *, positive: bool, evidence: float
+    prior: dict[str, float],
+    likelihoods: dict[str, float],
+    *,
+    positive: bool,
+    evidence: float,
 ) -> list[float]:
     if evidence <= MIN_PROBABILITY:
         return []
     values = []
     for label, probability in prior.items():
         likelihood = likelihoods.get(label, 0.0)
-        values.append(probability * (likelihood if positive else 1.0 - likelihood) / evidence)
+        values.append(
+            probability * (likelihood if positive else 1.0 - likelihood) / evidence
+        )
     return values
 
 
@@ -332,7 +386,9 @@ def _normalise_weights(hypotheses: Sequence[WeightedHypothesis]) -> dict[str, fl
     totals fall back to a uniform distribution, which is the honest reading of
     scores that carry no information about relative standing.
     """
-    positive = [(item.label, max(0.0, item.weight)) for item in hypotheses if item.label]
+    positive = [
+        (item.label, max(0.0, item.weight)) for item in hypotheses if item.label
+    ]
     if not positive:
         return {}
     total = sum(weight for _, weight in positive)

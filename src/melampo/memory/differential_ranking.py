@@ -99,7 +99,11 @@ def rank_differential(
     see and judge that for themselves rather than having it silently folded
     into the ranking.
     """
-    resolved_findings = [item for item in (resolve_concept(f, graph) for f in findings) if item is not None]
+    resolved_findings = [
+        item
+        for item in (resolve_concept(f, graph) for f in findings)
+        if item is not None
+    ]
     finding_set = {normalise_concept(item) for item in resolved_findings}
 
     ranked: list[DifferentialCandidate] = []
@@ -122,5 +126,7 @@ def rank_differential(
             )
         )
 
-    ranked.sort(key=lambda item: (-item.specificity_score, -item.coverage, item.condition))
+    ranked.sort(
+        key=lambda item: (-item.specificity_score, -item.coverage, item.condition)
+    )
     return ranked

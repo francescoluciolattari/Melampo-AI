@@ -68,7 +68,11 @@ class ConceptInformationContent:
     basis: str = BASIS_UNKNOWN
 
     def as_dict(self) -> dict[str, Any]:
-        return {"concept": self.concept, "value": round(self.value, 4), "basis": self.basis}
+        return {
+            "concept": self.concept,
+            "value": round(self.value, 4),
+            "basis": self.basis,
+        }
 
 
 @dataclass
@@ -86,7 +90,12 @@ class InformationContentTable:
 
     def get(self, concept: str) -> ConceptInformationContent:
         key = normalise_concept(concept)
-        return self.scores.get(key, ConceptInformationContent(concept=key, value=DEFAULT_IC, basis=BASIS_UNKNOWN))
+        return self.scores.get(
+            key,
+            ConceptInformationContent(
+                concept=key, value=DEFAULT_IC, basis=BASIS_UNKNOWN
+            ),
+        )
 
     def value(self, concept: str) -> float:
         return self.get(concept).value
@@ -95,7 +104,9 @@ class InformationContentTable:
         return len(self.scores)
 
     @classmethod
-    def from_frequencies(cls, frequencies: Mapping[str, float]) -> "InformationContentTable":
+    def from_frequencies(
+        cls, frequencies: Mapping[str, float]
+    ) -> "InformationContentTable":
         """Classical IC: -log(p), from observed concept frequencies.
 
         A frequency of zero would give infinite IC, which is the wrong answer
@@ -135,7 +146,10 @@ class InformationContentTable:
         if not concepts:
             return cls()
 
-        degrees = {normalise_concept(concept): len(graph.edges_from(concept)) for concept in concepts}
+        degrees = {
+            normalise_concept(concept): len(graph.edges_from(concept))
+            for concept in concepts
+        }
         total_degree = sum(degrees.values())
         if total_degree <= 0:
             return cls()
@@ -149,14 +163,21 @@ class InformationContentTable:
         return cls(scores=_normalised(raw, BASIS_GRAPH_STRUCTURE))
 
 
-def _normalised(raw: Mapping[str, float], basis: str) -> dict[str, ConceptInformationContent]:
+def _normalised(
+    raw: Mapping[str, float], basis: str
+) -> dict[str, ConceptInformationContent]:
     highest = max(raw.values()) if raw else 0.0
     if highest <= 0:
         return {
-            concept: ConceptInformationContent(concept=concept, value=DEFAULT_IC, basis=basis) for concept in raw
+            concept: ConceptInformationContent(
+                concept=concept, value=DEFAULT_IC, basis=basis
+            )
+            for concept in raw
         }
     return {
-        concept: ConceptInformationContent(concept=concept, value=value / highest, basis=basis)
+        concept: ConceptInformationContent(
+            concept=concept, value=value / highest, basis=basis
+        )
         for concept, value in raw.items()
     }
 
@@ -209,7 +230,9 @@ def path_concepts(path: ConceptPath) -> tuple[str, ...]:
     return tuple(seen)
 
 
-def score_path(path: ConceptPath, table: InformationContentTable) -> IcWeightedPathScore:
+def score_path(
+    path: ConceptPath, table: InformationContentTable
+) -> IcWeightedPathScore:
     """Weight a path's strength by the mean specificity of the concepts it crosses.
 
     The mean, not the product: a product would compound with path length and
@@ -220,8 +243,11 @@ def score_path(path: ConceptPath, table: InformationContentTable) -> IcWeightedP
     concepts = path_concepts(path)
     if not concepts:
         return IcWeightedPathScore(
-            path_strength=path.strength, mean_information_content=DEFAULT_IC,
-            weighted_strength=path.strength * DEFAULT_IC, concepts=(), bases=(),
+            path_strength=path.strength,
+            mean_information_content=DEFAULT_IC,
+            weighted_strength=path.strength * DEFAULT_IC,
+            concepts=(),
+            bases=(),
         )
 
     entries = [table.get(concept) for concept in concepts]
@@ -235,7 +261,9 @@ def score_path(path: ConceptPath, table: InformationContentTable) -> IcWeightedP
     )
 
 
-def rank_paths(paths: Iterable[ConceptPath], table: InformationContentTable) -> list[IcWeightedPathScore]:
+def rank_paths(
+    paths: Iterable[ConceptPath], table: InformationContentTable
+) -> list[IcWeightedPathScore]:
     """Score and order paths by IC-weighted strength, strongest first."""
     scored = [score_path(path, table) for path in paths]
     return sorted(scored, key=lambda item: -item.weighted_strength)
@@ -292,7 +320,9 @@ class ConvergenceScore:
         }
 
 
-def score_convergence(paths: Sequence[ConceptPath], table: InformationContentTable) -> ConvergenceScore:
+def score_convergence(
+    paths: Sequence[ConceptPath], table: InformationContentTable
+) -> ConvergenceScore:
     """Reward two concepts being connected by several independent routes.
 
     "Independent" means not passing through the same intermediate concepts:
@@ -312,15 +342,23 @@ def score_convergence(paths: Sequence[ConceptPath], table: InformationContentTab
     signatures: set[frozenset[str]] = set()
     intermediate_sets: list[set[str]] = []
     for score in scored:
-        intermediates = frozenset(score.concepts[1:-1]) if len(score.concepts) > 2 else frozenset()
+        intermediates = (
+            frozenset(score.concepts[1:-1]) if len(score.concepts) > 2 else frozenset()
+        )
         signatures.add(intermediates)
         intermediate_sets.append(set(intermediates))
 
     independent = len(signatures)
     # Sub-additive: 1 path -> 1.0, 2 -> 1.5, 3 -> 1.75, 4 -> 1.875 ...
-    multiplier = 1.0 + sum(CONVERGENCE_REWARD_BASE**index for index in range(1, independent))
+    multiplier = 1.0 + sum(
+        CONVERGENCE_REWARD_BASE**index for index in range(1, independent)
+    )
 
-    shared = set.intersection(*intermediate_sets) if intermediate_sets and all(intermediate_sets) else set()
+    shared = (
+        set.intersection(*intermediate_sets)
+        if intermediate_sets and all(intermediate_sets)
+        else set()
+    )
 
     return ConvergenceScore(
         best_weighted_strength=best,

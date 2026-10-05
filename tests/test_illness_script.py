@@ -29,9 +29,23 @@ from melampo.reasoning.illness_script import (
 def _graph() -> InMemoryConceptGraph:
     return InMemoryConceptGraph.from_edges(
         [
-            ConceptEdge("pulmonary oedema", "causes", "bibasilar opacities", 0.9, "radiology_ontology"),
-            ConceptEdge("congestive cardiac failure", "causes", "pulmonary oedema", 0.9, "cardiology_ontology"),
-            ConceptEdge("pneumonia", "causes", "bibasilar opacities", 0.7, "radiology_ontology"),
+            ConceptEdge(
+                "pulmonary oedema",
+                "causes",
+                "bibasilar opacities",
+                0.9,
+                "radiology_ontology",
+            ),
+            ConceptEdge(
+                "congestive cardiac failure",
+                "causes",
+                "pulmonary oedema",
+                0.9,
+                "cardiology_ontology",
+            ),
+            ConceptEdge(
+                "pneumonia", "causes", "bibasilar opacities", 0.7, "radiology_ontology"
+            ),
         ]
     )
 
@@ -41,7 +55,11 @@ SCRIPT_PAYLOAD = {
     "fault": {"label": "pulmonary oedema", "term_id": "HP:0100598"},
     "consequences": [{"label": "bibasilar opacities", "term_id": "HP:0002093"}],
     "differential": [
-        {"condition": "congestive cardiac failure", "rank": 1, "discriminating_features": ["bnp assay"]},
+        {
+            "condition": "congestive cardiac failure",
+            "rank": 1,
+            "discriminating_features": ["bnp assay"],
+        },
         {"condition": "pneumonia", "rank": 2},
     ],
 }
@@ -93,7 +111,8 @@ def test_the_leading_entry_ignores_channel_candidates():
 
 def test_an_observed_finding_is_grounded_in_the_case():
     verification = ScriptVerifier(graph=_graph()).verify(
-        IllnessScript.from_payload(SCRIPT_PAYLOAD), case_findings=["bibasilar opacities"]
+        IllnessScript.from_payload(SCRIPT_PAYLOAD),
+        case_findings=["bibasilar opacities"],
     )
     assert verification.consequences[0].verdict == VERDICT_GROUNDED_IN_CASE
     assert verification.consequences[0].strength_lower == 1.0
@@ -102,7 +121,8 @@ def test_an_observed_finding_is_grounded_in_the_case():
 def test_a_condition_reachable_through_the_graph_is_knowledge_mediated():
     """Absent from the case is not automatically wrong."""
     verification = ScriptVerifier(graph=_graph()).verify(
-        IllnessScript.from_payload(SCRIPT_PAYLOAD), case_findings=["bibasilar opacities"]
+        IllnessScript.from_payload(SCRIPT_PAYLOAD),
+        case_findings=["bibasilar opacities"],
     )
     leading = verification.differential[0]
 
@@ -114,7 +134,10 @@ def test_a_condition_reachable_through_the_graph_is_knowledge_mediated():
 
 
 def test_a_condition_with_no_path_is_unsupported():
-    payload = {**SCRIPT_PAYLOAD, "differential": [{"condition": "fractured radius", "rank": 1}]}
+    payload = {
+        **SCRIPT_PAYLOAD,
+        "differential": [{"condition": "fractured radius", "rank": 1}],
+    }
     verification = ScriptVerifier(graph=_graph()).verify(
         IllnessScript.from_payload(payload), case_findings=["bibasilar opacities"]
     )
@@ -148,7 +171,8 @@ def test_only_admitted_findings_ground_an_element():
 
 def test_the_verification_payload_carries_the_supporting_path():
     verification = ScriptVerifier(graph=_graph()).verify(
-        IllnessScript.from_payload(SCRIPT_PAYLOAD), case_findings=["bibasilar opacities"]
+        IllnessScript.from_payload(SCRIPT_PAYLOAD),
+        case_findings=["bibasilar opacities"],
     )
     payload = verification.as_dict()["differential"][0]
     assert payload["path"]["kind"] == "concept_graph_path"
@@ -187,8 +211,12 @@ def test_a_condition_the_model_already_raised_is_not_re_listed():
 
 
 def test_merged_hypotheses_are_verified_like_any_other_element():
-    script = merge_hypotheses(IllnessScript.from_payload(SCRIPT_PAYLOAD), [{"label": "pneumonia alt"}])
-    verification = ScriptVerifier(graph=_graph()).verify(script, case_findings=["bibasilar opacities"])
+    script = merge_hypotheses(
+        IllnessScript.from_payload(SCRIPT_PAYLOAD), [{"label": "pneumonia alt"}]
+    )
+    verification = ScriptVerifier(graph=_graph()).verify(
+        script, case_findings=["bibasilar opacities"]
+    )
     assert verification.differential[-1].verdict == VERDICT_UNSUPPORTED
 
 
@@ -199,15 +227,30 @@ def test_merged_hypotheses_are_verified_like_any_other_element():
 
 def test_histology_and_outcome_are_independent_confirmations():
     registry = ConfirmationRegistry()
-    assert registry.register(Confirmation("c1", "sarcoidosis", source=SOURCE_HISTOPATHOLOGY)) is True
-    assert registry.register(Confirmation("c2", "pneumonia", source=SOURCE_CLINICAL_OUTCOME)) is True
+    assert (
+        registry.register(
+            Confirmation("c1", "sarcoidosis", source=SOURCE_HISTOPATHOLOGY)
+        )
+        is True
+    )
+    assert (
+        registry.register(
+            Confirmation("c2", "pneumonia", source=SOURCE_CLINICAL_OUTCOME)
+        )
+        is True
+    )
     assert len(registry.learning_set()) == 2
 
 
 def test_an_accepted_suggestion_is_not_a_confirmation():
     """The failure mode: the system learns from its own proposals."""
     registry = ConfirmationRegistry()
-    assert registry.register(Confirmation("c1", "pneumonia", source=SOURCE_SYSTEM_ACCEPTED)) is False
+    assert (
+        registry.register(
+            Confirmation("c1", "pneumonia", source=SOURCE_SYSTEM_ACCEPTED)
+        )
+        is False
+    )
     assert registry.rejected[0].reason == REJECT_NOT_INDEPENDENT
     assert registry.learning_set() == []
 
@@ -222,7 +265,10 @@ def test_a_review_counts_only_when_the_reviewer_was_blinded():
     registry = ConfirmationRegistry()
     unblinded = Confirmation("c1", "pneumonia", source=SOURCE_INDEPENDENT_REVIEW)
     blinded = Confirmation(
-        "c2", "pneumonia", source=SOURCE_INDEPENDENT_REVIEW, reviewer_blinded_to_suggestion=True
+        "c2",
+        "pneumonia",
+        source=SOURCE_INDEPENDENT_REVIEW,
+        reviewer_blinded_to_suggestion=True,
     )
     assert registry.register(unblinded) is False
     assert registry.rejected[0].reason == REJECT_REVIEWER_SAW_SUGGESTION
@@ -233,7 +279,10 @@ def test_an_unrecorded_blinding_status_is_treated_as_unblinded():
     """Reading the suggestion and agreeing is the failure, not a weaker confirmation."""
     registry = ConfirmationRegistry()
     partial = Confirmation(
-        "c1", "pneumonia", source=SOURCE_INDEPENDENT_REVIEW, reviewer_blinded_to_suggestion=None
+        "c1",
+        "pneumonia",
+        source=SOURCE_INDEPENDENT_REVIEW,
+        reviewer_blinded_to_suggestion=None,
     )
     assert registry.register(partial) is False
     assert partial.is_independent is False
@@ -242,7 +291,10 @@ def test_an_unrecorded_blinding_status_is_treated_as_unblinded():
 def test_a_duplicate_case_is_registered_once():
     registry = ConfirmationRegistry()
     registry.register(Confirmation("c1", "pneumonia", source=SOURCE_HISTOPATHOLOGY))
-    assert registry.register(Confirmation("c1", "pneumonia", source=SOURCE_HISTOPATHOLOGY)) is False
+    assert (
+        registry.register(Confirmation("c1", "pneumonia", source=SOURCE_HISTOPATHOLOGY))
+        is False
+    )
     assert registry.rejected[0].reason == REJECT_DUPLICATE
 
 
@@ -263,7 +315,9 @@ def test_the_independence_rate_is_watchable_over_time():
 
 def test_the_guard_raises_on_a_contaminated_learning_set():
     with pytest.raises(ValueError):
-        assert_independent([Confirmation("c1", "pneumonia", source=SOURCE_SYSTEM_ACCEPTED)])
+        assert_independent(
+            [Confirmation("c1", "pneumonia", source=SOURCE_SYSTEM_ACCEPTED)]
+        )
 
 
 def test_the_guard_passes_a_clean_learning_set():

@@ -15,7 +15,10 @@ def test_high_pi_score_and_low_prediction_error_support_rapid_intuition():
     result = engine.infer(
         case_id="case-calibration-high-pi",
         ranked_evidence=_ranked_evidence(),
-        nexus={"rehearsal_profile": {"revision_bias": "exploratory"}, "alternative_hypotheses": []},
+        nexus={
+            "rehearsal_profile": {"revision_bias": "exploratory"},
+            "alternative_hypotheses": [],
+        },
         quantum_allowed=True,
         area_signals={
             "visual_diagnostic": {"salience_score": 0.8, "signal_count": 3},
@@ -41,7 +44,10 @@ def test_high_pi_score_and_low_prediction_error_support_rapid_intuition():
     )
     assert result["deductive_filter"]["reasoning_mode"] == "rapid_intuition"
     assert result["candidate_scores"][0]["mode"] == "rapid_intuition"
-    assert result["belief_update"]["precision_modulation"] > result["belief_update"]["conflict_modulation"]
+    assert (
+        result["belief_update"]["precision_modulation"]
+        > result["belief_update"]["conflict_modulation"]
+    )
 
 
 def test_high_prediction_error_increases_revision_or_contradiction_pressure():
@@ -55,7 +61,9 @@ def test_high_prediction_error_increases_revision_or_contradiction_pressure():
                 "revision_bias": "conservative",
                 "post_error_adjustment": "re-rank_alternatives",
             },
-            "alternative_hypotheses": [{"label": "rare_alt", "kind": "contradiction_revision"}],
+            "alternative_hypotheses": [
+                {"label": "rare_alt", "kind": "contradiction_revision"}
+            ],
         },
         quantum_allowed=True,
         area_signals={
@@ -80,6 +88,9 @@ def test_high_prediction_error_increases_revision_or_contradiction_pressure():
             },
         },
     )
-    assert result["candidate_scores"][0]["mode"] in {"rational_revision", "contradiction_revision"}
+    assert result["candidate_scores"][0]["mode"] in {
+        "rational_revision",
+        "contradiction_revision",
+    }
     assert result["deductive_filter"]["prediction_error"] >= 0.8
     assert result["belief_update"]["conflict_modulation"] > 0.0

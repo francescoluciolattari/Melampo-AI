@@ -20,7 +20,12 @@ class AppendOnlyAuditStore:
     path: str | Path
     _lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
-    def append(self, event_type: str, payload: dict[str, Any], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def append(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         event = {
             "event_type": event_type,
             "payload": payload,
@@ -47,4 +52,8 @@ class AppendOnlyAuditStore:
         for event in events:
             event_type = str(event.get("event_type", "unknown"))
             event_counts[event_type] = event_counts.get(event_type, 0) + 1
-        return {"path": str(self.path), "event_count": len(events), "event_counts": event_counts}
+        return {
+            "path": str(self.path),
+            "event_count": len(events),
+            "event_counts": event_counts,
+        }

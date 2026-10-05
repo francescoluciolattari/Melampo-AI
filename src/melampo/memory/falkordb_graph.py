@@ -51,14 +51,18 @@ class FalkorConceptGraph:
     _concepts_cache: set[str] | None = field(default=None, repr=False)
 
     @classmethod
-    def open(cls, config: FalkorDBConfig | None = None, graph_name: str = DEFAULT_GRAPH_NAME) -> "FalkorConceptGraph":
+    def open(
+        cls, config: FalkorDBConfig | None = None, graph_name: str = DEFAULT_GRAPH_NAME
+    ) -> "FalkorConceptGraph":
         """Connect using the project's configured backend (data/falkordb_config.toml by default)."""
         return cls(connection=connect(config), graph_name=graph_name)
 
     def _graph(self) -> Any:
         return self.connection.select_graph(self.graph_name)
 
-    def edges_from_many(self, concepts: Sequence[str], *, batch_size: int = 150) -> dict[str, list[ConceptEdge]]:
+    def edges_from_many(
+        self, concepts: Sequence[str], *, batch_size: int = 150
+    ) -> dict[str, list[ConceptEdge]]:
         """edges_from() for many concepts, chunked into bounded round trips.
 
         Built for exactly one purpose: retrieve_candidates' breadth-first
@@ -81,7 +85,11 @@ class FalkorConceptGraph:
         to stay fast, without reintroducing the original one-call-per-node
         cost.
         """
-        keys = [normalise_concept(concept) for concept in concepts if normalise_concept(concept)]
+        keys = [
+            normalise_concept(concept)
+            for concept in concepts
+            if normalise_concept(concept)
+        ]
         if not keys:
             return {}
         grouped: dict[str, list[ConceptEdge]] = {key: [] for key in keys}
@@ -96,21 +104,43 @@ class FalkorConceptGraph:
                 params={"norms": chunk},
             )
             for row in result.result_set:
-                concept_norm, relation, weight, lower, upper, provenance, source_name, target_name, is_outgoing = row
+                (
+                    concept_norm,
+                    relation,
+                    weight,
+                    lower,
+                    upper,
+                    provenance,
+                    source_name,
+                    target_name,
+                    is_outgoing,
+                ) = row
                 if is_outgoing:
                     edge = ConceptEdge(
-                        source=source_name, relation=relation, target=target_name,
-                        weight=weight, provenance=provenance, lower=lower, upper=upper,
+                        source=source_name,
+                        relation=relation,
+                        target=target_name,
+                        weight=weight,
+                        provenance=provenance,
+                        lower=lower,
+                        upper=upper,
                     )
                 else:
                     edge = ConceptEdge(
-                        source=target_name, relation=f"inverse_{relation}", target=source_name,
-                        weight=weight, provenance=provenance, lower=lower, upper=upper,
+                        source=target_name,
+                        relation=f"inverse_{relation}",
+                        target=source_name,
+                        weight=weight,
+                        provenance=provenance,
+                        lower=lower,
+                        upper=upper,
                     )
                 grouped[concept_norm].append(edge)
         return grouped
 
-    def shortest_path_last_edges(self, start: str, *, max_hops: int) -> list[tuple[str, str, bool, int]]:
+    def shortest_path_last_edges(
+        self, start: str, *, max_hops: int
+    ) -> list[tuple[str, str, bool, int]]:
         """For every concept reachable from `start` within max_hops, the (candidate, relation,
         reached_by_reverse, hop_count) needed to apply retrieve_candidates' admissibility and
         ranking logic -- in one native, server-side traversal.
@@ -158,7 +188,9 @@ class FalkorConceptGraph:
         if not key:
             return []
         result = self._graph().query(
-            "MATCH path = (s:Concept {norm: $norm})-[:CONCEPT_EDGE*1.." + str(max_hops) + "]-(candidate:Concept) "
+            "MATCH path = (s:Concept {norm: $norm})-[:CONCEPT_EDGE*1.."
+            + str(max_hops)
+            + "]-(candidate:Concept) "
             "WITH candidate, path, length(path) AS hop_count "
             "ORDER BY hop_count ASC "
             "WITH candidate, collect(path)[0] AS shortest, collect(hop_count)[0] AS shortest_hop_count "
@@ -167,7 +199,13 @@ class FalkorConceptGraph:
             params={"norm": key},
         )
         out: list[tuple[str, str, bool, int]] = []
-        for candidate_norm, relation, source_name, target_name, hop_count in result.result_set:
+        for (
+            candidate_norm,
+            relation,
+            source_name,
+            target_name,
+            hop_count,
+        ) in result.result_set:
             reached_by_reverse = normalise_concept(source_name) == candidate_norm
             out.append((candidate_norm, relation, reached_by_reverse, int(hop_count)))
         return out
@@ -183,12 +221,26 @@ class FalkorConceptGraph:
             params={"norm": key},
         )
         edges: list[ConceptEdge] = []
-        for relation, weight, lower, upper, provenance, source_name, target_name, is_outgoing in result.result_set:
+        for (
+            relation,
+            weight,
+            lower,
+            upper,
+            provenance,
+            source_name,
+            target_name,
+            is_outgoing,
+        ) in result.result_set:
             if is_outgoing:
                 edges.append(
                     ConceptEdge(
-                        source=source_name, relation=relation, target=target_name,
-                        weight=weight, provenance=provenance, lower=lower, upper=upper,
+                        source=source_name,
+                        relation=relation,
+                        target=target_name,
+                        weight=weight,
+                        provenance=provenance,
+                        lower=lower,
+                        upper=upper,
                     )
                 )
             else:
@@ -196,8 +248,13 @@ class FalkorConceptGraph:
                 # exactly: source and target swapped, relation prefixed.
                 edges.append(
                     ConceptEdge(
-                        source=target_name, relation=f"inverse_{relation}", target=source_name,
-                        weight=weight, provenance=provenance, lower=lower, upper=upper,
+                        source=target_name,
+                        relation=f"inverse_{relation}",
+                        target=source_name,
+                        weight=weight,
+                        provenance=provenance,
+                        lower=lower,
+                        upper=upper,
                     )
                 )
         return edges
@@ -220,7 +277,9 @@ class FalkorConceptGraph:
         return self._concepts_cache
 
     def edge_count(self) -> int:
-        result = self._graph().query("MATCH ()-[rel:CONCEPT_EDGE]->() RETURN count(rel)")
+        result = self._graph().query(
+            "MATCH ()-[rel:CONCEPT_EDGE]->() RETURN count(rel)"
+        )
         return int(result.result_set[0][0])
 
     def ensure_index(self) -> None:
@@ -236,10 +295,15 @@ class FalkorConceptGraph:
         try:
             self._graph().query("CREATE INDEX FOR (c:Concept) ON (c.norm)")
         except Exception as error:
-            if "already indexed" not in str(error).lower() and "already exists" not in str(error).lower():
+            if (
+                "already indexed" not in str(error).lower()
+                and "already exists" not in str(error).lower()
+            ):
                 raise
 
-    def load_edges(self, edges: Iterable[ConceptEdge], *, batch_size: int = _BATCH_SIZE) -> int:
+    def load_edges(
+        self, edges: Iterable[ConceptEdge], *, batch_size: int = _BATCH_SIZE
+    ) -> int:
         """Bulk-load edges in batches, MERGE-ing nodes so the same concept from
         multiple edges becomes one node, not a duplicate per edge.
 

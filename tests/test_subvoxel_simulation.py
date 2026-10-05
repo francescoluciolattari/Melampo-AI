@@ -7,7 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _script():
-    spec = importlib.util.spec_from_file_location("simulate_subvoxel_precision", ROOT / "scripts" / "simulate_subvoxel_precision.py")
+    spec = importlib.util.spec_from_file_location(
+        "simulate_subvoxel_precision",
+        ROOT / "scripts" / "simulate_subvoxel_precision.py",
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

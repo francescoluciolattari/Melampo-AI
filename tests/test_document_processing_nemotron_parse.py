@@ -47,7 +47,10 @@ def _fake_response(text: str) -> MagicMock:
 
 
 def _configured_processor() -> ClinicalDocumentProcessor:
-    return ClinicalDocumentProcessor(nemotron_parse_endpoint="http://nim.example:8000", nemotron_parse_api_key="test-key")
+    return ClinicalDocumentProcessor(
+        nemotron_parse_endpoint="http://nim.example:8000",
+        nemotron_parse_api_key="test-key",
+    )
 
 
 # --------------------------------------------------------------------------
@@ -56,7 +59,9 @@ def _configured_processor() -> ClinicalDocumentProcessor:
 
 
 def test_parses_the_documented_response_shape():
-    text, metadata = _parse_nemotron_parse_response({"choices": [{"message": {"content": "hello"}}]})
+    text, metadata = _parse_nemotron_parse_response(
+        {"choices": [{"message": {"content": "hello"}}]}
+    )
     assert text == "hello"
     assert metadata == {"bounding_boxes_decoded": False}
 
@@ -91,7 +96,10 @@ def test_calls_the_configured_endpoint_with_the_documented_request_shape(tmp_pat
     # v2.0's own required control-token prompt -- copied from NVIDIA's
     # self-hosted-NIM example, not a free-text instruction: v2.0's release
     # notes state plainly that free-text-only prompts are not supported.
-    assert prompt == "</s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>"
+    assert (
+        prompt
+        == "</s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>"
+    )
     assert kwargs["headers"]["Authorization"] == "Bearer test-key"
 
 
@@ -129,7 +137,9 @@ def test_an_http_error_surfaces_as_a_failed_status_not_a_crash(tmp_path):
     processor = _configured_processor()
 
     with patch("requests.post") as mock_post:
-        mock_post.return_value = MagicMock(raise_for_status=MagicMock(side_effect=requests.HTTPError("server error")))
+        mock_post.return_value = MagicMock(
+            raise_for_status=MagicMock(side_effect=requests.HTTPError("server error"))
+        )
         result = processor.load_with_nemotron_parse(image_path)
 
     assert result["status"] == "failed"
@@ -160,7 +170,9 @@ def test_process_document_completes_end_to_end_through_nemotron_parse(tmp_path):
     processor = _configured_processor()
 
     with patch("requests.post") as mock_post:
-        mock_post.return_value = _fake_response("Patient reports persistent cough and fever for three days.")
+        mock_post.return_value = _fake_response(
+            "Patient reports persistent cough and fever for three days."
+        )
         result = processor.process_document(pdf_path)
 
     assert result["status"] == "completed"
@@ -175,7 +187,9 @@ def test_process_document_falls_back_to_plain_text_when_nemotron_parse_fails(tmp
     processor = _configured_processor()
 
     with patch("requests.post") as mock_post:
-        mock_post.return_value = MagicMock(raise_for_status=MagicMock(side_effect=requests.HTTPError("down")))
+        mock_post.return_value = MagicMock(
+            raise_for_status=MagicMock(side_effect=requests.HTTPError("down"))
+        )
         result = processor.process_document(text_path)
 
     assert result["status"] == "completed"

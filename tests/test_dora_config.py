@@ -20,7 +20,15 @@ def test_as_peft_kwargs_uses_peft_s_own_parameter_names():
     not a paraphrase -- this is what lets LoraConfig(**kwargs) work without a
     translation layer."""
     kwargs = DoraTrainingConfig().as_peft_kwargs()
-    for expected_key in ("r", "lora_alpha", "lora_dropout", "target_modules", "use_dora", "bias", "task_type"):
+    for expected_key in (
+        "r",
+        "lora_alpha",
+        "lora_dropout",
+        "target_modules",
+        "use_dora",
+        "bias",
+        "task_type",
+    ):
         assert expected_key in kwargs
 
 
@@ -48,7 +56,9 @@ def test_a_caller_can_override_any_field():
     kwargs = config.as_peft_kwargs()
     assert kwargs["r"] == 32
     assert kwargs["lora_alpha"] == 64
-    assert kwargs["use_dora"] is False, "overriding to plain LoRA must remain possible, just not the default"
+    assert kwargs["use_dora"] is False, (
+        "overriding to plain LoRA must remain possible, just not the default"
+    )
 
 
 # --------------------------------------------------------------------------

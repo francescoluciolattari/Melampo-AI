@@ -59,7 +59,10 @@ Matrix = tuple[tuple[Complex, ...], ...]
 
 def _matmul(a: Matrix, b: Matrix) -> Matrix:
     n = len(a)
-    return tuple(tuple(sum(a[i][k] * b[k][j] for k in range(n)) for j in range(n)) for i in range(n))
+    return tuple(
+        tuple(sum(a[i][k] * b[k][j] for k in range(n)) for j in range(n))
+        for i in range(n)
+    )
 
 
 def _conjugate_transpose(a: Matrix) -> Matrix:
@@ -94,7 +97,9 @@ class QuantumBeliefState:
     def __post_init__(self) -> None:
         norm = _norm(self.amplitudes)
         if abs(norm - 1.0) > 1e-9:
-            raise ValueError(f"state must be normalised (norm={norm:.6f}); construct via QuantumBeliefState.normalised()")
+            raise ValueError(
+                f"state must be normalised (norm={norm:.6f}); construct via QuantumBeliefState.normalised()"
+            )
 
     @classmethod
     def normalised(cls, amplitudes: tuple[Complex, ...]) -> "QuantumBeliefState":
@@ -126,12 +131,16 @@ class Projector:
         for i in range(n):
             for j in range(n):
                 if abs(self.matrix[i][j] - conjugate_t[i][j]) > 1e-9:
-                    raise ValueError("matrix is not Hermitian: P must equal its own conjugate transpose")
+                    raise ValueError(
+                        "matrix is not Hermitian: P must equal its own conjugate transpose"
+                    )
         squared = _matmul(self.matrix, self.matrix)
         for i in range(n):
             for j in range(n):
                 if abs(squared[i][j] - self.matrix[i][j]) > 1e-9:
-                    raise ValueError("matrix is not idempotent: P*P must equal P for a valid projector")
+                    raise ValueError(
+                        "matrix is not idempotent: P*P must equal P for a valid projector"
+                    )
 
     def apply(self, state: QuantumBeliefState) -> tuple[Complex, ...]:
         return _apply(self.matrix, state.amplitudes)
@@ -158,10 +167,14 @@ class Projector:
         left = _matmul(self.matrix, other.matrix)
         right = _matmul(other.matrix, self.matrix)
         n = len(self.matrix)
-        return all(abs(left[i][j] - right[i][j]) < 1e-9 for i in range(n) for j in range(n))
+        return all(
+            abs(left[i][j] - right[i][j]) < 1e-9 for i in range(n) for j in range(n)
+        )
 
 
-def sequential_probability(state: QuantumBeliefState, first: Projector, second: Projector) -> float:
+def sequential_probability(
+    state: QuantumBeliefState, first: Projector, second: Projector
+) -> float:
     """P(first outcome, then second outcome), asked in that order.
 
     The quantum law of total probability for a sequence of two questions:
@@ -176,7 +189,9 @@ def sequential_probability(state: QuantumBeliefState, first: Projector, second: 
     return p_first * p_second_given_first
 
 
-def order_effect(state: QuantumBeliefState, question_a: Projector, question_b: Projector) -> float:
+def order_effect(
+    state: QuantumBeliefState, question_a: Projector, question_b: Projector
+) -> float:
     """How much asking A before B changes the result, versus asking B before A.
 
     Zero exactly when the two questions' projectors commute -- classical
@@ -186,7 +201,9 @@ def order_effect(state: QuantumBeliefState, question_a: Projector, question_b: P
     non-commutativity the two questions exhibit, in the units of the
     probability itself.
     """
-    return sequential_probability(state, question_a, question_b) - sequential_probability(state, question_b, question_a)
+    return sequential_probability(
+        state, question_a, question_b
+    ) - sequential_probability(state, question_b, question_a)
 
 
 def rotation_projector_pair(theta: float) -> tuple[Projector, Projector]:

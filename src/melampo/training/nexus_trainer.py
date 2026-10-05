@@ -54,15 +54,35 @@ class NexusTrainer:
     visual_morpher: VisualImprintMorpher = field(default_factory=VisualImprintMorpher)
     enumerator: Any = None
 
-    def _runtime_context(self, case_context: dict, coherence: float, risk: float) -> NexusRuntimeContext:
+    def _runtime_context(
+        self, case_context: dict, coherence: float, risk: float
+    ) -> NexusRuntimeContext:
         case_context = case_context or {}
         filter_assessment = self.replay_filter.assess(coherence=coherence, risk=risk)
         sampled = self.sampler.sample(case_context)
         area_dynamics = case_context.get("area_dynamics", {})
-        neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
-        visual_imprints = list(case_context.get("visual_imprints", [])) if isinstance(case_context.get("visual_imprints", []), list) else []
-        concept_memory_imprints = list(case_context.get("concept_memory_imprints", [])) if isinstance(case_context.get("concept_memory_imprints", []), list) else []
-        diagnostic_visual_imprints = list(case_context.get("diagnostic_visual_imprints", visual_imprints)) if isinstance(case_context.get("diagnostic_visual_imprints", visual_imprints), list) else visual_imprints
+        neuro_metrics = (
+            area_dynamics.get("neuro_dynamic_metrics", {})
+            if isinstance(area_dynamics, dict)
+            else {}
+        )
+        visual_imprints = (
+            list(case_context.get("visual_imprints", []))
+            if isinstance(case_context.get("visual_imprints", []), list)
+            else []
+        )
+        concept_memory_imprints = (
+            list(case_context.get("concept_memory_imprints", []))
+            if isinstance(case_context.get("concept_memory_imprints", []), list)
+            else []
+        )
+        diagnostic_visual_imprints = (
+            list(case_context.get("diagnostic_visual_imprints", visual_imprints))
+            if isinstance(
+                case_context.get("diagnostic_visual_imprints", visual_imprints), list
+            )
+            else visual_imprints
+        )
         visual_morphing = self.visual_morpher.nexus_morph(
             concept_imprints=concept_memory_imprints + visual_imprints,
             diagnostic_imprints=diagnostic_visual_imprints,
@@ -82,16 +102,31 @@ class NexusTrainer:
             patient_complaints=case_context.get("patient_complaints", ""),
             area_dynamics=area_dynamics,
             neuro_metrics=neuro_metrics,
-            mismatch_score=_safe_float(area_dynamics.get("mismatch_score", 0.0)) if isinstance(area_dynamics, dict) else 0.0,
-            coherence_pairs=area_dynamics.get("coherence_pairs", []) if isinstance(area_dynamics, dict) else [],
+            mismatch_score=_safe_float(area_dynamics.get("mismatch_score", 0.0))
+            if isinstance(area_dynamics, dict)
+            else 0.0,
+            coherence_pairs=area_dynamics.get("coherence_pairs", [])
+            if isinstance(area_dynamics, dict)
+            else [],
             convergence_index=_safe_float(neuro_metrics.get("convergence_index", 0.0)),
             revision_pressure=_safe_float(neuro_metrics.get("revision_pressure", 0.0)),
             nexus_plasticity=_safe_float(neuro_metrics.get("nexus_plasticity", 0.0)),
-            pi_score=_safe_float(neuro_metrics.get("pi_score", area_dynamics.get("pi_score", 0.0) if isinstance(area_dynamics, dict) else 0.0)),
+            pi_score=_safe_float(
+                neuro_metrics.get(
+                    "pi_score",
+                    area_dynamics.get("pi_score", 0.0)
+                    if isinstance(area_dynamics, dict)
+                    else 0.0,
+                )
+            ),
             variant_focus=sampled.get("variant_focus", "context"),
             visual_morphing=visual_morphing,
-            visual_morph_gain=_safe_float(visual_morphing.get("visual_morph_intuition_gain", 0.0)),
-            visual_prediction_link_score=_safe_float(visual_morphing.get("visual_prediction_link_score", 0.0)),
+            visual_morph_gain=_safe_float(
+                visual_morphing.get("visual_morph_intuition_gain", 0.0)
+            ),
+            visual_prediction_link_score=_safe_float(
+                visual_morphing.get("visual_prediction_link_score", 0.0)
+            ),
         )
 
     def _rehearsal_profile(self, context: NexusRuntimeContext) -> dict[str, Any]:
@@ -103,11 +138,23 @@ class NexusTrainer:
         )
         return {
             "rare_case_hint": bool(context.accepted and len(context.bundle_keys) <= 2),
-            "boundary_case_hint": bool(context.coherence < 0.95 and context.risk <= 0.15),
+            "boundary_case_hint": bool(
+                context.coherence < 0.95 and context.risk <= 0.15
+            ),
             "contradiction_rehearsal": contradiction_rehearsal,
-            "revision_bias": "conservative" if (context.risk > 0.15 or context.mismatch_score > 0.4 or context.revision_pressure > 0.5) else "exploratory",
-            "post_error_adjustment": "re-rank_alternatives" if contradiction_rehearsal else "stabilize_primary",
-            "coherence_guidance": "multimodal_support" if context.coherence_pairs else "single_stream",
+            "revision_bias": "conservative"
+            if (
+                context.risk > 0.15
+                or context.mismatch_score > 0.4
+                or context.revision_pressure > 0.5
+            )
+            else "exploratory",
+            "post_error_adjustment": "re-rank_alternatives"
+            if contradiction_rehearsal
+            else "stabilize_primary",
+            "coherence_guidance": "multimodal_support"
+            if context.coherence_pairs
+            else "single_stream",
             "replay_mode": context.filter_assessment["replay_mode"],
             "acceptance_score": context.filter_assessment["acceptance_score"],
             "variant_focus": context.variant_focus,
@@ -115,12 +162,18 @@ class NexusTrainer:
             "convergence_index": context.convergence_index,
             "revision_pressure": context.revision_pressure,
             "pi_score": context.pi_score,
-            "visual_morphing_active": bool(context.visual_morphing.get("morph_count", 0)),
+            "visual_morphing_active": bool(
+                context.visual_morphing.get("morph_count", 0)
+            ),
             "visual_morph_intuition_gain": round(context.visual_morph_gain, 3),
-            "visual_prediction_link_score": round(context.visual_prediction_link_score, 3),
+            "visual_prediction_link_score": round(
+                context.visual_prediction_link_score, 3
+            ),
         }
 
-    def _alternative_hypotheses(self, context: NexusRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
+    def _alternative_hypotheses(
+        self, context: NexusRuntimeContext, rehearsal_profile: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Alternative hypotheses for this case.
 
         With an ``enumerator`` configured these are found by path enumeration
@@ -139,7 +192,9 @@ class NexusTrainer:
             return enumerated
         return self._rehearsal_labels(context, rehearsal_profile)
 
-    def _enumerated_hypotheses(self, context: NexusRuntimeContext) -> list[dict[str, Any]] | None:
+    def _enumerated_hypotheses(
+        self, context: NexusRuntimeContext
+    ) -> list[dict[str, Any]] | None:
         """Enumerate over the graph, or return None when no enumerator is wired.
 
         Returns the branch's own register: under sparse local coverage the
@@ -149,9 +204,15 @@ class NexusTrainer:
         """
         if self.enumerator is None:
             return None
-        findings = [str(item) for item in (context.case_context.get("findings") or []) if str(item).strip()]
+        findings = [
+            str(item)
+            for item in (context.case_context.get("findings") or [])
+            if str(item).strip()
+        ]
         candidates = [
-            str(item) for item in (context.case_context.get("candidate_conditions") or []) if str(item).strip()
+            str(item)
+            for item in (context.case_context.get("candidate_conditions") or [])
+            if str(item).strip()
         ]
         if not findings or not candidates:
             return None
@@ -160,7 +221,8 @@ class NexusTrainer:
             findings=findings,
             candidate_conditions=candidates,
             already_considered=[
-                str(item) for item in (context.case_context.get("already_considered") or [])
+                str(item)
+                for item in (context.case_context.get("already_considered") or [])
             ],
         )
         payload = outcome.as_dict()
@@ -192,17 +254,25 @@ class NexusTrainer:
             for item in payload["hypotheses"]
         ]
 
-    def _rehearsal_labels(self, context: NexusRuntimeContext, rehearsal_profile: dict[str, Any]) -> list[dict[str, Any]]:
+    def _rehearsal_labels(
+        self, context: NexusRuntimeContext, rehearsal_profile: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         hypotheses: list[dict[str, Any]] = [
             {
                 "label": f"{context.base_label}_alt_1",
-                "kind": "rare_case" if rehearsal_profile["rare_case_hint"] else "adjacent_case",
+                "kind": "rare_case"
+                if rehearsal_profile["rare_case_hint"]
+                else "adjacent_case",
                 "focus": "epidemiology" if context.exposures else context.variant_focus,
             },
             {
                 "label": f"{context.base_label}_alt_2",
-                "kind": "boundary_case" if rehearsal_profile["boundary_case_hint"] else "counterfactual_case",
-                "focus": "language_listening" if (context.report_text or context.patient_complaints) else context.variant_focus,
+                "kind": "boundary_case"
+                if rehearsal_profile["boundary_case_hint"]
+                else "counterfactual_case",
+                "focus": "language_listening"
+                if (context.report_text or context.patient_complaints)
+                else context.variant_focus,
             },
         ]
         if rehearsal_profile["contradiction_rehearsal"]:
@@ -261,7 +331,11 @@ class NexusTrainer:
             and context.risk <= 0.25
             and context.nexus_plasticity >= 0.35
         )
-        return {"status": "candidate" if auto_evolution_candidate else "hold_for_more_evidence"}
+        return {
+            "status": "candidate"
+            if auto_evolution_candidate
+            else "hold_for_more_evidence"
+        }
 
     def _belief_context(
         self,
@@ -284,9 +358,13 @@ class NexusTrainer:
         }
 
     def run(self, case_context: dict, coherence: float, risk: float) -> dict:
-        context = self._runtime_context(case_context=case_context, coherence=coherence, risk=risk)
+        context = self._runtime_context(
+            case_context=case_context, coherence=coherence, risk=risk
+        )
         rehearsal_profile = self._rehearsal_profile(context)
-        alternative_hypotheses = self._alternative_hypotheses(context, rehearsal_profile)
+        alternative_hypotheses = self._alternative_hypotheses(
+            context, rehearsal_profile
+        )
         auto_evolution_plan = self._auto_evolution_plan(context)
         belief = self.belief_layer.update(
             prior={"accepted": context.accepted},

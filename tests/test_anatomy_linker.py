@@ -208,7 +208,30 @@ _OBO = """format-version: 1.2
 [Term]
 id: UBERON:0004538
 name: left kidney
+synonym: "levorenal organ" EXACT []
 xref: FMA:7205
+
+[Term]
+id: UBERON:0004601
+name: left hemikidney
+xref: FMA:9001
+
+[Term]
+id: UBERON:0004602
+name: right hemikidney
+xref: FMA:9002
+
+[Term]
+id: UBERON:0009001
+name: paired organ one
+synonym: "twin viscus" EXACT []
+xref: FMA:9003
+
+[Term]
+id: UBERON:0009002
+name: paired organ two
+synonym: "twin viscus" EXACT []
+xref: FMA:9004
 
 [Term]
 id: UBERON:0002113
@@ -243,14 +266,16 @@ id: part_of
 
 def test_load_obo_terms_keeps_human_non_obsolete_terms():
     terms = al.load_obo_terms(_OBO.splitlines())
-    assert [t["id"] for t in terms][:2] == ["UBERON:0004538", "UBERON:0002113"]
-    assert terms[1]["synonyms"] == ["renal organ"]
+    assert [t["id"] for t in terms][:1] == ["UBERON:0004538"]
+    assert "UBERON:0002113" in [t["id"] for t in terms]
+    by_id = {t["id"]: t for t in terms}
+    assert by_id["UBERON:0002113"]["synonyms"] == ["renal organ"]
 
 
 def test_build_pool_maps_an_ontology_term_named_like_a_class(lexicon):
     pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(_OBO.splitlines()))
     assert equivalent == {"UBERON:0004538": "kidney_left"}
-    assert len(pool) == len(lexicon.classes) + 4
+    assert len(pool) == len(lexicon.classes) + 8
 
 
 def _linker(lexicon, ranked, votes):
@@ -276,17 +301,17 @@ def test_the_lexicon_answers_before_any_model(lexicon):
 
 def test_two_models_must_agree(lexicon):
     ranked = [
-        "spleen",
-        "liver",
-    ]  # both compatible with a mention that states no side or number
-    mention, sentence = "organo parenchimatoso", "Organo parenchimatoso nei limiti."
+        "UBERON:0009001",
+        "UBERON:0009002",
+    ]  # both carry the synonym "twin viscus"
+    mention, sentence = "twin viscus", "Twin viscus nei limiti."
     agree = _linker(lexicon, ranked, {"a": "2", "b": "2"}).link(mention, sentence)
     disagree = _linker(lexicon, ranked, {"a": "1", "b": "2"}).link(mention, sentence)
     unsure = _linker(lexicon, ranked, {"a": "0", "b": "1"}).link(mention, sentence)
     garbled = _linker(lexicon, ranked, {"a": "boh", "b": "1"}).link(mention, sentence)
     assert (agree.status, agree.cid, agree.stage) == (
         al.ACCEPTED,
-        "liver",
+        "UBERON:0009002",
         "deliberation",
     )
     assert (disagree.status, disagree.reason) == (al.ABSTAINED, "models_disagree")
@@ -306,17 +331,17 @@ def test_options_that_contradict_the_mention_are_never_offered(lexicon):
         lexicon,
         pool,
         equivalent,
-        retriever=lambda m, s, k: ["kidney_left", "kidney_right"],
+        retriever=lambda m, s, k: ["UBERON:0004601", "UBERON:0004602"],
         chats={"a": chat, "b": chat},
     )
-    result = linker.link("emirene destro", "Cisti dell'emirene destro.")
-    assert "rene sinistro" not in seen[0]
-    assert result.cid == "kidney_right"
+    result = linker.link("hemikidney destro", "Cisti dell'hemikidney destro.")
+    assert "left hemikidney" not in seen[0]
+    assert result.cid == "UBERON:0004602"
 
 
 def test_an_agreed_ontology_term_named_like_a_class_resolves_to_the_class(lexicon):
     result = _linker(lexicon, ["UBERON:0004538"], {"a": "1", "b": "1"}).link(
-        "emirene sinistro", "Cisti all'emirene sinistro."
+        "levorenal organ sinistro", "Cisti al levorenal organ sinistro."
     )
     assert (result.status, result.cid) == (al.ACCEPTED, "kidney_left")
 
@@ -682,15 +707,122 @@ def test_colluding_models_cannot_force_a_wrong_class(
         assert result.cid == right, (result.cid, result.stage, result.reason)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="known limit: two colluding models can link a non-structure to a class",
-)
 @pytest.mark.parametrize(
     ("mention", "sentence", "pick", "right"), _KNOWN_SEMANTIC_LIMITS
 )
-def test_known_limit_semantic_errors_need_the_models(
+def test_words_the_candidate_does_not_cover_are_never_linked(
     lexicon, mention, sentence, pick, right
 ):
     result = _adversarial(lexicon, pick).link(mention, sentence)
     assert result.status != al.ACCEPTED
+
+
+# Silent errors found by the live run with the two real models (2026-10-05): both models agreed,
+# the checks passed, and the candidate was a different concept.
+_OBO_LIVE = """[Term]
+id: UBERON:0004151
+name: cardiac chamber
+xref: FMA:1
+
+[Term]
+id: UBERON:0035495
+name: hilum of lymph node
+xref: FMA:2
+
+[Term]
+id: UBERON:0002237
+name: true rib
+xref: FMA:3
+
+[Term]
+id: UBERON:0001154
+name: vermiform appendix
+synonym: "appendix" EXACT []
+xref: FMA:4
+"""
+
+
+@pytest.mark.parametrize(
+    ("mention", "sentence", "pick"),
+    [
+        (
+            "Cardiac silhouette",
+            "Cardiac silhouette within normal limits.",
+            "UBERON:0004151",
+        ),
+        (
+            "Right hilar lymph node",
+            "Right hilar lymph node of 12 mm.",
+            "UBERON:0035495",
+        ),
+        ("right ribs", "Fractures of the right ribs.", "UBERON:0002237"),
+        (
+            "porta hepatis",
+            "Lymphadenopathy at the porta hepatis.",
+            "portal_vein_and_splenic_vein",
+        ),
+    ],
+)
+def test_live_run_silent_errors_are_abstentions(lexicon, mention, sentence, pick):
+    pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(_OBO_LIVE.splitlines()))
+    linker = al.AnatomyLinker(
+        lexicon,
+        pool,
+        equivalent,
+        retriever=lambda m, s, k: [pick],
+        chats={"a": lambda p: "1", "b": lambda p: "1"},
+    )
+    assert linker.link(mention, sentence).status == al.ABSTAINED
+
+
+def test_a_name_the_candidate_has_exactly_is_still_linked(lexicon):
+    pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(_OBO_LIVE.splitlines()))
+    linker = al.AnatomyLinker(
+        lexicon,
+        pool,
+        equivalent,
+        retriever=lambda m, s, k: ["UBERON:0001154"],
+        chats={"a": lambda p: "1", "b": lambda p: "1"},
+    )
+    result = linker.link("Appendix", "Appendix of normal caliber.")
+    assert (result.status, result.cid) == (al.ACCEPTED, "UBERON:0001154")
+
+
+@pytest.mark.parametrize(
+    ("mention", "name"),
+    [
+        ("Appendix", "wall of appendix"),
+        ("Subclavian artery", "wall of subclavian artery"),
+    ],
+)
+def test_the_wall_of_a_structure_is_not_the_structure(lexicon, mention, name):
+    obo = f"[Term]\nid: UBERON:0090001\nname: {name}\nxref: FMA:5\n"
+    pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(obo.splitlines()))
+    linker = al.AnatomyLinker(
+        lexicon,
+        pool,
+        equivalent,
+        retriever=lambda m, s, k: ["UBERON:0090001"],
+        chats={"a": lambda p: "1", "b": lambda p: "1"},
+    )
+    assert linker.link(mention, f"{mention} regular.").status == al.ABSTAINED
+
+
+def test_a_homonym_from_the_nervous_system_is_not_offered_in_a_lung_sentence(lexicon):
+    obo = (
+        "[Term]\nid: UBERON:0004074\nname: cerebellum vermis lobule I\n"
+        'synonym: "lingula" EXACT []\nxref: FMA:6\n'
+    )
+    pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(obo.splitlines()))
+    linker = al.AnatomyLinker(
+        lexicon,
+        pool,
+        equivalent,
+        retriever=lambda m, s, k: ["UBERON:0004074"],
+        chats={"a": lambda p: "1", "b": lambda p: "1"},
+    )
+    assert linker.link("lingula", "Atelettasia della lingula.").status == al.ABSTAINED
+    assert (
+        linker.link("lingula", "Lingula del cervelletto, encefalo normale.").status
+        == al.ACCEPTED
+    )

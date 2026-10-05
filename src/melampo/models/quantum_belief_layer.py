@@ -26,25 +26,86 @@ class QuantumBeliefLayer:
         context = context or {}
         context_size = len(context) if isinstance(context, dict) else 0
         prior_size = len(prior) if isinstance(prior, dict) else 0
-        neuro = context.get("neuro_dynamic_metrics", {}) if isinstance(context, dict) else {}
+        neuro = (
+            context.get("neuro_dynamic_metrics", {})
+            if isinstance(context, dict)
+            else {}
+        )
         pi_score = float(context.get("pi_score", neuro.get("pi_score", 0.0)))
         precision_weighted_coherence = float(
-            context.get("precision_weighted_coherence", neuro.get("precision_weighted_coherence", 0.0))
+            context.get(
+                "precision_weighted_coherence",
+                neuro.get("precision_weighted_coherence", 0.0),
+            )
         )
-        prediction_error = float(context.get("prediction_error", neuro.get("prediction_error", 0.0)))
-        conflict_load = float(context.get("conflict_load", neuro.get("conflict_load", 0.0)))
-        interdependence_index = float(context.get("interdependence_index", neuro.get("interdependence_index", 0.0)))
-        evidence_integration_score = float(context.get("evidence_integration_score", neuro.get("evidence_integration_score", 0.0)))
-        noise_suppression_score = float(context.get("noise_suppression_score", neuro.get("noise_suppression_score", 0.0)))
-        action_potential_gate = float(context.get("action_potential_gate", neuro.get("action_potential_gate", 0.0)))
-        deep_inference_score = float(context.get("deep_inference_score", neuro.get("deep_inference_score", 0.0)))
-        deductive_stability = float(context.get("deductive_stability", neuro.get("deductive_stability", 0.0)))
-        visual_morphing = context.get("visual_morphing", {}) if isinstance(context.get("visual_morphing", {}), dict) else {}
-        visual_morph_intuition_gain = float(context.get("visual_morph_intuition_gain", visual_morphing.get("visual_morph_intuition_gain", 0.0)) or 0.0)
-        visual_prediction_link_score = float(context.get("visual_prediction_link_score", visual_morphing.get("visual_prediction_link_score", 0.0)) or 0.0)
-        visual_morph_coherence = float(visual_morphing.get("visual_morph_coherence", visual_prediction_link_score) or 0.0)
-        contextuality_score = round(self.context_weight * max(context_size, 1) / max(prior_size + context_size, 1), 3)
-        interference_score = round(self.interference_weight * max(context_size - prior_size, 0) / max(context_size, 1), 3)
+        prediction_error = float(
+            context.get("prediction_error", neuro.get("prediction_error", 0.0))
+        )
+        conflict_load = float(
+            context.get("conflict_load", neuro.get("conflict_load", 0.0))
+        )
+        interdependence_index = float(
+            context.get(
+                "interdependence_index", neuro.get("interdependence_index", 0.0)
+            )
+        )
+        evidence_integration_score = float(
+            context.get(
+                "evidence_integration_score",
+                neuro.get("evidence_integration_score", 0.0),
+            )
+        )
+        noise_suppression_score = float(
+            context.get(
+                "noise_suppression_score", neuro.get("noise_suppression_score", 0.0)
+            )
+        )
+        action_potential_gate = float(
+            context.get(
+                "action_potential_gate", neuro.get("action_potential_gate", 0.0)
+            )
+        )
+        deep_inference_score = float(
+            context.get("deep_inference_score", neuro.get("deep_inference_score", 0.0))
+        )
+        deductive_stability = float(
+            context.get("deductive_stability", neuro.get("deductive_stability", 0.0))
+        )
+        visual_morphing = (
+            context.get("visual_morphing", {})
+            if isinstance(context.get("visual_morphing", {}), dict)
+            else {}
+        )
+        visual_morph_intuition_gain = float(
+            context.get(
+                "visual_morph_intuition_gain",
+                visual_morphing.get("visual_morph_intuition_gain", 0.0),
+            )
+            or 0.0
+        )
+        visual_prediction_link_score = float(
+            context.get(
+                "visual_prediction_link_score",
+                visual_morphing.get("visual_prediction_link_score", 0.0),
+            )
+            or 0.0
+        )
+        visual_morph_coherence = float(
+            visual_morphing.get("visual_morph_coherence", visual_prediction_link_score)
+            or 0.0
+        )
+        contextuality_score = round(
+            self.context_weight
+            * max(context_size, 1)
+            / max(prior_size + context_size, 1),
+            3,
+        )
+        interference_score = round(
+            self.interference_weight
+            * max(context_size - prior_size, 0)
+            / max(context_size, 1),
+            3,
+        )
         precision_modulation = round(
             _clamp(
                 pi_score * self.precision_weight
@@ -55,8 +116,12 @@ class QuantumBeliefLayer:
             ),
             3,
         )
-        conflict_modulation = round(_clamp(prediction_error * self.conflict_weight + conflict_load * 0.15), 3)
-        inhibitory_modulation = round(_clamp(noise_suppression_score * 0.18 + deductive_stability * 0.12), 3)
+        conflict_modulation = round(
+            _clamp(prediction_error * self.conflict_weight + conflict_load * 0.15), 3
+        )
+        inhibitory_modulation = round(
+            _clamp(noise_suppression_score * 0.18 + deductive_stability * 0.12), 3
+        )
         belief_shift = round(
             _clamp(
                 contextuality_score
@@ -70,7 +135,15 @@ class QuantumBeliefLayer:
             ),
             3,
         )
-        belief_stability = round(_clamp(1.0 - conflict_modulation + precision_modulation * 0.5 + inhibitory_modulation), 3)
+        belief_stability = round(
+            _clamp(
+                1.0
+                - conflict_modulation
+                + precision_modulation * 0.5
+                + inhibitory_modulation
+            ),
+            3,
+        )
         return {
             "prior": prior,
             "context": context,

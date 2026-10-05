@@ -172,15 +172,23 @@ def assert_findings_only(candidates: Sequence[dict[str, Any]]) -> None:
     """
     rejected = assemble(candidates).rejected
     if rejected:
-        detail = "; ".join(f"{item.label} ({item.reason} -> {item.route})" for item in rejected)
+        detail = "; ".join(
+            f"{item.label} ({item.reason} -> {item.route})" for item in rejected
+        )
         raise ValueError(f"non-finding item reached the findings path: {detail}")
 
 
 def _role_rejection(candidate: dict[str, Any]) -> str | None:
     role = candidate.get("role")
-    if role == HYPOTHESIS_ROLE or candidate.get("synthetic_candidate_not_clinical_truth") is True:
+    if (
+        role == HYPOTHESIS_ROLE
+        or candidate.get("synthetic_candidate_not_clinical_truth") is True
+    ):
         return REJECT_SYNTHETIC
-    if role == ROLE_SCREENING_HYPOTHESIS or candidate.get("belongs_in_differential") is False:
+    if (
+        role == ROLE_SCREENING_HYPOTHESIS
+        or candidate.get("belongs_in_differential") is False
+    ):
         return REJECT_SCREENING
     if candidate.get("usable_as_evidence") is False:
         return REJECT_SYNTHETIC

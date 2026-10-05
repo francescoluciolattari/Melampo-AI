@@ -123,7 +123,9 @@ class LearnedEdgeStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             for edge in edges:
-                handle.write(json.dumps(edge_to_record(edge), ensure_ascii=False) + "\n")
+                handle.write(
+                    json.dumps(edge_to_record(edge), ensure_ascii=False) + "\n"
+                )
         return len(edges)
 
     def load(self) -> LoadReport:
@@ -183,4 +185,6 @@ def learned_provenance(origin_case: str, confirmations: int) -> str:
 
 def is_learned(edge: ConceptEdge) -> bool:
     """Whether this edge came from the system's own confirmed inference."""
-    return bool(edge.provenance) and str(edge.provenance).startswith(PROVENANCE_LEARNED_PREFIX)
+    return bool(edge.provenance) and str(edge.provenance).startswith(
+        PROVENANCE_LEARNED_PREFIX
+    )

@@ -14,7 +14,9 @@ from melampo.reasoning.root_model_cross_check import (
 )
 
 DOC = EnvironmentDocument(
-    "report_1", "Prednisone 40 mg daily was started.", metadata={"data_class": "synthetic"}
+    "report_1",
+    "Prednisone 40 mg daily was started.",
+    metadata={"data_class": "synthetic"},
 )
 
 
@@ -37,7 +39,9 @@ def test_the_same_answer_stated_more_verbosely_agrees():
     daily" is the same answer, one more verbose, and scores only 0.67 on
     sequence ratio alone -- below the threshold, wrongly flagged."""
     assert answer_similarity("40 mg daily", "prednisone 40 mg daily") == 1.0
-    assert answer_similarity("pulmonary embolism", "confirmed pulmonary embolism") == 1.0
+    assert (
+        answer_similarity("pulmonary embolism", "confirmed pulmonary embolism") == 1.0
+    )
 
 
 def test_clinically_opposite_findings_do_not_agree():
@@ -49,7 +53,10 @@ def test_clinically_opposite_findings_do_not_agree():
 
 
 def test_genuinely_different_answers_do_not_agree():
-    assert answer_similarity("40 mg daily", "10 mg twice weekly") < ANSWER_AGREEMENT_THRESHOLD
+    assert (
+        answer_similarity("40 mg daily", "10 mg twice weekly")
+        < ANSWER_AGREEMENT_THRESHOLD
+    )
 
 
 def test_two_empty_answers_score_zero_not_one():
@@ -74,7 +81,9 @@ def test_normalisation_ignores_case_whitespace_and_trailing_punctuation():
 
 def test_both_completing_with_the_same_answer_is_agreement():
     result = cross_check(
-        "c1", [DOC], "dose?",
+        "c1",
+        [DOC],
+        "dose?",
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
         _scripted("grep(Prednisone)", "final(prednisone 40 mg daily)"),
     )
@@ -85,7 +94,9 @@ def test_both_completing_with_the_same_answer_is_agreement():
 
 def test_both_completing_with_different_answers_is_disagreement():
     result = cross_check(
-        "c2", [DOC], "dose?",
+        "c2",
+        [DOC],
+        "dose?",
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
         _scripted("grep(Prednisone)", "final(10 mg twice weekly)"),
     )
@@ -97,7 +108,9 @@ def test_both_completing_with_different_answers_is_disagreement():
 def test_neither_answer_is_silently_preferred_on_disagreement():
     """The whole point: a disagreement records both and picks neither."""
     result = cross_check(
-        "c3", [DOC], "dose?",
+        "c3",
+        [DOC],
+        "dose?",
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
         _scripted("grep(Prednisone)", "final(10 mg twice weekly)"),
     )
@@ -108,7 +121,9 @@ def test_neither_answer_is_silently_preferred_on_disagreement():
 def test_only_one_model_completing_is_not_agreement():
     """One answer is not a second opinion -- there is nothing to confirm it."""
     result = cross_check(
-        "c4", [DOC], "dose?",
+        "c4",
+        [DOC],
+        "dose?",
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
         lambda prompt: "I cannot answer this.",
     )
@@ -118,7 +133,9 @@ def test_only_one_model_completing_is_not_agreement():
 
 
 def test_neither_completing_is_its_own_disposition():
-    result = cross_check("c5", [DOC], "dose?", lambda p: "prose", lambda p: "more prose")
+    result = cross_check(
+        "c5", [DOC], "dose?", lambda p: "prose", lambda p: "more prose"
+    )
     assert result.disposition == "neither_completed"
     assert result.needs_review is True
 
@@ -146,7 +163,9 @@ def test_every_non_agreed_disposition_needs_review():
 
 def test_evidence_agreement_ratio_is_reported():
     result = cross_check(
-        "c6", [DOC], "dose?",
+        "c6",
+        [DOC],
+        "dose?",
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
     )
@@ -190,8 +209,11 @@ def test_each_model_gets_its_own_budget_instance():
         return budget
 
     cross_check(
-        "c7", [DOC], "dose?",
-        _scripted("final(a)"), _scripted("final(b)"),
+        "c7",
+        [DOC],
+        "dose?",
+        _scripted("final(a)"),
+        _scripted("final(b)"),
         budget_factory=tracking_factory,
     )
     assert len(handed_out) == 2
@@ -212,7 +234,9 @@ def test_the_second_model_does_not_see_the_first_models_prompts():
         return "final(b)"
 
     cross_check("c8", [DOC], "dose?", primary, secondary)
-    assert secondary_prompts[0] == primary_prompts[0], "both start from the identical initial prompt"
+    assert secondary_prompts[0] == primary_prompts[0], (
+        "both start from the identical initial prompt"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -226,13 +250,20 @@ def test_the_default_pair_is_the_two_most_efficient_benched_candidates():
 
 def test_the_alternative_pair_swaps_in_mistral():
     assert ALTERNATIVE_PAIR == ("nemotron-3-super", "mistral-large-openrouter")
-    assert ALTERNATIVE_PAIR[0] == DEFAULT_PAIR[0], "same primary, only the second opinion changes"
+    assert ALTERNATIVE_PAIR[0] == DEFAULT_PAIR[0], (
+        "same primary, only the second opinion changes"
+    )
 
 
 def test_model_names_are_recorded_in_the_result():
     result = cross_check(
-        "c9", [DOC], "dose?", _scripted("final(a)"), _scripted("final(b)"),
-        primary_name="model-one", secondary_name="model-two",
+        "c9",
+        [DOC],
+        "dose?",
+        _scripted("final(a)"),
+        _scripted("final(b)"),
+        primary_name="model-one",
+        secondary_name="model-two",
     )
     assert result.primary_model == "model-one"
     assert result.secondary_model == "model-two"
@@ -248,7 +279,9 @@ def test_cross_check_cases_aggregates_across_a_sequence():
         ("c1", [DOC], "dose?"),
         ("c2", [DOC], "what drug?"),
     ]
-    report = cross_check_cases(cases, _scripted("final(same)"), _scripted("final(same)"))
+    report = cross_check_cases(
+        cases, _scripted("final(same)"), _scripted("final(same)")
+    )
     assert len(report.results) == 2
 
 
@@ -287,14 +320,21 @@ def test_an_empty_report_reports_zero_rather_than_dividing_by_zero():
 
 def test_as_dict_carries_the_fields_a_reviewer_needs():
     result = cross_check(
-        "c10", [DOC], "dose?",
+        "c10",
+        [DOC],
+        "dose?",
         _scripted("grep(Prednisone)", "final(40 mg daily)"),
         _scripted("grep(Prednisone)", "final(10 mg weekly)"),
     )
     payload = result.as_dict()
     for key in (
-        "primary_answer", "secondary_answer", "answers_agree", "answer_similarity",
-        "disposition", "needs_review", "evidence_agreement_ratio",
+        "primary_answer",
+        "secondary_answer",
+        "answers_agree",
+        "answer_similarity",
+        "disposition",
+        "needs_review",
+        "evidence_agreement_ratio",
     ):
         assert key in payload
 
@@ -308,7 +348,9 @@ def test_frame_comparison_replaces_character_similarity_when_a_frame_is_given():
     from melampo.reasoning.frame_answer import FRAME_FINDING
 
     result = cross_check(
-        "c-frame", [DOC], "finding?",
+        "c-frame",
+        [DOC],
+        "finding?",
         _scripted("final(embolism | pulmonary | affirmed)"),
         _scripted("final(oedema | pulmonary | affirmed)"),
         frame=FRAME_FINDING,
@@ -322,8 +364,11 @@ def test_the_character_path_is_used_when_no_frame_is_given():
     """Optional, not mandatory: a caller that did not ask its models for slot
     format must not have unstructured answers parsed into empty slots."""
     result = cross_check(
-        "c-nof", [DOC], "dose?",
-        _scripted("final(40 mg daily)"), _scripted("final(40 mg daily)"),
+        "c-nof",
+        [DOC],
+        "dose?",
+        _scripted("final(40 mg daily)"),
+        _scripted("final(40 mg daily)"),
     )
     assert result.frame_comparison is None
     assert result.answers_agree is True
@@ -336,7 +381,9 @@ def test_a_polarity_conflict_gets_its_own_explicit_note():
     from melampo.reasoning.frame_answer import FRAME_FINDING
 
     result = cross_check(
-        "c-pol", [DOC], "finding?",
+        "c-pol",
+        [DOC],
+        "finding?",
         _scripted("final(embolism | pulmonary | affirmed)"),
         _scripted("final(embolism | pulmonary | negated)"),
         frame=FRAME_FINDING,
@@ -349,7 +396,9 @@ def test_frame_agreement_survives_verbosity_differences_that_broke_the_ratio():
     from melampo.reasoning.frame_answer import FRAME_MEDICATION
 
     result = cross_check(
-        "c-verb", [DOC], "dose?",
+        "c-verb",
+        [DOC],
+        "dose?",
         _scripted("final(prednisone | 40 mg | daily | affirmed)"),
         _scripted("final(prednisone | 40 mg | once daily | affirmed)"),
         frame=FRAME_MEDICATION,
@@ -361,7 +410,9 @@ def test_as_dict_carries_the_frame_comparison_when_present():
     from melampo.reasoning.frame_answer import FRAME_FINDING
 
     result = cross_check(
-        "c-dict", [DOC], "finding?",
+        "c-dict",
+        [DOC],
+        "finding?",
         _scripted("final(embolism | pulmonary | affirmed)"),
         _scripted("final(embolism | pulmonary | affirmed)"),
         frame=FRAME_FINDING,
@@ -384,7 +435,9 @@ def _marfan_graph():
     return InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
-            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
+            ConceptEdge(
+                "connective tissue weakness", "causes", "aortic root dilation", 0.85
+            ),
         ]
     )
 
@@ -395,9 +448,15 @@ def test_without_a_concept_graph_mechanism_check_is_not_populated():
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE
 
     result = cross_check(
-        "c-nograph", [DOC], "does X bear on Y?",
-        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
-        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        "c-nograph",
+        [DOC],
+        "does X bear on Y?",
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"
+        ),
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"
+        ),
         frame=FRAME_RELEVANCE,
     )
     assert result.mechanism_check is None
@@ -411,15 +470,23 @@ def test_two_models_agreeing_on_an_invented_mechanism_is_caught_through_cross_ch
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE
 
     result = cross_check(
-        "c-danger", [DOC], "does X bear on Y?",
-        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
-        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        "c-danger",
+        [DOC],
+        "does X bear on Y?",
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"
+        ),
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"
+        ),
         frame=FRAME_RELEVANCE,
         concept_graph=_marfan_graph(),
     )
     assert result.mechanism_check is not None
     assert result.mechanism_check.disposition == "agreed_but_ungrounded"
-    assert result.needs_review is True, "must not be masked by frame_comparison's own clean agreement"
+    assert result.needs_review is True, (
+        "must not be masked by frame_comparison's own clean agreement"
+    )
 
 
 def test_needs_review_is_a_union_not_an_override():
@@ -430,23 +497,39 @@ def test_needs_review_is_a_union_not_an_override():
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE
 
     result = cross_check(
-        "c-union", [DOC], "does X bear on Y?",
-        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
-        _scripted("final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"),
+        "c-union",
+        [DOC],
+        "does X bear on Y?",
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"
+        ),
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | cosmic ray exposure)"
+        ),
         frame=FRAME_RELEVANCE,
         concept_graph=_marfan_graph(),
     )
-    assert result.frame_comparison.agrees is True, "the slot comparison itself sees clean agreement"
-    assert result.needs_review is True, "but the union with mechanism_check still flags it"
+    assert result.frame_comparison.agrees is True, (
+        "the slot comparison itself sees clean agreement"
+    )
+    assert result.needs_review is True, (
+        "but the union with mechanism_check still flags it"
+    )
 
 
 def test_a_grounded_agreed_mechanism_needs_no_review():
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE
 
     result = cross_check(
-        "c-clean", [DOC], "does X bear on Y?",
-        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
-        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
+        "c-clean",
+        [DOC],
+        "does X bear on Y?",
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"
+        ),
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"
+        ),
         frame=FRAME_RELEVANCE,
         concept_graph=_marfan_graph(),
     )
@@ -460,7 +543,9 @@ def test_mechanism_check_is_only_attempted_for_the_relevance_frame():
     from melampo.reasoning.frame_answer import FRAME_MEDICATION
 
     result = cross_check(
-        "c-otherframe", [DOC], "dose?",
+        "c-otherframe",
+        [DOC],
+        "dose?",
         _scripted("final(prednisone | 40 mg | daily | affirmed)"),
         _scripted("final(prednisone | 40 mg | daily | affirmed)"),
         frame=FRAME_MEDICATION,
@@ -473,9 +558,15 @@ def test_as_dict_carries_mechanism_check_when_present():
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE
 
     result = cross_check(
-        "c-dict2", [DOC], "does X bear on Y?",
-        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
-        _scripted("final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"),
+        "c-dict2",
+        [DOC],
+        "does X bear on Y?",
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"
+        ),
+        _scripted(
+            "final(marfan syndrome | aortic root dilation | yes | connective tissue weakness)"
+        ),
         frame=FRAME_RELEVANCE,
         concept_graph=_marfan_graph(),
     )

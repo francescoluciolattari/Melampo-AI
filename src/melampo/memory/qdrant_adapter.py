@@ -42,7 +42,9 @@ class QdrantVectorMemoryAdapter:
     """
 
     spec: QdrantCollectionSpec = field(default_factory=QdrantCollectionSpec)
-    embedding_model: HashingEmbeddingModel = field(default_factory=HashingEmbeddingModel)
+    embedding_model: HashingEmbeddingModel = field(
+        default_factory=HashingEmbeddingModel
+    )
     fallback_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore)
     mode: str = "offline_contract"
 
@@ -64,7 +66,13 @@ class QdrantVectorMemoryAdapter:
             },
         }
 
-    def build_point(self, record_id: str, text: str, metadata: dict | None = None, source: str = "unknown") -> dict:
+    def build_point(
+        self,
+        record_id: str,
+        text: str,
+        metadata: dict | None = None,
+        source: str = "unknown",
+    ) -> dict:
         dense = self.embedding_model.embed(text)
         sparse = self._sparse_from_text(text)
         return {
@@ -81,8 +89,17 @@ class QdrantVectorMemoryAdapter:
             },
         }
 
-    def upsert_text(self, record_id: str, text: str, metadata: dict | None = None, source: str = "unknown", learning_status: str = "candidate") -> dict:
-        point = self.build_point(record_id=record_id, text=text, metadata=metadata, source=source)
+    def upsert_text(
+        self,
+        record_id: str,
+        text: str,
+        metadata: dict | None = None,
+        source: str = "unknown",
+        learning_status: str = "candidate",
+    ) -> dict:
+        point = self.build_point(
+            record_id=record_id, text=text, metadata=metadata, source=source
+        )
         fallback = self.fallback_store.upsert_text(
             record_id=record_id,
             text=text,
@@ -98,10 +115,16 @@ class QdrantVectorMemoryAdapter:
             "status": "stored_in_fallback_qdrant_contract_prepared",
         }
 
-    def search(self, query: str, limit: int = 5, required_status: Iterable[str] | None = None) -> list[dict]:
-        return self.fallback_store.search(query=query, limit=limit, required_status=required_status)
+    def search(
+        self, query: str, limit: int = 5, required_status: Iterable[str] | None = None
+    ) -> list[dict]:
+        return self.fallback_store.search(
+            query=query, limit=limit, required_status=required_status
+        )
 
-    def build_hybrid_query(self, query: str, limit: int = 5, filters: dict | None = None) -> dict:
+    def build_hybrid_query(
+        self, query: str, limit: int = 5, filters: dict | None = None
+    ) -> dict:
         return {
             "collection_name": self.spec.collection_name,
             "query": {

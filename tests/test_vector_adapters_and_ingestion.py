@@ -1,4 +1,3 @@
-
 from melampo.memory.qdrant_adapter import QdrantVectorMemoryAdapter
 
 

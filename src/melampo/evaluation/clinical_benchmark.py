@@ -25,7 +25,10 @@ def _extract_prediction_label(result: dict[str, Any]) -> str:
     diagnostic_result = result.get("diagnostic_result", result)
     if not isinstance(diagnostic_result, dict):
         return ""
-    if diagnostic_result.get("result_label") and diagnostic_result.get("result_label") != "abstain_or_escalate":
+    if (
+        diagnostic_result.get("result_label")
+        and diagnostic_result.get("result_label") != "abstain_or_escalate"
+    ):
         return _normalize_label(diagnostic_result.get("result_label"))
     top = diagnostic_result.get("top_hypothesis", {})
     if isinstance(top, dict):
@@ -63,7 +66,10 @@ class ClinicalBenchmarkRecord:
     def from_jsonl(cls, item: dict[str, Any]) -> ClinicalBenchmarkRecord:
         payload = dict(item.get("payload", {}))
         case_id = str(item.get("case_id", payload.get("case_id", "unknown_case")))
-        labels = [_normalize_label(label) for label in _as_list(item.get("gold_labels", item.get("gold_label")))]
+        labels = [
+            _normalize_label(label)
+            for label in _as_list(item.get("gold_labels", item.get("gold_label")))
+        ]
         return cls(
             case_id=case_id,
             payload=payload,
@@ -75,12 +81,16 @@ class ClinicalBenchmarkRecord:
 
 def load_benchmark_jsonl(path: str | Path) -> list[ClinicalBenchmarkRecord]:
     records: list[ClinicalBenchmarkRecord] = []
-    for line_number, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
+    for line_number, line in enumerate(
+        Path(path).read_text(encoding="utf-8").splitlines(), start=1
+    ):
         if not line.strip():
             continue
         item = json.loads(line)
         if not isinstance(item, dict):
-            raise ValueError(f"Benchmark JSONL line {line_number} must contain an object.")
+            raise ValueError(
+                f"Benchmark JSONL line {line_number} must contain an object."
+            )
         records.append(ClinicalBenchmarkRecord.from_jsonl(item))
     return records
 
@@ -123,23 +133,44 @@ class ClinicalBenchmarkRunner:
 
     benchmark_name: str = "melampo_clinical_benchmark"
 
-    def run(self, records: Iterable[ClinicalBenchmarkRecord], prediction_fn: PredictionFn) -> ClinicalBenchmarkReport:
+    def run(
+        self, records: Iterable[ClinicalBenchmarkRecord], prediction_fn: PredictionFn
+    ) -> ClinicalBenchmarkReport:
         rows: list[dict[str, Any]] = []
         slice_accumulator: dict[str, list[dict[str, Any]]] = {}
         for record in records:
             result = prediction_fn(record.payload)
-            diagnostic_result = result.get("diagnostic_result", result) if isinstance(result, dict) else {}
-            policy = diagnostic_result.get("policy", {}) if isinstance(diagnostic_result, dict) else {}
-            abstained = bool(policy.get("abstain", False)) or diagnostic_result.get("result_label") == "abstain_or_escalate"
-            predicted_label = _extract_prediction_label(result if isinstance(result, dict) else {})
-            correct = bool(predicted_label and predicted_label in record.gold_labels and not abstained)
+            diagnostic_result = (
+                result.get("diagnostic_result", result)
+                if isinstance(result, dict)
+                else {}
+            )
+            policy = (
+                diagnostic_result.get("policy", {})
+                if isinstance(diagnostic_result, dict)
+                else {}
+            )
+            abstained = (
+                bool(policy.get("abstain", False))
+                or diagnostic_result.get("result_label") == "abstain_or_escalate"
+            )
+            predicted_label = _extract_prediction_label(
+                result if isinstance(result, dict) else {}
+            )
+            correct = bool(
+                predicted_label
+                and predicted_label in record.gold_labels
+                and not abstained
+            )
             row = {
                 "case_id": record.case_id,
                 "predicted_label": predicted_label,
                 "gold_labels": record.gold_labels,
                 "correct": correct,
                 "abstained": abstained,
-                "confidence": _extract_confidence(result if isinstance(result, dict) else {}),
+                "confidence": _extract_confidence(
+                    result if isinstance(result, dict) else {}
+                ),
                 "slices": record.slices,
                 "provenance": record.provenance,
             }
@@ -158,7 +189,8 @@ class ClinicalBenchmarkRunner:
                 "sample_count": len(slice_rows),
                 "answered_count": len(slice_answered),
                 "coverage": len(slice_answered) / max(len(slice_rows), 1),
-                "selective_accuracy": sum(1 for row in slice_answered if row["correct"]) / max(len(slice_answered), 1),
+                "selective_accuracy": sum(1 for row in slice_answered if row["correct"])
+                / max(len(slice_answered), 1),
             }
         return ClinicalBenchmarkReport(
             benchmark_name=self.benchmark_name,

@@ -67,7 +67,11 @@ class ConfirmationResult:
 
 def _proposed_label(record: NexusCandidateRecord) -> str:
     """The system's own top proposal for this case, from whatever the nexus branch stored -- best-effort, not authoritative."""
-    hypotheses = record.payload.get("case_context", {}).get("nexus", {}).get("alternative_hypotheses", [])
+    hypotheses = (
+        record.payload.get("case_context", {})
+        .get("nexus", {})
+        .get("alternative_hypotheses", [])
+    )
     if not hypotheses:
         hypotheses = record.payload.get("nexus", {}).get("alternative_hypotheses", [])
     if hypotheses and isinstance(hypotheses[0], dict):
@@ -86,10 +90,18 @@ def _raised_labels(record: NexusCandidateRecord) -> list[str]:
     silently throw three of them away before extraction ever got a chance
     to use them.
     """
-    hypotheses = record.payload.get("case_context", {}).get("nexus", {}).get("alternative_hypotheses", [])
+    hypotheses = (
+        record.payload.get("case_context", {})
+        .get("nexus", {})
+        .get("alternative_hypotheses", [])
+    )
     if not hypotheses:
         hypotheses = record.payload.get("nexus", {}).get("alternative_hypotheses", [])
-    return [str(item.get("label", "")) for item in hypotheses if isinstance(item, dict) and item.get("label")]
+    return [
+        str(item.get("label", ""))
+        for item in hypotheses
+        if isinstance(item, dict) and item.get("label")
+    ]
 
 
 def _close_one_record(
@@ -117,7 +129,10 @@ def _close_one_record(
     feedback_record = candidate_store.attach_outcome_feedback(
         candidate_id=record.candidate_id,
         feedback=ingestor.build_feedback(
-            diagnostic_result={"case_id": record.case_id, "result_label": proposed_label},
+            diagnostic_result={
+                "case_id": record.case_id,
+                "result_label": proposed_label,
+            },
             outcome={"accepted_labels": [diagnosis], "notes": note or ""},
         ).as_dict(),
     )
@@ -137,8 +152,11 @@ def _close_one_record(
     candidate_store.delete(record.candidate_id)
 
     confirmation = Confirmation(
-        case_id=record.case_id, diagnosis=diagnosis, source=confirmation_source,
-        reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note,
+        case_id=record.case_id,
+        diagnosis=diagnosis,
+        source=confirmation_source,
+        reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion,
+        note=note,
     )
     if registry is not None:
         registry.register(confirmation)
@@ -213,21 +231,37 @@ def submit_confirmed_diagnosis(
         # for new findings added to the *same* still-open case) already
         # built for a different purpose. Mirrors route_payload()'s own
         # pattern exactly: among every match, the single most recent one.
-        matches = find_matching_pending_records(patient_payload, candidate_store, graph, password)
+        matches = find_matching_pending_records(
+            patient_payload, candidate_store, graph, password
+        )
         if matches:
             primary = max(matches, key=lambda record: record.created_at)
             case_id = primary.case_id
 
     if primary is None:
-        return ConfirmationResult(case_id=case_id, found_pending_record=False, outcome_feedback=None, confirmation=None)
+        return ConfirmationResult(
+            case_id=case_id,
+            found_pending_record=False,
+            outcome_feedback=None,
+            confirmation=None,
+        )
 
     feedback_record, confirmation = _close_one_record(
-        primary, diagnosis, source=source, candidate_store=candidate_store,
-        confirmed_case_store=confirmed_case_store, registry=registry, confirmation_source=confirmation_source,
-        reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note,
+        primary,
+        diagnosis,
+        source=source,
+        candidate_store=candidate_store,
+        confirmed_case_store=confirmed_case_store,
+        registry=registry,
+        confirmation_source=confirmation_source,
+        reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion,
+        note=note,
     )
     return ConfirmationResult(
-        case_id=case_id, found_pending_record=True, outcome_feedback=feedback_record, confirmation=confirmation,
+        case_id=case_id,
+        found_pending_record=True,
+        outcome_feedback=feedback_record,
+        confirmation=confirmation,
         closed_case_ids=[primary.case_id],
     )
 
@@ -247,7 +281,9 @@ def list_pending_cases(candidate_store: NexusCandidateStore) -> list[dict[str, A
             "candidate_id": record.candidate_id,
             "created_at": record.created_at,
             "learning_status": record.learning_status,
-            "report_text": record.payload.get("case_context", {}).get("report_text", ""),
+            "report_text": record.payload.get("case_context", {}).get(
+                "report_text", ""
+            ),
         }
         for record in candidate_store.list_by_status(statuses=PENDING_STATUSES)
     ]
@@ -261,9 +297,12 @@ def list_pending_cases(candidate_store: NexusCandidateStore) -> list[dict[str, A
 # matching this project's Italian-facing deployment.
 # --------------------------------------------------------------------------
 
-_CASE_ID_PATTERN = re.compile(r"(?:case[\s_-]?id|id[\s_-]?caso)\s*[:\-]\s*(\S+)", re.IGNORECASE)
+_CASE_ID_PATTERN = re.compile(
+    r"(?:case[\s_-]?id|id[\s_-]?caso)\s*[:\-]\s*(\S+)", re.IGNORECASE
+)
 _DIAGNOSIS_PATTERN = re.compile(
-    r"(?:confirmed[\s_-]?diagnosis|diagnosi[\s_-]?confermata)\s*[:\-]\s*(.+?)(?:\n|$)", re.IGNORECASE
+    r"(?:confirmed[\s_-]?diagnosis|diagnosi[\s_-]?confermata)\s*[:\-]\s*(.+?)(?:\n|$)",
+    re.IGNORECASE,
 )
 
 
@@ -306,6 +345,9 @@ def submit_confirmation_document(
         return None
     case_id, diagnosis = extracted
     return submit_confirmed_diagnosis(
-        case_id, diagnosis, source="document_recognition",
-        candidate_store=candidate_store, confirmed_case_store=confirmed_case_store,
+        case_id,
+        diagnosis,
+        source="document_recognition",
+        candidate_store=candidate_store,
+        confirmed_case_store=confirmed_case_store,
     )

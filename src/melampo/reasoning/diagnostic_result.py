@@ -48,12 +48,16 @@ class MelampoMetrics:
     def as_dict(self) -> dict[str, Any]:
         return {
             "pi_score": _round_unit(self.pi_score),
-            "precision_weighted_coherence": _round_unit(self.precision_weighted_coherence),
+            "precision_weighted_coherence": _round_unit(
+                self.precision_weighted_coherence
+            ),
             "prediction_error": _round_unit(self.prediction_error),
             "convergence_index": _round_unit(self.convergence_index),
             "mismatch_index": _round_unit(self.mismatch_index),
             "deductive_gate": _round_unit(self.deductive_gate),
-            "candidate_temperature": round(max(0.0, float(self.candidate_temperature)), 3),
+            "candidate_temperature": round(
+                max(0.0, float(self.candidate_temperature)), 3
+            ),
             "belief_update_rate": _round_unit(self.belief_update_rate),
             "cross_area_synchrony": _round_unit(self.cross_area_synchrony),
             "conflict_load": _round_unit(self.conflict_load),
@@ -151,7 +155,9 @@ class DiagnosticResult:
             "policy": dict(self.policy),
             "critique": dict(self.critique),
             "nexus": self.nexus.as_dict(),
-            "model_capability_decision_record": dict(self.model_capability_decision_record),
+            "model_capability_decision_record": dict(
+                self.model_capability_decision_record
+            ),
             "audit_trace": {
                 **dict(self.audit_trace),
                 "final_authority": "MelampoDiagnosticOrchestrator",

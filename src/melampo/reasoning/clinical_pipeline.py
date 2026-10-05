@@ -43,7 +43,6 @@ from .policy_stack import PolicyStack
 NEXUS_ENUMERATION_CANDIDATE_CAP = 8
 
 
-
 class IngestionProtocol(Protocol):
     def from_payload(self, payload: dict) -> CaseContext: ...
 
@@ -62,6 +61,7 @@ class FusionProtocol(Protocol):
 
 class CritiqueProtocol(Protocol):
     def review(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+
 
 def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, value))
@@ -83,7 +83,9 @@ def _area_uncertainty(area_signals: dict[str, Any]) -> float:
     for payload in area_signals.values():
         if isinstance(payload, dict):
             salience = _safe_float(payload.get("salience_score", 0.0))
-            values.append(_safe_float(payload.get("uncertainty_score", 1.0 - min(salience, 1.0))))
+            values.append(
+                _safe_float(payload.get("uncertainty_score", 1.0 - min(salience, 1.0)))
+            )
     return _clamp(_mean(values, default=0.65))
 
 
@@ -105,7 +107,9 @@ def _build_nexus_candidate_store() -> NexusCandidateStore:
     password = os.environ.get("DB_PASSWORD")
     if not password:
         return NexusCandidateStore()
-    return NexusCandidateStore(password=password, path=Path(DEFAULT_NEXUS_CANDIDATE_STORE_PATH))
+    return NexusCandidateStore(
+        password=password, path=Path(DEFAULT_NEXUS_CANDIDATE_STORE_PATH)
+    )
 
 
 def _derive_governance_scores(
@@ -122,21 +126,60 @@ def _derive_governance_scores(
     provenance quality and optional case severity supplied by callers.
     """
 
-    neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
-    mismatch_index = _safe_float(neuro_metrics.get("mismatch_index", area_dynamics.get("mismatch_score", 0.0)))
-    prediction_error = _safe_float(neuro_metrics.get("prediction_error", area_dynamics.get("prediction_error", 0.0)))
-    convergence_index = _safe_float(neuro_metrics.get("convergence_index", area_dynamics.get("convergence_index", 0.0)))
+    neuro_metrics = (
+        area_dynamics.get("neuro_dynamic_metrics", {})
+        if isinstance(area_dynamics, dict)
+        else {}
+    )
+    mismatch_index = _safe_float(
+        neuro_metrics.get("mismatch_index", area_dynamics.get("mismatch_score", 0.0))
+    )
+    prediction_error = _safe_float(
+        neuro_metrics.get(
+            "prediction_error", area_dynamics.get("prediction_error", 0.0)
+        )
+    )
+    convergence_index = _safe_float(
+        neuro_metrics.get(
+            "convergence_index", area_dynamics.get("convergence_index", 0.0)
+        )
+    )
     coherence_score = _safe_float(area_dynamics.get("coherence_score", 0.0))
-    retrieval_quality = retrieval.get("retrieval_quality", {}) if isinstance(retrieval, dict) else {}
-    coverage = _clamp(_safe_float(retrieval_quality.get("coverage", min(_safe_float(retrieval.get("evidence_count", 0.0)) / 5.0, 1.0))))
+    retrieval_quality = (
+        retrieval.get("retrieval_quality", {}) if isinstance(retrieval, dict) else {}
+    )
+    coverage = _clamp(
+        _safe_float(
+            retrieval_quality.get(
+                "coverage",
+                min(_safe_float(retrieval.get("evidence_count", 0.0)) / 5.0, 1.0),
+            )
+        )
+    )
     memory_backed = bool(retrieval_quality.get("memory_backed", False))
-    fallback_penalty = 0.2 if retrieval_quality.get("fallback_used", False) or not memory_backed else 0.0
-    mean_grounding = _clamp(_safe_float(retrieval_quality.get("mean_grounding_score", 0.0)))
-    evidence_strength = _clamp(_mean([_safe_float(item.get("weight", 0.0)) / 3.0 for item in ranked_evidence[:3]], default=0.0))
+    fallback_penalty = (
+        0.2
+        if retrieval_quality.get("fallback_used", False) or not memory_backed
+        else 0.0
+    )
+    mean_grounding = _clamp(
+        _safe_float(retrieval_quality.get("mean_grounding_score", 0.0))
+    )
+    evidence_strength = _clamp(
+        _mean(
+            [
+                _safe_float(item.get("weight", 0.0)) / 3.0
+                for item in ranked_evidence[:3]
+            ],
+            default=0.0,
+        )
+    )
     mean_area_uncertainty = _area_uncertainty(area_signals)
     provenance = payload.get("provenance", {}) if isinstance(payload, dict) else {}
     weak_provenance = 0.0 if isinstance(provenance, dict) and provenance else 0.25
-    clinical_severity = _clamp(_safe_float(payload.get("clinical_severity", payload.get("risk_hint", 0.0))))
+    clinical_severity = _clamp(
+        _safe_float(payload.get("clinical_severity", payload.get("risk_hint", 0.0)))
+    )
     missing_evidence = _clamp(1.0 - coverage)
 
     uncertainty = _clamp(
@@ -155,7 +198,9 @@ def _derive_governance_scores(
         + prediction_error * 0.15
         + weak_provenance * 0.10
     )
-    nexus_coherence = _clamp(convergence_index * 0.55 + coherence_score * 0.25 + coverage * 0.20)
+    nexus_coherence = _clamp(
+        convergence_index * 0.55 + coherence_score * 0.25 + coverage * 0.20
+    )
     return {
         "risk": round(risk, 3),
         "uncertainty": round(uncertainty, 3),
@@ -207,7 +252,10 @@ class ClinicalInferencePipeline:
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
         return {
-            "runtime_services": RuntimeServices.build(config=getattr(self.metacognition, "config", object()), logger=self.logger),
+            "runtime_services": RuntimeServices.build(
+                config=getattr(self.metacognition, "config", object()),
+                logger=self.logger,
+            ),
             "retriever": MemoryRetriever(memory_store=self.semantic_memory),
             "evidence_ranker": EvidenceRanker(),
             "coordinator": PipelineCoordinator(
@@ -239,11 +287,17 @@ class ClinicalInferencePipeline:
             "epidemiology_area": EpidemiologyArea(),
             "area_coherence": AreaCoherenceAnalyzer(),
             "diagnostic_orchestrator": diagnostic_orchestrator,
-            "specialist_runtime": SpecialistRuntime(registry=diagnostic_orchestrator.registry),
+            "specialist_runtime": SpecialistRuntime(
+                registry=diagnostic_orchestrator.registry
+            ),
         }
 
-    def _encode_modalities(self, case: CaseContext) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
-        text_features = self.text_encoder.encode(case.report_text or case.ehr_text or case.case_id)
+    def _encode_modalities(
+        self, case: CaseContext
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+        text_features = self.text_encoder.encode(
+            case.report_text or case.ehr_text or case.case_id
+        )
         if case.imaging:
             first_study = case.imaging[0]
             first_study_id = first_study.study_id
@@ -255,7 +309,12 @@ class ClinicalInferencePipeline:
             )
             pathology_features = self.pathology_encoder.encode(first_study_id)
         else:
-            volume_features = {"study_id": "none", "series_paths": [], "image_count": 0, "has_local_images": False}
+            volume_features = {
+                "study_id": "none",
+                "series_paths": [],
+                "image_count": 0,
+                "has_local_images": False,
+            }
             pathology_features = {"slide_id": "none"}
         fused = self.fusion.fuse(
             {
@@ -266,7 +325,13 @@ class ClinicalInferencePipeline:
         )
         return text_features, volume_features, pathology_features, fused
 
-    def _retrieve_and_rank(self, components: dict[str, Any], case: CaseContext, payload: dict[str, Any], query_text: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    def _retrieve_and_rank(
+        self,
+        components: dict[str, Any],
+        case: CaseContext,
+        payload: dict[str, Any],
+        query_text: str,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         retrieval = components["retriever"].retrieve(
             query_text,
             top_k=5,
@@ -276,7 +341,12 @@ class ClinicalInferencePipeline:
                 "provenance": case.provenance,
                 "exposures": payload.get("exposures", {}),
             },
-            target_areas=["visual_diagnostic", "language_listening", "case_context", "epidemiology"],
+            target_areas=[
+                "visual_diagnostic",
+                "language_listening",
+                "case_context",
+                "epidemiology",
+            ],
         )
         return retrieval, components["evidence_ranker"].rank(retrieval["evidence"])
 
@@ -293,7 +363,9 @@ class ClinicalInferencePipeline:
         radiology_specialist_signal = specialist_runtime.radiology_signal(
             study_id=str(volume_features.get("study_id", "none")),
             series_paths=list(volume_features.get("series_paths", [])),
-            metadata=dict(volume_features.get("metadata", {})) if isinstance(volume_features.get("metadata", {}), dict) else {},
+            metadata=dict(volume_features.get("metadata", {}))
+            if isinstance(volume_features.get("metadata", {}), dict)
+            else {},
         )
         grounded_text_specialist_signal = specialist_runtime.grounded_text_signal(
             case_id=case.case_id,
@@ -362,10 +434,16 @@ class ClinicalInferencePipeline:
             return []
         enumerator = self._nexus_enumerator_instance()
         if self._nexus_ic_table is None:
-            self._nexus_ic_table = InformationContentTable.from_graph_structure(enumerator.graph)
-        report = retrieve_candidates(findings, enumerator.graph, max_candidates=NEXUS_ENUMERATION_CANDIDATE_CAP)
+            self._nexus_ic_table = InformationContentTable.from_graph_structure(
+                enumerator.graph
+            )
+        report = retrieve_candidates(
+            findings, enumerator.graph, max_candidates=NEXUS_ENUMERATION_CANDIDATE_CAP
+        )
         candidate_names = [item.condition for item in report.candidates]
-        ranked = rank_differential(findings, candidate_names, enumerator.graph, self._nexus_ic_table)
+        ranked = rank_differential(
+            findings, candidate_names, enumerator.graph, self._nexus_ic_table
+        )
         return [item.as_dict() for item in ranked]
 
     def _model_router_instance(self) -> ModelRouter:
@@ -423,7 +501,9 @@ class ClinicalInferencePipeline:
         """
         if self._nexus_scheduler is None:
             password = os.environ.get("DB_PASSWORD")
-            scheduler_kwargs: dict[str, Any] = {"candidate_store": _build_nexus_candidate_store()}
+            scheduler_kwargs: dict[str, Any] = {
+                "candidate_store": _build_nexus_candidate_store()
+            }
             if password:
                 scheduler_kwargs["password"] = password
                 scheduler_kwargs["path"] = Path(DEFAULT_NEXUS_QUEUE_PATH)
@@ -453,12 +533,20 @@ class ClinicalInferencePipeline:
         """
         if self._nexus_enumerator is None:
             self._nexus_graph_source = load_verification_graph()
-            self._nexus_enumerator = MechanismEnumerator(graph=self._nexus_graph_source.graph)
+            self._nexus_enumerator = MechanismEnumerator(
+                graph=self._nexus_graph_source.graph
+            )
         return self._nexus_enumerator
 
     def _nexus_case_context(
-        self, *, case: CaseContext, payload: dict[str, Any], bundle: dict[str, Any],
-        area_dynamics: dict[str, Any], governance_scores: dict[str, Any], visual_imprints: list[dict[str, Any]],
+        self,
+        *,
+        case: CaseContext,
+        payload: dict[str, Any],
+        bundle: dict[str, Any],
+        area_dynamics: dict[str, Any],
+        governance_scores: dict[str, Any],
+        visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """The nexus branch's case context, enriched with findings and candidate conditions when available.
 
@@ -470,7 +558,9 @@ class ClinicalInferencePipeline:
         `diagnostic_assembly.nexus_context_for`'s own logic without
         importing that module.
         """
-        findings = [str(item) for item in (payload.get("findings") or []) if str(item).strip()]
+        findings = [
+            str(item) for item in (payload.get("findings") or []) if str(item).strip()
+        ]
         candidate_conditions: list[str] = []
         if findings:
             # Capped rather than passing every candidate through: verified
@@ -485,7 +575,9 @@ class ClinicalInferencePipeline:
             # usable now; the underlying per-candidate cost is a distinct,
             # deeper question -- see ROADMAP.md, H3.
             report = retrieve_candidates(
-                findings, self._nexus_enumerator_instance().graph, max_candidates=NEXUS_ENUMERATION_CANDIDATE_CAP
+                findings,
+                self._nexus_enumerator_instance().graph,
+                max_candidates=NEXUS_ENUMERATION_CANDIDATE_CAP,
             )
             candidate_conditions = [item.condition for item in report.candidates]
         return {
@@ -526,8 +618,12 @@ class ClinicalInferencePipeline:
             components["nexus_trainer"].enumerator = self._nexus_enumerator_instance()
         return components["nexus_trainer"].run(
             case_context=self._nexus_case_context(
-                case=case, payload=payload, bundle=bundle, area_dynamics=area_dynamics,
-                governance_scores=governance_scores, visual_imprints=visual_imprints,
+                case=case,
+                payload=payload,
+                bundle=bundle,
+                area_dynamics=area_dynamics,
+                governance_scores=governance_scores,
+                visual_imprints=visual_imprints,
             ),
             coherence=governance_scores["nexus_coherence"],
             risk=governance_scores["risk"],
@@ -545,16 +641,40 @@ class ClinicalInferencePipeline:
     ) -> list[dict[str, Any]]:
         evidence = [
             {"source": "bundle", "kind": "bundle_keys", "value": list(bundle.keys())},
-            {"source": "retrieval", "kind": retrieval["retrieval_mode"], "value": retrieval["evidence_count"]},
-            {"source": "fusion", "kind": "engine", "value": fused.get("engine", fused.get("provider", "none"))},
-            {"source": "service", "kind": "provider", "value": resolved["service"].get("provider", "none")},
-            {"source": "intuition", "kind": "candidate", "value": intuition_engine.summarize_for_trace(intuition)},
+            {
+                "source": "retrieval",
+                "kind": retrieval["retrieval_mode"],
+                "value": retrieval["evidence_count"],
+            },
+            {
+                "source": "fusion",
+                "kind": "engine",
+                "value": fused.get("engine", fused.get("provider", "none")),
+            },
+            {
+                "source": "service",
+                "kind": "provider",
+                "value": resolved["service"].get("provider", "none"),
+            },
+            {
+                "source": "intuition",
+                "kind": "candidate",
+                "value": intuition_engine.summarize_for_trace(intuition),
+            },
         ]
         evidence.extend(ranked_evidence)
         return evidence
 
-    def _finalize_diagnostic_result(self, components: dict[str, Any], pipeline_result: dict[str, Any], retrieval: dict[str, Any], ranked_evidence: list[dict[str, Any]]) -> None:
-        pipeline_result["diagnostic_result"] = components["diagnostic_orchestrator"].orchestrate(pipeline_result)
+    def _finalize_diagnostic_result(
+        self,
+        components: dict[str, Any],
+        pipeline_result: dict[str, Any],
+        retrieval: dict[str, Any],
+        ranked_evidence: list[dict[str, Any]],
+    ) -> None:
+        pipeline_result["diagnostic_result"] = components[
+            "diagnostic_orchestrator"
+        ].orchestrate(pipeline_result)
         external_critique = components["specialist_runtime"].external_critique(
             diagnostic_result=pipeline_result["diagnostic_result"],
             literature_context={
@@ -564,7 +684,9 @@ class ClinicalInferencePipeline:
         )
         pipeline_result["external_critique"] = external_critique
         pipeline_result["diagnostic_result"]["external_critique"] = external_critique
-        pipeline_result["diagnostic_result"]["audit_trace"]["external_critic_is_final_arbiter"] = False
+        pipeline_result["diagnostic_result"]["audit_trace"][
+            "external_critic_is_final_arbiter"
+        ] = False
 
     def run(self, payload: dict) -> dict:
         # The check this whole redesign was built for: does this payload's
@@ -604,22 +726,31 @@ class ClinicalInferencePipeline:
         pending_case_routing = self._model_router_instance().pick_pending_case(payload)
         payload = {**payload, "case_id": pending_case_routing.case_id}
         case = self.ingestion.from_payload(payload)
-        if pending_case_routing.action == "merge_and_rerun" and pending_case_routing.merged_report_text is not None:
+        if (
+            pending_case_routing.action == "merge_and_rerun"
+            and pending_case_routing.merged_report_text is not None
+        ):
             case.report_text = pending_case_routing.merged_report_text
         bundle = self.normalizer.to_fhir_bundle(case)
         components = self._build_runtime_components()
-        text_features, volume_features, pathology_features, fused = self._encode_modalities(case)
+        text_features, volume_features, pathology_features, fused = (
+            self._encode_modalities(case)
+        )
         query_text = case.report_text or case.ehr_text or case.case_id
-        retrieval, ranked_evidence = self._retrieve_and_rank(components, case, payload, query_text)
+        retrieval, ranked_evidence = self._retrieve_and_rank(
+            components, case, payload, query_text
+        )
         resolved = components["runtime_services"].resolve("volume_encoder")
         quantum_allowed = components["quantum_gate"].allow(contextuality_score=0.7)
-        radiology_specialist_signal, grounded_text_specialist_signal = self._specialist_signals(
-            components=components,
-            case=case,
-            query_text=query_text,
-            volume_features=volume_features,
-            retrieval=retrieval,
-            ranked_evidence=ranked_evidence,
+        radiology_specialist_signal, grounded_text_specialist_signal = (
+            self._specialist_signals(
+                components=components,
+                case=case,
+                query_text=query_text,
+                volume_features=volume_features,
+                retrieval=retrieval,
+                ranked_evidence=ranked_evidence,
+            )
         )
         area_signals = self._build_area_signals(
             components=components,
@@ -711,7 +842,15 @@ class ClinicalInferencePipeline:
             nexus=nexus,
             area_dynamics=area_dynamics,
         )
-        critique_result = self.critique.review({"coordinated": coordinated, "intuition": intuition, "areas": area_signals, "area_dynamics": area_dynamics, "nexus": nexus})
+        critique_result = self.critique.review(
+            {
+                "coordinated": coordinated,
+                "intuition": intuition,
+                "areas": area_signals,
+                "area_dynamics": area_dynamics,
+                "nexus": nexus,
+            }
+        )
         pipeline_result = {
             "case_id": case.case_id,
             "bundle_keys": list(bundle.keys()),

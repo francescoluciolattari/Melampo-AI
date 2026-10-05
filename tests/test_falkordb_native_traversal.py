@@ -13,17 +13,49 @@ from melampo.memory.falkordb_connection import MODE_LITE, FalkorDBConfig
 from melampo.memory.falkordb_graph import build_falkor_graph
 
 _SAMPLE_EDGES = [
-    ConceptEdge("Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9, lower=0.85, upper=0.95),
-    ConceptEdge("Marfan syndrome", "has_phenotype", "Ectopia lentis", weight=0.85, lower=0.8, upper=0.9),
-    ConceptEdge("Marfan syndrome", "has_phenotype", "Arachnodactyly", weight=0.75, lower=0.7, upper=0.8),
-    ConceptEdge("Loeys-Dietz syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9, lower=0.85, upper=0.95),
-    ConceptEdge("SMAD3", "associated_gene", "Aneurysm-osteoarthritis syndrome", weight=1.0),
+    ConceptEdge(
+        "Marfan syndrome",
+        "has_phenotype",
+        "Aortic root aneurysm",
+        weight=0.9,
+        lower=0.85,
+        upper=0.95,
+    ),
+    ConceptEdge(
+        "Marfan syndrome",
+        "has_phenotype",
+        "Ectopia lentis",
+        weight=0.85,
+        lower=0.8,
+        upper=0.9,
+    ),
+    ConceptEdge(
+        "Marfan syndrome",
+        "has_phenotype",
+        "Arachnodactyly",
+        weight=0.75,
+        lower=0.7,
+        upper=0.8,
+    ),
+    ConceptEdge(
+        "Loeys-Dietz syndrome",
+        "has_phenotype",
+        "Aortic root aneurysm",
+        weight=0.9,
+        lower=0.85,
+        upper=0.95,
+    ),
+    ConceptEdge(
+        "SMAD3", "associated_gene", "Aneurysm-osteoarthritis syndrome", weight=1.0
+    ),
     ConceptEdge("SMAD3", "associated_gene", "Aortic root aneurysm", weight=0.6),
 ]
 
 
 def _falkor_graph(directory):
-    config = FalkorDBConfig(mode=MODE_LITE, lite_db_path=str(Path(directory) / "test.db"))
+    config = FalkorDBConfig(
+        mode=MODE_LITE, lite_db_path=str(Path(directory) / "test.db")
+    )
     return build_falkor_graph(_SAMPLE_EDGES, config=config, graph_name="native_test")
 
 
@@ -77,8 +109,14 @@ def test_retrieve_candidates_matches_in_memory_graph_exactly():
         in_memory_result = retrieve_candidates(findings, in_memory, max_candidates=10)
         falkor_result = retrieve_candidates(findings, falkor, max_candidates=10)
 
-    in_memory_names = [(c.condition, c.nearest_hops, c.findings_linked) for c in in_memory_result.candidates]
-    falkor_names = [(c.condition, c.nearest_hops, c.findings_linked) for c in falkor_result.candidates]
+    in_memory_names = [
+        (c.condition, c.nearest_hops, c.findings_linked)
+        for c in in_memory_result.candidates
+    ]
+    falkor_names = [
+        (c.condition, c.nearest_hops, c.findings_linked)
+        for c in falkor_result.candidates
+    ]
     assert in_memory_names == falkor_names
 
 
@@ -87,7 +125,9 @@ def test_a_gene_never_appears_as_a_candidate_via_the_native_path():
     reached by reverse traversal must never rank as a diagnosis."""
     with tempfile.TemporaryDirectory() as directory:
         falkor = _falkor_graph(directory)
-        result = retrieve_candidates(["Aortic root aneurysm"], falkor, max_candidates=10)
+        result = retrieve_candidates(
+            ["Aortic root aneurysm"], falkor, max_candidates=10
+        )
 
     names = {c.condition for c in result.candidates}
     assert "smad3" not in names
@@ -101,9 +141,13 @@ def test_a_disease_reached_forward_from_a_gene_is_a_candidate_via_the_native_pat
         ConceptEdge("BRCA1", "causes_disease", "ovarian cancer syndrome", weight=0.8),
     ]
     with tempfile.TemporaryDirectory() as directory:
-        config = FalkorDBConfig(mode=MODE_LITE, lite_db_path=str(Path(directory) / "gene_test.db"))
+        config = FalkorDBConfig(
+            mode=MODE_LITE, lite_db_path=str(Path(directory) / "gene_test.db")
+        )
         graph = build_falkor_graph(edges, config=config, graph_name="gene_forward_test")
-        result = retrieve_candidates(["hereditary breast cancer"], graph, max_candidates=10)
+        result = retrieve_candidates(
+            ["hereditary breast cancer"], graph, max_candidates=10
+        )
 
     names = {c.condition for c in result.candidates}
     assert "ovarian cancer syndrome" in names
@@ -123,7 +167,10 @@ def test_exclude_list_is_respected_via_the_native_path():
     with tempfile.TemporaryDirectory() as directory:
         falkor = _falkor_graph(directory)
         result = retrieve_candidates(
-            ["Aortic root aneurysm"], falkor, max_candidates=10, exclude=["Marfan syndrome"]
+            ["Aortic root aneurysm"],
+            falkor,
+            max_candidates=10,
+            exclude=["Marfan syndrome"],
         )
 
     names = {c.condition for c in result.candidates}
@@ -159,7 +206,13 @@ def test_concepts_cache_is_invalidated_by_load_edges():
     with tempfile.TemporaryDirectory() as directory:
         graph = _falkor_graph(directory)
         before = graph.concepts()
-        graph.load_edges([ConceptEdge("New Concept", "has_phenotype", "Another New Concept", weight=0.5)])
+        graph.load_edges(
+            [
+                ConceptEdge(
+                    "New Concept", "has_phenotype", "Another New Concept", weight=0.5
+                )
+            ]
+        )
         after = graph.concepts()
 
     assert "new concept" in after

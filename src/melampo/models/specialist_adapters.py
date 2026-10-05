@@ -12,7 +12,9 @@ def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, value))
 
 
-def _safe_claims(payload: dict[str, Any], default_claims: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _safe_claims(
+    payload: dict[str, Any], default_claims: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     claims = payload.get("claims") if isinstance(payload, dict) else None
     return list(claims) if isinstance(claims, list) and claims else default_claims
 
@@ -43,9 +45,19 @@ class Pillar0RadiologyAdapter:
             endpoint=self.endpoint,
             allow_remote=False,
         )
-        return SafeModelClient(provider=self.provider, model_name=self.model_name, role="primary_radiology_foundation_model", config=config)
+        return SafeModelClient(
+            provider=self.provider,
+            model_name=self.model_name,
+            role="primary_radiology_foundation_model",
+            config=config,
+        )
 
-    def prepare_volume_request(self, study_id: str, series_paths: list[str], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def prepare_volume_request(
+        self,
+        study_id: str,
+        series_paths: list[str],
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         metadata = metadata or {}
         return {
             "study_id": study_id,
@@ -63,8 +75,15 @@ class Pillar0RadiologyAdapter:
             },
         }
 
-    def infer_volume(self, study_id: str, series_paths: list[str], metadata: dict[str, Any] | None = None) -> SpecialistModelResponse:
-        request = self.prepare_volume_request(study_id=study_id, series_paths=series_paths, metadata=metadata)
+    def infer_volume(
+        self,
+        study_id: str,
+        series_paths: list[str],
+        metadata: dict[str, Any] | None = None,
+    ) -> SpecialistModelResponse:
+        request = self.prepare_volume_request(
+            study_id=study_id, series_paths=series_paths, metadata=metadata
+        )
         result = self._client().execute(request)
         mode = result.get("mode", self.execution_mode)
         trace = result.get("trace", {})
@@ -83,7 +102,11 @@ class Pillar0RadiologyAdapter:
                 confidence=0.0,
                 uncertainty=1.0,
                 provenance={"request": request, "mode": mode},
-                limitations=["network_call_not_implemented", "research_use_only", "not_final_diagnostic_arbiter"],
+                limitations=[
+                    "network_call_not_implemented",
+                    "research_use_only",
+                    "not_final_diagnostic_arbiter",
+                ],
                 audit_trace={"model_execution": trace},
             )
         if result["status"] in {"request_prepared", "blocked", "failed"}:
@@ -92,10 +115,19 @@ class Pillar0RadiologyAdapter:
                 model_name=self.model_name,
                 role="primary_radiology_foundation_model",
                 status=str(result["status"]),
-                signals={"study_id": study_id, "routing_hint": "pillar_0_call_prepared", "mode": mode},
+                signals={
+                    "study_id": study_id,
+                    "routing_hint": "pillar_0_call_prepared",
+                    "mode": mode,
+                },
                 confidence=0.0,
                 uncertainty=1.0,
-                provenance={"request": request, "mode": mode, "reason": result.get("reason"), "error": result.get("error")},
+                provenance={
+                    "request": request,
+                    "mode": mode,
+                    "reason": result.get("reason"),
+                    "error": result.get("error"),
+                },
                 limitations=["actual_inference_adapter_required", "research_use_only"],
                 audit_trace={"model_execution": trace},
             )
@@ -104,12 +136,16 @@ class Pillar0RadiologyAdapter:
         signals.setdefault("study_id", study_id)
         signals.setdefault("modality", request.get("modality", "unknown"))
         confidence = _clamp(float(response.get("confidence", 0.0) or 0.0))
-        uncertainty = _clamp(float(response.get("uncertainty", 1.0 - confidence) or 0.0))
+        uncertainty = _clamp(
+            float(response.get("uncertainty", 1.0 - confidence) or 0.0)
+        )
         default_claims = [
             ClinicalClaim(
                 claim_id=f"pillar0:{study_id}:volume_signal",
                 type="imaging_signal",
-                normalized_entity=str(signals.get("primary_finding", "radiology_volume_signal")),
+                normalized_entity=str(
+                    signals.get("primary_finding", "radiology_volume_signal")
+                ),
                 polarity="present",
                 confidence=confidence,
                 uncertainty=uncertainty,
@@ -119,7 +155,12 @@ class Pillar0RadiologyAdapter:
             ).as_dict()
         ]
         return SpecialistModelResponse.from_payload(
-            {**response, "signals": signals, "claims": _safe_claims(response, default_claims), "status": result.get("status", "completed")},
+            {
+                **response,
+                "signals": signals,
+                "claims": _safe_claims(response, default_claims),
+                "status": result.get("status", "completed"),
+            },
             provider=self.provider,
             model_name=self.model_name,
             role="primary_radiology_foundation_model",
@@ -134,8 +175,16 @@ class Pillar0RadiologyAdapter:
             role="primary_radiology_foundation_model",
             intended_use="Generate governed CT/MRI/radiology-volume signals for visual_diagnostic_area.",
             modalities=["ct_3d", "mri_3d", "radiology_volume"],
-            limitations=["Not final diagnostic authority", "Requires local radiology validation", "Disabled unless explicitly configured"],
-            validation_requirements=["Radiology benchmark", "Calibration", "Slice analysis by modality and anatomy"],
+            limitations=[
+                "Not final diagnostic authority",
+                "Requires local radiology validation",
+                "Disabled unless explicitly configured",
+            ],
+            validation_requirements=[
+                "Radiology benchmark",
+                "Calibration",
+                "Slice analysis by modality and anatomy",
+            ],
         )
 
 
@@ -154,10 +203,22 @@ class Gemma4ClinicalReasoningAdapter:
     def _client(self) -> SafeModelClient:
         if self.client is not None:
             return self.client
-        config = self.client_config or ModelClientConfig(mode=self.execution_mode, enabled=self.enabled, endpoint=self.endpoint, allow_remote=False)
-        return SafeModelClient(provider=self.provider, model_name=self.model_name, role="clinical_text_and_agentic_reasoning", config=config)
+        config = self.client_config or ModelClientConfig(
+            mode=self.execution_mode,
+            enabled=self.enabled,
+            endpoint=self.endpoint,
+            allow_remote=False,
+        )
+        return SafeModelClient(
+            provider=self.provider,
+            model_name=self.model_name,
+            role="clinical_text_and_agentic_reasoning",
+            config=config,
+        )
 
-    def prepare_reasoning_request(self, case_id: str, text: str, grounding: dict[str, Any] | None = None) -> dict[str, Any]:
+    def prepare_reasoning_request(
+        self, case_id: str, text: str, grounding: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         grounding = grounding or {}
         return {
             "case_id": case_id,
@@ -181,8 +242,12 @@ class Gemma4ClinicalReasoningAdapter:
             },
         }
 
-    def reason_over_text(self, case_id: str, text: str, grounding: dict[str, Any] | None = None) -> SpecialistModelResponse:
-        request = self.prepare_reasoning_request(case_id=case_id, text=text, grounding=grounding)
+    def reason_over_text(
+        self, case_id: str, text: str, grounding: dict[str, Any] | None = None
+    ) -> SpecialistModelResponse:
+        request = self.prepare_reasoning_request(
+            case_id=case_id, text=text, grounding=grounding
+        )
         result = self._client().execute(request)
         mode = result.get("mode", self.execution_mode)
         trace = result.get("trace", {})
@@ -200,7 +265,10 @@ class Gemma4ClinicalReasoningAdapter:
                 },
                 confidence=0.0,
                 uncertainty=1.0,
-                provenance={"mode": mode, "grounding_keys": sorted((grounding or {}).keys())},
+                provenance={
+                    "mode": mode,
+                    "grounding_keys": sorted((grounding or {}).keys()),
+                },
                 limitations=["must_be_grounded_by_rag", "not_final_diagnostic_arbiter"],
                 audit_trace={"model_execution": trace},
             )
@@ -210,16 +278,30 @@ class Gemma4ClinicalReasoningAdapter:
                 model_name=self.model_name,
                 role="clinical_text_and_agentic_reasoning",
                 status=str(result["status"]),
-                signals={"case_id": case_id, "routing_hint": "gemma_4_call_prepared", "mode": mode},
+                signals={
+                    "case_id": case_id,
+                    "routing_hint": "gemma_4_call_prepared",
+                    "mode": mode,
+                },
                 confidence=0.0,
                 uncertainty=1.0,
-                provenance={"request": request, "mode": mode, "reason": result.get("reason"), "error": result.get("error")},
-                limitations=["actual_inference_adapter_required", "must_be_grounded_by_rag"],
+                provenance={
+                    "request": request,
+                    "mode": mode,
+                    "reason": result.get("reason"),
+                    "error": result.get("error"),
+                },
+                limitations=[
+                    "actual_inference_adapter_required",
+                    "must_be_grounded_by_rag",
+                ],
                 audit_trace={"model_execution": trace},
             )
         response = dict(result.get("response", {}))
         confidence = _clamp(float(response.get("confidence", 0.0) or 0.0))
-        uncertainty = _clamp(float(response.get("uncertainty", 1.0 - confidence) or 0.0))
+        uncertainty = _clamp(
+            float(response.get("uncertainty", 1.0 - confidence) or 0.0)
+        )
         default_claims = [
             ClinicalClaim(
                 claim_id=f"gemma4:{case_id}:grounded_text",
@@ -236,7 +318,12 @@ class Gemma4ClinicalReasoningAdapter:
         signals.setdefault("case_id", case_id)
         signals.setdefault("grounded_summary", response.get("grounded_summary", ""))
         return SpecialistModelResponse.from_payload(
-            {**response, "signals": signals, "claims": _safe_claims(response, default_claims), "status": result.get("status", "completed")},
+            {
+                **response,
+                "signals": signals,
+                "claims": _safe_claims(response, default_claims),
+                "status": result.get("status", "completed"),
+            },
             provider=self.provider,
             model_name=self.model_name,
             role="clinical_text_and_agentic_reasoning",
@@ -251,8 +338,16 @@ class Gemma4ClinicalReasoningAdapter:
             role="clinical_text_and_agentic_reasoning",
             intended_use="Reason over RAG-grounded clinical text and emit structured claims.",
             modalities=["report_text", "ehr_text", "clinical_text", "tool_trace"],
-            limitations=["Not a standalone medical specialist", "Requires RAG grounding", "Disabled unless explicitly configured"],
-            validation_requirements=["Groundedness evaluation", "Faithfulness evaluation", "Human review before clinical use"],
+            limitations=[
+                "Not a standalone medical specialist",
+                "Requires RAG grounding",
+                "Disabled unless explicitly configured",
+            ],
+            validation_requirements=[
+                "Groundedness evaluation",
+                "Faithfulness evaluation",
+                "Human review before clinical use",
+            ],
         )
 
 
@@ -271,10 +366,24 @@ class ClaudeCritiqueAdapter:
     def _client(self) -> SafeModelClient:
         if self.client is not None:
             return self.client
-        config = self.client_config or ModelClientConfig(mode=self.execution_mode, enabled=self.enabled, endpoint=self.endpoint, allow_remote=False)
-        return SafeModelClient(provider=self.provider, model_name=self.model_name, role="external_critic_and_scientific_research", config=config)
+        config = self.client_config or ModelClientConfig(
+            mode=self.execution_mode,
+            enabled=self.enabled,
+            endpoint=self.endpoint,
+            allow_remote=False,
+        )
+        return SafeModelClient(
+            provider=self.provider,
+            model_name=self.model_name,
+            role="external_critic_and_scientific_research",
+            config=config,
+        )
 
-    def prepare_critique_request(self, diagnostic_result: dict[str, Any], literature_context: dict[str, Any] | None = None) -> dict[str, Any]:
+    def prepare_critique_request(
+        self,
+        diagnostic_result: dict[str, Any],
+        literature_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         literature_context = literature_context or {}
         return {
             "diagnostic_result": diagnostic_result,
@@ -294,8 +403,14 @@ class ClaudeCritiqueAdapter:
             },
         }
 
-    def critique(self, diagnostic_result: dict[str, Any], literature_context: dict[str, Any] | None = None) -> SpecialistModelResponse:
-        request = self.prepare_critique_request(diagnostic_result=diagnostic_result, literature_context=literature_context)
+    def critique(
+        self,
+        diagnostic_result: dict[str, Any],
+        literature_context: dict[str, Any] | None = None,
+    ) -> SpecialistModelResponse:
+        request = self.prepare_critique_request(
+            diagnostic_result=diagnostic_result, literature_context=literature_context
+        )
         result = self._client().execute(request)
         mode = result.get("mode", self.execution_mode)
         trace = result.get("trace", {})
@@ -313,7 +428,10 @@ class ClaudeCritiqueAdapter:
                 confidence=0.0,
                 uncertainty=1.0,
                 provenance={"mode": mode},
-                limitations=["optional_external_critic", "not_final_diagnostic_arbiter"],
+                limitations=[
+                    "optional_external_critic",
+                    "not_final_diagnostic_arbiter",
+                ],
                 audit_trace={"model_execution": trace},
             )
         if result["status"] in {"request_prepared", "blocked", "failed"}:
@@ -325,16 +443,35 @@ class ClaudeCritiqueAdapter:
                 signals={"routing_hint": "claude_critic_call_prepared", "mode": mode},
                 confidence=0.0,
                 uncertainty=1.0,
-                provenance={"request": request, "mode": mode, "reason": result.get("reason"), "error": result.get("error")},
-                limitations=["actual_inference_adapter_required", "external_critic_only"],
+                provenance={
+                    "request": request,
+                    "mode": mode,
+                    "reason": result.get("reason"),
+                    "error": result.get("error"),
+                },
+                limitations=[
+                    "actual_inference_adapter_required",
+                    "external_critic_only",
+                ],
                 audit_trace={"model_execution": trace},
             )
         response = dict(result.get("response", {}))
-        confidence = _clamp(float(response.get("confidence", response.get("confidence_in_critique", 0.0)) or 0.0))
-        uncertainty = _clamp(float(response.get("uncertainty", 1.0 - confidence) or 0.0))
+        confidence = _clamp(
+            float(
+                response.get("confidence", response.get("confidence_in_critique", 0.0))
+                or 0.0
+            )
+        )
+        uncertainty = _clamp(
+            float(response.get("uncertainty", 1.0 - confidence) or 0.0)
+        )
         signals = dict(response.get("signals", {}))
-        signals.setdefault("critique_status", response.get("critique_status", "needs_review"))
-        signals.setdefault("recommended_action", response.get("recommended_action", "human_review"))
+        signals.setdefault(
+            "critique_status", response.get("critique_status", "needs_review")
+        )
+        signals.setdefault(
+            "recommended_action", response.get("recommended_action", "human_review")
+        )
         return SpecialistModelResponse.from_payload(
             {
                 **response,
@@ -357,6 +494,14 @@ class ClaudeCritiqueAdapter:
             role="external_critic_and_scientific_research",
             intended_use="Optional external critique and unsupported-claim/safety review.",
             modalities=["clinical_text", "literature", "tool_trace", "policy_trace"],
-            limitations=["External critic only", "Cannot override final orchestrator", "Requires audit trace and human review"],
-            validation_requirements=["Critique benchmark", "Unsupported-claim detection", "Privacy and governance review"],
+            limitations=[
+                "External critic only",
+                "Cannot override final orchestrator",
+                "Requires audit trace and human review",
+            ],
+            validation_requirements=[
+                "Critique benchmark",
+                "Unsupported-claim detection",
+                "Privacy and governance review",
+            ],
         )

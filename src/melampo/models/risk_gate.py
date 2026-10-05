@@ -10,7 +10,13 @@ class RiskGate:
     def assess(self, risk: float) -> dict:
         allow = risk <= self.threshold
         margin = round(self.threshold - risk, 3)
-        band = "high" if risk > (self.threshold + 0.15) else "guarded" if not allow else "low"
+        band = (
+            "high"
+            if risk > (self.threshold + 0.15)
+            else "guarded"
+            if not allow
+            else "low"
+        )
         reasons = ["risk_above_gate_threshold"] if not allow else []
         return {
             "allow": allow,

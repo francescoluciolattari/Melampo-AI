@@ -34,19 +34,43 @@ class EvidenceRanker:
     def rank(self, items: list) -> list:
         scored = []
         for item in items:
-            source = item.get("source", "unknown") if isinstance(item, dict) else "unknown"
+            source = (
+                item.get("source", "unknown") if isinstance(item, dict) else "unknown"
+            )
             kind = item.get("kind", "signal") if isinstance(item, dict) else "signal"
-            grounding_score = float(item.get("grounding_score", 0.5)) if isinstance(item, dict) else 0.5
-            provenance_bonus = 0.05 if isinstance(item, dict) and item.get("provenance") else 0.0
-            relation_bonus = 0.04 if isinstance(item, dict) and item.get("relations") else 0.0
-            promoted_bonus = 0.05 if isinstance(item, dict) and item.get("learning_status") == "promoted" else 0.0
+            grounding_score = (
+                float(item.get("grounding_score", 0.5))
+                if isinstance(item, dict)
+                else 0.5
+            )
+            provenance_bonus = (
+                0.05 if isinstance(item, dict) and item.get("provenance") else 0.0
+            )
+            relation_bonus = (
+                0.04 if isinstance(item, dict) and item.get("relations") else 0.0
+            )
+            promoted_bonus = (
+                0.05
+                if isinstance(item, dict) and item.get("learning_status") == "promoted"
+                else 0.0
+            )
             source_weight = self.SOURCE_PRIORITY.get(source, 0.4)
             kind_weight = self.KIND_PRIORITY.get(kind, 0.4)
-            weight = round(grounding_score + source_weight + kind_weight + provenance_bonus + relation_bonus + promoted_bonus, 3)
+            weight = round(
+                grounding_score
+                + source_weight
+                + kind_weight
+                + provenance_bonus
+                + relation_bonus
+                + promoted_bonus,
+                3,
+            )
             scored.append({"item": item, "weight": weight})
 
         scored.sort(key=lambda entry: entry["weight"], reverse=True)
         ranked = []
         for index, entry in enumerate(scored):
-            ranked.append({"rank": index + 1, "item": entry["item"], "weight": entry["weight"]})
+            ranked.append(
+                {"rank": index + 1, "item": entry["item"], "weight": entry["weight"]}
+            )
         return ranked

@@ -56,7 +56,10 @@ DEFAULT_OBO_FILENAMES = ("hp.obo",)
 # Gene annotation files. Optional: they add an edge type phenotype.hpoa
 # cannot express, and their absence narrows the graph rather than breaking it.
 GENES_TO_PHENOTYPE_ENV = "MELAMPO_GENES_TO_PHENOTYPE_PATH"
-DEFAULT_GENES_TO_PHENOTYPE_FILENAMES = ("genes_to_phenotype.txt", "phenotype_to_genes.txt")
+DEFAULT_GENES_TO_PHENOTYPE_FILENAMES = (
+    "genes_to_phenotype.txt",
+    "phenotype_to_genes.txt",
+)
 GENES_TO_DISEASE_ENV = "MELAMPO_GENES_TO_DISEASE_PATH"
 DEFAULT_GENES_TO_DISEASE_FILENAMES = ("genes_to_disease.txt",)
 
@@ -121,7 +124,10 @@ def find_hpoa_file(explicit_path: str | Path | None = None) -> Path | None:
 
 
 def load_hpoa_graph(
-    path: str | Path, *, obo_path: str | Path | None = None, include_gene_annotations: bool = True
+    path: str | Path,
+    *,
+    obo_path: str | Path | None = None,
+    include_gene_annotations: bool = True,
 ) -> GraphSource:
     """Build the concept graph from a real HPO annotation release.
 
@@ -139,7 +145,9 @@ def load_hpoa_graph(
     matches.
     """
     path = Path(path)
-    lines: Iterable[str] = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    lines: Iterable[str] = path.read_text(
+        encoding="utf-8", errors="ignore"
+    ).splitlines()
 
     label_for: dict[str, str] = {}
     resolved_obo = find_hp_obo_file(obo_path)
@@ -150,7 +158,9 @@ def load_hpoa_graph(
 
         label_for = {
             term.term_id: term.name
-            for term in parse_obo(resolved_obo.read_text(encoding="utf-8", errors="ignore").splitlines())
+            for term in parse_obo(
+                resolved_obo.read_text(encoding="utf-8", errors="ignore").splitlines()
+            )
             if term.name
         }
 
@@ -166,13 +176,19 @@ def load_hpoa_graph(
         if annotation.disease_id and annotation.disease_name
     }
     gene_edges = (
-        load_gene_annotation_edges(name_for_disease_id=name_for_disease_id) if include_gene_annotations else []
+        load_gene_annotation_edges(name_for_disease_id=name_for_disease_id)
+        if include_gene_annotations
+        else []
     )
     graph = InMemoryConceptGraph.from_edges([*hpoa_edges, *gene_edges])
 
     edges = sum(len(graph.edges_from(concept)) for concept in graph.concepts())
     detail = f"loaded from {path}"
-    detail += f"; phenotype labels resolved from {resolved_obo}" if label_for else "; no hp.obo found, targets are HPO ids"
+    detail += (
+        f"; phenotype labels resolved from {resolved_obo}"
+        if label_for
+        else "; no hp.obo found, targets are HPO ids"
+    )
     if gene_edges:
         detail += f"; {len(gene_edges):,} gene-annotation edges included"
     return GraphSource(graph=graph, source=SOURCE_HPOA, edge_count=edges, detail=detail)
@@ -206,20 +222,30 @@ def load_gene_annotation_edges(
 
     edges: list[Any] = []
 
-    phenotype_path = _find_file(genes_to_phenotype, GENES_TO_PHENOTYPE_ENV, DEFAULT_GENES_TO_PHENOTYPE_FILENAMES)
+    phenotype_path = _find_file(
+        genes_to_phenotype, GENES_TO_PHENOTYPE_ENV, DEFAULT_GENES_TO_PHENOTYPE_FILENAMES
+    )
     if phenotype_path is not None:
         lines = phenotype_path.read_text(encoding="utf-8", errors="ignore").splitlines()
         edges.extend(gene_phenotype_edges(parse_genes_to_phenotype(lines)))
 
-    disease_path = _find_file(genes_to_disease, GENES_TO_DISEASE_ENV, DEFAULT_GENES_TO_DISEASE_FILENAMES)
+    disease_path = _find_file(
+        genes_to_disease, GENES_TO_DISEASE_ENV, DEFAULT_GENES_TO_DISEASE_FILENAMES
+    )
     if disease_path is not None:
         lines = disease_path.read_text(encoding="utf-8", errors="ignore").splitlines()
-        edges.extend(gene_disease_edges(parse_genes_to_disease(lines), name_for_disease_id=name_for_disease_id))
+        edges.extend(
+            gene_disease_edges(
+                parse_genes_to_disease(lines), name_for_disease_id=name_for_disease_id
+            )
+        )
 
     return edges
 
 
-def _find_file(explicit: str | Path | None, env_var: str, filenames: tuple[str, ...]) -> Path | None:
+def _find_file(
+    explicit: str | Path | None, env_var: str, filenames: tuple[str, ...]
+) -> Path | None:
     """Shared search order for every optional data file: explicit, env, cwd, data/."""
     candidates: list[Path] = []
     if explicit:
@@ -282,7 +308,10 @@ def find_hp_obo_file(explicit_path: str | Path | None = None) -> Path | None:
 
 
 def load_synonym_index(
-    explicit_path: str | Path | None = None, *, include_history: bool = True, **term_index_kwargs: Any
+    explicit_path: str | Path | None = None,
+    *,
+    include_history: bool = True,
+    **term_index_kwargs: Any,
 ) -> Any:
     """Build a `TermIndex` from a real hp.obo release, or None if there is none to find.
 

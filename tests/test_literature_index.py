@@ -13,7 +13,9 @@ from melampo.reasoning.rlm_graph_bridge import (
 )
 
 
-def _checkable(passage_id: str, text: str, source_id: str = "pmid:12345678") -> LiteraturePassage:
+def _checkable(
+    passage_id: str, text: str, source_id: str = "pmid:12345678"
+) -> LiteraturePassage:
     return LiteraturePassage(passage_id, text, "A title", source_id, 2024, "A journal")
 
 
@@ -34,14 +36,18 @@ class _Trajectory:
 
 def test_a_passage_with_a_resolvable_identifier_is_independently_checkable():
     assert _checkable("p1", "text", "pmid:12345678").is_independently_checkable is True
-    assert _checkable("p2", "text", "doi:10.1000/xyz").is_independently_checkable is True
+    assert (
+        _checkable("p2", "text", "doi:10.1000/xyz").is_independently_checkable is True
+    )
 
 
 def test_a_passage_without_a_resolvable_identifier_is_not_checkable():
     """A source a reviewer cannot open is an assertion with a
     bibliography-shaped decoration -- worse than no citation, because it
     looks like one."""
-    assert _checkable("p3", "text", "internal-note-4").is_independently_checkable is False
+    assert (
+        _checkable("p3", "text", "internal-note-4").is_independently_checkable is False
+    )
 
 
 def test_search_excludes_uncheckable_passages_by_default():
@@ -67,7 +73,11 @@ def test_a_citation_string_carries_enough_to_find_the_source():
 
 def test_passages_are_found_by_the_concepts_they_mention():
     index = LiteratureIndex()
-    index.add(_checkable("p1", "Hypercalcaemia in sarcoidosis arises from extrarenal calcitriol."))
+    index.add(
+        _checkable(
+            "p1", "Hypercalcaemia in sarcoidosis arises from extrarenal calcitriol."
+        )
+    )
 
     hits = index.search(["sarcoidosis", "hypercalcaemia"], differential_graph())
 
@@ -78,10 +88,20 @@ def test_passages_are_found_by_the_concepts_they_mention():
 def test_a_passage_matching_more_concepts_ranks_first():
     """Breadth before strength, the same rule candidate_retrieval uses."""
     index = LiteratureIndex()
-    index.add(_checkable("narrow", "Sarcoidosis is a granulomatous disease.", "pmid:111"))
-    index.add(_checkable("broad", "Sarcoidosis causes hypercalcaemia and erythema nodosum.", "pmid:222"))
+    index.add(
+        _checkable("narrow", "Sarcoidosis is a granulomatous disease.", "pmid:111")
+    )
+    index.add(
+        _checkable(
+            "broad",
+            "Sarcoidosis causes hypercalcaemia and erythema nodosum.",
+            "pmid:222",
+        )
+    )
 
-    hits = index.search(["sarcoidosis", "hypercalcaemia", "erythema nodosum"], differential_graph())
+    hits = index.search(
+        ["sarcoidosis", "hypercalcaemia", "erythema nodosum"], differential_graph()
+    )
 
     assert hits[0].passage.passage_id == "broad"
 
@@ -120,10 +140,14 @@ def test_truncation_drops_whole_passages_not_partial_text():
     for i in range(5):
         index.add(_checkable(f"p{i}", "Sarcoidosis. " + ("x" * 500), f"pmid:{i}"))
 
-    context = as_vetting_context(index.search(["sarcoidosis"], differential_graph(), limit=5), max_chars=1200)
+    context = as_vetting_context(
+        index.search(["sarcoidosis"], differential_graph(), limit=5), max_chars=1200
+    )
 
     assert context.count("pmid:") <= 3
-    assert not context.endswith("x" * 10) or context.count("[") == context.count("pmid:")
+    assert not context.endswith("x" * 10) or context.count("[") == context.count(
+        "pmid:"
+    )
 
 
 def test_an_empty_retrieval_formats_to_an_empty_string():
@@ -140,14 +164,18 @@ def test_a_cited_conjecture_stays_in_the_rlm_branch():
     produced by the RLM, not by a source standing peer to the graph or the
     patient's chart."""
     claims = [("hypercalcaemia", "erythema nodosum", "sarcoidosis")]
-    vetted = vet_rlm_claims(claims, differential_graph(), citations_by_claim={0: ["pmid:123"]})
+    vetted = vet_rlm_claims(
+        claims, differential_graph(), citations_by_claim={0: ["pmid:123"]}
+    )
 
     assert vetted[0].as_dict()["origin"] == ORIGIN_RLM_CONJECTURE
 
 
 def test_a_cited_conjecture_is_marked_citation_supported():
     claims = [("erythema nodosum", "night sweats", "some proposed link")]
-    vetted = vet_rlm_claims(claims, differential_graph(), citations_by_claim={0: ["pmid:123"]})
+    vetted = vet_rlm_claims(
+        claims, differential_graph(), citations_by_claim={0: ["pmid:123"]}
+    )
 
     assert vetted[0].is_citation_supported is True
 
@@ -167,7 +195,9 @@ def test_citations_do_not_make_an_ungrounded_claim_grounded():
     the graph supports it -- promoting on a citation alone would be trusting
     the model's own reading of a paper it selected."""
     claims = [("erythema nodosum", "night sweats", "some proposed link")]
-    vetted = vet_rlm_claims(claims, differential_graph(), citations_by_claim={0: ["pmid:123"]})
+    vetted = vet_rlm_claims(
+        claims, differential_graph(), citations_by_claim={0: ["pmid:123"]}
+    )
 
     assert vetted[0].is_grounded is False
 
@@ -186,7 +216,11 @@ def test_claims_without_citations_are_unaffected_by_the_new_parameter():
 
 def test_the_bridge_retrieves_literature_for_the_case_concepts():
     index = LiteratureIndex()
-    index.add(_checkable("p1", "Hypercalcaemia in sarcoidosis arises from extrarenal calcitriol."))
+    index.add(
+        _checkable(
+            "p1", "Hypercalcaemia in sarcoidosis arises from extrarenal calcitriol."
+        )
+    )
 
     result = bridge(_Trajectory(), differential_graph(), literature=index)
 

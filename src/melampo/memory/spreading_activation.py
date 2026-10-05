@@ -174,7 +174,11 @@ def spread(
     from the output instead of inferring it.
     """
     table = table or InformationContentTable()
-    allowed = frozenset(allowed_relations) if allowed_relations is not None else DEFAULT_ALLOWED_RELATIONS
+    allowed = (
+        frozenset(allowed_relations)
+        if allowed_relations is not None
+        else DEFAULT_ALLOWED_RELATIONS
+    )
     origin_keys = [normalise_concept(item) for item in origins]
     origin_set = set(origin_keys)
 
@@ -185,7 +189,9 @@ def spread(
 
     for origin in origin_keys:
         start_activation = float((initial_activation or {}).get(origin, 1.0))
-        frontier: list[tuple[str, float, int, tuple[str, ...]]] = [(origin, start_activation, 0, ())]
+        frontier: list[tuple[str, float, int, tuple[str, ...]]] = [
+            (origin, start_activation, 0, ())
+        ]
         seen_this_origin: set[str] = {origin}
 
         while frontier:
@@ -224,9 +230,19 @@ def spread(
                         current_activation, current_hops, current_via, sources = current
                         sources.add(origin)
                         if next_activation > current_activation:
-                            best[target] = (next_activation, hops + 1, next_via, sources)
+                            best[target] = (
+                                next_activation,
+                                hops + 1,
+                                next_via,
+                                sources,
+                            )
                         else:
-                            best[target] = (current_activation, current_hops, current_via, sources)
+                            best[target] = (
+                                current_activation,
+                                current_hops,
+                                current_via,
+                                sources,
+                            )
 
                 frontier.append((target, next_activation, hops + 1, next_via))
 

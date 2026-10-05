@@ -87,7 +87,9 @@ def test_an_empty_password_in_the_file_becomes_none_not_an_empty_string():
 
 def test_connect_in_lite_mode_returns_a_working_connection():
     with tempfile.TemporaryDirectory() as directory:
-        config = FalkorDBConfig(mode=MODE_LITE, lite_db_path=str(Path(directory) / "test.db"))
+        config = FalkorDBConfig(
+            mode=MODE_LITE, lite_db_path=str(Path(directory) / "test.db")
+        )
 
         db = connect(config)
         graph = db.select_graph("melampo_test")
@@ -111,7 +113,9 @@ def test_a_cypher_relationship_round_trips_through_a_real_lite_connection():
     """Matches the exact scenario this module exists for: a disease-finding
     edge, queried back by traversal, not just a single node."""
     with tempfile.TemporaryDirectory() as directory:
-        config = FalkorDBConfig(mode=MODE_LITE, lite_db_path=str(Path(directory) / "test.db"))
+        config = FalkorDBConfig(
+            mode=MODE_LITE, lite_db_path=str(Path(directory) / "test.db")
+        )
         db = connect(config)
         graph = db.select_graph("melampo_test")
 
@@ -119,6 +123,10 @@ def test_a_cypher_relationship_round_trips_through_a_real_lite_connection():
             'CREATE (m:Malattia {nome: "Sindrome di Marfan"})'
             '-[:HA_FENOTIPO]->(f:Reperto {nome: "Aneurisma della radice aortica"})'
         )
-        result = graph.query("MATCH (m:Malattia)-[:HA_FENOTIPO]->(f:Reperto) RETURN m.nome, f.nome")
+        result = graph.query(
+            "MATCH (m:Malattia)-[:HA_FENOTIPO]->(f:Reperto) RETURN m.nome, f.nome"
+        )
 
-        assert result.result_set == [["Sindrome di Marfan", "Aneurisma della radice aortica"]]
+        assert result.result_set == [
+            ["Sindrome di Marfan", "Aneurisma della radice aortica"]
+        ]

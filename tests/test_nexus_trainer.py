@@ -23,10 +23,25 @@ def test_nexus_trainer_runs():
     assert result["accepted"] is True
     assert result["belief"]["mode"] == "quantum_like_belief_update"
     assert "filter_assessment" in result
-    assert result["filter_assessment"]["replay_mode"] in ["stabilizing_replay", "boundary_replay", "corrective_replay"]
+    assert result["filter_assessment"]["replay_mode"] in [
+        "stabilizing_replay",
+        "boundary_replay",
+        "corrective_replay",
+    ]
     assert "sampled" in result
-    assert result["sampled"]["variant_focus"] in ["context", "language_listening", "epidemiology", "cross_area_alignment"]
+    assert result["sampled"]["variant_focus"] in [
+        "context",
+        "language_listening",
+        "epidemiology",
+        "cross_area_alignment",
+    ]
     assert "rehearsal_profile" in result
-    assert result["rehearsal_profile"]["revision_bias"] in ["exploratory", "conservative"]
-    assert result["rehearsal_profile"]["post_error_adjustment"] in ["re-rank_alternatives", "stabilize_primary"]
+    assert result["rehearsal_profile"]["revision_bias"] in [
+        "exploratory",
+        "conservative",
+    ]
+    assert result["rehearsal_profile"]["post_error_adjustment"] in [
+        "re-rank_alternatives",
+        "stabilize_primary",
+    ]
     assert len(result["alternative_hypotheses"]) >= 2

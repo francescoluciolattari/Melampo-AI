@@ -69,7 +69,11 @@ class ExtractedRelation:
         )
 
     def as_dict(self) -> dict[str, str]:
-        return {"subject": self.subject, "relation": self.relation, "object": self.object}
+        return {
+            "subject": self.subject,
+            "relation": self.relation,
+            "object": self.object,
+        }
 
 
 @dataclass(frozen=True)
@@ -85,7 +89,11 @@ class ExtractedStructure:
         return not self.entities and not self.relations
 
     def normalised_entities(self) -> set[str]:
-        return {normalise_concept(entity) for entity in self.entities if normalise_concept(entity)}
+        return {
+            normalise_concept(entity)
+            for entity in self.entities
+            if normalise_concept(entity)
+        }
 
     def normalised_relations(self) -> set[tuple[str, str, str]]:
         return {relation.normalised() for relation in self.relations}
@@ -130,7 +138,9 @@ class StructuralComparison:
         }
 
 
-def compare_structures(left: ExtractedStructure, right: ExtractedStructure) -> StructuralComparison:
+def compare_structures(
+    left: ExtractedStructure, right: ExtractedStructure
+) -> StructuralComparison:
     """Overlap between two extracted structures -- pure arithmetic, no model involved.
 
     Jaccard on both entities and relations. Symmetric by construction, so
@@ -139,8 +149,14 @@ def compare_structures(left: ExtractedStructure, right: ExtractedStructure) -> S
     is not, since an asymmetric measure would make the cache observable in
     the results.
     """
-    left_entities, right_entities = left.normalised_entities(), right.normalised_entities()
-    left_relations, right_relations = left.normalised_relations(), right.normalised_relations()
+    left_entities, right_entities = (
+        left.normalised_entities(),
+        right.normalised_entities(),
+    )
+    left_relations, right_relations = (
+        left.normalised_relations(),
+        right.normalised_relations(),
+    )
 
     shared_entities = left_entities & right_entities
     shared_relations = left_relations & right_relations
@@ -148,8 +164,12 @@ def compare_structures(left: ExtractedStructure, right: ExtractedStructure) -> S
     union_relations = left_relations | right_relations
 
     return StructuralComparison(
-        entity_overlap=len(shared_entities) / len(union_entities) if union_entities else 0.0,
-        relation_overlap=len(shared_relations) / len(union_relations) if union_relations else 0.0,
+        entity_overlap=len(shared_entities) / len(union_entities)
+        if union_entities
+        else 0.0,
+        relation_overlap=len(shared_relations) / len(union_relations)
+        if union_relations
+        else 0.0,
         shared_entities=tuple(sorted(shared_entities)),
         shared_relations=tuple(sorted(shared_relations)),
     )
@@ -230,7 +250,8 @@ class ConceptDescriptionStore:
                 source_text=record.get("source_text", ""),
                 entities=tuple(record.get("entities", ())),
                 relations=tuple(
-                    ExtractedRelation(**relation) for relation in record.get("relations", ())
+                    ExtractedRelation(**relation)
+                    for relation in record.get("relations", ())
                 ),
             )
         return store
@@ -295,7 +316,9 @@ class StructuralResolver:
         if not phrase:
             return None
 
-        described = [concept for concept in candidates if self.store.get(concept) is not None]
+        described = [
+            concept for concept in candidates if self.store.get(concept) is not None
+        ]
         if not described:
             # No candidate has a cached description, so there is nothing to
             # compare against. Extracting the phrase anyway would spend a
@@ -313,6 +336,9 @@ class StructuralResolver:
                 best_concept, best_comparison = concept, comparison
 
         self.last_comparison = best_comparison
-        if best_comparison is not None and best_comparison.score >= self.overlap_threshold:
+        if (
+            best_comparison is not None
+            and best_comparison.score >= self.overlap_threshold
+        ):
             return best_concept
         return None

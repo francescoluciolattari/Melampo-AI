@@ -31,17 +31,22 @@ def test_neuro_dynamic_metrics_direct_compute_contract():
     )
     assert metrics["pi_score"] > 0.0
     assert metrics["deductive_gate"] >= 0.0
-    assert metrics["interpretation"] == "computational_abstraction_not_literal_neurobiology"
+    assert (
+        metrics["interpretation"]
+        == "computational_abstraction_not_literal_neurobiology"
+    )
 
 
 def test_semantic_memory_indexes_documents_in_vector_memory():
     memory = SemanticMemoryStore()
-    memory.add_document({
-        "id": "doc-1",
-        "text": "pulmonary opacity cough fever differential pneumonia",
-        "source": "test_fixture",
-        "learning_status": "promoted",
-    })
+    memory.add_document(
+        {
+            "id": "doc-1",
+            "text": "pulmonary opacity cough fever differential pneumonia",
+            "source": "test_fixture",
+            "learning_status": "promoted",
+        }
+    )
     hits = memory.semantic_search("cough pneumonia", limit=1, promoted_only=True)
     assert hits
     assert hits[0]["record_id"] == "doc-1"
@@ -66,20 +71,37 @@ def test_the_real_governed_chain_holds_a_favorable_candidate_at_needs_review_by_
     from melampo.training.rational_control_validator import RationalControlValidator
 
     loop = NexusSelfEvolutionLoop()
-    area_dynamics = _area_dynamics(pi_score=0.9, convergence_index=0.9, nexus_plasticity=0.9)
+    area_dynamics = _area_dynamics(
+        pi_score=0.9, convergence_index=0.9, nexus_plasticity=0.9
+    )
     candidate = loop.generate_candidate(
-        case_context={"case_id": "case-good", "report_text": "cough opacity", "patient_complaints": "fever"},
+        case_context={
+            "case_id": "case-good",
+            "report_text": "cough opacity",
+            "patient_complaints": "fever",
+        },
         area_dynamics=area_dynamics,
         nexus={"visual_morphing": {"visual_morph_intuition_gain": 0.9}},
         governance_scores={"risk": 0.0},
     )
 
     store = NexusCandidateStore()
-    record = store.create_candidate(payload=candidate, case_id="case-good", source="test", learning_status="candidate")
-    validation = RationalControlValidator().evaluate(
-        candidate=candidate, area_dynamics=area_dynamics, retrieval_context={}, governance_scores={"risk": 0.0},
+    record = store.create_candidate(
+        payload=candidate,
+        case_id="case-good",
+        source="test",
+        learning_status="candidate",
     )
-    decision = PromotionPolicy().decide(candidate=store.attach_validation(record.candidate_id, validation), validation=validation)
+    validation = RationalControlValidator().evaluate(
+        candidate=candidate,
+        area_dynamics=area_dynamics,
+        retrieval_context={},
+        governance_scores={"risk": 0.0},
+    )
+    decision = PromotionPolicy().decide(
+        candidate=store.attach_validation(record.candidate_id, validation),
+        validation=validation,
+    )
 
     assert candidate["metadata"]["candidate_score"] > 0.5
     assert decision["target_learning_status"] == "needs_review"
@@ -113,7 +135,9 @@ def test_candidate_score_is_computed_from_area_dynamics_and_nexus():
     loop = NexusSelfEvolutionLoop()
     candidate = loop.generate_candidate(
         case_context={"case_id": "c1"},
-        area_dynamics=_area_dynamics(pi_score=0.8, convergence_index=0.7, nexus_plasticity=0.6),
+        area_dynamics=_area_dynamics(
+            pi_score=0.8, convergence_index=0.7, nexus_plasticity=0.6
+        ),
         nexus={"visual_morphing": {"visual_morph_intuition_gain": 0.5}},
         governance_scores={"risk": 0.1},
     )
@@ -124,7 +148,9 @@ def test_candidate_score_is_computed_from_area_dynamics_and_nexus():
 def test_candidate_score_defaults_to_zero_inputs_without_governance_scores():
     loop = NexusSelfEvolutionLoop()
     candidate = loop.generate_candidate(
-        case_context={"case_id": "c1"}, area_dynamics={"neuro_dynamic_metrics": {}}, nexus={},
+        case_context={"case_id": "c1"},
+        area_dynamics={"neuro_dynamic_metrics": {}},
+        nexus={},
     )
     assert candidate["metadata"]["candidate_score"] == 0.0
 
@@ -132,12 +158,21 @@ def test_candidate_score_defaults_to_zero_inputs_without_governance_scores():
 def test_a_higher_risk_lowers_the_candidate_score():
     loop = NexusSelfEvolutionLoop()
     low_risk = loop.generate_candidate(
-        case_context={"case_id": "c1"}, area_dynamics=_area_dynamics(), nexus={}, governance_scores={"risk": 0.1},
+        case_context={"case_id": "c1"},
+        area_dynamics=_area_dynamics(),
+        nexus={},
+        governance_scores={"risk": 0.1},
     )
     high_risk = loop.generate_candidate(
-        case_context={"case_id": "c1"}, area_dynamics=_area_dynamics(), nexus={}, governance_scores={"risk": 0.9},
+        case_context={"case_id": "c1"},
+        area_dynamics=_area_dynamics(),
+        nexus={},
+        governance_scores={"risk": 0.9},
     )
-    assert high_risk["metadata"]["candidate_score"] < low_risk["metadata"]["candidate_score"]
+    assert (
+        high_risk["metadata"]["candidate_score"]
+        < low_risk["metadata"]["candidate_score"]
+    )
 
 
 def test_candidate_score_flows_through_to_promotion_policy_via_metadata():
@@ -150,12 +185,19 @@ def test_candidate_score_flows_through_to_promotion_policy_via_metadata():
     loop = NexusSelfEvolutionLoop()
     candidate = loop.generate_candidate(
         case_context={"case_id": "c1"},
-        area_dynamics=_area_dynamics(pi_score=0.9, convergence_index=0.9, nexus_plasticity=0.9),
+        area_dynamics=_area_dynamics(
+            pi_score=0.9, convergence_index=0.9, nexus_plasticity=0.9
+        ),
         nexus={"visual_morphing": {"visual_morph_intuition_gain": 0.9}},
         governance_scores={"risk": 0.0},
     )
     policy = PromotionPolicy()
-    decision = policy.decide(candidate={"metadata": candidate["metadata"]}, validation={"allowed_for_promotion": True})
+    decision = policy.decide(
+        candidate={"metadata": candidate["metadata"]},
+        validation={"allowed_for_promotion": True},
+    )
 
     assert candidate["metadata"]["candidate_score"] > 0.0
-    assert "candidate_score_below_promotion_policy_threshold" not in decision.get("reasons", [])
+    assert "candidate_score_below_promotion_policy_threshold" not in decision.get(
+        "reasons", []
+    )

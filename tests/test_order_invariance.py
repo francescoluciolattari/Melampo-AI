@@ -43,7 +43,10 @@ def _marfan_graph() -> InMemoryConceptGraph:
 
 
 def _retrieval_signature(report):
-    return tuple((item.condition, item.nearest_hops, item.findings_linked) for item in report.candidates)
+    return tuple(
+        (item.condition, item.nearest_hops, item.findings_linked)
+        for item in report.candidates
+    )
 
 
 def _ranking_signature(ranked):
@@ -62,15 +65,24 @@ def test_retrieve_candidates_is_invariant_to_finding_order():
     from melampo.memory.candidate_retrieval import retrieve_candidates
 
     graph = _marfan_graph()
-    findings = ["aortic root aneurysm", "ectopia lentis", "arachnodactyly", "pectus excavatum"]
+    findings = [
+        "aortic root aneurysm",
+        "ectopia lentis",
+        "arachnodactyly",
+        "pectus excavatum",
+    ]
 
-    baseline = _retrieval_signature(retrieve_candidates(findings, graph, max_candidates=10))
+    baseline = _retrieval_signature(
+        retrieve_candidates(findings, graph, max_candidates=10)
+    )
 
     random.seed(1)
     for _ in range(200):
         permuted = findings[:]
         random.shuffle(permuted)
-        result = _retrieval_signature(retrieve_candidates(permuted, graph, max_candidates=10))
+        result = _retrieval_signature(
+            retrieve_candidates(permuted, graph, max_candidates=10)
+        )
         assert result == baseline, f"order changed the result: {permuted}"
 
 
@@ -81,15 +93,24 @@ def test_retrieve_candidates_truncation_is_invariant_to_finding_order():
     from melampo.memory.candidate_retrieval import retrieve_candidates
 
     graph = _marfan_graph()
-    findings = ["aortic root aneurysm", "ectopia lentis", "arachnodactyly", "pectus excavatum"]
+    findings = [
+        "aortic root aneurysm",
+        "ectopia lentis",
+        "arachnodactyly",
+        "pectus excavatum",
+    ]
 
-    baseline = _retrieval_signature(retrieve_candidates(findings, graph, max_candidates=2))
+    baseline = _retrieval_signature(
+        retrieve_candidates(findings, graph, max_candidates=2)
+    )
 
     random.seed(2)
     for _ in range(200):
         permuted = findings[:]
         random.shuffle(permuted)
-        result = _retrieval_signature(retrieve_candidates(permuted, graph, max_candidates=2))
+        result = _retrieval_signature(
+            retrieve_candidates(permuted, graph, max_candidates=2)
+        )
         assert result == baseline
 
 
@@ -104,7 +125,12 @@ def test_retrieve_candidates_truncation_is_invariant_to_finding_order():
 def test_rank_differential_is_invariant_to_finding_and_candidate_order():
     graph = _marfan_graph()
     table = InformationContentTable.from_graph_structure(graph)
-    findings = ["aortic root aneurysm", "ectopia lentis", "arachnodactyly", "pectus excavatum"]
+    findings = [
+        "aortic root aneurysm",
+        "ectopia lentis",
+        "arachnodactyly",
+        "pectus excavatum",
+    ]
     candidates = ["marfan syndrome", "loeys-dietz syndrome", "ehlers-danlos syndrome"]
 
     baseline = _ranking_signature(rank_differential(findings, candidates, graph, table))
@@ -114,8 +140,12 @@ def test_rank_differential_is_invariant_to_finding_and_candidate_order():
         findings_p, candidates_p = findings[:], candidates[:]
         random.shuffle(findings_p)
         random.shuffle(candidates_p)
-        result = _ranking_signature(rank_differential(findings_p, candidates_p, graph, table))
-        assert result == baseline, f"order changed the result: findings={findings_p} candidates={candidates_p}"
+        result = _ranking_signature(
+            rank_differential(findings_p, candidates_p, graph, table)
+        )
+        assert result == baseline, (
+            f"order changed the result: findings={findings_p} candidates={candidates_p}"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -130,7 +160,9 @@ def test_mechanism_enumerator_is_invariant_to_finding_and_candidate_order():
 
     baseline_outcome = MechanismEnumerator(graph=graph).run(findings, candidates)
     baseline = (
-        tuple((h.condition, round(h.plausibility, 6)) for h in baseline_outcome.hypotheses)
+        tuple(
+            (h.condition, round(h.plausibility, 6)) for h in baseline_outcome.hypotheses
+        )
         if baseline_outcome.hypotheses
         else baseline_outcome.mode
     )
@@ -146,4 +178,6 @@ def test_mechanism_enumerator_is_invariant_to_finding_and_candidate_order():
             if outcome.hypotheses
             else outcome.mode
         )
-        assert result == baseline, f"order changed the result: findings={findings_p} candidates={candidates_p}"
+        assert result == baseline, (
+            f"order changed the result: findings={findings_p} candidates={candidates_p}"
+        )

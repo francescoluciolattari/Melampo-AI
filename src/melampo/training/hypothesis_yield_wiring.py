@@ -110,7 +110,10 @@ YIELD_RATE_TOOL_SPEC: dict[str, Any] = {
     "parameters": {
         "type": "object",
         "properties": {
-            "hops": {"type": "integer", "description": "Length of the supporting graph path."},
+            "hops": {
+                "type": "integer",
+                "description": "Length of the supporting graph path.",
+            },
             "support": {
                 "type": "number",
                 "description": "Point strength of the supporting path, 0.0 to 1.0.",
@@ -140,9 +143,14 @@ def yield_rate_tool(model: HypothesisYieldModel) -> Any:
     depending on any of them.
     """
 
-    def _call(hops: int, support: float, corroboration: int = 1, gap_count: int = 0) -> dict[str, Any]:
+    def _call(
+        hops: int, support: float, corroboration: int = 1, gap_count: int = 0
+    ) -> dict[str, Any]:
         features = HypothesisFeatures(
-            hops=int(hops), support=float(support), corroboration=int(corroboration), gap_count=int(gap_count)
+            hops=int(hops),
+            support=float(support),
+            corroboration=int(corroboration),
+            gap_count=int(gap_count),
         )
         return model.estimate(features).as_dict()
 

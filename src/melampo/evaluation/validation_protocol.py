@@ -10,7 +10,9 @@ from .dataset_manifest import DatasetManifest
 
 
 def _canonical_hash(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:24]
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:24]
 
 
 @dataclass(slots=True)
@@ -37,7 +39,13 @@ class ValidationEndpoint:
                 raise TypeError("missing metric")
             numeric_value = float(value)
         except (TypeError, ValueError):
-            return {"name": self.name, "status": "missing", "metric": self.metric, "observed": value, "required": self.required}
+            return {
+                "name": self.name,
+                "status": "missing",
+                "metric": self.metric,
+                "observed": value,
+                "required": self.required,
+            }
         if self.direction == "lte":
             passed = numeric_value <= self.threshold
         else:
@@ -88,9 +96,23 @@ class ValidationProtocol:
             dataset_id=dataset_id,
             endpoints=[
                 ValidationEndpoint("minimum_coverage", "coverage", 0.5, "gte", True),
-                ValidationEndpoint("minimum_selective_accuracy", "selective_accuracy", 0.6, "gte", True),
-                ValidationEndpoint("maximum_expected_calibration_error", "expected_calibration_error", 0.25, "lte", True),
-                ValidationEndpoint("minimum_rag_provenance", "provenance_completeness", 0.8, "gte", True),
+                ValidationEndpoint(
+                    "minimum_selective_accuracy", "selective_accuracy", 0.6, "gte", True
+                ),
+                ValidationEndpoint(
+                    "maximum_expected_calibration_error",
+                    "expected_calibration_error",
+                    0.25,
+                    "lte",
+                    True,
+                ),
+                ValidationEndpoint(
+                    "minimum_rag_provenance",
+                    "provenance_completeness",
+                    0.8,
+                    "gte",
+                    True,
+                ),
             ],
             required_slices=["modality", "pathology_family", "site", "learning_status"],
             governance={
@@ -121,14 +143,24 @@ class ValidationProtocol:
 
     def lock(self, model_version: str, memory_snapshot: str) -> dict[str, Any]:
         if self.status != "draft":
-            return {"status": "not_locked", "reason": "protocol_not_in_draft_state", "protocol_status": self.status}
+            return {
+                "status": "not_locked",
+                "reason": "protocol_not_in_draft_state",
+                "protocol_status": self.status,
+            }
         self.locked_model_version = model_version
         self.locked_memory_snapshot = memory_snapshot
         self.locked_at = time.time()
         self.status = "locked"
-        return {"status": "locked", "protocol_id": self.protocol_id, "fingerprint": self.fingerprint()}
+        return {
+            "status": "locked",
+            "protocol_id": self.protocol_id,
+            "fingerprint": self.fingerprint(),
+        }
 
-    def readiness(self, dataset_manifest: DatasetManifest | None = None) -> dict[str, Any]:
+    def readiness(
+        self, dataset_manifest: DatasetManifest | None = None
+    ) -> dict[str, Any]:
         failures: list[str] = []
         warnings: list[str] = []
         if self.status != "locked":
@@ -146,10 +178,16 @@ class ValidationProtocol:
         else:
             manifest_validation = dataset_manifest.validate()
             if manifest_validation["status"] != "pass":
-                failures.extend(f"dataset:{failure}" for failure in manifest_validation["failures"])
-            missing_slices = sorted(set(self.required_slices) - set(dataset_manifest.required_slices))
+                failures.extend(
+                    f"dataset:{failure}" for failure in manifest_validation["failures"]
+                )
+            missing_slices = sorted(
+                set(self.required_slices) - set(dataset_manifest.required_slices)
+            )
             if missing_slices:
-                warnings.append(f"dataset_missing_protocol_slices:{','.join(missing_slices)}")
+                warnings.append(
+                    f"dataset_missing_protocol_slices:{','.join(missing_slices)}"
+                )
         return {
             "status": "ready" if not failures else "blocked",
             "failures": failures,
@@ -160,7 +198,11 @@ class ValidationProtocol:
 
     def evaluate_observed_metrics(self, observed: dict[str, Any]) -> dict[str, Any]:
         endpoint_results = [endpoint.evaluate(observed) for endpoint in self.endpoints]
-        failures = [result["name"] for result in endpoint_results if result["status"] != "pass" and result.get("required", True)]
+        failures = [
+            result["name"]
+            for result in endpoint_results
+            if result["status"] != "pass" and result.get("required", True)
+        ]
         return {
             "status": "pass" if not failures else "fail",
             "failures": failures,
@@ -175,7 +217,11 @@ class ValidationProtocolRegistry:
 
     def register(self, protocol: ValidationProtocol) -> dict[str, Any]:
         self.protocols[protocol.protocol_id] = protocol
-        return {"status": "registered", "protocol_id": protocol.protocol_id, "protocol_status": protocol.status}
+        return {
+            "status": "registered",
+            "protocol_id": protocol.protocol_id,
+            "protocol_status": protocol.status,
+        }
 
     def get(self, protocol_id: str) -> ValidationProtocol:
         return self.protocols[protocol_id]

@@ -24,7 +24,9 @@ def _real_hypothesis(label="marfan syndrome", plausibility=0.82, paths=None):
         "plausibility": plausibility,
         "guaranteed": False,
         "corroboration": 2,
-        "paths": paths if paths is not None else [{"hops": 2, "via": ["aortic root aneurysm"]}],
+        "paths": paths
+        if paths is not None
+        else [{"hops": 2, "via": ["aortic root aneurysm"]}],
         "density": 0.6,
     }
 
@@ -34,14 +36,20 @@ def _rehearsal_hypothesis(label="alt_1"):
 
 
 def _placeholder_intuition(label="candidate_1", score=0.7):
-    return {"candidate_scores": [{"label": label, "score": score}], "deductive_filter": {"reasoning_mode": "rapid_intuition"}}
+    return {
+        "candidate_scores": [{"label": label, "score": score}],
+        "deductive_filter": {"reasoning_mode": "rapid_intuition"},
+    }
 
 
 def _real_intuition(label="marfan syndrome", score=0.9):
     """The rarer case where IntuitionEngine's own contradiction_revision
     branch already carried a real condition name through -- must not be
     treated as a placeholder needing promotion."""
-    return {"candidate_scores": [{"label": label, "score": score}], "deductive_filter": {"reasoning_mode": "rapid_intuition"}}
+    return {
+        "candidate_scores": [{"label": label, "score": score}],
+        "deductive_filter": {"reasoning_mode": "rapid_intuition"},
+    }
 
 
 # --------------------------------------------------------------------------
@@ -50,7 +58,11 @@ def _real_intuition(label="marfan syndrome", score=0.9):
 
 
 def test_finds_the_only_real_hypothesis_among_rehearsal_labels():
-    alternatives = [_rehearsal_hypothesis("a"), _real_hypothesis("marfan syndrome"), _rehearsal_hypothesis("b")]
+    alternatives = [
+        _rehearsal_hypothesis("a"),
+        _real_hypothesis("marfan syndrome"),
+        _rehearsal_hypothesis("b"),
+    ]
     result = _best_graph_hypothesis(alternatives)
     assert result["label"] == "marfan syndrome"
 
@@ -83,7 +95,11 @@ def test_a_real_hypothesis_is_promoted_over_a_placeholder_primary():
     result = engine.rank(
         evidence=["finding a", "finding b"],
         intuition=_placeholder_intuition(),
-        nexus={"alternative_hypotheses": [_real_hypothesis("marfan syndrome", plausibility=0.82)]},
+        nexus={
+            "alternative_hypotheses": [
+                _real_hypothesis("marfan syndrome", plausibility=0.82)
+            ]
+        },
     )
     assert result["hypotheses"][0]["label"] == "marfan syndrome"
     assert result["hypotheses"][0]["source"] == "graph_enumeration"
@@ -92,7 +108,8 @@ def test_a_real_hypothesis_is_promoted_over_a_placeholder_primary():
 def test_the_demoted_intuition_hypothesis_is_kept_not_dropped():
     engine = DifferentialEngine()
     result = engine.rank(
-        evidence=["a"], intuition=_placeholder_intuition("candidate_1"),
+        evidence=["a"],
+        intuition=_placeholder_intuition("candidate_1"),
         nexus={"alternative_hypotheses": [_real_hypothesis()]},
     )
     labels = [h["label"] for h in result["hypotheses"]]
@@ -108,8 +125,13 @@ def test_a_real_intuition_label_is_not_treated_as_a_placeholder():
     primary hypothesis, not overridden."""
     engine = DifferentialEngine()
     result = engine.rank(
-        evidence=["a"], intuition=_real_intuition("marfan syndrome"),
-        nexus={"alternative_hypotheses": [_real_hypothesis("loeys-dietz syndrome", plausibility=0.95)]},
+        evidence=["a"],
+        intuition=_real_intuition("marfan syndrome"),
+        nexus={
+            "alternative_hypotheses": [
+                _real_hypothesis("loeys-dietz syndrome", plausibility=0.95)
+            ]
+        },
     )
     assert result["hypotheses"][0]["label"] == "marfan syndrome"
     assert result["hypotheses"][0]["source"] == "intuition_engine"
@@ -118,7 +140,8 @@ def test_a_real_intuition_label_is_not_treated_as_a_placeholder():
 def test_no_real_hypotheses_available_leaves_the_placeholder_as_before():
     engine = DifferentialEngine()
     result = engine.rank(
-        evidence=["a"], intuition=_placeholder_intuition("candidate_1"),
+        evidence=["a"],
+        intuition=_placeholder_intuition("candidate_1"),
         nexus={"alternative_hypotheses": [_rehearsal_hypothesis("alt_1")]},
     )
     assert result["hypotheses"][0]["label"] == "candidate_1"
@@ -127,7 +150,9 @@ def test_no_real_hypotheses_available_leaves_the_placeholder_as_before():
 
 def test_no_nexus_data_at_all_leaves_the_placeholder_as_before():
     engine = DifferentialEngine()
-    result = engine.rank(evidence=["a"], intuition=_placeholder_intuition("candidate_1"), nexus={})
+    result = engine.rank(
+        evidence=["a"], intuition=_placeholder_intuition("candidate_1"), nexus={}
+    )
     assert result["hypotheses"][0]["label"] == "candidate_1"
 
 
@@ -138,10 +163,13 @@ def test_the_promoted_hypothesis_is_never_duplicated_in_its_own_alternatives_lis
     real = _real_hypothesis("marfan syndrome", plausibility=0.82)
     engine = DifferentialEngine()
     result = engine.rank(
-        evidence=["a"], intuition=_placeholder_intuition(),
+        evidence=["a"],
+        intuition=_placeholder_intuition(),
         nexus={"alternative_hypotheses": [real, _rehearsal_hypothesis("alt_1")]},
     )
-    marfan_entries = [h for h in result["hypotheses"] if h["label"] == "marfan syndrome"]
+    marfan_entries = [
+        h for h in result["hypotheses"] if h["label"] == "marfan syndrome"
+    ]
     assert len(marfan_entries) == 1
 
 
@@ -149,7 +177,8 @@ def test_a_promoted_hypothesis_carries_its_real_graph_paths_as_provenance():
     paths = [{"hops": 2, "via": ["aortic root aneurysm", "ectopia lentis"]}]
     engine = DifferentialEngine()
     result = engine.rank(
-        evidence=["a"], intuition=_placeholder_intuition(),
+        evidence=["a"],
+        intuition=_placeholder_intuition(),
         nexus={"alternative_hypotheses": [_real_hypothesis(paths=paths)]},
     )
     assert result["hypotheses"][0]["paths"] == paths
@@ -160,7 +189,8 @@ def test_other_real_hypotheses_still_appear_as_ordinary_alternatives():
     candidates remain visible further down, not discarded."""
     engine = DifferentialEngine()
     result = engine.rank(
-        evidence=["a"], intuition=_placeholder_intuition(),
+        evidence=["a"],
+        intuition=_placeholder_intuition(),
         nexus={
             "alternative_hypotheses": [
                 _real_hypothesis("best", plausibility=0.9),

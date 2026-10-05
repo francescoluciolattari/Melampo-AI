@@ -82,7 +82,9 @@ def test_a_real_hpoa_file_is_reported_as_real_data():
     assert source.edge_count > 0
 
 
-def test_no_file_and_no_fixture_yields_an_empty_graph_not_a_crash(monkeypatch, tmp_path):
+def test_no_file_and_no_fixture_yields_an_empty_graph_not_a_crash(
+    monkeypatch, tmp_path
+):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("MELAMPO_HPOA_PATH", raising=False)
 
@@ -116,7 +118,9 @@ def test_an_exact_concept_resolves_lexically_without_touching_later_tiers():
     result = cascade.resolve("secondary hyperparathyroidism")
 
     assert result.tier == TIER_LEXICAL
-    assert calls["n"] == 0, "the embedding tier must not run when lexical matching succeeded"
+    assert calls["n"] == 0, (
+        "the embedding tier must not run when lexical matching succeeded"
+    )
 
 
 def test_a_lexical_resolution_is_deterministic():
@@ -144,11 +148,15 @@ def test_a_paraphrase_lexical_matching_cannot_reach_resolves_by_embedding():
     synthesis'."""
     cascade = NormalisationCascade(graph=vetting_graph(), embedder=_paraphrase_embedder)
 
-    result = cascade.resolve("impaired methylcobalamin-dependent methionine synthase activity")
+    result = cascade.resolve(
+        "impaired methylcobalamin-dependent methionine synthase activity"
+    )
 
     assert result.tier == TIER_EMBEDDING
     assert result.concept == "impaired myelin synthesis"
-    assert result.is_deterministic is True, "a fixed embedder is reproducible even though it was learned"
+    assert result.is_deterministic is True, (
+        "a fixed embedder is reproducible even though it was learned"
+    )
 
 
 def test_a_degenerate_embedder_resolves_nothing_rather_than_picking_arbitrarily():
@@ -156,7 +164,9 @@ def test_a_degenerate_embedder_resolves_nothing_rather_than_picking_arbitrarily(
     whether there was a winner at all. Found by a test whose mock embedder
     returned the same vector for everything -- every concept scored 1.0, and
     the first one encountered won by accident."""
-    cascade = NormalisationCascade(graph=vetting_graph(), embedder=lambda text: [0.0, 0.0, 1.0])
+    cascade = NormalisationCascade(
+        graph=vetting_graph(), embedder=lambda text: [0.0, 0.0, 1.0]
+    )
 
     result = cascade.resolve("something entirely unrelated to this graph")
 
@@ -167,7 +177,9 @@ def test_a_best_match_below_threshold_is_not_resolved():
     def weak_embedder(text):
         return [1.0, 0.0] if "hyperparathyroid" in text.lower() else [0.5, 0.86]
 
-    cascade = NormalisationCascade(graph=vetting_graph(), embedder=weak_embedder, embedding_threshold=0.99)
+    cascade = NormalisationCascade(
+        graph=vetting_graph(), embedder=weak_embedder, embedding_threshold=0.99
+    )
     result = cascade.resolve("a phrase that only weakly resembles anything")
 
     assert result.resolved is False
@@ -220,11 +232,15 @@ def test_shared_entities_alone_score_lower_than_shared_relations():
         entities=("methylcobalamin", "methionine synthase", "methylation", "myelin"),
         relations=(ExtractedRelation("myelin", "unrelated_to", "methylation"),),
     )
-    comparison = compare_structures(_myelin_structure(), same_entities_different_relations)
+    comparison = compare_structures(
+        _myelin_structure(), same_entities_different_relations
+    )
 
     assert comparison.entity_overlap == pytest.approx(1.0)
     assert comparison.relation_overlap < 0.2
-    assert comparison.score < 0.5, "topical similarity must not masquerade as mechanistic agreement"
+    assert comparison.score < 0.5, (
+        "topical similarity must not masquerade as mechanistic agreement"
+    )
 
 
 def test_comparison_is_symmetric():
@@ -240,10 +256,16 @@ def test_the_structural_tier_resolves_what_neither_earlier_tier_could():
     store = ConceptDescriptionStore()
     store.add("impaired myelin synthesis", _myelin_structure())
 
-    resolver = StructuralResolver(store=store, extractor=lambda text: _myelin_structure(text))
-    cascade = NormalisationCascade(graph=vetting_graph(), embedder=None, structural_resolver=resolver)
+    resolver = StructuralResolver(
+        store=store, extractor=lambda text: _myelin_structure(text)
+    )
+    cascade = NormalisationCascade(
+        graph=vetting_graph(), embedder=None, structural_resolver=resolver
+    )
 
-    result = cascade.resolve("impaired methylcobalamin-dependent methionine synthase activity")
+    result = cascade.resolve(
+        "impaired methylcobalamin-dependent methionine synthase activity"
+    )
 
     assert result.tier == TIER_STRUCTURAL
     assert result.concept == "impaired myelin synthesis"
@@ -255,10 +277,14 @@ def test_a_structural_resolution_is_marked_non_deterministic():
     two carried the same weight."""
     store = ConceptDescriptionStore()
     store.add("impaired myelin synthesis", _myelin_structure())
-    resolver = StructuralResolver(store=store, extractor=lambda text: _myelin_structure(text))
+    resolver = StructuralResolver(
+        store=store, extractor=lambda text: _myelin_structure(text)
+    )
     cascade = NormalisationCascade(graph=vetting_graph(), structural_resolver=resolver)
 
-    result = cascade.resolve("impaired methylcobalamin-dependent methionine synthase activity")
+    result = cascade.resolve(
+        "impaired methylcobalamin-dependent methionine synthase activity"
+    )
 
     assert result.is_deterministic is False
 
@@ -270,7 +296,9 @@ def test_a_resolver_naming_a_concept_outside_the_pool_resolves_nothing():
     store.add("impaired myelin synthesis", _myelin_structure())
     cascade = NormalisationCascade(
         graph=vetting_graph(),
-        structural_resolver=lambda phrase, candidates: "a concept that is not in the graph",
+        structural_resolver=lambda phrase, candidates: (
+            "a concept that is not in the graph"
+        ),
     )
 
     assert cascade.resolve("anything").resolved is False
@@ -293,7 +321,9 @@ def test_no_model_call_is_made_when_no_candidate_has_a_description():
         calls["n"] += 1
         return _myelin_structure(text)
 
-    resolver = StructuralResolver(store=ConceptDescriptionStore(), extractor=counting_extractor)
+    resolver = StructuralResolver(
+        store=ConceptDescriptionStore(), extractor=counting_extractor
+    )
     resolver("some phrase", ["a concept with no stored description"])
 
     assert calls["n"] == 0
@@ -321,7 +351,9 @@ def test_usage_report_shows_how_much_rested_on_the_non_deterministic_tier():
     grounding rate looks identical either way."""
     store = ConceptDescriptionStore()
     store.add("impaired myelin synthesis", _myelin_structure())
-    resolver = StructuralResolver(store=store, extractor=lambda text: _myelin_structure(text))
+    resolver = StructuralResolver(
+        store=store, extractor=lambda text: _myelin_structure(text)
+    )
     cascade = NormalisationCascade(graph=vetting_graph(), structural_resolver=resolver)
 
     cascade.resolve("secondary hyperparathyroidism")
@@ -383,7 +415,10 @@ def test_lookup_does_not_degrade_with_graph_size():
     from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
 
     large = InMemoryConceptGraph.from_edges(
-        [ConceptEdge(f"disease {index}", "has_phenotype", f"finding {index}", 0.5) for index in range(20_000)]
+        [
+            ConceptEdge(f"disease {index}", "has_phenotype", f"finding {index}", 0.5)
+            for index in range(20_000)
+        ]
     )
 
     started = time.monotonic()
@@ -391,7 +426,9 @@ def test_lookup_does_not_degrade_with_graph_size():
         large.edges_from("disease 19999")
     elapsed = time.monotonic() - started
 
-    assert elapsed < 0.5, f"200 lookups on a 20k-edge graph took {elapsed:.2f}s -- the index is not being used"
+    assert elapsed < 0.5, (
+        f"200 lookups on a 20k-edge graph took {elapsed:.2f}s -- the index is not being used"
+    )
 
 
 def test_a_concept_with_no_edges_returns_empty_not_an_error():

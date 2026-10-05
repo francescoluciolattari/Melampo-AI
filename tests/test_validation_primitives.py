@@ -13,7 +13,9 @@ def test_calibration_evaluator_reports_ece_and_brier():
         {"confidence": 0.7, "correct": False},
     ]
     report = ConfidenceCalibrationEvaluator(bin_count=5).evaluate(records)
-    thresholds = ConfidenceCalibrationEvaluator(bin_count=5).suggest_thresholds(report, target_min_accuracy=0.5)
+    thresholds = ConfidenceCalibrationEvaluator(bin_count=5).suggest_thresholds(
+        report, target_min_accuracy=0.5
+    )
 
     assert report.sample_count == 3
     assert report.expected_calibration_error >= 0.0
@@ -39,8 +41,20 @@ def test_clinical_benchmark_runner_handles_abstention_and_slices():
 
     def predict(payload):
         if payload["case_id"] == "case-1":
-            return {"diagnostic_result": {"result_label": "pneumonia", "top_hypothesis": {"label": "pneumonia", "score": 0.9}, "policy": {"abstain": False}}}
-        return {"diagnostic_result": {"result_label": "abstain_or_escalate", "top_hypothesis": {"label": "normal", "score": 0.4}, "policy": {"abstain": True}}}
+            return {
+                "diagnostic_result": {
+                    "result_label": "pneumonia",
+                    "top_hypothesis": {"label": "pneumonia", "score": 0.9},
+                    "policy": {"abstain": False},
+                }
+            }
+        return {
+            "diagnostic_result": {
+                "result_label": "abstain_or_escalate",
+                "top_hypothesis": {"label": "normal", "score": 0.4},
+                "policy": {"abstain": True},
+            }
+        }
 
     report = ClinicalBenchmarkRunner().run(records, predict)
 
@@ -51,14 +65,18 @@ def test_clinical_benchmark_runner_handles_abstention_and_slices():
     assert "modality:XR" in report.slices
 
 
-def test_prospective_validation_registry_locks_prediction_and_attaches_outcome(tmp_path):
+def test_prospective_validation_registry_locks_prediction_and_attaches_outcome(
+    tmp_path,
+):
     registry = ProspectiveValidationRegistry()
     prediction = registry.create_prediction(
         {"case_id": "case-1", "report_text": "example"},
         {"case_id": "case-1", "result_label": "pneumonia"},
         protocol_id="unit-test-protocol",
     )
-    outcome_result = registry.attach_outcome(prediction.prediction_id, {"accepted_labels": ["pneumonia"]})
+    outcome_result = registry.attach_outcome(
+        prediction.prediction_id, {"accepted_labels": ["pneumonia"]}
+    )
     evaluation = registry.evaluate()
     path = tmp_path / "prospective.jsonl"
     registry.save_jsonl(path)

@@ -6,10 +6,24 @@ class CounterfactualSampler:
     """Generate lightweight counterfactual case variants for replay and review."""
 
     def _infer_focus(self, case_context: dict) -> str:
-        exposures = case_context.get("exposures", {}) if isinstance(case_context, dict) else {}
-        report_text = case_context.get("report_text", "") if isinstance(case_context, dict) else ""
-        patient_complaints = case_context.get("patient_complaints", "") if isinstance(case_context, dict) else ""
-        area_dynamics = case_context.get("area_dynamics", {}) if isinstance(case_context, dict) else {}
+        exposures = (
+            case_context.get("exposures", {}) if isinstance(case_context, dict) else {}
+        )
+        report_text = (
+            case_context.get("report_text", "")
+            if isinstance(case_context, dict)
+            else ""
+        )
+        patient_complaints = (
+            case_context.get("patient_complaints", "")
+            if isinstance(case_context, dict)
+            else ""
+        )
+        area_dynamics = (
+            case_context.get("area_dynamics", {})
+            if isinstance(case_context, dict)
+            else {}
+        )
         mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
         if mismatch_score > 0.6:
             return "cross_area_alignment"

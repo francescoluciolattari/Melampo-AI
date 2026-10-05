@@ -16,7 +16,9 @@ from melampo.training.preference_pairs import (
 def _registry(*entries: tuple[str, str, str]) -> ConfirmationRegistry:
     registry = ConfirmationRegistry()
     for case_id, diagnosis, source in entries:
-        registry.register(Confirmation(case_id=case_id, diagnosis=diagnosis, source=source))
+        registry.register(
+            Confirmation(case_id=case_id, diagnosis=diagnosis, source=source)
+        )
     return registry
 
 
@@ -27,7 +29,9 @@ def _registry(*entries: tuple[str, str, str]) -> ConfirmationRegistry:
 
 def test_a_confirmed_case_with_alternatives_produces_pairs():
     registry = _registry(("c1", "sarcoidosis", SOURCE_HISTOPATHOLOGY))
-    report = extract_preference_pairs({"c1": ["tuberculosis", "sarcoidosis", "lymphoma"]}, registry)
+    report = extract_preference_pairs(
+        {"c1": ["tuberculosis", "sarcoidosis", "lymphoma"]}, registry
+    )
 
     assert len(report.pairs) == 2
     assert all(pair.preferred == "sarcoidosis" for pair in report.pairs)
@@ -39,7 +43,9 @@ def test_one_pair_per_rejected_alternative_not_one_per_case():
     carries four contrasts; collapsing to one would discard three quarters
     of the signal."""
     registry = _registry(("c1", "right", SOURCE_HISTOPATHOLOGY))
-    report = extract_preference_pairs({"c1": ["right", "w1", "w2", "w3", "w4"]}, registry)
+    report = extract_preference_pairs(
+        {"c1": ["right", "w1", "w2", "w3", "w4"]}, registry
+    )
     assert len(report.pairs) == 4
 
 
@@ -122,7 +128,9 @@ def test_the_report_accounts_for_every_case_it_was_given():
     assert report.usable_cases == 1
     assert report.cases_with_no_alternative == 1
     assert report.cases_where_confirmed_was_not_raised == 1
-    assert report.cases_with_no_confirmation == 2, "c3 (rejected by registry) and c5 (never registered)"
+    assert report.cases_with_no_confirmation == 2, (
+        "c3 (rejected by registry) and c5 (never registered)"
+    )
 
 
 def test_the_confirmation_source_is_carried_into_each_pair():
@@ -147,7 +155,9 @@ def test_training_records_use_the_field_names_dpo_trainers_expect():
 def test_a_supplied_prompt_is_used_when_given():
     registry = _registry(("c1", "sarcoidosis", SOURCE_HISTOPATHOLOGY))
     report = extract_preference_pairs(
-        {"c1": ["sarcoidosis", "lymphoma"]}, registry, prompt_for_case={"c1": "What explains the hypercalcaemia?"}
+        {"c1": ["sarcoidosis", "lymphoma"]},
+        registry,
+        prompt_for_case={"c1": "What explains the hypercalcaemia?"},
     )
     assert report.pairs[0].prompt == "What explains the hypercalcaemia?"
 

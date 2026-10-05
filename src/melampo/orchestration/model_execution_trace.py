@@ -79,4 +79,8 @@ class ModelExecutionTrace:
         statuses: dict[str, int] = {}
         for record in self.records:
             statuses[record.status] = statuses.get(record.status, 0) + 1
-        return {"record_count": len(self.records), "statuses": statuses, "records": self.dump()}
+        return {
+            "record_count": len(self.records),
+            "statuses": statuses,
+            "records": self.dump(),
+        }

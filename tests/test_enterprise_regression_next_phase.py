@@ -36,7 +36,17 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
         "clinical_severity": 0.0,
         "derivation": "runtime_governance_scores_not_hardcoded_constants",
     }
-    assert {key: result["area_dynamics"][key] for key in ["coherence_score", "mismatch_score", "pi_score", "prediction_error", "precision_weighted_coherence", "deep_inference_score"]} == {
+    assert {
+        key: result["area_dynamics"][key]
+        for key in [
+            "coherence_score",
+            "mismatch_score",
+            "pi_score",
+            "prediction_error",
+            "precision_weighted_coherence",
+            "deep_inference_score",
+        ]
+    } == {
         "coherence_score": 0.554,
         "mismatch_score": 0.092,
         "pi_score": 0.669,
@@ -45,8 +55,13 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
         "deep_inference_score": 0.754,
     }
     assert result["intuition"]["intuition"] == "candidate_1"
-    assert result["intuition"]["deductive_filter"]["reasoning_mode"] == "rapid_intuition"
-    assert result["intuition"]["deductive_filter"]["top_areas"] == ["visual_diagnostic", "language_listening"]
+    assert (
+        result["intuition"]["deductive_filter"]["reasoning_mode"] == "rapid_intuition"
+    )
+    assert result["intuition"]["deductive_filter"]["top_areas"] == [
+        "visual_diagnostic",
+        "language_listening",
+    ]
     assert result["intuition"]["candidate_scores"] == [
         {"mode": "rapid_intuition", "label": "candidate_1", "score": 8.461},
         {"mode": "rational_revision", "label": "candidate_2", "score": 2.62},
@@ -54,7 +69,11 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
     ]
     assert result["nexus"]["accepted"] is False
     assert result["nexus"]["filter_assessment"]["replay_mode"] == "corrective_replay"
-    assert [item["kind"] for item in result["nexus"]["alternative_hypotheses"]] == ["adjacent_case", "boundary_case", "contradiction_revision"]
+    assert [item["kind"] for item in result["nexus"]["alternative_hypotheses"]] == [
+        "adjacent_case",
+        "boundary_case",
+        "contradiction_revision",
+    ]
     assert result["diagnostic_result"]["result_label"] == "candidate_1"
     assert result["diagnostic_result"]["policy"]["allow_candidate_result"] is True
 
@@ -63,12 +82,31 @@ def test_numeric_edge_cases_remain_bounded_without_property_dependency():
     runtime = build_default_runtime()
     severities = [-10, -1, 0, 0.5, 1, 10, "bad", None]
     for index, severity in enumerate(severities):
-        result = runtime.pipeline.run({"case_id": f"edge-{index}", "report_text": "", "clinical_severity": severity})
+        result = runtime.pipeline.run(
+            {
+                "case_id": f"edge-{index}",
+                "report_text": "",
+                "clinical_severity": severity,
+            }
+        )
         governance = result["governance_scores"]
         neuro = result["area_dynamics"]["neuro_dynamic_metrics"]
-        for key in ["risk", "uncertainty", "nexus_coherence", "mismatch_index", "prediction_error", "convergence_index"]:
+        for key in [
+            "risk",
+            "uncertainty",
+            "nexus_coherence",
+            "mismatch_index",
+            "prediction_error",
+            "convergence_index",
+        ]:
             assert 0.0 <= governance[key] <= 1.0
-        for key in ["pi_score", "prediction_error", "mismatch_index", "action_potential_gate", "deep_inference_score"]:
+        for key in [
+            "pi_score",
+            "prediction_error",
+            "mismatch_index",
+            "action_potential_gate",
+            "deep_inference_score",
+        ]:
             assert 0.0 <= neuro[key] <= 1.0
 
 
@@ -87,7 +125,9 @@ def test_persistent_vector_store_survives_reload(tmp_path: Path):
 def test_append_only_audit_store_persists_events(tmp_path: Path):
     path = tmp_path / "audit.jsonl"
     audit = AppendOnlyAuditStore(path)
-    audit.append("candidate_promoted", {"candidate_id": "nexus-1", "status": "candidate"})
+    audit.append(
+        "candidate_promoted", {"candidate_id": "nexus-1", "status": "candidate"}
+    )
 
     reloaded = AppendOnlyAuditStore(path)
     events = reloaded.read_all()
@@ -99,7 +139,10 @@ def test_append_only_audit_store_persists_events(tmp_path: Path):
 def test_promotion_and_retrieval_can_run_concurrently():
     store = NexusCandidateStore()
     for index in range(20):
-        record = store.create_candidate({"text": f"candidate {index}", "metadata": {"provenance": "synthetic"}}, case_id=f"case-{index}")
+        record = store.create_candidate(
+            {"text": f"candidate {index}", "metadata": {"provenance": "synthetic"}},
+            case_id=f"case-{index}",
+        )
         store.attach_validation(
             record.candidate_id,
             {"allowed_for_promotion": True, "observed": {"provenance_available": True}},
@@ -108,7 +151,9 @@ def test_promotion_and_retrieval_can_run_concurrently():
     ids = [record.candidate_id for record in store.list_by_status(["candidate"])]
 
     def promote(candidate_id: str) -> str:
-        return store.attach_promotion_decision(candidate_id, {"target_learning_status": "promoted"})["learning_status"]
+        return store.attach_promotion_decision(
+            candidate_id, {"target_learning_status": "promoted"}
+        )["learning_status"]
 
     def retrieve(_: int) -> int:
         return len(store.export_memory_documents(["candidate", "promoted"]))

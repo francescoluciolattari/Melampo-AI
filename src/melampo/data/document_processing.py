@@ -20,7 +20,9 @@ _DATE_RE = re.compile(r"\b\d{1,2}([/.\-])\d{1,2}\1\d{2,4}\b")
 # a laboratory table's column alignment (two or more spaces) and a spaced
 # range (" - ") both break a candidate apart instead of gluing two values
 # into one "number".
-_PHONE_CANDIDATE_RE = re.compile(r"(?<![\w.,+])(?:\+ ?)?(?:\(\d{1,5}\) ?)?\d+(?:[ .\-]\d+)*(?!\w)")
+_PHONE_CANDIDATE_RE = re.compile(
+    r"(?<![\w.,+])(?:\+ ?)?(?:\(\d{1,5}\) ?)?\d+(?:[ .\-]\d+)*(?!\w)"
+)
 _PHONE_KEYWORD_BEFORE_RE = re.compile(
     r"(?i)\b(?:tel|telefono|cell|cellulare|fax|phone|mobile|recapito)\b\.?:?\s*$"
 )
@@ -79,6 +81,8 @@ def _is_phone_number(candidate: str, preceding_text: str) -> bool:
         # values) has the right digit count but not the shape.
         return groups in _MOBILE_GROUPINGS
     return False
+
+
 _CLINICAL_TERMS = {
     "cough": "Symptom:Cough",
     "fever": "Symptom:Fever",
@@ -161,7 +165,11 @@ def _extract_pdf_text_layer(data: bytes) -> str | None:
 
     try:
         completed = subprocess.run(
-            ["pdftotext", "-layout", "-", "-"], input=data, capture_output=True, timeout=60, check=False
+            ["pdftotext", "-layout", "-", "-"],
+            input=data,
+            capture_output=True,
+            timeout=60,
+            check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
@@ -199,7 +207,11 @@ def _list_pdf_embedded_images(data: bytes) -> list[dict[str, int]] | None:
 
     try:
         completed = subprocess.run(
-            ["pdfimages", "-list", "-"], input=data, capture_output=True, timeout=60, check=False
+            ["pdfimages", "-list", "-"],
+            input=data,
+            capture_output=True,
+            timeout=60,
+            check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
@@ -214,13 +226,21 @@ def _list_pdf_embedded_images(data: bytes) -> list[dict[str, int]] | None:
         if columns[2] not in _PDFIMAGES_CONTENT_TYPES:
             continue
         try:
-            images.append({"page": int(columns[0]), "width": int(columns[3]), "height": int(columns[4])})
+            images.append(
+                {
+                    "page": int(columns[0]),
+                    "width": int(columns[3]),
+                    "height": int(columns[4]),
+                }
+            )
         except ValueError:
             continue  # a dirty or reformatted row is skipped, never crashes classification
     return images
 
 
-def classify_pdf_structure(text_layer: str | None, embedded_images: list[dict[str, int]] | None) -> str:
+def classify_pdf_structure(
+    text_layer: str | None, embedded_images: list[dict[str, int]] | None
+) -> str:
     """Which of four shapes a PDF has -- decides what would be silently lost by reading only its text.
 
     Verified defect this exists to close: a PDF with both a real text layer
@@ -284,7 +304,11 @@ def _extract_pdf_embedded_images(data: bytes) -> list[bytes]:
         image_root = str(Path(tmpdir) / "img")
         try:
             completed = subprocess.run(
-                ["pdfimages", "-png", "-", image_root], input=data, capture_output=True, timeout=60, check=False
+                ["pdfimages", "-png", "-", image_root],
+                input=data,
+                capture_output=True,
+                timeout=60,
+                check=False,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return []
@@ -318,7 +342,9 @@ def _parse_failure_types() -> tuple[type[BaseException], ...]:
     )
 
 
-def _parse_nemotron_parse_response(response: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def _parse_nemotron_parse_response(
+    response: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
     """The model's raw output, from the documented response envelope.
 
     Verified against NVIDIA's own published API docs: a Nemotron-Parse
@@ -347,7 +373,9 @@ def _parse_nemotron_parse_response(response: dict[str, Any]) -> tuple[str, dict[
     try:
         content = response["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as error:
-        raise ValueError(f"unexpected Nemotron-Parse response shape: {error}") from error
+        raise ValueError(
+            f"unexpected Nemotron-Parse response shape: {error}"
+        ) from error
     return str(content), {"bounding_boxes_decoded": False}
 
 
@@ -444,11 +472,21 @@ class ClinicalDocumentProcessor:
             "parser_backend": self.parser_backend,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            "extraction_mode": "lexicon" if self.concept_resolver is None else "ontology_index",
+            "extraction_mode": "lexicon"
+            if self.concept_resolver is None
+            else "ontology_index",
             "extraction_language": self.language,
             "recommended_parser": "Nemotron-Parse",
             "cross_check_parser": "LlamaParse (cloud deployments only -- no true on-premise mode)",
-            "supported_target_inputs": ["pdf", "docx", "pptx", "html", "markdown", "images", "clinical_reports"],
+            "supported_target_inputs": [
+                "pdf",
+                "docx",
+                "pptx",
+                "html",
+                "markdown",
+                "images",
+                "clinical_reports",
+            ],
             "fallback_mode": "plain_text_file_reader",
             "nemotron_parse_available": self._nemotron_parse_available()["available"],
             "llamaparse_available": self._llamaparse_available()["available"],
@@ -474,7 +512,10 @@ class ClinicalDocumentProcessor:
         endpoint = self.nemotron_parse_endpoint
         key = self.nemotron_parse_api_key
         if not endpoint or not key:
-            return {"available": False, "error": "nemotron_parse_endpoint_or_key_not_configured"}
+            return {
+                "available": False,
+                "error": "nemotron_parse_endpoint_or_key_not_configured",
+            }
         return {"available": True, "error": None}
 
     def _llamaparse_available(self) -> dict[str, Any]:
@@ -514,10 +555,17 @@ class ClinicalDocumentProcessor:
         try:
             data = Path(path).read_bytes()
         except OSError as exc:
-            return {"status": "failed", "reason": "nemotron_parse_conversion_failed", "error": str(exc), "source_path": str(path)}
+            return {
+                "status": "failed",
+                "reason": "nemotron_parse_conversion_failed",
+                "error": str(exc),
+                "source_path": str(path),
+            }
         return self.load_with_nemotron_parse_bytes(data, source_name=str(path))
 
-    def load_with_nemotron_parse_bytes(self, data: bytes, source_name: str = "<memory>") -> dict[str, Any]:
+    def load_with_nemotron_parse_bytes(
+        self, data: bytes, source_name: str = "<memory>"
+    ) -> dict[str, Any]:
         """load_with_nemotron_parse(), from bytes already in memory -- same result contract, same graceful degradation."""
         availability = self._nemotron_parse_available()
         if not availability["available"]:
@@ -528,7 +576,9 @@ class ClinicalDocumentProcessor:
                 "source_path": source_name,
             }
         try:
-            text, layout_metadata = self._call_nemotron_parse_bytes(data, source_name=source_name)
+            text, layout_metadata = self._call_nemotron_parse_bytes(
+                data, source_name=source_name
+            )
         except _parse_failure_types() as exc:
             return {
                 "status": "failed",
@@ -567,7 +617,10 @@ class ClinicalDocumentProcessor:
             }
         try:
             text, layout_metadata = self._call_llamaparse(path)
-        except (NotImplementedError, *_parse_failure_types()) as exc:  # pragma: no cover - depends on the live endpoint/files
+        except (
+            NotImplementedError,
+            *_parse_failure_types(),
+        ) as exc:  # pragma: no cover - depends on the live endpoint/files
             return {
                 "status": "failed",
                 "reason": "llamaparse_conversion_failed",
@@ -579,7 +632,12 @@ class ClinicalDocumentProcessor:
             "source_path": str(path),
             "text": text,
             "parser": "llamaparse",
-            "metadata": {"parser": "llamaparse", "source_path": str(path), "layout_preserved": True, **layout_metadata},
+            "metadata": {
+                "parser": "llamaparse",
+                "source_path": str(path),
+                "layout_preserved": True,
+                **layout_metadata,
+            },
         }
 
     def _call_nemotron_parse(self, path: str | Path) -> tuple[str, dict[str, Any]]:
@@ -622,9 +680,13 @@ class ClinicalDocumentProcessor:
         call, since the model has no raw-PDF input path. Non-PDF image
         inputs are sent directly.
         """
-        return self._call_nemotron_parse_bytes(Path(path).read_bytes(), source_name=str(path))
+        return self._call_nemotron_parse_bytes(
+            Path(path).read_bytes(), source_name=str(path)
+        )
 
-    def _call_nemotron_parse_bytes(self, data: bytes, source_name: str = "<memory>") -> tuple[str, dict[str, Any]]:
+    def _call_nemotron_parse_bytes(
+        self, data: bytes, source_name: str = "<memory>"
+    ) -> tuple[str, dict[str, Any]]:
         """The same Nemotron-Parse call, from bytes already in memory -- the path version above now just reads and delegates here."""
         images = self._render_bytes_as_images(data, source_name=source_name)
         if not images:
@@ -637,13 +699,20 @@ class ClinicalDocumentProcessor:
             text, layout = _parse_nemotron_parse_response(response)
             page_texts.append(text)
             page_metadata.append({"page": page_number, **layout})
-        return "\n\n".join(page_texts), {"page_count": len(images), "pages": page_metadata}
+        return "\n\n".join(page_texts), {
+            "page_count": len(images),
+            "pages": page_metadata,
+        }
 
     def _render_pages_as_images(self, path: Path) -> list[tuple[bytes, str]]:
         """Kept for callers that still hold a path -- reads once, delegates to the in-memory version."""
-        return self._render_bytes_as_images(Path(path).read_bytes(), source_name=str(path))
+        return self._render_bytes_as_images(
+            Path(path).read_bytes(), source_name=str(path)
+        )
 
-    def _render_bytes_as_images(self, data: bytes, source_name: str = "<memory>") -> list[tuple[bytes, str]]:
+    def _render_bytes_as_images(
+        self, data: bytes, source_name: str = "<memory>"
+    ) -> list[tuple[bytes, str]]:
         """Each page as (image bytes, MIME type) -- pdf2image for PDFs, the bytes themselves for an image, all in memory.
 
         Format comes from detect_document_format() (the file's own
@@ -657,7 +726,9 @@ class ClinicalDocumentProcessor:
         if document_format in _MIME_BY_FORMAT:
             return [(data, _MIME_BY_FORMAT[document_format])]
         if document_format != FORMAT_PDF:
-            raise ValueError(f"Nemotron-Parse needs an image or PDF input, got {document_format!r} for {source_name}")
+            raise ValueError(
+                f"Nemotron-Parse needs an image or PDF input, got {document_format!r} for {source_name}"
+            )
         from io import BytesIO
 
         from pdf2image import convert_from_bytes
@@ -669,7 +740,9 @@ class ClinicalDocumentProcessor:
             rendered.append((buffer.getvalue(), "image/png"))
         return rendered
 
-    def _post_nemotron_parse_page(self, image_bytes: bytes, mime_type: str = "image/png") -> dict[str, Any]:
+    def _post_nemotron_parse_page(
+        self, image_bytes: bytes, mime_type: str = "image/png"
+    ) -> dict[str, Any]:
         """One page, one request -- the isolated network call, mocked directly in tests.
 
         The task prompt is v2.0's own required control-token string, copied
@@ -696,24 +769,36 @@ class ClinicalDocumentProcessor:
                             "type": "text",
                             "text": "</s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>",
                         },
-                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime_type};base64,{encoded}"},
+                        },
                     ],
                 }
             ],
         }
         response = requests.post(
             f"{self.nemotron_parse_endpoint.rstrip('/')}/v1/chat/completions",
-            headers={"Authorization": f"Bearer {self.nemotron_parse_api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self.nemotron_parse_api_key}",
+                "Content-Type": "application/json",
+            },
             json=payload,
             timeout=60,
         )
         response.raise_for_status()
         return response.json()
 
-    def _call_llamaparse(self, path: str | Path) -> tuple[str, dict[str, Any]]:  # pragma: no cover - network call
-        raise NotImplementedError("configure llamaparse_api_key and implement the HTTP call for this deployment")
+    def _call_llamaparse(
+        self, path: str | Path
+    ) -> tuple[str, dict[str, Any]]:  # pragma: no cover - network call
+        raise NotImplementedError(
+            "configure llamaparse_api_key and implement the HTTP call for this deployment"
+        )
 
-    def document_id(self, source_path: str, text: str, metadata: dict[str, Any] | None = None) -> str:
+    def document_id(
+        self, source_path: str, text: str, metadata: dict[str, Any] | None = None
+    ) -> str:
         metadata = metadata or {}
         stable_source = metadata.get("source_uri") or source_path
         return f"doc:{_stable_id(stable_source, text[:2048])}"
@@ -774,7 +859,14 @@ class ClinicalDocumentProcessor:
             if re.search(rf"\b{re.escape(token)}\b", lowered):
                 ontology_refs.append(ref)
                 category, _, label = ref.partition(":")
-                entities.append({"text": token, "category": category, "normalized": label, "ontology_ref": ref})
+                entities.append(
+                    {
+                        "text": token,
+                        "category": category,
+                        "normalized": label,
+                        "ontology_ref": ref,
+                    }
+                )
         return {
             "clinical_entities": entities,
             "ontology_refs": sorted(set(ontology_refs)),
@@ -794,7 +886,9 @@ class ClinicalDocumentProcessor:
         candidates: list[dict[str, Any]] = []
         for finding in extraction.findings:
             concept = finding.concept
-            assertion = detector.detect(text, concept.char_start or 0, concept.char_end or 0)
+            assertion = detector.detect(
+                text, concept.char_start or 0, concept.char_end or 0
+            )
             modifiers = [item.label for item in finding.modifiers]
             entities.append(
                 {
@@ -827,16 +921,26 @@ class ClinicalDocumentProcessor:
             "ontology_refs": sorted({item["ontology_ref"] for item in entities}),
             "patient_findings": [item.as_dict() for item in findings.admitted],
             "excluded_mentions": [item.as_dict() for item in findings.rejected],
-            "collapsed_modifiers": [item.label for item in extraction.collapsed_modifiers],
-            "inheritance_statements": [item.label for item in extraction.inheritance_statements],
+            "collapsed_modifiers": [
+                item.label for item in extraction.collapsed_modifiers
+            ],
+            "inheritance_statements": [
+                item.label for item in extraction.inheritance_statements
+            ],
             "extraction_mode": "ontology_index",
             "extraction_language": self.language,
         }
 
-    def infer_source_governance(self, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def infer_source_governance(
+        self, metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         metadata = metadata or {}
-        source_type = metadata.get("source_type") or metadata.get("document_type") or "unknown"
-        license_class = metadata.get("license") or metadata.get("license_class") or "unknown"
+        source_type = (
+            metadata.get("source_type") or metadata.get("document_type") or "unknown"
+        )
+        license_class = (
+            metadata.get("license") or metadata.get("license_class") or "unknown"
+        )
         publication_date = metadata.get("publication_date")
         provenance_quality = 0.2
         if metadata.get("source_uri") or metadata.get("source_path"):
@@ -852,8 +956,11 @@ class ClinicalDocumentProcessor:
             "license": license_class,
             "publication_date": publication_date,
             "provenance_quality": round(_clamp(provenance_quality), 3),
-            "governance_status": "complete" if provenance_quality >= 0.8 else "needs_review",
-            "synthetic_source": source_type in {"synthetic", "nexus_trace", "counterfactual"},
+            "governance_status": "complete"
+            if provenance_quality >= 0.8
+            else "needs_review",
+            "synthetic_source": source_type
+            in {"synthetic", "nexus_trace", "counterfactual"},
         }
 
     def split_sections(self, text: str) -> list[dict[str, Any]]:
@@ -864,15 +971,26 @@ class ClinicalDocumentProcessor:
             return [{"title": "body", "start": 0, "end": len(text), "text": text}]
         sections = []
         if matches[0].start() > 0:
-            sections.append({"title": "front_matter", "start": 0, "end": matches[0].start(), "text": text[: matches[0].start()]})
+            sections.append(
+                {
+                    "title": "front_matter",
+                    "start": 0,
+                    "end": matches[0].start(),
+                    "text": text[: matches[0].start()],
+                }
+            )
         for index, match in enumerate(matches):
             start = match.end()
             end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
             title = match.group(0).lstrip("#").strip()
             body = text[start:end].strip()
             if body:
-                sections.append({"title": title, "start": start, "end": end, "text": body})
-        return sections or [{"title": "body", "start": 0, "end": len(text), "text": text}]
+                sections.append(
+                    {"title": title, "start": start, "end": end, "text": body}
+                )
+        return sections or [
+            {"title": "body", "start": 0, "end": len(text), "text": text}
+        ]
 
     def _chunk_section(self, section_text: str) -> Iterable[tuple[int, str]]:
         step = max(self.chunk_size - self.chunk_overlap, 1)
@@ -881,16 +999,24 @@ class ClinicalDocumentProcessor:
             if chunk_text:
                 yield start, chunk_text
 
-    def chunk_text(self, text: str, source_path: str, metadata: dict[str, Any] | None = None) -> list[ClinicalDocumentChunk]:
+    def chunk_text(
+        self, text: str, source_path: str, metadata: dict[str, Any] | None = None
+    ) -> list[ClinicalDocumentChunk]:
         metadata = metadata or {}
         chunks: list[ClinicalDocumentChunk] = []
         if not text:
             return chunks
         redacted_text, redactions = self.redact_text(text)
-        doc_id = metadata.get("document_id") or self.document_id(source_path=source_path, text=redacted_text, metadata=metadata)
-        governance = self.infer_source_governance({**metadata, "source_path": source_path})
+        doc_id = metadata.get("document_id") or self.document_id(
+            source_path=source_path, text=redacted_text, metadata=metadata
+        )
+        governance = self.infer_source_governance(
+            {**metadata, "source_path": source_path}
+        )
         for section_index, section in enumerate(self.split_sections(redacted_text)):
-            for chunk_index, (offset, chunk_text) in enumerate(self._chunk_section(section["text"])):
+            for chunk_index, (offset, chunk_text) in enumerate(
+                self._chunk_section(section["text"])
+            ):
                 extracted = self.extract_clinical_entities(chunk_text)
                 chunk_id = f"{doc_id}:chunk:{section_index}:{chunk_index}"
                 chunk_metadata = {
@@ -923,13 +1049,23 @@ class ClinicalDocumentProcessor:
                 )
         return chunks
 
-    def process_plain_text_file(self, path: str | Path, metadata: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    def process_plain_text_file(
+        self, path: str | Path, metadata: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         text = self.load_text_fallback(path)
-        return [chunk.to_memory_document() for chunk in self.chunk_text(text=text, source_path=str(path), metadata=metadata)]
+        return [
+            chunk.to_memory_document()
+            for chunk in self.chunk_text(
+                text=text, source_path=str(path), metadata=metadata
+            )
+        ]
 
     def process_document(
-        self, path: str | Path, metadata: dict[str, Any] | None = None,
-        prefer_structured_parser: bool = True, also_cross_check_with_llamaparse: bool = False,
+        self,
+        path: str | Path,
+        metadata: dict[str, Any] | None = None,
+        prefer_structured_parser: bool = True,
+        also_cross_check_with_llamaparse: bool = False,
     ) -> dict[str, Any]:
         """Parse a document from a path on disk -- reads it once, then delegates to process_document_bytes().
 
@@ -950,17 +1086,26 @@ class ClinicalDocumentProcessor:
                 "parser": "plain_text_fallback",
                 "source_path": str(path),
                 "error": str(exc),
-                "parser_result": {"status": "not_executed", "reason": "file_unreadable"},
+                "parser_result": {
+                    "status": "not_executed",
+                    "reason": "file_unreadable",
+                },
             }
         result = self.process_document_bytes(
-            data, source_name=str(path), metadata=metadata, prefer_structured_parser=prefer_structured_parser
+            data,
+            source_name=str(path),
+            metadata=metadata,
+            prefer_structured_parser=prefer_structured_parser,
         )
         if also_cross_check_with_llamaparse:
             result["cross_check"] = self.load_with_llamaparse(path)
         return result
 
     def process_document_bytes(
-        self, data: bytes, source_name: str = "<memory>", metadata: dict[str, Any] | None = None,
+        self,
+        data: bytes,
+        source_name: str = "<memory>",
+        metadata: dict[str, Any] | None = None,
         prefer_structured_parser: bool = True,
     ) -> dict[str, Any]:
         """Parse a document held in memory -- never written to disk, per the decision to keep a case's files in memory during processing.
@@ -994,15 +1139,25 @@ class ClinicalDocumentProcessor:
 
         if parser_result.get("status") == "completed":
             raw_metadata: Any = parser_result.get("metadata", {})
-            parser_metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+            parser_metadata = (
+                dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+            )
             return self._completed_document_result(
-                str(parser_result.get("text", "")), source_name, metadata, "nemotron_parse", document_format,
+                str(parser_result.get("text", "")),
+                source_name,
+                metadata,
+                "nemotron_parse",
+                document_format,
                 parser_metadata=parser_metadata,
             )
 
         if document_format == FORMAT_TEXT:
             return self._completed_document_result(
-                data.decode("utf-8"), source_name, metadata, "plain_text_fallback", document_format,
+                data.decode("utf-8"),
+                source_name,
+                metadata,
+                "plain_text_fallback",
+                document_format,
                 parser_result=parser_result,
             )
 
@@ -1025,12 +1180,21 @@ class ClinicalDocumentProcessor:
                 embedded_images_png = _extract_pdf_embedded_images(data)
             if text_layer:
                 result = self._completed_document_result(
-                    text_layer, source_name, metadata, "pdf_text_layer", document_format, parser_result=parser_result,
+                    text_layer,
+                    source_name,
+                    metadata,
+                    "pdf_text_layer",
+                    document_format,
+                    parser_result=parser_result,
                 )
                 result["pdf_structure"] = pdf_structure
                 result["embedded_images_png"] = embedded_images_png
                 return result
-            reason = "pdftotext_unavailable" if text_layer is None else "pdf_has_no_text_layer_and_no_ocr_available"
+            reason = (
+                "pdftotext_unavailable"
+                if text_layer is None
+                else "pdf_has_no_text_layer_and_no_ocr_available"
+            )
         elif document_format in _MIME_BY_FORMAT:
             reason = "image_requires_nemotron_parse_for_text"
         else:
@@ -1046,12 +1210,16 @@ class ClinicalDocumentProcessor:
             "documents": [],
             "parser_result": parser_result,
             "governance": self.ingestion_integration_plan()["governance_requirements"],
-            "enterprise_metadata": self.infer_source_governance({**metadata, "source_path": source_name}),
+            "enterprise_metadata": self.infer_source_governance(
+                {**metadata, "source_path": source_name}
+            ),
             "pdf_structure": pdf_structure,
             "embedded_images_png": embedded_images_png,
         }
 
-    def _process_dicom_bytes(self, data: bytes, source_name: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    def _process_dicom_bytes(
+        self, data: bytes, source_name: str, metadata: dict[str, Any]
+    ) -> dict[str, Any]:
         """A DICOM file: report text (SR / encapsulated PDF / CDA) as the document text, rendered images alongside.
 
         Images are returned as `dicom_images_png` for the imaging side of
@@ -1068,7 +1236,11 @@ class ClinicalDocumentProcessor:
         dicom_metadata = {**metadata, "dicom_modality": extraction.modality}
         if extraction.report_text:
             result = self._completed_document_result(
-                extraction.report_text, source_name, dicom_metadata, f"dicom_{extraction.report_source}", FORMAT_DICOM,
+                extraction.report_text,
+                source_name,
+                dicom_metadata,
+                f"dicom_{extraction.report_source}",
+                FORMAT_DICOM,
             )
         else:
             result = {
@@ -1076,19 +1248,32 @@ class ClinicalDocumentProcessor:
                 "parser": None,
                 "source_path": source_name,
                 "document_format": FORMAT_DICOM,
-                "reason": "dicom_image_only" if extraction.images_png else "dicom_not_decodable",
+                "reason": "dicom_image_only"
+                if extraction.images_png
+                else "dicom_not_decodable",
                 "chunk_count": 0,
                 "documents": [],
-                "governance": self.ingestion_integration_plan()["governance_requirements"],
-                "enterprise_metadata": self.infer_source_governance({**dicom_metadata, "source_path": source_name}),
+                "governance": self.ingestion_integration_plan()[
+                    "governance_requirements"
+                ],
+                "enterprise_metadata": self.infer_source_governance(
+                    {**dicom_metadata, "source_path": source_name}
+                ),
             }
         result["dicom"] = dicom_summary
         result["dicom_images_png"] = list(extraction.images_png)
         return result
 
     def _completed_document_result(
-        self, text: str, source_name: str, metadata: dict[str, Any], parser: str, document_format: str,
-        *, parser_metadata: dict[str, Any] | None = None, parser_result: dict[str, Any] | None = None,
+        self,
+        text: str,
+        source_name: str,
+        metadata: dict[str, Any],
+        parser: str,
+        document_format: str,
+        *,
+        parser_metadata: dict[str, Any] | None = None,
+        parser_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """The one "completed" result shape every successful parser path returns.
 
@@ -1102,7 +1287,9 @@ class ClinicalDocumentProcessor:
         measurement. Chunks stay as they were, for memory/RAG only.
         """
         combined_metadata = {**metadata, **(parser_metadata or {}), "parser": parser}
-        chunks = self.chunk_text(text=text, source_path=source_name, metadata=combined_metadata)
+        chunks = self.chunk_text(
+            text=text, source_path=source_name, metadata=combined_metadata
+        )
         redacted_text, _ = self.redact_text(text)
         result = {
             "status": "completed",
@@ -1110,17 +1297,23 @@ class ClinicalDocumentProcessor:
             "source_path": source_name,
             "document_format": document_format,
             "text": redacted_text,
-            "document_id": chunks[0].metadata.get("document_id") if chunks else self.document_id(source_name, text, metadata),
+            "document_id": chunks[0].metadata.get("document_id")
+            if chunks
+            else self.document_id(source_name, text, metadata),
             "chunk_count": len(chunks),
             "documents": [chunk.to_memory_document() for chunk in chunks],
             "governance": self.ingestion_integration_plan()["governance_requirements"],
-            "enterprise_metadata": self.infer_source_governance({**metadata, **(parser_metadata or {}), "source_path": source_name}),
+            "enterprise_metadata": self.infer_source_governance(
+                {**metadata, **(parser_metadata or {}), "source_path": source_name}
+            ),
         }
         if parser_result is not None:
             result["parser_result"] = parser_result
         return result
 
-    def upsert_processed_document(self, processed: dict[str, Any], memory_adapter: Any) -> dict[str, Any]:
+    def upsert_processed_document(
+        self, processed: dict[str, Any], memory_adapter: Any
+    ) -> dict[str, Any]:
         documents = list(processed.get("documents", []))
         results = []
         for document in documents:
@@ -1128,17 +1321,36 @@ class ClinicalDocumentProcessor:
                 results.append(memory_adapter.upsert_clinical_document_chunk(document))
             elif hasattr(memory_adapter, "upsert_many"):
                 memory_adapter.upsert_many([document])
-                results.append({"status": "upserted_via_upsert_many", "record_id": document.get("metadata", {}).get("record_id")})
+                results.append(
+                    {
+                        "status": "upserted_via_upsert_many",
+                        "record_id": document.get("metadata", {}).get("record_id"),
+                    }
+                )
             elif hasattr(memory_adapter, "add_document"):
                 memory_adapter.add_document(document)
-                results.append({"status": "upserted_via_add_document", "record_id": document.get("metadata", {}).get("record_id")})
+                results.append(
+                    {
+                        "status": "upserted_via_add_document",
+                        "record_id": document.get("metadata", {}).get("record_id"),
+                    }
+                )
             else:
-                results.append({"status": "not_upserted", "reason": "adapter_has_no_supported_upsert_method"})
+                results.append(
+                    {
+                        "status": "not_upserted",
+                        "reason": "adapter_has_no_supported_upsert_method",
+                    }
+                )
         return {
             "status": "completed",
             "document_id": processed.get("document_id"),
             "attempted": len(documents),
-            "stored": sum(1 for item in results if str(item.get("status", "")).startswith(("stored", "upserted"))),
+            "stored": sum(
+                1
+                for item in results
+                if str(item.get("status", "")).startswith(("stored", "upserted"))
+            ),
             "results": results,
         }
 

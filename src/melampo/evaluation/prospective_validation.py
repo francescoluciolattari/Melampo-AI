@@ -48,11 +48,22 @@ class ProspectiveValidationRegistry:
 
     predictions: dict[str, ProspectivePrediction] = field(default_factory=dict)
 
-    def create_prediction(self, case_payload: dict[str, Any], diagnostic_result: dict[str, Any], protocol_id: str = "melampo_prospective_protocol") -> ProspectivePrediction:
-        case_id = str(case_payload.get("case_id", diagnostic_result.get("case_id", "unknown_case")))
+    def create_prediction(
+        self,
+        case_payload: dict[str, Any],
+        diagnostic_result: dict[str, Any],
+        protocol_id: str = "melampo_prospective_protocol",
+    ) -> ProspectivePrediction:
+        case_id = str(
+            case_payload.get(
+                "case_id", diagnostic_result.get("case_id", "unknown_case")
+            )
+        )
         payload_hash = _hash_payload(case_payload)
         timestamp = time.time()
-        prediction_id = hashlib.sha256(f"{protocol_id}:{case_id}:{payload_hash}:{timestamp}".encode()).hexdigest()[:24]
+        prediction_id = hashlib.sha256(
+            f"{protocol_id}:{case_id}:{payload_hash}:{timestamp}".encode()
+        ).hexdigest()[:24]
         prediction = ProspectivePrediction(
             case_id=case_id,
             prediction_id=prediction_id,
@@ -69,12 +80,22 @@ class ProspectiveValidationRegistry:
         self.predictions[prediction_id] = prediction
         return prediction
 
-    def attach_outcome(self, prediction_id: str, outcome: dict[str, Any]) -> dict[str, Any]:
+    def attach_outcome(
+        self, prediction_id: str, outcome: dict[str, Any]
+    ) -> dict[str, Any]:
         if prediction_id not in self.predictions:
-            return {"status": "rejected", "reason": "unknown_prediction_id", "prediction_id": prediction_id}
+            return {
+                "status": "rejected",
+                "reason": "unknown_prediction_id",
+                "prediction_id": prediction_id,
+            }
         prediction = self.predictions[prediction_id]
         if prediction.outcome is not None:
-            return {"status": "rejected", "reason": "outcome_already_attached", "prediction_id": prediction_id}
+            return {
+                "status": "rejected",
+                "reason": "outcome_already_attached",
+                "prediction_id": prediction_id,
+            }
         prediction.outcome = {
             **outcome,
             "attached_at": time.time(),
@@ -83,12 +104,23 @@ class ProspectiveValidationRegistry:
         return {"status": "completed", "prediction": prediction.as_dict()}
 
     def evaluate(self) -> dict[str, Any]:
-        completed = [prediction for prediction in self.predictions.values() if prediction.outcome is not None]
+        completed = [
+            prediction
+            for prediction in self.predictions.values()
+            if prediction.outcome is not None
+        ]
         rows = []
         for prediction in completed:
-            result_label = str(prediction.diagnostic_result.get("result_label", "")).strip().lower()
+            result_label = (
+                str(prediction.diagnostic_result.get("result_label", ""))
+                .strip()
+                .lower()
+            )
             outcome = prediction.outcome or {}
-            accepted_labels = [str(label).strip().lower() for label in outcome.get("accepted_labels", [])]
+            accepted_labels = [
+                str(label).strip().lower()
+                for label in outcome.get("accepted_labels", [])
+            ]
             correct = bool(result_label and result_label in accepted_labels)
             rows.append(
                 {
@@ -117,8 +149,13 @@ class ProspectiveValidationRegistry:
         }
 
     def save_jsonl(self, path: str | Path) -> None:
-        lines = [json.dumps(prediction.as_dict(), sort_keys=True, default=str) for prediction in self.predictions.values()]
-        Path(path).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        lines = [
+            json.dumps(prediction.as_dict(), sort_keys=True, default=str)
+            for prediction in self.predictions.values()
+        ]
+        Path(path).write_text(
+            "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
+        )
 
     @classmethod
     def load_jsonl(cls, path: str | Path) -> ProspectiveValidationRegistry:

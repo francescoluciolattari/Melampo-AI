@@ -898,7 +898,9 @@ def render_linker_markdown(report: dict[str, Any]) -> str:
             d for d in row["details"] if d["outcome"] in ("wrong", "other_concept")
         ]
         if flagged:
-            lines.append(f"**{name}: links to check**")
+            lines.append(
+                f"**{name}: links to check** (other_concept is not a pass: each one needs a human look, in the 2026-10-05 run 3 of 38 were wrong)"
+            )
             for d in flagged:
                 lines.append(
                     f"- {d['outcome']}: «{d['mention']}» expected {d['target']}, got {d['chosen']} ({d['stage']})"

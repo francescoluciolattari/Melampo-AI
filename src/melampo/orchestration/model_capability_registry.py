@@ -24,7 +24,12 @@ class ModelCapability:
     clinical_authority: str = "signal_provider_only"
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def supports(self, area: str | None = None, modality: str | None = None, role: str | None = None) -> bool:
+    def supports(
+        self,
+        area: str | None = None,
+        modality: str | None = None,
+        role: str | None = None,
+    ) -> bool:
         if area is not None and area not in self.areas:
             return False
         if modality is not None and modality not in self.modalities:
@@ -77,13 +82,20 @@ class ModelCapabilityRegistry:
                         "research_use_until_clinically_validated",
                     ),
                     priority=10,
-                    metadata={"decision": "replaces_medgemma_as_primary_radiology_model"},
+                    metadata={
+                        "decision": "replaces_medgemma_as_primary_radiology_model"
+                    },
                 ),
                 ModelCapability(
                     name="Gemma 4",
                     provider="open_weight_general_reasoning_model",
                     role="clinical_text_and_agentic_reasoning",
-                    modalities=("report_text", "ehr_text", "clinical_text", "tool_trace"),
+                    modalities=(
+                        "report_text",
+                        "ehr_text",
+                        "clinical_text",
+                        "tool_trace",
+                    ),
                     areas=("language_listening", "case_context", "critique"),
                     strengths=(
                         "open_weight_reasoning",
@@ -96,13 +108,20 @@ class ModelCapabilityRegistry:
                         "must_return_uncertainty_and_provenance",
                     ),
                     priority=20,
-                    metadata={"decision": "replaces_medgemma_for_non_radiology_language_functions"},
+                    metadata={
+                        "decision": "replaces_medgemma_for_non_radiology_language_functions"
+                    },
                 ),
                 ModelCapability(
                     name="Claude Healthcare/Life Sciences",
                     provider="anthropic_or_compatible_external_critic",
                     role="external_critic_and_scientific_research",
-                    modalities=("clinical_text", "literature", "tool_trace", "policy_trace"),
+                    modalities=(
+                        "clinical_text",
+                        "literature",
+                        "tool_trace",
+                        "policy_trace",
+                    ),
                     areas=("critique", "metacognition", "regulatory_review"),
                     strengths=(
                         "second_opinion_critique",
@@ -122,8 +141,18 @@ class ModelCapabilityRegistry:
                     name="Weaviate",
                     provider="semantic_object_property_vector_database",
                     role="semantic_memory_and_ontology_rag",
-                    modalities=("text_vector", "image_vector", "object_reference", "ontology_reference"),
-                    areas=("semantic_memory", "epidemiology", "case_context", "retrieval"),
+                    modalities=(
+                        "text_vector",
+                        "image_vector",
+                        "object_reference",
+                        "ontology_reference",
+                    ),
+                    areas=(
+                        "semantic_memory",
+                        "epidemiology",
+                        "case_context",
+                        "retrieval",
+                    ),
                     strengths=(
                         "object_property_clinical_memory",
                         "ontology_aware_relations",
@@ -142,7 +171,14 @@ class ModelCapabilityRegistry:
                     name="Nemotron-Parse",
                     provider="nvidia_document_intelligence_parser",
                     role="clinical_document_processing",
-                    modalities=("pdf", "docx", "pptx", "image_document", "table", "formula"),
+                    modalities=(
+                        "pdf",
+                        "docx",
+                        "pptx",
+                        "image_document",
+                        "table",
+                        "formula",
+                    ),
                     areas=("document_rag", "semantic_memory"),
                     strengths=(
                         "layout_aware_document_conversion",
@@ -162,7 +198,14 @@ class ModelCapabilityRegistry:
                     name="LlamaParse",
                     provider="llamaindex_document_intelligence_parser",
                     role="clinical_document_processing_cross_check",
-                    modalities=("pdf", "docx", "pptx", "image_document", "table", "formula"),
+                    modalities=(
+                        "pdf",
+                        "docx",
+                        "pptx",
+                        "image_document",
+                        "table",
+                        "formula",
+                    ),
                     areas=("document_rag", "semantic_memory"),
                     strengths=(
                         "documented_strength_on_clinical_tables_and_mixed_formatting",
@@ -191,7 +234,12 @@ class ModelCapabilityRegistry:
     def get(self, name: str) -> ModelCapability:
         return self.capabilities[name]
 
-    def select(self, area: str | None = None, modality: str | None = None, role: str | None = None) -> list[dict[str, Any]]:
+    def select(
+        self,
+        area: str | None = None,
+        modality: str | None = None,
+        role: str | None = None,
+    ) -> list[dict[str, Any]]:
         matches = [
             capability
             for capability in self.capabilities.values()
@@ -206,5 +254,10 @@ class ModelCapabilityRegistry:
             "final_diagnostic_authority": "MelampoDiagnosticOrchestrator",
             "external_models_are": "specialist_signal_providers_and_critics",
             "external_models_are_not": "sole_final_diagnostic_arbiters",
-            "capabilities": [capability.describe() for capability in sorted(self.capabilities.values(), key=lambda item: item.priority)],
+            "capabilities": [
+                capability.describe()
+                for capability in sorted(
+                    self.capabilities.values(), key=lambda item: item.priority
+                )
+            ],
         }

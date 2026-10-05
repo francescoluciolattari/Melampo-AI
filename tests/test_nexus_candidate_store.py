@@ -29,9 +29,13 @@ def test_find_by_case_id_respects_the_statuses_filter():
 
 def test_find_by_case_id_returns_the_most_recent_when_several_exist():
     store = NexusCandidateStore()
-    older = store.create_candidate(payload={}, case_id="case-1", learning_status="needs_review")
+    older = store.create_candidate(
+        payload={}, case_id="case-1", learning_status="needs_review"
+    )
     older.created_at = 100.0
-    newer = store.create_candidate(payload={}, case_id="case-1", learning_status="needs_review")
+    newer = store.create_candidate(
+        payload={}, case_id="case-1", learning_status="needs_review"
+    )
     newer.created_at = 200.0
 
     found = store.find_by_case_id("case-1")
@@ -41,7 +45,9 @@ def test_find_by_case_id_returns_the_most_recent_when_several_exist():
 
 def test_delete_removes_the_record():
     store = NexusCandidateStore()
-    record = store.create_candidate(payload={}, case_id="case-1", learning_status="needs_review")
+    record = store.create_candidate(
+        payload={}, case_id="case-1", learning_status="needs_review"
+    )
     store.delete(record.candidate_id)
     assert record.candidate_id not in store.records
     assert store.find_by_case_id("case-1") is None
@@ -54,7 +60,9 @@ def test_delete_of_a_nonexistent_id_does_not_raise():
 
 def test_delete_logs_the_event_in_the_audit_log():
     store = NexusCandidateStore()
-    record = store.create_candidate(payload={}, case_id="case-1", learning_status="needs_review")
+    record = store.create_candidate(
+        payload={}, case_id="case-1", learning_status="needs_review"
+    )
     store.delete(record.candidate_id)
     assert any(event["event"] == "candidate_deleted" for event in store.audit_log)
 
@@ -70,7 +78,9 @@ def test_delete_logs_the_event_in_the_audit_log():
 
 def test_a_store_with_no_password_or_path_is_pure_in_memory_as_before():
     store = NexusCandidateStore()
-    record = store.create_candidate(payload={}, case_id="case-1", learning_status="candidate")
+    record = store.create_candidate(
+        payload={}, case_id="case-1", learning_status="candidate"
+    )
     assert record.candidate_id in store.records
 
 
@@ -79,7 +89,8 @@ def test_a_persisted_candidate_survives_a_new_store_instance(tmp_path):
     first = NexusCandidateStore(password="secret", path=path)
     record = first.create_candidate(
         payload={"case_context": {"case_id": "case-1", "report_text": "initial"}},
-        case_id="case-1", learning_status="needs_review",
+        case_id="case-1",
+        learning_status="needs_review",
     )
 
     second = NexusCandidateStore(password="secret", path=path)
@@ -91,18 +102,27 @@ def test_a_persisted_candidate_survives_a_new_store_instance(tmp_path):
 def test_attach_validation_is_persisted_and_visible_in_a_new_instance(tmp_path):
     path = tmp_path / "candidates.jsonl"
     first = NexusCandidateStore(password="secret", path=path)
-    record = first.create_candidate(payload={}, case_id="case-1", learning_status="candidate")
-    first.attach_validation(record.candidate_id, {"status": "reviewed", "allowed_for_promotion": True})
+    record = first.create_candidate(
+        payload={}, case_id="case-1", learning_status="candidate"
+    )
+    first.attach_validation(
+        record.candidate_id, {"status": "reviewed", "allowed_for_promotion": True}
+    )
 
     second = NexusCandidateStore(password="secret", path=path)
 
-    assert second.get(record.candidate_id).validation == {"status": "reviewed", "allowed_for_promotion": True}
+    assert second.get(record.candidate_id).validation == {
+        "status": "reviewed",
+        "allowed_for_promotion": True,
+    }
 
 
 def test_delete_is_persisted_across_instances(tmp_path):
     path = tmp_path / "candidates.jsonl"
     first = NexusCandidateStore(password="secret", path=path)
-    record = first.create_candidate(payload={}, case_id="case-1", learning_status="candidate")
+    record = first.create_candidate(
+        payload={}, case_id="case-1", learning_status="candidate"
+    )
     first.delete(record.candidate_id)
 
     second = NexusCandidateStore(password="secret", path=path)
@@ -116,7 +136,9 @@ def test_only_the_latest_event_per_candidate_wins_on_reload(tmp_path):
     same candidate must fold to the last one, not accumulate duplicates."""
     path = tmp_path / "candidates.jsonl"
     first = NexusCandidateStore(password="secret", path=path)
-    record = first.create_candidate(payload={}, case_id="case-1", learning_status="candidate")
+    record = first.create_candidate(
+        payload={}, case_id="case-1", learning_status="candidate"
+    )
     first.attach_validation(record.candidate_id, {"status": "first"})
     first.attach_validation(record.candidate_id, {"status": "second"})
 
@@ -130,7 +152,9 @@ def test_the_wrong_password_cannot_read_a_persisted_store(tmp_path):
     from melampo.memory.encrypted_store import WrongPasswordError
 
     path = tmp_path / "candidates.jsonl"
-    NexusCandidateStore(password="secret", path=path).create_candidate(payload={}, case_id="case-1")
+    NexusCandidateStore(password="secret", path=path).create_candidate(
+        payload={}, case_id="case-1"
+    )
 
     try:
         NexusCandidateStore(password="wrong-password", path=path)

@@ -26,7 +26,14 @@ class _FakeUmls:
     def crosswalk_from_hpo(self, hpo_id, target_source=None):
         self.calls += 1
         if hpo_id == "HP:0001947":
-            return [CrosswalkResult("233604007", "Distal renal tubular acidosis", "SNOMEDCT_US", "C0022099")]
+            return [
+                CrosswalkResult(
+                    "233604007",
+                    "Distal renal tubular acidosis",
+                    "SNOMEDCT_US",
+                    "C0022099",
+                )
+            ]
         return []
 
 
@@ -55,8 +62,12 @@ def test_crosswalk_matches_the_confirmed_nlm_documentation_example():
     connector = UmlsConnector(config=UmlsConfig(api_key="k"))
     connector._get = lambda url, params: {
         "result": [
-            {"ui": "233604007", "name": "Renal tubular acidosis", "rootSource": "SNOMEDCT_US",
-             "concepts": [{"ui": "C0022099"}]}
+            {
+                "ui": "233604007",
+                "name": "Renal tubular acidosis",
+                "rootSource": "SNOMEDCT_US",
+                "concepts": [{"ui": "C0022099"}],
+            }
         ]
     }
 
@@ -72,7 +83,12 @@ def test_crosswalk_ignores_non_object_entries_instead_of_crashing():
     connector._get = lambda url, params: {
         "result": [
             "NONE",
-            {"ui": "233604007", "name": "x", "rootSource": "SNOMEDCT_US", "concepts": ["C0022099"]},
+            {
+                "ui": "233604007",
+                "name": "x",
+                "rootSource": "SNOMEDCT_US",
+                "concepts": ["C0022099"],
+            },
         ]
     }
 
@@ -103,7 +119,9 @@ def test_a_failing_call_degrades_gracefully():
 def test_search_returns_concepts_with_cuis():
     connector = UmlsConnector(config=UmlsConfig(api_key="k"))
     connector._get = lambda url, params: {
-        "result": {"results": [{"ui": "C0021400", "name": "Insulin", "rootSource": "MSH"}]}
+        "result": {
+            "results": [{"ui": "C0021400", "name": "Insulin", "rootSource": "MSH"}]
+        }
     }
     results = connector.search("insulin")
     assert results[0].cui == "C0021400"
@@ -113,13 +131,17 @@ def test_search_excludes_the_none_sentinel():
     """UMLS returns ui: 'NONE' for a query with no match at all -- not a
     real CUI, and must not be treated as one."""
     connector = UmlsConnector(config=UmlsConfig(api_key="k"))
-    connector._get = lambda url, params: {"result": {"results": [{"ui": "NONE", "name": "no results"}]}}
+    connector._get = lambda url, params: {
+        "result": {"results": [{"ui": "NONE", "name": "no results"}]}
+    }
     assert connector.search("nonsense query") == []
 
 
 def test_atoms_for_cui_returns_every_synonym_name():
     connector = UmlsConnector(config=UmlsConfig(api_key="k"))
-    connector._get = lambda url, params: {"result": [{"name": "Renal tubular acidosis"}, {"name": "RTA"}]}
+    connector._get = lambda url, params: {
+        "result": [{"name": "Renal tubular acidosis"}, {"name": "RTA"}]
+    }
     atoms = connector.atoms_for_cui("C0022099")
     assert set(atoms) == {"Renal tubular acidosis", "RTA"}
 
@@ -131,7 +153,11 @@ def test_atoms_for_cui_returns_every_synonym_name():
 
 def test_the_cache_serves_a_repeated_query_without_a_second_call():
     with tempfile.TemporaryDirectory() as directory:
-        cache = UmlsCache(store=EncryptedJsonlStore(path=Path(directory) / "cache.jsonl", password="x"))
+        cache = UmlsCache(
+            store=EncryptedJsonlStore(
+                path=Path(directory) / "cache.jsonl", password="x"
+            )
+        )
         fake = _FakeUmls()
 
         crosswalk_with_cache(fake, cache, "HP:0001947")
@@ -144,7 +170,11 @@ def test_the_cache_distinguishes_never_queried_from_queried_and_empty():
     """An empty list is a real, worth-keeping answer ('UMLS has no
     crosswalk for this'), not the same as 'never looked this up'."""
     with tempfile.TemporaryDirectory() as directory:
-        cache = UmlsCache(store=EncryptedJsonlStore(path=Path(directory) / "cache.jsonl", password="x"))
+        cache = UmlsCache(
+            store=EncryptedJsonlStore(
+                path=Path(directory) / "cache.jsonl", password="x"
+            )
+        )
         assert cache.get("HP:0001947") is None
 
         cache.put("HP:0001947", None, [])
@@ -164,7 +194,11 @@ def test_the_cache_is_encrypted_on_disk():
 
 def test_different_target_sources_are_cached_separately():
     with tempfile.TemporaryDirectory() as directory:
-        cache = UmlsCache(store=EncryptedJsonlStore(path=Path(directory) / "cache.jsonl", password="x"))
+        cache = UmlsCache(
+            store=EncryptedJsonlStore(
+                path=Path(directory) / "cache.jsonl", password="x"
+            )
+        )
         fake = _FakeUmls()
 
         crosswalk_with_cache(fake, cache, "HP:0001947", target_source="SNOMEDCT_US")
@@ -183,7 +217,9 @@ def test_a_cache_reopened_from_disk_still_serves_without_a_new_call():
 
         second_process = UmlsCache(store=EncryptedJsonlStore(path=path, password="x"))
         fake_in_second_process = _FakeUmls()
-        result = crosswalk_with_cache(fake_in_second_process, second_process, "HP:0001947")
+        result = crosswalk_with_cache(
+            fake_in_second_process, second_process, "HP:0001947"
+        )
 
     assert fake_in_second_process.calls == 0
     assert result[0].name == "Distal renal tubular acidosis"
@@ -211,14 +247,18 @@ def test_a_umls_crosswalked_synonym_resolves_through_the_cascade():
     index = TermIndex.from_obo(_RTA_OBO.splitlines())
     umls = _FakeUmls()
     umls.crosswalk_from_hpo = lambda hpo_id, target_source=None: (
-        [CrosswalkResult("233604007", "RTA", "SNOMEDCT_US", "C0022099")] if hpo_id == "HP:0001947" else []
+        [CrosswalkResult("233604007", "RTA", "SNOMEDCT_US", "C0022099")]
+        if hpo_id == "HP:0001947"
+        else []
     )
     cascade = NormalisationCascade(graph=graph, synonym_index=index, umls=umls)
 
     without_umls = NormalisationCascade(graph=graph, synonym_index=index).resolve(
         "rta", candidates=["Renal tubular acidosis"]
     )
-    assert without_umls.resolved is False, "the phrase must not be resolvable without UMLS, or this test isolates nothing"
+    assert without_umls.resolved is False, (
+        "the phrase must not be resolvable without UMLS, or this test isolates nothing"
+    )
 
     result = cascade.resolve("rta", candidates=["Renal tubular acidosis"])
 
@@ -286,7 +326,9 @@ def test_key_without_password_returns_a_connector_with_no_cache(monkeypatch, tmp
     assert result.cache is None
 
 
-def test_key_and_password_returns_a_connector_with_an_encrypted_cache(monkeypatch, tmp_path):
+def test_key_and_password_returns_a_connector_with_an_encrypted_cache(
+    monkeypatch, tmp_path
+):
     monkeypatch.setenv("UMLS_API_KEY", "a-real-key")
     monkeypatch.setenv("DB_PASSWORD", "a-real-password")
 
@@ -298,7 +340,9 @@ def test_key_and_password_returns_a_connector_with_an_encrypted_cache(monkeypatc
     assert result.cache is not None
 
 
-def test_without_a_password_a_configured_key_still_makes_live_calls(monkeypatch, tmp_path):
+def test_without_a_password_a_configured_key_still_makes_live_calls(
+    monkeypatch, tmp_path
+):
     """No DB_PASSWORD must never mean caching UMLS content in plaintext as a
     fallback -- it means no persistence at all, live calls only."""
     monkeypatch.setenv("UMLS_API_KEY", "a-real-key")
@@ -316,7 +360,9 @@ def test_without_a_password_a_configured_key_still_makes_live_calls(monkeypatch,
 
     assert first_call[0].name == "RTA"
     assert second_call[0].name == "RTA"
-    assert not (tmp_path / "umls.jsonl").exists(), "nothing must be written to disk without a password"
+    assert not (tmp_path / "umls.jsonl").exists(), (
+        "nothing must be written to disk without a password"
+    )
 
 
 def test_cached_umls_connector_matches_the_cascades_expected_contract():

@@ -17,7 +17,11 @@ from melampo.training.hypothesis_yield_wiring import (
 def _surfaced(case_id: str, condition: str = "pericarditis", **feature_kwargs) -> dict:
     defaults = {"hops": 2, "support": 0.7, "corroboration": 2}
     defaults.update(feature_kwargs)
-    return {"case_id": case_id, "condition": condition, "features": HypothesisFeatures(**defaults)}
+    return {
+        "case_id": case_id,
+        "condition": condition,
+        "features": HypothesisFeatures(**defaults),
+    }
 
 
 # --------------------------------------------------------------------------
@@ -27,7 +31,11 @@ def _surfaced(case_id: str, condition: str = "pericarditis", **feature_kwargs) -
 
 def test_an_independent_confirmation_is_observed():
     registry = ConfirmationRegistry()
-    registry.register(Confirmation(case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation(
+            case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
     model = HypothesisYieldModel()
 
     result = sync_from_registry(model, registry, [_surfaced("c1")])
@@ -41,7 +49,11 @@ def test_a_non_independent_confirmation_is_not_observed():
     for: a system-accepted suggestion must not silently teach the model that
     its own guesses were right."""
     registry = ConfirmationRegistry()
-    registry.register(Confirmation(case_id="c1", diagnosis="pericarditis", source=SOURCE_SYSTEM_ACCEPTED))
+    registry.register(
+        Confirmation(
+            case_id="c1", diagnosis="pericarditis", source=SOURCE_SYSTEM_ACCEPTED
+        )
+    )
     model = HypothesisYieldModel()
 
     result = sync_from_registry(model, registry, [_surfaced("c1")])
@@ -64,7 +76,11 @@ def test_a_surfaced_hypothesis_with_no_confirmation_is_silently_skipped():
 
 def test_a_confirmation_with_no_matching_surfaced_hypothesis_is_reported_unmatched():
     registry = ConfirmationRegistry()
-    registry.register(Confirmation(case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation(
+            case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
     model = HypothesisYieldModel()
 
     result = sync_from_registry(model, registry, [])
@@ -74,14 +90,24 @@ def test_a_confirmation_with_no_matching_surfaced_hypothesis_is_reported_unmatch
 
 def test_sync_result_reports_growing_totals_across_calls():
     registry = ConfirmationRegistry()
-    registry.register(Confirmation(case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation(
+            case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
     model = HypothesisYieldModel()
     sync_from_registry(model, registry, [_surfaced("c1")])
 
-    registry.register(Confirmation(case_id="c2", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation(
+            case_id="c2", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
     result = sync_from_registry(model, registry, [_surfaced("c1"), _surfaced("c2")])
 
-    assert result.total_observations == 3, "c1 observed twice (once per call) plus c2 once"
+    assert result.total_observations == 3, (
+        "c1 observed twice (once per call) plus c2 once"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -93,12 +119,18 @@ def test_sync_result_reports_growing_totals_across_calls():
 def test_the_tool_returns_the_same_estimate_the_model_itself_would():
     model = HypothesisYieldModel()
     registry = ConfirmationRegistry()
-    registry.register(Confirmation(case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation(
+            case_id="c1", diagnosis="pericarditis", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
     sync_from_registry(model, registry, [_surfaced("c1")])
 
     tool = yield_rate_tool(model)
     via_tool = tool(hops=2, support=0.7, corroboration=2)
-    via_direct = model.estimate(HypothesisFeatures(hops=2, support=0.7, corroboration=2)).as_dict()
+    via_direct = model.estimate(
+        HypothesisFeatures(hops=2, support=0.7, corroboration=2)
+    ).as_dict()
 
     assert via_tool == via_direct
 

@@ -82,7 +82,9 @@ def cosine_overlap(a: Vector, b: Vector) -> float:
     return _dot(a, b) / (norm_a * norm_b)
 
 
-def leaky_integrate(previous: Vector, evidence: Vector, *, elapsed_seconds: float, tau_seconds: float) -> Vector:
+def leaky_integrate(
+    previous: Vector, evidence: Vector, *, elapsed_seconds: float, tau_seconds: float
+) -> Vector:
     """Evolve a vector toward new evidence, decaying old state exponentially with elapsed time.
 
     The closed-form solution of the leaky integrator's governing equation,
@@ -101,10 +103,15 @@ def leaky_integrate(previous: Vector, evidence: Vector, *, elapsed_seconds: floa
     if elapsed_seconds <= 0:
         return previous
     decay = math.exp(-elapsed_seconds / tau_seconds)
-    return tuple(old * decay + new * (1.0 - decay) for old, new in zip(previous, evidence, strict=True))
+    return tuple(
+        old * decay + new * (1.0 - decay)
+        for old, new in zip(previous, evidence, strict=True)
+    )
 
 
-def hebbian_reinforce(a: Vector, b: Vector, *, learning_rate: float = 0.1) -> tuple[Vector, Vector]:
+def hebbian_reinforce(
+    a: Vector, b: Vector, *, learning_rate: float = 0.1
+) -> tuple[Vector, Vector]:
     """Pull two confirmed-correlated vectors toward each other, symmetrically, scaled by how correlated they already are.
 
     Proposed initially as a non-linear Hebbian rule from Independent
@@ -143,8 +150,12 @@ def hebbian_reinforce(a: Vector, b: Vector, *, learning_rate: float = 0.1) -> tu
     activation = cosine_overlap(a, b)
     effective_rate = learning_rate * activation
     midpoint = tuple((x + y) / 2.0 for x, y in zip(a, b, strict=True))
-    new_a = tuple(old + effective_rate * (mid - old) for old, mid in zip(a, midpoint, strict=True))
-    new_b = tuple(old + effective_rate * (mid - old) for old, mid in zip(b, midpoint, strict=True))
+    new_a = tuple(
+        old + effective_rate * (mid - old) for old, mid in zip(a, midpoint, strict=True)
+    )
+    new_b = tuple(
+        old + effective_rate * (mid - old) for old, mid in zip(b, midpoint, strict=True)
+    )
     return new_a, new_b
 
 
@@ -212,30 +223,55 @@ class HypothesisVectorSpace:
             self._vectors = vectors
         return self._vectors
 
-    def _apply_event(self, vectors: dict[str, HypothesisVector], record: dict[str, Any]) -> None:
+    def _apply_event(
+        self, vectors: dict[str, HypothesisVector], record: dict[str, Any]
+    ) -> None:
         key = f"{record['case_id']}::{record['hypothesis']}"
         timestamp = float(record["timestamp"])
         if record["event"] == EVENT_UPDATE:
             evidence = tuple(record["vector"])
             existing = vectors.get(key)
             if existing is None:
-                vectors[key] = HypothesisVector(record["case_id"], record["hypothesis"], evidence, timestamp)
+                vectors[key] = HypothesisVector(
+                    record["case_id"], record["hypothesis"], evidence, timestamp
+                )
             else:
                 elapsed = timestamp - existing.last_updated
-                evolved = leaky_integrate(existing.vector, evidence, elapsed_seconds=elapsed, tau_seconds=self.tau_seconds)
-                vectors[key] = HypothesisVector(record["case_id"], record["hypothesis"], evolved, timestamp)
+                evolved = leaky_integrate(
+                    existing.vector,
+                    evidence,
+                    elapsed_seconds=elapsed,
+                    tau_seconds=self.tau_seconds,
+                )
+                vectors[key] = HypothesisVector(
+                    record["case_id"], record["hypothesis"], evolved, timestamp
+                )
         elif record["event"] == EVENT_REINFORCE:
             other_key = record["other_key"]
             if key in vectors and other_key in vectors:
                 new_self, new_other = hebbian_reinforce(
-                    vectors[key].vector, vectors[other_key].vector, learning_rate=record.get("learning_rate", 0.1)
+                    vectors[key].vector,
+                    vectors[other_key].vector,
+                    learning_rate=record.get("learning_rate", 0.1),
                 )
-                vectors[key] = HypothesisVector(vectors[key].case_id, vectors[key].hypothesis, new_self, timestamp)
+                vectors[key] = HypothesisVector(
+                    vectors[key].case_id, vectors[key].hypothesis, new_self, timestamp
+                )
                 vectors[other_key] = HypothesisVector(
-                    vectors[other_key].case_id, vectors[other_key].hypothesis, new_other, timestamp
+                    vectors[other_key].case_id,
+                    vectors[other_key].hypothesis,
+                    new_other,
+                    timestamp,
                 )
 
-    def update(self, case_id: str, hypothesis: str, vector: Sequence[float], *, now: float | None = None) -> HypothesisVector:
+    def update(
+        self,
+        case_id: str,
+        hypothesis: str,
+        vector: Sequence[float],
+        *,
+        now: float | None = None,
+    ) -> HypothesisVector:
         """Record new evidence for a hypothesis, evolving its vector via the leaky integrator.
 
         The event is appended before the in-memory index is updated, so a
@@ -243,13 +279,26 @@ class HypothesisVectorSpace:
         -- replaying it on the next load reaches the same state.
         """
         timestamp = now if now is not None else time.time()
-        record = {"event": EVENT_UPDATE, "case_id": case_id, "hypothesis": hypothesis, "vector": list(vector), "timestamp": timestamp}
+        record = {
+            "event": EVENT_UPDATE,
+            "case_id": case_id,
+            "hypothesis": hypothesis,
+            "vector": list(vector),
+            "timestamp": timestamp,
+        }
         self.store.append(record)
         vectors = self._ensure_loaded()
         self._apply_event(vectors, record)
         return vectors[f"{case_id}::{hypothesis}"]
 
-    def reinforce(self, key_a: str, key_b: str, *, learning_rate: float = 0.1, now: float | None = None) -> None:
+    def reinforce(
+        self,
+        key_a: str,
+        key_b: str,
+        *,
+        learning_rate: float = 0.1,
+        now: float | None = None,
+    ) -> None:
         """Confirm a cross-case correlation, pulling the two vectors toward each other.
 
         Called only from the promotion cycle (Part VI), once a correlation
@@ -276,7 +325,9 @@ class HypothesisVectorSpace:
             return None
         return cosine_overlap(vectors[key_a].vector, vectors[key_b].vector)
 
-    def find_cross_case_correlations(self, *, min_overlap: float = 0.85) -> list[CrossCaseCorrelation]:
+    def find_cross_case_correlations(
+        self, *, min_overlap: float = 0.85
+    ) -> list[CrossCaseCorrelation]:
         """Every pair of hypotheses from *different* cases whose vectors overlap above threshold.
 
         Restricted to different cases deliberately: two hypotheses within
@@ -294,7 +345,13 @@ class HypothesisVectorSpace:
                 score = cosine_overlap(first.vector, second.vector)
                 if score >= min_overlap:
                     found.append(
-                        CrossCaseCorrelation(first.case_id, first.hypothesis, second.case_id, second.hypothesis, score)
+                        CrossCaseCorrelation(
+                            first.case_id,
+                            first.hypothesis,
+                            second.case_id,
+                            second.hypothesis,
+                            score,
+                        )
                     )
         found.sort(key=lambda item: -item.overlap)
         return found

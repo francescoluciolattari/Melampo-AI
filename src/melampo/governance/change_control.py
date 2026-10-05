@@ -6,7 +6,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-_HIGH_RISK_COMPONENTS = {"model", "memory", "retriever", "policy", "nexus_branch", "orchestrator"}
+_HIGH_RISK_COMPONENTS = {
+    "model",
+    "memory",
+    "retriever",
+    "policy",
+    "nexus_branch",
+    "orchestrator",
+}
 
 
 def _hash_change(payload: dict[str, Any]) -> str:
@@ -31,18 +38,23 @@ class ChangeRecord:
     def __post_init__(self) -> None:
         if not self.validation_required:
             requirements = ["unit_tests", "audit_trace_review"]
-            if self.component in _HIGH_RISK_COMPONENTS or self.risk_level in {"medium", "high"}:
+            if self.component in _HIGH_RISK_COMPONENTS or self.risk_level in {
+                "medium",
+                "high",
+            }:
                 requirements.extend(["benchmark_regression", "release_gate_review"])
             if self.risk_level == "high":
                 requirements.extend(["human_governance_review", "rollback_drill"])
             self.validation_required = list(dict.fromkeys(requirements))
         if self.change_id is None:
-            self.change_id = _hash_change({
-                "component": self.component,
-                "change_type": self.change_type,
-                "description": self.description,
-                "created_at": self.created_at,
-            })
+            self.change_id = _hash_change(
+                {
+                    "component": self.component,
+                    "change_type": self.change_type,
+                    "description": self.description,
+                    "created_at": self.created_at,
+                }
+            )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -63,18 +75,34 @@ class ChangeRecord:
             },
         }
 
-    def approve(self, reviewer: str, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+    def approve(
+        self, reviewer: str, evidence: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         evidence = evidence or {}
         if self.risk_level == "high" and not evidence.get("human_governance_review"):
             self.approval_status = "needs_review"
-            return {"status": "needs_review", "reason": "high_risk_change_requires_human_governance_review", "change": self.as_dict()}
+            return {
+                "status": "needs_review",
+                "reason": "high_risk_change_requires_human_governance_review",
+                "change": self.as_dict(),
+            }
         self.approval_status = "approved"
-        self.metadata = {**self.metadata, "approved_by": reviewer, "approval_evidence": evidence, "approved_at": time.time()}
+        self.metadata = {
+            **self.metadata,
+            "approved_by": reviewer,
+            "approval_evidence": evidence,
+            "approved_at": time.time(),
+        }
         return {"status": "approved", "change": self.as_dict()}
 
     def reject(self, reviewer: str, reason: str) -> dict[str, Any]:
         self.approval_status = "rejected"
-        self.metadata = {**self.metadata, "rejected_by": reviewer, "rejection_reason": reason, "rejected_at": time.time()}
+        self.metadata = {
+            **self.metadata,
+            "rejected_by": reviewer,
+            "rejection_reason": reason,
+            "rejected_at": time.time(),
+        }
         return {"status": "rejected", "change": self.as_dict()}
 
 
@@ -83,14 +111,18 @@ class ChangeControlRegistry:
     records: dict[str, ChangeRecord] = field(default_factory=dict)
 
     def propose(self, record: ChangeRecord | dict[str, Any]) -> dict[str, Any]:
-        record_obj = record if isinstance(record, ChangeRecord) else ChangeRecord(**record)
+        record_obj = (
+            record if isinstance(record, ChangeRecord) else ChangeRecord(**record)
+        )
         self.records[str(record_obj.change_id)] = record_obj
         return {"status": "proposed", "change": record_obj.as_dict()}
 
     def get(self, change_id: str) -> ChangeRecord:
         return self.records[change_id]
 
-    def approve(self, change_id: str, reviewer: str, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+    def approve(
+        self, change_id: str, reviewer: str, evidence: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         return self.records[change_id].approve(reviewer=reviewer, evidence=evidence)
 
     def reject(self, change_id: str, reviewer: str, reason: str) -> dict[str, Any]:
@@ -100,6 +132,12 @@ class ChangeControlRegistry:
         statuses: dict[str, int] = {}
         risk_levels: dict[str, int] = {}
         for record in self.records.values():
-            statuses[record.approval_status] = statuses.get(record.approval_status, 0) + 1
+            statuses[record.approval_status] = (
+                statuses.get(record.approval_status, 0) + 1
+            )
             risk_levels[record.risk_level] = risk_levels.get(record.risk_level, 0) + 1
-        return {"change_count": len(self.records), "statuses": statuses, "risk_levels": risk_levels}
+        return {
+            "change_count": len(self.records),
+            "statuses": statuses,
+            "risk_levels": risk_levels,
+        }

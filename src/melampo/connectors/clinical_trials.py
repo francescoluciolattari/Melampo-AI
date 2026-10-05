@@ -82,7 +82,9 @@ def _passage_from_study(study: dict[str, Any]) -> LiteraturePassage | None:
         return None
 
     conditions = conditions_module.get("conditions") or []
-    conditions_text = f" Conditions studied: {', '.join(conditions)}." if conditions else ""
+    conditions_text = (
+        f" Conditions studied: {', '.join(conditions)}." if conditions else ""
+    )
 
     year_raw = str(status_module.get("startDateStruct", {}).get("date") or "")
     year = int(year_raw[:4]) if year_raw[:4].isdigit() else None
@@ -106,7 +108,9 @@ class ClinicalTrialsConnector:
     def __post_init__(self) -> None:
         self._limiter = RateLimiter(self.config.requests_per_second)
 
-    def search(self, condition_query: str, *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search(
+        self, condition_query: str, *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         """Search trials for a condition, returning usable passages.
 
         One page only. Bulk pagination across the full registry is a
@@ -125,14 +129,22 @@ class ClinicalTrialsConnector:
                     break
         return passages
 
-    def search_for_concepts(self, concepts: Sequence[str], *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search_for_concepts(
+        self, concepts: Sequence[str], *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         terms = [concept for concept in concepts if concept]
         if not terms:
             return []
         return self.search(" OR ".join(terms), max_results=max_results)
 
     def populate(
-        self, index: LiteratureIndex, condition_query: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+        self,
+        index: LiteratureIndex,
+        condition_query: str,
+        *,
+        max_results: int = 25,
+        store: Any = None,
+        graph: Any = None,
     ) -> int:
         """Search and add results directly to an index, returning how many were added.
 
@@ -143,7 +155,11 @@ class ClinicalTrialsConnector:
         skips the separate JSONL write.
         """
         passages = self.search(condition_query, max_results=max_results)
-        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        added = (
+            index.add_many(passages, source_graph=graph)
+            if graph is not None
+            else index.add_many(passages)
+        )
         if store is not None and graph is None:
             from ..memory.literature_persistence import persist_passage
 
@@ -151,7 +167,9 @@ class ClinicalTrialsConnector:
                 persist_passage(store, passage)
         return added
 
-    def _fetch_page(self, condition_query: str) -> dict[str, Any]:  # pragma: no cover - network call
+    def _fetch_page(
+        self, condition_query: str
+    ) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()
         params = {
             "query.cond": condition_query,

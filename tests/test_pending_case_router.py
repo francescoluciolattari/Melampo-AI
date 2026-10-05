@@ -13,11 +13,14 @@ from melampo.training.pending_case_router import (
 )
 
 
-def _pending_store(case_id="case-1", report_text="Initial findings.", status="needs_review"):
+def _pending_store(
+    case_id="case-1", report_text="Initial findings.", status="needs_review"
+):
     store = NexusCandidateStore()
     store.create_candidate(
         payload={"case_context": {"case_id": case_id, "report_text": report_text}},
-        case_id=case_id, learning_status=status,
+        case_id=case_id,
+        learning_status=status,
     )
     return store
 
@@ -41,14 +44,18 @@ def test_a_payload_with_no_case_id_is_always_a_new_case():
 
 def test_more_findings_for_a_pending_case_merges_and_reruns():
     store = _pending_store()
-    decision = route_payload({"case_id": "case-1", "report_text": "Follow-up scan."}, store)
+    decision = route_payload(
+        {"case_id": "case-1", "report_text": "Follow-up scan."}, store
+    )
     assert decision.action == "merge_and_rerun"
     assert decision.existing_record is not None
 
 
 def test_a_confirmed_diagnosis_for_a_pending_case_routes_to_confirmation():
     store = _pending_store()
-    decision = route_payload({"case_id": "case-1", "confirmed_diagnosis": "Sarcoidosis"}, store)
+    decision = route_payload(
+        {"case_id": "case-1", "confirmed_diagnosis": "Sarcoidosis"}, store
+    )
     assert decision.action == "confirm_and_train"
 
 
@@ -57,7 +64,12 @@ def test_confirmation_takes_priority_even_if_report_text_is_also_present():
     -- confirmation, not merge, is the right read of that combination."""
     store = _pending_store()
     decision = route_payload(
-        {"case_id": "case-1", "confirmed_diagnosis": "Sarcoidosis", "report_text": "Biopsy confirmed."}, store
+        {
+            "case_id": "case-1",
+            "confirmed_diagnosis": "Sarcoidosis",
+            "report_text": "Biopsy confirmed.",
+        },
+        store,
     )
     assert decision.action == "confirm_and_train"
 
@@ -66,7 +78,9 @@ def test_a_case_id_that_exists_but_is_already_promoted_is_treated_as_new():
     """PENDING_STATUSES excludes promoted/rejected -- a closed case's old
     case_id resurfacing is not the same case still open."""
     store = _pending_store(status="promoted")
-    decision = route_payload({"case_id": "case-1", "report_text": "unrelated later data"}, store)
+    decision = route_payload(
+        {"case_id": "case-1", "report_text": "unrelated later data"}, store
+    )
     assert decision.action == "new_case"
 
 
@@ -98,7 +112,9 @@ def test_a_chain_of_three_merges_preserves_all_three_reports():
     assert "Report A." in third
     assert "Report B." in third
     assert "Report C." in third
-    assert third.index("Report C.") < third.index("Report B.") < third.index("Report A.")
+    assert (
+        third.index("Report C.") < third.index("Report B.") < third.index("Report A.")
+    )
 
 
 def test_route_payload_uses_the_real_merge_function_not_a_reimplementation():
@@ -188,8 +204,12 @@ def _store_with_patient_identifiers(case_id="case-1", status="needs_review"):
 
     store = NexusCandidateStore()
     identifiers = PatientIdentifiers.from_payload(
-        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
-         "diagnostic_question": "Evaluate for aortic root aneurysm"},
+        {
+            "patient_name": "Mario",
+            "patient_surname": "Rossi",
+            "case_date": "2026-09-20",
+            "diagnostic_question": "Evaluate for aortic root aneurysm",
+        },
         password="secret",
     )
     store.create_candidate(
@@ -197,7 +217,8 @@ def _store_with_patient_identifiers(case_id="case-1", status="needs_review"):
             "case_context": {"case_id": case_id, "report_text": "Initial findings."},
             "patient_identifiers": identifiers.as_dict(),
         },
-        case_id=case_id, learning_status=status,
+        case_id=case_id,
+        learning_status=status,
     )
     return store
 
@@ -206,16 +227,26 @@ def _real_graph():
     from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
 
     return InMemoryConceptGraph.from_edges(
-        [ConceptEdge("Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9)]
+        [
+            ConceptEdge(
+                "Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9
+            )
+        ]
     )
 
 
 def test_patient_identifier_fallback_finds_a_case_with_no_case_id_given():
     store = _store_with_patient_identifiers()
     decision = route_payload(
-        {"patient_name": "MARIO", "patient_surname": "Rossi", "case_date": "2026-09-20",
-         "diagnostic_question": "Suspected aortic root aneurysm"},
-        store, graph=_real_graph(), password="secret",
+        {
+            "patient_name": "MARIO",
+            "patient_surname": "Rossi",
+            "case_date": "2026-09-20",
+            "diagnostic_question": "Suspected aortic root aneurysm",
+        },
+        store,
+        graph=_real_graph(),
+        password="secret",
     )
     assert decision.action == "merge_and_rerun"
     assert decision.case_id == "case-1"
@@ -224,8 +255,12 @@ def test_patient_identifier_fallback_finds_a_case_with_no_case_id_given():
 def test_patient_identifier_fallback_is_skipped_without_graph_or_password():
     store = _store_with_patient_identifiers()
     decision = route_payload(
-        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
-         "diagnostic_question": "Suspected aortic root aneurysm"},
+        {
+            "patient_name": "Mario",
+            "patient_surname": "Rossi",
+            "case_date": "2026-09-20",
+            "diagnostic_question": "Suspected aortic root aneurysm",
+        },
         store,
     )
     assert decision.action == "new_case"
@@ -240,9 +275,15 @@ def test_graph_may_be_a_lazy_callable_resolved_only_when_needed():
         return _real_graph()
 
     decision = route_payload(
-        {"patient_name": "Mario", "patient_surname": "Rossi", "case_date": "2026-09-20",
-         "diagnostic_question": "Suspected aortic root aneurysm"},
-        store, graph=lazy_graph, password="secret",
+        {
+            "patient_name": "Mario",
+            "patient_surname": "Rossi",
+            "case_date": "2026-09-20",
+            "diagnostic_question": "Suspected aortic root aneurysm",
+        },
+        store,
+        graph=lazy_graph,
+        password="secret",
     )
     assert decision.action == "merge_and_rerun"
     assert calls["n"] == 1
@@ -252,7 +293,14 @@ def test_the_lazy_graph_callable_is_never_invoked_when_case_id_matches_directly(
     store = _pending_store()  # keyed by case_id, no patient_identifiers stored
 
     def unexpected_call():
-        raise AssertionError("graph should not be resolved when case_id matched directly")
+        raise AssertionError(
+            "graph should not be resolved when case_id matched directly"
+        )
 
-    decision = route_payload({"case_id": "case-1", "report_text": "more data"}, store, graph=unexpected_call, password="secret")
+    decision = route_payload(
+        {"case_id": "case-1", "report_text": "more data"},
+        store,
+        graph=unexpected_call,
+        password="secret",
+    )
     assert decision.action == "merge_and_rerun"

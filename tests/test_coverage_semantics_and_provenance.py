@@ -44,14 +44,22 @@ def test_dual_path_declares_a_corpus_coverage_basis():
     }
     recursive = {"query": "q", "evidence": [_offset_evidence("note_1:0-40")]}
     verdict = reconcile(one_shot, recursive)
-    payload = build_dual_path_payload(one_shot, recursive, verdict, coverage={"coverage_ratio": 0.5})
+    payload = build_dual_path_payload(
+        one_shot, recursive, verdict, coverage={"coverage_ratio": 0.5}
+    )
 
     assert coverage_basis(payload) == COVERAGE_BASIS_CORPUS
 
 
 def test_comparing_coverage_across_bases_raises_instead_of_returning_a_number():
-    topk = {"retrieval_mode": "semantic_vector_memory", "retrieval_quality": {"coverage_basis": COVERAGE_BASIS_TOPK}}
-    corpus = {"retrieval_mode": "rlm_environment", "retrieval_quality": {"coverage_basis": COVERAGE_BASIS_CORPUS}}
+    topk = {
+        "retrieval_mode": "semantic_vector_memory",
+        "retrieval_quality": {"coverage_basis": COVERAGE_BASIS_TOPK},
+    }
+    corpus = {
+        "retrieval_mode": "rlm_environment",
+        "retrieval_quality": {"coverage_basis": COVERAGE_BASIS_CORPUS},
+    }
 
     with pytest.raises(ValueError):
         assert_coverage_comparable(topk, corpus)
@@ -60,7 +68,10 @@ def test_comparing_coverage_across_bases_raises_instead_of_returning_a_number():
 
 
 def test_empty_basis_does_not_block_comparison():
-    corpus = {"retrieval_mode": "rlm_environment", "retrieval_quality": {"coverage_basis": COVERAGE_BASIS_CORPUS}}
+    corpus = {
+        "retrieval_mode": "rlm_environment",
+        "retrieval_quality": {"coverage_basis": COVERAGE_BASIS_CORPUS},
+    }
     empty = {"retrieval_mode": "empty_memory_no_fallback", "retrieval_quality": {}}
     assert assert_coverage_comparable(corpus, empty) == COVERAGE_BASIS_CORPUS
 
@@ -74,7 +85,9 @@ def test_rails_accept_character_offsets_as_provenance():
 
 def test_rails_still_reject_evidence_without_any_trace():
     rails = ClinicalSafetyRails()
-    decision = rails.evaluate_retrieval([{"text": "no trace at all", "source": "clinical_note"}])
+    decision = rails.evaluate_retrieval(
+        [{"text": "no trace at all", "source": "clinical_note"}]
+    )
     assert "retrieval_provenance_below_threshold" in decision.reasons
 
 

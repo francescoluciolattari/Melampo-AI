@@ -21,7 +21,13 @@ class PolicyStack:
         reasons.extend(abstention.get("reasons", []))
         reasons.extend(risk_gate.get("reasons", []))
         reasons.extend(escalation.get("reasons", []))
-        decision_band = "blocked" if (abstention["abstain"] or not risk_gate["allow"]) else "guarded" if escalation.get("escalate", False) else "clear"
+        decision_band = (
+            "blocked"
+            if (abstention["abstain"] or not risk_gate["allow"])
+            else "guarded"
+            if escalation.get("escalate", False)
+            else "clear"
+        )
         return {
             "abstain": abstention["abstain"],
             "allow": risk_gate["allow"],

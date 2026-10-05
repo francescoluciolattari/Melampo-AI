@@ -77,7 +77,9 @@ class ComparisonReport:
             "outcome": self.outcome,
             "case_count": self.case_count,
             "faithfulness_delta": round(self.faithfulness_delta, 4),
-            "faithfulness_interval": [round(value, 4) for value in self.faithfulness_interval],
+            "faithfulness_interval": [
+                round(value, 4) for value in self.faithfulness_interval
+            ],
             "recall_delta": round(self.recall_delta, 4),
             "recall_interval": [round(value, 4) for value in self.recall_interval],
             "reasons": list(self.reasons),
@@ -139,7 +141,9 @@ class DualPathComparison:
                 recall_delta=recall_delta,
                 recall_interval=recall_interval,
                 case_count=len(results),
-                reasons=[f"fewer than {self.min_cases} paired cases; result not interpretable"],
+                reasons=[
+                    f"fewer than {self.min_cases} paired cases; result not interpretable"
+                ],
             )
 
         # Refutation arm one: faithfulness regression.
@@ -168,21 +172,33 @@ class DualPathComparison:
             reasons=reasons,
         )
 
-    def resolve_claim(self, report: ComparisonReport, program: FalsificationProgram, run_id: str) -> str | None:
+    def resolve_claim(
+        self, report: ComparisonReport, program: FalsificationProgram, run_id: str
+    ) -> str | None:
         """Record the outcome against the registered claim.
 
         An inconclusive run leaves the claim open, which is the correct state: a
         study that did not settle the question has not settled it.
         """
         if report.outcome == OUTCOME_REFUTED:
-            program.resolve(CLAIM_ID, CLAIM_REFUTED, evidence=f"{run_id}: {'; '.join(report.reasons)}")
+            program.resolve(
+                CLAIM_ID,
+                CLAIM_REFUTED,
+                evidence=f"{run_id}: {'; '.join(report.reasons)}",
+            )
             return CLAIM_REFUTED
         if report.outcome == OUTCOME_CORROBORATED:
-            program.resolve(CLAIM_ID, CLAIM_CORROBORATED, evidence=f"{run_id}: {'; '.join(report.reasons)}")
+            program.resolve(
+                CLAIM_ID,
+                CLAIM_CORROBORATED,
+                evidence=f"{run_id}: {'; '.join(report.reasons)}",
+            )
             return CLAIM_CORROBORATED
         return None
 
-    def _bootstrap_interval(self, values: Sequence[float], confidence: float = 0.95) -> tuple[float, float]:
+    def _bootstrap_interval(
+        self, values: Sequence[float], confidence: float = 0.95
+    ) -> tuple[float, float]:
         if not values:
             return (0.0, 0.0)
         if len(values) == 1:

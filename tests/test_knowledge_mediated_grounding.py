@@ -16,20 +16,56 @@ def _clinical_graph() -> InMemoryConceptGraph:
     """A fragment of clinical knowledge, weighted by how well attested each relation is."""
     return InMemoryConceptGraph.from_edges(
         [
-            ConceptEdge("pulmonary oedema", "causes", "bibasilar opacities", 0.9, "radiology_ontology"),
-            ConceptEdge("congestive cardiac failure", "causes", "pulmonary oedema", 0.9, "cardiology_ontology"),
-            ConceptEdge("pneumonia", "causes", "bibasilar opacities", 0.7, "radiology_ontology"),
-            ConceptEdge("renal failure", "causes", "pulmonary oedema", 0.6, "nephrology_ontology"),
-            ConceptEdge("congestive cardiac failure", "causes", "pleural effusion", 0.8, "cardiology_ontology"),
-            ConceptEdge("amyloidosis", "causes", "congestive cardiac failure", 0.2, "rare_disease_registry"),
-            ConceptEdge("amyloidosis", "causes", "renal failure", 0.25, "rare_disease_registry"),
+            ConceptEdge(
+                "pulmonary oedema",
+                "causes",
+                "bibasilar opacities",
+                0.9,
+                "radiology_ontology",
+            ),
+            ConceptEdge(
+                "congestive cardiac failure",
+                "causes",
+                "pulmonary oedema",
+                0.9,
+                "cardiology_ontology",
+            ),
+            ConceptEdge(
+                "pneumonia", "causes", "bibasilar opacities", 0.7, "radiology_ontology"
+            ),
+            ConceptEdge(
+                "renal failure",
+                "causes",
+                "pulmonary oedema",
+                0.6,
+                "nephrology_ontology",
+            ),
+            ConceptEdge(
+                "congestive cardiac failure",
+                "causes",
+                "pleural effusion",
+                0.8,
+                "cardiology_ontology",
+            ),
+            ConceptEdge(
+                "amyloidosis",
+                "causes",
+                "congestive cardiac failure",
+                0.2,
+                "rare_disease_registry",
+            ),
+            ConceptEdge(
+                "amyloidosis", "causes", "renal failure", 0.25, "rare_disease_registry"
+            ),
         ]
     )
 
 
 def test_path_search_finds_the_mechanism_between_finding_and_condition():
     graph = _clinical_graph()
-    paths = find_paths(graph, "bibasilar opacities", "congestive cardiac failure", max_hops=3)
+    paths = find_paths(
+        graph, "bibasilar opacities", "congestive cardiac failure", max_hops=3
+    )
 
     assert paths
     best = paths[0]
@@ -40,13 +76,17 @@ def test_path_search_finds_the_mechanism_between_finding_and_condition():
 
 def test_shared_mechanism_names_the_intermediate_rather_than_asserting_causation():
     graph = _clinical_graph()
-    mechanisms = shared_mechanisms(graph, "bibasilar opacities", "congestive cardiac failure")
+    mechanisms = shared_mechanisms(
+        graph, "bibasilar opacities", "congestive cardiac failure"
+    )
     assert [item.lower() for item in mechanisms] == ["pulmonary oedema"]
 
 
 def test_unrelated_concepts_have_no_path():
     graph = _clinical_graph()
-    assert find_paths(graph, "bibasilar opacities", "fractured radius", max_hops=3) == []
+    assert (
+        find_paths(graph, "bibasilar opacities", "fractured radius", max_hops=3) == []
+    )
 
 
 def test_search_is_bounded_so_the_check_can_still_fail():
@@ -57,7 +97,9 @@ def test_search_is_bounded_so_the_check_can_still_fail():
 
 def test_long_weak_paths_score_lower_than_short_strong_ones():
     graph = _clinical_graph()
-    strong = find_paths(graph, "bibasilar opacities", "congestive cardiac failure", max_hops=3)[0]
+    strong = find_paths(
+        graph, "bibasilar opacities", "congestive cardiac failure", max_hops=3
+    )[0]
     weak = find_paths(graph, "bibasilar opacities", "amyloidosis", max_hops=3)[0]
     assert weak.hops > strong.hops
     assert weak.strength < strong.strength
@@ -88,7 +130,9 @@ def test_the_mediated_relation_carries_its_path_as_provenance():
         {"text": "The radiograph shows bibasilar opacities."},
         {"text": "The patient has congestive cardiac failure."},
     ]
-    assessment = judge.assess("The bibasilar opacities are caused by congestive cardiac failure.", fragments)
+    assessment = judge.assess(
+        "The bibasilar opacities are caused by congestive cardiac failure.", fragments
+    )
 
     path = assessment.mediated_relations[0]["path"]
     assert path["kind"] == "concept_graph_path"
@@ -102,7 +146,9 @@ def test_relation_with_no_graph_path_remains_fabrication():
         {"text": "The radiograph shows bibasilar opacities."},
         {"text": "The patient sustained a fractured radius last year."},
     ]
-    assessment = judge.assess("The bibasilar opacities are caused by the fractured radius.", fragments)
+    assessment = judge.assess(
+        "The bibasilar opacities are caused by the fractured radius.", fragments
+    )
 
     assert "caused by" in assessment.unsupported_relations
     assert assessment.mediated_relations == []
@@ -115,7 +161,9 @@ def test_without_a_graph_the_judge_keeps_its_previous_conservative_behaviour():
         {"text": "The radiograph shows bibasilar opacities."},
         {"text": "The patient has congestive cardiac failure."},
     ]
-    assessment = judge.assess("The bibasilar opacities are caused by congestive cardiac failure.", fragments)
+    assessment = judge.assess(
+        "The bibasilar opacities are caused by congestive cardiac failure.", fragments
+    )
     assert "caused by" in assessment.unsupported_relations
 
 
@@ -123,13 +171,20 @@ def test_enumeration_finds_a_condition_the_case_never_raised():
     enumerator = MechanismEnumerator(graph=_clinical_graph(), max_hops=3)
     hypotheses = enumerator.enumerate(
         findings=["bibasilar opacities", "pleural effusion"],
-        candidate_conditions=["congestive cardiac failure", "pneumonia", "amyloidosis", "fractured radius"],
+        candidate_conditions=[
+            "congestive cardiac failure",
+            "pneumonia",
+            "amyloidosis",
+            "fractured radius",
+        ],
         already_considered=["pneumonia"],
     )
 
     labels = [item.condition for item in hypotheses]
     assert "congestive cardiac failure" in labels
-    assert "pneumonia" not in labels, "an already considered condition is not a hypothesis"
+    assert "pneumonia" not in labels, (
+        "an already considered condition is not a hypothesis"
+    )
     assert "fractured radius" not in labels, "no path means no hypothesis"
 
 

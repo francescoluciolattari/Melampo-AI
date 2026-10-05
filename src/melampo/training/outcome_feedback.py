@@ -12,7 +12,9 @@ from .nexus_candidate_store import NexusCandidateStore
 
 def _stable_feedback_id(case_id: str, payload: dict[str, Any]) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str)
-    digest = hashlib.sha256(f"feedback:{case_id}:{canonical}:{time.time()}".encode()).hexdigest()
+    digest = hashlib.sha256(
+        f"feedback:{case_id}:{canonical}:{time.time()}".encode()
+    ).hexdigest()
     return f"feedback:{case_id}:{digest[:16]}"
 
 
@@ -50,14 +52,34 @@ class OutcomeFeedbackIngestor:
 
     default_source: str = "reviewed_outcome"
 
-    def build_feedback(self, diagnostic_result: dict[str, Any], outcome: dict[str, Any]) -> OutcomeFeedbackRecord:
+    def build_feedback(
+        self, diagnostic_result: dict[str, Any], outcome: dict[str, Any]
+    ) -> OutcomeFeedbackRecord:
         diagnostic_result = diagnostic_result or {}
         outcome = outcome or {}
-        case_id = str(diagnostic_result.get("case_id", outcome.get("case_id", "unknown_case")))
-        result_label = str(diagnostic_result.get("result_label", diagnostic_result.get("top_hypothesis", {}).get("label", ""))).strip().lower()
-        accepted_labels = [str(label).strip().lower() for label in outcome.get("accepted_labels", [])]
+        case_id = str(
+            diagnostic_result.get("case_id", outcome.get("case_id", "unknown_case"))
+        )
+        result_label = (
+            str(
+                diagnostic_result.get(
+                    "result_label",
+                    diagnostic_result.get("top_hypothesis", {}).get("label", ""),
+                )
+            )
+            .strip()
+            .lower()
+        )
+        accepted_labels = [
+            str(label).strip().lower() for label in outcome.get("accepted_labels", [])
+        ]
         correct = bool(result_label and result_label in accepted_labels)
-        confidence = float(diagnostic_result.get("top_hypothesis", {}).get("score", outcome.get("confidence", 0.0)) or 0.0)
+        confidence = float(
+            diagnostic_result.get("top_hypothesis", {}).get(
+                "score", outcome.get("confidence", 0.0)
+            )
+            or 0.0
+        )
         review_status = "accepted" if correct else "needs_review"
         payload = {"diagnostic_result": diagnostic_result, "outcome": outcome}
         return OutcomeFeedbackRecord(
@@ -80,8 +102,12 @@ class OutcomeFeedbackIngestor:
         diagnostic_result: dict[str, Any],
         outcome: dict[str, Any],
     ) -> dict[str, Any]:
-        feedback = self.build_feedback(diagnostic_result=diagnostic_result, outcome=outcome)
-        return store.attach_outcome_feedback(candidate_id=candidate_id, feedback=feedback.as_dict())
+        feedback = self.build_feedback(
+            diagnostic_result=diagnostic_result, outcome=outcome
+        )
+        return store.attach_outcome_feedback(
+            candidate_id=candidate_id, feedback=feedback.as_dict()
+        )
 
     def consolidate_to_memory(
         self,

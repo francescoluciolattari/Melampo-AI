@@ -19,11 +19,15 @@ def _load_payload(path: str) -> dict[str, Any]:
     with payload_path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
     if not isinstance(data, dict):
-        raise ValueError("Prototype input JSON must contain an object at the top level.")
+        raise ValueError(
+            "Prototype input JSON must contain an object at the top level."
+        )
     return data
 
 
-def _attach_image_paths(payload: dict[str, Any], image_paths: list[str] | None) -> dict[str, Any]:
+def _attach_image_paths(
+    payload: dict[str, Any], image_paths: list[str] | None
+) -> dict[str, Any]:
     if not image_paths:
         return payload
     updated = dict(payload)
@@ -54,13 +58,20 @@ def _strip_raw(result: dict, include_raw: bool) -> dict:
     return stripped
 
 
-def _run_payloads(payloads: list[dict], runtime_profile: str, include_raw: bool, imaging_strategy: str | None = None) -> tuple[int, list[dict]]:
+def _run_payloads(
+    payloads: list[dict],
+    runtime_profile: str,
+    include_raw: bool,
+    imaging_strategy: str | None = None,
+) -> tuple[int, list[dict]]:
     from .prototype import run_prototype_case
 
     results = []
     exit_code = 0
     for payload in payloads:
-        result = run_prototype_case(payload, runtime_profile=runtime_profile, imaging_strategy=imaging_strategy)
+        result = run_prototype_case(
+            payload, runtime_profile=runtime_profile, imaging_strategy=imaging_strategy
+        )
         if result.get("status") != "completed":
             exit_code = 2
         results.append(_strip_raw(result, include_raw=include_raw))
@@ -77,8 +88,12 @@ def _add_imaging_strategy_argument(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run a Melampo clinical research prototype case.")
-    parser.add_argument("input_json", help="Path to a JSON file containing the clinical case payload.")
+    parser = argparse.ArgumentParser(
+        description="Run a Melampo clinical research prototype case."
+    )
+    parser.add_argument(
+        "input_json", help="Path to a JSON file containing the clinical case payload."
+    )
     parser.add_argument(
         "--runtime-profile",
         default="local_research",
@@ -101,8 +116,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_cxr_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run Melampo prototype cases from ChestX-ray14-style CSV metadata.")
-    parser.add_argument("input_csv", help="Path to a ChestX-ray14-style metadata CSV file.")
+    parser = argparse.ArgumentParser(
+        description="Run Melampo prototype cases from ChestX-ray14-style CSV metadata."
+    )
+    parser.add_argument(
+        "input_csv", help="Path to a ChestX-ray14-style metadata CSV file."
+    )
     parser.add_argument(
         "--runtime-profile",
         default="local_research",
@@ -110,8 +129,14 @@ def build_cxr_parser() -> argparse.ArgumentParser:
         help="Runtime profile to use for the prototype run.",
     )
     _add_imaging_strategy_argument(parser)
-    parser.add_argument("--limit", type=int, default=None, help="Maximum number of CSV rows to process.")
-    parser.add_argument("--image-root", default=None, help="Optional local image root used to build series_paths.")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Maximum number of CSV rows to process."
+    )
+    parser.add_argument(
+        "--image-root",
+        default=None,
+        help="Optional local image root used to build series_paths.",
+    )
     parser.add_argument(
         "--include-raw",
         action="store_true",
@@ -121,8 +146,12 @@ def build_cxr_parser() -> argparse.ArgumentParser:
 
 
 def build_openi_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run Melampo prototype cases from Open-i / Indiana-style CSV metadata.")
-    parser.add_argument("input_csv", help="Path to an Open-i / Indiana-style metadata CSV file.")
+    parser = argparse.ArgumentParser(
+        description="Run Melampo prototype cases from Open-i / Indiana-style CSV metadata."
+    )
+    parser.add_argument(
+        "input_csv", help="Path to an Open-i / Indiana-style metadata CSV file."
+    )
     parser.add_argument(
         "--runtime-profile",
         default="local_research",
@@ -130,8 +159,14 @@ def build_openi_parser() -> argparse.ArgumentParser:
         help="Runtime profile to use for the prototype run.",
     )
     _add_imaging_strategy_argument(parser)
-    parser.add_argument("--limit", type=int, default=None, help="Maximum number of CSV rows to process.")
-    parser.add_argument("--image-root", default=None, help="Optional local image root used to build series_paths.")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Maximum number of CSV rows to process."
+    )
+    parser.add_argument(
+        "--image-root",
+        default=None,
+        help="Optional local image root used to build series_paths.",
+    )
     parser.add_argument(
         "--include-raw",
         action="store_true",
@@ -141,17 +176,37 @@ def build_openi_parser() -> argparse.ArgumentParser:
 
 
 def build_weaviate_schema_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Inspect or prepare Melampo's Weaviate semantic-memory schema.")
-    parser.add_argument("--endpoint", default=None, help="Optional Weaviate endpoint. No network call is made unless --execute is passed.")
-    parser.add_argument("--api-key-env", default=None, help="Optional environment variable name containing the Weaviate API key.")
-    parser.add_argument("--execute", action="store_true", help="Attempt live schema materialization. Requires an infrastructure subclass in production.")
-    parser.add_argument("--output", default=None, help="Optional path to write schema JSON.")
+    parser = argparse.ArgumentParser(
+        description="Inspect or prepare Melampo's Weaviate semantic-memory schema."
+    )
+    parser.add_argument(
+        "--endpoint",
+        default=None,
+        help="Optional Weaviate endpoint. No network call is made unless --execute is passed.",
+    )
+    parser.add_argument(
+        "--api-key-env",
+        default=None,
+        help="Optional environment variable name containing the Weaviate API key.",
+    )
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Attempt live schema materialization. Requires an infrastructure subclass in production.",
+    )
+    parser.add_argument(
+        "--output", default=None, help="Optional path to write schema JSON."
+    )
     return parser
 
 
 def build_decision_record_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Print Melampo's enterprise model decision record.")
-    parser.add_argument("--output", default=None, help="Optional path to write decision record JSON.")
+    parser = argparse.ArgumentParser(
+        description="Print Melampo's enterprise model decision record."
+    )
+    parser.add_argument(
+        "--output", default=None, help="Optional path to write decision record JSON."
+    )
     return parser
 
 
@@ -169,7 +224,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     payload = _load_payload(args.input_json)
     payload = _attach_image_paths(payload, args.image_path)
-    result = run_prototype_case(payload, runtime_profile=args.runtime_profile, imaging_strategy=args.imaging_strategy)
+    result = run_prototype_case(
+        payload,
+        runtime_profile=args.runtime_profile,
+        imaging_strategy=args.imaging_strategy,
+    )
     result = _strip_raw(result, include_raw=args.include_raw)
     print(json.dumps(result, indent=2, sort_keys=True, default=str))
     return 0 if result.get("status") == "completed" else 2
@@ -241,7 +300,11 @@ def main_weaviate_schema(argv: list[str] | None = None) -> int:
             dry_run=not bool(args.execute),
         )
     )
-    payload = adapter.materialize_schema() if args.execute else adapter.prepare_schema_materialization()
+    payload = (
+        adapter.materialize_schema()
+        if args.execute
+        else adapter.prepare_schema_materialization()
+    )
     _emit_json(payload, output_path=args.output)
     return 0
 

@@ -89,11 +89,19 @@ class EnumerationResult:
     def recall(self) -> float:
         """Of cases where a conclusion was expected, how often the confirmed
         condition appeared in the spread at all."""
-        return self.confirmed_in_spread / self.conclusive_expected if self.conclusive_expected else 0.0
+        return (
+            self.confirmed_in_spread / self.conclusive_expected
+            if self.conclusive_expected
+            else 0.0
+        )
 
     @property
     def top_rank_rate(self) -> float:
-        return self.confirmed_ranked_first / self.conclusive_expected if self.conclusive_expected else 0.0
+        return (
+            self.confirmed_ranked_first / self.conclusive_expected
+            if self.conclusive_expected
+            else 0.0
+        )
 
     @property
     def mean_rank(self) -> float:
@@ -103,7 +111,11 @@ class EnumerationResult:
         for absent ones would blend two different failures into one number,
         which `recall` already reports separately and more honestly.
         """
-        return sum(self.rank_positions) / len(self.rank_positions) if self.rank_positions else 0.0
+        return (
+            sum(self.rank_positions) / len(self.rank_positions)
+            if self.rank_positions
+            else 0.0
+        )
 
     @property
     def restraint_rate(self) -> float:
@@ -114,11 +126,19 @@ class EnumerationResult:
         on recall and is wrong exactly where a clinician most needs it to
         say so.
         """
-        return self.correctly_abstained / self.restraint_expected if self.restraint_expected else 0.0
+        return (
+            self.correctly_abstained / self.restraint_expected
+            if self.restraint_expected
+            else 0.0
+        )
 
     @property
     def question_quality(self) -> float:
-        return self.questions_named_real_terms / self.correctly_abstained if self.correctly_abstained else 0.0
+        return (
+            self.questions_named_real_terms / self.correctly_abstained
+            if self.correctly_abstained
+            else 0.0
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -155,7 +175,11 @@ def bench_enumeration(
 
         if case.graph_should_support_conclusion and case.confirmed_condition:
             result.conclusive_expected += 1
-            rank = _rank_of(outcome, case.confirmed_condition) if outcome.mode == MODE_HYPOTHESES else None
+            rank = (
+                _rank_of(outcome, case.confirmed_condition)
+                if outcome.mode == MODE_HYPOTHESES
+                else None
+            )
             if rank is not None:
                 result.confirmed_in_spread += 1
                 result.rank_positions.append(rank)
@@ -175,7 +199,8 @@ def bench_enumeration(
                 # this case is substantive; one naming neither is filler that
                 # would look identical in a count-only metric.
                 named = any(
-                    question.finding in case.findings and question.condition in case.candidate_conditions
+                    question.finding in case.findings
+                    and question.condition in case.candidate_conditions
                     for question in outcome.open_questions
                 )
                 if named:
@@ -217,7 +242,11 @@ DIFFERENTIAL_GRAPH_EDGES = (
 DIFFERENTIAL_CASES = (
     DifferentialCase(
         "sarcoid_spread",
-        findings=("bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"),
+        findings=(
+            "bilateral hilar lymphadenopathy",
+            "hypercalcaemia",
+            "erythema nodosum",
+        ),
         candidate_conditions=("sarcoidosis", "tuberculosis", "lymphoma"),
         confirmed_condition="sarcoidosis",
     ),

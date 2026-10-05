@@ -47,12 +47,17 @@ def test_a_capture_is_a_miss_by_the_differential_caught_by_the_branch():
 
 def test_a_diagnosis_the_differential_already_had_is_not_a_capture():
     """The branch adds nothing where the differential was already right."""
-    outcome = _outcome("c1", "cardiac failure", ["cardiac failure"], ["cardiac failure"])
+    outcome = _outcome(
+        "c1", "cardiac failure", ["cardiac failure"], ["cardiac failure"]
+    )
     assert outcome.is_capture is False
 
 
 def test_a_case_neither_caught_is_not_a_capture():
-    assert _outcome("c1", "amyloidosis", ["cardiac failure"], ["sarcoidosis"]).is_capture is False
+    assert (
+        _outcome("c1", "amyloidosis", ["cardiac failure"], ["sarcoidosis"]).is_capture
+        is False
+    )
 
 
 def test_the_rate_is_computed_over_the_cases_the_differential_missed():
@@ -68,7 +73,10 @@ def test_the_rate_is_computed_over_the_cases_the_differential_missed():
 
 
 def test_matching_ignores_case_and_spacing():
-    assert _outcome("c1", "Cardiac  Failure", ["x"], ["cardiac failure"]).is_capture is True
+    assert (
+        _outcome("c1", "Cardiac  Failure", ["x"], ["cardiac failure"]).is_capture
+        is True
+    )
 
 
 # --------------------------------------------------------------------------
@@ -107,8 +115,12 @@ def test_a_branch_that_never_captures_has_infinite_cost():
 def test_the_base_rate_is_the_floor_a_capture_rate_must_clear():
     """A small candidate set makes any selector look effective."""
     cases = [
-        EvaluationCase("c1", PRESENTATION, "amyloidosis", ("amyloidosis", "sarcoidosis")),
-        EvaluationCase("c2", PRESENTATION, "sarcoidosis", ("amyloidosis", "sarcoidosis")),
+        EvaluationCase(
+            "c1", PRESENTATION, "amyloidosis", ("amyloidosis", "sarcoidosis")
+        ),
+        EvaluationCase(
+            "c2", PRESENTATION, "sarcoidosis", ("amyloidosis", "sarcoidosis")
+        ),
     ]
     rate = estimate_base_rate(cases, hypotheses_per_case=1, trials=200)
     assert 0.35 < rate < 0.65, "one draw from two candidates lands about half the time"
@@ -120,9 +132,14 @@ def test_the_base_rate_is_deterministic():
 
 
 def test_a_report_states_whether_it_beat_chance():
-    report = evaluate([_outcome("c1", "amyloidosis", ["x"], ["amyloidosis"])], base_rate=0.2)
+    report = evaluate(
+        [_outcome("c1", "amyloidosis", ["x"], ["amyloidosis"])], base_rate=0.2
+    )
     assert report.exceeds_base_rate() is True
-    assert evaluate([_outcome("c1", "a", ["x"], ["b"])], base_rate=0.2).exceeds_base_rate() is False
+    assert (
+        evaluate([_outcome("c1", "a", ["x"], ["b"])], base_rate=0.2).exceeds_base_rate()
+        is False
+    )
 
 
 def test_without_a_base_rate_the_verdict_is_withheld():
@@ -131,8 +148,12 @@ def test_without_a_base_rate_the_verdict_is_withheld():
 
 def test_capture_at_k_requires_the_hypothesis_to_be_actionable():
     """Present but unactionable has not done the work."""
-    actionable = _outcome("c1", "amyloidosis", ["x"], ["amyloidosis"], tests=["tissue biopsy"])
-    inert = _outcome("c2", "amyloidosis", ["x"], ["amyloidosis"], tests=["chest radiograph"])
+    actionable = _outcome(
+        "c1", "amyloidosis", ["x"], ["amyloidosis"], tests=["tissue biopsy"]
+    )
+    inert = _outcome(
+        "c2", "amyloidosis", ["x"], ["amyloidosis"], tests=["chest radiograph"]
+    )
     assert capture_at_k(actionable, "tissue biopsy") is True
     assert capture_at_k(inert, "tissue biopsy") is False
 
@@ -144,14 +165,28 @@ def test_capture_at_k_requires_the_hypothesis_to_be_actionable():
 
 def test_a_presentation_containing_its_own_diagnosis_is_rejected():
     report = load_records(
-        [{"case_id": "c1", "presentation": PRESENTATION + " Cardiac amyloidosis was confirmed.", "diagnosis": "cardiac amyloidosis"}]
+        [
+            {
+                "case_id": "c1",
+                "presentation": PRESENTATION + " Cardiac amyloidosis was confirmed.",
+                "diagnosis": "cardiac amyloidosis",
+            }
+        ]
     )
     assert report.cases == []
     assert report.rejected[0][1] == REJECT_LEAKED_DIAGNOSIS
 
 
 def test_a_clean_case_loads():
-    report = load_records([{"case_id": "c1", "presentation": PRESENTATION, "diagnosis": "cardiac amyloidosis"}])
+    report = load_records(
+        [
+            {
+                "case_id": "c1",
+                "presentation": PRESENTATION,
+                "diagnosis": "cardiac amyloidosis",
+            }
+        ]
+    )
     assert len(report.cases) == 1
     assert report.cases[0].documented_diagnosis == "cardiac amyloidosis"
 
@@ -159,7 +194,13 @@ def test_a_clean_case_loads():
 def test_shared_vocabulary_does_not_reject_a_usable_case():
     """A diagnosis and a presentation naturally share words."""
     report = load_records(
-        [{"case_id": "c1", "presentation": PRESENTATION, "diagnosis": "pleural effusion of cardiac origin"}]
+        [
+            {
+                "case_id": "c1",
+                "presentation": PRESENTATION,
+                "diagnosis": "pleural effusion of cardiac origin",
+            }
+        ]
     )
     assert len(report.cases) == 1
 
@@ -190,12 +231,16 @@ def test_malformed_json_lines_are_skipped_rather_than_raising():
 
 
 def test_the_load_report_summarises_what_was_rejected():
-    report = load_records([{"case_id": "c1", "presentation": "short", "diagnosis": "x"}])
+    report = load_records(
+        [{"case_id": "c1", "presentation": "short", "diagnosis": "x"}]
+    )
     assert report.as_dict()["rejected_by_reason"][REJECT_TOO_SHORT] == 1
 
 
 def test_a_case_report_is_split_before_the_section_that_reveals_the_outcome():
-    text = PRESENTATION + "\n\nFinal diagnosis: cardiac amyloidosis confirmed on biopsy."
+    text = (
+        PRESENTATION + "\n\nFinal diagnosis: cardiac amyloidosis confirmed on biopsy."
+    )
     presentation, revealed = split_presentation(text)
     assert "amyloidosis" not in presentation.lower()
     assert "amyloidosis" in revealed.lower()

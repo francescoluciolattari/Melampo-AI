@@ -6,7 +6,9 @@ from melampo.prototype import run_prototype_case
 
 def test_chestxray14_loader_converts_csv_rows_to_prototype_payloads():
     loader = ChestXray14CsvLoader()
-    payloads = loader.load_csv(Path("examples/chestxray14_metadata_sample.csv"), limit=1)
+    payloads = loader.load_csv(
+        Path("examples/chestxray14_metadata_sample.csv"), limit=1
+    )
     assert len(payloads) == 1
     payload = payloads[0]
     assert payload["case_id"] == "cxr14-synthetic_000001"

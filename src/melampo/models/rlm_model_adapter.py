@@ -140,7 +140,7 @@ DEFAULT_CANDIDATES = (
         licence=LICENCE_APACHE_2,
         note=(
             "Slug corrected after the first live run: the original "
-            "\"qwen-3.5-72b-instruct\" was invented and never existed as a real model -- "
+            '"qwen-3.5-72b-instruct" was invented and never existed as a real model -- '
             "there is no 72B-parameter Qwen 3.5 variant. Verified against OpenRouter's own "
             "listing: qwen/qwen3.5-plus-02-15."
         ),
@@ -157,7 +157,7 @@ DEFAULT_CANDIDATES = (
         licence=LICENCE_APACHE_2,
         note=(
             "Current Qwen flagship as of September 2026 (2.4T-parameter MoE). The generic "
-            "\"qwen/qwen3.8-max\" slug is used rather than a dated snapshot, so it tracks "
+            '"qwen/qwen3.8-max" slug is used rather than a dated snapshot, so it tracks '
             "Alibaba's own updates instead of going stale the way the original 3.5 slug did."
         ),
     ),
@@ -261,8 +261,8 @@ DEFAULT_CANDIDATES = (
             "Licence needs review before shipping: not directly confirmed for this specific "
             "release, marked unverified rather than assumed to match glm-5's MIT. Newer "
             "flagship than glm-5, added after a live run raised the completion-rate question "
-            "this bench exists to answer -- its own listing states reasoning \"is always on "
-            "and cannot be disabled\", directly relevant to why some candidates used their "
+            'this bench exists to answer -- its own listing states reasoning "is always on '
+            'and cannot be disabled", directly relevant to why some candidates used their '
             "full iteration budget without ever finalising."
         ),
     ),
@@ -361,7 +361,7 @@ DEFAULT_CANDIDATES = (
         licence=LICENCE_NVIDIA_OPEN,
         note=(
             "Licence needs review: open weights under NVIDIA's own terms, not Apache/MIT. "
-            "Its own description names \"cross-document reasoning\" and \"multi-step task "
+            'Its own description names "cross-document reasoning" and "multi-step task '
             "planning\" specifically -- closer to this bench's actual demands than most "
             "candidates' general capability marketing. 120B total / 12B active MoE, verified "
             "native tool-calling support."
@@ -433,7 +433,9 @@ class RootModelAdapter:
     def report(self) -> dict[str, Any]:
         return {
             "calls": len(self.calls),
-            "not_called": sum(1 for item in self.calls if item["status"] != "completed"),
+            "not_called": sum(
+                1 for item in self.calls if item["status"] != "completed"
+            ),
         }
 
 

@@ -53,12 +53,20 @@ class RoutingDecision:
         return {
             "action": self.action,
             "case_id": self.case_id,
-            "existing_candidate_id": self.existing_record.candidate_id if self.existing_record else None,
+            "existing_candidate_id": self.existing_record.candidate_id
+            if self.existing_record
+            else None,
             "merged_report_text": self.merged_report_text,
         }
 
 
-def merge_report_text(previous_text: str, new_text: str, *, new_date: str | None = None, previous_date: str | None = None) -> str:
+def merge_report_text(
+    previous_text: str,
+    new_text: str,
+    *,
+    new_date: str | None = None,
+    previous_date: str | None = None,
+) -> str:
     """The new report first, referencing the one before it, which follows below -- not a replacement.
 
     Each call wraps the entire prior text under a "previous report"
@@ -69,7 +77,11 @@ def merge_report_text(previous_text: str, new_text: str, *, new_date: str | None
     new_date = new_date or datetime.now(UTC).date().isoformat()
     if not previous_text.strip():
         return f"[Aggiornamento del {new_date}] {new_text}"
-    reference = f" (fa riferimento al referto del {previous_date})" if previous_date else " (fa riferimento al referto precedente)"
+    reference = (
+        f" (fa riferimento al referto del {previous_date})"
+        if previous_date
+        else " (fa riferimento al referto precedente)"
+    )
     return (
         f"[Aggiornamento del {new_date}]{reference}\n{new_text}\n\n"
         f"--- Referto precedente ---\n{previous_text}"
@@ -77,7 +89,11 @@ def merge_report_text(previous_text: str, new_text: str, *, new_date: str | None
 
 
 def route_payload(
-    payload: dict[str, Any], store: NexusCandidateStore, *, graph: Any = None, password: str | None = None
+    payload: dict[str, Any],
+    store: NexusCandidateStore,
+    *,
+    graph: Any = None,
+    password: str | None = None,
 ) -> RoutingDecision:
     """Whether this payload is a new case, more data for a pending one, or a confirmation for one.
 
@@ -103,11 +119,15 @@ def route_payload(
     more diagnostic data arrived instead.
     """
     case_id = str(payload.get("case_id") or "")
-    existing = store.find_by_case_id(case_id, statuses=PENDING_STATUSES) if case_id else None
+    existing = (
+        store.find_by_case_id(case_id, statuses=PENDING_STATUSES) if case_id else None
+    )
 
     if existing is None and graph is not None and password:
         resolved_graph = graph() if callable(graph) else graph
-        matches = find_matching_pending_records(payload, store, resolved_graph, password, statuses=PENDING_STATUSES)
+        matches = find_matching_pending_records(
+            payload, store, resolved_graph, password, statuses=PENDING_STATUSES
+        )
         if matches:
             existing = max(matches, key=lambda record: record.created_at)
             case_id = existing.case_id
@@ -126,16 +146,32 @@ def route_payload(
         return RoutingDecision(action="new_case", case_id=case_id)
 
     if payload.get("confirmed_diagnosis"):
-        return RoutingDecision(action="confirm_and_train", case_id=case_id, existing_record=existing)
+        return RoutingDecision(
+            action="confirm_and_train", case_id=case_id, existing_record=existing
+        )
 
-    previous_report = str(existing.payload.get("case_context", {}).get("report_text", ""))
+    previous_report = str(
+        existing.payload.get("case_context", {}).get("report_text", "")
+    )
     previous_date = existing.payload.get("report_date")
-    merged = merge_report_text(previous_report, str(payload.get("report_text", "")), previous_date=previous_date)
-    return RoutingDecision(action="merge_and_rerun", case_id=case_id, existing_record=existing, merged_report_text=merged)
+    merged = merge_report_text(
+        previous_report,
+        str(payload.get("report_text", "")),
+        previous_date=previous_date,
+    )
+    return RoutingDecision(
+        action="merge_and_rerun",
+        case_id=case_id,
+        existing_record=existing,
+        merged_report_text=merged,
+    )
 
 
 def sweep_expired_pending_cases(
-    store: NexusCandidateStore, *, retention_seconds: float = DEFAULT_RETENTION_SECONDS, now: float | None = None
+    store: NexusCandidateStore,
+    *,
+    retention_seconds: float = DEFAULT_RETENTION_SECONDS,
+    now: float | None = None,
 ) -> list[str]:
     """Delete every pending case older than the retention window with no confirmation -- returns the deleted candidate_ids.
 

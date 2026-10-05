@@ -29,8 +29,12 @@ def _graph_with_specificity():
             ConceptEdge("condition c", "has_phenotype", "fatigue", 0.5),
             ConceptEdge("condition d", "has_phenotype", "fatigue", 0.5),
             ConceptEdge("rare disease x", "has_phenotype", "fatigue", 0.5),
-            ConceptEdge("rare disease x", "has_phenotype", "distinctive rare finding", 0.5),
-            ConceptEdge("condition e", "has_phenotype", "distinctive rare finding", 0.5),
+            ConceptEdge(
+                "rare disease x", "has_phenotype", "distinctive rare finding", 0.5
+            ),
+            ConceptEdge(
+                "condition e", "has_phenotype", "distinctive rare finding", 0.5
+            ),
         ]
     )
 
@@ -64,7 +68,9 @@ def test_two_candidates_sharing_the_same_findings_tie_on_score():
         relation="manifests_as",
     )
 
-    assert ranked[0].condition == "sarcoidosis", "sarcoidosis shares all three, lymphoma shares fewer"
+    assert ranked[0].condition == "sarcoidosis", (
+        "sarcoidosis shares all three, lymphoma shares fewer"
+    )
 
 
 def test_using_the_wrong_relation_name_scores_everything_zero_not_an_error():
@@ -76,7 +82,11 @@ def test_using_the_wrong_relation_name_scores_everything_zero_not_an_error():
     table = InformationContentTable.from_graph_structure(graph)
 
     ranked = rank_differential(
-        ["bilateral hilar lymphadenopathy"], ["sarcoidosis", "lymphoma"], graph, table, relation="has_phenotype"
+        ["bilateral hilar lymphadenopathy"],
+        ["sarcoidosis", "lymphoma"],
+        graph,
+        table,
+        relation="has_phenotype",
     )
 
     assert all(item.specificity_score == 0.0 for item in ranked)
@@ -104,7 +114,9 @@ def test_coverage_and_specificity_are_reported_separately():
     graph = _graph_with_specificity()
     table = InformationContentTable.from_graph_structure(graph)
 
-    ranked = rank_differential(["fatigue", "distinctive rare finding"], ["rare disease x"], graph, table)
+    ranked = rank_differential(
+        ["fatigue", "distinctive rare finding"], ["rare disease x"], graph, table
+    )
 
     assert ranked[0].coverage == 1.0
     assert len(ranked[0].matched_findings) == 2
@@ -114,7 +126,9 @@ def test_unmatched_findings_are_reported_not_silently_dropped():
     graph = _graph_with_specificity()
     table = InformationContentTable.from_graph_structure(graph)
 
-    ranked = rank_differential(["fatigue", "distinctive rare finding"], ["condition a"], graph, table)
+    ranked = rank_differential(
+        ["fatigue", "distinctive rare finding"], ["condition a"], graph, table
+    )
 
     assert ranked[0].unmatched_findings == ("distinctive rare finding",)
 
@@ -126,7 +140,9 @@ def test_profile_size_is_reported_not_folded_into_the_score():
     graph = _graph_with_specificity()
     table = InformationContentTable.from_graph_structure(graph)
 
-    ranked = rank_differential(["distinctive rare finding"], ["rare disease x", "condition e"], graph, table)
+    ranked = rank_differential(
+        ["distinctive rare finding"], ["rare disease x", "condition e"], graph, table
+    )
 
     sizes = {item.condition: item.profile_size for item in ranked}
     assert sizes["rare disease x"] == 2
@@ -137,7 +153,9 @@ def test_a_candidate_matching_nothing_still_appears_with_a_zero_score():
     graph = _graph_with_specificity()
     table = InformationContentTable.from_graph_structure(graph)
 
-    ranked = rank_differential(["distinctive rare finding"], ["common cold"], graph, table)
+    ranked = rank_differential(
+        ["distinctive rare finding"], ["common cold"], graph, table
+    )
 
     assert ranked[0].specificity_score == 0.0
     assert ranked[0].coverage == 0.0
@@ -146,7 +164,9 @@ def test_a_candidate_matching_nothing_still_appears_with_a_zero_score():
 def test_an_unresolvable_finding_does_not_crash_ranking():
     graph = _graph_with_specificity()
     table = InformationContentTable.from_graph_structure(graph)
-    ranked = rank_differential(["nothing the graph has heard of"], ["condition a"], graph, table)
+    ranked = rank_differential(
+        ["nothing the graph has heard of"], ["condition a"], graph, table
+    )
     assert ranked[0].specificity_score == 0.0
 
 
@@ -157,7 +177,9 @@ def test_an_unresolvable_finding_does_not_crash_ranking():
 
 def test_a_rename_is_detected_between_two_releases():
     renames, obsoletions = diff_releases(
-        {"HP:0000256": "Macrocephaly"}, {"HP:0000256": "Macrocephaly, congenital"}, release="v2026-09-01"
+        {"HP:0000256": "Macrocephaly"},
+        {"HP:0000256": "Macrocephaly, congenital"},
+        release="v2026-09-01",
     )
     assert renames[0].old_name == "Macrocephaly"
     assert renames[0].new_name == "Macrocephaly, congenital"
@@ -165,13 +187,18 @@ def test_a_rename_is_detected_between_two_releases():
 
 
 def test_an_unchanged_term_produces_no_rename():
-    renames, _ = diff_releases({"HP:1": "Same name"}, {"HP:1": "Same name"}, release="v1")
+    renames, _ = diff_releases(
+        {"HP:1": "Same name"}, {"HP:1": "Same name"}, release="v1"
+    )
     assert renames == []
 
 
 def test_an_obsoleted_term_is_recorded_with_its_replacement():
     renames, obsoletions = diff_releases(
-        {"HP:0009999": "Old finding"}, {}, current_obsolete={"HP:0009999": "HP:0000257"}, release="v2026-09-01"
+        {"HP:0009999": "Old finding"},
+        {},
+        current_obsolete={"HP:0009999": "HP:0000257"},
+        release="v2026-09-01",
     )
     assert renames == []
     assert obsoletions[0].replaced_by == "HP:0000257"
@@ -193,7 +220,9 @@ def test_history_accumulates_across_more_than_one_rename():
 def test_current_id_for_follows_an_obsoletion_to_its_replacement():
     with tempfile.TemporaryDirectory() as directory:
         store = TermHistoryStore(Path(directory))
-        store.append_obsoletions([TermObsoletion("HP:0009999", "Old finding", "HP:0000257", "v1")])
+        store.append_obsoletions(
+            [TermObsoletion("HP:0009999", "Old finding", "HP:0000257", "v1")]
+        )
 
         assert store.current_id_for("Old finding") == "HP:0000257"
         assert store.current_id_for("HP:0009999") == "HP:0000257"
@@ -202,7 +231,9 @@ def test_current_id_for_follows_an_obsoletion_to_its_replacement():
 def test_an_obsoletion_with_no_replacement_returns_none_not_a_crash():
     with tempfile.TemporaryDirectory() as directory:
         store = TermHistoryStore(Path(directory))
-        store.append_obsoletions([TermObsoletion("HP:0009999", "Old finding", None, "v1")])
+        store.append_obsoletions(
+            [TermObsoletion("HP:0009999", "Old finding", None, "v1")]
+        )
         assert store.current_id_for("Old finding") is None
 
 
@@ -237,10 +268,16 @@ def test_a_historical_name_resolves_through_the_cascade_deterministically():
     )
     with tempfile.TemporaryDirectory() as directory:
         history = TermHistoryStore(Path(directory))
-        history.append_renames([TermRename("HP:0000256", "Macrocephaly", "Macrocephaly, congenital", "v1")])
+        history.append_renames(
+            [TermRename("HP:0000256", "Macrocephaly", "Macrocephaly, congenital", "v1")]
+        )
 
-        cascade = NormalisationCascade(graph=graph, synonym_index=index, term_history=history)
-        result = cascade.resolve("macrocephaly", candidates=["Macrocephaly, congenital"])
+        cascade = NormalisationCascade(
+            graph=graph, synonym_index=index, term_history=history
+        )
+        result = cascade.resolve(
+            "macrocephaly", candidates=["Macrocephaly, congenital"]
+        )
 
     assert result.concept == "Macrocephaly, congenital"
     assert result.tier == "lexical"

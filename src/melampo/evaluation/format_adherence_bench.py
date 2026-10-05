@@ -85,7 +85,6 @@ LATENCY_CIRCUIT_BREAKER_WINDOW = 3
 LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION = 0.75
 
 
-
 @dataclass(frozen=True)
 class BenchCase:
     case_id: str
@@ -149,7 +148,9 @@ class ModelResult:
         A high share means the prompt is landing and the parser is strict; a low
         share means the model is not attempting actions at all.
         """
-        return len(self.near_misses) / self.rejected_lines if self.rejected_lines else 0.0
+        return (
+            len(self.near_misses) / self.rejected_lines if self.rejected_lines else 0.0
+        )
 
     @property
     def mean_iterations_on_completion(self) -> float | None:
@@ -218,7 +219,9 @@ class ModelResult:
             "prose_examples": self.prose_lines[:5],
             "stop_reasons": dict(sorted(self.stop_reasons.items())),
             "mean_iterations_on_completion": (
-                None if self.mean_iterations_on_completion is None else round(self.mean_iterations_on_completion, 2)
+                None
+                if self.mean_iterations_on_completion is None
+                else round(self.mean_iterations_on_completion, 2)
             ),
             "mean_iterations_on_incompletion": (
                 None
@@ -227,8 +230,12 @@ class ModelResult:
             ),
             "budget_bound": self.budget_bound,
             "all_cases_completed": self.all_cases_completed,
-            "mean_case_seconds": None if self.mean_case_seconds is None else round(self.mean_case_seconds, 1),
-            "max_case_seconds": None if self.max_case_seconds is None else round(self.max_case_seconds, 1),
+            "mean_case_seconds": None
+            if self.mean_case_seconds is None
+            else round(self.mean_case_seconds, 1),
+            "max_case_seconds": None
+            if self.max_case_seconds is None
+            else round(self.max_case_seconds, 1),
             "abandoned_for_latency": self.abandoned_for_latency,
             "cases_skipped_for_latency": self.cases_skipped_for_latency,
         }
@@ -248,13 +255,17 @@ class BenchReport:
             key=lambda item: (
                 -item.adherence,
                 -item.completion_rate,
-                item.mean_case_seconds if item.mean_case_seconds is not None else float("inf"),
+                item.mean_case_seconds
+                if item.mean_case_seconds is not None
+                else float("inf"),
             ),
         )
 
     def verdict(self) -> str:
         """State what the numbers decide, including when they decide nothing."""
-        return compute_verdict([item.as_dict() for item in self.results], self.adherence_target)
+        return compute_verdict(
+            [item.as_dict() for item in self.results], self.adherence_target
+        )
 
     def as_dict(self) -> dict[str, Any]:
         """The full payload the script writes to the results file.
@@ -301,17 +312,24 @@ def rank_result_dicts(results: Sequence[dict[str, Any]]) -> list[dict[str, Any]]
     consistent with adherence/completion still deciding the primary order
     regardless.
     """
+
     def _tiebreak_seconds(item: dict[str, Any]) -> float:
         value = item.get("mean_case_seconds")
         return value if isinstance(value, (int, float)) else float("inf")
 
     return sorted(
         results,
-        key=lambda item: (-item["adherence"], -item["completion_rate"], _tiebreak_seconds(item)),
+        key=lambda item: (
+            -item["adherence"],
+            -item["completion_rate"],
+            _tiebreak_seconds(item),
+        ),
     )
 
 
-def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float = 0.95) -> str:
+def compute_verdict(
+    results: Sequence[dict[str, Any]], adherence_target: float = 0.95
+) -> str:
     """The verdict logic, as a pure function over result dicts.
 
     Extracted from ``BenchReport.verdict()`` so a merge step recombining
@@ -328,7 +346,8 @@ def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float =
         tied = [
             item
             for item in ranked
-            if item["adherence"] == best["adherence"] and item["completion_rate"] == best["completion_rate"]
+            if item["adherence"] == best["adherence"]
+            and item["completion_rate"] == best["completion_rate"]
         ]
         if len(tied) > 1:
             # Several candidates reached the same adherence and completion --
@@ -349,7 +368,9 @@ def compute_verdict(results: Sequence[dict[str, Any]], adherence_target: float =
             f"({best['adherence']:.0%}); the choice is settled on these cases"
         )
 
-    producing_output = [item for item in results if item["accepted_lines"] or item["rejected_lines"]]
+    producing_output = [
+        item for item in results if item["accepted_lines"] or item["rejected_lines"]
+    ]
     if not producing_output:
         # Every candidate returned nothing at all: this is not a format
         # problem, since there is no output to have a format. A silent
@@ -394,7 +415,9 @@ def bench_model(
 
     for case in cases:
         budget = budget_factory()
-        trajectory = engine.run(case.case_id, case.documents, case.question, budget=budget)
+        trajectory = engine.run(
+            case.case_id, case.documents, case.question, budget=budget
+        )
         result.runs += 1
         used = trajectory.budget.get("iterations", 0)
         if trajectory.stop_reason == STOP_FINAL:
@@ -412,7 +435,9 @@ def bench_model(
         # see the module-level comment on LATENCY_CIRCUIT_BREAKER_THRESHOLD_FRACTION
         # for why a fixed threshold would be miscalibrated for one of the two
         # workflows that call this with different per-case wall-clock budgets.
-        ceiling = max(budget.max_wall_clock_seconds, 1e-9)  # guard a pathological zero-length budget
+        ceiling = max(
+            budget.max_wall_clock_seconds, 1e-9
+        )  # guard a pathological zero-length budget
         result.case_latency_ratios.append(elapsed / ceiling)
 
         recent = result.case_latency_ratios[-LATENCY_CIRCUIT_BREAKER_WINDOW:]
@@ -428,7 +453,9 @@ def bench_model(
         result.accepted_lines += len(actions)
         result.rejected_lines += len(ignored)
         for line in ignored:
-            (result.near_misses if _NEAR_MISS.match(line) else result.prose_lines).append(line)
+            (
+                result.near_misses if _NEAR_MISS.match(line) else result.prose_lines
+            ).append(line)
     return result
 
 
@@ -442,11 +469,15 @@ def bench_models(
     """Run every candidate over the same cases, so the comparison is paired."""
     report = BenchReport(adherence_target=adherence_target)
     for name, model in candidates.items():
-        report.results.append(bench_model(name, model, cases, budget_factory=budget_factory))
+        report.results.append(
+            bench_model(name, model, cases, budget_factory=budget_factory)
+        )
     return report
 
 
-def _counting(root_model: Callable[[str], str], collector: list[str]) -> Callable[[str], str]:
+def _counting(
+    root_model: Callable[[str], str], collector: list[str]
+) -> Callable[[str], str]:
     """Wrap a model so every raw output is kept for parsing statistics."""
 
     def _wrapped(prompt: str) -> str:

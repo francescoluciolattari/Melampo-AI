@@ -36,7 +36,17 @@ def _ref(mondo_id, specialty="x"):
 
 
 def _link(source, mondo_id, symptom, hpo="", relation=RELATION_HAS_FINDING, tier=1):
-    return SymptomLink(source, "id", "d", symptom, symptom, relation, tier, mondo_id=mondo_id, hpo_id=hpo)
+    return SymptomLink(
+        source,
+        "id",
+        "d",
+        symptom,
+        symptom,
+        relation,
+        tier,
+        mondo_id=mondo_id,
+        hpo_id=hpo,
+    )
 
 
 def test_measure_counts_distinct_findings_per_source():
@@ -47,7 +57,13 @@ def test_measure_counts_distinct_findings_per_source():
         _link("a", "MONDO:1", "S3", relation=RELATION_EXCLUDES_FINDING),
         _link("b", "MONDO:2", "S4", "HP:4"),
     ]
-    result = measure([_ref("MONDO:1"), _ref("MONDO:2")], links, _index(), sources=["a", "b"], usable_threshold=2)
+    result = measure(
+        [_ref("MONDO:1"), _ref("MONDO:2")],
+        links,
+        _index(),
+        sources=["a", "b"],
+        usable_threshold=2,
+    )
     per = result["per_disease"]
     assert per["MONDO:1"]["a"]["present"] == 2
     assert per["MONDO:1"]["a"]["excluded"] == 1
@@ -70,15 +86,25 @@ def test_links_on_narrower_diseases_are_reported_separately():
 
 
 def test_union_counts_only_hpo_mapped_findings():
-    links = [_link("a", "MONDO:1", "S1", "HP:1"), _link("b", "MONDO:1", "S2", "HP:2"), _link("b", "MONDO:1", "S3")]
-    result = measure([_ref("MONDO:1")], links, _index(), sources=["a", "b"], usable_threshold=2)
+    links = [
+        _link("a", "MONDO:1", "S1", "HP:1"),
+        _link("b", "MONDO:1", "S2", "HP:2"),
+        _link("b", "MONDO:1", "S3"),
+    ]
+    result = measure(
+        [_ref("MONDO:1")], links, _index(), sources=["a", "b"], usable_threshold=2
+    )
     assert result["union_hpo"] == {"covered": 1, "usable": 1}
     assert result["per_disease"]["MONDO:1"]["union_hpo"] == 2
 
 
 def test_markdown_names_every_source_and_the_notes():
-    result = measure([_ref("MONDO:1")], [_link("a", "MONDO:1", "S1")], _index(), sources=["a"])
-    text = render_markdown(result, [_ref("MONDO:1")], notes=["NCIt not measured: no key"])
+    result = measure(
+        [_ref("MONDO:1")], [_link("a", "MONDO:1", "S1")], _index(), sources=["a"]
+    )
+    text = render_markdown(
+        result, [_ref("MONDO:1")], notes=["NCIt not measured: no key"]
+    )
     assert "| a |" in text
     assert "NCIt not measured: no key" in text
 
@@ -88,8 +114,14 @@ def test_the_committed_reference_list_is_well_formed():
     ids = [disease.mondo_id for disease in reference]
     assert len(reference) == 141
     assert len(ids) == len(set(ids))
-    assert all(mondo_id.startswith("MONDO:") and len(mondo_id) == 13 for mondo_id in ids)
-    assert {disease.resolution for disease in reference} <= {"label", "exact_synonym", "manual"}
+    assert all(
+        mondo_id.startswith("MONDO:") and len(mondo_id) == 13 for mondo_id in ids
+    )
+    assert {disease.resolution for disease in reference} <= {
+        "label",
+        "exact_synonym",
+        "manual",
+    }
 
 
 def test_every_reference_id_is_current_in_the_pinned_mondo():
@@ -100,7 +132,9 @@ def test_every_reference_id_is_current_in_the_pinned_mondo():
         pytest.skip("data/mondo.obo not fetched (uv run dvc update data/mondo.obo.dvc)")
     from melampo.memory.symptom_sources import parse_mondo
 
-    index = DiseaseIndex.from_mondo(parse_mondo(mondo.read_text(encoding="utf-8").splitlines()))
+    index = DiseaseIndex.from_mondo(
+        parse_mondo(mondo.read_text(encoding="utf-8").splitlines())
+    )
     reference = load_reference(ROOT / "data" / "common_diseases_reference.tsv")
     assert [d.mondo_id for d in reference if d.mondo_id not in index.diseases] == []
     assert all(index.diseases[d.mondo_id].label == d.mondo_label for d in reference)
@@ -112,7 +146,9 @@ def test_every_reference_id_is_current_in_the_pinned_mondo():
 
 
 def _load_script():
-    spec = importlib.util.spec_from_file_location("measure_symptom_coverage", ROOT / "scripts" / "measure_symptom_coverage.py")
+    spec = importlib.util.spec_from_file_location(
+        "measure_symptom_coverage", ROOT / "scripts" / "measure_symptom_coverage.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -122,17 +158,22 @@ def test_script_runs_offline_on_a_miniature_data_dir(tmp_path, monkeypatch):
     data = tmp_path / "data"
     data.mkdir()
     (data / "mondo.obo").write_text(
-        "[Term]\nid: MONDO:0005812\nname: influenza\nxref: DOID:8469 {source=\"MONDO:equivalentTo\"}\n"
-        "xref: OMIM:100100 {source=\"MONDO:equivalentTo\"}\n",
+        '[Term]\nid: MONDO:0005812\nname: influenza\nxref: DOID:8469 {source="MONDO:equivalentTo"}\n'
+        'xref: OMIM:100100 {source="MONDO:equivalentTo"}\n',
         encoding="utf-8",
     )
-    (data / "hp.obo").write_text("[Term]\nid: HP:0001945\nname: Fever\n\n[Term]\nid: HP:0012735\nname: Cough\n", encoding="utf-8")
+    (data / "hp.obo").write_text(
+        "[Term]\nid: HP:0001945\nname: Fever\n\n[Term]\nid: HP:0012735\nname: Cough\n",
+        encoding="utf-8",
+    )
     (data / "phenotype.hpoa").write_text(
         "#description: test\ndatabase_id\tdisease_name\tqualifier\thpo_id\treference\tevidence\tonset\tfrequency\tsex\tmodifier\taspect\tbiocuration\n"
         "OMIM:100100\tinfluenza-like\t\tHP:0012735\tPMID:1\tPCS\t\t\t\t\tP\tHPO:x\n",
         encoding="utf-8",
     )
-    (data / "symp.obo").write_text("[Term]\nid: SYMP:0000613\nname: fever\n", encoding="utf-8")
+    (data / "symp.obo").write_text(
+        "[Term]\nid: SYMP:0000613\nname: fever\n", encoding="utf-8"
+    )
     (data / "doid.owl").write_bytes(
         b'<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" '
         b'xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">'
@@ -150,12 +191,29 @@ def test_script_runs_offline_on_a_miniature_data_dir(tmp_path, monkeypatch):
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
     script = _load_script()
     out = tmp_path / "out"
-    assert script.main(["--data-dir", str(data), "--reference", str(reference), "--out-dir", str(out), "--skip-ncit", "--skip-wikidata"]) == 0
+    assert (
+        script.main(
+            [
+                "--data-dir",
+                str(data),
+                "--reference",
+                str(reference),
+                "--out-dir",
+                str(out),
+                "--skip-ncit",
+                "--skip-wikidata",
+            ]
+        )
+        == 0
+    )
 
     result = json.loads((out / "coverage.json").read_text(encoding="utf-8"))
     per = result["per_disease"]["MONDO:0005812"]
     assert per["hpo"]["present"] == 1 and per["hpo"]["mapped_to_hpo"] == 1
-    assert per["disease_ontology"]["present"] == 1 and per["disease_ontology"]["mapped_to_hpo"] == 1
+    assert (
+        per["disease_ontology"]["present"] == 1
+        and per["disease_ontology"]["mapped_to_hpo"] == 1
+    )
     assert per["union_hpo"] == 2
     assert "NCIt skipped" in (out / "coverage.md").read_text(encoding="utf-8")
     assert len((out / "links.jsonl").read_text(encoding="utf-8").splitlines()) == 2

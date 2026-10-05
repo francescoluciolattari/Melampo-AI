@@ -37,7 +37,9 @@ def test_area_coherence_and_pipeline_coordinator_emit_richer_metadata():
             "deductive_filter": {"reasoning_mode": "rapid_intuition"},
         },
         nexus={
-            "alternative_hypotheses": [{"label": "alt_1", "kind": "rare_case", "focus": "epidemiology"}],
+            "alternative_hypotheses": [
+                {"label": "alt_1", "kind": "rare_case", "focus": "epidemiology"}
+            ],
             "rehearsal_profile": {"coherence_guidance": "multimodal_support"},
         },
         area_dynamics=dynamics,

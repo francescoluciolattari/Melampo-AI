@@ -57,7 +57,9 @@ IDENTIFYING_FIELDS = (
 
 
 def _anonymize_value(value: str, password: str) -> str:
-    return hmac.new(password.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.new(
+        password.encode("utf-8"), value.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
 
 
 def anonymize_identifying_fields(data: dict[str, Any], password: str) -> dict[str, Any]:
@@ -114,7 +116,9 @@ class ConfirmedCaseStore:
             case_id = record.get("case_id")
             if case_id is None:
                 continue
-            latest_by_case[case_id] = None if record.get("_event") == "deleted" else record
+            latest_by_case[case_id] = (
+                None if record.get("_event") == "deleted" else record
+            )
         for record in latest_by_case.values():
             if record is not None:
                 yield record

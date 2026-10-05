@@ -51,7 +51,13 @@ from .document_processing import (
 )
 from .lab_results import LabExtraction, extract_lab_results
 
-_FORMAT_LABELS = {"pdf": "PDF", "png": "immagine PNG", "jpeg": "immagine JPEG", "dicom": "DICOM", "text": "testo"}
+_FORMAT_LABELS = {
+    "pdf": "PDF",
+    "png": "immagine PNG",
+    "jpeg": "immagine JPEG",
+    "dicom": "DICOM",
+    "text": "testo",
+}
 
 # Dashboard/Italian names a physician would use, mapped to DICOM modality
 # codes; anything else is passed to Modality's own alias resolution.
@@ -84,11 +90,19 @@ class CaseAttachment:
             try:
                 data = base64.b64decode(item["data_base64"], validate=True)
             except (binascii.Error, ValueError) as exc:
-                raise ValueError(f"attachment {item.get('filename', '?')!r}: invalid base64") from exc
+                raise ValueError(
+                    f"attachment {item.get('filename', '?')!r}: invalid base64"
+                ) from exc
         else:
-            raise TypeError(f"attachment {item.get('filename', '?')!r}: needs 'data' bytes or 'data_base64' text")
+            raise TypeError(
+                f"attachment {item.get('filename', '?')!r}: needs 'data' bytes or 'data_base64' text"
+            )
         modality = item.get("modality")
-        return cls(filename=str(item.get("filename", "")), data=data, modality=str(modality) if modality else None)
+        return cls(
+            filename=str(item.get("filename", "")),
+            data=data,
+            modality=str(modality) if modality else None,
+        )
 
 
 @dataclass(frozen=True)
@@ -150,10 +164,14 @@ class AttachmentBundle:
         for attachment in self.attachments:
             if not attachment.text.strip():
                 continue
-            label = _FORMAT_LABELS.get(attachment.document_format, attachment.document_format)
+            label = _FORMAT_LABELS.get(
+                attachment.document_format, attachment.document_format
+            )
             if attachment.modality:
                 label = f"{label}, {attachment.modality}"
-            parts.append(f"[Allegato {attachment.index} -- {label}]\n{attachment.text.strip()}")
+            parts.append(
+                f"[Allegato {attachment.index} -- {label}]\n{attachment.text.strip()}"
+            )
         return "\n\n".join(parts)
 
     def imaging_studies(self) -> list[ImagingStudy]:
@@ -168,7 +186,11 @@ class AttachmentBundle:
             if attachment.document_format == FORMAT_DICOM:
                 key = (
                     str(attachment.dicom_metadata.get("StudyInstanceUID", "")),
-                    str(attachment.dicom_metadata.get("SeriesInstanceUID", f"attachment-{attachment.index}")),
+                    str(
+                        attachment.dicom_metadata.get(
+                            "SeriesInstanceUID", f"attachment-{attachment.index}"
+                        )
+                    ),
                 )
                 grouped.setdefault(key, []).append(attachment)
             else:
@@ -176,28 +198,50 @@ class AttachmentBundle:
 
         studies: list[ImagingStudy] = []
         assessed: list[tuple[str, VolumeAssessment, Pillar0Eligibility]] = []
-        for number, ((_study_uid, series_uid), members) in enumerate(grouped.items(), start=1):
-            members = sorted(members, key=lambda item: _safe_float(item.dicom_metadata.get("InstanceNumber")))
+        for number, ((_study_uid, series_uid), members) in enumerate(
+            grouped.items(), start=1
+        ):
+            members = sorted(
+                members,
+                key=lambda item: _safe_float(item.dicom_metadata.get("InstanceNumber")),
+            )
             first = members[0]
             study_id = f"attachment-series-{number}"
-            instances = [member.dicom_instance for member in members if member.dicom_instance is not None]
+            instances = [
+                member.dicom_instance
+                for member in members
+                if member.dicom_instance is not None
+            ]
             assessment = assess_series(instances) if instances else None
-            eligibility = pillar0_eligibility(assessment) if assessment else Pillar0Eligibility(False, None, "no_deidentified_instances")
+            eligibility = (
+                pillar0_eligibility(assessment)
+                if assessment
+                else Pillar0Eligibility(False, None, "no_deidentified_instances")
+            )
             if assessment is not None:
                 assessed.append((study_id, assessment, eligibility))
             studies.append(
                 ImagingStudy(
                     study_id=study_id,
                     modality=_to_modality(first.modality),
-                    images_png=[image for member in members for image in member.images_png],
+                    images_png=[
+                        image for member in members for image in member.images_png
+                    ],
                     dicom_instances=instances,
                     metadata={
-                        **{k: v for k, v in first.dicom_metadata.items() if k != "InstanceNumber"},
+                        **{
+                            k: v
+                            for k, v in first.dicom_metadata.items()
+                            if k != "InstanceNumber"
+                        },
                         "source": "dicom_attachment",
                         "instance_count": len(members),
                         "SeriesInstanceUID": series_uid,
                         "volume": assessment.as_dict() if assessment else None,
-                        "pillar0": {**eligibility.as_dict(), "preferred_for_checkpoint": False},
+                        "pillar0": {
+                            **eligibility.as_dict(),
+                            "preferred_for_checkpoint": False,
+                        },
                     },
                 )
             )
@@ -212,7 +256,10 @@ class AttachmentBundle:
                     study_id=f"attachment-image-{attachment.index}",
                     modality=_to_modality(attachment.modality),
                     images_png=list(attachment.images_png),
-                    metadata={"source": "declared_image_attachment", "Modality": _to_modality(attachment.modality).value},
+                    metadata={
+                        "source": "declared_image_attachment",
+                        "Modality": _to_modality(attachment.modality).value,
+                    },
                 )
             )
         return studies
@@ -222,7 +269,9 @@ class AttachmentBundle:
         return [
             observation
             for attachment in self.attachments
-            for observation in attachment.lab.observations(f"attachment-{attachment.index}")
+            for observation in attachment.lab.observations(
+                f"attachment-{attachment.index}"
+            )
         ]
 
     def summary(self) -> list[dict[str, Any]]:
@@ -270,34 +319,49 @@ def _as_png(data: bytes) -> bytes:
 
     buffer = io.BytesIO()
     image = Image.open(io.BytesIO(data))
-    image.convert("RGB" if image.mode not in ("L", "RGB") else image.mode).save(buffer, format="PNG")
+    image.convert("RGB" if image.mode not in ("L", "RGB") else image.mode).save(
+        buffer, format="PNG"
+    )
     return buffer.getvalue()
 
 
 def process_case_attachments(
-    attachments: list[CaseAttachment], processor: ClinicalDocumentProcessor | None = None
+    attachments: list[CaseAttachment],
+    processor: ClinicalDocumentProcessor | None = None,
 ) -> AttachmentBundle:
     """Process every attachment exactly once, by its own type -- never writes to disk."""
     processor = processor or ClinicalDocumentProcessor()
     processed: list[ProcessedAttachment] = []
     for index, attachment in enumerate(attachments, start=1):
         detected = detect_document_format(attachment.data)
-        declared = _resolve_modality(attachment.modality) if attachment.modality else None
+        declared = (
+            _resolve_modality(attachment.modality) if attachment.modality else None
+        )
         if declared is not None and detected in ("png", "jpeg"):
             # Declared imaging: no text to read, so no OCR call at all.
             processed.append(
                 ProcessedAttachment(
-                    index=index, document_format=detected, status="completed", reason=None, text="",
-                    parser=None, modality=declared.value, images_png=(_as_png(attachment.data),),
+                    index=index,
+                    document_format=detected,
+                    status="completed",
+                    reason=None,
+                    text="",
+                    parser=None,
+                    modality=declared.value,
+                    images_png=(_as_png(attachment.data),),
                 )
             )
             continue
 
-        result = processor.process_document_bytes(attachment.data, source_name=f"attachment-{index}")
+        result = processor.process_document_bytes(
+            attachment.data, source_name=f"attachment-{index}"
+        )
         document_format = str(result.get("document_format", "unknown"))
         # The whole document's text, never the chunks re-joined: chunks
         # overlap by design, so joining them duplicated every overlap.
-        text = str(result.get("text", "")) if result.get("status") == "completed" else ""
+        text = (
+            str(result.get("text", "")) if result.get("status") == "completed" else ""
+        )
         notes: list[str] = []
 
         if document_format == FORMAT_DICOM:
@@ -314,10 +378,16 @@ def process_case_attachments(
                 dicom_notes.extend(deidentified.notes)
             processed.append(
                 ProcessedAttachment(
-                    index=index, document_format=document_format, status=str(result.get("status")),
-                    reason=result.get("reason"), text=text, parser=result.get("parser"),
-                    modality=dicom.get("modality"), images_png=tuple(result.get("dicom_images_png", [])),
-                    dicom_metadata=dict(dicom.get("metadata", {})), notes=tuple(dicom_notes),
+                    index=index,
+                    document_format=document_format,
+                    status=str(result.get("status")),
+                    reason=result.get("reason"),
+                    text=text,
+                    parser=result.get("parser"),
+                    modality=dicom.get("modality"),
+                    images_png=tuple(result.get("dicom_images_png", [])),
+                    dicom_metadata=dict(dicom.get("metadata", {})),
+                    notes=tuple(dicom_notes),
                     lab=extract_lab_results(text) if text.strip() else LabExtraction(),
                     dicom_instance=instance,
                 )
@@ -331,9 +401,14 @@ def process_case_attachments(
 
         processed.append(
             ProcessedAttachment(
-                index=index, document_format=document_format, status=str(result.get("status")),
-                reason=result.get("reason"), text=text, parser=result.get("parser"),
-                modality=None, notes=tuple(notes),
+                index=index,
+                document_format=document_format,
+                status=str(result.get("status")),
+                reason=result.get("reason"),
+                text=text,
+                parser=result.get("parser"),
+                modality=None,
+                notes=tuple(notes),
                 pdf_structure=result.get("pdf_structure"),
                 embedded_images_png=tuple(result.get("embedded_images_png", [])),
                 lab=extract_lab_results(text) if text.strip() else LabExtraction(),

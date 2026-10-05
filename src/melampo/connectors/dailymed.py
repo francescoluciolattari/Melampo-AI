@@ -56,7 +56,9 @@ class DailyMedConfig:
     page_size: int = DEFAULT_PAGE_SIZE
 
 
-def _passage_from_spl(record: dict[str, Any], active_ingredients: Sequence[str]) -> LiteraturePassage | None:
+def _passage_from_spl(
+    record: dict[str, Any], active_ingredients: Sequence[str]
+) -> LiteraturePassage | None:
     """Build a passage from one SPL search result plus its packaging lookup.
 
     A record with no title is skipped -- the same standard every other
@@ -68,7 +70,11 @@ def _passage_from_spl(record: dict[str, Any], active_ingredients: Sequence[str])
     if not title or not setid:
         return None
 
-    ingredients_text = f" Active ingredients: {', '.join(active_ingredients)}." if active_ingredients else ""
+    ingredients_text = (
+        f" Active ingredients: {', '.join(active_ingredients)}."
+        if active_ingredients
+        else ""
+    )
     published = str(record.get("published_date") or "")
     year = None
     for token in published.replace(",", " ").split():
@@ -100,7 +106,9 @@ class DailyMedConnector:
     def __post_init__(self) -> None:
         self._limiter = RateLimiter(self.config.requests_per_second)
 
-    def search(self, drug_name: str, *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search(
+        self, drug_name: str, *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         """Search DailyMed by drug name, returning usable passages.
 
         One page per call, matching `ClinicalTrialsConnector.search`'s own
@@ -121,7 +129,9 @@ class DailyMedConnector:
                     break
         return passages
 
-    def search_for_concepts(self, concepts: Sequence[str], *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search_for_concepts(
+        self, concepts: Sequence[str], *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         """Search once per concept, since DailyMed's drug_name filter takes one name, not a query language."""
         passages: list[LiteraturePassage] = []
         for concept in concepts:
@@ -133,7 +143,13 @@ class DailyMedConnector:
         return passages[:max_results]
 
     def populate(
-        self, index: LiteratureIndex, drug_name: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+        self,
+        index: LiteratureIndex,
+        drug_name: str,
+        *,
+        max_results: int = 25,
+        store: Any = None,
+        graph: Any = None,
     ) -> int:
         """Search and add results directly to an index, optionally persisting to the shared vector store.
 
@@ -141,7 +157,11 @@ class DailyMedConnector:
         passing it skips the separate JSONL write.
         """
         passages = self.search(drug_name, max_results=max_results)
-        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        added = (
+            index.add_many(passages, source_graph=graph)
+            if graph is not None
+            else index.add_many(passages)
+        )
         if store is not None and graph is None:
             from ..memory.literature_persistence import persist_passage
 
@@ -155,14 +175,22 @@ class DailyMedConnector:
         except Exception:  # noqa: BLE001 - missing packaging data degrades a passage, never breaks the search
             return []
         ingredients = payload.get("data", {}).get("active_ingredients", [])
-        return [str(item.get("name", "")).strip() for item in ingredients if item.get("name")]
+        return [
+            str(item.get("name", "")).strip()
+            for item in ingredients
+            if item.get("name")
+        ]
 
-    def _fetch_search_page(self, drug_name: str) -> dict[str, Any]:  # pragma: no cover - network call
+    def _fetch_search_page(
+        self, drug_name: str
+    ) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()
         params = {"drug_name": drug_name, "pagesize": str(self.config.page_size)}
         return self._get(f"{DAILYMED_BASE}/spls.json?{urlencode(params)}")
 
-    def _fetch_packaging(self, setid: str) -> dict[str, Any]:  # pragma: no cover - network call
+    def _fetch_packaging(
+        self, setid: str
+    ) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()
         return self._get(f"{DAILYMED_BASE}/spls/{setid}/packaging.json")
 

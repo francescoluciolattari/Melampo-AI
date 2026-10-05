@@ -41,11 +41,17 @@ class ClinicalIngestionPipeline:
         raw = prepared.get("attachments")
         if ATTACHMENT_BUNDLE_KEY in prepared or not isinstance(raw, list) or not raw:
             return prepared
-        items = [CaseAttachment.from_payload_item(item) for item in raw if isinstance(item, dict)]
+        items = [
+            CaseAttachment.from_payload_item(item)
+            for item in raw
+            if isinstance(item, dict)
+        ]
         processor = self.document_processor or ClinicalDocumentProcessor.from_env()
         bundle = process_case_attachments(items, processor=processor)
         prepared.pop("attachments")
-        prepared["report_text"] = bundle.combined_text(str(payload.get("report_text", "") or ""))
+        prepared["report_text"] = bundle.combined_text(
+            str(payload.get("report_text", "") or "")
+        )
         prepared[ATTACHMENT_BUNDLE_KEY] = bundle
         prepared["attachment_summary"] = bundle.summary()
         if self.derive_lab_findings:
@@ -80,7 +86,11 @@ class ClinicalIngestionPipeline:
             return
         existing = [str(item) for item in (raw or [])]
         seen = {item.strip().lower() for item in existing}
-        added = [label for label in mapping.finding_labels() if label.strip().lower() not in seen]
+        added = [
+            label
+            for label in mapping.finding_labels()
+            if label.strip().lower() not in seen
+        ]
         if added:
             prepared["findings"] = existing + added
         provenance["added_findings"] = added
@@ -89,9 +99,16 @@ class ClinicalIngestionPipeline:
     def from_payload(self, payload: Mapping[str, Any]) -> CaseContext:
         payload = self.prepare_payload(payload)
         raw_observations = payload.get("observations", [])
-        observation_items = raw_observations if isinstance(raw_observations, list) else []
+        observation_items = (
+            raw_observations if isinstance(raw_observations, list) else []
+        )
         observations = [
-            ClinicalObservation(code=str(item["code"]), value=item.get("value"), unit=item.get("unit"), source=item.get("source"))
+            ClinicalObservation(
+                code=str(item["code"]),
+                value=item.get("value"),
+                unit=item.get("unit"),
+                source=item.get("source"),
+            )
             for item in observation_items
             if isinstance(item, dict) and "code" in item
         ]
@@ -101,8 +118,12 @@ class ClinicalIngestionPipeline:
             ImagingStudy(
                 study_id=str(item["study_id"]),
                 modality=Modality(str(item["modality"])),
-                series_paths=list(item.get("series_paths", [])) if isinstance(item.get("series_paths", []), list) else [],
-                metadata=dict(item.get("metadata", {})) if isinstance(item.get("metadata", {}), dict) else {},
+                series_paths=list(item.get("series_paths", []))
+                if isinstance(item.get("series_paths", []), list)
+                else [],
+                metadata=dict(item.get("metadata", {}))
+                if isinstance(item.get("metadata", {}), dict)
+                else {},
             )
             for item in imaging_items
             if isinstance(item, dict) and "study_id" in item and "modality" in item
@@ -125,8 +146,12 @@ class ClinicalIngestionPipeline:
             provenance["lab_phenotypes"] = payload["lab_phenotypes"]
         return CaseContext(
             case_id=str(payload["case_id"]),
-            patient_id=str(payload["patient_id"]) if payload.get("patient_id") is not None else None,
-            demographics=dict(raw_demographics) if isinstance(raw_demographics, dict) else {},
+            patient_id=str(payload["patient_id"])
+            if payload.get("patient_id") is not None
+            else None,
+            demographics=dict(raw_demographics)
+            if isinstance(raw_demographics, dict)
+            else {},
             observations=observations,
             imaging=imaging,
             report_text=str(payload.get("report_text", "")),

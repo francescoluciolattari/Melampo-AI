@@ -29,8 +29,14 @@ class LanguageListeningArea:
     ) -> dict:
         voice_features = voice_features or {}
         external_area = _specialist_area_signal(specialist_signal)
-        text_chunks = [chunk for chunk in [patient_complaints, report_text, ehr_text] if chunk]
-        grounded_summary = external_area.get("signals", {}).get("grounded_summary") if isinstance(external_area.get("signals"), dict) else None
+        text_chunks = [
+            chunk for chunk in [patient_complaints, report_text, ehr_text] if chunk
+        ]
+        grounded_summary = (
+            external_area.get("signals", {}).get("grounded_summary")
+            if isinstance(external_area.get("signals"), dict)
+            else None
+        )
         if grounded_summary:
             text_chunks.append(str(grounded_summary))
         merged_text = " | ".join(text_chunks)
@@ -43,15 +49,38 @@ class LanguageListeningArea:
             salient_streams.append("ehr_text")
         if voice_features:
             salient_streams.append("voice_features")
-        if external_area.get("status") not in {None, "not_called"} or external_area.get("claims"):
+        if external_area.get("status") not in {None, "not_called"} or external_area.get(
+            "claims"
+        ):
             salient_streams.append("grounded_specialist_text_signal")
 
-        base_salience = _clamp(0.15 * len([item for item in salient_streams if item != "grounded_specialist_text_signal"]))
-        specialist_salience = _clamp(float(external_area.get("salience_score", 0.0) or 0.0))
-        specialist_uncertainty = _clamp(float(external_area.get("uncertainty_score", 1.0) or 1.0))
-        specialist_active = bool(external_area.get("claims")) or external_area.get("status") not in {None, "not_called"}
-        salience_score = _clamp(base_salience + (0.25 * specialist_salience if specialist_active else 0.0))
-        uncertainty_score = _clamp((1.0 - base_salience) * 0.75 + specialist_uncertainty * 0.25) if specialist_active else _clamp(1.0 - base_salience)
+        base_salience = _clamp(
+            0.15
+            * len(
+                [
+                    item
+                    for item in salient_streams
+                    if item != "grounded_specialist_text_signal"
+                ]
+            )
+        )
+        specialist_salience = _clamp(
+            float(external_area.get("salience_score", 0.0) or 0.0)
+        )
+        specialist_uncertainty = _clamp(
+            float(external_area.get("uncertainty_score", 1.0) or 1.0)
+        )
+        specialist_active = bool(external_area.get("claims")) or external_area.get(
+            "status"
+        ) not in {None, "not_called"}
+        salience_score = _clamp(
+            base_salience + (0.25 * specialist_salience if specialist_active else 0.0)
+        )
+        uncertainty_score = (
+            _clamp((1.0 - base_salience) * 0.75 + specialist_uncertainty * 0.25)
+            if specialist_active
+            else _clamp(1.0 - base_salience)
+        )
 
         return {
             "area": "language_listening",

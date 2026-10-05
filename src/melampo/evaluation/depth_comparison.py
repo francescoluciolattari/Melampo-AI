@@ -50,7 +50,9 @@ class PairedDepthOutcome:
     @property
     def cost_ratio(self) -> float:
         cost0 = max(1, int(self.depth0.budget.get("iterations", 0)))
-        cost1 = int(self.depth1.budget.get("iterations", 0)) + int(self.depth1.budget.get("sub_model_calls", 0))
+        cost1 = int(self.depth1.budget.get("iterations", 0)) + int(
+            self.depth1.budget.get("sub_model_calls", 0)
+        )
         return cost1 / cost0
 
     def as_dict(self) -> dict[str, Any]:
@@ -70,15 +72,27 @@ class DepthComparisonReport:
 
     @property
     def mean_coverage_delta(self) -> float:
-        return sum(item.coverage_delta for item in self.outcomes) / len(self.outcomes) if self.outcomes else 0.0
+        return (
+            sum(item.coverage_delta for item in self.outcomes) / len(self.outcomes)
+            if self.outcomes
+            else 0.0
+        )
 
     @property
     def mean_evidence_delta(self) -> float:
-        return sum(item.evidence_delta for item in self.outcomes) / len(self.outcomes) if self.outcomes else 0.0
+        return (
+            sum(item.evidence_delta for item in self.outcomes) / len(self.outcomes)
+            if self.outcomes
+            else 0.0
+        )
 
     @property
     def mean_cost_ratio(self) -> float:
-        return sum(item.cost_ratio for item in self.outcomes) / len(self.outcomes) if self.outcomes else 0.0
+        return (
+            sum(item.cost_ratio for item in self.outcomes) / len(self.outcomes)
+            if self.outcomes
+            else 0.0
+        )
 
     def verdict(self) -> str:
         """Whether the recursive step earned its cost, stated as a sentence."""
@@ -113,7 +127,13 @@ def compare_depths(
     engine1 = RlmEngine(root_model=root_model, sub_model=sub_model, depth=1)
     report = DepthComparisonReport()
     for case in cases:
-        trajectory0 = engine0.run(case.case_id, case.documents, case.question, budget=budget_factory())
-        trajectory1 = engine1.run(case.case_id, case.documents, case.question, budget=budget_factory())
-        report.outcomes.append(PairedDepthOutcome(case.case_id, trajectory0, trajectory1))
+        trajectory0 = engine0.run(
+            case.case_id, case.documents, case.question, budget=budget_factory()
+        )
+        trajectory1 = engine1.run(
+            case.case_id, case.documents, case.question, budget=budget_factory()
+        )
+        report.outcomes.append(
+            PairedDepthOutcome(case.case_id, trajectory0, trajectory1)
+        )
     return report

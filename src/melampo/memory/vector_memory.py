@@ -54,7 +54,9 @@ class VectorMemoryRecord:
         return self.dense_vector
 
     def score_against(self, query_vector: list[float]) -> float:
-        return round(sum(left * right for left, right in zip(self.dense_vector, query_vector)), 6)
+        return round(
+            sum(left * right for left, right in zip(self.dense_vector, query_vector)), 6
+        )
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -107,7 +109,9 @@ class InMemoryVectorStore:
     fallback used for tests, local research and air-gapped prototyping.
     """
 
-    embedding_model: HashingEmbeddingModel = field(default_factory=HashingEmbeddingModel)
+    embedding_model: HashingEmbeddingModel = field(
+        default_factory=HashingEmbeddingModel
+    )
     backend: str = "local_in_memory"
     recommended_enterprise_backend: str = "weaviate_object_property_semantic_graph_rag"
     collection_name: str = "melampo_semantic_clinical_memory"
@@ -128,18 +132,69 @@ class InMemoryVectorStore:
         return {
             "backend": "Weaviate",
             "classes": {
-                "Symptom": ["name", "description", "snomed_code", "hasFinding", "suggestsPathology"],
-                "Pathology": ["name", "description", "snomed_code", "hasSymptom", "hasImagingPattern", "hasRiskFactor"],
-                "ClinicalCase": ["case_id", "demographics", "hasSymptom", "hasReport", "hasImage", "hasDifferential"],
-                "ImagingStudy": ["study_id", "modality", "image_vector", "hasFinding", "belongsToCase"],
-                "VisualConcept": ["name", "ontology_refs", "hasImprint", "supportsFinding", "supportsPathology"],
-                "VisualRecognitionImprint": ["semantic_concept", "matrix_signature_hash", "recognition_matrix_vector", "variantOf", "derivedFromStudy"],
-                "ClinicalDocument": ["source", "section", "text_vector", "mentionsSymptom", "mentionsPathology"],
+                "Symptom": [
+                    "name",
+                    "description",
+                    "snomed_code",
+                    "hasFinding",
+                    "suggestsPathology",
+                ],
+                "Pathology": [
+                    "name",
+                    "description",
+                    "snomed_code",
+                    "hasSymptom",
+                    "hasImagingPattern",
+                    "hasRiskFactor",
+                ],
+                "ClinicalCase": [
+                    "case_id",
+                    "demographics",
+                    "hasSymptom",
+                    "hasReport",
+                    "hasImage",
+                    "hasDifferential",
+                ],
+                "ImagingStudy": [
+                    "study_id",
+                    "modality",
+                    "image_vector",
+                    "hasFinding",
+                    "belongsToCase",
+                ],
+                "VisualConcept": [
+                    "name",
+                    "ontology_refs",
+                    "hasImprint",
+                    "supportsFinding",
+                    "supportsPathology",
+                ],
+                "VisualRecognitionImprint": [
+                    "semantic_concept",
+                    "matrix_signature_hash",
+                    "recognition_matrix_vector",
+                    "variantOf",
+                    "derivedFromStudy",
+                ],
+                "ClinicalDocument": [
+                    "source",
+                    "section",
+                    "text_vector",
+                    "mentionsSymptom",
+                    "mentionsPathology",
+                ],
             },
             "rationale": "preserve semantic relations and clinical context together with vectors",
         }
 
-    def upsert_text(self, record_id: str, text: str, metadata: dict | None = None, source: str = "unknown", learning_status: str = "candidate") -> dict:
+    def upsert_text(
+        self,
+        record_id: str,
+        text: str,
+        metadata: dict | None = None,
+        source: str = "unknown",
+        learning_status: str = "candidate",
+    ) -> dict:
         record = self.upsert(
             text=text,
             metadata={**(metadata or {}), "record_id": record_id},
@@ -149,15 +204,28 @@ class InMemoryVectorStore:
         )
         return record.describe()
 
-    def upsert(self, text: str, metadata: dict[str, Any] | None = None, modality: str = "text", source: str = "local", learning_status: str = "candidate") -> VectorMemoryRecord:
+    def upsert(
+        self,
+        text: str,
+        metadata: dict[str, Any] | None = None,
+        modality: str = "text",
+        source: str = "local",
+        learning_status: str = "candidate",
+    ) -> VectorMemoryRecord:
         metadata = metadata or {}
-        record_id = metadata.get("record_id") or _stable_id(text=text, namespace=self.collection_name)
+        record_id = metadata.get("record_id") or _stable_id(
+            text=text, namespace=self.collection_name
+        )
         now = time.time()
         dense_vector = self.embedding_model.embed(text)
         with self._lock:
             previous = self.records.get(record_id)
             requested_status = normalize_learning_status(learning_status)
-            if previous and previous.learning_status == "promoted" and requested_status != "retired":
+            if (
+                previous
+                and previous.learning_status == "promoted"
+                and requested_status != "retired"
+            ):
                 requested_status = "promoted"
             record = VectorMemoryRecord(
                 record_id=record_id,
@@ -171,20 +239,26 @@ class InMemoryVectorStore:
                 updated_at=now,
             )
             self.records[record_id] = record
-            self.update_log.append({
-                "event": "upsert",
-                "record_id": record_id,
-                "modality": modality,
-                "source": source,
-                "learning_status": record.learning_status,
-                "ontology_refs": metadata.get("ontology_refs", []),
-                "relation_count": len(metadata.get("relations", [])) if isinstance(metadata.get("relations", []), list) else 0,
-                "metadata_keys": sorted(metadata.keys()),
-                "timestamp": now,
-            })
+            self.update_log.append(
+                {
+                    "event": "upsert",
+                    "record_id": record_id,
+                    "modality": modality,
+                    "source": source,
+                    "learning_status": record.learning_status,
+                    "ontology_refs": metadata.get("ontology_refs", []),
+                    "relation_count": len(metadata.get("relations", []))
+                    if isinstance(metadata.get("relations", []), list)
+                    else 0,
+                    "metadata_keys": sorted(metadata.keys()),
+                    "timestamp": now,
+                }
+            )
             return record
 
-    def upsert_many(self, documents: Iterable[dict[str, Any]]) -> list[VectorMemoryRecord]:
+    def upsert_many(
+        self, documents: Iterable[dict[str, Any]]
+    ) -> list[VectorMemoryRecord]:
         return [
             self.upsert(
                 text=str(document.get("text", "")),
@@ -196,7 +270,13 @@ class InMemoryVectorStore:
             for document in documents
         ]
 
-    def search(self, query: str, limit: int = 5, required_status: Iterable[str] | None = None, filters: dict[str, Any] | None = None) -> list[dict]:
+    def search(
+        self,
+        query: str,
+        limit: int = 5,
+        required_status: Iterable[str] | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict]:
         filters = filters or {}
         query_vector = self.embedding_model.embed(query)
         statuses = set(required_status or [])
@@ -217,7 +297,9 @@ class InMemoryVectorStore:
             item["rank"] = index + 1
         return scored[:limit]
 
-    def search_with_metadata(self, query: str, top_k: int = 5, filters: dict[str, Any] | None = None) -> dict[str, Any]:
+    def search_with_metadata(
+        self, query: str, top_k: int = 5, filters: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         hits = self.search(query=query, limit=top_k, filters=filters)
         return {
             "query": query,
@@ -230,32 +312,52 @@ class InMemoryVectorStore:
             "target_backend": "Weaviate object-property semantic graph RAG",
         }
 
-    def transition_status(self, record_id: str, target_status: str, reason: str, evidence: dict[str, Any] | None = None) -> dict:
+    def transition_status(
+        self,
+        record_id: str,
+        target_status: str,
+        reason: str,
+        evidence: dict[str, Any] | None = None,
+    ) -> dict:
         with self._lock:
             record = self.records[record_id]
-            transition = validate_learning_transition(record.learning_status, target_status, evidence=evidence or {})
+            transition = validate_learning_transition(
+                record.learning_status, target_status, evidence=evidence or {}
+            )
             now = time.time()
             if not transition.allowed:
-                self.update_log.append({
-                    "event": "transition_rejected",
-                    "record_id": record_id,
-                    "target_status": target_status,
-                    "reason": reason,
+                self.update_log.append(
+                    {
+                        "event": "transition_rejected",
+                        "record_id": record_id,
+                        "target_status": target_status,
+                        "reason": reason,
+                        "transition": transition.as_dict(),
+                        "timestamp": now,
+                    }
+                )
+                return {
+                    "status": "rejected",
+                    "record": record.describe(),
                     "transition": transition.as_dict(),
-                    "timestamp": now,
-                })
-                return {"status": "rejected", "record": record.describe(), "transition": transition.as_dict()}
+                }
             record.learning_status = transition.target
             record.metadata = {**record.metadata, "status_transition_reason": reason}
             record.updated_at = now
-            self.update_log.append({
-                "event": "transition_status",
-                "record_id": record_id,
-                "target_status": transition.target,
-                "reason": reason,
-                "timestamp": now,
-            })
-            return {"status": "completed", "record": record.describe(), "transition": transition.as_dict()}
+            self.update_log.append(
+                {
+                    "event": "transition_status",
+                    "record_id": record_id,
+                    "target_status": transition.target,
+                    "reason": reason,
+                    "timestamp": now,
+                }
+            )
+            return {
+                "status": "completed",
+                "record": record.describe(),
+                "transition": transition.as_dict(),
+            }
 
     def promote(self, record_id: str, reason: str) -> dict:
         result = self.transition_status(
@@ -271,12 +373,18 @@ class InMemoryVectorStore:
         return result["record"]
 
     def reject(self, record_id: str, reason: str) -> dict:
-        return self.transition_status(record_id=record_id, target_status="rejected", reason=reason)["record"]
+        return self.transition_status(
+            record_id=record_id, target_status="rejected", reason=reason
+        )["record"]
 
     def mark_needs_review(self, record_id: str, reason: str) -> dict:
-        return self.transition_status(record_id=record_id, target_status="needs_review", reason=reason)["record"]
+        return self.transition_status(
+            record_id=record_id, target_status="needs_review", reason=reason
+        )["record"]
 
-    def consolidate_case(self, case_payload: dict[str, Any], result: dict[str, Any] | None = None) -> dict[str, Any]:
+    def consolidate_case(
+        self, case_payload: dict[str, Any], result: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         result = result or {}
         case_id = str(case_payload.get("case_id", "unknown_case"))
         text_parts = [case_id]
@@ -285,9 +393,15 @@ class InMemoryVectorStore:
             if value:
                 text_parts.append(str(value))
         if result:
-            top = result.get("coordinated", {}).get("differential", {}).get("hypotheses", [{}])[0]
+            top = (
+                result.get("coordinated", {})
+                .get("differential", {})
+                .get("hypotheses", [{}])[0]
+            )
             text_parts.append(f"top_hypothesis={top.get('label', 'none')}")
-            text_parts.append(f"policy={result.get('coordinated', {}).get('policy', {})}")
+            text_parts.append(
+                f"policy={result.get('coordinated', {}).get('policy', {})}"
+            )
         record = self.upsert(
             text="\n".join(text_parts),
             metadata={
@@ -296,21 +410,31 @@ class InMemoryVectorStore:
                 "focus": "multimodal_context",
                 "memory_role": "post_training_case_trace",
                 "relations": [
-                    {"from": f"case:{case_id}", "predicate": "hasClinicalTrace", "to": "clinical_pipeline_result"},
+                    {
+                        "from": f"case:{case_id}",
+                        "predicate": "hasClinicalTrace",
+                        "to": "clinical_pipeline_result",
+                    },
                 ],
             },
             modality="multimodal_case_trace",
             source="clinical_pipeline",
             learning_status="candidate",
         )
-        return {"status": "consolidated", "record_id": record.record_id, "memory": self.describe()}
+        return {
+            "status": "consolidated",
+            "record_id": record.record_id,
+            "memory": self.describe(),
+        }
 
     def describe(self) -> dict:
         statuses: dict[str, int] = {}
         with self._lock:
             records = list(self.records.values())
         for record in records:
-            statuses[record.learning_status] = statuses.get(record.learning_status, 0) + 1
+            statuses[record.learning_status] = (
+                statuses.get(record.learning_status, 0) + 1
+            )
         return {
             "backend": self.backend,
             "recommended_enterprise_backend": self.recommended_enterprise_backend,
@@ -370,11 +494,17 @@ class PersistentJsonlVectorStore(InMemoryVectorStore):
                 record = VectorMemoryRecord(
                     record_id=str(payload["record_id"]),
                     text=str(payload.get("text", "")),
-                    dense_vector=[float(value) for value in payload.get("dense_vector", [])],
-                    metadata=dict(payload.get("metadata", {})) if isinstance(payload.get("metadata", {}), dict) else {},
+                    dense_vector=[
+                        float(value) for value in payload.get("dense_vector", [])
+                    ],
+                    metadata=dict(payload.get("metadata", {}))
+                    if isinstance(payload.get("metadata", {}), dict)
+                    else {},
                     modality=str(payload.get("modality", "text")),
                     source=str(payload.get("source", "local")),
-                    learning_status=normalize_learning_status(payload.get("learning_status", "candidate")),
+                    learning_status=normalize_learning_status(
+                        payload.get("learning_status", "candidate")
+                    ),
                     created_at=float(payload.get("created_at", time.time())),
                     updated_at=float(payload.get("updated_at", time.time())),
                 )
@@ -384,20 +514,49 @@ class PersistentJsonlVectorStore(InMemoryVectorStore):
         path = Path(self.path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock:
-            rows = [json.dumps(self._record_payload(record), sort_keys=True, default=str) for record in self.records.values()]
+            rows = [
+                json.dumps(self._record_payload(record), sort_keys=True, default=str)
+                for record in self.records.values()
+            ]
         tmp_path = path.with_suffix(path.suffix + ".tmp")
         tmp_path.write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
         tmp_path.replace(path)
         return {"status": "persisted", "path": str(path), "record_count": len(rows)}
 
-    def upsert(self, text: str, metadata: dict[str, Any] | None = None, modality: str = "text", source: str = "local", learning_status: str = "candidate") -> VectorMemoryRecord:
-        record = InMemoryVectorStore.upsert(self, text=text, metadata=metadata, modality=modality, source=source, learning_status=learning_status)
+    def upsert(
+        self,
+        text: str,
+        metadata: dict[str, Any] | None = None,
+        modality: str = "text",
+        source: str = "local",
+        learning_status: str = "candidate",
+    ) -> VectorMemoryRecord:
+        record = InMemoryVectorStore.upsert(
+            self,
+            text=text,
+            metadata=metadata,
+            modality=modality,
+            source=source,
+            learning_status=learning_status,
+        )
         if self.autosave:
             self.persist()
         return record
 
-    def transition_status(self, record_id: str, target_status: str, reason: str, evidence: dict[str, Any] | None = None) -> dict:
-        result = InMemoryVectorStore.transition_status(self, record_id=record_id, target_status=target_status, reason=reason, evidence=evidence)
+    def transition_status(
+        self,
+        record_id: str,
+        target_status: str,
+        reason: str,
+        evidence: dict[str, Any] | None = None,
+    ) -> dict:
+        result = InMemoryVectorStore.transition_status(
+            self,
+            record_id=record_id,
+            target_status=target_status,
+            reason=reason,
+            evidence=evidence,
+        )
         if self.autosave:
             self.persist()
         return result

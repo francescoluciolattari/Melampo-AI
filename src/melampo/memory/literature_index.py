@@ -151,7 +151,9 @@ class LiteratureIndex:
         passage touching three of the case's concepts is more relevant than
         one mentioning a single concept repeatedly.
         """
-        wanted = {normalise_concept(item) for item in concepts if normalise_concept(item)}
+        wanted = {
+            normalise_concept(item) for item in concepts if normalise_concept(item)
+        }
         if not wanted:
             return []
 
@@ -159,11 +161,19 @@ class LiteratureIndex:
         for passage in self.passages:
             if checkable_only and not passage.is_independently_checkable:
                 continue
-            found = set(mentioned_concepts(passage.text, graph, max_results=20)) & wanted
+            found = (
+                set(mentioned_concepts(passage.text, graph, max_results=20)) & wanted
+            )
             if found:
-                hits.append(RetrievedPassage(passage=passage, matched_concepts=tuple(sorted(found))))
+                hits.append(
+                    RetrievedPassage(
+                        passage=passage, matched_concepts=tuple(sorted(found))
+                    )
+                )
 
-        hits.sort(key=lambda item: (-len(item.matched_concepts), item.passage.passage_id))
+        hits.sort(
+            key=lambda item: (-len(item.matched_concepts), item.passage.passage_id)
+        )
         return hits[:limit]
 
 
@@ -186,7 +196,9 @@ class RetrievedPassage:
         }
 
 
-def as_vetting_context(retrieved: Sequence[RetrievedPassage], *, max_chars: int = 4000) -> str:
+def as_vetting_context(
+    retrieved: Sequence[RetrievedPassage], *, max_chars: int = 4000
+) -> str:
     """Format retrieved passages as context for a vetting engine.
 
     Every passage is prefixed with its citation, not appended with it. A

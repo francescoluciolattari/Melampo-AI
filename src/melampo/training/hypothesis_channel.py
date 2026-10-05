@@ -44,7 +44,9 @@ class IndeterminacyGate:
     min_conflict_load: float = 0.35
     min_risk: float = 0.30
 
-    def evaluate(self, dynamics: dict[str, Any] | None, *, risk: float = 0.0) -> dict[str, Any]:
+    def evaluate(
+        self, dynamics: dict[str, Any] | None, *, risk: float = 0.0
+    ) -> dict[str, Any]:
         metrics = dynamics or {}
         convergence = _safe_float(metrics.get("convergence_index"), 1.0)
         conflict = _safe_float(metrics.get("conflict_load"), 0.0)
@@ -80,10 +82,16 @@ class IndeterminacyGate:
         """
         metrics = getattr(context, "neuro_metrics", None)
         dynamics = dict(metrics) if isinstance(metrics, dict) else {}
-        dynamics.setdefault("convergence_index", getattr(context, "convergence_index", 1.0))
+        dynamics.setdefault(
+            "convergence_index", getattr(context, "convergence_index", 1.0)
+        )
         if "conflict_load" not in dynamics:
-            dynamics["conflict_load"] = _safe_float(getattr(context, "mismatch_score", 0.0), 0.0)
-        return self.evaluate(dynamics, risk=_safe_float(getattr(context, "risk", 0.0), 0.0))
+            dynamics["conflict_load"] = _safe_float(
+                getattr(context, "mismatch_score", 0.0), 0.0
+            )
+        return self.evaluate(
+            dynamics, risk=_safe_float(getattr(context, "risk", 0.0), 0.0)
+        )
 
 
 @dataclass
@@ -150,8 +158,13 @@ class HypothesisChannel:
                 "namespace": HYPOTHESIS_NAMESPACE,
             }
 
-        ordered = sorted(candidates, key=lambda item: float(item.novelty_score), reverse=True)
-        selected = [envelope.as_exclusion_hypothesis() for envelope in ordered[: self.max_hypotheses]]
+        ordered = sorted(
+            candidates, key=lambda item: float(item.novelty_score), reverse=True
+        )
+        selected = [
+            envelope.as_exclusion_hypothesis()
+            for envelope in ordered[: self.max_hypotheses]
+        ]
         return {
             "channel_open": True,
             "gate": decision,
@@ -171,7 +184,10 @@ def assert_not_evidence(items: Sequence[dict[str, Any]]) -> None:
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             continue
-        if item.get("role") == HYPOTHESIS_ROLE or item.get("synthetic_candidate_not_clinical_truth") is True:
+        if (
+            item.get("role") == HYPOTHESIS_ROLE
+            or item.get("synthetic_candidate_not_clinical_truth") is True
+        ):
             raise ValueError(
                 f"item {index} is a synthetic exclusion hypothesis and cannot be used as evidence"
             )

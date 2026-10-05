@@ -20,7 +20,11 @@ def test_language_epidemiology_shared_claim_is_coherent_after_canonical_pair_fix
             "salience_score": 0.7,
             "uncertainty_score": 0.2,
             "claims": [
-                {"normalized_entity": "smoking exposure", "polarity": "present", "ontology_refs": ["SNOMED:77176002"]},
+                {
+                    "normalized_entity": "smoking exposure",
+                    "polarity": "present",
+                    "ontology_refs": ["SNOMED:77176002"],
+                },
             ],
         },
         "epidemiology": {
@@ -31,7 +35,11 @@ def test_language_epidemiology_shared_claim_is_coherent_after_canonical_pair_fix
             "salience_score": 0.6,
             "uncertainty_score": 0.25,
             "claims": [
-                {"normalized_entity": "smoking exposure", "polarity": "present", "ontology_refs": ["SNOMED:77176002"]},
+                {
+                    "normalized_entity": "smoking exposure",
+                    "polarity": "present",
+                    "ontology_refs": ["SNOMED:77176002"],
+                },
             ],
         },
     }
@@ -56,7 +64,11 @@ def test_explicit_claim_contradiction_raises_dynamic_mismatch():
             "salience_score": 0.8,
             "uncertainty_score": 0.15,
             "claims": [
-                {"normalized_entity": "pneumonia", "polarity": "present", "ontology_refs": ["SNOMED:233604007"]},
+                {
+                    "normalized_entity": "pneumonia",
+                    "polarity": "present",
+                    "ontology_refs": ["SNOMED:233604007"],
+                },
             ],
         },
         "visual_diagnostic": {
@@ -66,7 +78,11 @@ def test_explicit_claim_contradiction_raises_dynamic_mismatch():
             "salience_score": 0.75,
             "uncertainty_score": 0.15,
             "claims": [
-                {"normalized_entity": "pneumonia", "polarity": "absent", "ontology_refs": ["SNOMED:233604007"]},
+                {
+                    "normalized_entity": "pneumonia",
+                    "polarity": "absent",
+                    "ontology_refs": ["SNOMED:233604007"],
+                },
             ],
         },
     }
@@ -91,11 +107,19 @@ def test_memory_retriever_uses_semantic_vector_store_before_fallback():
             "metadata": {
                 "focus": "language_listening",
                 "ontology_refs": ["SNOMED:233604007"],
-                "relations": [{"from": "Symptom:Cough", "predicate": "suggestsPathology", "to": "Pathology:Pneumonia"}],
+                "relations": [
+                    {
+                        "from": "Symptom:Cough",
+                        "predicate": "suggestsPathology",
+                        "to": "Pathology:Pneumonia",
+                    }
+                ],
             },
         }
     )
-    result = MemoryRetriever(memory_store=memory).retrieve("fever cough pneumonia", top_k=3)
+    result = MemoryRetriever(memory_store=memory).retrieve(
+        "fever cough pneumonia", top_k=3
+    )
 
     assert result["status"] == "grounded_retrieval_ready"
     assert result["retrieval_mode"] == "semantic_vector_memory"
@@ -111,28 +135,58 @@ def test_governance_scores_are_runtime_derived_not_hardcoded():
         area_dynamics={
             "coherence_score": 0.8,
             "mismatch_score": 0.1,
-            "neuro_dynamic_metrics": {"mismatch_index": 0.1, "prediction_error": 0.1, "convergence_index": 0.8},
+            "neuro_dynamic_metrics": {
+                "mismatch_index": 0.1,
+                "prediction_error": 0.1,
+                "convergence_index": 0.8,
+            },
         },
         retrieval={
             "evidence_count": 3,
-            "retrieval_quality": {"coverage": 1.0, "memory_backed": True, "fallback_used": False, "mean_grounding_score": 0.8},
+            "retrieval_quality": {
+                "coverage": 1.0,
+                "memory_backed": True,
+                "fallback_used": False,
+                "mean_grounding_score": 0.8,
+            },
         },
         ranked_evidence=[{"weight": 2.5}, {"weight": 2.2}],
-        area_signals={"language_listening": {"salience_score": 0.8, "uncertainty_score": 0.1, "signal_count": 2}},
+        area_signals={
+            "language_listening": {
+                "salience_score": 0.8,
+                "uncertainty_score": 0.1,
+                "signal_count": 2,
+            }
+        },
     )
     high_risk = _derive_governance_scores(
         payload={"clinical_severity": 0.9},
         area_dynamics={
             "coherence_score": 0.1,
             "mismatch_score": 0.9,
-            "neuro_dynamic_metrics": {"mismatch_index": 0.9, "prediction_error": 0.8, "convergence_index": 0.1},
+            "neuro_dynamic_metrics": {
+                "mismatch_index": 0.9,
+                "prediction_error": 0.8,
+                "convergence_index": 0.1,
+            },
         },
         retrieval={
             "evidence_count": 0,
-            "retrieval_quality": {"coverage": 0.0, "memory_backed": False, "fallback_used": True, "mean_grounding_score": 0.0},
+            "retrieval_quality": {
+                "coverage": 0.0,
+                "memory_backed": False,
+                "fallback_used": True,
+                "mean_grounding_score": 0.0,
+            },
         },
         ranked_evidence=[],
-        area_signals={"language_listening": {"salience_score": 0.1, "uncertainty_score": 0.9, "signal_count": 1}},
+        area_signals={
+            "language_listening": {
+                "salience_score": 0.1,
+                "uncertainty_score": 0.9,
+                "signal_count": 1,
+            }
+        },
     )
 
     assert low_risk["derivation"] == "runtime_governance_scores_not_hardcoded_constants"

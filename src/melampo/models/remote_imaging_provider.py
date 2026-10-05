@@ -18,7 +18,13 @@ class RemoteImagingProviderClient:
     timeout_seconds: int = 30
     enabled: bool = False
 
-    def build_request(self, study_id: str, series_paths: list[str], metadata: dict, provider_selection: dict) -> dict[str, Any]:
+    def build_request(
+        self,
+        study_id: str,
+        series_paths: list[str],
+        metadata: dict,
+        provider_selection: dict,
+    ) -> dict[str, Any]:
         return {
             "provider_name": self.provider_name,
             "endpoint": self.endpoint,
@@ -29,7 +35,13 @@ class RemoteImagingProviderClient:
             "timeout_seconds": self.timeout_seconds,
         }
 
-    def infer(self, study_id: str, series_paths: list[str], metadata: dict, provider_selection: dict) -> dict[str, Any]:
+    def infer(
+        self,
+        study_id: str,
+        series_paths: list[str],
+        metadata: dict,
+        provider_selection: dict,
+    ) -> dict[str, Any]:
         request = self.build_request(
             study_id=study_id,
             series_paths=series_paths,

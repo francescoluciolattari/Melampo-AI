@@ -90,7 +90,12 @@ class CrosswalkResult:
     source_cui: str
 
     def as_dict(self) -> dict[str, Any]:
-        return {"ui": self.ui, "name": self.name, "root_source": self.root_source, "source_cui": self.source_cui}
+        return {
+            "ui": self.ui,
+            "name": self.name,
+            "root_source": self.root_source,
+            "source_cui": self.source_cui,
+        }
 
 
 @dataclass(frozen=True)
@@ -109,7 +114,9 @@ class UmlsConnector:
 
     def availability(self) -> UmlsAvailability:
         if not self.config.api_key:
-            return UmlsAvailability(available=False, reason="UMLS_API_KEY not configured")
+            return UmlsAvailability(
+                available=False, reason="UMLS_API_KEY not configured"
+            )
         return UmlsAvailability(available=True)
 
     def search(self, term: str, *, max_results: int = 10) -> list[UmlsConcept]:
@@ -122,18 +129,26 @@ class UmlsConnector:
         if not self.availability().available or not term:
             return []
         try:
-            payload = self._get(f"{UMLS_BASE}/search/{self.config.version}", {"string": term})
+            payload = self._get(
+                f"{UMLS_BASE}/search/{self.config.version}", {"string": term}
+            )
         except Exception:  # noqa: BLE001 - a failing call degrades this connector, never breaks a caller
             return []
         results = payload.get("result", {}).get("results", [])
         concepts = [
-            UmlsConcept(cui=str(item.get("ui", "")), name=str(item.get("name", "")), root_source=str(item.get("rootSource", "")))
+            UmlsConcept(
+                cui=str(item.get("ui", "")),
+                name=str(item.get("name", "")),
+                root_source=str(item.get("rootSource", "")),
+            )
             for item in results
             if item.get("ui") and item.get("ui") != "NONE"
         ]
         return concepts[:max_results]
 
-    def crosswalk_from_hpo(self, hpo_id: str, *, target_source: str | None = None) -> list[CrosswalkResult]:
+    def crosswalk_from_hpo(
+        self, hpo_id: str, *, target_source: str | None = None
+    ) -> list[CrosswalkResult]:
         """Find codes in other vocabularies sharing a CUI with this HPO code.
 
         ``target_source`` restricts to one vocabulary (e.g. "RXNORM", "MSH",
@@ -148,7 +163,10 @@ class UmlsConnector:
         if target_source:
             params["targetSource"] = target_source
         try:
-            payload = self._get(f"{UMLS_BASE}/crosswalk/{self.config.version}/source/HPO/{hpo_id}", params)
+            payload = self._get(
+                f"{UMLS_BASE}/crosswalk/{self.config.version}/source/HPO/{hpo_id}",
+                params,
+            )
         except Exception:  # noqa: BLE001
             return []
         results = payload.get("result", [])
@@ -188,13 +206,18 @@ class UmlsConnector:
         if not self.availability().available or not cui:
             return []
         try:
-            payload = self._get(f"{UMLS_BASE}/content/{self.config.version}/CUI/{cui}/atoms", {"pageSize": str(max_results)})
+            payload = self._get(
+                f"{UMLS_BASE}/content/{self.config.version}/CUI/{cui}/atoms",
+                {"pageSize": str(max_results)},
+            )
         except Exception:  # noqa: BLE001
             return []
         results = payload.get("result", [])
         if not isinstance(results, list):
             return []
-        return [str(item.get("name", "")).strip() for item in results if item.get("name")]
+        return [
+            str(item.get("name", "")).strip() for item in results if item.get("name")
+        ]
 
     def source_relations(
         self,
@@ -224,7 +247,10 @@ class UmlsConnector:
         for page in range(1, max_pages + 1):
             params["pageNumber"] = str(page)
             try:
-                payload = self._fetch(f"{UMLS_BASE}/content/{self.config.version}/source/{source}/{code}/relations", params)
+                payload = self._fetch(
+                    f"{UMLS_BASE}/content/{self.config.version}/source/{source}/{code}/relations",
+                    params,
+                )
             except HTTPError as error:
                 if error.code == 404:
                     break
@@ -247,14 +273,17 @@ class UmlsConnector:
             raise RuntimeError("UMLS_API_KEY not configured")
         try:
             payload = self._fetch(
-                f"{UMLS_BASE}/content/{self.config.version}/CUI/{cui}/atoms", {"sabs": source, "pageSize": "100"}
+                f"{UMLS_BASE}/content/{self.config.version}/CUI/{cui}/atoms",
+                {"sabs": source, "pageSize": "100"},
             )
         except HTTPError as error:
             if error.code == 404:
                 return []
             raise
         codes: list[str] = []
-        for atom in payload.get("result", []) if isinstance(payload.get("result"), list) else []:
+        for atom in (
+            payload.get("result", []) if isinstance(payload.get("result"), list) else []
+        ):
             code = str(atom.get("code", "")).rstrip("/").rsplit("/", 1)[-1]
             if code and code not in codes:
                 codes.append(code)
@@ -265,8 +294,12 @@ class UmlsConnector:
             return self.transport(url, params)
         return self._get(url, params)  # pragma: no cover - network call
 
-    def _get(self, url: str, params: dict[str, str]) -> dict[str, Any]:  # pragma: no cover - network call
+    def _get(
+        self, url: str, params: dict[str, str]
+    ) -> dict[str, Any]:  # pragma: no cover - network call
         full_params = {**params, "apiKey": self.config.api_key}
-        request = Request(f"{url}?{urlencode(full_params)}", headers={"User-Agent": self.config.tool})
+        request = Request(
+            f"{url}?{urlencode(full_params)}", headers={"User-Agent": self.config.tool}
+        )
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8", errors="ignore"))

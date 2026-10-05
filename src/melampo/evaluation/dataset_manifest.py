@@ -49,20 +49,40 @@ class DatasetManifest:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> DatasetManifest:
         return cls(
-            dataset_id=_clean_string(payload.get("dataset_id", payload.get("id", "unknown_dataset"))),
+            dataset_id=_clean_string(
+                payload.get("dataset_id", payload.get("id", "unknown_dataset"))
+            ),
             name=_clean_string(payload.get("name", "unknown_dataset")),
             source=_clean_string(payload.get("source", "")),
             license=_clean_string(payload.get("license", "")),
-            intended_use=_clean_string(payload.get("intended_use", "research_only")) or "research_only",
-            modalities=[_clean_string(item) for item in _as_list(payload.get("modalities")) if _clean_string(item)],
+            intended_use=_clean_string(payload.get("intended_use", "research_only"))
+            or "research_only",
+            modalities=[
+                _clean_string(item)
+                for item in _as_list(payload.get("modalities"))
+                if _clean_string(item)
+            ],
             population=dict(payload.get("population", {})),
             label_schema=dict(payload.get("label_schema", {})),
-            gold_standard=_clean_string(payload.get("gold_standard", "unknown")) or "unknown",
+            gold_standard=_clean_string(payload.get("gold_standard", "unknown"))
+            or "unknown",
             deidentified=bool(payload.get("deidentified", False)),
             splits=dict(payload.get("splits", {})),
-            required_slices=[_clean_string(item) for item in _as_list(payload.get("required_slices")) if _clean_string(item)],
-            bias_notes=[_clean_string(item) for item in _as_list(payload.get("bias_notes")) if _clean_string(item)],
-            limitations=[_clean_string(item) for item in _as_list(payload.get("limitations")) if _clean_string(item)],
+            required_slices=[
+                _clean_string(item)
+                for item in _as_list(payload.get("required_slices"))
+                if _clean_string(item)
+            ],
+            bias_notes=[
+                _clean_string(item)
+                for item in _as_list(payload.get("bias_notes"))
+                if _clean_string(item)
+            ],
+            limitations=[
+                _clean_string(item)
+                for item in _as_list(payload.get("limitations"))
+                if _clean_string(item)
+            ],
             governance=dict(payload.get("governance", {})),
         )
 
@@ -109,7 +129,11 @@ class DatasetManifest:
             failures.append("label_schema_missing")
         if self.gold_standard == "unknown":
             warnings.append("gold_standard_unknown")
-        if self.intended_use not in {"research_only", "retrospective_validation", "prospective_validation"}:
+        if self.intended_use not in {
+            "research_only",
+            "retrospective_validation",
+            "prospective_validation",
+        }:
             failures.append("intended_use_not_supported_for_phase5a")
         if not self.required_slices:
             warnings.append("required_slices_missing")
@@ -127,16 +151,27 @@ class DatasetManifestRegistry:
     manifests: dict[str, DatasetManifest] = field(default_factory=dict)
 
     def register(self, manifest: DatasetManifest | dict[str, Any]) -> dict[str, Any]:
-        manifest_obj = manifest if isinstance(manifest, DatasetManifest) else DatasetManifest.from_dict(manifest)
+        manifest_obj = (
+            manifest
+            if isinstance(manifest, DatasetManifest)
+            else DatasetManifest.from_dict(manifest)
+        )
         self.manifests[manifest_obj.dataset_id] = manifest_obj
         validation = manifest_obj.validate()
-        return {"status": "registered", "dataset_id": manifest_obj.dataset_id, "validation": validation}
+        return {
+            "status": "registered",
+            "dataset_id": manifest_obj.dataset_id,
+            "validation": validation,
+        }
 
     def get(self, dataset_id: str) -> DatasetManifest:
         return self.manifests[dataset_id]
 
     def summarize(self) -> dict[str, Any]:
-        validations = {dataset_id: manifest.validate()["status"] for dataset_id, manifest in self.manifests.items()}
+        validations = {
+            dataset_id: manifest.validate()["status"]
+            for dataset_id, manifest in self.manifests.items()
+        }
         return {
             "dataset_count": len(self.manifests),
             "statuses": validations,
