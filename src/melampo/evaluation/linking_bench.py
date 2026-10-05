@@ -737,3 +737,171 @@ def render_markdown(report: dict[str, Any]) -> str:
             )
         lines.append("")
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# The full anatomy linker: lexicon -> checks -> two models -> checks -> abstain
+# --------------------------------------------------------------------------
+
+
+def _describe_en(mention: str, sentence: str) -> str:
+    return (
+        "You are a radiologist. In one short sentence (max 25 words), in English, say which "
+        f"anatomical structure the expression «{mention}» refers to in this report sentence. "
+        f"Do not repeat the sentence.\n\nSentence: {sentence}"
+    )
+
+
+class EmbeddingRetriever:
+    """DeepEL-style candidates: rank the pool by the mention and by a model's description, merged."""
+
+    def __init__(
+        self, embedder: Embedder, pool: Sequence[Any], describe: ChatFn | None = None
+    ) -> None:
+        self._embedder = embedder
+        self._pool = list(pool)
+        self._describe = describe
+        self._cache: dict[str, list[float]] = {}
+        self._pool_vectors: list[list[float]] | None = None
+
+    def _vectors(self, texts: Sequence[str]) -> list[list[float]]:
+        missing = [t for t in dict.fromkeys(texts) if t not in self._cache]
+        if missing:
+            self._cache.update(zip(missing, self._embedder(missing), strict=True))
+        return [self._cache[t] for t in texts]
+
+    def _rank(self, vector: list[float]) -> list[str]:
+        if self._pool_vectors is None:
+            self._pool_vectors = self._vectors([c.label for c in self._pool])
+        scores = [
+            (cosine(vector, v), c.cid)
+            for c, v in zip(self._pool, self._pool_vectors, strict=True)
+        ]
+        return [cid for _, cid in sorted(scores, key=lambda p: (-p[0], p[1]))]
+
+    def __call__(self, mention: str, sentence: str, k: int) -> list[str]:
+        lists = [self._rank(self._vectors([mention])[0])[:k]]
+        if self._describe is not None:
+            description = (
+                self._describe(_describe_en(mention, sentence)) or ""
+            ).strip()
+            if description:
+                lists.append(self._rank(self._vectors([description])[0])[:k])
+        merged: list[str] = []
+        for group in zip(*lists, strict=False):
+            for cid in group:
+                if cid not in merged:
+                    merged.append(cid)
+        return merged[:k]
+
+
+def upper_error_bound(errors: int, n: int, confidence: float = 0.95) -> float:
+    """One-sided Clopper-Pearson upper bound on the error rate among n accepted links."""
+    if n == 0:
+        return 1.0
+    if errors == 0:
+        return 1 - (1 - confidence) ** (1 / n)
+    if errors >= n:
+        return 1.0
+    lo, hi = errors / n, 1.0
+    for _ in range(60):  # bisection on the binomial tail
+        mid = (lo + hi) / 2
+        tail = sum(
+            math.comb(n, i) * mid**i * (1 - mid) ** (n - i) for i in range(errors + 1)
+        )
+        lo, hi = (mid, hi) if tail > 1 - confidence else (lo, mid)
+    return hi
+
+
+def evaluate_anatomy_linker(
+    linker: Any, rows: Sequence[dict[str, Any]], workers: int = 4
+) -> dict[str, Any]:
+    """Four outcomes per mention, never two: correct, wrong (silent), other concept, abstained."""
+    from ..memory.anatomy_linker import ACCEPTED
+
+    results = _run(workers, lambda r: linker.link(r["mention"], r["sentence"]), rows)
+    tally: Counter[str] = Counter()
+    by_stage: dict[str, Counter[str]] = defaultdict(Counter)
+    reasons: Counter[str] = Counter()
+    details: list[dict[str, Any]] = []
+    for row, result in zip(rows, results, strict=True):
+        target = row["target"]
+        if result.status == ACCEPTED:
+            is_class = result.cid in getattr(linker.lexicon, "classes", {})
+            if result.cid == target:
+                outcome = "correct"
+            elif is_class:
+                outcome = "wrong"
+            else:
+                outcome = "other_concept"
+        else:
+            outcome = "abstained_as_expected" if target is None else "abstained"
+            reasons[result.reason] += 1
+        tally[outcome] += 1
+        by_stage[result.stage][outcome] += 1
+        if outcome not in ("correct", "abstained_as_expected"):
+            details.append(
+                {
+                    "mention": row["mention"],
+                    "sentence": row["sentence"],
+                    "target": target,
+                    "kind": row.get("kind"),
+                    "outcome": outcome,
+                    "chosen": result.cid,
+                    "stage": result.stage,
+                    "reason": result.reason,
+                    "votes": result.votes,
+                }
+            )
+    accepted_class = tally["correct"] + tally["wrong"]
+    with_target = sum(1 for r in rows if r["target"] is not None)
+    return {
+        "n": len(rows),
+        "with_target": with_target,
+        "outcomes": dict(tally),
+        "by_stage": {k: dict(v) for k, v in by_stage.items()},
+        "abstention_reasons": dict(reasons),
+        "precision_of_accepted": round(tally["correct"] / accepted_class, 4)
+        if accepted_class
+        else None,
+        "error_rate_upper_95": round(
+            upper_error_bound(tally["wrong"], accepted_class), 4
+        ),
+        "coverage": round(tally["correct"] / with_target, 4) if with_target else None,
+        "details": details,
+    }
+
+
+def render_linker_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "## Anatomy linker (lexicon, checks, two models, abstention)",
+        "",
+        "| Set | n | correct | wrong (silent) | other concept | abstained | of which expected | precision of accepted | error-rate upper bound (95%) | coverage |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for name, row in report.items():
+        o = row["outcomes"]
+        precision = (
+            "-"
+            if row["precision_of_accepted"] is None
+            else _pct(row["precision_of_accepted"])
+        )
+        coverage = "-" if row["coverage"] is None else _pct(row["coverage"])
+        lines.append(
+            f"| {name} | {row['n']} | {o.get('correct', 0)} | {o.get('wrong', 0)} | {o.get('other_concept', 0)} | "
+            f"{o.get('abstained', 0) + o.get('abstained_as_expected', 0)} | {o.get('abstained_as_expected', 0)} | "
+            f"{precision} | {_pct(row['error_rate_upper_95'])} | {coverage} |"
+        )
+    lines.append("")
+    for name, row in report.items():
+        flagged = [
+            d for d in row["details"] if d["outcome"] in ("wrong", "other_concept")
+        ]
+        if flagged:
+            lines.append(f"**{name}: links to check**")
+            for d in flagged:
+                lines.append(
+                    f"- {d['outcome']}: «{d['mention']}» expected {d['target']}, got {d['chosen']} ({d['stage']})"
+                )
+            lines.append("")
+    return "\n".join(lines)

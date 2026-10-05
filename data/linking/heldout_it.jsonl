@@ -1,0 +1,87 @@
+{"mention": "Parenchima splenico", "start": 0, "sentence": "Parenchima splenico omogeneo, dimensioni nei limiti.", "target": "spleen", "kind": "colloquial"}
+{"mention": "polo superiore della milza", "start": 42, "sentence": "TC addome: piccola formazione ipodensa al polo superiore della milza.", "target": "spleen", "kind": "part"}
+{"mention": "rene di dx", "start": 28, "sentence": "Cisti corticale semplice al rene di dx.", "target": "kidney_right", "kind": "abbreviation"}
+{"mention": "Loggia renale destra", "start": 0, "sentence": "Loggia renale destra libera, rene in sede.", "target": "kidney_right", "kind": "colloquial"}
+{"mention": "Rene sx", "start": 0, "sentence": "Rene sx con microlitiasi caliceale.", "target": "kidney_left", "kind": "abbreviation"}
+{"mention": "Cisti renale sinistra", "start": 0, "sentence": "Cisti renale sinistra di 3 cm, Bosniak I.", "target": "kidney_cyst_left", "kind": "formal"}
+{"mention": "Vescichetta biliare", "start": 0, "sentence": "Vescichetta biliare distesa, pareti sottili.", "target": "gallbladder", "kind": "synonym"}
+{"mention": "Ghiandola epatica", "start": 0, "sentence": "Ghiandola epatica di volume aumentato con steatosi diffusa.", "target": "liver", "kind": "synonym"}
+{"mention": "lobo destro del fegato", "start": 25, "sentence": "Nodulo ipervascolare nel lobo destro del fegato.", "target": "liver", "kind": "part"}
+{"mention": "fondo gastrico", "start": 27, "sentence": "Ispessimento parietale del fondo gastrico.", "target": "stomach", "kind": "part"}
+{"mention": "testa del pancreas", "start": 32, "sentence": "Lesione ipodensa di 12 mm della testa del pancreas.", "target": "pancreas", "kind": "part"}
+{"mention": "surrene dx", "start": 20, "sentence": "Nodulo di 15 mm del surrene dx, densità adiposa.", "target": "adrenal_gland_right", "kind": "abbreviation"}
+{"mention": "Ghiandola surrenalica sinistra", "start": 0, "sentence": "Ghiandola surrenalica sinistra di aspetto ipertrofico.", "target": "adrenal_gland_left", "kind": "synonym"}
+{"mention": "Anse digiunali", "start": 0, "sentence": "Anse digiunali lievemente distese, senza livelli idroaerei.", "target": "small_bowel", "kind": "part"}
+{"mention": "ileo terminale", "start": 28, "sentence": "Ispessimento parietale dell'ileo terminale.", "target": "small_bowel", "kind": "part"}
+{"mention": "Bulbo duodenale", "start": 0, "sentence": "Bulbo duodenale deformato da esiti ulcerosi.", "target": "duodenum", "kind": "part"}
+{"mention": "sigma", "start": 18, "sentence": "Diverticolosi del sigma senza segni di flogosi.", "target": "colon", "kind": "part"}
+{"mention": "colon discendente", "start": 27, "sentence": "Ispessimento parietale del colon discendente.", "target": "colon", "kind": "part"}
+{"mention": "Vescica urinaria", "start": 0, "sentence": "Vescica urinaria a pareti regolari, contenuto omogeneo.", "target": "urinary_bladder", "kind": "formal"}
+{"mention": "Ghiandola prostatica", "start": 0, "sentence": "Ghiandola prostatica di volume aumentato, circa 45 ml.", "target": "prostate", "kind": "synonym"}
+{"mention": "esofago distale", "start": 28, "sentence": "Ispessimento parietale dell'esofago distale.", "target": "esophagus", "kind": "part"}
+{"mention": "Trachea cervicale", "start": 0, "sentence": "Trachea cervicale in asse, di calibro regolare.", "target": "trachea", "kind": "part"}
+{"mention": "lobo tiroideo destro", "start": 19, "sentence": "Nodulo di 9 mm nel lobo tiroideo destro.", "target": "thyroid_gland", "kind": "part"}
+{"mention": "Tiroide", "start": 0, "sentence": "Tiroide di dimensioni regolari.", "target": "thyroid_gland", "kind": "formal"}
+{"mention": "lobo superiore dx", "start": 26, "sentence": "Nodulo solido di 8 mm nel lobo superiore dx.", "target": "lung_upper_lobe_right", "kind": "abbreviation"}
+{"mention": "segmento laterale del lobo medio", "start": 19, "sentence": "Bronchiectasie nel segmento laterale del lobo medio.", "target": "lung_middle_lobe_right", "kind": "part"}
+{"mention": "lobo inferiore polmonare sx", "start": 30, "sentence": "Addensamento parenchimale nel lobo inferiore polmonare sx.", "target": "lung_lower_lobe_left", "kind": "abbreviation"}
+{"mention": "lingula", "start": 28, "sentence": "Atelettasia lamellare della lingula.", "target": "lung_upper_lobe_left", "kind": "part"}
+{"mention": "LID", "start": 35, "sentence": "TC torace: micronodulo di 4 mm nel LID.", "target": "lung_lower_lobe_right", "kind": "abbreviation"}
+{"mention": "Ventricolo sinistro", "start": 0, "sentence": "Ventricolo sinistro dilatato con assottigliamento parietale.", "target": "heart", "kind": "part"}
+{"mention": "Aorta ascendente", "start": 0, "sentence": "Aorta ascendente ectasica, diametro 44 mm.", "target": "aorta", "kind": "part"}
+{"mention": "vene polmonari", "start": 25, "sentence": "Regolare drenaggio delle vene polmonari.", "target": "pulmonary_vein", "kind": "formal"}
+{"mention": "Tronco anonimo", "start": 0, "sentence": "Tronco anonimo di calibro regolare.", "target": "brachiocephalic_trunk", "kind": "synonym"}
+{"mention": "succlavia sinistra", "start": 14, "sentence": "Stenosi della succlavia sinistra all'origine.", "target": "subclavian_artery_left", "kind": "colloquial"}
+{"mention": "carotide comune dx", "start": 23, "sentence": "Placca calcifica della carotide comune dx.", "target": "common_carotid_artery_right", "kind": "abbreviation"}
+{"mention": "Vena anonima sinistra", "start": 0, "sentence": "Vena anonima sinistra pervia.", "target": "brachiocephalic_vein_left", "kind": "synonym"}
+{"mention": "VCS", "start": 38, "sentence": "Catetere venoso centrale con punta in VCS.", "target": "superior_vena_cava", "kind": "abbreviation"}
+{"mention": "Cava inferiore", "start": 0, "sentence": "Cava inferiore di calibro regolare.", "target": "inferior_vena_cava", "kind": "colloquial"}
+{"mention": "Vena splenica", "start": 0, "sentence": "Vena splenica pervia, flusso epatopeto.", "target": "portal_vein_and_splenic_vein", "kind": "part"}
+{"mention": "auricola sinistra", "start": 12, "sentence": "Trombo nell'auricola sinistra.", "target": "atrial_appendage_left", "kind": "synonym"}
+{"mention": "manubrio sternale", "start": 22, "sentence": "Frattura composta del manubrio sternale.", "target": "sternum", "kind": "part"}
+{"mention": "cartilagini costali", "start": 21, "sentence": "Calcificazioni delle cartilagini costali.", "target": "costal_cartilages", "kind": "formal"}
+{"mention": "VI costa destra", "start": 35, "sentence": "Frattura dell'arco anteriore della VI costa destra.", "target": "rib_right_6", "kind": "numeral"}
+{"mention": "undicesima costa sinistra", "start": 23, "sentence": "Esiti di frattura dell'undicesima costa sinistra.", "target": "rib_left_11", "kind": "numeral"}
+{"mention": "3a costa sx", "start": 18, "sentence": "Callo osseo sulla 3a costa sx.", "target": "rib_left_3", "kind": "numeral"}
+{"mention": "XII costa di destra", "start": 24, "sentence": "Frattura composta della XII costa di destra.", "target": "rib_right_12", "kind": "numeral"}
+{"mention": "scapola sinistra", "start": 25, "sentence": "Frattura del corpo della scapola sinistra.", "target": "scapula_left", "kind": "formal"}
+{"mention": "clavicola dx", "start": 31, "sentence": "Frattura del terzo medio della clavicola dx.", "target": "clavicula_right", "kind": "abbreviation"}
+{"mention": "omero sn", "start": 28, "sentence": "Frattura della diafisi dell'omero sn.", "target": "humerus_left", "kind": "abbreviation"}
+{"mention": "epistrofeo", "start": 24, "sentence": "Frattura del dente dell'epistrofeo.", "target": "vertebrae_C2", "kind": "synonym"}
+{"mention": "atlante", "start": 21, "sentence": "Arco posteriore dell'atlante integro.", "target": "vertebrae_C1", "kind": "synonym"}
+{"mention": "soma di C5", "start": 11, "sentence": "Crollo del soma di C5.", "target": "vertebrae_C5", "kind": "numeral"}
+{"mention": "D7", "start": 24, "sentence": "Emangioma vertebrale in D7.", "target": "vertebrae_T7", "kind": "numeral"}
+{"mention": "undicesima vertebra dorsale", "start": 30, "sentence": "Frattura da compressione dell'undicesima vertebra dorsale.", "target": "vertebrae_T11", "kind": "numeral"}
+{"mention": "terza vertebra lombare", "start": 24, "sentence": "Frattura somatica della terza vertebra lombare.", "target": "vertebrae_L3", "kind": "numeral"}
+{"mention": "L5", "start": 24, "sentence": "Spondilolisi istmica di L5.", "target": "vertebrae_L5", "kind": "numeral"}
+{"mention": "S1", "start": 26, "sentence": "Rachide: lisi del soma di S1.", "target": "vertebrae_S1", "kind": "numeral"}
+{"mention": "S1", "start": 27, "sentence": "Fegato: piccola lesione in S1, adiacente alla cava inferiore.", "target": "liver_segment_1", "kind": "numeral"}
+{"mention": "S7", "start": 33, "sentence": "Fegato: lesione ipervascolare in S7.", "target": "liver_segment_7", "kind": "numeral"}
+{"mention": "lobo caudato", "start": 15, "sentence": "Ipertrofia del lobo caudato.", "target": "liver_segment_1", "kind": "synonym"}
+{"mention": "osso sacro", "start": 23, "sentence": "Frattura dell'ala dell'osso sacro.", "target": "sacrum", "kind": "formal"}
+{"mention": "midollo cervicale", "start": 21, "sentence": "Iperintensità T2 del midollo cervicale.", "target": "spinal_cord", "kind": "part"}
+{"mention": "muscoli paravertebrali di sinistra", "start": 20, "sentence": "Atrofia adiposa dei muscoli paravertebrali di sinistra.", "target": "autochthon_left", "kind": "synonym"}
+{"mention": "osso iliaco destro", "start": 20, "sentence": "Lesione litica dell'osso iliaco destro.", "target": "hip_right", "kind": "part"}
+{"mention": "testa femorale sinistra", "start": 25, "sentence": "Necrosi avascolare della testa femorale sinistra.", "target": "femur_left", "kind": "part"}
+{"mention": "grande gluteo destro", "start": 12, "sentence": "Ematoma nel grande gluteo destro.", "target": "gluteus_maximus_right", "kind": "synonym"}
+{"mention": "medio gluteo sx", "start": 30, "sentence": "Tendinopatia inserzionale del medio gluteo sx.", "target": "gluteus_medius_left", "kind": "abbreviation"}
+{"mention": "muscolo psoas destro", "start": 12, "sentence": "Ascesso nel muscolo psoas destro.", "target": "iliopsoas_right", "kind": "part"}
+{"mention": "a. iliaca comune dx", "start": 16, "sentence": "Aneurisma della a. iliaca comune dx.", "target": "iliac_artery_right", "kind": "abbreviation"}
+{"mention": "vena iliaca comune sinistra", "start": 15, "sentence": "Trombosi della vena iliaca comune sinistra.", "target": "iliac_vena_left", "kind": "formal"}
+{"mention": "Parenchima cerebrale", "start": 0, "sentence": "Parenchima cerebrale senza alterazioni focali.", "target": "brain", "kind": "colloquial"}
+{"mention": "Teca cranica", "start": 0, "sentence": "Teca cranica integra.", "target": "skull", "kind": "synonym"}
+{"mention": "Appendice", "start": 0, "sentence": "Appendice ciecale ispessita, 9 mm.", "target": null, "kind": "out_of_scope"}
+{"mention": "menisco mediale", "start": 33, "sentence": "Lesione del corno posteriore del menisco mediale.", "target": null, "kind": "out_of_scope"}
+{"mention": "Linfonodo ilare destro", "start": 0, "sentence": "Linfonodo ilare destro di 12 mm.", "target": null, "kind": "out_of_scope"}
+{"mention": "ovaio destro", "start": 23, "sentence": "Cisti follicolare dell'ovaio destro.", "target": null, "kind": "out_of_scope"}
+{"mention": "Utero", "start": 0, "sentence": "Utero in antiversoflessione, di dimensioni regolari.", "target": null, "kind": "out_of_scope"}
+{"mention": "mammella sinistra", "start": 28, "sentence": "Addensamento nodulare della mammella sinistra.", "target": null, "kind": "out_of_scope"}
+{"mention": "seno mascellare", "start": 24, "sentence": "Ispessimento mucoso del seno mascellare.", "target": null, "kind": "out_of_scope"}
+{"mention": "Fegato e milza", "start": 0, "sentence": "Fegato e milza di dimensioni regolari.", "target": null, "kind": "equivocal"}
+{"mention": "Reni", "start": 0, "sentence": "Reni in sede, di dimensioni regolari.", "target": null, "kind": "equivocal"}
+{"mention": "base polmonare destra", "start": 26, "sentence": "Sfumato addensamento alla base polmonare destra.", "target": null, "kind": "equivocal"}
+{"mention": "C5-C6", "start": 30, "sentence": "Protrusione discale a livello C5-C6.", "target": null, "kind": "equivocal"}
+{"mention": "Rachide lombare", "start": 0, "sentence": "Rachide lombare con discopatia diffusa.", "target": null, "kind": "equivocal"}
+{"mention": "coste di destra", "start": 33, "sentence": "Esiti di fratture multiple delle coste di destra.", "target": null, "kind": "equivocal"}
+{"mention": "ilo epatico", "start": 20, "sentence": "Linfoadenopatie all'ilo epatico.", "target": null, "kind": "equivocal"}
+{"mention": "Succlavia", "start": 0, "sentence": "Succlavia pervia.", "target": null, "kind": "equivocal"}

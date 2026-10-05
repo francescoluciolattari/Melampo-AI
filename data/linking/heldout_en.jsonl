@@ -1,0 +1,79 @@
+{"mention": "splenic parenchyma", "start": 12, "sentence": "Homogeneous splenic parenchyma.", "target": "spleen", "kind": "colloquial"}
+{"mention": "rt kidney", "start": 28, "sentence": "Simple cortical cyst in the rt kidney.", "target": "kidney_right", "kind": "abbreviation"}
+{"mention": "L kidney", "start": 38, "sentence": "Small non-obstructing calculus in the L kidney.", "target": "kidney_left", "kind": "abbreviation"}
+{"mention": "GB", "start": 0, "sentence": "GB distended with sludge, no wall thickening.", "target": "gallbladder", "kind": "abbreviation"}
+{"mention": "hepatic parenchyma", "start": 34, "sentence": "Diffuse fatty infiltration of the hepatic parenchyma.", "target": "liver", "kind": "colloquial"}
+{"mention": "gastric antrum", "start": 23, "sentence": "Wall thickening of the gastric antrum.", "target": "stomach", "kind": "part"}
+{"mention": "pancreatic tail", "start": 21, "sentence": "Cystic lesion in the pancreatic tail.", "target": "pancreas", "kind": "part"}
+{"mention": "left adrenal", "start": 30, "sentence": "8 mm lipid-rich nodule in the left adrenal.", "target": "adrenal_gland_left", "kind": "colloquial"}
+{"mention": "R adrenal gland", "start": 0, "sentence": "R adrenal gland unremarkable.", "target": "adrenal_gland_right", "kind": "abbreviation"}
+{"mention": "jejunal loops", "start": 15, "sentence": "Mildly dilated jejunal loops without transition point.", "target": "small_bowel", "kind": "part"}
+{"mention": "duodenal bulb", "start": 17, "sentence": "Deformity of the duodenal bulb.", "target": "duodenum", "kind": "part"}
+{"mention": "sigmoid colon", "start": 22, "sentence": "Diverticulosis of the sigmoid colon.", "target": "colon", "kind": "part"}
+{"mention": "bladder wall", "start": 26, "sentence": "Diffuse thickening of the bladder wall.", "target": "urinary_bladder", "kind": "part"}
+{"mention": "prostate gland", "start": 9, "sentence": "Enlarged prostate gland, approximately 50 ml.", "target": "prostate", "kind": "formal"}
+{"mention": "distal oesophagus", "start": 34, "sentence": "Circumferential thickening of the distal oesophagus.", "target": "esophagus", "kind": "part"}
+{"mention": "Tracheal lumen", "start": 0, "sentence": "Tracheal lumen patent.", "target": "trachea", "kind": "part"}
+{"mention": "left thyroid lobe", "start": 25, "sentence": "Hypoechoic nodule in the left thyroid lobe.", "target": "thyroid_gland", "kind": "part"}
+{"mention": "RUL", "start": 31, "sentence": "Spiculated 14 mm nodule in the RUL.", "target": "lung_upper_lobe_right", "kind": "abbreviation"}
+{"mention": "RML", "start": 19, "sentence": "Atelectasis of the RML.", "target": "lung_middle_lobe_right", "kind": "abbreviation"}
+{"mention": "RLL", "start": 21, "sentence": "Consolidation in the RLL.", "target": "lung_lower_lobe_right", "kind": "abbreviation"}
+{"mention": "LUL", "start": 28, "sentence": "Ground-glass opacity in the LUL.", "target": "lung_upper_lobe_left", "kind": "abbreviation"}
+{"mention": "LLL", "start": 32, "sentence": "Subsegmental atelectasis in the LLL.", "target": "lung_lower_lobe_left", "kind": "abbreviation"}
+{"mention": "lingula", "start": 26, "sentence": "Linear atelectasis in the lingula.", "target": "lung_upper_lobe_left", "kind": "part"}
+{"mention": "Cardiac silhouette", "start": 0, "sentence": "Cardiac silhouette enlarged.", "target": "heart", "kind": "colloquial"}
+{"mention": "Ascending aorta", "start": 0, "sentence": "Ascending aorta measures 45 mm.", "target": "aorta", "kind": "part"}
+{"mention": "Innominate artery", "start": 0, "sentence": "Innominate artery patent.", "target": "brachiocephalic_trunk", "kind": "synonym"}
+{"mention": "Right innominate vein", "start": 0, "sentence": "Right innominate vein patent.", "target": "brachiocephalic_vein_right", "kind": "synonym"}
+{"mention": "R subclavian artery", "start": 38, "sentence": "Calcified plaque at the origin of the R subclavian artery.", "target": "subclavian_artery_right", "kind": "abbreviation"}
+{"mention": "left CCA", "start": 19, "sentence": "Mild plaque in the left CCA.", "target": "common_carotid_artery_left", "kind": "abbreviation"}
+{"mention": "SVC", "start": 24, "sentence": "Central line tip in the SVC.", "target": "superior_vena_cava", "kind": "abbreviation"}
+{"mention": "IVC", "start": 0, "sentence": "IVC filter in place.", "target": "inferior_vena_cava", "kind": "abbreviation"}
+{"mention": "Main portal vein", "start": 0, "sentence": "Main portal vein patent with hepatopetal flow.", "target": "portal_vein_and_splenic_vein", "kind": "part"}
+{"mention": "pulmonary veins", "start": 23, "sentence": "Normal drainage of the pulmonary veins.", "target": "pulmonary_vein", "kind": "formal"}
+{"mention": "LAA", "start": 16, "sentence": "Thrombus in the LAA.", "target": "atrial_appendage_left", "kind": "abbreviation"}
+{"mention": "sternal body", "start": 16, "sentence": "Fracture of the sternal body.", "target": "sternum", "kind": "part"}
+{"mention": "costal cartilage", "start": 21, "sentence": "Calcification of the costal cartilage.", "target": "costal_cartilages", "kind": "formal"}
+{"mention": "left 7th rib", "start": 24, "sentence": "Healing fracture of the left 7th rib.", "target": "rib_left_7", "kind": "numeral"}
+{"mention": "ninth right rib", "start": 26, "sentence": "Displaced fracture of the ninth right rib.", "target": "rib_right_9", "kind": "numeral"}
+{"mention": "left twelfth rib", "start": 20, "sentence": "Lytic lesion of the left twelfth rib.", "target": "rib_left_12", "kind": "numeral"}
+{"mention": "right 4th rib", "start": 14, "sentence": "Callus at the right 4th rib.", "target": "rib_right_4", "kind": "numeral"}
+{"mention": "right scapula", "start": 16, "sentence": "Fracture of the right scapula.", "target": "scapula_right", "kind": "formal"}
+{"mention": "left clavicle", "start": 25, "sentence": "Midshaft fracture of the left clavicle.", "target": "clavicula_left", "kind": "formal"}
+{"mention": "right humeral head", "start": 26, "sentence": "Avascular necrosis of the right humeral head.", "target": "humerus_right", "kind": "part"}
+{"mention": "odontoid process", "start": 24, "sentence": "Type II fracture of the odontoid process.", "target": "vertebrae_C2", "kind": "part"}
+{"mention": "atlas", "start": 22, "sentence": "Posterior arch of the atlas intact.", "target": "vertebrae_C1", "kind": "synonym"}
+{"mention": "T4 vertebral body", "start": 18, "sentence": "Hemangioma in the T4 vertebral body.", "target": "vertebrae_T4", "kind": "numeral"}
+{"mention": "T12", "start": 24, "sentence": "Compression fracture of T12.", "target": "vertebrae_T12", "kind": "numeral"}
+{"mention": "L2", "start": 23, "sentence": "Spine: Schmorl node at L2.", "target": "vertebrae_L2", "kind": "numeral"}
+{"mention": "fourth lumbar vertebra", "start": 21, "sentence": "Spondylolysis of the fourth lumbar vertebra.", "target": "vertebrae_L4", "kind": "numeral"}
+{"mention": "S1 vertebral body", "start": 23, "sentence": "Sclerotic focus in the S1 vertebral body.", "target": "vertebrae_S1", "kind": "numeral"}
+{"mention": "sacral ala", "start": 30, "sentence": "Insufficiency fracture of the sacral ala.", "target": "sacrum", "kind": "part"}
+{"mention": "thoracic cord", "start": 26, "sentence": "Signal abnormality in the thoracic cord.", "target": "spinal_cord", "kind": "part"}
+{"mention": "right paraspinal muscles", "start": 21, "sentence": "Fatty atrophy of the right paraspinal muscles.", "target": "autochthon_right", "kind": "synonym"}
+{"mention": "hepatic segment IV", "start": 20, "sentence": "Hypodense lesion in hepatic segment IV.", "target": "liver_segment_4", "kind": "numeral"}
+{"mention": "S6", "start": 26, "sentence": "Liver: 2 cm hemangioma in S6.", "target": "liver_segment_6", "kind": "numeral"}
+{"mention": "caudate lobe", "start": 19, "sentence": "Hypertrophy of the caudate lobe.", "target": "liver_segment_1", "kind": "synonym"}
+{"mention": "left iliac wing", "start": 20, "sentence": "Lytic lesion of the left iliac wing.", "target": "hip_left", "kind": "part"}
+{"mention": "right femoral neck", "start": 29, "sentence": "Nondisplaced fracture of the right femoral neck.", "target": "femur_right", "kind": "part"}
+{"mention": "left gluteus minimus", "start": 15, "sentence": "Atrophy of the left gluteus minimus.", "target": "gluteus_minimus_left", "kind": "formal"}
+{"mention": "left psoas", "start": 15, "sentence": "Abscess in the left psoas.", "target": "iliopsoas_left", "kind": "part"}
+{"mention": "right common iliac vein", "start": 16, "sentence": "Thrombus in the right common iliac vein.", "target": "iliac_vena_right", "kind": "formal"}
+{"mention": "left CIA", "start": 16, "sentence": "Aneurysm of the left CIA.", "target": "iliac_artery_left", "kind": "abbreviation"}
+{"mention": "Brain parenchyma", "start": 0, "sentence": "Brain parenchyma unremarkable.", "target": "brain", "kind": "colloquial"}
+{"mention": "Calvarium", "start": 0, "sentence": "Calvarium intact.", "target": "skull", "kind": "synonym"}
+{"mention": "Appendix", "start": 0, "sentence": "Appendix dilated to 10 mm.", "target": null, "kind": "out_of_scope"}
+{"mention": "medial meniscus", "start": 34, "sentence": "Tear of the posterior horn of the medial meniscus.", "target": null, "kind": "out_of_scope"}
+{"mention": "Right hilar lymph node", "start": 0, "sentence": "Right hilar lymph node, 12 mm.", "target": null, "kind": "out_of_scope"}
+{"mention": "left ovary", "start": 19, "sentence": "Simple cyst in the left ovary.", "target": null, "kind": "out_of_scope"}
+{"mention": "Uterus", "start": 0, "sentence": "Uterus anteverted, normal size.", "target": null, "kind": "out_of_scope"}
+{"mention": "left breast", "start": 23, "sentence": "Spiculated mass in the left breast.", "target": null, "kind": "out_of_scope"}
+{"mention": "maxillary sinus", "start": 26, "sentence": "Mucosal thickening of the maxillary sinus.", "target": null, "kind": "out_of_scope"}
+{"mention": "Liver and spleen", "start": 0, "sentence": "Liver and spleen normal in size.", "target": null, "kind": "equivocal"}
+{"mention": "Kidneys", "start": 0, "sentence": "Kidneys normal in size and position.", "target": null, "kind": "equivocal"}
+{"mention": "right lung base", "start": 20, "sentence": "Hazy opacity at the right lung base.", "target": null, "kind": "equivocal"}
+{"mention": "L4-L5", "start": 14, "sentence": "Disc bulge at L4-L5.", "target": null, "kind": "equivocal"}
+{"mention": "Lumbar spine", "start": 0, "sentence": "Lumbar spine with multilevel degenerative change.", "target": null, "kind": "equivocal"}
+{"mention": "right ribs", "start": 33, "sentence": "Multiple healed fractures of the right ribs.", "target": null, "kind": "equivocal"}
+{"mention": "porta hepatis", "start": 23, "sentence": "Lymphadenopathy at the porta hepatis.", "target": null, "kind": "equivocal"}
+{"mention": "Subclavian artery", "start": 0, "sentence": "Subclavian artery patent.", "target": null, "kind": "equivocal"}

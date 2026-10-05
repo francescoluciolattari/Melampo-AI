@@ -1,0 +1,1416 @@
+{
+ "note": "Nomi, sinonimi e sigle standard delle classi TotalSegmentator 2.18 (task total e liver_segments). requires_context indica la regione (anatomy_linker.REGION_CUES) che deve essere nominata accanto al nome. Le parti di organo non sono incluse: le risolve lo stadio LLM e le verifica il test held-out. Lato, numeri e livelli vertebrali sono normalizzati dal codice (anatomy_linker.normalise).",
+ "classes": {
+  "spleen": {
+   "region": "abdomen",
+   "it": [
+    "milza"
+   ],
+   "en": [
+    "spleen"
+   ]
+  },
+  "kidney_right": {
+   "region": "abdomen",
+   "it": [
+    "rene destro"
+   ],
+   "en": [
+    "right kidney"
+   ]
+  },
+  "kidney_left": {
+   "region": "abdomen",
+   "it": [
+    "rene sinistro"
+   ],
+   "en": [
+    "left kidney"
+   ]
+  },
+  "gallbladder": {
+   "region": "abdomen",
+   "it": [
+    "colecisti",
+    "cistifellea",
+    "vescichetta biliare",
+    "vescica biliare"
+   ],
+   "en": [
+    "gallbladder",
+    "gall bladder",
+    "GB"
+   ]
+  },
+  "liver": {
+   "region": "abdomen",
+   "it": [
+    "fegato"
+   ],
+   "en": [
+    "liver"
+   ]
+  },
+  "stomach": {
+   "region": "abdomen",
+   "it": [
+    "stomaco"
+   ],
+   "en": [
+    "stomach"
+   ]
+  },
+  "pancreas": {
+   "region": "abdomen",
+   "it": [
+    "pancreas"
+   ],
+   "en": [
+    "pancreas"
+   ]
+  },
+  "adrenal_gland_right": {
+   "region": "abdomen",
+   "it": [
+    "surrene destro",
+    "ghiandola surrenale destro"
+   ],
+   "en": [
+    "right adrenal",
+    "right adrenal gland",
+    "right suprarenal gland"
+   ]
+  },
+  "adrenal_gland_left": {
+   "region": "abdomen",
+   "it": [
+    "surrene sinistro",
+    "ghiandola surrenale sinistro"
+   ],
+   "en": [
+    "left adrenal",
+    "left adrenal gland",
+    "left suprarenal gland"
+   ]
+  },
+  "lung_upper_lobe_left": {
+   "region": "thorax",
+   "it": [
+    "lobo superiore sinistro",
+    "lobo superiore del polmone sinistro",
+    "lobo polmonare superiore sinistro",
+    "LSS"
+   ],
+   "en": [
+    "left upper lobe",
+    "upper lobe of left lung",
+    "left lung upper lobe",
+    "LUL"
+   ]
+  },
+  "lung_lower_lobe_left": {
+   "region": "thorax",
+   "it": [
+    "lobo inferiore sinistro",
+    "lobo inferiore del polmone sinistro",
+    "lobo polmonare inferiore sinistro",
+    "LIS"
+   ],
+   "en": [
+    "left lower lobe",
+    "lower lobe of left lung",
+    "left lung lower lobe",
+    "LLL"
+   ]
+  },
+  "lung_upper_lobe_right": {
+   "region": "thorax",
+   "it": [
+    "lobo superiore destro",
+    "lobo superiore del polmone destro",
+    "lobo polmonare superiore destro",
+    "LSD"
+   ],
+   "en": [
+    "right upper lobe",
+    "upper lobe of right lung",
+    "right lung upper lobe",
+    "RUL"
+   ]
+  },
+  "lung_middle_lobe_right": {
+   "region": "thorax",
+   "it": [
+    "lobo medio",
+    "lobo medio destro",
+    "lobo medio del polmone destro",
+    "lobo polmonare medio"
+   ],
+   "en": [
+    "middle lobe",
+    "right middle lobe",
+    "middle lobe of right lung",
+    "RML"
+   ]
+  },
+  "lung_lower_lobe_right": {
+   "region": "thorax",
+   "it": [
+    "lobo inferiore destro",
+    "lobo inferiore del polmone destro",
+    "lobo polmonare inferiore destro",
+    "LID"
+   ],
+   "en": [
+    "right lower lobe",
+    "lower lobe of right lung",
+    "right lung lower lobe",
+    "RLL"
+   ]
+  },
+  "esophagus": {
+   "region": "thorax",
+   "it": [
+    "esofago"
+   ],
+   "en": [
+    "esophagus",
+    "oesophagus"
+   ]
+  },
+  "trachea": {
+   "region": "thorax",
+   "it": [
+    "trachea"
+   ],
+   "en": [
+    "trachea"
+   ]
+  },
+  "thyroid_gland": {
+   "region": "neck",
+   "it": [
+    "tiroide",
+    "ghiandola tiroidea"
+   ],
+   "en": [
+    "thyroid",
+    "thyroid gland"
+   ]
+  },
+  "small_bowel": {
+   "region": "abdomen",
+   "it": [
+    "intestino tenue",
+    "piccolo intestino"
+   ],
+   "en": [
+    "small bowel",
+    "small intestine"
+   ]
+  },
+  "duodenum": {
+   "region": "abdomen",
+   "it": [
+    "duodeno"
+   ],
+   "en": [
+    "duodenum"
+   ]
+  },
+  "colon": {
+   "region": "abdomen",
+   "it": [
+    "colon",
+    "intestino crasso",
+    "grosso intestino"
+   ],
+   "en": [
+    "colon",
+    "large bowel",
+    "large intestine"
+   ]
+  },
+  "urinary_bladder": {
+   "region": "pelvis",
+   "it": [
+    "vescica",
+    "vescica urinaria"
+   ],
+   "en": [
+    "urinary bladder",
+    "bladder"
+   ]
+  },
+  "prostate": {
+   "region": "pelvis",
+   "it": [
+    "prostata"
+   ],
+   "en": [
+    "prostate"
+   ]
+  },
+  "kidney_cyst_left": {
+   "region": "abdomen",
+   "it": [
+    "cisti renale sinistro",
+    "cisti del rene sinistro"
+   ],
+   "en": [
+    "left renal cyst",
+    "left kidney cyst"
+   ]
+  },
+  "kidney_cyst_right": {
+   "region": "abdomen",
+   "it": [
+    "cisti renale destro",
+    "cisti del rene destro"
+   ],
+   "en": [
+    "right renal cyst",
+    "right kidney cyst"
+   ]
+  },
+  "sacrum": {
+   "region": "spine",
+   "it": [
+    "sacro",
+    "osso sacro"
+   ],
+   "en": [
+    "sacrum"
+   ]
+  },
+  "vertebrae_S1": {
+   "region": "spine",
+   "it": [
+    "S1"
+   ],
+   "en": [
+    "S1"
+   ],
+   "requires_context": {
+    "S1": "spine"
+   }
+  },
+  "vertebrae_L5": {
+   "region": "spine",
+   "it": [
+    "L5"
+   ],
+   "en": [
+    "L5"
+   ]
+  },
+  "vertebrae_L4": {
+   "region": "spine",
+   "it": [
+    "L4"
+   ],
+   "en": [
+    "L4"
+   ]
+  },
+  "vertebrae_L3": {
+   "region": "spine",
+   "it": [
+    "L3"
+   ],
+   "en": [
+    "L3"
+   ]
+  },
+  "vertebrae_L2": {
+   "region": "spine",
+   "it": [
+    "L2"
+   ],
+   "en": [
+    "L2"
+   ]
+  },
+  "vertebrae_L1": {
+   "region": "spine",
+   "it": [
+    "L1"
+   ],
+   "en": [
+    "L1"
+   ]
+  },
+  "vertebrae_T12": {
+   "region": "spine",
+   "it": [
+    "T12",
+    "D12"
+   ],
+   "en": [
+    "T12"
+   ]
+  },
+  "vertebrae_T11": {
+   "region": "spine",
+   "it": [
+    "T11",
+    "D11"
+   ],
+   "en": [
+    "T11"
+   ]
+  },
+  "vertebrae_T10": {
+   "region": "spine",
+   "it": [
+    "T10",
+    "D10"
+   ],
+   "en": [
+    "T10"
+   ]
+  },
+  "vertebrae_T9": {
+   "region": "spine",
+   "it": [
+    "T9",
+    "D9"
+   ],
+   "en": [
+    "T9"
+   ]
+  },
+  "vertebrae_T8": {
+   "region": "spine",
+   "it": [
+    "T8",
+    "D8"
+   ],
+   "en": [
+    "T8"
+   ]
+  },
+  "vertebrae_T7": {
+   "region": "spine",
+   "it": [
+    "T7",
+    "D7"
+   ],
+   "en": [
+    "T7"
+   ]
+  },
+  "vertebrae_T6": {
+   "region": "spine",
+   "it": [
+    "T6",
+    "D6"
+   ],
+   "en": [
+    "T6"
+   ]
+  },
+  "vertebrae_T5": {
+   "region": "spine",
+   "it": [
+    "T5",
+    "D5"
+   ],
+   "en": [
+    "T5"
+   ]
+  },
+  "vertebrae_T4": {
+   "region": "spine",
+   "it": [
+    "T4",
+    "D4"
+   ],
+   "en": [
+    "T4"
+   ],
+   "requires_context": {
+    "D4": "spine"
+   }
+  },
+  "vertebrae_T3": {
+   "region": "spine",
+   "it": [
+    "T3",
+    "D3"
+   ],
+   "en": [
+    "T3"
+   ],
+   "requires_context": {
+    "D3": "spine"
+   }
+  },
+  "vertebrae_T2": {
+   "region": "spine",
+   "it": [
+    "T2",
+    "D2"
+   ],
+   "en": [
+    "T2"
+   ],
+   "requires_context": {
+    "D2": "spine",
+    "T2": "spine_no_signal"
+   }
+  },
+  "vertebrae_T1": {
+   "region": "spine",
+   "it": [
+    "T1",
+    "D1"
+   ],
+   "en": [
+    "T1"
+   ],
+   "requires_context": {
+    "D1": "spine",
+    "T1": "spine_no_signal"
+   }
+  },
+  "vertebrae_C7": {
+   "region": "spine",
+   "it": [
+    "C7"
+   ],
+   "en": [
+    "C7"
+   ]
+  },
+  "vertebrae_C6": {
+   "region": "spine",
+   "it": [
+    "C6"
+   ],
+   "en": [
+    "C6"
+   ]
+  },
+  "vertebrae_C5": {
+   "region": "spine",
+   "it": [
+    "C5"
+   ],
+   "en": [
+    "C5"
+   ]
+  },
+  "vertebrae_C4": {
+   "region": "spine",
+   "it": [
+    "C4"
+   ],
+   "en": [
+    "C4"
+   ]
+  },
+  "vertebrae_C3": {
+   "region": "spine",
+   "it": [
+    "C3"
+   ],
+   "en": [
+    "C3"
+   ]
+  },
+  "vertebrae_C2": {
+   "region": "spine",
+   "it": [
+    "C2",
+    "epistrofeo"
+   ],
+   "en": [
+    "C2",
+    "axis"
+   ]
+  },
+  "vertebrae_C1": {
+   "region": "spine",
+   "it": [
+    "C1",
+    "atlante"
+   ],
+   "en": [
+    "C1",
+    "atlas"
+   ]
+  },
+  "heart": {
+   "region": "thorax",
+   "it": [
+    "cuore"
+   ],
+   "en": [
+    "heart"
+   ]
+  },
+  "aorta": {
+   "region": "thorax",
+   "it": [
+    "aorta"
+   ],
+   "en": [
+    "aorta"
+   ]
+  },
+  "pulmonary_vein": {
+   "region": "thorax",
+   "it": [
+    "vena polmonare",
+    "vene polmonari"
+   ],
+   "en": [
+    "pulmonary vein",
+    "pulmonary veins"
+   ]
+  },
+  "brachiocephalic_trunk": {
+   "region": "thorax",
+   "it": [
+    "tronco brachiocefalico",
+    "tronco anonimo",
+    "arteria anonima"
+   ],
+   "en": [
+    "brachiocephalic trunk",
+    "brachiocephalic artery",
+    "innominate artery"
+   ]
+  },
+  "subclavian_artery_right": {
+   "region": "thorax",
+   "it": [
+    "arteria succlavia destro",
+    "succlavia destro"
+   ],
+   "en": [
+    "right subclavian artery"
+   ]
+  },
+  "subclavian_artery_left": {
+   "region": "thorax",
+   "it": [
+    "arteria succlavia sinistro",
+    "succlavia sinistro"
+   ],
+   "en": [
+    "left subclavian artery"
+   ]
+  },
+  "common_carotid_artery_right": {
+   "region": "neck",
+   "it": [
+    "arteria carotide comune destro",
+    "carotide comune destro"
+   ],
+   "en": [
+    "right common carotid artery",
+    "right CCA"
+   ]
+  },
+  "common_carotid_artery_left": {
+   "region": "neck",
+   "it": [
+    "arteria carotide comune sinistro",
+    "carotide comune sinistro"
+   ],
+   "en": [
+    "left common carotid artery",
+    "left CCA"
+   ]
+  },
+  "brachiocephalic_vein_left": {
+   "region": "thorax",
+   "it": [
+    "vena brachiocefalica sinistro",
+    "vena anonima sinistro"
+   ],
+   "en": [
+    "left brachiocephalic vein",
+    "left innominate vein"
+   ]
+  },
+  "brachiocephalic_vein_right": {
+   "region": "thorax",
+   "it": [
+    "vena brachiocefalica destro",
+    "vena anonima destro"
+   ],
+   "en": [
+    "right brachiocephalic vein",
+    "right innominate vein"
+   ]
+  },
+  "atrial_appendage_left": {
+   "region": "thorax",
+   "it": [
+    "auricola sinistra",
+    "auricola atriale sinistra",
+    "auricola dell'atrio sinistro"
+   ],
+   "en": [
+    "left atrial appendage",
+    "LAA"
+   ]
+  },
+  "superior_vena_cava": {
+   "region": "thorax",
+   "it": [
+    "vena cava superiore",
+    "cava superiore",
+    "VCS"
+   ],
+   "en": [
+    "superior vena cava",
+    "SVC"
+   ]
+  },
+  "inferior_vena_cava": {
+   "region": "abdomen",
+   "it": [
+    "vena cava inferiore",
+    "cava inferiore",
+    "VCI"
+   ],
+   "en": [
+    "inferior vena cava",
+    "IVC"
+   ]
+  },
+  "portal_vein_and_splenic_vein": {
+   "region": "abdomen",
+   "it": [
+    "vena porta",
+    "vena portale",
+    "tronco portale",
+    "vena splenica",
+    "asse spleno portale"
+   ],
+   "en": [
+    "portal vein",
+    "splenic vein",
+    "portal and splenic vein"
+   ]
+  },
+  "iliac_artery_left": {
+   "region": "pelvis",
+   "it": [
+    "arteria iliaca comune sinistro",
+    "iliaca comune sinistro"
+   ],
+   "en": [
+    "left common iliac artery",
+    "left CIA"
+   ]
+  },
+  "iliac_artery_right": {
+   "region": "pelvis",
+   "it": [
+    "arteria iliaca comune destro",
+    "iliaca comune destro"
+   ],
+   "en": [
+    "right common iliac artery",
+    "right CIA"
+   ]
+  },
+  "iliac_vena_left": {
+   "region": "pelvis",
+   "it": [
+    "vena iliaca comune sinistro"
+   ],
+   "en": [
+    "left common iliac vein",
+    "left CIV"
+   ]
+  },
+  "iliac_vena_right": {
+   "region": "pelvis",
+   "it": [
+    "vena iliaca comune destro"
+   ],
+   "en": [
+    "right common iliac vein",
+    "right CIV"
+   ]
+  },
+  "humerus_left": {
+   "region": "upper_limb",
+   "it": [
+    "omero sinistro"
+   ],
+   "en": [
+    "left humerus"
+   ]
+  },
+  "humerus_right": {
+   "region": "upper_limb",
+   "it": [
+    "omero destro"
+   ],
+   "en": [
+    "right humerus"
+   ]
+  },
+  "scapula_left": {
+   "region": "upper_limb",
+   "it": [
+    "scapola sinistro"
+   ],
+   "en": [
+    "left scapula"
+   ]
+  },
+  "scapula_right": {
+   "region": "upper_limb",
+   "it": [
+    "scapola destro"
+   ],
+   "en": [
+    "right scapula"
+   ]
+  },
+  "clavicula_left": {
+   "region": "upper_limb",
+   "it": [
+    "clavicola sinistro"
+   ],
+   "en": [
+    "left clavicle",
+    "left clavicula"
+   ]
+  },
+  "clavicula_right": {
+   "region": "upper_limb",
+   "it": [
+    "clavicola destro"
+   ],
+   "en": [
+    "right clavicle",
+    "right clavicula"
+   ]
+  },
+  "femur_left": {
+   "region": "lower_limb",
+   "it": [
+    "femore sinistro"
+   ],
+   "en": [
+    "left femur"
+   ]
+  },
+  "femur_right": {
+   "region": "lower_limb",
+   "it": [
+    "femore destro"
+   ],
+   "en": [
+    "right femur"
+   ]
+  },
+  "hip_left": {
+   "region": "pelvis",
+   "it": [
+    "osso dell'anca sinistro",
+    "osso coxale sinistro"
+   ],
+   "en": [
+    "left hip bone",
+    "left os coxae",
+    "left innominate bone"
+   ]
+  },
+  "hip_right": {
+   "region": "pelvis",
+   "it": [
+    "osso dell'anca destro",
+    "osso coxale destro"
+   ],
+   "en": [
+    "right hip bone",
+    "right os coxae",
+    "right innominate bone"
+   ]
+  },
+  "spinal_cord": {
+   "region": "spine",
+   "it": [
+    "midollo spinale"
+   ],
+   "en": [
+    "spinal cord"
+   ]
+  },
+  "gluteus_maximus_left": {
+   "region": "pelvis",
+   "it": [
+    "grande gluteo sinistro",
+    "muscolo grande gluteo sinistro"
+   ],
+   "en": [
+    "left gluteus maximus"
+   ]
+  },
+  "gluteus_maximus_right": {
+   "region": "pelvis",
+   "it": [
+    "grande gluteo destro",
+    "muscolo grande gluteo destro"
+   ],
+   "en": [
+    "right gluteus maximus"
+   ]
+  },
+  "gluteus_medius_left": {
+   "region": "pelvis",
+   "it": [
+    "medio gluteo sinistro",
+    "muscolo medio gluteo sinistro"
+   ],
+   "en": [
+    "left gluteus medius"
+   ]
+  },
+  "gluteus_medius_right": {
+   "region": "pelvis",
+   "it": [
+    "medio gluteo destro",
+    "muscolo medio gluteo destro"
+   ],
+   "en": [
+    "right gluteus medius"
+   ]
+  },
+  "gluteus_minimus_left": {
+   "region": "pelvis",
+   "it": [
+    "piccolo gluteo sinistro",
+    "muscolo piccolo gluteo sinistro"
+   ],
+   "en": [
+    "left gluteus minimus"
+   ]
+  },
+  "gluteus_minimus_right": {
+   "region": "pelvis",
+   "it": [
+    "piccolo gluteo destro",
+    "muscolo piccolo gluteo destro"
+   ],
+   "en": [
+    "right gluteus minimus"
+   ]
+  },
+  "autochthon_left": {
+   "region": "spine",
+   "it": [
+    "muscoli paravertebrali sinistro",
+    "muscolatura paravertebrale sinistro",
+    "muscoli erettori spinali sinistro",
+    "muscolatura autoctona del dorso sinistro"
+   ],
+   "en": [
+    "left paraspinal muscles",
+    "left erector spinae",
+    "left autochthonous back muscles"
+   ]
+  },
+  "autochthon_right": {
+   "region": "spine",
+   "it": [
+    "muscoli paravertebrali destro",
+    "muscolatura paravertebrale destro",
+    "muscoli erettori spinali destro",
+    "muscolatura autoctona del dorso destro"
+   ],
+   "en": [
+    "right paraspinal muscles",
+    "right erector spinae",
+    "right autochthonous back muscles"
+   ]
+  },
+  "iliopsoas_left": {
+   "region": "pelvis",
+   "it": [
+    "ileopsoas sinistro",
+    "muscolo ileopsoas sinistro"
+   ],
+   "en": [
+    "left iliopsoas"
+   ]
+  },
+  "iliopsoas_right": {
+   "region": "pelvis",
+   "it": [
+    "ileopsoas destro",
+    "muscolo ileopsoas destro"
+   ],
+   "en": [
+    "right iliopsoas"
+   ]
+  },
+  "brain": {
+   "region": "head",
+   "it": [
+    "encefalo",
+    "cervello"
+   ],
+   "en": [
+    "brain"
+   ]
+  },
+  "skull": {
+   "region": "head",
+   "it": [
+    "cranio"
+   ],
+   "en": [
+    "skull"
+   ]
+  },
+  "rib_left_1": {
+   "region": "thorax",
+   "it": [
+    "costa 1 sinistra",
+    "costola 1 sinistra"
+   ],
+   "en": [
+    "left rib 1",
+    "rib 1 left"
+   ]
+  },
+  "rib_left_2": {
+   "region": "thorax",
+   "it": [
+    "costa 2 sinistra",
+    "costola 2 sinistra"
+   ],
+   "en": [
+    "left rib 2",
+    "rib 2 left"
+   ]
+  },
+  "rib_left_3": {
+   "region": "thorax",
+   "it": [
+    "costa 3 sinistra",
+    "costola 3 sinistra"
+   ],
+   "en": [
+    "left rib 3",
+    "rib 3 left"
+   ]
+  },
+  "rib_left_4": {
+   "region": "thorax",
+   "it": [
+    "costa 4 sinistra",
+    "costola 4 sinistra"
+   ],
+   "en": [
+    "left rib 4",
+    "rib 4 left"
+   ]
+  },
+  "rib_left_5": {
+   "region": "thorax",
+   "it": [
+    "costa 5 sinistra",
+    "costola 5 sinistra"
+   ],
+   "en": [
+    "left rib 5",
+    "rib 5 left"
+   ]
+  },
+  "rib_left_6": {
+   "region": "thorax",
+   "it": [
+    "costa 6 sinistra",
+    "costola 6 sinistra"
+   ],
+   "en": [
+    "left rib 6",
+    "rib 6 left"
+   ]
+  },
+  "rib_left_7": {
+   "region": "thorax",
+   "it": [
+    "costa 7 sinistra",
+    "costola 7 sinistra"
+   ],
+   "en": [
+    "left rib 7",
+    "rib 7 left"
+   ]
+  },
+  "rib_left_8": {
+   "region": "thorax",
+   "it": [
+    "costa 8 sinistra",
+    "costola 8 sinistra"
+   ],
+   "en": [
+    "left rib 8",
+    "rib 8 left"
+   ]
+  },
+  "rib_left_9": {
+   "region": "thorax",
+   "it": [
+    "costa 9 sinistra",
+    "costola 9 sinistra"
+   ],
+   "en": [
+    "left rib 9",
+    "rib 9 left"
+   ]
+  },
+  "rib_left_10": {
+   "region": "thorax",
+   "it": [
+    "costa 10 sinistra",
+    "costola 10 sinistra"
+   ],
+   "en": [
+    "left rib 10",
+    "rib 10 left"
+   ]
+  },
+  "rib_left_11": {
+   "region": "thorax",
+   "it": [
+    "costa 11 sinistra",
+    "costola 11 sinistra"
+   ],
+   "en": [
+    "left rib 11",
+    "rib 11 left"
+   ]
+  },
+  "rib_left_12": {
+   "region": "thorax",
+   "it": [
+    "costa 12 sinistra",
+    "costola 12 sinistra"
+   ],
+   "en": [
+    "left rib 12",
+    "rib 12 left"
+   ]
+  },
+  "rib_right_1": {
+   "region": "thorax",
+   "it": [
+    "costa 1 destra",
+    "costola 1 destra"
+   ],
+   "en": [
+    "right rib 1",
+    "rib 1 right"
+   ]
+  },
+  "rib_right_2": {
+   "region": "thorax",
+   "it": [
+    "costa 2 destra",
+    "costola 2 destra"
+   ],
+   "en": [
+    "right rib 2",
+    "rib 2 right"
+   ]
+  },
+  "rib_right_3": {
+   "region": "thorax",
+   "it": [
+    "costa 3 destra",
+    "costola 3 destra"
+   ],
+   "en": [
+    "right rib 3",
+    "rib 3 right"
+   ]
+  },
+  "rib_right_4": {
+   "region": "thorax",
+   "it": [
+    "costa 4 destra",
+    "costola 4 destra"
+   ],
+   "en": [
+    "right rib 4",
+    "rib 4 right"
+   ]
+  },
+  "rib_right_5": {
+   "region": "thorax",
+   "it": [
+    "costa 5 destra",
+    "costola 5 destra"
+   ],
+   "en": [
+    "right rib 5",
+    "rib 5 right"
+   ]
+  },
+  "rib_right_6": {
+   "region": "thorax",
+   "it": [
+    "costa 6 destra",
+    "costola 6 destra"
+   ],
+   "en": [
+    "right rib 6",
+    "rib 6 right"
+   ]
+  },
+  "rib_right_7": {
+   "region": "thorax",
+   "it": [
+    "costa 7 destra",
+    "costola 7 destra"
+   ],
+   "en": [
+    "right rib 7",
+    "rib 7 right"
+   ]
+  },
+  "rib_right_8": {
+   "region": "thorax",
+   "it": [
+    "costa 8 destra",
+    "costola 8 destra"
+   ],
+   "en": [
+    "right rib 8",
+    "rib 8 right"
+   ]
+  },
+  "rib_right_9": {
+   "region": "thorax",
+   "it": [
+    "costa 9 destra",
+    "costola 9 destra"
+   ],
+   "en": [
+    "right rib 9",
+    "rib 9 right"
+   ]
+  },
+  "rib_right_10": {
+   "region": "thorax",
+   "it": [
+    "costa 10 destra",
+    "costola 10 destra"
+   ],
+   "en": [
+    "right rib 10",
+    "rib 10 right"
+   ]
+  },
+  "rib_right_11": {
+   "region": "thorax",
+   "it": [
+    "costa 11 destra",
+    "costola 11 destra"
+   ],
+   "en": [
+    "right rib 11",
+    "rib 11 right"
+   ]
+  },
+  "rib_right_12": {
+   "region": "thorax",
+   "it": [
+    "costa 12 destra",
+    "costola 12 destra"
+   ],
+   "en": [
+    "right rib 12",
+    "rib 12 right"
+   ]
+  },
+  "sternum": {
+   "region": "thorax",
+   "it": [
+    "sterno"
+   ],
+   "en": [
+    "sternum"
+   ]
+  },
+  "costal_cartilages": {
+   "region": "thorax",
+   "it": [
+    "cartilagini costali",
+    "cartilagine costale"
+   ],
+   "en": [
+    "costal cartilages",
+    "costal cartilage"
+   ]
+  },
+  "liver_segment_1": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 1",
+    "segmento 1",
+    "S1",
+    "lobo caudato"
+   ],
+   "en": [
+    "liver segment 1",
+    "hepatic segment 1",
+    "segment 1",
+    "couinaud segment 1",
+    "caudate lobe"
+   ],
+   "requires_context": {
+    "segmento 1": "liver",
+    "S1": "liver",
+    "segment 1": "liver"
+   }
+  },
+  "liver_segment_2": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 2",
+    "segmento 2",
+    "S2"
+   ],
+   "en": [
+    "liver segment 2",
+    "hepatic segment 2",
+    "segment 2",
+    "couinaud segment 2"
+   ],
+   "requires_context": {
+    "segmento 2": "liver",
+    "S2": "liver",
+    "segment 2": "liver"
+   }
+  },
+  "liver_segment_3": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 3",
+    "segmento 3",
+    "S3"
+   ],
+   "en": [
+    "liver segment 3",
+    "hepatic segment 3",
+    "segment 3",
+    "couinaud segment 3"
+   ],
+   "requires_context": {
+    "segmento 3": "liver",
+    "S3": "liver",
+    "segment 3": "liver"
+   }
+  },
+  "liver_segment_4": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 4",
+    "segmento 4",
+    "S4"
+   ],
+   "en": [
+    "liver segment 4",
+    "hepatic segment 4",
+    "segment 4",
+    "couinaud segment 4"
+   ],
+   "requires_context": {
+    "segmento 4": "liver",
+    "S4": "liver",
+    "segment 4": "liver"
+   }
+  },
+  "liver_segment_5": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 5",
+    "segmento 5",
+    "S5"
+   ],
+   "en": [
+    "liver segment 5",
+    "hepatic segment 5",
+    "segment 5",
+    "couinaud segment 5"
+   ],
+   "requires_context": {
+    "segmento 5": "liver",
+    "S5": "liver",
+    "segment 5": "liver"
+   }
+  },
+  "liver_segment_6": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 6",
+    "segmento 6",
+    "S6"
+   ],
+   "en": [
+    "liver segment 6",
+    "hepatic segment 6",
+    "segment 6",
+    "couinaud segment 6"
+   ],
+   "requires_context": {
+    "segmento 6": "liver",
+    "S6": "liver",
+    "segment 6": "liver"
+   }
+  },
+  "liver_segment_7": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 7",
+    "segmento 7",
+    "S7"
+   ],
+   "en": [
+    "liver segment 7",
+    "hepatic segment 7",
+    "segment 7",
+    "couinaud segment 7"
+   ],
+   "requires_context": {
+    "segmento 7": "liver",
+    "S7": "liver",
+    "segment 7": "liver"
+   }
+  },
+  "liver_segment_8": {
+   "region": "abdomen",
+   "it": [
+    "segmento epatico 8",
+    "segmento 8",
+    "S8"
+   ],
+   "en": [
+    "liver segment 8",
+    "hepatic segment 8",
+    "segment 8",
+    "couinaud segment 8"
+   ],
+   "requires_context": {
+    "segmento 8": "liver",
+    "S8": "liver",
+    "segment 8": "liver"
+   }
+  }
+ }
+}
