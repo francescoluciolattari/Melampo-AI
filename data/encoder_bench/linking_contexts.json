@@ -1,0 +1,140 @@
+{
+ "note": "Frasi-contesto sintetiche, a livello di gruppo anatomico: non contengono il nome della struttura, solo il distretto. Misurano un limite superiore del beneficio del contesto.",
+ "groups": {
+  "addome": {
+   "members": [
+    "spleen",
+    "gallbladder",
+    "liver",
+    "stomach",
+    "pancreas",
+    "small_bowel",
+    "duodenum",
+    "colon",
+    "kidney_right",
+    "kidney_left",
+    "adrenal_gland_right",
+    "adrenal_gland_left"
+   ],
+   "templates": [
+    "TC addome con mezzo di contrasto: {m} regolare per morfologia e densità, senza lesioni focali.",
+    "Addome: a carico di {m} si segnala una lieve alterazione densitometrica da correlare clinicamente."
+   ]
+  },
+  "polmone": {
+   "members": [
+    "lung_upper_lobe_left",
+    "lung_lower_lobe_left",
+    "lung_upper_lobe_right",
+    "lung_middle_lobe_right",
+    "lung_lower_lobe_right"
+   ],
+   "templates": [
+    "TC torace: nel parenchima polmonare, a carico del {m}, nodulo solido con margini netti.",
+    "Torace: addensamento subpleurico che interessa {m}, non versamento pleurico."
+   ]
+  },
+  "torace_altro": {
+   "members": [
+    "esophagus",
+    "trachea",
+    "heart",
+    "aorta",
+    "superior_vena_cava",
+    "sternum",
+    "atrial_appendage_left",
+    "rib_right_10",
+    "rib_left_10",
+    "rib_left_7"
+   ],
+   "templates": [
+    "Mediastino e torace: {m} nei limiti, nessuna linfoadenopatia significativa.",
+    "Rx torace: non si osservano alterazioni a carico di {m}."
+   ]
+  },
+  "pelvi": {
+   "members": [
+    "urinary_bladder",
+    "prostate",
+    "hip_left",
+    "hip_right",
+    "iliopsoas_left",
+    "iliopsoas_right",
+    "iliac_artery_right",
+    "iliac_artery_left",
+    "iliac_vena_left",
+    "iliac_vena_right"
+   ],
+   "templates": [
+    "RM pelvi: {m} con regolare segnale, assenza di raccolte.",
+    "Pelvi: a carico di {m} non evidenti lesioni espansive."
+   ]
+  },
+  "colonna": {
+   "members": [
+    "sacrum",
+    "vertebrae_L1",
+    "vertebrae_L4",
+    "vertebrae_T12",
+    "spinal_cord"
+   ],
+   "templates": [
+    "RM colonna: alterazione del segnale a livello {m}, canale vertebrale conservato.",
+    "Rachide: reperto degenerativo a livello {m}, senza compressione midollare."
+   ]
+  },
+  "fegato_segmenti": {
+   "members": [
+    "liver_segment_1",
+    "liver_segment_2",
+    "liver_segment_3",
+    "liver_segment_4",
+    "liver_segment_5",
+    "liver_segment_6",
+    "liver_segment_7",
+    "liver_segment_8"
+   ],
+   "templates": [
+    "Studio dell'ipocondrio destro: lesione focale ipodensa in corrispondenza del {m}.",
+    "Fase portale con mezzo di contrasto: nel contesto del {m} area di diversa impregnazione."
+   ]
+  },
+  "vasi": {
+   "members": [
+    "inferior_vena_cava",
+    "portal_vein_and_splenic_vein",
+    "common_carotid_artery_left",
+    "common_carotid_artery_right"
+   ],
+   "templates": [
+    "Angio-TC: il calibro e l'opacizzazione di {m} sono conservati.",
+    "Studio vascolare: {m} pervio, senza difetti di riempimento."
+   ]
+  },
+  "testa_collo": {
+   "members": [
+    "thyroid_gland",
+    "brain",
+    "skull"
+   ],
+   "templates": [
+    "TC del distretto cefalico e cervicale: {m} senza segni di lesione acuta.",
+    "Distretto cervico-cefalico: a carico di {m} non evidenti alterazioni."
+   ]
+  },
+  "arti": {
+   "members": [
+    "femur_left",
+    "femur_right",
+    "humerus_left",
+    "humerus_right",
+    "clavicula_right",
+    "clavicula_left"
+   ],
+   "templates": [
+    "Radiografia: non evidenti fratture o lesioni litiche a carico di {m}.",
+    "Segmento scheletrico: {m} con corticale regolare."
+   ]
+  }
+ }
+}
