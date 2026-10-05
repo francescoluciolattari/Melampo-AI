@@ -1,7 +1,8 @@
 """Run the CIFSYN-style and DeepEL-style linking bench on the synthetic Italian anatomy set.
 
 Modes: ``sparse`` (no network), ``contextual`` (embeddings via OpenRouter),
-``deepel`` (embeddings plus two chat models via OpenRouter), ``all``.
+``deepel`` (embeddings plus two chat models), ``chain`` (re-ranker then agent, the
+pipeline as designed), ``all``.
 Slugs are declared here and nowhere else. Needs OPENROUTER_API_KEY except for
 ``sparse``. Synthetic phrases only: no patient data leaves the machine.
 """
@@ -54,7 +55,9 @@ def _names(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
-        "--mode", choices=("sparse", "contextual", "deepel", "all"), default="all"
+        "--mode",
+        choices=("sparse", "contextual", "deepel", "chain", "all"),
+        default="all",
     )
     parser.add_argument("--out", default="linking_results.json")
     parser.add_argument("--markdown")
@@ -62,7 +65,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--encoders", help="comma-separated; default " + ",".join(DEFAULT_ENCODERS)
     )
-    parser.add_argument("--deepel-encoder", default="google-gemini-embedding-001")
+    parser.add_argument("--deepel-encoder", default="voyage-4-large")
+    parser.add_argument("--chain-lambda", type=float, default=2.0)
     parser.add_argument("--chat-models", help="comma-separated; default both")
     parser.add_argument(
         "--limit", type=int, help="use only the first N phrases (smoke test)"
@@ -91,13 +95,13 @@ def main(argv: list[str] | None = None) -> int:
         for name in _names(args.encoders, ENCODERS, DEFAULT_ENCODERS):
             try:
                 report["contextual"][name] = lb.evaluate_contextual(
-                    OpenRouterEmbedder(ENCODERS[name], key), gold, cases
+                    OpenRouterEmbedder(ENCODERS[name], key, retries=6), gold, cases
                 )
             except EncoderError as error:
                 report["contextual"][name] = {"error": str(error)[:300]}
 
     if args.mode in ("deepel", "all"):
-        embedder = OpenRouterEmbedder(ENCODERS[args.deepel_encoder], key)
+        embedder = OpenRouterEmbedder(ENCODERS[args.deepel_encoder], key, retries=6)
         report["deepel"] = {}
         for name in _names(args.chat_models, CHAT_MODELS, tuple(CHAT_MODELS)):
             try:
@@ -117,6 +121,29 @@ def main(argv: list[str] | None = None) -> int:
             report["agreement"] = {
                 "stage2": lb.agreement(ok[0], ok[1], cases, "stage2"),
                 "stage3": lb.agreement(ok[0], ok[1], cases, "stage3"),
+            }
+
+    if args.mode in ("chain", "all"):
+        embedder = OpenRouterEmbedder(ENCODERS[args.deepel_encoder], key, retries=6)
+        report["chain"] = {}
+        for name in _names(args.chat_models, CHAT_MODELS, tuple(CHAT_MODELS)):
+            try:
+                result = lb.evaluate_chain(
+                    lb.OpenRouterChat(CHAT_MODELS[name], key),
+                    embedder,
+                    gold,
+                    cases,
+                    lam=args.chain_lambda,
+                    workers=args.workers,
+                )
+                result["encoder"] = args.deepel_encoder
+                report["chain"][name] = result
+            except EncoderError as error:
+                report["chain"][name] = {"error": str(error)[:300]}
+        ok = [r for r in report["chain"].values() if "error" not in r]
+        if len(ok) == 2:
+            report["chain_agreement"] = {
+                "stage3": lb.agreement(ok[0], ok[1], cases, "stage3")
             }
 
     Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1), "utf-8")

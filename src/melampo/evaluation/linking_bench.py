@@ -348,7 +348,6 @@ def link_one(
                 merged.append(cid)
     merged = merged[:k]
     option_ids = merged
-    option_labels = [labels[cid] for cid in option_ids]
 
     record: dict[str, Any] = {
         "query": case.query,
@@ -359,6 +358,20 @@ def link_one(
         "gold_in_merged_top_k": case.target in merged,
     }
 
+    record.update(_agent(case, description, chat, option_ids, labels))
+    return record
+
+
+def _agent(
+    case: Case,
+    description: str,
+    chat: ChatFn,
+    option_ids: Sequence[str],
+    labels: dict[str, str],
+) -> dict[str, Any]:
+    """Multiple choice among the options, then validation; what each step decided."""
+    option_labels = [labels[cid] for cid in option_ids]
+    record: dict[str, Any] = {}
     reply = chat(_choice_prompt(case, description, option_labels))
     choice = parse_choice(reply, len(option_ids))
     record["stage2_unparsed"] = choice is None
@@ -425,6 +438,111 @@ def evaluate_deepel_style(
         summary[stage] = _tally(cases, [r[stage] for r in records])
     summary["_records"] = records
     return summary
+
+
+def evaluate_chain(
+    chat: ChatFn,
+    embedder: Embedder,
+    gold: Gold,
+    cases: Sequence[Case],
+    *,
+    lam: float = 2.0,
+    keep: int = 5,
+    to_agent: int = 3,
+    k: int = TOP_K,
+    workers: int = 6,
+    pool_mode: str = "both",
+) -> dict[str, Any]:
+    """The pipeline as designed: a CIFSYN-style re-ranker keeps `keep` candidates,
+    the best `to_agent` go to a DeepEL-style agent that chooses and validates.
+
+    Stage 1 here is the re-ranker, stage 2 the agent's choice, stage 3 its
+    validation. The re-ranker's own top-1 is the baseline the agent must beat, so
+    the report counts what the agent fixed, broke, and caught.
+    """
+    labels = {entry["id"]: pool_text(entry, pool_mode) for entry in gold.pool}
+    texts: list[str] = list(labels.values())
+    for case in cases:
+        texts.extend((case.query, case.sentence))
+    for template in {case.template for case in cases}:
+        texts.extend(template.format(m=label) for label in labels.values())
+    vectors = _embed_unique(embedder, texts)
+
+    def reranked(case: Case) -> list[str]:
+        entity = {
+            cid: cosine(vectors[case.query], vectors[label])
+            for cid, label in labels.items()
+        }
+        shortlist = sorted(entity, key=lambda c: (-entity[c], c))[:k]
+        scored = {
+            cid: entity[cid]
+            + lam
+            * cosine(
+                vectors[case.sentence], vectors[case.template.format(m=labels[cid])]
+            )
+            for cid in shortlist
+        }
+        return sorted(scored, key=lambda c: (-scored[c], c))
+
+    def one(case: Case) -> dict[str, Any]:
+        order = reranked(case)
+        description = (chat(_describe_prompt(case)) or "").strip()
+        record = {
+            "query": case.query,
+            "target": case.target,
+            "kind": case.kind,
+            "rerank_top1": order[0],
+            "rerank_top1_outcome": _outcome(order[0], case),
+            "gold_in_kept": case.target in order[:keep],
+            "gold_in_agent_options": case.target in order[:to_agent],
+            "description": description,
+        }
+        record.update(_agent(case, description, chat, order[:to_agent], labels))
+        return record
+
+    records = _run(workers, one, cases)
+    n = len(records)
+    summary: dict[str, Any] = {
+        "records": n,
+        "lambda": lam,
+        "gold_in_kept": round(sum(r["gold_in_kept"] for r in records) / n, 4),
+        "gold_in_agent_options": round(
+            sum(r["gold_in_agent_options"] for r in records) / n, 4
+        ),
+        "stage2_unparsed": sum(r["stage2_unparsed"] for r in records),
+        "stage3_unparsed": sum(r.get("stage3_unparsed", False) for r in records),
+        "rerank_top1": _tally(cases, [r["rerank_top1_outcome"] for r in records]),
+    }
+    for stage in ("stage2", "stage3"):
+        summary[stage] = _tally(cases, [r[stage] for r in records])
+    summary["agent_vs_rerank"] = _transitions(records, "stage3")
+    summary["_records"] = records
+    return summary
+
+
+def _transitions(records: Sequence[dict[str, Any]], stage: str) -> dict[str, int]:
+    """What the agent did to the re-ranker's top-1, case by case."""
+    counts: Counter[str] = Counter()
+    for record in records:
+        before = record["rerank_top1_outcome"]
+        after = record[stage]
+        if before == OUTCOME_CORRECT:
+            counts[
+                {
+                    OUTCOME_CORRECT: "kept_correct",
+                    OUTCOME_WRONG: "broke_a_correct",
+                    OUTCOME_ABSTAIN: "abstained_on_a_correct",
+                }[after]
+            ] += 1
+        else:
+            counts[
+                {
+                    OUTCOME_CORRECT: "fixed_a_wrong",
+                    OUTCOME_WRONG: "kept_wrong",
+                    OUTCOME_ABSTAIN: "caught_a_wrong",
+                }[after]
+            ] += 1
+    return dict(counts)
 
 
 def _run(
@@ -562,6 +680,37 @@ def render_markdown(report: dict[str, Any]) -> str:
                 lines.append(
                     f"| {name} | {key.removeprefix('lambda_')} | {_pct(row['correct'])} | {_pct(row['wrong'])} | {_pct(row['recall_at_k_of_shortlist'])} |"
                 )
+        lines.append("")
+    chain = report.get("chain", {})
+    if chain:
+        lines += [
+            "## Chain: CIFSYN-style re-ranker, then DeepEL-style agent",
+            "",
+            "| Model | gold in kept 5 / agent's 3 | re-ranker top-1 correct/wrong | agent choice c/w/a | after validation c/w/a | fixed / broke / abstained on correct / caught wrong |",
+            "|---|---|---|---|---|---|",
+        ]
+        for name, row in chain.items():
+            if "error" in row:
+                lines.append(f"| {name} | error: {row['error']} | | | | |")
+                continue
+            r1, s2, s3, t = (
+                row["rerank_top1"],
+                row["stage2"],
+                row["stage3"],
+                row["agent_vs_rerank"],
+            )
+            lines.append(
+                f"| {name} | {_pct(row['gold_in_kept'])} / {_pct(row['gold_in_agent_options'])} | "
+                f"{_pct(r1['correct'])} / {_pct(r1['wrong'])} | "
+                f"{_pct(s2['correct'])} / {_pct(s2['wrong'])} / {_pct(s2['abstain'])} | "
+                f"{_pct(s3['correct'])} / {_pct(s3['wrong'])} / {_pct(s3['abstain'])} | "
+                f"{t.get('fixed_a_wrong', 0)} / {t.get('broke_a_correct', 0)} / {t.get('abstained_on_a_correct', 0)} / {t.get('caught_a_wrong', 0)} |"
+            )
+        lines.append("")
+        for name, row in report.get("chain_agreement", {}).items():
+            lines.append(
+                f"Catena, accordo fra i due modelli ({name}): corretti {_pct(row['correct'])}, errati {_pct(row['wrong'])}, astenuti {_pct(row['abstain'])}."
+            )
         lines.append("")
     deepel = report.get("deepel", {})
     if deepel:
