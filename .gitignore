@@ -39,3 +39,6 @@ data/confirmed_cases.jsonl
 data/confirmed_cases.jsonl.salt
 data/confirmation_registry.jsonl
 data/confirmation_registry.jsonl.salt
+
+# Downloaded by the linking-bench workflow (pinned release, checked by digest)
+data/linking/uberon-basic.obo

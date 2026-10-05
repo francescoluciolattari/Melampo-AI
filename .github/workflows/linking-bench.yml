@@ -15,8 +15,8 @@ on:
       mode:
         description: "What to run"
         type: choice
-        options: [all, chain, contextual, deepel, sparse]
-        default: all
+        options: [linker, all, chain, contextual, deepel, sparse]
+        default: linker
       encoders:
         description: "Contextual-stage encoders, comma-separated (empty = default three)"
         required: false
@@ -37,6 +37,16 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - run: |
           uv sync --locked
+
+      # Ontology distractors for the anatomy linker: UBERON human anatomy (terms
+      # with an FMA xref), a pinned release checked against its digest so the
+      # pool cannot change between runs without a commit saying so.
+      - name: Download UBERON (pinned)
+        if: ${{ inputs.mode == 'linker' || inputs.mode == 'all' }}
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
 
       - name: Run the bench
         env:

@@ -345,3 +345,37 @@ def test_gemini_is_paced_and_other_encoders_are_not():
     other = module._embedder("voyage-4-large", "k")
     assert gemini.pause > 0 and gemini.batch_size < other.batch_size
     assert other.pause == 0 and other.retries == 6
+
+
+def test_script_runs_the_linker_deterministic_stages_without_a_key(
+    tmp_path, monkeypatch
+):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    spec = importlib.util.spec_from_file_location("linking_script4", _SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    out = tmp_path / "r.json"
+    md = tmp_path / "r.md"
+    assert (
+        module.main(
+            [
+                "--mode",
+                "linker",
+                "--out",
+                str(out),
+                "--markdown",
+                str(md),
+                "--uberon",
+                str(tmp_path / "absent.obo"),
+            ]
+        )
+        == 0
+    )
+    report = json.loads(out.read_text())
+    assert set(report["linker_deterministic"]) == {"dev_it", "heldout_it", "heldout_en"}
+    assert report["linker"] == {}
+    assert all(
+        row["outcomes"].get("wrong", 0) == 0
+        for row in report["linker_deterministic"].values()
+    )
+    assert "deterministic stages only" in md.read_text()
