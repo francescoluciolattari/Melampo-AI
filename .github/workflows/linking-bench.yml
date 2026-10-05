@@ -1,0 +1,65 @@
+name: Linking bench (CIFSYN-style and DeepEL-style, synthetic Italian anatomy)
+
+# Manual trigger only: it makes real, billed OpenRouter calls (embeddings plus
+# about 190 x 3 short chat calls per model) and must never fire on every commit.
+#
+# It informs the choice of linking stages after the encoder bench: does putting
+# the candidate into the mention's sentence help (CIFSYN's idea), and does an
+# LLM choosing among candidates and validating its choice (DeepEL's idea) beat
+# the best encoder alone. Neither published system is run; see
+# src/melampo/evaluation/linking_bench.py for what is and is not measured.
+# Phrases are synthetic, so no patient data is sent anywhere.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to run"
+        type: choice
+        options: [all, contextual, deepel, sparse]
+        default: all
+      encoders:
+        description: "Contextual-stage encoders, comma-separated (empty = default three)"
+        required: false
+        default: ""
+      deepel_encoder:
+        description: "Encoder that generates candidates for the DeepEL-style stages"
+        required: false
+        default: "google-gemini-embedding-001"
+
+jobs:
+  linking:
+    name: Linking bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Run the bench
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODE: ${{ inputs.mode }}
+          ENCODERS: ${{ inputs.encoders }}
+          DEEPEL_ENCODER: ${{ inputs.deepel_encoder }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          args=(--mode "$MODE" --deepel-encoder "$DEEPEL_ENCODER" --out linking_results.json --markdown linking_summary.md)
+          if [ -n "$ENCODERS" ]; then args+=(--encoders "$ENCODERS"); fi
+          uv run python scripts/run_linking_bench.py "${args[@]}"
+
+      - name: Summarise results
+        if: always()
+        run: |
+          if [ -f linking_summary.md ]; then cat linking_summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linking-bench-results
+          path: |
+            linking_results.json
+            linking_summary.md
