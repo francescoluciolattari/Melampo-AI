@@ -372,10 +372,33 @@ def test_script_runs_the_linker_deterministic_stages_without_a_key(
         == 0
     )
     report = json.loads(out.read_text())
-    assert set(report["linker_deterministic"]) == {"dev_it", "heldout_it", "heldout_en"}
+    assert set(report["linker_deterministic"]) == {
+        "dev_it",
+        "heldout_it",
+        "heldout_en",
+        "heldout2_it",
+        "heldout2_en",
+    }
     assert report["linker"] == {}
     assert all(
         row["outcomes"].get("wrong", 0) == 0
         for row in report["linker_deterministic"].values()
     )
     assert "deterministic stages only" in md.read_text()
+
+
+def test_heldout2_rows_point_at_their_mention():
+    root = Path(__file__).resolve().parents[1] / "data" / "linking"
+    for name in ("heldout2_it", "heldout2_en"):
+        rows = [
+            json.loads(x)
+            for x in (root / f"{name}.jsonl").read_text("utf-8").splitlines()
+            if x.strip()
+        ]
+        assert len(rows) >= 30
+        for row in rows:
+            start = row["start"]
+            assert (
+                row["sentence"][start : start + len(row["mention"])].lower()
+                == row["mention"].lower()
+            )

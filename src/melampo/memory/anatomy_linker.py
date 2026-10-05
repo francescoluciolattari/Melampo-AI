@@ -47,16 +47,26 @@ delivered as if it were right is the failure the design is built against.
 candidates the system supplies; models asked to emit ontology identifiers fail
 on most terms they rarely saw in training (arXiv 2509.04458).
 
-**Known limits, stated rather than hidden** (each is a strict xfail in the tests).
-A mention with no structural word at all ("lingula", "dolore epatico") can still
-be linked wrongly if retrieval ranks a wrong organ first *and* both models pick
-it: no attribute shows the error. Closing it needs part-of knowledge (a curated
-parts table, or the ontology's part_of relations once Italian names exist).
-Parts that imply a side or a number ("processo odontoideo" -> C2) abstain.
-Spaces ("loggia renale", "ipocondrio") are never linked to the organ, because
-after surgery the space is empty. Bare level codes ("L5", "D2", "T2", "S1") are
-accepted only with positive evidence; T1/T2 only with a vertebra word in the
-mention, since in an MRI report they are sequences.
+**Part-of knowledge and translation (added 2026-10-05).** A reader knows that the
+sigmoid is part of the colon; that is a curated table (`anatomy_parts`), and the
+link says so (`relation`: equal, part_of, contour_of, approx). Tissue and space
+words are never dropped silently: "parete aortica" is a part of the aorta, "lume
+esofageo" and "muscolo sternale" are not linked. For Italian mentions the ontology
+has no names, so the two models translate the mention to a standard English term
+(the mention is marked with <tgt> tags, as in BioELX 2026); the term is trusted only if
+it equals a pool name word for word, both models reach the same single concept, and
+side, number, position, qualifier, part words and organ words of the mention are
+all still in it.
+
+**Known limits, stated rather than hidden.**
+Presence is not linking: "assenza del rene destro" links the right kidney, and the
+absence is a polarity attribute that Level 1 must carry. Two models can still
+translate or choose the same wrong term for a structure outside the table and the
+segmentation classes; the deterministic guards narrow that, they do not remove it.
+Parts that the table does not list abstain. Spaces ("loggia renale", "ipocondrio")
+are never linked to the organ, because after surgery the space is empty. Bare level
+codes ("L5", "D2", "T2", "S1") are accepted only with positive evidence; T1/T2 only
+with a vertebra word in the mention, since in an MRI report they are sequences.
 """
 
 import re
@@ -609,6 +619,8 @@ class Lexicon:
     )
     strict: dict[tuple[str, ...], set[str]] = field(default_factory=dict)
     classes: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Names with their tissue and container words kept: "lume esofageo" is not a name of the esophagus.
+    noisy: frozenset[tuple[str, ...]] = frozenset()
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Lexicon":
@@ -626,12 +638,22 @@ class Lexicon:
                     strict[normalise(name, keep_noise=True, map_words=False)].add(cid)
         lexicon.index = dict(index)
         lexicon.strict = dict(strict)
+        lexicon.noisy = frozenset(
+            normalise(name, keep_noise=True)
+            for entry in data["classes"].values()
+            for name in entry["it"] + entry["en"]
+        )
         return lexicon
 
     def recognise(self, mention: str, sentence: str) -> tuple[list[str], str]:
         """Classes the mention names, after context; and how they were found."""
         hits = self.index.get(normalise(mention), [])
         if not hits:
+            return [], "unknown_name"
+        with_tissue = normalise(mention, keep_noise=True)
+        if with_tissue != normalise(mention) and with_tissue not in self.noisy:
+            # "lume esofageo", "parete aortica", "muscolo sternale": a tissue or a space of the
+            # organ, not the organ. Dropping the word would report a part as the whole.
             return [], "unknown_name"
         kept = sorted(
             {
@@ -784,6 +806,70 @@ class LinkResult:
     reason: str
     options: list[str] = field(default_factory=list)
     votes: dict[str, str | None] = field(default_factory=dict)
+    relation: str = "equal"  # equal, part_of, contour_of, approx
+    part: str = ""
+
+
+_NO_OPTION_REASONS = frozenset(
+    ("no_candidate_survives_the_checks", "closest_candidates_all_rejected")
+)
+
+
+def _mark(sentence: str, mention: str) -> str:
+    """The sentence with the mention between <tgt> tags (mention-anchored prompting, BioELX 2026)."""
+    match = re.search(re.escape(mention.strip()), sentence, flags=re.IGNORECASE)
+    if not match:
+        return f"{sentence} <tgt>{mention}</tgt>"
+    return f"{sentence[: match.start()]}<tgt>{match.group()}</tgt>{sentence[match.end() :]}"
+
+
+def _translate_prompt(mention: str, sentence: str) -> str:
+    return (
+        "You are a radiologist and a translator. In the report sentence the expression between "
+        "<tgt> tags names an anatomical structure. Give its standard English anatomical term. "
+        "Keep side, number and level exactly as written. Do not make it broader or narrower, and do "
+        "not add words. If it is not an anatomical structure, names more than one, or you are not "
+        "sure, answer UNSURE. Answer with the term only.\n\n"
+        f"Sentence: {_mark(sentence, mention)}\nTerm:"
+    )
+
+
+def _clean_term(answer: str) -> str | None:
+    line = (answer or "").strip().splitlines()[0:1]
+    term = (line[0] if line else "").strip().strip("\"'`*.").strip()
+    if not term or term.upper().startswith("UNSURE") or len(term.split()) > 8:
+        return None
+    return term
+
+
+# Part and tissue words, Italian and English, as one id: a translation must keep exactly the ones
+# the mention has ("collo dell'utero" is not "body of uterus", "corpo" is not dropped).
+_PART_IDS = {
+    **{w: "head" for w in ("testa", "head")}, **{w: "tail" for w in ("coda", "tail")},
+    **{w: "pole" for w in ("polo", "pole")}, **{w: "lobe" for w in ("lobo", "lobe")},
+    **{w: "neck" for w in ("collo", "neck", "cervice", "cervix")},
+    **{w: "fundus" for w in ("fondo", "fundus")},
+    **{w: "shaft" for w in ("diafisi", "shaft", "diaphysis")},
+    **{w: "isthmus" for w in ("istmo", "isthmus")}, **{w: "apex" for w in ("apice", "apex")},
+    **{w: "dome" for w in ("cupola", "dome")}, **{w: "base" for w in ("base",)},
+    **{w: "body" for w in ("corpo", "body", "soma")}, **{w: "wall" for w in ("parete", "pareti", "wall")},
+    **{w: "lumen" for w in ("lume", "lumen")}, **{w: "parenchyma" for w in ("parenchima", "parenchyma")},
+    **{w: "process" for w in ("processo", "process")}, **{w: "wing" for w in ("ala", "wing")},
+    **{w: "trunk" for w in ("tronco", "trunk")}, **{w: "branch" for w in ("ramo", "branch")},
+    **{w: "segment" for w in ("segmento", "segment")}, **{w: "root" for w in ("radice", "root")},
+    **{w: "horn" for w in ("corno", "horn")}, **{w: "angle" for w in ("angolo", "angle")},
+    **{w: "tuberosity" for w in ("tuberosita", "tuberosity")}, **{w: "margin" for w in ("margine", "margin")},
+}  # fmt: skip
+# Organs outside the segmentation classes that a translation must not swap for another one.
+_EXTRA_ORGAN_GROUPS = (
+    frozenset(("polmone", "lung")), frozenset(("utero", "uterus")), frozenset(("ovaio", "ovary")),
+    frozenset(("mammella", "breast")), frozenset(("cervello", "encefalo", "brain")),
+    frozenset(("uretere", "ureter")), frozenset(("testicolo", "testis")),
+)  # fmt: skip
+
+
+def _part_ids(tokens: Iterable[str]) -> frozenset[str]:
+    return frozenset(_PART_IDS[t] for t in tokens if t in _PART_IDS)
 
 
 def _choice_prompt(mention: str, sentence: str, labels: Sequence[str]) -> str:
@@ -792,7 +878,7 @@ def _choice_prompt(mention: str, sentence: str, labels: Sequence[str]) -> str:
         "You are a radiologist. Link the expression to the anatomical structure it names in this "
         "report sentence. Answer with the option number only. Answer 0 if no option is exactly "
         "that structure, if the expression names more than one structure, or if you are not sure.\n\n"
-        f"Sentence: {sentence}\nExpression: {mention}\n\nOptions:\n{options}\n0. none / not sure\n\nNumber:"
+        f"Sentence: {_mark(sentence, mention)}\nExpression: {mention}\n\nOptions:\n{options}\n0. none / not sure\n\nNumber:"
     )
 
 
@@ -814,12 +900,30 @@ class AnatomyLinker:
     max_options: int = 10
     nearest: int = 10
     closest: int = 5
+    parts: Any = None  # anatomy_parts.PartTable
+    translate: bool = True
 
     def __post_init__(self) -> None:
         self._by_id = {c.cid: c for c in self.pool}
         self._sided = sided_bases(self.pool)
         # Words that are by themselves the name of a class ("rene", "femore",
         # "kidney"). A mention containing one names that structure or a part of it.
+        self._by_content: dict[frozenset[str], list[Candidate]] = defaultdict(list)
+        for candidate in self.pool:
+            for name in candidate.strict_names or candidate.names:
+                key = _content(name)
+                if key and candidate not in self._by_content[key]:
+                    self._by_content[key].append(candidate)
+        groups: list[frozenset[str]] = list(_EXTRA_ORGAN_GROUPS)
+        for entry in self.lexicon.classes.values():
+            words = set()
+            for name in entry["it"] + entry["en"]:
+                bare = _bare(normalise(name))
+                if len(bare) == 1:
+                    words.add(bare[0])
+            if words:
+                groups.append(frozenset(words))
+        self._organ_groups = groups
         self._anchors = frozenset(
             bare[0] for key in self.lexicon.index if len(bare := _bare(key)) == 1
         )
@@ -894,17 +998,63 @@ class AnatomyLinker:
         if len(tokens) == 1 and tokens[0].startswith("@"):
             return self._link_level(tokens[0], mention, sentence)
 
+        content = [t for t in tokens if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)]
+        raw = [
+            t
+            for t in normalise(mention, keep_noise=True, map_words=False)
+            if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)
+        ]
+        if raw and all(t in _ADJECTIVES for t in raw) and content:
+            return LinkResult(
+                ABSTAINED, None, "lexicon", "bare_adjective_names_no_structure"
+            )
+        if self.parts is not None:
+            from .anatomy_parts import PartLink, strip_wrapper
+
+            mention = strip_wrapper(mention)
+            tokens = normalise(mention)
         recognised, how = self.lexicon.recognise(mention, sentence)
         if how == "recognised":
             return LinkResult(ACCEPTED, recognised[0], "lexicon", how)
         if how in ("ambiguous_name", "context_does_not_support_the_name"):
             return LinkResult(ABSTAINED, None, "lexicon", how, options=recognised)
 
-        if self.retriever is None or len(self.chats) < 2:
+        if self.parts is not None:
+            known = self.parts.resolve(mention, sentence)
+            if isinstance(known, PartLink):
+                return LinkResult(
+                    ACCEPTED,
+                    known.cid,
+                    "parts",
+                    known.reason,
+                    relation=known.relation,
+                    part=known.part,
+                )
+            if isinstance(known, str):
+                return LinkResult(ABSTAINED, None, "parts", known)
+
+        if len(self.chats) < 2 or (self.retriever is None and not self.translate):
             return LinkResult(
                 ABSTAINED, None, "lexicon", "unknown_name_and_no_deliberation_stage"
             )
+        outcome = (
+            self._deliberate(mention, sentence, tokens)
+            if self.retriever is not None
+            else None
+        )
+        if outcome is not None and outcome.reason not in _NO_OPTION_REASONS:
+            return outcome
+        if self.translate:
+            translated = self._translate(mention, sentence, tokens)
+            if translated.status == ACCEPTED or outcome is None:
+                return translated
+        return outcome or LinkResult(
+            ABSTAINED, None, "integration", "no_candidate_survives_the_checks"
+        )
 
+    def _deliberate(
+        self, mention: str, sentence: str, tokens: tuple[str, ...]
+    ) -> LinkResult:
         # Only near candidates are offered. When the closest ones are all rejected,
         # what is left is far from the mention, and two models agreeing on a far
         # option is exactly the correlated error this design does not trust.
@@ -968,4 +1118,83 @@ class AnatomyLinker:
             "models_agree_and_checks_pass",
             options,
             votes,
+        )
+
+    def _organs_agree(self, said: Sequence[str], wrote: Sequence[str]) -> bool:
+        """Every organ the mention names appears in the translation, and no other organ does."""
+        a, b = set(said), set(wrote)
+        for source, target in ((a, b), (b, a)):
+            for group in self._organ_groups:
+                if source & group and not target & group:
+                    return False
+        return True
+
+    def _translate(
+        self, mention: str, sentence: str, tokens: tuple[str, ...]
+    ) -> LinkResult:
+        """Italian (or any) mention -> standard English term, then an exact lookup.
+
+        Translation is an easier task than choosing among look-alike options, and the
+        answer is not trusted: it must equal, word for word, a name in the pool, both
+        models must reach the same single concept, and the side, number and type of
+        the original mention are checked against it.
+        """
+        prompt = _translate_prompt(mention, sentence)
+        terms: dict[str, str | None] = {
+            name: _clean_term(chat(prompt)) for name, chat in self.chats.items()
+        }
+        if None in terms.values():
+            return LinkResult(
+                ABSTAINED, None, "translation", "a_model_did_not_translate", votes=terms
+            )
+        found: dict[str, frozenset[str]] = {}
+        for name, term in terms.items():
+            term_tokens = normalise(str(term), keep_noise=True)
+            key = _content(term_tokens)
+            if _part_ids(normalise(mention, keep_noise=True)) != _part_ids(term_tokens):
+                key = frozenset()  # a part or tissue word was added, dropped or swapped
+            if not self._organs_agree(normalise(mention), normalise(str(term))):
+                key = frozenset()  # the translation names another organ
+            said, wrote = Attributes.of(tokens), Attributes.of(term_tokens)
+            if (said.sides, said.numbers, said.positions, said.qualifiers) != (
+                wrote.sides,
+                wrote.numbers,
+                wrote.positions,
+                wrote.qualifiers,
+            ):
+                key = (
+                    frozenset()
+                )  # the translation changed side, number, position or qualifier
+            found[name] = (
+                frozenset()
+                if not key
+                else frozenset(
+                    c.cid
+                    for c in self._by_content.get(key, ())
+                    if verify(tokens, c, self._sided) is None
+                    and self._anchored(normalise(str(term)), c)
+                    and not wrong_system(c, sentence)
+                    and self._context_allows(c, mention, sentence)
+                )
+            )
+        options = sorted(set().union(*found.values()))
+        if len(set(found.values())) != 1 or len(options) != 1:
+            return LinkResult(
+                ABSTAINED,
+                None,
+                "translation",
+                "translations_do_not_agree_on_one_concept",
+                options,
+                terms,
+            )
+        cid = options[0]
+        candidate = self._by_id[cid]
+        resolved = cid if candidate.is_target_class else self.equivalent.get(cid, cid)
+        return LinkResult(
+            ACCEPTED,
+            resolved,
+            "translation",
+            "models_translate_to_the_same_pool_name",
+            options,
+            terms,
         )
