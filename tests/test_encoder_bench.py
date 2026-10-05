@@ -593,3 +593,21 @@ def test_nv_embed_v2_runs_only_when_named(script):
     assert "nv-embed-v2" not in [e["name"] for e in script._select_local(None, "local")]
     named = script._select_local("nv-embed-v2", "local")
     assert [e["name"] for e in named] == ["nv-embed-v2"]
+
+
+def test_pause_is_applied_between_batches_only():
+    sleeps = []
+    embedder = eb.OpenRouterEmbedder(
+        "m", "k", batch_size=2, pause=3.0, sleep=sleeps.append
+    )
+    embedder._embed_batch = lambda batch: [[1.0]] * len(batch)
+    assert len(embedder(["a", "b", "c", "d", "e"])) == 5
+    assert sleeps == [3.0, 3.0]
+
+
+def test_no_pause_by_default():
+    sleeps = []
+    embedder = eb.OpenRouterEmbedder("m", "k", batch_size=1, sleep=sleeps.append)
+    embedder._embed_batch = lambda batch: [[1.0]] * len(batch)
+    embedder(["a", "b", "c"])
+    assert sleeps == []

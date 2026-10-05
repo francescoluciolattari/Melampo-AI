@@ -398,10 +398,12 @@ class OpenRouterEmbedder:
         timeout: float = 60.0,
         retries: int = 2,
         sleep: Callable[[float], None] = time.sleep,
+        pause: float = 0.0,
     ) -> None:
         self.slug = slug
         self._api_key = api_key
         self.endpoint = endpoint
+        self.pause = pause
         self.batch_size = batch_size
         self.timeout = timeout
         self.retries = retries
@@ -410,6 +412,10 @@ class OpenRouterEmbedder:
     def __call__(self, texts: Sequence[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
+            if start and self.pause:
+                # Some providers (Gemini through Vertex) cap requests per minute;
+                # waiting between batches avoids the 429 instead of retrying it.
+                self._sleep(self.pause)
             vectors.extend(
                 self._embed_batch(list(texts[start : start + self.batch_size]))
             )
