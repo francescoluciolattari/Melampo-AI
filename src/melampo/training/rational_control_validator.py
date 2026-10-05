@@ -69,25 +69,90 @@ class RationalControlValidator:
     ) -> dict[str, Any]:
         candidate = candidate or {}
         area_dynamics = area_dynamics or candidate.get("area_dynamics", {}) or {}
-        retrieval_context = retrieval_context or candidate.get("retrieval_context", {}) or {}
-        governance_scores = governance_scores or candidate.get("governance_scores", {}) or {}
+        retrieval_context = (
+            retrieval_context or candidate.get("retrieval_context", {}) or {}
+        )
+        governance_scores = (
+            governance_scores or candidate.get("governance_scores", {}) or {}
+        )
         outcome_feedback = outcome_feedback or {}
-        metadata = candidate.get("metadata", {}) if isinstance(candidate.get("metadata", {}), dict) else {}
-        auto_plan = candidate.get("auto_evolution_plan", {}) if isinstance(candidate.get("auto_evolution_plan", {}), dict) else {}
+        metadata = (
+            candidate.get("metadata", {})
+            if isinstance(candidate.get("metadata", {}), dict)
+            else {}
+        )
+        auto_plan = (
+            candidate.get("auto_evolution_plan", {})
+            if isinstance(candidate.get("auto_evolution_plan", {}), dict)
+            else {}
+        )
         if not auto_plan:
-            auto_plan = metadata.get("auto_evolution_plan", {}) if isinstance(metadata.get("auto_evolution_plan", {}), dict) else {}
-        neuro = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
+            auto_plan = (
+                metadata.get("auto_evolution_plan", {})
+                if isinstance(metadata.get("auto_evolution_plan", {}), dict)
+                else {}
+            )
+        neuro = (
+            area_dynamics.get("neuro_dynamic_metrics", {})
+            if isinstance(area_dynamics, dict)
+            else {}
+        )
 
-        pi_score = _safe_float(metadata.get("pi_score", neuro.get("pi_score", area_dynamics.get("pi_score", 0.0))))
-        convergence_index = _safe_float(metadata.get("convergence_index", neuro.get("convergence_index", area_dynamics.get("convergence_index", 0.0))))
-        mismatch_index = _safe_float(metadata.get("mismatch_index", neuro.get("mismatch_index", area_dynamics.get("mismatch_index", 0.0))))
-        risk = _safe_float(governance_scores.get("risk", metadata.get("risk", auto_plan.get("risk", 0.0))))
-        candidate_score = _safe_float(auto_plan.get("candidate_score", metadata.get("candidate_score", 0.0)))
-        provenance_quality = _safe_float(governance_scores.get("provenance_quality", metadata.get("provenance_quality", 0.0)))
-        retrieval_coverage = _safe_float(governance_scores.get("retrieval_coverage", retrieval_context.get("retrieval_coverage", metadata.get("retrieval_coverage", 0.0))))
-        guardrails = list(auto_plan.get("promotion_guardrails", metadata.get("promotion_guardrails", [])))
-        provenance_available = bool(metadata.get("source") or metadata.get("case_id") or candidate.get("source") or provenance_quality > 0.0)
-        favorable_outcome = bool(outcome_feedback.get("correct", False) or outcome_feedback.get("review_status") == "accepted")
+        pi_score = _safe_float(
+            metadata.get(
+                "pi_score", neuro.get("pi_score", area_dynamics.get("pi_score", 0.0))
+            )
+        )
+        convergence_index = _safe_float(
+            metadata.get(
+                "convergence_index",
+                neuro.get(
+                    "convergence_index", area_dynamics.get("convergence_index", 0.0)
+                ),
+            )
+        )
+        mismatch_index = _safe_float(
+            metadata.get(
+                "mismatch_index",
+                neuro.get("mismatch_index", area_dynamics.get("mismatch_index", 0.0)),
+            )
+        )
+        risk = _safe_float(
+            governance_scores.get(
+                "risk", metadata.get("risk", auto_plan.get("risk", 0.0))
+            )
+        )
+        candidate_score = _safe_float(
+            auto_plan.get("candidate_score", metadata.get("candidate_score", 0.0))
+        )
+        provenance_quality = _safe_float(
+            governance_scores.get(
+                "provenance_quality", metadata.get("provenance_quality", 0.0)
+            )
+        )
+        retrieval_coverage = _safe_float(
+            governance_scores.get(
+                "retrieval_coverage",
+                retrieval_context.get(
+                    "retrieval_coverage", metadata.get("retrieval_coverage", 0.0)
+                ),
+            )
+        )
+        guardrails = list(
+            auto_plan.get(
+                "promotion_guardrails", metadata.get("promotion_guardrails", [])
+            )
+        )
+        provenance_available = bool(
+            metadata.get("source")
+            or metadata.get("case_id")
+            or candidate.get("source")
+            or provenance_quality > 0.0
+        )
+        favorable_outcome = bool(
+            outcome_feedback.get("correct", False)
+            or outcome_feedback.get("review_status") == "accepted"
+        )
 
         failures: list[str] = []
         if pi_score < self.rubric.min_pi_score:
@@ -100,14 +165,23 @@ class RationalControlValidator:
             failures.append("risk_above_threshold")
         if candidate_score < self.rubric.min_candidate_score:
             failures.append("candidate_score_below_threshold")
-        if provenance_quality < self.rubric.min_provenance_quality and not provenance_available:
+        if (
+            provenance_quality < self.rubric.min_provenance_quality
+            and not provenance_available
+        ):
             failures.append("provenance_quality_below_threshold")
-        if retrieval_coverage < self.rubric.min_retrieval_coverage and not favorable_outcome:
+        if (
+            retrieval_coverage < self.rubric.min_retrieval_coverage
+            and not favorable_outcome
+        ):
             failures.append("retrieval_coverage_below_threshold")
         for guardrail in self.rubric.required_guardrails:
             if guardrails and guardrail not in guardrails:
                 failures.append(f"missing_guardrail:{guardrail}")
-        hard_reject = risk >= self.rubric.hard_reject_risk or "clinical_deployment" in str(candidate).lower()
+        hard_reject = (
+            risk >= self.rubric.hard_reject_risk
+            or "clinical_deployment" in str(candidate).lower()
+        )
 
         allowed_for_promotion = not failures and not hard_reject
         if hard_reject:

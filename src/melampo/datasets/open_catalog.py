@@ -85,4 +85,8 @@ def list_open_clinical_datasets() -> list[dict]:
 def datasets_by_modality(modality: str) -> list[dict]:
     """Filter dataset metadata by a simple modality string."""
 
-    return [dataset.describe() for dataset in OPEN_CLINICAL_DATASETS if dataset.modality == modality]
+    return [
+        dataset.describe()
+        for dataset in OPEN_CLINICAL_DATASETS
+        if dataset.modality == modality
+    ]

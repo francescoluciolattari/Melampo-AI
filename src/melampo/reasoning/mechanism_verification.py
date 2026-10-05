@@ -97,7 +97,10 @@ class MechanismVerification:
 
     @property
     def is_grounded(self) -> bool:
-        return self.grounding in (GROUNDING_SUPPORTED, GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION)
+        return self.grounding in (
+            GROUNDING_SUPPORTED,
+            GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION,
+        )
 
     @property
     def graph_supports_any_connection(self) -> bool:
@@ -108,7 +111,9 @@ class MechanismVerification:
         finding from the graph knowing of no connection at all.
         """
         return self.grounding in (
-            GROUNDING_SUPPORTED, GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION, GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM,
+            GROUNDING_SUPPORTED,
+            GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION,
+            GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -183,7 +188,9 @@ def verify_mechanism(
     )
 
     if not verification.factor or not verification.target:
-        verification.notes.append("factor or target unstated; nothing to check a mechanism between")
+        verification.notes.append(
+            "factor or target unstated; nothing to check a mechanism between"
+        )
         return verification
 
     # Resolve free text to the graph's own concept names before any traversal
@@ -217,13 +224,21 @@ def verify_mechanism(
     factor, target = resolved_factor, resolved_target
 
     result = mediating_concepts(graph, factor, target, table=table, **spread_kwargs)
-    supported = [item for item in result.multiply_sourced() if item.weighted_activation >= support_threshold]
+    supported = [
+        item
+        for item in result.multiply_sourced()
+        if item.weighted_activation >= support_threshold
+    ]
     verification.candidate_mechanisms = tuple(item.concept for item in supported)
 
     if not verification.claimed_mechanism:
-        verification.notes.append("no mechanism claimed; reporting what the graph offers instead")
+        verification.notes.append(
+            "no mechanism claimed; reporting what the graph offers instead"
+        )
         verification.grounding = (
-            GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM if supported else GROUNDING_NO_CONNECTION
+            GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM
+            if supported
+            else GROUNDING_NO_CONNECTION
         )
         return verification
 
@@ -249,7 +264,11 @@ def verify_mechanism(
             verification.grounding = GROUNDING_SUPPORTED
             verification.matched_concept = normalisation.concept
             verification.matched_activation = next(
-                (item.weighted_activation for item in supported if item.concept == normalisation.concept),
+                (
+                    item.weighted_activation
+                    for item in supported
+                    if item.concept == normalisation.concept
+                ),
                 0.0,
             )
             verification.normalisation_tier = normalisation.tier
@@ -272,8 +291,12 @@ def verify_mechanism(
             "the claimed mechanism rests on nothing the graph knows"
         )
         if fallback_model is not None:
-            walk = guided_expand(graph, verification.factor, verification.target, fallback_model)
-            if walk.found_something and _concept_names_match(verification.claimed_mechanism, walk.final_concept):
+            walk = guided_expand(
+                graph, verification.factor, verification.target, fallback_model
+            )
+            if walk.found_something and _concept_names_match(
+                verification.claimed_mechanism, walk.final_concept
+            ):
                 verification.grounding = GROUNDING_SUPPORTED_VIA_GUIDED_EXPANSION
                 verification.matched_concept = walk.final_concept
                 verification.via_guided_expansion = True
@@ -288,7 +311,9 @@ def verify_mechanism(
                     f"('{verification.claimed_mechanism}')"
                 )
             else:
-                verification.notes.append(f"a guided walk was also tried and did not find a connection ({walk.stop_reason})")
+                verification.notes.append(
+                    f"a guided walk was also tried and did not find a connection ({walk.stop_reason})"
+                )
     return verification
 
 
@@ -327,9 +352,15 @@ class MechanismCrossCheck:
     @property
     def disposition(self) -> str:
         if self.models_agree:
-            return DISPOSITION_AGREED_AND_GROUNDED if self.either_grounded else DISPOSITION_AGREED_BUT_UNGROUNDED
+            return (
+                DISPOSITION_AGREED_AND_GROUNDED
+                if self.either_grounded
+                else DISPOSITION_AGREED_BUT_UNGROUNDED
+            )
         return (
-            DISPOSITION_DISAGREED_BUT_GROUNDED if self.both_grounded else DISPOSITION_DISAGREED_AND_UNGROUNDED
+            DISPOSITION_DISAGREED_BUT_GROUNDED
+            if self.both_grounded
+            else DISPOSITION_DISAGREED_AND_UNGROUNDED
         )
 
     @property
@@ -372,15 +403,31 @@ def cross_check_mechanisms(
     right = parse_frame_answer(FRAME_RELEVANCE, secondary_answer)
 
     primary = verify_mechanism(
-        graph, left.value("factor"), left.value("target"), left.value("mechanism"), table=table, **kwargs
+        graph,
+        left.value("factor"),
+        left.value("target"),
+        left.value("mechanism"),
+        table=table,
+        **kwargs,
     )
     secondary = verify_mechanism(
-        graph, right.value("factor"), right.value("target"), right.value("mechanism"), table=table, **kwargs
+        graph,
+        right.value("factor"),
+        right.value("target"),
+        right.value("mechanism"),
+        table=table,
+        **kwargs,
     )
 
     claimed_left, claimed_right = left.value("mechanism"), right.value("mechanism")
-    agree = bool(claimed_left) and bool(claimed_right) and (
-        claimed_left == claimed_right or claimed_left in claimed_right or claimed_right in claimed_left
+    agree = (
+        bool(claimed_left)
+        and bool(claimed_right)
+        and (
+            claimed_left == claimed_right
+            or claimed_left in claimed_right
+            or claimed_right in claimed_left
+        )
     )
     # Two models landing on the same graph-supported concept by different
     # wording agree in substance even when their strings differ -- which is

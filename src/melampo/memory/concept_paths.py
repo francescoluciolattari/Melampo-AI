@@ -80,14 +80,24 @@ class ConceptEdge:
     upper: float | None = None
 
     @classmethod
-    def unknown(cls, source: str, relation: str, target: str, provenance: str | None = None) -> "ConceptEdge":
+    def unknown(
+        cls, source: str, relation: str, target: str, provenance: str | None = None
+    ) -> "ConceptEdge":
         """An edge the knowledge base does not have. Maximally wide, not absent.
 
         Distinct from omitting the edge: an absent edge cannot be traversed at
         all, while an unknown one can be traversed and reported as unknown,
         which is what makes it a candidate for graph completion.
         """
-        return cls(source, relation, target, weight=0.5, provenance=provenance, lower=0.0, upper=1.0)
+        return cls(
+            source,
+            relation,
+            target,
+            weight=0.5,
+            provenance=provenance,
+            lower=0.0,
+            upper=1.0,
+        )
 
     @property
     def bounds(self) -> tuple[float, float]:
@@ -156,8 +166,12 @@ class InMemoryConceptGraph:
     """
 
     edges: list[ConceptEdge] = field(default_factory=list)
-    _outgoing: dict[str, list[ConceptEdge]] = field(default_factory=dict, repr=False, compare=False)
-    _incoming: dict[str, list[ConceptEdge]] = field(default_factory=dict, repr=False, compare=False)
+    _outgoing: dict[str, list[ConceptEdge]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+    _incoming: dict[str, list[ConceptEdge]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         self._rebuild_index()
@@ -343,7 +357,9 @@ def find_paths(
     reachable = _within_hops_of(graph, end_key, levels - 1)
 
     found: list[ConceptPath] = []
-    frontier: list[tuple[str, tuple[ConceptEdge, ...], frozenset[str]]] = [(start_key, (), frozenset({start_key}))]
+    frontier: list[tuple[str, tuple[ConceptEdge, ...], frozenset[str]]] = [
+        (start_key, (), frozenset({start_key}))
+    ]
 
     for level in range(1, levels + 1):
         hops_left = levels - level
@@ -359,7 +375,10 @@ def find_paths(
                 if target_key != end_key and target_key not in can_continue:
                     continue  # cannot reach `end` in the hops left: no completion to lose
                 extended = path + (edge,)
-                if max_gap_edges is not None and sum(1 for item in extended if item.is_gap) > max_gap_edges:
+                if (
+                    max_gap_edges is not None
+                    and sum(1 for item in extended if item.is_gap) > max_gap_edges
+                ):
                     continue
                 if target_key == end_key:
                     found.append(ConceptPath(edges=extended))
@@ -374,7 +393,9 @@ def find_paths(
     return _ranked(found)
 
 
-def _within_hops_of(graph: ConceptGraphView, end_key: str, radius: int) -> list[frozenset[str]]:
+def _within_hops_of(
+    graph: ConceptGraphView, end_key: str, radius: int
+) -> list[frozenset[str]]:
     """reachable[k]: every normalised concept at most k hops from `end_key`, for k = 0..radius."""
     reachable = [frozenset({end_key})]
     seen = {end_key}
@@ -407,7 +428,9 @@ def shared_mechanisms(
     unsupported assertion of causation into a claim about a specific pathway
     that can be examined and rejected.
     """
-    paths = find_paths(graph, first, second, max_hops=2, min_edge_weight=min_edge_weight, max_paths=32)
+    paths = find_paths(
+        graph, first, second, max_hops=2, min_edge_weight=min_edge_weight, max_paths=32
+    )
     mechanisms: list[str] = []
     for path in paths:
         if path.hops != 2:
@@ -418,7 +441,9 @@ def shared_mechanisms(
     return mechanisms
 
 
-def mentioned_concepts(text: str, graph: ConceptGraphView, *, max_results: int = 6) -> list[str]:
+def mentioned_concepts(
+    text: str, graph: ConceptGraphView, *, max_results: int = 6
+) -> list[str]:
     """Graph concepts appearing in a span of text, longest match first.
 
     Clinical concepts are usually multi-word — "bibasilar opacities", not
@@ -435,7 +460,9 @@ def mentioned_concepts(text: str, graph: ConceptGraphView, *, max_results: int =
         if not concept:
             continue
         needle = _strip_punctuation(concept)
-        if f" {needle} " in haystack and not any(needle in existing for existing in found):
+        if f" {needle} " in haystack and not any(
+            needle in existing for existing in found
+        ):
             found.append(concept)
         if len(found) >= max_results:
             break
@@ -466,7 +493,9 @@ class DensityReport:
         }
 
 
-def local_density(graph: ConceptGraphView, concepts: Sequence[str], *, radius: int = 1) -> DensityReport:
+def local_density(
+    graph: ConceptGraphView, concepts: Sequence[str], *, radius: int = 1
+) -> DensityReport:
     """Fraction of the neighbourhood around these concepts that the graph knows.
 
     Completeness is the wrong question — a clinical graph never reaches it, so a
@@ -536,7 +565,10 @@ def _strip_punctuation(value: str) -> str:
     does: a trailing full stop is enough to make a match silently fail.
     """
     return " ".join(
-        "".join(character if character.isalnum() else " " for character in str(value).lower()).split()
+        "".join(
+            character if character.isalnum() else " "
+            for character in str(value).lower()
+        ).split()
     )
 
 

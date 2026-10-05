@@ -95,23 +95,63 @@ from typing import Any
 INSTANCE_ALLOWLIST = (
     # Identity of the object and its series (UIDs: pseudonymous links, needed
     # to group instances into series and to write a valid file).
-    "SOPClassUID", "SOPInstanceUID", "StudyInstanceUID", "SeriesInstanceUID", "FrameOfReferenceUID",
-    "Modality", "SeriesNumber", "InstanceNumber", "AcquisitionNumber", "ImageType",
-    "BodyPartExamined", "StudyDescription", "SeriesDescription", "ProtocolName", "PatientPosition",
+    "SOPClassUID",
+    "SOPInstanceUID",
+    "StudyInstanceUID",
+    "SeriesInstanceUID",
+    "FrameOfReferenceUID",
+    "Modality",
+    "SeriesNumber",
+    "InstanceNumber",
+    "AcquisitionNumber",
+    "ImageType",
+    "BodyPartExamined",
+    "StudyDescription",
+    "SeriesDescription",
+    "ProtocolName",
+    "PatientPosition",
     # Geometry.
-    "ImagePositionPatient", "ImageOrientationPatient", "PixelSpacing", "SliceThickness",
-    "SpacingBetweenSlices", "SliceLocation",
+    "ImagePositionPatient",
+    "ImageOrientationPatient",
+    "PixelSpacing",
+    "SliceThickness",
+    "SpacingBetweenSlices",
+    "SliceLocation",
     # Image pixel module.
-    "SamplesPerPixel", "PhotometricInterpretation", "PlanarConfiguration", "Rows", "Columns",
-    "BitsAllocated", "BitsStored", "HighBit", "PixelRepresentation", "NumberOfFrames",
-    "PixelPaddingValue", "PixelData",
+    "SamplesPerPixel",
+    "PhotometricInterpretation",
+    "PlanarConfiguration",
+    "Rows",
+    "Columns",
+    "BitsAllocated",
+    "BitsStored",
+    "HighBit",
+    "PixelRepresentation",
+    "NumberOfFrames",
+    "PixelPaddingValue",
+    "PixelData",
     # Value transforms: stored value -> Hounsfield units (CT), display windows.
-    "RescaleSlope", "RescaleIntercept", "RescaleType", "WindowCenter", "WindowWidth", "VOILUTFunction",
+    "RescaleSlope",
+    "RescaleIntercept",
+    "RescaleType",
+    "WindowCenter",
+    "WindowWidth",
+    "VOILUTFunction",
     # Acquisition parameters a model or reviewer may need.
-    "KVP", "ConvolutionKernel", "ContrastBolusAgent", "Manufacturer", "ManufacturerModelName",
-    "MagneticFieldStrength", "RepetitionTime", "EchoTime", "ScanningSequence", "SequenceVariant", "MRAcquisitionType",
+    "KVP",
+    "ConvolutionKernel",
+    "ContrastBolusAgent",
+    "Manufacturer",
+    "ManufacturerModelName",
+    "MagneticFieldStrength",
+    "RepetitionTime",
+    "EchoTime",
+    "ScanningSequence",
+    "SequenceVariant",
+    "MRAcquisitionType",
     # Enhanced multi-frame geometry (private tags stripped inside them).
-    "SharedFunctionalGroupsSequence", "PerFrameFunctionalGroupsSequence",
+    "SharedFunctionalGroupsSequence",
+    "PerFrameFunctionalGroupsSequence",
     # Reported, never acted on silently.
     "BurnedInAnnotation",
 )
@@ -156,8 +196,25 @@ CHECKPOINT_BREAST_MRI = "Pillar0-BreastMRI"
 # Anatomy from BodyPartExamined (DICOM defined terms) and descriptions
 # (Italian and English). Matched as whole words on upper-cased text.
 _ANATOMY_WORDS = {
-    "chest": ("CHEST", "THORAX", "LUNG", "TORACE", "TORACICA", "TORACICO", "POLMONI", "POLMONE"),
-    "abdomen": ("ABDOMEN", "PELVIS", "ABDOMENPELVIS", "ADDOME", "ADDOMINALE", "PELVI", "ADDOMINOPELVICA"),
+    "chest": (
+        "CHEST",
+        "THORAX",
+        "LUNG",
+        "TORACE",
+        "TORACICA",
+        "TORACICO",
+        "POLMONI",
+        "POLMONE",
+    ),
+    "abdomen": (
+        "ABDOMEN",
+        "PELVIS",
+        "ABDOMENPELVIS",
+        "ADDOME",
+        "ADDOMINALE",
+        "PELVI",
+        "ADDOMINOPELVICA",
+    ),
     "head": ("HEAD", "BRAIN", "SKULL", "ENCEFALO", "CRANIO", "CEREBRALE", "TESTA"),
     "breast": ("BREAST", "MAMMELLA", "MAMMELLE", "MAMMARIA", "MAMMARIO", "SENO"),
 }
@@ -179,10 +236,23 @@ def deidentify_instance(data: bytes) -> DeidentifiedInstance | None:
 
     try:
         source = pydicom.dcmread(io.BytesIO(data))
-    except (InvalidDicomError, ValueError, OSError, AttributeError, KeyError, TypeError):
+    except (
+        InvalidDicomError,
+        ValueError,
+        OSError,
+        AttributeError,
+        KeyError,
+        TypeError,
+    ):
         return None
-    transfer_syntax = getattr(getattr(source, "file_meta", None), "TransferSyntaxUID", None)
-    if transfer_syntax is None or "SOPInstanceUID" not in source or "SOPClassUID" not in source:
+    transfer_syntax = getattr(
+        getattr(source, "file_meta", None), "TransferSyntaxUID", None
+    )
+    if (
+        transfer_syntax is None
+        or "SOPInstanceUID" not in source
+        or "SOPClassUID" not in source
+    ):
         return None
 
     rebuilt = Dataset()
@@ -206,8 +276,10 @@ def deidentify_instance(data: bytes) -> DeidentifiedInstance | None:
     if str(source.get("BurnedInAnnotation", "")).strip().upper() == "YES":
         notes.append("burned_in_annotation_declared")
     return DeidentifiedInstance(
-        data=buffer.getvalue(), series_uid=str(source.get("SeriesInstanceUID", "")),
-        has_pixel_data="PixelData" in source, notes=tuple(notes),
+        data=buffer.getvalue(),
+        series_uid=str(source.get("SeriesInstanceUID", "")),
+        has_pixel_data="PixelData" in source,
+        notes=tuple(notes),
     )
 
 
@@ -237,14 +309,23 @@ class VolumeAssessment:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "usable": self.usable, "problems": list(self.problems), "modality": self.modality,
-            "slice_count": self.slice_count, "rows": self.rows, "columns": self.columns,
+            "usable": self.usable,
+            "problems": list(self.problems),
+            "modality": self.modality,
+            "slice_count": self.slice_count,
+            "rows": self.rows,
+            "columns": self.columns,
             "pixel_spacing": list(self.pixel_spacing) if self.pixel_spacing else None,
-            "slice_spacing": self.slice_spacing, "slice_thickness": self.slice_thickness,
-            "orientation": self.orientation, "anatomy": self.anatomy, "notes": list(self.notes),
+            "slice_spacing": self.slice_spacing,
+            "slice_thickness": self.slice_thickness,
+            "orientation": self.orientation,
+            "anatomy": self.anatomy,
+            "notes": list(self.notes),
             "affine": [list(row) for row in self.affine] if self.affine else None,
-            "tilt_degrees": self.tilt_degrees, "frame_of_reference_uid": self.frame_of_reference_uid,
-            "convolution_kernel": self.convolution_kernel, "manufacturer_model": self.manufacturer_model,
+            "tilt_degrees": self.tilt_degrees,
+            "frame_of_reference_uid": self.frame_of_reference_uid,
+            "convolution_kernel": self.convolution_kernel,
+            "manufacturer_model": self.manufacturer_model,
         }
 
 
@@ -258,11 +339,21 @@ def _floats(value: Any, count: int) -> tuple[float, ...] | None:
 
 def _anatomy(dataset: Any) -> str | None:
     text = " ".join(
-        str(dataset.get(keyword, "") or "") for keyword in ("BodyPartExamined", "StudyDescription", "SeriesDescription", "ProtocolName")
+        str(dataset.get(keyword, "") or "")
+        for keyword in (
+            "BodyPartExamined",
+            "StudyDescription",
+            "SeriesDescription",
+            "ProtocolName",
+        )
     ).upper()
     words = set(re.split(r"[^A-Z0-9]+", text))
     found = [anatomy for anatomy, names in _ANATOMY_WORDS.items() if words & set(names)]
-    return found[0] if len(found) == 1 else ("multiple:" + "+".join(sorted(found)) if found else None)
+    return (
+        found[0]
+        if len(found) == 1
+        else ("multiple:" + "+".join(sorted(found)) if found else None)
+    )
 
 
 def _orientation_label(normal: tuple[float, float, float]) -> str:
@@ -282,11 +373,18 @@ def assess_series(instances: Sequence[bytes]) -> VolumeAssessment:
             headers.append(None)
     problems: list[str] = []
     notes: list[str] = []
-    readable = [(index, header) for index, header in enumerate(headers) if header is not None]
+    readable = [
+        (index, header) for index, header in enumerate(headers) if header is not None
+    ]
     if len(readable) != len(headers):
         problems.append("unreadable_instances")
     if not readable:
-        return VolumeAssessment(usable=False, problems=("no_readable_instances",), modality=None, slice_count=0)
+        return VolumeAssessment(
+            usable=False,
+            problems=("no_readable_instances",),
+            modality=None,
+            slice_count=0,
+        )
 
     first = readable[0][1]
     modality = str(first.get("Modality", "") or "") or None
@@ -294,25 +392,55 @@ def assess_series(instances: Sequence[bytes]) -> VolumeAssessment:
         problems.append("enhanced_multiframe_not_assembled")
     if len({str(header.get("SeriesInstanceUID", "")) for _, header in readable}) > 1:
         problems.append("mixed_series")
-    if any(str(header.get("BurnedInAnnotation", "")).strip().upper() == "YES" for _, header in readable):
+    if any(
+        str(header.get("BurnedInAnnotation", "")).strip().upper() == "YES"
+        for _, header in readable
+    ):
         notes.append("burned_in_annotation_declared")
 
-    sizes = {(int(header.get("Rows", 0) or 0), int(header.get("Columns", 0) or 0)) for _, header in readable}
+    sizes = {
+        (int(header.get("Rows", 0) or 0), int(header.get("Columns", 0) or 0))
+        for _, header in readable
+    }
     spacings = {_floats(header.get("PixelSpacing"), 2) for _, header in readable}
-    orientations = [_floats(header.get("ImageOrientationPatient"), 6) for _, header in readable]
-    positions = [_floats(header.get("ImagePositionPatient"), 3) for _, header in readable]
+    orientations = [
+        _floats(header.get("ImageOrientationPatient"), 6) for _, header in readable
+    ]
+    positions = [
+        _floats(header.get("ImagePositionPatient"), 3) for _, header in readable
+    ]
     if len(sizes) != 1:
         problems.append("inconsistent_image_size")
     if len(spacings) != 1 or None in spacings:
         problems.append("inconsistent_or_missing_pixel_spacing")
-    frames_of_reference = {str(header.get("FrameOfReferenceUID", "") or "") for _, header in readable}
+    frames_of_reference = {
+        str(header.get("FrameOfReferenceUID", "") or "") for _, header in readable
+    }
     if len(frames_of_reference) > 1:
         problems.append("mixed_frame_of_reference")
-    if any(item is None for item in orientations) or any(item is None for item in positions):
+    if any(item is None for item in orientations) or any(
+        item is None for item in positions
+    ):
         problems.append("missing_geometry")
-        return _assessment(False, problems, notes, modality, readable, sizes, spacings, None, None, None, first)
+        return _assessment(
+            False,
+            problems,
+            notes,
+            modality,
+            readable,
+            sizes,
+            spacings,
+            None,
+            None,
+            None,
+            first,
+        )
     reference = orientations[0]
-    if any(max(abs(a - b) for a, b in zip(item, reference, strict=True)) > ORIENTATION_TOLERANCE for item in orientations):
+    if any(
+        max(abs(a - b) for a, b in zip(item, reference, strict=True))
+        > ORIENTATION_TOLERANCE
+        for item in orientations
+    ):
         problems.append("inconsistent_orientation")
 
     row, column = reference[:3], reference[3:]
@@ -333,18 +461,29 @@ def assess_series(instances: Sequence[bytes]) -> VolumeAssessment:
     if len(readable) < MIN_SLICES_FOR_VOLUME:
         problems.append("too_few_slices")
 
-    geometry = _slice_geometry([positions[index] for index in order], normal, slice_spacing, problems, notes)
+    geometry = _slice_geometry(
+        [positions[index] for index in order], normal, slice_spacing, problems, notes
+    )
     _check_thickness(readable, slice_spacing, notes)
-    for keyword, note in (("ConvolutionKernel", "inconsistent_convolution_kernel"), ("ManufacturerModelName", "inconsistent_manufacturer_model")):
+    for keyword, note in (
+        ("ConvolutionKernel", "inconsistent_convolution_kernel"),
+        ("ManufacturerModelName", "inconsistent_manufacturer_model"),
+    ):
         if len({_text(header.get(keyword)) for _, header in readable}) > 1:
             notes.append(note)
     affine = None
     spacing = next(iter(spacings)) if len(spacings) == 1 else None
     # A single step vector describes every slice only if the slices form one
     # regular grid; otherwise the affine would misplace the inner slices.
-    if geometry is not None and spacing is not None and not set(problems) & _GRID_PROBLEMS:
+    if (
+        geometry is not None
+        and spacing is not None
+        and not set(problems) & _GRID_PROBLEMS
+    ):
         step, origin = geometry["step"], geometry["origin"]
-        row_spacing, column_spacing = spacing  # PixelSpacing: row spacing first, then column spacing
+        row_spacing, column_spacing = (
+            spacing  # PixelSpacing: row spacing first, then column spacing
+        )
         affine = (
             (row[0] * column_spacing, column[0] * row_spacing, step[0], origin[0]),
             (row[1] * column_spacing, column[1] * row_spacing, step[1], origin[1]),
@@ -352,18 +491,37 @@ def assess_series(instances: Sequence[bytes]) -> VolumeAssessment:
             (0.0, 0.0, 0.0, 1.0),
         )
     return _assessment(
-        not problems, problems, notes, modality, readable, sizes, spacings, slice_spacing,
-        _orientation_label(normal), tuple(readable[index][0] for index in order), first,
-        affine=affine, tilt_degrees=geometry["tilt_degrees"] if geometry else None,
-        frame_of_reference_uid=(next(iter(frames_of_reference)) or None) if len(frames_of_reference) == 1 else None,
+        not problems,
+        problems,
+        notes,
+        modality,
+        readable,
+        sizes,
+        spacings,
+        slice_spacing,
+        _orientation_label(normal),
+        tuple(readable[index][0] for index in order),
+        first,
+        affine=affine,
+        tilt_degrees=geometry["tilt_degrees"] if geometry else None,
+        frame_of_reference_uid=(next(iter(frames_of_reference)) or None)
+        if len(frames_of_reference) == 1
+        else None,
     )
 
 
-_GRID_PROBLEMS = frozenset({
-    "inconsistent_orientation", "inconsistent_or_missing_pixel_spacing", "inconsistent_image_size",
-    "duplicate_slice_positions", "uneven_slice_spacing", "slice_positions_not_collinear",
-    "mixed_series", "mixed_frame_of_reference",
-})
+_GRID_PROBLEMS = frozenset(
+    {
+        "inconsistent_orientation",
+        "inconsistent_or_missing_pixel_spacing",
+        "inconsistent_image_size",
+        "duplicate_slice_positions",
+        "uneven_slice_spacing",
+        "slice_positions_not_collinear",
+        "mixed_series",
+        "mixed_frame_of_reference",
+    }
+)
 
 
 def _dot(left: Sequence[float], right: Sequence[float]) -> float:
@@ -408,14 +566,18 @@ def _slice_geometry(
         if sideways > tolerance:
             problems.append("slice_positions_not_collinear")
             break
-    cosine = min(abs(_dot(unit, normal)) / (math.sqrt(_dot(normal, normal)) or 1.0), 1.0)
+    cosine = min(
+        abs(_dot(unit, normal)) / (math.sqrt(_dot(normal, normal)) or 1.0), 1.0
+    )
     tilt = math.degrees(math.acos(cosine))
     if tilt > TILT_TOLERANCE_DEGREES:
         notes.append("sheared_volume_gantry_tilt")
     return {"step": step, "origin": tuple(first), "tilt_degrees": round(tilt, 4)}
 
 
-def _check_thickness(readable: Sequence[tuple[int, Any]], slice_spacing: float | None, notes: list[str]) -> None:
+def _check_thickness(
+    readable: Sequence[tuple[int, Any]], slice_spacing: float | None, notes: list[str]
+) -> None:
     """Thickness against the measured spacing, and the SpacingBetweenSlices tag against it -- reported, not refused."""
     thicknesses = set()
     for _, header in readable:
@@ -450,19 +612,49 @@ def _frames(header: Any) -> int:
         return 1
 
 
-def _assessment(usable, problems, notes, modality, readable, sizes, spacings, slice_spacing, orientation, order, first,
-                *, affine=None, tilt_degrees=None, frame_of_reference_uid=None):
+def _assessment(
+    usable,
+    problems,
+    notes,
+    modality,
+    readable,
+    sizes,
+    spacings,
+    slice_spacing,
+    orientation,
+    order,
+    first,
+    *,
+    affine=None,
+    tilt_degrees=None,
+    frame_of_reference_uid=None,
+):
     size = next(iter(sizes)) if len(sizes) == 1 else (None, None)
     spacing = next(iter(spacings)) if len(spacings) == 1 else None
     try:
-        thickness = float(first.get("SliceThickness")) if first.get("SliceThickness") not in (None, "") else None
+        thickness = (
+            float(first.get("SliceThickness"))
+            if first.get("SliceThickness") not in (None, "")
+            else None
+        )
     except (TypeError, ValueError):
         thickness = None
     return VolumeAssessment(
-        usable=usable, problems=tuple(problems), modality=modality, slice_count=len(readable),
-        rows=size[0], columns=size[1], pixel_spacing=spacing, slice_spacing=slice_spacing,
-        slice_thickness=thickness, orientation=orientation, anatomy=_anatomy(first),
-        order=order or (), notes=tuple(notes), affine=affine, tilt_degrees=tilt_degrees,
+        usable=usable,
+        problems=tuple(problems),
+        modality=modality,
+        slice_count=len(readable),
+        rows=size[0],
+        columns=size[1],
+        pixel_spacing=spacing,
+        slice_spacing=slice_spacing,
+        slice_thickness=thickness,
+        orientation=orientation,
+        anatomy=_anatomy(first),
+        order=order or (),
+        notes=tuple(notes),
+        affine=affine,
+        tilt_degrees=tilt_degrees,
         frame_of_reference_uid=frame_of_reference_uid,
         convolution_kernel=_text(first.get("ConvolutionKernel")),
         manufacturer_model=_text(first.get("ManufacturerModelName")),
@@ -477,7 +669,9 @@ def _text(value: Any) -> str | None:
     return str(value).strip() or None
 
 
-def index_to_patient_mm(assessment: VolumeAssessment, slice_index: float, row: float, column: float) -> tuple[float, float, float]:
+def index_to_patient_mm(
+    assessment: VolumeAssessment, slice_index: float, row: float, column: float
+) -> tuple[float, float, float]:
     """Patient coordinates (LPS, mm) of a voxel of `load_volume_hu`'s array -- indices may be fractional (sub-voxel).
 
     The array is (slices, rows, columns) in `assessment.order`; the affine
@@ -488,14 +682,23 @@ def index_to_patient_mm(assessment: VolumeAssessment, slice_index: float, row: f
     (see measurement_precision).
     """
     if assessment.affine is None:
-        raise ValueError("no patient geometry: " + (", ".join(assessment.problems) or "affine not available"))
+        raise ValueError(
+            "no patient geometry: "
+            + (", ".join(assessment.problems) or "affine not available")
+        )
     vector = (column, row, slice_index, 1.0)
-    return tuple(sum(value * factor for value, factor in zip(line, vector, strict=True)) for line in assessment.affine[:3])
+    return tuple(
+        sum(value * factor for value, factor in zip(line, vector, strict=True))
+        for line in assessment.affine[:3]
+    )
 
 
 def share_frame_of_reference(first: VolumeAssessment, second: VolumeAssessment) -> bool:
     """Whether two series are spatially related by the scanner itself (PS3.3 C.7.4). Unknown is False, never assumed."""
-    return bool(first.frame_of_reference_uid) and first.frame_of_reference_uid == second.frame_of_reference_uid
+    return (
+        bool(first.frame_of_reference_uid)
+        and first.frame_of_reference_uid == second.frame_of_reference_uid
+    )
 
 
 @dataclass(frozen=True)
@@ -512,7 +715,9 @@ class MeasurementPrecision:
 def measurement_precision(assessment: VolumeAssessment) -> MeasurementPrecision:
     """high: QIBA volumetry conditions; reduced: sub-voxel still reliable along z; low: planar measures only; none: no geometry."""
     if not assessment.usable or assessment.affine is None:
-        return MeasurementPrecision(PRECISION_NONE, ("not_a_usable_volume", *assessment.problems))
+        return MeasurementPrecision(
+            PRECISION_NONE, ("not_a_usable_volume", *assessment.problems)
+        )
     reasons: list[str] = []
     notes = set(assessment.notes)
     if (assessment.modality or "").upper() == "MR":
@@ -521,16 +726,26 @@ def measurement_precision(assessment: VolumeAssessment) -> MeasurementPrecision:
         reasons.append("sheared_volume_measure_through_affine_only")
     thickness = assessment.slice_thickness
     if thickness is None:
-        return MeasurementPrecision(PRECISION_LOW, ("slice_thickness_unknown", *reasons))
+        return MeasurementPrecision(
+            PRECISION_LOW, ("slice_thickness_unknown", *reasons)
+        )
     if "gaps_between_slices" in notes:
         return MeasurementPrecision(PRECISION_LOW, ("gaps_between_slices", *reasons))
     if "inconsistent_slice_thickness" in notes:
-        return MeasurementPrecision(PRECISION_LOW, ("inconsistent_slice_thickness", *reasons))
+        return MeasurementPrecision(
+            PRECISION_LOW, ("inconsistent_slice_thickness", *reasons)
+        )
     if thickness <= QIBA_MAX_SLICE_THICKNESS_MM:
         return MeasurementPrecision(PRECISION_HIGH, tuple(reasons))
     if thickness <= REDUCED_MAX_SLICE_THICKNESS_MM:
-        return MeasurementPrecision(PRECISION_REDUCED, (f"slice_thickness_above_{QIBA_MAX_SLICE_THICKNESS_MM}mm", *reasons))
-    return MeasurementPrecision(PRECISION_LOW, (f"slice_thickness_above_{REDUCED_MAX_SLICE_THICKNESS_MM}mm", *reasons))
+        return MeasurementPrecision(
+            PRECISION_REDUCED,
+            (f"slice_thickness_above_{QIBA_MAX_SLICE_THICKNESS_MM}mm", *reasons),
+        )
+    return MeasurementPrecision(
+        PRECISION_LOW,
+        (f"slice_thickness_above_{REDUCED_MAX_SLICE_THICKNESS_MM}mm", *reasons),
+    )
 
 
 @dataclass(frozen=True)
@@ -539,10 +754,15 @@ class AcquisitionComparison:
     qiba_comparable: bool  # same thickness, kernel and scanner model, as QIBA requires for change measurement
 
     def as_dict(self) -> dict[str, Any]:
-        return {"differences": list(self.differences), "qiba_comparable": self.qiba_comparable}
+        return {
+            "differences": list(self.differences),
+            "qiba_comparable": self.qiba_comparable,
+        }
 
 
-def compare_acquisitions(earlier: VolumeAssessment, later: VolumeAssessment) -> AcquisitionComparison:
+def compare_acquisitions(
+    earlier: VolumeAssessment, later: VolumeAssessment
+) -> AcquisitionComparison:
     """What differs between two exams' acquisitions in ways that change measurements taken on them.
 
     An unknown value on either side counts as a difference: comparability
@@ -554,20 +774,35 @@ def compare_acquisitions(earlier: VolumeAssessment, later: VolumeAssessment) -> 
         if left is None or right is None:
             differences.append(f"{name}_unknown")
             return True
-        different = abs(float(left) - float(right)) > POSITION_TOLERANCE_FLOOR_MM if numeric else left != right
+        different = (
+            abs(float(left) - float(right)) > POSITION_TOLERANCE_FLOOR_MM
+            if numeric
+            else left != right
+        )
         if different:
             differences.append(f"different_{name}:{left}->{right}")
         return different
 
     critical = [
-        differ("slice_thickness", earlier.slice_thickness, later.slice_thickness, numeric=True),
-        differ("convolution_kernel", earlier.convolution_kernel, later.convolution_kernel),
-        differ("manufacturer_model", earlier.manufacturer_model, later.manufacturer_model),
+        differ(
+            "slice_thickness",
+            earlier.slice_thickness,
+            later.slice_thickness,
+            numeric=True,
+        ),
+        differ(
+            "convolution_kernel", earlier.convolution_kernel, later.convolution_kernel
+        ),
+        differ(
+            "manufacturer_model", earlier.manufacturer_model, later.manufacturer_model
+        ),
     ]
     differ("modality", earlier.modality, later.modality)
     differ("pixel_spacing", earlier.pixel_spacing, later.pixel_spacing)
     same_modality = earlier.modality is not None and earlier.modality == later.modality
-    return AcquisitionComparison(tuple(differences), qiba_comparable=not any(critical) and same_modality)
+    return AcquisitionComparison(
+        tuple(differences), qiba_comparable=not any(critical) and same_modality
+    )
 
 
 def load_volume_hu(instances: Sequence[bytes], assessment: VolumeAssessment) -> Any:
@@ -581,13 +816,19 @@ def load_volume_hu(instances: Sequence[bytes], assessment: VolumeAssessment) -> 
     from pydicom.pixels import apply_modality_lut
 
     if not assessment.usable:
-        raise ValueError(f"series is not a usable volume: {', '.join(assessment.problems)}")
+        raise ValueError(
+            f"series is not a usable volume: {', '.join(assessment.problems)}"
+        )
     slices = []
     for index in assessment.order:
         dataset = pydicom.dcmread(io.BytesIO(instances[index]))
         slices.append(np.asarray(apply_modality_lut(dataset.pixel_array, dataset)))
     volume = np.stack(slices)
-    if np.all(np.equal(np.mod(volume, 1), 0)) and volume.min() >= -32768 and volume.max() <= 32767:
+    if (
+        np.all(np.equal(np.mod(volume, 1), 0))
+        and volume.min() >= -32768
+        and volume.max() <= 32767
+    ):
         return volume.astype(np.int16)
     return volume.astype(np.float32)
 
@@ -599,33 +840,49 @@ class Pillar0Eligibility:
     reason: str | None
 
     def as_dict(self) -> dict[str, Any]:
-        return {"eligible": self.eligible, "checkpoint": self.checkpoint, "reason": self.reason}
+        return {
+            "eligible": self.eligible,
+            "checkpoint": self.checkpoint,
+            "reason": self.reason,
+        }
 
 
 def pillar0_eligibility(assessment: VolumeAssessment) -> Pillar0Eligibility:
     """Which released Pillar-0 checkpoint could read this series, or why none can -- from modality, anatomy and geometry only."""
     modality = (assessment.modality or "").upper()
     if modality not in ("CT", "MR"):
-        return Pillar0Eligibility(False, None, f"modality_not_covered_by_pillar0:{modality or 'unknown'}")
+        return Pillar0Eligibility(
+            False, None, f"modality_not_covered_by_pillar0:{modality or 'unknown'}"
+        )
     if not assessment.usable:
         return Pillar0Eligibility(False, None, "not_a_usable_volume")
     anatomy = assessment.anatomy
     if anatomy is None:
         return Pillar0Eligibility(False, None, "anatomy_not_stated_in_dicom")
     if anatomy.startswith("multiple:"):
-        return Pillar0Eligibility(False, None, f"anatomy_ambiguous:{anatomy[len('multiple:'):]}")
+        return Pillar0Eligibility(
+            False, None, f"anatomy_ambiguous:{anatomy[len('multiple:') :]}"
+        )
     if modality == "CT":
         if assessment.orientation != "axial":
             return Pillar0Eligibility(False, None, "ct_series_not_axial")
-        checkpoint = {"chest": CHECKPOINT_CHEST_CT, "abdomen": CHECKPOINT_ABDOMEN_CT, "head": CHECKPOINT_HEAD_CT}.get(anatomy)
+        checkpoint = {
+            "chest": CHECKPOINT_CHEST_CT,
+            "abdomen": CHECKPOINT_ABDOMEN_CT,
+            "head": CHECKPOINT_HEAD_CT,
+        }.get(anatomy)
     else:
         checkpoint = CHECKPOINT_BREAST_MRI if anatomy == "breast" else None
     if checkpoint is None:
-        return Pillar0Eligibility(False, None, f"anatomy_not_covered_by_pillar0:{modality.lower()}_{anatomy}")
+        return Pillar0Eligibility(
+            False, None, f"anatomy_not_covered_by_pillar0:{modality.lower()}_{anatomy}"
+        )
     return Pillar0Eligibility(True, checkpoint, None)
 
 
-def preferred_series(candidates: Sequence[tuple[str, VolumeAssessment, Pillar0Eligibility]]) -> dict[str, str]:
+def preferred_series(
+    candidates: Sequence[tuple[str, VolumeAssessment, Pillar0Eligibility]],
+) -> dict[str, str]:
     """Per checkpoint, the one series to send: thinnest slices, then most slices, then series UID.
 
     The Pillar-0 paper selects, per study, the axial series with the lowest
@@ -636,14 +893,20 @@ def preferred_series(candidates: Sequence[tuple[str, VolumeAssessment, Pillar0El
     for key, assessment, eligibility in candidates:
         if not eligibility.eligible or eligibility.checkpoint is None:
             continue
-        thickness = assessment.slice_thickness if assessment.slice_thickness is not None else math.inf
+        thickness = (
+            assessment.slice_thickness
+            if assessment.slice_thickness is not None
+            else math.inf
+        )
         rank = (thickness, -assessment.slice_count, key)
         if eligibility.checkpoint not in best or rank < best[eligibility.checkpoint][0]:
             best[eligibility.checkpoint] = (rank, key)
     return {checkpoint: key for checkpoint, (_, key) in best.items()}
 
 
-def export_series_directory(instances: Sequence[bytes], assessment: VolumeAssessment, directory: str | Path) -> list[Path]:
+def export_series_directory(
+    instances: Sequence[bytes], assessment: VolumeAssessment, directory: str | Path
+) -> list[Path]:
     """Write the de-identified instances, in slice order, as the series directory RAVE's `series_path` expects.
 
     The only function here that touches disk, and nothing calls it yet:

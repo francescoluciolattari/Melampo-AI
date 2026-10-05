@@ -20,7 +20,9 @@ def _features(hops=2, support=0.8, corroboration=2, gap_count=0) -> HypothesisFe
     )
 
 
-def _outcomes(features: HypothesisFeatures, confirmed: int, total: int) -> list[HypothesisOutcome]:
+def _outcomes(
+    features: HypothesisFeatures, confirmed: int, total: int
+) -> list[HypothesisOutcome]:
     return [
         HypothesisOutcome(
             case_id=f"case_{index}",
@@ -156,7 +158,9 @@ def test_a_shape_is_suppressed_only_once_enough_outcomes_exist():
     futile = _features(hops=4, support=0.1, corroboration=1)
 
     model.observe_many(_outcomes(futile, confirmed=0, total=3))
-    assert model.suppressed(futile) is False, "three observations are not evidence of futility"
+    assert model.suppressed(futile) is False, (
+        "three observations are not evidence of futility"
+    )
 
     model.observe_many(_outcomes(futile, confirmed=0, total=120))
     assert model.suppressed(futile) is True
@@ -172,7 +176,9 @@ def test_a_productive_shape_is_never_suppressed():
 def test_the_report_shows_which_buckets_carry_weight():
     model = HypothesisYieldModel()
     model.observe_many(_outcomes(_features(hops=2, support=0.8), confirmed=6, total=10))
-    model.observe_many(_outcomes(_features(hops=4, support=0.1, corroboration=1), confirmed=0, total=2))
+    model.observe_many(
+        _outcomes(_features(hops=4, support=0.1, corroboration=1), confirmed=0, total=2)
+    )
 
     report = model.report()
     assert report["outcomes"] == 12
@@ -207,7 +213,9 @@ def test_a_hypothesis_that_did_not_match_the_confirmed_diagnosis_counts_as_uncon
     registry = ConfirmationRegistry()
     registry.register(Confirmation("c1", "sarcoidosis", source=SOURCE_HISTOPATHOLOGY))
 
-    outcomes = outcomes_from_confirmations([_surfaced("c1", "amyloidosis")], registry.learning_set())
+    outcomes = outcomes_from_confirmations(
+        [_surfaced("c1", "amyloidosis")], registry.learning_set()
+    )
     assert outcomes[0].confirmed is False
 
 
@@ -219,7 +227,9 @@ def test_a_case_without_a_confirmation_teaches_nothing():
 
 def test_matching_ignores_case_and_spacing():
     registry = ConfirmationRegistry()
-    registry.register(Confirmation("c1", "Congestive  Cardiac Failure", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation("c1", "Congestive  Cardiac Failure", source=SOURCE_HISTOPATHOLOGY)
+    )
     outcomes = outcomes_from_confirmations(
         [_surfaced("c1", "congestive cardiac failure")], registry.learning_set()
     )
@@ -230,7 +240,10 @@ def test_malformed_surfaced_entries_are_skipped():
     registry = ConfirmationRegistry()
     registry.register(Confirmation("c1", "x", source=SOURCE_HISTOPATHOLOGY))
     outcomes = outcomes_from_confirmations(
-        [{"case_id": "c1", "condition": "", "features": _features()}, {"case_id": "c1"}],
+        [
+            {"case_id": "c1", "condition": "", "features": _features()},
+            {"case_id": "c1"},
+        ],
         registry.learning_set(),
     )
     assert outcomes == []

@@ -145,7 +145,10 @@ def test_genes_to_phenotype_parses_the_confirmed_real_header():
 
 def test_genes_to_phenotype_also_accepts_the_alternate_column_names():
     """phenotype_to_genes.txt and some releases use gene_symbol/hpo_id."""
-    lines = ["hpo_id\tgene_symbol\thpo_name", "HP:0001939\tNAT2\tAbnormality of metabolism"]
+    lines = [
+        "hpo_id\tgene_symbol\thpo_name",
+        "HP:0001939\tNAT2\tAbnormality of metabolism",
+    ]
     associations = list(parse_genes_to_phenotype(lines))
     assert associations[0].gene_symbol == "NAT2"
 
@@ -156,12 +159,18 @@ def test_genes_to_phenotype_raises_on_an_unrecognised_header():
 
 
 def test_genes_to_disease_parses_and_accepts_alternate_columns():
-    lines = ["gene_symbol\tdisease_id\tdisease_name", "FBN1\tOMIM:154700\tMarfan syndrome"]
+    lines = [
+        "gene_symbol\tdisease_id\tdisease_name",
+        "FBN1\tOMIM:154700\tMarfan syndrome",
+    ]
     associations = list(parse_genes_to_disease(lines))
     assert associations[0].gene_symbol == "FBN1"
     assert associations[0].disease_name == "Marfan syndrome"
 
-    lines_alt = ["entrez_gene_symbol\tdatabase_id\tdisease_name", "FBN1\tOMIM:154700\tMarfan syndrome"]
+    lines_alt = [
+        "entrez_gene_symbol\tdatabase_id\tdisease_name",
+        "FBN1\tOMIM:154700\tMarfan syndrome",
+    ]
     associations_alt = list(parse_genes_to_disease(lines_alt))
     assert associations_alt[0].gene_symbol == "FBN1"
 
@@ -188,7 +197,13 @@ def test_gene_phenotype_edges_carry_the_associated_gene_relation():
     from melampo.memory.gene_annotations import GenePhenotypeAssociation
 
     edges = list(
-        gene_phenotype_edges([GenePhenotypeAssociation("NAT2", "HP:0001939", "Abnormality of metabolism")])
+        gene_phenotype_edges(
+            [
+                GenePhenotypeAssociation(
+                    "NAT2", "HP:0001939", "Abnormality of metabolism"
+                )
+            ]
+        )
     )
     assert edges[0].relation == RELATION_ASSOCIATED_GENE
     assert edges[0].source == "NAT2"
@@ -198,7 +213,11 @@ def test_gene_phenotype_edges_carry_the_associated_gene_relation():
 def test_gene_disease_edges_carry_the_causes_disease_relation():
     from melampo.memory.gene_annotations import GeneDiseaseAssociation
 
-    edges = list(gene_disease_edges([GeneDiseaseAssociation("FBN1", "OMIM:154700", "Marfan syndrome")]))
+    edges = list(
+        gene_disease_edges(
+            [GeneDiseaseAssociation("FBN1", "OMIM:154700", "Marfan syndrome")]
+        )
+    )
     assert edges[0].relation == RELATION_CAUSES_DISEASE
     assert edges[0].target == "Marfan syndrome"
 
@@ -209,7 +228,9 @@ def test_an_association_with_no_term_name_produces_no_edge():
     string a caller would have to filter out downstream."""
     from melampo.memory.gene_annotations import GenePhenotypeAssociation
 
-    edges = list(gene_phenotype_edges([GenePhenotypeAssociation("NAT2", "HP:0001939", "")]))
+    edges = list(
+        gene_phenotype_edges([GenePhenotypeAssociation("NAT2", "HP:0001939", "")])
+    )
     assert edges == []
 
 
@@ -260,10 +281,14 @@ def test_gene_disease_edges_survive_a_file_with_no_disease_name_column():
     dropped every row."""
     from melampo.memory.gene_annotations import GeneDiseaseAssociation
 
-    edges = list(gene_disease_edges([GeneDiseaseAssociation("FBN1", "OMIM:154700", "")]))
+    edges = list(
+        gene_disease_edges([GeneDiseaseAssociation("FBN1", "OMIM:154700", "")])
+    )
 
     assert len(edges) == 1, "a row with no name must still produce an edge"
-    assert edges[0].target == "OMIM:154700", "falling back to the id keeps it traversable and visibly an id"
+    assert edges[0].target == "OMIM:154700", (
+        "falling back to the id keeps it traversable and visibly an id"
+    )
 
 
 def test_a_supplied_name_map_turns_disease_ids_into_clinical_text():
@@ -311,7 +336,9 @@ def test_a_gene_is_never_proposed_as_a_diagnosis():
         [
             ConceptEdge("FBN1", RELATION_ASSOCIATED_GENE, "aortic root aneurysm", 1.0),
             ConceptEdge("FBN1", RELATION_CAUSES_DISEASE, "marfan syndrome", 1.0),
-            ConceptEdge("marfan syndrome", "has_phenotype", "aortic root aneurysm", 0.8),
+            ConceptEdge(
+                "marfan syndrome", "has_phenotype", "aortic root aneurysm", 0.8
+            ),
         ]
     )
 
@@ -342,5 +369,7 @@ def test_the_traversal_still_passes_through_a_gene_to_reach_what_it_causes():
 
     report = retrieve_candidates(["ectopia lentis"], graph)
 
-    assert "marfan syndrome" in report.condition_names, "the gene must be a waypoint, not a dead end"
+    assert "marfan syndrome" in report.condition_names, (
+        "the gene must be a waypoint, not a dead end"
+    )
     assert "FBN1" not in report.condition_names

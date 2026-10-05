@@ -68,7 +68,9 @@ CANONICAL_EXAMPLE = ExtractedStructure(
         "intestinal calcium absorption",
     ),
     relations=(
-        ExtractedRelation("granulomatous macrophages", "expresses", "1-alpha-hydroxylase"),
+        ExtractedRelation(
+            "granulomatous macrophages", "expresses", "1-alpha-hydroxylase"
+        ),
         ExtractedRelation("1-alpha-hydroxylase", "converts", "calcitriol"),
         ExtractedRelation("calcitriol", "increases", "intestinal calcium absorption"),
     ),
@@ -115,7 +117,9 @@ def parse_model_emitted_structure(answer: str) -> ExtractedStructure | None:
             data = json.loads(payload)
         except (json.JSONDecodeError, ValueError):
             return None
-        entities = tuple(str(item).strip() for item in data.get("entities", []) if str(item).strip())
+        entities = tuple(
+            str(item).strip() for item in data.get("entities", []) if str(item).strip()
+        )
         relations = tuple(
             ExtractedRelation(
                 subject=str(item.get("subject", "")).strip(),
@@ -123,11 +127,16 @@ def parse_model_emitted_structure(answer: str) -> ExtractedStructure | None:
                 object=str(item.get("object", "")).strip(),
             )
             for item in data.get("relations", [])
-            if isinstance(item, dict) and item.get("subject") and item.get("relation") and item.get("object")
+            if isinstance(item, dict)
+            and item.get("subject")
+            and item.get("relation")
+            and item.get("object")
         )
         if not entities and not relations:
             return None
-        return ExtractedStructure(source_text=answer, entities=entities, relations=relations)
+        return ExtractedStructure(
+            source_text=answer, entities=entities, relations=relations
+        )
     return None
 
 
@@ -142,7 +151,9 @@ class PopulationReport:
 
     @property
     def attempted(self) -> int:
-        return self.described + self.skipped_no_definition + self.skipped_extraction_empty
+        return (
+            self.described + self.skipped_no_definition + self.skipped_extraction_empty
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -178,7 +189,11 @@ def populate_from_ontology(
     Bulk population fills gaps, it does not re-derive what is there.
     """
     report = PopulationReport()
-    wanted = {item.strip().lower() for item in only_concepts} if only_concepts is not None else None
+    wanted = (
+        {item.strip().lower() for item in only_concepts}
+        if only_concepts is not None
+        else None
+    )
 
     for term in _limited(terms, limit):
         if term.obsolete or not term.name:
@@ -206,7 +221,9 @@ def populate_from_ontology(
     return report
 
 
-def _limited(terms: Iterable[OntologyTerm], limit: int | None) -> Iterator[OntologyTerm]:
+def _limited(
+    terms: Iterable[OntologyTerm], limit: int | None
+) -> Iterator[OntologyTerm]:
     if limit is None:
         yield from terms
         return

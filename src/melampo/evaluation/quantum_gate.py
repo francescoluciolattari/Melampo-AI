@@ -10,8 +10,18 @@ class QuantumResearchGate:
     def assess(self, contextuality_score: float) -> dict:
         allow = contextuality_score >= self.min_contextuality_score
         margin = round(contextuality_score - self.min_contextuality_score, 3)
-        level = "high" if contextuality_score >= (self.min_contextuality_score + 0.2) else "guarded" if allow else "low"
-        reasons = ["contextuality_above_quantum_gate_threshold"] if allow else ["contextuality_below_quantum_gate_threshold"]
+        level = (
+            "high"
+            if contextuality_score >= (self.min_contextuality_score + 0.2)
+            else "guarded"
+            if allow
+            else "low"
+        )
+        reasons = (
+            ["contextuality_above_quantum_gate_threshold"]
+            if allow
+            else ["contextuality_below_quantum_gate_threshold"]
+        )
         return {
             "allow": allow,
             "contextuality_score": contextuality_score,

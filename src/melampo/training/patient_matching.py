@@ -76,7 +76,9 @@ def normalize_name_component(value: str) -> str:
 
 def hash_identifying_value(value: str, password: str) -> str:
     """HMAC-SHA256, keyed by the same DB_PASSWORD that protects ConfirmedCaseStore -- the same construction, not a new one."""
-    return hmac.new(password.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.new(
+        password.encode("utf-8"), value.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
 
 
 def hash_name_component(value: str, password: str) -> str | None:
@@ -110,9 +112,15 @@ class PatientIdentifiers:
     def from_payload(cls, payload: dict[str, Any], password: str) -> PatientIdentifiers:
         fiscal_code = payload.get("patient_fiscal_code")
         return cls(
-            fiscal_code_hash=hash_identifying_value(normalize_name_component(fiscal_code), password) if fiscal_code else None,
+            fiscal_code_hash=hash_identifying_value(
+                normalize_name_component(fiscal_code), password
+            )
+            if fiscal_code
+            else None,
             name_hash=hash_name_component(payload.get("patient_name", ""), password),
-            surname_hash=hash_name_component(payload.get("patient_surname", ""), password),
+            surname_hash=hash_name_component(
+                payload.get("patient_surname", ""), password
+            ),
             case_date=payload.get("case_date"),
             diagnostic_question=payload.get("diagnostic_question"),
         )
@@ -153,7 +161,9 @@ def _questions_overlap(a: str, b: str, graph: ConceptGraphView) -> bool:
     concepts_b = set(mentioned_concepts(b or "", graph, max_results=20))
     if concepts_a and concepts_b:
         overlap = concepts_a & concepts_b
-        return (len(overlap) / min(len(concepts_a), len(concepts_b))) >= MIN_CONCEPT_OVERLAP_RATIO
+        return (
+            len(overlap) / min(len(concepts_a), len(concepts_b))
+        ) >= MIN_CONCEPT_OVERLAP_RATIO
 
     words_a = set(normalize_name_component(a or "").split())
     words_b = set(normalize_name_component(b or "").split())
@@ -164,7 +174,12 @@ def _questions_overlap(a: str, b: str, graph: ConceptGraphView) -> bool:
 
 
 def find_matching_pending_records(
-    payload: dict[str, Any], candidate_store: Any, graph: ConceptGraphView, password: str, *, statuses: tuple[str, ...] = ("candidate", "needs_review")
+    payload: dict[str, Any],
+    candidate_store: Any,
+    graph: ConceptGraphView,
+    password: str,
+    *,
+    statuses: tuple[str, ...] = ("candidate", "needs_review"),
 ) -> list[Any]:
     """Every pending record whose stored patient identifiers match this payload's -- not just the first, potentially several.
 
@@ -178,7 +193,9 @@ def find_matching_pending_records(
     it needs keeps that choice where the context that justifies it lives.
     """
     incoming = PatientIdentifiers.from_payload(payload, password)
-    if not (incoming.fiscal_code_hash or (incoming.name_hash and incoming.surname_hash)):
+    if not (
+        incoming.fiscal_code_hash or (incoming.name_hash and incoming.surname_hash)
+    ):
         return []
     matches = []
     for record in candidate_store.list_by_status(statuses=list(statuses)):
@@ -191,7 +208,9 @@ def find_matching_pending_records(
     return matches
 
 
-def identifiers_match(incoming: PatientIdentifiers, stored: PatientIdentifiers, graph: ConceptGraphView) -> bool:
+def identifiers_match(
+    incoming: PatientIdentifiers, stored: PatientIdentifiers, graph: ConceptGraphView
+) -> bool:
     """Whether `incoming` identifies the same patient/case as `stored` -- fiscal code alone, or all three of the fallback together.
 
     Fiscal code, when present on both sides, is decisive on its own --
@@ -207,8 +226,13 @@ def identifiers_match(incoming: PatientIdentifiers, stored: PatientIdentifiers, 
         return False
     if not (stored.name_hash and stored.surname_hash and stored.case_date):
         return False
-    if incoming.name_hash != stored.name_hash or incoming.surname_hash != stored.surname_hash:
+    if (
+        incoming.name_hash != stored.name_hash
+        or incoming.surname_hash != stored.surname_hash
+    ):
         return False
     if incoming.case_date != stored.case_date:
         return False
-    return _questions_overlap(incoming.diagnostic_question or "", stored.diagnostic_question or "", graph)
+    return _questions_overlap(
+        incoming.diagnostic_question or "", stored.diagnostic_question or "", graph
+    )

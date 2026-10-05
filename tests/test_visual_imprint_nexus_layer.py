@@ -11,7 +11,12 @@ from melampo.training.nexus_trainer import NexusTrainer
 from melampo.training.replay_filter import ReplayFilter
 
 
-def _imprint(concept: str, label: str, vector: list[float], ontology_refs: list[str] | None = None) -> dict:
+def _imprint(
+    concept: str,
+    label: str,
+    vector: list[float],
+    ontology_refs: list[str] | None = None,
+) -> dict:
     return VisualRecognitionImprint.from_payload(
         {
             "semantic_concept": concept,
@@ -33,7 +38,11 @@ def test_visual_imprint_builder_creates_governed_semantic_footprints():
             "salience_score": 0.7,
             "uncertainty_score": 0.3,
         },
-        volume_features={"study_id": "study-1", "input_kind": "ct", "metadata": {"modality": "CT"}},
+        volume_features={
+            "study_id": "study-1",
+            "input_kind": "ct",
+            "metadata": {"modality": "CT"},
+        },
     )
 
     assert imprints[0]["semantic_concept"] == "ground glass opacity"
@@ -48,7 +57,9 @@ def test_visual_imprint_morpher_supports_partial_semantic_concept_overlap():
     ]
     diagnostic = [_imprint("opacity", "diagnostic", [0.78, 0.22, 0.0, 0.0])]
 
-    result = VisualImprintMorpher(min_similarity=0.1, min_semantic_overlap=0.2).nexus_morph(
+    result = VisualImprintMorpher(
+        min_similarity=0.1, min_semantic_overlap=0.2
+    ).nexus_morph(
         concept_imprints=memory_variants,
         diagnostic_imprints=diagnostic,
         area_dynamics={
@@ -68,7 +79,10 @@ def test_visual_imprint_morpher_supports_partial_semantic_concept_overlap():
     assert "opacity" in candidate["shared_semantic_terms"]
     assert candidate["semantic_relation_score"] > 0.0
     assert result["governance"]["morphs_total_or_partial_semantic_concepts"] is True
-    assert result["neuroquantum_trace"]["supports_total_or_partial_semantic_concepts"] is True
+    assert (
+        result["neuroquantum_trace"]["supports_total_or_partial_semantic_concepts"]
+        is True
+    )
 
 
 def test_visual_imprint_morpher_links_same_semantic_concept_to_diagnostic_imprint():
@@ -96,7 +110,10 @@ def test_visual_imprint_morpher_links_same_semantic_concept_to_diagnostic_imprin
     assert result["semantic_links"]
     assert result["visual_prediction_link_score"] > 0.0
     assert result["governance"]["does_not_generate_clinical_images"] is True
-    assert result["neuroquantum_trace"]["formalism"] == "quantum_like_latent_interference_not_physical_quantum_claim"
+    assert (
+        result["neuroquantum_trace"]["formalism"]
+        == "quantum_like_latent_interference_not_physical_quantum_claim"
+    )
 
 
 def test_nexus_trainer_uses_visual_morphing_in_rehearsal_and_belief_update():
@@ -140,7 +157,10 @@ def test_nexus_trainer_uses_visual_morphing_in_rehearsal_and_belief_update():
     assert result["visual_morphing"]["morph_count"] >= 1
     assert result["rehearsal_profile"]["visual_morphing_active"] is True
     assert result["belief"]["visual_morph_intuition_gain"] > 0.0
-    assert any(item["kind"] == "visual_semantic_morph_correlation" for item in result["alternative_hypotheses"])
+    assert any(
+        item["kind"] == "visual_semantic_morph_correlation"
+        for item in result["alternative_hypotheses"]
+    )
 
 
 def test_weaviate_schema_and_adapter_store_visual_imprint_contract_locally():
@@ -149,7 +169,9 @@ def test_weaviate_schema_and_adapter_store_visual_imprint_contract_locally():
     assert {"VisualConcept", "VisualRecognitionImprint"}.issubset(class_names)
 
     adapter = WeaviateEnterpriseMemoryAdapter()
-    result = adapter.upsert_visual_imprint(_imprint("opacity", "variant-a", [0.9, 0.1, 0.0, 0.0]))
+    result = adapter.upsert_visual_imprint(
+        _imprint("opacity", "variant-a", [0.9, 0.1, 0.0, 0.0])
+    )
 
     assert result["status"] == "completed"
     assert result["governance"]["semantic_object_imprint_association"] is True

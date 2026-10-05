@@ -167,7 +167,11 @@ class VettingResult:
         promotion, applied here for the same reason: a proportion from a
         small sample should say so.
         """
-        return wilson_interval(self.grounded, self.conclusive_runs) if self.conclusive_runs else (0.0, 0.0)
+        return (
+            wilson_interval(self.grounded, self.conclusive_runs)
+            if self.conclusive_runs
+            else (0.0, 0.0)
+        )
 
     @property
     def grounding_wilson_lower(self) -> float:
@@ -204,7 +208,11 @@ class VettingResult:
         connections that do not exist, and grounding_rate would never
         reflect the second half of that picture.
         """
-        return self.restraint_correct / self.restraint_expected if self.restraint_expected else 0.0
+        return (
+            self.restraint_correct / self.restraint_expected
+            if self.restraint_expected
+            else 0.0
+        )
 
     @property
     def restraint_wilson_interval(self) -> tuple[float, float]:
@@ -217,7 +225,11 @@ class VettingResult:
         declining 4 of 6 and one declining 40 of 60 both read "67%", and only
         the second has established anything.
         """
-        return wilson_interval(self.restraint_correct, self.restraint_expected) if self.restraint_expected else (0.0, 0.0)
+        return (
+            wilson_interval(self.restraint_correct, self.restraint_expected)
+            if self.restraint_expected
+            else (0.0, 0.0)
+        )
 
     @property
     def restraint_wilson_lower(self) -> float:
@@ -240,7 +252,11 @@ class VettingResult:
         than raising -- timing is an enhancement this bench can use when
         available, not a requirement to run at all.
         """
-        return sum(self.latencies_seconds) / len(self.latencies_seconds) if self.latencies_seconds else 0.0
+        return (
+            sum(self.latencies_seconds) / len(self.latencies_seconds)
+            if self.latencies_seconds
+            else 0.0
+        )
 
     def as_dict(self) -> dict[str, Any]:
         lower, upper = self.grounding_wilson_interval
@@ -304,7 +320,9 @@ def bench_vetting(
 
             if not factor or not target or not bears_on:
                 result.malformed_answers.append((raw or "")[:120])
-                result.per_case.append({"case_id": case.case_id, "outcome": "malformed"})
+                result.per_case.append(
+                    {"case_id": case.case_id, "outcome": "malformed"}
+                )
                 continue
 
             result.well_formed += 1
@@ -316,10 +334,14 @@ def bench_vetting(
             if not mechanism:
                 result.well_formed -= 1
                 result.malformed_answers.append((raw or "")[:120])
-                result.per_case.append({"case_id": case.case_id, "outcome": "malformed"})
+                result.per_case.append(
+                    {"case_id": case.case_id, "outcome": "malformed"}
+                )
                 continue
 
-            verification = verify_mechanism(graph, factor, target, mechanism, table=table)
+            verification = verify_mechanism(
+                graph, factor, target, mechanism, table=table
+            )
 
             if verification.is_grounded:
                 result.grounded += 1
@@ -362,21 +384,31 @@ def _score_restraint_case(
 
     if bears_on == "no":
         result.restraint_correct += 1
-        result.per_case.append({"case_id": case.case_id, "outcome": "restraint_correct_declined"})
+        result.per_case.append(
+            {"case_id": case.case_id, "outcome": "restraint_correct_declined"}
+        )
         return
 
     if not mechanism:
-        result.per_case.append({"case_id": case.case_id, "outcome": "restraint_ambiguous_no_mechanism"})
+        result.per_case.append(
+            {"case_id": case.case_id, "outcome": "restraint_ambiguous_no_mechanism"}
+        )
         return
 
-    verification = verify_mechanism(graph, case.factor, case.target, mechanism, table=table)
+    verification = verify_mechanism(
+        graph, case.factor, case.target, mechanism, table=table
+    )
     if verification.is_grounded:
         # The graph found a real connection the case fixture did not expect.
         # Not a candidate failure -- a fixture defect worth knowing about,
         # since it means this "restraint" case is not actually one.
         result.restraint_correct += 1
         result.per_case.append(
-            {"case_id": case.case_id, "outcome": "restraint_case_actually_grounded", "claimed_mechanism": mechanism}
+            {
+                "case_id": case.case_id,
+                "outcome": "restraint_case_actually_grounded",
+                "claimed_mechanism": mechanism,
+            }
         )
     else:
         result.per_case.append(
@@ -428,8 +460,12 @@ VETTING_GRAPH_EDGES = (
     ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
     ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
     # CKD / bone -- unchanged, already grounded correctly in the first fix.
-    ConceptEdge("chronic kidney disease", "causes", "secondary hyperparathyroidism", 0.8),
-    ConceptEdge("secondary hyperparathyroidism", "causes", "renal osteodystrophy", 0.75),
+    ConceptEdge(
+        "chronic kidney disease", "causes", "secondary hyperparathyroidism", 0.8
+    ),
+    ConceptEdge(
+        "secondary hyperparathyroidism", "causes", "renal osteodystrophy", 0.75
+    ),
     # Coeliac / anaemia -- unchanged.
     ConceptEdge("coeliac disease", "causes", "villous atrophy", 0.88),
     ConceptEdge("villous atrophy", "causes", "iron malabsorption", 0.8),
@@ -441,11 +477,18 @@ VETTING_GRAPH_EDGES = (
     ConceptEdge("sarcoidosis", "causes", "granuloma formation", 0.85),
     ConceptEdge("granuloma formation", "causes", "hypercalcaemia", 0.7),
     ConceptEdge("sarcoidosis", "causes", "granulomatous macrophage activity", 0.85),
-    ConceptEdge("granulomatous macrophage activity", "causes", "1-alpha-hydroxylase activity", 0.8),
+    ConceptEdge(
+        "granulomatous macrophage activity",
+        "causes",
+        "1-alpha-hydroxylase activity",
+        0.8,
+    ),
     ConceptEdge("1-alpha-hydroxylase activity", "causes", "calcitriol excess", 0.85),
     ConceptEdge("calcitriol excess", "causes", "hypercalcaemia", 0.85),
     # Haemochromatosis / cirrhosis -- new organ system: iron overload.
-    ConceptEdge("hereditary haemochromatosis", "causes", "hepatic iron deposition", 0.85),
+    ConceptEdge(
+        "hereditary haemochromatosis", "causes", "hepatic iron deposition", 0.85
+    ),
     ConceptEdge("hepatic iron deposition", "causes", "cirrhosis", 0.75),
     # Cushing syndrome / hyperglycaemia -- new organ system: endocrine.
     ConceptEdge("cushing syndrome", "causes", "cortisol excess", 0.9),
@@ -463,95 +506,167 @@ VETTING_GRAPH_EDGES = (
     ConceptEdge("primary hyperaldosteronism", "causes", "hypokalaemia", 0.8),
     # Vitamin B12 deficiency / neurological -- new organ system: neurologic.
     ConceptEdge("vitamin b12 deficiency", "causes", "impaired myelin synthesis", 0.8),
-    ConceptEdge("impaired myelin synthesis", "causes", "subacute combined degeneration", 0.75),
+    ConceptEdge(
+        "impaired myelin synthesis", "causes", "subacute combined degeneration", 0.75
+    ),
     # Hypothyroidism / hyperlipidaemia -- new organ system: metabolic.
     ConceptEdge("hypothyroidism", "causes", "reduced ldl receptor activity", 0.75),
     ConceptEdge("reduced ldl receptor activity", "causes", "hyperlipidaemia", 0.75),
     # SLE / nephritis -- new organ system: rheumatologic.
-    ConceptEdge("systemic lupus erythematosus", "causes", "immune complex deposition", 0.85),
+    ConceptEdge(
+        "systemic lupus erythematosus", "causes", "immune complex deposition", 0.85
+    ),
     ConceptEdge("immune complex deposition", "causes", "lupus nephritis", 0.8),
 )
 
 VETTING_GRAPH_FREQUENCIES = {
-    "fibrillin-1 mutation": 30, "marfan syndrome": 40, "connective tissue weakness": 120,
+    "fibrillin-1 mutation": 30,
+    "marfan syndrome": 40,
+    "connective tissue weakness": 120,
     "aortic root dilation": 300,
-    "chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60,
-    "coeliac disease": 200, "villous atrophy": 90, "iron malabsorption": 110, "microcytic anaemia": 700,
-    "sarcoidosis": 130, "granuloma formation": 95, "hypercalcaemia": 500,
-    "granulomatous macrophage activity": 40, "1-alpha-hydroxylase activity": 25, "calcitriol excess": 35,
-    "hereditary haemochromatosis": 60, "hepatic iron deposition": 45, "cirrhosis": 400,
-    "cushing syndrome": 70, "cortisol excess": 55, "hyperglycaemia": 600,
-    "siadh": 80, "water retention": 300, "hyponatraemia": 450,
-    "multiple myeloma": 90, "bence jones proteinuria": 40, "renal tubular injury": 65, "renal impairment": 500,
-    "primary hyperaldosteronism": 50, "sodium retention": 200, "hypertension": 900, "hypokalaemia": 350,
-    "vitamin b12 deficiency": 150, "impaired myelin synthesis": 30, "subacute combined degeneration": 20,
-    "hypothyroidism": 400, "reduced ldl receptor activity": 25, "hyperlipidaemia": 550,
-    "systemic lupus erythematosus": 100, "immune complex deposition": 45, "lupus nephritis": 70,
+    "chronic kidney disease": 900,
+    "secondary hyperparathyroidism": 150,
+    "renal osteodystrophy": 60,
+    "coeliac disease": 200,
+    "villous atrophy": 90,
+    "iron malabsorption": 110,
+    "microcytic anaemia": 700,
+    "sarcoidosis": 130,
+    "granuloma formation": 95,
+    "hypercalcaemia": 500,
+    "granulomatous macrophage activity": 40,
+    "1-alpha-hydroxylase activity": 25,
+    "calcitriol excess": 35,
+    "hereditary haemochromatosis": 60,
+    "hepatic iron deposition": 45,
+    "cirrhosis": 400,
+    "cushing syndrome": 70,
+    "cortisol excess": 55,
+    "hyperglycaemia": 600,
+    "siadh": 80,
+    "water retention": 300,
+    "hyponatraemia": 450,
+    "multiple myeloma": 90,
+    "bence jones proteinuria": 40,
+    "renal tubular injury": 65,
+    "renal impairment": 500,
+    "primary hyperaldosteronism": 50,
+    "sodium retention": 200,
+    "hypertension": 900,
+    "hypokalaemia": 350,
+    "vitamin b12 deficiency": 150,
+    "impaired myelin synthesis": 30,
+    "subacute combined degeneration": 20,
+    "hypothyroidism": 400,
+    "reduced ldl receptor activity": 25,
+    "hyperlipidaemia": 550,
+    "systemic lupus erythematosus": 100,
+    "immune complex deposition": 45,
+    "lupus nephritis": 70,
 }
 
 VETTING_CASES = (
     VettingCase(
-        "marfan_aortic", "marfan syndrome", "aortic root dilation", "connective tissue weakness",
+        "marfan_aortic",
+        "marfan syndrome",
+        "aortic root dilation",
+        "connective tissue weakness",
         "A patient's sister has confirmed Marfan syndrome. Today's echocardiogram shows aortic root "
         "dilation. Does the family history bear on this measurement, and by what mechanism?",
     ),
     VettingCase(
-        "ckd_bone", "chronic kidney disease", "renal osteodystrophy", "secondary hyperparathyroidism",
+        "ckd_bone",
+        "chronic kidney disease",
+        "renal osteodystrophy",
+        "secondary hyperparathyroidism",
         "A patient with long-standing chronic kidney disease has new bone pain and radiographic changes "
         "consistent with renal osteodystrophy. Does the kidney disease bear on the bone findings, and how?",
     ),
     VettingCase(
-        "coeliac_anaemia", "coeliac disease", "iron malabsorption", "villous atrophy",
+        "coeliac_anaemia",
+        "coeliac disease",
+        "iron malabsorption",
+        "villous atrophy",
         "A patient with newly diagnosed coeliac disease has iron malabsorption on testing. Does the coeliac "
         "disease bear on the malabsorption, and through what intermediate?",
     ),
     VettingCase(
-        "sarcoid_calcium", "sarcoidosis", "hypercalcaemia", "granuloma formation",
+        "sarcoid_calcium",
+        "sarcoidosis",
+        "hypercalcaemia",
+        "granuloma formation",
         "A patient with sarcoidosis presents with hypercalcaemia. Does the sarcoidosis bear on the calcium "
         "level, and by what mechanism?",
     ),
     VettingCase(
-        "haemochromatosis_cirrhosis", "hereditary haemochromatosis", "cirrhosis", "hepatic iron deposition",
+        "haemochromatosis_cirrhosis",
+        "hereditary haemochromatosis",
+        "cirrhosis",
+        "hepatic iron deposition",
         "A patient with hereditary haemochromatosis develops cirrhosis on biopsy. Does the haemochromatosis "
         "bear on the liver finding, and by what mechanism?",
     ),
     VettingCase(
-        "cushing_hyperglycaemia", "cushing syndrome", "hyperglycaemia", "cortisol excess",
+        "cushing_hyperglycaemia",
+        "cushing syndrome",
+        "hyperglycaemia",
+        "cortisol excess",
         "A patient with Cushing syndrome has new hyperglycaemia on routine bloods. Does the Cushing syndrome "
         "bear on the glucose finding, and by what mechanism?",
     ),
     VettingCase(
-        "siadh_hyponatraemia", "siadh", "hyponatraemia", "water retention",
+        "siadh_hyponatraemia",
+        "siadh",
+        "hyponatraemia",
+        "water retention",
         "A patient with SIADH has hyponatraemia on electrolyte panel. Does the SIADH bear on the sodium "
         "finding, and by what mechanism?",
     ),
     VettingCase(
-        "myeloma_renal", "multiple myeloma", "renal impairment", "bence jones proteinuria",
+        "myeloma_renal",
+        "multiple myeloma",
+        "renal impairment",
+        "bence jones proteinuria",
         "A patient with multiple myeloma develops renal impairment. Does the myeloma bear on the renal "
         "finding, and through what intermediate?",
     ),
     VettingCase(
-        "aldosteronism_hypertension", "primary hyperaldosteronism", "hypertension", "sodium retention",
+        "aldosteronism_hypertension",
+        "primary hyperaldosteronism",
+        "hypertension",
+        "sodium retention",
         "A patient with primary hyperaldosteronism has resistant hypertension. Does the hyperaldosteronism "
         "bear on the blood pressure finding, and by what mechanism?",
     ),
     VettingCase(
-        "b12_scd", "vitamin b12 deficiency", "subacute combined degeneration", "impaired myelin synthesis",
+        "b12_scd",
+        "vitamin b12 deficiency",
+        "subacute combined degeneration",
+        "impaired myelin synthesis",
         "A patient with untreated vitamin B12 deficiency develops subacute combined degeneration of the "
         "spinal cord. Does the B12 deficiency bear on this finding, and by what mechanism?",
     ),
     VettingCase(
-        "hypothyroid_lipids", "hypothyroidism", "hyperlipidaemia", "reduced ldl receptor activity",
+        "hypothyroid_lipids",
+        "hypothyroidism",
+        "hyperlipidaemia",
+        "reduced ldl receptor activity",
         "A patient with untreated hypothyroidism has new hyperlipidaemia. Does the hypothyroidism bear on "
         "the lipid finding, and by what mechanism?",
     ),
     VettingCase(
-        "sle_nephritis", "systemic lupus erythematosus", "lupus nephritis", "immune complex deposition",
+        "sle_nephritis",
+        "systemic lupus erythematosus",
+        "lupus nephritis",
+        "immune complex deposition",
         "A patient with systemic lupus erythematosus develops nephritis. Does the lupus bear on the renal "
         "finding, and by what mechanism?",
     ),
     VettingCase(
-        "sarcoid_calcium_detailed", "granulomatous macrophage activity", "hypercalcaemia", "1-alpha-hydroxylase activity",
+        "sarcoid_calcium_detailed",
+        "granulomatous macrophage activity",
+        "hypercalcaemia",
+        "1-alpha-hydroxylase activity",
         "In a sarcoidosis case, granulomatous macrophage activity is documented on biopsy, and the patient "
         "has hypercalcaemia. Does the macrophage activity bear on the calcium finding, and by what "
         "intermediate step?",
@@ -561,17 +676,26 @@ VETTING_CASES = (
     # itself then finds unsupported -- never a plausible-sounding invention
     # the graph mistakenly accepts.
     VettingCase(
-        "restraint_sarcoid_villous", "sarcoidosis", "villous atrophy", None,
+        "restraint_sarcoid_villous",
+        "sarcoidosis",
+        "villous atrophy",
+        None,
         "A patient with sarcoidosis is found to have villous atrophy on duodenal biopsy at an unrelated "
         "workup. Does the sarcoidosis bear on the villous atrophy, and if so, by what mechanism?",
     ),
     VettingCase(
-        "restraint_myeloma_thyroid", "multiple myeloma", "hypothyroidism", None,
+        "restraint_myeloma_thyroid",
+        "multiple myeloma",
+        "hypothyroidism",
+        None,
         "A patient with multiple myeloma is incidentally found to have hypothyroidism on screening labs. "
         "Does the myeloma bear on the thyroid finding, and if so, by what mechanism?",
     ),
     VettingCase(
-        "restraint_b12_aldosterone", "vitamin b12 deficiency", "primary hyperaldosteronism", None,
+        "restraint_b12_aldosterone",
+        "vitamin b12 deficiency",
+        "primary hyperaldosteronism",
+        None,
         "A patient with vitamin B12 deficiency is separately found to have primary hyperaldosteronism on "
         "endocrine workup. Does the B12 deficiency bear on the aldosteronism, and if so, by what mechanism?",
     ),

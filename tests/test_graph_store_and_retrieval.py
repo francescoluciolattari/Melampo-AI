@@ -24,7 +24,15 @@ def test_a_learned_edge_survives_a_round_trip_with_its_interval_intact(tmp_path)
     documented-rare edge indistinguishable from an unknown one."""
     store = LearnedEdgeStore(tmp_path / "learned.jsonl")
     store.append(
-        ConceptEdge("rare syndrome", "causes", "unusual finding", 0.62, provenance="learned:c1", lower=0.41, upper=0.83)
+        ConceptEdge(
+            "rare syndrome",
+            "causes",
+            "unusual finding",
+            0.62,
+            provenance="learned:c1",
+            lower=0.41,
+            upper=0.83,
+        )
     )
 
     loaded = store.load().edges[0]
@@ -49,7 +57,9 @@ def test_a_corrupt_line_is_reported_rather_than_stopping_the_load(tmp_path):
     path.write_text(
         json.dumps({"source": "a", "relation": "causes", "target": "b", "weight": 0.5})
         + "\nthis is not json\n"
-        + json.dumps({"source": "c", "relation": "causes", "target": "d", "weight": 0.7})
+        + json.dumps(
+            {"source": "c", "relation": "causes", "target": "d", "weight": 0.7}
+        )
         + "\n"
     )
 
@@ -74,7 +84,9 @@ def test_appending_does_not_rewrite_existing_content(tmp_path):
 
 def test_append_many_writes_every_edge_in_one_open(tmp_path):
     store = LearnedEdgeStore(tmp_path / "learned.jsonl")
-    written = store.append_many([ConceptEdge(f"s{i}", "causes", "t", 0.5) for i in range(5)])
+    written = store.append_many(
+        [ConceptEdge(f"s{i}", "causes", "t", 0.5) for i in range(5)]
+    )
     assert written == 5
     assert store.count() == 5
 
@@ -94,8 +106,12 @@ def test_a_learned_edge_is_distinguishable_from_an_imported_one(tmp_path):
     """The distinction matters more, not less, as the learned layer grows:
     a clinician reading a path should see which links came from a published
     ontology and which the system inferred."""
-    learned = ConceptEdge("a", "causes", "b", 0.5, provenance=learned_provenance("case-9", 3))
-    imported = ConceptEdge("c", "has_phenotype", "d", 0.8, provenance="hpoa:OMIM:154700")
+    learned = ConceptEdge(
+        "a", "causes", "b", 0.5, provenance=learned_provenance("case-9", 3)
+    )
+    imported = ConceptEdge(
+        "c", "has_phenotype", "d", 0.8, provenance="hpoa:OMIM:154700"
+    )
 
     assert is_learned(learned) is True
     assert is_learned(imported) is False
@@ -107,19 +123,35 @@ def test_an_edge_with_no_provenance_is_not_mistaken_for_learned():
 
 def test_the_learned_layer_is_traversable_alongside_the_imported_one(tmp_path):
     store = LearnedEdgeStore(tmp_path / "learned.jsonl")
-    store.append(ConceptEdge("rare syndrome", "causes", "unusual finding", 0.6, provenance=learned_provenance("c1", 3)))
-    imported = [ConceptEdge("marfan syndrome", "has_phenotype", "aortic root dilation", 0.8)]
+    store.append(
+        ConceptEdge(
+            "rare syndrome",
+            "causes",
+            "unusual finding",
+            0.6,
+            provenance=learned_provenance("c1", 3),
+        )
+    )
+    imported = [
+        ConceptEdge("marfan syndrome", "has_phenotype", "aortic root dilation", 0.8)
+    ]
 
     graph, report = build_persistent_graph(imported, store)
 
     assert report.as_dict()["edges"] == 1
-    assert [edge.target for edge in graph.edges_from("rare syndrome")] == ["unusual finding"]
+    assert [edge.target for edge in graph.edges_from("rare syndrome")] == [
+        "unusual finding"
+    ]
     assert graph.edges_from("marfan syndrome"), "the imported layer is still there"
 
 
-def test_build_persistent_graph_with_an_empty_store_returns_the_imported_layer(tmp_path):
+def test_build_persistent_graph_with_an_empty_store_returns_the_imported_layer(
+    tmp_path,
+):
     imported = [ConceptEdge("a", "causes", "b", 0.8)]
-    graph, report = build_persistent_graph(imported, LearnedEdgeStore(tmp_path / "none.jsonl"))
+    graph, report = build_persistent_graph(
+        imported, LearnedEdgeStore(tmp_path / "none.jsonl")
+    )
     assert report.as_dict()["edges"] == 0
     assert graph.edges_from("a")
 
@@ -133,7 +165,8 @@ def test_conditions_are_found_from_findings_alone():
     """The gap this closes: MechanismEnumerator needs candidate conditions
     supplied, and nothing produced them from the case's findings."""
     report = retrieve_candidates(
-        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"], differential_graph()
+        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"],
+        differential_graph(),
     )
     assert "sarcoidosis" in report.condition_names
 
@@ -143,7 +176,8 @@ def test_the_condition_touching_most_findings_ranks_first():
     findings is a better candidate than one linked to a single finding by a
     strong edge."""
     report = retrieve_candidates(
-        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"], differential_graph()
+        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"],
+        differential_graph(),
     )
     assert report.condition_names[0] == "sarcoidosis"
     assert report.candidates[0].breadth == 3
@@ -155,16 +189,19 @@ def test_a_finding_is_never_proposed_as_a_diagnosis():
     Direction, not relation-name matching, is what separates the disease
     side of an edge from the finding side."""
     report = retrieve_candidates(
-        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"], differential_graph()
+        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"],
+        differential_graph(),
     )
     assert "night sweats" not in report.condition_names
 
 
 def test_a_finding_the_graph_does_not_know_is_reported_not_dropped():
-    """"The graph has never heard of this finding" is a fact worth
+    """ "The graph has never heard of this finding" is a fact worth
     surfacing -- it is exactly the coverage gap the density check downstream
     reasons about."""
-    report = retrieve_candidates(["a finding nobody has recorded"], differential_graph())
+    report = retrieve_candidates(
+        ["a finding nobody has recorded"], differential_graph()
+    )
     assert report.unresolved_findings == ["a finding nobody has recorded"]
     assert report.candidates == []
 
@@ -178,14 +215,19 @@ def test_a_finding_phrased_naturally_still_resolves():
 
 def test_excluded_conditions_are_not_returned():
     report = retrieve_candidates(
-        ["bilateral hilar lymphadenopathy"], differential_graph(), exclude=["sarcoidosis"]
+        ["bilateral hilar lymphadenopathy"],
+        differential_graph(),
+        exclude=["sarcoidosis"],
     )
     assert "sarcoidosis" not in report.condition_names
 
 
 def test_truncation_is_reported_when_it_bites():
     graph = InMemoryConceptGraph.from_edges(
-        [ConceptEdge(f"disease {i}", "manifests_as", "common finding", 0.5) for i in range(10)]
+        [
+            ConceptEdge(f"disease {i}", "manifests_as", "common finding", 0.5)
+            for i in range(10)
+        ]
     )
     report = retrieve_candidates(["common finding"], graph, max_candidates=3)
     assert len(report.candidates) == 3

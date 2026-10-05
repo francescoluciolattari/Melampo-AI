@@ -124,7 +124,9 @@ class NormalisationCascade:
     def _record(self, tier: str) -> None:
         self.tier_usage[tier] = self.tier_usage.get(tier, 0) + 1
 
-    def resolve(self, phrase: str, candidates: Sequence[str] | None = None) -> NormalisationResult:
+    def resolve(
+        self, phrase: str, candidates: Sequence[str] | None = None
+    ) -> NormalisationResult:
         """Map a phrase to one graph concept, using the cheapest tier that works.
 
         ``candidates`` narrows the search to concepts already known to be
@@ -133,7 +135,11 @@ class NormalisationCascade:
         and, more importantly, more likely to surface a distant concept that
         happens to embed closely.
         """
-        pool = list(candidates) if candidates is not None else sorted(self.graph.concepts())
+        pool = (
+            list(candidates)
+            if candidates is not None
+            else sorted(self.graph.concepts())
+        )
         if not phrase or not pool:
             self._record(TIER_NONE)
             return NormalisationResult(phrase=phrase, concept=None, tier=TIER_NONE)
@@ -162,7 +168,9 @@ class NormalisationCascade:
         detail = "no tier resolved this phrase to a graph concept"
         if reasons:
             detail = f"{detail} ({'; '.join(reasons)})"
-        return NormalisationResult(phrase=phrase, concept=None, tier=TIER_NONE, detail=detail)
+        return NormalisationResult(
+            phrase=phrase, concept=None, tier=TIER_NONE, detail=detail
+        )
 
     def _resolve_lexical(self, phrase: str, pool: Sequence[str]) -> NormalisationResult:
         """Tier 1: the existing exact/containment/word-set rule, now checked
@@ -179,14 +187,20 @@ class NormalisationCascade:
         for concept in sorted(pool, key=len, reverse=True):
             if concept_names_match(phrase, concept):
                 return NormalisationResult(
-                    phrase=phrase, concept=concept, tier=TIER_LEXICAL, score=1.0,
+                    phrase=phrase,
+                    concept=concept,
+                    tier=TIER_LEXICAL,
+                    score=1.0,
                     detail="exact, containment, or word-set match",
                 )
             if self.synonym_index is not None:
                 for synonym in self._synonyms_for(concept):
                     if concept_names_match(phrase, synonym):
                         return NormalisationResult(
-                            phrase=phrase, concept=concept, tier=TIER_LEXICAL, score=1.0,
+                            phrase=phrase,
+                            concept=concept,
+                            tier=TIER_LEXICAL,
+                            score=1.0,
                             detail=f"matched curated synonym {synonym!r}",
                         )
         return NormalisationResult(phrase=phrase, concept=None, tier=TIER_LEXICAL)
@@ -207,7 +221,10 @@ class NormalisationCascade:
             for term_id in term_ids:
                 term = self.synonym_index.by_id.get(term_id)
                 if term is not None:
-                    synonyms.extend(text for text, _kind in term.surface_forms(include_layperson=True))
+                    synonyms.extend(
+                        text
+                        for text, _kind in term.surface_forms(include_layperson=True)
+                    )
 
         if self.term_history is not None and term_ids:
             historical = self.term_history.synonyms_by_term_id()
@@ -226,7 +243,9 @@ class NormalisationCascade:
 
         return synonyms
 
-    def _resolve_embedding(self, phrase: str, pool: Sequence[str]) -> NormalisationResult:
+    def _resolve_embedding(
+        self, phrase: str, pool: Sequence[str]
+    ) -> NormalisationResult:
         """Tier 2: nearest concept by embedding similarity, above a strict threshold.
 
         Two guards, not one. The absolute threshold rejects a best match that
@@ -246,13 +265,18 @@ class NormalisationCascade:
             phrase_vector = self.embedder(phrase)
         except Exception as error:  # noqa: BLE001 - a failing embedder degrades the cascade, never breaks it
             return NormalisationResult(
-                phrase=phrase, concept=None, tier=TIER_EMBEDDING, detail=f"embedder failed: {error}"
+                phrase=phrase,
+                concept=None,
+                tier=TIER_EMBEDDING,
+                detail=f"embedder failed: {error}",
             )
 
         scored: list[tuple[float, str]] = []
         for concept in pool:
             try:
-                scored.append((cosine_similarity(phrase_vector, self.embedder(concept)), concept))
+                scored.append(
+                    (cosine_similarity(phrase_vector, self.embedder(concept)), concept)
+                )
             except Exception:  # noqa: BLE001, S112 - one bad concept must not abort the whole search
                 # Deliberately not logged: a concept whose embedding fails is
                 # simply not a candidate, and one line of noise per concept
@@ -268,42 +292,63 @@ class NormalisationCascade:
 
         if best_score < self.embedding_threshold:
             return NormalisationResult(
-                phrase=phrase, concept=None, tier=TIER_EMBEDDING, score=best_score,
+                phrase=phrase,
+                concept=None,
+                tier=TIER_EMBEDDING,
+                score=best_score,
                 detail=f"best embedding similarity {best_score:.3f} below threshold",
             )
         if (best_score - runner_up) < self.embedding_margin:
             return NormalisationResult(
-                phrase=phrase, concept=None, tier=TIER_EMBEDDING, score=best_score,
+                phrase=phrase,
+                concept=None,
+                tier=TIER_EMBEDDING,
+                score=best_score,
                 detail=(
                     f"best match {best_concept!r} ({best_score:.3f}) too close to runner-up "
                     f"({runner_up:.3f}); an arbitrary winner among near-ties is not a resolution"
                 ),
             )
         return NormalisationResult(
-            phrase=phrase, concept=best_concept, tier=TIER_EMBEDDING, score=best_score,
+            phrase=phrase,
+            concept=best_concept,
+            tier=TIER_EMBEDDING,
+            score=best_score,
             detail=f"embedding similarity {best_score:.3f}, clear of runner-up by {best_score - runner_up:.3f}",
         )
 
-    def _resolve_structural(self, phrase: str, pool: Sequence[str]) -> NormalisationResult:
+    def _resolve_structural(
+        self, phrase: str, pool: Sequence[str]
+    ) -> NormalisationResult:
         """Tier 3: hand off to a structural comparison, if one is configured."""
         if self.structural_resolver is None:
-            return NormalisationResult(phrase=phrase, concept=None, tier=TIER_STRUCTURAL)
+            return NormalisationResult(
+                phrase=phrase, concept=None, tier=TIER_STRUCTURAL
+            )
         try:
             concept = self.structural_resolver(phrase, pool)
         except Exception as error:  # noqa: BLE001 - same degradation contract as tier 2
             return NormalisationResult(
-                phrase=phrase, concept=None, tier=TIER_STRUCTURAL, detail=f"structural resolver failed: {error}"
+                phrase=phrase,
+                concept=None,
+                tier=TIER_STRUCTURAL,
+                detail=f"structural resolver failed: {error}",
             )
         if concept and concept in pool:
             return NormalisationResult(
-                phrase=phrase, concept=concept, tier=TIER_STRUCTURAL, score=1.0,
+                phrase=phrase,
+                concept=concept,
+                tier=TIER_STRUCTURAL,
+                score=1.0,
                 detail="resolved by structural comparison",
             )
         # A resolver naming something outside the pool has not resolved
         # anything -- it has invented a concept, which is the failure mode
         # tier 3 most needs guarding against.
         return NormalisationResult(
-            phrase=phrase, concept=None, tier=TIER_STRUCTURAL,
+            phrase=phrase,
+            concept=None,
+            tier=TIER_STRUCTURAL,
             detail="structural resolver returned nothing, or a concept not in the graph",
         )
 
@@ -320,7 +365,12 @@ class NormalisationCascade:
             "total": total,
             "by_tier": dict(sorted(self.tier_usage.items())),
             "deterministic_fraction": (
-                sum(count for tier, count in self.tier_usage.items() if tier != TIER_STRUCTURAL) / total
+                sum(
+                    count
+                    for tier, count in self.tier_usage.items()
+                    if tier != TIER_STRUCTURAL
+                )
+                / total
                 if total
                 else 0.0
             ),
@@ -344,7 +394,9 @@ def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
-def sapbert_embedder(model_name: str = "cambridgeltl/SapBERT-from-PubMedBERT-fulltext") -> Callable[[str], Sequence[float]]:
+def sapbert_embedder(
+    model_name: str = "cambridgeltl/SapBERT-from-PubMedBERT-fulltext",
+) -> Callable[[str], Sequence[float]]:
     """Build a SapBERT embedder, if sentence-transformers is installed.
 
     SapBERT is a bi-encoder self-aligned on UMLS synonym pairs: it places

@@ -12,8 +12,19 @@ from typing import Any
 from ..orchestration.model_execution_trace import ModelExecutionTrace
 
 
-def _request_id(provider: str, model_name: str, role: str, payload: dict[str, Any]) -> str:
-    raw = json.dumps({"provider": provider, "model_name": model_name, "role": role, "payload": payload}, sort_keys=True, default=str)
+def _request_id(
+    provider: str, model_name: str, role: str, payload: dict[str, Any]
+) -> str:
+    raw = json.dumps(
+        {
+            "provider": provider,
+            "model_name": model_name,
+            "role": role,
+            "payload": payload,
+        },
+        sort_keys=True,
+        default=str,
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
@@ -74,7 +85,14 @@ class SafeModelClient:
     def _audit_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not self.config.redact_sensitive_payload_keys:
             return payload
-        sensitive_terms = ("password", "secret", "token", "api_key", "apikey", "authorization")
+        sensitive_terms = (
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "apikey",
+            "authorization",
+        )
 
         def redact_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
             redacted: dict[str, Any] = {}
@@ -96,7 +114,9 @@ class SafeModelClient:
         host = parsed.hostname or ""
         if parsed.scheme != "https" and host not in {"localhost", "127.0.0.1", "::1"}:
             return False, "endpoint_must_be_https_or_loopback"
-        if self.config.allowed_endpoint_hosts and host not in set(self.config.allowed_endpoint_hosts):
+        if self.config.allowed_endpoint_hosts and host not in set(
+            self.config.allowed_endpoint_hosts
+        ):
             return False, "endpoint_host_not_allowlisted"
         return True, None
 
@@ -107,7 +127,8 @@ class SafeModelClient:
             return False, "local_subprocess_not_allowed"
         executable = self.config.local_command[0]
         if self.config.allowed_command_prefixes and not any(
-            executable == prefix or executable.startswith(f"{prefix}/") for prefix in self.config.allowed_command_prefixes
+            executable == prefix or executable.startswith(f"{prefix}/")
+            for prefix in self.config.allowed_command_prefixes
         ):
             return False, "local_command_not_allowlisted"
         return True, None
@@ -149,7 +170,11 @@ class SafeModelClient:
             }
 
         if self.config.mode == "mock":
-            response = dict(self.config.mock_payload) if self.config.mock_payload else self._default_mock_payload(payload)
+            response = (
+                dict(self.config.mock_payload)
+                if self.config.mock_payload
+                else self._default_mock_payload(payload)
+            )
             record.finish(str(response.get("status", "completed")))
             return {
                 "status": str(response.get("status", "completed")),
@@ -164,7 +189,11 @@ class SafeModelClient:
         if self.config.mode == "http_json":
             endpoint_allowed, endpoint_reason = self._endpoint_allowed()
             if not self.config.allow_remote or not endpoint_allowed:
-                reason = "remote_execution_not_allowed_or_endpoint_missing" if not self.config.allow_remote else str(endpoint_reason)
+                reason = (
+                    "remote_execution_not_allowed_or_endpoint_missing"
+                    if not self.config.allow_remote
+                    else str(endpoint_reason)
+                )
                 record.finish("blocked", error=reason)
                 return {
                     "status": "blocked",
@@ -177,7 +206,9 @@ class SafeModelClient:
                 }
             hidden_network_call = False  # explicit, not hidden: allowed by config below
             record.hidden_network_call = hidden_network_call
-            return self._execute_http_json(payload=payload, request_id=request_id, record=record)
+            return self._execute_http_json(
+                payload=payload, request_id=request_id, record=record
+            )
 
         if self.config.mode == "local_subprocess":
             command_allowed, command_reason = self._local_command_allowed()
@@ -191,7 +222,9 @@ class SafeModelClient:
                     "trace": record.as_dict(),
                     "reason": command_reason,
                 }
-            return self._execute_local_subprocess(payload=payload, request_id=request_id, record=record)
+            return self._execute_local_subprocess(
+                payload=payload, request_id=request_id, record=record
+            )
 
         record.finish("blocked", error="unknown_model_client_mode")
         return {
@@ -216,7 +249,9 @@ class SafeModelClient:
                 {
                     "claim_id": f"mock:{self.role}:1",
                     "type": "finding",
-                    "normalized_entity": payload.get("case_id") or payload.get("study_id") or "mock_entity",
+                    "normalized_entity": payload.get("case_id")
+                    or payload.get("study_id")
+                    or "mock_entity",
                     "polarity": "present",
                     "confidence": 0.62,
                     "uncertainty": 0.38,
@@ -226,7 +261,9 @@ class SafeModelClient:
             ],
         }
 
-    def _execute_http_json(self, payload: dict[str, Any], request_id: str, record) -> dict[str, Any]:
+    def _execute_http_json(
+        self, payload: dict[str, Any], request_id: str, record
+    ) -> dict[str, Any]:
         try:
             data = json.dumps(payload).encode("utf-8")
             request = urllib.request.Request(
@@ -235,7 +272,9 @@ class SafeModelClient:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:  # nosec B310 - explicitly configured endpoint
+            with urllib.request.urlopen(
+                request, timeout=self.config.timeout_seconds
+            ) as response:  # nosec B310 - explicitly configured endpoint
                 response_payload = json.loads(response.read().decode("utf-8"))
             record.finish(str(response_payload.get("status", "completed")))
             return {
@@ -247,7 +286,12 @@ class SafeModelClient:
                 "trace": record.as_dict(),
                 "hidden_network_call": False,
             }
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            json.JSONDecodeError,
+            OSError,
+        ) as exc:
             record.finish("failed", error=str(exc))
             return {
                 "status": "failed",
@@ -259,7 +303,9 @@ class SafeModelClient:
                 "hidden_network_call": False,
             }
 
-    def _execute_local_subprocess(self, payload: dict[str, Any], request_id: str, record) -> dict[str, Any]:
+    def _execute_local_subprocess(
+        self, payload: dict[str, Any], request_id: str, record
+    ) -> dict[str, Any]:
         try:
             completed = subprocess.run(
                 self.config.local_command,

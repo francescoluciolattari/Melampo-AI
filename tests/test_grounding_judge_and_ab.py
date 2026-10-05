@@ -16,7 +16,11 @@ from melampo.evaluation.grounding_judge import (
 
 def test_claim_restating_a_single_fragment_is_grounded():
     judge = GroundingJudge()
-    fragments = [{"text": "Chest radiograph shows bibasilar opacities consistent with pulmonary oedema."}]
+    fragments = [
+        {
+            "text": "Chest radiograph shows bibasilar opacities consistent with pulmonary oedema."
+        }
+    ]
     assessment = judge.assess("Chest radiograph shows bibasilar opacities.", fragments)
     assert assessment.verdict == VERDICT_GROUNDED
     assert assessment.unsupported_terms == []
@@ -45,23 +49,35 @@ def test_relation_across_two_fragments_is_flagged_although_every_term_is_support
 def test_relation_present_within_one_fragment_is_not_flagged():
     judge = GroundingJudge()
     fragments = [
-        {"text": "Bibasilar opacities caused by congestive cardiac failure were documented on admission."},
+        {
+            "text": "Bibasilar opacities caused by congestive cardiac failure were documented on admission."
+        },
     ]
-    assessment = judge.assess("The bibasilar opacities are caused by congestive cardiac failure.", fragments)
+    assessment = judge.assess(
+        "The bibasilar opacities are caused by congestive cardiac failure.", fragments
+    )
     assert assessment.unsupported_relations == []
 
 
 def test_fabricated_entities_are_reported_as_unsupported_terms():
     judge = GroundingJudge()
     fragments = [{"text": "Chest radiograph shows bibasilar opacities."}]
-    assessment = judge.assess("Chest radiograph shows bibasilar opacities and splenomegaly.", fragments)
+    assessment = judge.assess(
+        "Chest radiograph shows bibasilar opacities and splenomegaly.", fragments
+    )
     assert "splenomegaly" in assessment.unsupported_terms
 
 
 def test_asserting_what_the_source_hedges_is_flagged():
     judge = GroundingJudge()
-    fragments = [{"text": "The appearance may represent an early consolidation; infection cannot be excluded."}]
-    assessment = judge.assess("The appearance is diagnostic of an early consolidation.", fragments)
+    fragments = [
+        {
+            "text": "The appearance may represent an early consolidation; infection cannot be excluded."
+        }
+    ]
+    assessment = judge.assess(
+        "The appearance is diagnostic of an early consolidation.", fragments
+    )
     assert assessment.modality_escalations
     assert any("hedges" in note for note in assessment.notes)
 
@@ -69,7 +85,9 @@ def test_asserting_what_the_source_hedges_is_flagged():
 def test_hedged_claim_from_hedged_source_is_not_flagged():
     judge = GroundingJudge()
     fragments = [{"text": "The appearance may represent an early consolidation."}]
-    assessment = judge.assess("The appearance may represent an early consolidation.", fragments)
+    assessment = judge.assess(
+        "The appearance may represent an early consolidation.", fragments
+    )
     assert assessment.modality_escalations == []
 
 
@@ -80,7 +98,9 @@ def test_claim_without_any_cited_fragment_is_maximal_overreach():
     assert assessment.overreach_score == 1.0
 
 
-def _pairs(faithfulness_delta: float, recall_delta: float, count: int = 30) -> list[PairedCaseResult]:
+def _pairs(
+    faithfulness_delta: float, recall_delta: float, count: int = 30
+) -> list[PairedCaseResult]:
     return [
         PairedCaseResult(
             case_id=f"case_{index}",
@@ -116,7 +136,9 @@ def test_positive_recall_without_faithfulness_regression_corroborates():
 
 def test_too_few_cases_is_inconclusive_rather_than_a_verdict():
     comparison = DualPathComparison(min_cases=20)
-    report = comparison.evaluate(_pairs(faithfulness_delta=0.05, recall_delta=0.20, count=5))
+    report = comparison.evaluate(
+        _pairs(faithfulness_delta=0.05, recall_delta=0.20, count=5)
+    )
     assert report.outcome == OUTCOME_INCONCLUSIVE
     assert report.case_count == 5
 
@@ -132,7 +154,9 @@ def test_bootstrap_is_deterministic_across_runs():
 def test_inconclusive_run_leaves_the_claim_open():
     program = FalsificationProgram()
     comparison = DualPathComparison()
-    report = comparison.evaluate(_pairs(faithfulness_delta=0.05, recall_delta=0.20, count=5))
+    report = comparison.evaluate(
+        _pairs(faithfulness_delta=0.05, recall_delta=0.20, count=5)
+    )
 
     assert comparison.resolve_claim(report, program, run_id="run_1") is None
     assert program.get(CLAIM_ID).status == CLAIM_OPEN

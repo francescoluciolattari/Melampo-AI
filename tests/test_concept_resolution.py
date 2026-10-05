@@ -85,7 +85,9 @@ def test_a_header_without_terms_yields_nothing():
 def test_obsolete_terms_are_excluded_from_the_index_by_default():
     index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
     assert "HP:0009999" not in index.by_id
-    assert TermIndex.from_obo(OBO_SAMPLE.splitlines(), include_obsolete=True).by_id["HP:0009999"]
+    assert TermIndex.from_obo(OBO_SAMPLE.splitlines(), include_obsolete=True).by_id[
+        "HP:0009999"
+    ]
 
 
 def test_broad_synonyms_are_not_indexed_by_default():
@@ -93,7 +95,9 @@ def test_broad_synonyms_are_not_indexed_by_default():
     narrow = TermIndex.from_obo(OBO_SAMPLE.splitlines())
     assert narrow.lookup("kidney abnormality") == []
 
-    wide = TermIndex.from_obo(OBO_SAMPLE.splitlines(), scopes={SCOPE_EXACT, SCOPE_BROAD})
+    wide = TermIndex.from_obo(
+        OBO_SAMPLE.splitlines(), scopes={SCOPE_EXACT, SCOPE_BROAD}
+    )
     assert wide.lookup("kidney abnormality") == ["HP:0000003"]
 
 
@@ -110,7 +114,10 @@ def test_the_label_map_closes_the_import_gap():
 
 
 def test_normalisation_ignores_case_and_punctuation():
-    assert normalise_surface("Multicystic  Kidney-Dysplasia.") == "multicystic kidney dysplasia"
+    assert (
+        normalise_surface("Multicystic  Kidney-Dysplasia.")
+        == "multicystic kidney dysplasia"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -145,7 +152,9 @@ def test_an_ambiguous_surface_is_reported_rather_than_chosen():
 
 
 def test_resolution_rate_answers_what_can_be_asked_of_the_graph():
-    report = _resolver().resolve_findings(["Cough", "unknown a", "unknown b", "unknown c"])
+    report = _resolver().resolve_findings(
+        ["Cough", "unknown a", "unknown b", "unknown c"]
+    )
     assert report.resolution_rate == pytest.approx(0.25)
     assert report.concepts == ["Cough"]
 
@@ -242,13 +251,20 @@ def test_resolution_turns_an_unreachable_graph_into_a_traversable_one():
     )
     index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
 
-    unlabelled = InMemoryConceptGraph.from_edges(build_edges(parse_hpoa(hpoa.splitlines())))
-    assert find_paths(unlabelled, "Cough", "Multicystic kidney dysplasia", max_hops=2) == []
+    unlabelled = InMemoryConceptGraph.from_edges(
+        build_edges(parse_hpoa(hpoa.splitlines()))
+    )
+    assert (
+        find_paths(unlabelled, "Cough", "Multicystic kidney dysplasia", max_hops=2)
+        == []
+    )
 
     labelled = InMemoryConceptGraph.from_edges(
         build_edges(parse_hpoa(hpoa.splitlines()), label_for=index.label_map())
     )
-    report = ConceptResolver(index=index).resolve_findings(["Cough", "Multicystic dysplastic kidney"])
+    report = ConceptResolver(index=index).resolve_findings(
+        ["Cough", "Multicystic dysplastic kidney"]
+    )
     assert report.resolution_rate == 1.0
 
     paths = find_paths(labelled, report.concepts[0], report.concepts[1], max_hops=2)
@@ -294,11 +310,16 @@ def test_translation_status_travels_with_the_match():
     resolver = ConceptResolver(index=_bilingual_index())
     by_surface = {
         item.surface: item
-        for item in resolver.resolve_findings(["Tosse", "Displasia renale multicistica"]).resolved
+        for item in resolver.resolve_findings(
+            ["Tosse", "Displasia renale multicistica"]
+        ).resolved
     }
     assert by_surface["Tosse"].match_kind == MATCH_TRANSLATION_OFFICIAL
     assert by_surface["Tosse"].is_verified_match is True
-    assert by_surface["Displasia renale multicistica"].match_kind == MATCH_TRANSLATION_CANDIDATE
+    assert (
+        by_surface["Displasia renale multicistica"].match_kind
+        == MATCH_TRANSLATION_CANDIDATE
+    )
     assert by_surface["Displasia renale multicistica"].is_verified_match is False
 
 
@@ -321,7 +342,9 @@ def test_candidate_translations_can_be_excluded():
     from melampo.memory.concept_resolution import parse_babelon
 
     index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
-    index.add_translations(parse_babelon(BABELON_SAMPLE.splitlines()), include_candidate=False)
+    index.add_translations(
+        parse_babelon(BABELON_SAMPLE.splitlines()), include_candidate=False
+    )
     assert index.lookup("tosse") == ["HP:0012735"]
     assert index.lookup("displasia renale multicistica") == []
 
@@ -333,7 +356,9 @@ def test_language_coverage_is_measured_before_it_is_relied_on():
     )
 
     index = TermIndex.from_obo(OBO_SAMPLE.splitlines())
-    coverage = measure_language_coverage(index, list(parse_babelon(BABELON_SAMPLE.splitlines())), "it")
+    coverage = measure_language_coverage(
+        index, list(parse_babelon(BABELON_SAMPLE.splitlines())), "it"
+    )
 
     assert coverage.translated_terms == 2
     assert coverage.official == 1

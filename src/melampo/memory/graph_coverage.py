@@ -42,7 +42,11 @@ class ReferenceRelation:
     provenance: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {"source": self.source, "target": self.target, "provenance": self.provenance}
+        return {
+            "source": self.source,
+            "target": self.target,
+            "provenance": self.provenance,
+        }
 
 
 @dataclass
@@ -100,7 +104,9 @@ class CoverageReport:
 
     def completion_queue(self) -> list[ReferenceRelation]:
         """Relations with no path: the graph is missing them entirely."""
-        return [item.relation for item in self.results if item.outcome == OUTCOME_ABSENT]
+        return [
+            item.relation for item in self.results if item.outcome == OUTCOME_ABSENT
+        ]
 
     def calibration_queue(self) -> list[ReferenceRelation]:
         """Relations reachable only through an unknown edge: present but unattested."""
@@ -129,7 +135,9 @@ def measure_coverage(
     for relation in reference:
         paths = find_paths(graph, relation.source, relation.target, max_hops=max_hops)
         if not paths:
-            report.results.append(CoverageResult(relation=relation, outcome=OUTCOME_ABSENT))
+            report.results.append(
+                CoverageResult(relation=relation, outcome=OUTCOME_ABSENT)
+            )
             continue
         attested = [path for path in paths if path.gap_count == 0]
         best = attested[0] if attested else paths[0]
@@ -145,7 +153,9 @@ def measure_coverage(
     return report
 
 
-def evaluation_is_interpretable(report: CoverageReport, *, minimum_coverage: float = 0.6) -> dict[str, Any]:
+def evaluation_is_interpretable(
+    report: CoverageReport, *, minimum_coverage: float = 0.6
+) -> dict[str, Any]:
     """Whether a measurement over this graph would reflect the architecture.
 
     Guards the case the decision record flags: below the threshold an A/B run

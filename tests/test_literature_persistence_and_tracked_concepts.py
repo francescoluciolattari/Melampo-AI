@@ -24,8 +24,12 @@ from melampo.memory.tracked_concepts import (
 from melampo.memory.vector_memory import PersistentJsonlVectorStore
 
 _PASSAGE = LiteraturePassage(
-    "p1", "Sarcoidosis causes hypercalcaemia via calcitriol excess.",
-    "Calcium in sarcoidosis", "pmid:12345678", 2024, "Chest",
+    "p1",
+    "Sarcoidosis causes hypercalcaemia via calcitriol excess.",
+    "Calcium in sarcoidosis",
+    "pmid:12345678",
+    2024,
+    "Chest",
 )
 
 
@@ -60,7 +64,11 @@ def test_persisting_a_passage_and_reloading_survives_a_fresh_store_instance():
 def test_persist_all_writes_every_passage_in_an_index():
     index = LiteratureIndex()
     index.add(_PASSAGE)
-    index.add(LiteraturePassage("p2", "Another passage.", "Another title", "pmid:99", 2023, "Lancet"))
+    index.add(
+        LiteraturePassage(
+            "p2", "Another passage.", "Another title", "pmid:99", 2023, "Lancet"
+        )
+    )
 
     with tempfile.TemporaryDirectory() as directory:
         store = PersistentJsonlVectorStore(path=Path(directory) / "lit.jsonl")
@@ -111,7 +119,9 @@ def test_the_origin_label_distinguishes_pubmed_from_clinical_trials():
 def test_europe_pmc_connector_persists_when_given_a_store():
     connector = EuropePmcConnector()
     connector._fetch_page = lambda q, c: {
-        "resultList": {"result": [{"id": "1", "pmid": "1", "title": "T", "abstractText": "A"}]},
+        "resultList": {
+            "result": [{"id": "1", "pmid": "1", "title": "T", "abstractText": "A"}]
+        },
         "nextCursorMark": None,
     }
     with tempfile.TemporaryDirectory() as directory:
@@ -147,7 +157,9 @@ def test_populate_without_a_store_behaves_exactly_as_before():
     existed before persistence was added."""
     connector = EuropePmcConnector()
     connector._fetch_page = lambda q, c: {
-        "resultList": {"result": [{"id": "1", "pmid": "1", "title": "T", "abstractText": "A"}]},
+        "resultList": {
+            "result": [{"id": "1", "pmid": "1", "title": "T", "abstractText": "A"}]
+        },
         "nextCursorMark": None,
     }
     index = LiteratureIndex()
@@ -200,7 +212,9 @@ def test_the_longest_unrefreshed_concept_comes_before_a_recently_refreshed_one()
     time.sleep(0.01)
     store.track("older_refresh_needed", source=SOURCE_VETTING_BENCH)
     store.mark_refreshed("older_refresh_needed", passage_count=1)
-    store.concepts["old"].last_refreshed_at = store.concepts["older_refresh_needed"].last_refreshed_at + 100
+    store.concepts["old"].last_refreshed_at = (
+        store.concepts["older_refresh_needed"].last_refreshed_at + 100
+    )
 
     batch = store.next_batch(limit=1)
 

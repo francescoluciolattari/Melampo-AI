@@ -41,7 +41,12 @@ def _fake_extractor(text: str) -> ExtractedStructure:
 def _confirm_three_times(assembly, source, target):
     for case_id in ("c1", "c2", "c3"):
         assembly.ledger.test(
-            source, target, case_id, Confirmation(case_id=case_id, diagnosis=target, source=SOURCE_HISTOPATHOLOGY)
+            source,
+            target,
+            case_id,
+            Confirmation(
+                case_id=case_id, diagnosis=target, source=SOURCE_HISTOPATHOLOGY
+            ),
         )
 
 
@@ -58,15 +63,21 @@ def test_unconfigured_extractor_returns_empty_structure_not_an_error():
 
 def test_empty_text_is_not_sent_to_the_model():
     calls = {"n": 0}
-    extractor = StructuralExtractor(ExtractionConfig(endpoint="https://x", api_key="k", model="m"))
+    extractor = StructuralExtractor(
+        ExtractionConfig(endpoint="https://x", api_key="k", model="m")
+    )
     extractor._call_model = lambda text: calls.__setitem__("n", calls["n"] + 1) or "{}"
     extractor("   ")
     assert calls["n"] == 0
 
 
 def test_a_failing_model_call_degrades_without_raising():
-    extractor = StructuralExtractor(ExtractionConfig(endpoint="https://x", api_key="k", model="m"))
-    extractor._call_model = lambda text: (_ for _ in ()).throw(RuntimeError("endpoint down"))
+    extractor = StructuralExtractor(
+        ExtractionConfig(endpoint="https://x", api_key="k", model="m")
+    )
+    extractor._call_model = lambda text: (_ for _ in ()).throw(
+        RuntimeError("endpoint down")
+    )
     result = extractor("some text")
     assert result.is_empty
 
@@ -75,7 +86,9 @@ def test_a_configured_but_unimplemented_transport_degrades_gracefully():
     """The transport is deliberately left unimplemented -- deployment
     specific -- and must not turn into an unhandled exception for a caller
     that configures endpoint/key/model without also overriding _call_model."""
-    extractor = StructuralExtractor(ExtractionConfig(endpoint="https://x", api_key="k", model="m"))
+    extractor = StructuralExtractor(
+        ExtractionConfig(endpoint="https://x", api_key="k", model="m")
+    )
     assert extractor("some text").is_empty
 
 
@@ -126,8 +139,13 @@ def test_a_description_round_trips_through_persistence():
 
         loaded = ConceptDescriptionStore.load(path)
 
-    assert loaded.get("impaired myelin synthesis").entities == ("methylcobalamin", "myelin")
-    assert loaded.get("impaired myelin synthesis").relations[0].relation == "required_for"
+    assert loaded.get("impaired myelin synthesis").entities == (
+        "methylcobalamin",
+        "myelin",
+    )
+    assert (
+        loaded.get("impaired myelin synthesis").relations[0].relation == "required_for"
+    )
 
 
 def test_a_concept_with_no_description_writes_nothing():
@@ -176,7 +194,9 @@ def test_promoting_an_edge_builds_descriptions_for_its_concepts(tmp_path):
     desc_path = tmp_path / "descriptions.jsonl"
 
     promoted = assembly.promote_confirmed(
-        description_store=store, description_extractor=_fake_extractor, description_store_path=desc_path
+        description_store=store,
+        description_extractor=_fake_extractor,
+        description_store_path=desc_path,
     )
 
     assert len(promoted) == 1
@@ -191,7 +211,8 @@ def test_descriptions_created_on_promotion_survive_a_restart(tmp_path):
 
     desc_path = tmp_path / "descriptions.jsonl"
     assembly.promote_confirmed(
-        description_store=ConceptDescriptionStore(), description_extractor=_fake_extractor,
+        description_store=ConceptDescriptionStore(),
+        description_extractor=_fake_extractor,
         description_store_path=desc_path,
     )
 
@@ -210,7 +231,11 @@ def test_a_concept_that_already_has_a_description_is_not_overwritten(tmp_path):
     original = ExtractedStructure(source_text="curated", entities=("curated entity",))
     store.add("sarcoidosis", original)
 
-    assembly.promote_confirmed(description_store=store, description_extractor=_fake_extractor, description_store_path=None)
+    assembly.promote_confirmed(
+        description_store=store,
+        description_extractor=_fake_extractor,
+        description_store_path=None,
+    )
 
     assert store.get("sarcoidosis") is original
 
@@ -236,6 +261,9 @@ def test_promoting_nothing_calls_the_extractor_zero_times(tmp_path):
         return ExtractedStructure(source_text=text)
 
     assembly = assemble(list(DIFFERENTIAL_GRAPH_EDGES), tmp_path / "learned.jsonl")
-    assembly.promote_confirmed(description_store=ConceptDescriptionStore(), description_extractor=counting_extractor)
+    assembly.promote_confirmed(
+        description_store=ConceptDescriptionStore(),
+        description_extractor=counting_extractor,
+    )
 
     assert calls["n"] == 0

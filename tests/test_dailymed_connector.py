@@ -66,7 +66,9 @@ def test_a_malformed_date_does_not_crash_parsing():
 def test_search_returns_passages_with_ingredients_looked_up_automatically():
     connector = DailyMedConnector()
     connector._fetch_search_page = lambda name: {"data": [_record()]}
-    connector._fetch_packaging = lambda setid: {"data": {"active_ingredients": [{"name": "Simvastatin"}]}}
+    connector._fetch_packaging = lambda setid: {
+        "data": {"active_ingredients": [{"name": "Simvastatin"}]}
+    }
 
     results = connector.search("simvastatin")
 

@@ -7,7 +7,9 @@ class ServiceRegistry:
 
     services: dict = field(default_factory=dict)
 
-    def register(self, name: str, provider: str, protocol: str, role: str = "core_service") -> None:
+    def register(
+        self, name: str, provider: str, protocol: str, role: str = "core_service"
+    ) -> None:
         self.services[name] = {"provider": provider, "protocol": protocol, "role": role}
 
     def get(self, name: str) -> dict:

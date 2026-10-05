@@ -84,32 +84,52 @@ class StorageConfig:
     def load(cls, path: str | Path = DEFAULT_STORAGE_FILE) -> "StorageConfig":
         import yaml
 
-        return cls.from_mapping(yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {})
+        return cls.from_mapping(
+            yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+        )
 
     def problems(self) -> list[str]:
         """Everything that would make this configuration unusable, in words."""
         found: list[str] = []
         if self.backend not in BACKENDS:
-            found.append(f"backend must be one of {list(BACKENDS)}, got {self.backend!r}")
+            found.append(
+                f"backend must be one of {list(BACKENDS)}, got {self.backend!r}"
+            )
         if self.backend == BACKEND_HF_MIRROR:
             if not self.hf_organization:
-                found.append("hf_mirror.organization is required for the hf_mirror backend")
+                found.append(
+                    "hf_mirror.organization is required for the hf_mirror backend"
+                )
             if not self.hf_private:
-                found.append("hf_mirror.private must stay true: a public mirror would redistribute the weights")
+                found.append(
+                    "hf_mirror.private must stay true: a public mirror would redistribute the weights"
+                )
         if self.backend == BACKEND_DVC:
             if not self.dvc_url:
                 found.append("dvc.url is required for the dvc backend")
             if not self.dvc_region:
                 found.append("dvc.region is required for the dvc backend")
             if self.dvc_jurisdiction.upper() != "EU":
-                found.append("dvc.jurisdiction must be EU (decided 2026-09-26: trained weights live in the EU)")
+                found.append(
+                    "dvc.jurisdiction must be EU (decided 2026-09-26: trained weights live in the EU)"
+                )
         return found
 
     def dvc_remote_commands(self) -> list[list[str]]:
         """The DVC commands that register this configuration's remote (dvc backend only)."""
         if self.backend != BACKEND_DVC or self.problems():
             return []
-        return [["dvc", "remote", "add", "--default", "--force", self.dvc_remote_name, self.dvc_url]]
+        return [
+            [
+                "dvc",
+                "remote",
+                "add",
+                "--default",
+                "--force",
+                self.dvc_remote_name,
+                self.dvc_url,
+            ]
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +189,11 @@ def model_pins(manifest: Mapping[str, Any]) -> list[ModelPin]:
                 repo=repo,
                 revision=str(asset.get("revision") or UNPINNED),
                 files=tuple(
-                    PinnedFile(path=str(item["path"]), sha256=str(item.get("sha256", "")), size=int(item.get("size", 0)))
+                    PinnedFile(
+                        path=str(item["path"]),
+                        sha256=str(item.get("sha256", "")),
+                        size=int(item.get("size", 0)),
+                    )
                     for item in asset.get("files") or []
                 ),
                 include=tuple(asset.get("include") or ()),
@@ -208,9 +232,21 @@ def plan_download(pin: ModelPin, config: StorageConfig) -> DownloadPlan:
             "'Pin model revisions' workflow before downloading"
         )
     if config.backend == BACKEND_UPSTREAM:
-        return DownloadPlan(pin.asset_id, config.backend, repo=pin.repo, revision=pin.revision, files=pin.files)
+        return DownloadPlan(
+            pin.asset_id,
+            config.backend,
+            repo=pin.repo,
+            revision=pin.revision,
+            files=pin.files,
+        )
     if config.backend == BACKEND_HF_MIRROR:
-        notes = () if pin.mirror_revision else ("no mirror_revision recorded: fetching the mirror's main, verified by sha256",)
+        notes = (
+            ()
+            if pin.mirror_revision
+            else (
+                "no mirror_revision recorded: fetching the mirror's main, verified by sha256",
+            )
+        )
         return DownloadPlan(
             pin.asset_id,
             config.backend,
@@ -219,7 +255,12 @@ def plan_download(pin: ModelPin, config: StorageConfig) -> DownloadPlan:
             files=pin.files,
             notes=notes,
         )
-    return DownloadPlan(pin.asset_id, config.backend, dvc_target=f"models/{pin.asset_id}.dvc", files=pin.files)
+    return DownloadPlan(
+        pin.asset_id,
+        config.backend,
+        dvc_target=f"models/{pin.asset_id}.dvc",
+        files=pin.files,
+    )
 
 
 def sha256_of(path: Path, chunk_size: int = 8 * 1024 * 1024) -> str:
@@ -245,7 +286,13 @@ def verify_files(directory: str | Path, files: Iterable[PinnedFile]) -> list[str
     return problems
 
 
-def download(pin: ModelPin, config: StorageConfig, destination: str | Path, *, token: str | None = None) -> Path:
+def download(
+    pin: ModelPin,
+    config: StorageConfig,
+    destination: str | Path,
+    *,
+    token: str | None = None,
+) -> Path:
     """Fetch the pinned files through the configured backend, then verify every one.
 
     Needs the ``models`` extra (huggingface_hub) for the two Hugging Face
@@ -269,13 +316,25 @@ def download(pin: ModelPin, config: StorageConfig, destination: str | Path, *, t
         )
     problems = verify_files(destination, plan.files)
     if problems:
-        raise ValueError(f"{pin.asset_id}: downloaded files do not match their pins: {problems}")
+        raise ValueError(
+            f"{pin.asset_id}: downloaded files do not match their pins: {problems}"
+        )
     return destination
 
 
-def select_files(paths: Sequence[str], include: Sequence[str], exclude: Sequence[str]) -> list[str]:
+def select_files(
+    paths: Sequence[str], include: Sequence[str], exclude: Sequence[str]
+) -> list[str]:
     """Filter a repository listing with glob patterns (fnmatch), include first then exclude."""
     from fnmatch import fnmatch
 
-    selected = [path for path in paths if not include or any(fnmatch(path, pattern) for pattern in include)]
-    return [path for path in selected if not any(fnmatch(path, pattern) for pattern in exclude)]
+    selected = [
+        path
+        for path in paths
+        if not include or any(fnmatch(path, pattern) for pattern in include)
+    ]
+    return [
+        path
+        for path in selected
+        if not any(fnmatch(path, pattern) for pattern in exclude)
+    ]

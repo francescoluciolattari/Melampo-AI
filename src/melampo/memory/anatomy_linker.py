@@ -133,7 +133,9 @@ _TYPE_WORDS = {
     **dict.fromkeys(("dotto", "dotti", "duct", "ducts", "duttale"), "<duct>"),
     **dict.fromkeys(("nervo", "nervi", "nerve", "nerves"), "<nerve>"),
     **dict.fromkeys(("linfonodo", "linfonodi", "linfonodale", "linfonodali", "lymph", "node", "nodes", "nodal"), "<node>"),
-    **dict.fromkeys(("ilo", "ili", "ilare", "ilari", "hilum", "hilar", "hila"), "<hilum>"),
+    **dict.fromkeys(("ilo", "ili", "hilum", "hila"), "<hilum>"),
+    # "hilar lymph node" is a node at the hilum, not "hilum of lymph node", a part of a node.
+    **dict.fromkeys(("ilare", "ilari", "hilar"), "<hilar>"),
 }
 STRUCTURE_TYPES = frozenset(_TYPE_WORDS.values())
 # Positive evidence that a bare level code ("L5", "D7", "S1") names a vertebra.
@@ -480,6 +482,8 @@ class Candidate:
     label: str
     names: tuple[tuple[str, ...], ...]
     is_target_class: bool
+    # The same names with the tissue and container words kept ("wall of appendix").
+    strict_names: tuple[tuple[str, ...], ...] = ()
 
     @property
     def attributes(self) -> Attributes:
@@ -490,6 +494,59 @@ class Candidate:
         if self.is_target_class:
             return _class_kind(self.cid)
         return self.attributes.number_kind
+
+
+_NOISE_CANON = {
+    "parete": "wall", "pareti": "wall", "wall": "wall",
+    "parenchima": "parenchyma", "parenchyma": "parenchyma",
+    "lume": "lumen", "lumen": "lumen",
+    "ghiandola": "gland", "gland": "gland",
+    "muscolo": "muscle", "muscoli": "muscle", "muscle": "muscle", "muscles": "muscle",
+    "osso": "bone", "bone": "bone",
+    "corpo": "body", "soma": "body", "body": "body",
+    "livello": "level", "corrispondenza": "level", "level": "level",
+}  # fmt: skip
+
+
+def _content(tokens: Iterable[str]) -> frozenset[str]:
+    """The words that say which structure it is: no side, position, number, qualifier or type.
+
+    Tissue and container words are kept ("wall of appendix" is not the appendix).
+    """
+    skip = {SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH, POS_UP, POS_MID, POS_DOWN, COORDINATION}
+    skip |= _QUALIFIERS | STRUCTURE_TYPES
+    return frozenset(
+        _NOISE_CANON.get(t, t) for t in tokens if t not in skip and t[:1] not in "#@"
+    )
+
+
+# Ontology homonyms: "lingula" is also a cerebellar lobule, "bulb" a part of the eye or the brain.
+# A candidate from the nervous system is offered only when the sentence is about it.
+_NEURO_WORDS = frozenset(("cerebellum", "cerebellar", "cerebral", "brain", "brainstem", "cortex", "cortical", "medulla", "neuron", "nucleus", "gyrus", "ganglion", "tract", "lobule", "vermis", "thalamus", "hippocampus"))  # fmt: skip
+_NEURO_CUES = frozenset(("encefalo", "cervello", "cerebrale", "cerebellare", "cerebellum", "cerebral", "brain", "cranio", "cranico", "neurologico", "neuro", "sistema", "nervoso", "corteccia", "cortical", "cortex", "talamo", "ippocampo", "ventricolo", "ventricoli"))  # fmt: skip
+
+
+def wrong_system(candidate: Candidate, sentence: str) -> bool:
+    if candidate.is_target_class:
+        return False
+    words = {w for name in candidate.strict_names or candidate.names for w in name}
+    if not words & _NEURO_WORDS:
+        return False
+    return not {_fold(t) for t in _raw_tokens(sentence)} & _NEURO_CUES
+
+
+def covers(mention: str, candidate: Candidate) -> bool:
+    """True when one name of the candidate says exactly what the mention says.
+
+    Two models agreeing on a candidate is not evidence that the words match:
+    "porta hepatis" is not the portal vein, "cardiac silhouette" is not a
+    cardiac chamber, "right ribs" is not the true ribs. A word the candidate
+    does not have, or a word only the candidate has, means the candidate is a
+    different (wider or narrower) concept, and the link is not made.
+    """
+    wanted = _content(normalise(mention, keep_noise=True))
+    names = candidate.strict_names or candidate.names
+    return bool(wanted) and any(_content(name) == wanted for name in names)
 
 
 def verify(
@@ -594,8 +651,19 @@ class Lexicon:
             names = tuple(
                 dict.fromkeys(normalise(n) for n in entry["it"] + entry["en"])
             )
+            strict = tuple(
+                dict.fromkeys(
+                    normalise(n, keep_noise=True) for n in entry["it"] + entry["en"]
+                )
+            )
             out.append(
-                Candidate(cid=cid, label=label, names=names, is_target_class=True)
+                Candidate(
+                    cid=cid,
+                    label=label,
+                    names=names,
+                    is_target_class=True,
+                    strict_names=strict,
+                )
             )
         return out
 
@@ -665,9 +733,19 @@ def build_pool(
                 normalise(n) for n in [term["name"], *term.get("synonyms", ())]
             )
         )
+        strict = tuple(
+            dict.fromkeys(
+                normalise(n, keep_noise=True)
+                for n in [term["name"], *term.get("synonyms", ())]
+            )
+        )
         pool.append(
             Candidate(
-                cid=term["id"], label=term["name"], names=names, is_target_class=False
+                cid=term["id"],
+                label=term["name"],
+                names=names,
+                is_target_class=False,
+                strict_names=strict,
             )
         )
         target = lexicon.resolve_equivalent(term["name"])
@@ -838,6 +916,8 @@ class AnatomyLinker:
             for cid in ranked
             if (candidate := self._by_id.get(cid))
             and verify(tokens, candidate, self._sided) is None
+            and covers(mention, candidate)
+            and not wrong_system(candidate, sentence)
             and self._anchored(tokens, candidate)
             and self._context_allows(candidate, mention, sentence)
         ][: self.max_options]
@@ -866,8 +946,11 @@ class AnatomyLinker:
             return LinkResult(ABSTAINED, None, "deliberation", reason, options, votes)
         cid = chosen.pop()
         candidate = self._by_id[cid]
-        if verify(tokens, candidate, self._sided) or not self._context_allows(
-            candidate, mention, sentence
+        if (
+            verify(tokens, candidate, self._sided)
+            or not covers(mention, candidate)
+            or wrong_system(candidate, sentence)
+            or not self._context_allows(candidate, mention, sentence)
         ):
             return LinkResult(
                 ABSTAINED,

@@ -24,7 +24,12 @@ def test_safe_model_client_disabled_and_dry_run_do_not_call_network():
         provider="provider",
         model_name="model",
         role="role",
-        config=ModelClientConfig(mode="dry_run", enabled=True, endpoint="https://example.invalid", allow_remote=False),
+        config=ModelClientConfig(
+            mode="dry_run",
+            enabled=True,
+            endpoint="https://example.invalid",
+            allow_remote=False,
+        ),
     )
     dry_result = dry_run.execute({"case_id": "case-1"})
     assert dry_result["status"] == "request_prepared"
@@ -37,7 +42,12 @@ def test_safe_model_client_blocks_http_without_remote_allowance():
         provider="provider",
         model_name="model",
         role="role",
-        config=ModelClientConfig(mode="http_json", enabled=True, endpoint="https://example.invalid", allow_remote=False),
+        config=ModelClientConfig(
+            mode="http_json",
+            enabled=True,
+            endpoint="https://example.invalid",
+            allow_remote=False,
+        ),
     )
     result = client.execute({"case_id": "case-1"})
     assert result["status"] == "blocked"
@@ -80,7 +90,10 @@ def test_pillar0_adapter_mock_returns_visual_claim_and_trace():
             enabled=True,
             mock_payload={
                 "status": "completed",
-                "signals": {"primary_finding": "pulmonary opacity", "anatomical_region": "lung"},
+                "signals": {
+                    "primary_finding": "pulmonary opacity",
+                    "anatomical_region": "lung",
+                },
                 "confidence": 0.74,
                 "uncertainty": 0.26,
                 "ontology_refs": ["SNOMED:placeholder"],
@@ -111,11 +124,15 @@ def test_gemma4_adapter_mock_requires_grounding_and_returns_claim():
             },
         ),
     )
-    response = adapter.reason_over_text("case-1", "cough fever", {"hits": [{"record_id": "doc:guideline:1"}]})
+    response = adapter.reason_over_text(
+        "case-1", "cough fever", {"hits": [{"record_id": "doc:guideline:1"}]}
+    )
     assert response.status == "completed"
     assert response.claims[0]["source_area"] == "language_listening"
     assert response.missing_evidence == ["oxygen saturation"]
-    assert response.provenance["request"]["governance"]["must_be_grounded_by_rag"] is True
+    assert (
+        response.provenance["request"]["governance"]["must_be_grounded_by_rag"] is True
+    )
 
 
 def test_claude_critic_adapter_mock_is_critic_only():

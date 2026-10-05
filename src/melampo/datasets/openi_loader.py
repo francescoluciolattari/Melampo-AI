@@ -17,7 +17,9 @@ class OpenIReportCsvLoader:
     image_root: str | None = None
     source_name: str = "Open-i / Indiana-style chest X-ray metadata"
 
-    def _find(self, row: Mapping[str, str], candidates: Iterable[str], default: str = "") -> str:
+    def _find(
+        self, row: Mapping[str, str], candidates: Iterable[str], default: str = ""
+    ) -> str:
         for candidate in candidates:
             if candidate in row and row[candidate] is not None:
                 value = str(row[candidate]).strip()
@@ -26,8 +28,14 @@ class OpenIReportCsvLoader:
         return default
 
     def row_to_payload(self, row: Mapping[str, str], row_index: int = 0) -> dict:
-        uid = self._find(row, ["uid", "report_id", "id", "case_id"], f"openi-row-{row_index}")
-        image_id = self._find(row, ["image", "image_id", "filename", "image_filename"], f"openi-image-{row_index}.png")
+        uid = self._find(
+            row, ["uid", "report_id", "id", "case_id"], f"openi-row-{row_index}"
+        )
+        image_id = self._find(
+            row,
+            ["image", "image_id", "filename", "image_filename"],
+            f"openi-image-{row_index}.png",
+        )
         indication = self._find(row, ["indication", "clinical_indication"], "")
         findings = self._find(row, ["findings", "report_findings"], "")
         impression = self._find(row, ["impression", "report_impression"], "")
@@ -42,7 +50,10 @@ class OpenIReportCsvLoader:
             report_parts.append(f"Impression: {impression}")
         if problems:
             report_parts.append(f"Problem terms: {problems}")
-        report_text = " ".join(report_parts) or "Open-i-style report metadata without narrative text."
+        report_text = (
+            " ".join(report_parts)
+            or "Open-i-style report metadata without narrative text."
+        )
 
         series_paths = []
         if self.image_root:

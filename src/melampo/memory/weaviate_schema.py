@@ -11,7 +11,11 @@ class WeaviateProperty:
     description: str
 
     def as_dict(self) -> dict[str, Any]:
-        return {"name": self.name, "data_type": self.data_type, "description": self.description}
+        return {
+            "name": self.name,
+            "data_type": self.data_type,
+            "description": self.description,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +25,11 @@ class WeaviateReference:
     description: str
 
     def as_dict(self) -> dict[str, Any]:
-        return {"name": self.name, "target": self.target, "description": self.description}
+        return {
+            "name": self.name,
+            "target": self.target,
+            "description": self.description,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,13 +70,33 @@ class MelampoWeaviateSchema:
                 description="Clinical symptom or complaint with ontology references and links to candidate pathologies.",
                 properties=(
                     WeaviateProperty("name", "text", "Human-readable symptom name."),
-                    WeaviateProperty("description", "text", "Clinical description or normalized narrative."),
-                    WeaviateProperty("snomed_code", "text", "SNOMED-like concept code when available."),
-                    WeaviateProperty("temporal_pattern", "text", "Acute, chronic, recurrent, progressive or unknown pattern."),
+                    WeaviateProperty(
+                        "description",
+                        "text",
+                        "Clinical description or normalized narrative.",
+                    ),
+                    WeaviateProperty(
+                        "snomed_code",
+                        "text",
+                        "SNOMED-like concept code when available.",
+                    ),
+                    WeaviateProperty(
+                        "temporal_pattern",
+                        "text",
+                        "Acute, chronic, recurrent, progressive or unknown pattern.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("suggestsPathology", "Pathology", "Pathologies supported or suggested by this symptom."),
-                    WeaviateReference("appearsInCase", "ClinicalCase", "Cases where this symptom appears."),
+                    WeaviateReference(
+                        "suggestsPathology",
+                        "Pathology",
+                        "Pathologies supported or suggested by this symptom.",
+                    ),
+                    WeaviateReference(
+                        "appearsInCase",
+                        "ClinicalCase",
+                        "Cases where this symptom appears.",
+                    ),
                 ),
                 named_vectors=("symptom_text_vector",),
             ),
@@ -77,16 +105,48 @@ class MelampoWeaviateSchema:
                 description="Candidate pathology or disease concept linked to symptoms, imaging patterns and risk factors.",
                 properties=(
                     WeaviateProperty("name", "text", "Pathology name."),
-                    WeaviateProperty("description", "text", "Clinical description and differential reasoning notes."),
-                    WeaviateProperty("snomed_code", "text", "SNOMED-like concept code when available."),
-                    WeaviateProperty("icd_code", "text", "ICD-like billing/classification code when available."),
-                    WeaviateProperty("prevalence_band", "text", "Low, medium, high or unknown prevalence band."),
+                    WeaviateProperty(
+                        "description",
+                        "text",
+                        "Clinical description and differential reasoning notes.",
+                    ),
+                    WeaviateProperty(
+                        "snomed_code",
+                        "text",
+                        "SNOMED-like concept code when available.",
+                    ),
+                    WeaviateProperty(
+                        "icd_code",
+                        "text",
+                        "ICD-like billing/classification code when available.",
+                    ),
+                    WeaviateProperty(
+                        "prevalence_band",
+                        "text",
+                        "Low, medium, high or unknown prevalence band.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("hasSymptom", "Symptom", "Symptoms associated with this pathology."),
-                    WeaviateReference("hasImagingPattern", "ImagingFinding", "Imaging patterns associated with this pathology."),
-                    WeaviateReference("hasRiskFactor", "EpidemiologicalFactor", "Risk factors associated with this pathology."),
-                    WeaviateReference("supportedByDocument", "ClinicalDocument", "Guidelines, articles or sources supporting this pathology."),
+                    WeaviateReference(
+                        "hasSymptom",
+                        "Symptom",
+                        "Symptoms associated with this pathology.",
+                    ),
+                    WeaviateReference(
+                        "hasImagingPattern",
+                        "ImagingFinding",
+                        "Imaging patterns associated with this pathology.",
+                    ),
+                    WeaviateReference(
+                        "hasRiskFactor",
+                        "EpidemiologicalFactor",
+                        "Risk factors associated with this pathology.",
+                    ),
+                    WeaviateReference(
+                        "supportedByDocument",
+                        "ClinicalDocument",
+                        "Guidelines, articles or sources supporting this pathology.",
+                    ),
                 ),
                 named_vectors=("pathology_text_vector", "ontology_context_vector"),
             ),
@@ -95,15 +155,41 @@ class MelampoWeaviateSchema:
                 description="A governed patient/case object used as post-training memory and RAG context.",
                 properties=(
                     WeaviateProperty("case_id", "text", "Stable case identifier."),
-                    WeaviateProperty("demographics", "object", "Age, sex and other structured demographics."),
-                    WeaviateProperty("provenance", "object", "Source, license, de-identification and governance metadata."),
-                    WeaviateProperty("learning_status", "text", "candidate, promoted, rejected, needs_review or retired."),
+                    WeaviateProperty(
+                        "demographics",
+                        "object",
+                        "Age, sex and other structured demographics.",
+                    ),
+                    WeaviateProperty(
+                        "provenance",
+                        "object",
+                        "Source, license, de-identification and governance metadata.",
+                    ),
+                    WeaviateProperty(
+                        "learning_status",
+                        "text",
+                        "candidate, promoted, rejected, needs_review or retired.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("hasSymptom", "Symptom", "Symptoms linked to this case."),
-                    WeaviateReference("hasReport", "ClinicalDocument", "Reports or documents linked to this case."),
-                    WeaviateReference("hasImage", "ImagingStudy", "Imaging studies linked to this case."),
-                    WeaviateReference("hasDifferential", "Pathology", "Differential hypotheses linked to this case."),
+                    WeaviateReference(
+                        "hasSymptom", "Symptom", "Symptoms linked to this case."
+                    ),
+                    WeaviateReference(
+                        "hasReport",
+                        "ClinicalDocument",
+                        "Reports or documents linked to this case.",
+                    ),
+                    WeaviateReference(
+                        "hasImage",
+                        "ImagingStudy",
+                        "Imaging studies linked to this case.",
+                    ),
+                    WeaviateReference(
+                        "hasDifferential",
+                        "Pathology",
+                        "Differential hypotheses linked to this case.",
+                    ),
                 ),
                 named_vectors=("case_summary_vector", "case_trace_vector"),
             ),
@@ -111,14 +197,32 @@ class MelampoWeaviateSchema:
                 name="ImagingStudy",
                 description="Imaging object with modality, visual vector slots, provenance and findings.",
                 properties=(
-                    WeaviateProperty("study_id", "text", "Stable imaging study identifier."),
-                    WeaviateProperty("modality", "text", "CT, MRI, CR, XR, US, PET or unknown."),
-                    WeaviateProperty("series_metadata", "object", "Local or PACS series metadata."),
-                    WeaviateProperty("source_path_count", "int", "Number of local or referenced image paths."),
+                    WeaviateProperty(
+                        "study_id", "text", "Stable imaging study identifier."
+                    ),
+                    WeaviateProperty(
+                        "modality", "text", "CT, MRI, CR, XR, US, PET or unknown."
+                    ),
+                    WeaviateProperty(
+                        "series_metadata", "object", "Local or PACS series metadata."
+                    ),
+                    WeaviateProperty(
+                        "source_path_count",
+                        "int",
+                        "Number of local or referenced image paths.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("belongsToCase", "ClinicalCase", "Case that owns this imaging study."),
-                    WeaviateReference("hasFinding", "ImagingFinding", "Findings detected or suspected in this study."),
+                    WeaviateReference(
+                        "belongsToCase",
+                        "ClinicalCase",
+                        "Case that owns this imaging study.",
+                    ),
+                    WeaviateReference(
+                        "hasFinding",
+                        "ImagingFinding",
+                        "Findings detected or suspected in this study.",
+                    ),
                 ),
                 named_vectors=("image_vector", "report_alignment_vector"),
             ),
@@ -127,13 +231,29 @@ class MelampoWeaviateSchema:
                 description="Visual/radiological finding linked to imaging studies and pathologies.",
                 properties=(
                     WeaviateProperty("name", "text", "Finding name."),
-                    WeaviateProperty("description", "text", "Finding description and location if available."),
-                    WeaviateProperty("anatomical_region", "text", "Region or organ system."),
-                    WeaviateProperty("confidence", "number", "Model confidence or calibrated score."),
+                    WeaviateProperty(
+                        "description",
+                        "text",
+                        "Finding description and location if available.",
+                    ),
+                    WeaviateProperty(
+                        "anatomical_region", "text", "Region or organ system."
+                    ),
+                    WeaviateProperty(
+                        "confidence", "number", "Model confidence or calibrated score."
+                    ),
                 ),
                 references=(
-                    WeaviateReference("supportsPathology", "Pathology", "Pathologies supported by this finding."),
-                    WeaviateReference("foundInStudy", "ImagingStudy", "Imaging study containing this finding."),
+                    WeaviateReference(
+                        "supportsPathology",
+                        "Pathology",
+                        "Pathologies supported by this finding.",
+                    ),
+                    WeaviateReference(
+                        "foundInStudy",
+                        "ImagingStudy",
+                        "Imaging study containing this finding.",
+                    ),
                 ),
                 named_vectors=("finding_text_vector", "finding_visual_vector"),
             ),
@@ -141,41 +261,129 @@ class MelampoWeaviateSchema:
                 name="VisualConcept",
                 description="Governed semantic visual concept linking clinical meaning to recognition-matrix imprints.",
                 properties=(
-                    WeaviateProperty("name", "text", "Human-readable visual concept or normalized finding name."),
-                    WeaviateProperty("description", "text", "Semantic description of the visual concept."),
-                    WeaviateProperty("ontology_refs", "text[]", "Ontology references or controlled vocabulary IDs."),
-                    WeaviateProperty("learning_status", "text", "candidate, promoted, rejected, needs_review or retired."),
+                    WeaviateProperty(
+                        "name",
+                        "text",
+                        "Human-readable visual concept or normalized finding name.",
+                    ),
+                    WeaviateProperty(
+                        "description",
+                        "text",
+                        "Semantic description of the visual concept.",
+                    ),
+                    WeaviateProperty(
+                        "ontology_refs",
+                        "text[]",
+                        "Ontology references or controlled vocabulary IDs.",
+                    ),
+                    WeaviateProperty(
+                        "learning_status",
+                        "text",
+                        "candidate, promoted, rejected, needs_review or retired.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("hasImprint", "VisualRecognitionImprint", "Recognition-matrix imprints associated with this concept."),
-                    WeaviateReference("supportsFinding", "ImagingFinding", "Imaging findings semantically supported by this visual concept."),
-                    WeaviateReference("supportsPathology", "Pathology", "Pathologies potentially linked through reviewed evidence."),
+                    WeaviateReference(
+                        "hasImprint",
+                        "VisualRecognitionImprint",
+                        "Recognition-matrix imprints associated with this concept.",
+                    ),
+                    WeaviateReference(
+                        "supportsFinding",
+                        "ImagingFinding",
+                        "Imaging findings semantically supported by this visual concept.",
+                    ),
+                    WeaviateReference(
+                        "supportsPathology",
+                        "Pathology",
+                        "Pathologies potentially linked through reviewed evidence.",
+                    ),
                 ),
-                named_vectors=("visual_concept_text_vector", "visual_concept_context_vector"),
+                named_vectors=(
+                    "visual_concept_text_vector",
+                    "visual_concept_context_vector",
+                ),
             ),
             WeaviateClassSchema(
                 name="VisualRecognitionImprint",
                 description="Image-recognition matrix footprint, embedding or feature signature linked to a semantic visual concept.",
                 properties=(
-                    WeaviateProperty("imprint_id", "text", "Stable imprint identifier."),
-                    WeaviateProperty("semantic_concept", "text", "Normalized semantic concept represented by the imprint."),
-                    WeaviateProperty("variant_label", "text", "Observed, retrieved, morphed or reviewed variant label."),
-                    WeaviateProperty("matrix_signature_hash", "text", "Hash of the recognition-matrix footprint or embedding."),
-                    WeaviateProperty("vector_kind", "text", "numeric_embedding (values kept as given) or hashed_signature (bucketed fingerprint of a structured payload); never compared across kinds."),
-                    WeaviateProperty("source_object_id", "text", "Source image, study, finding, concept or morph object identifier."),
-                    WeaviateProperty("modality", "text", "CT, MRI, XR, pathology, multimodal or unknown."),
-                    WeaviateProperty("salience", "number", "Signal salience or reviewed score."),
+                    WeaviateProperty(
+                        "imprint_id", "text", "Stable imprint identifier."
+                    ),
+                    WeaviateProperty(
+                        "semantic_concept",
+                        "text",
+                        "Normalized semantic concept represented by the imprint.",
+                    ),
+                    WeaviateProperty(
+                        "variant_label",
+                        "text",
+                        "Observed, retrieved, morphed or reviewed variant label.",
+                    ),
+                    WeaviateProperty(
+                        "matrix_signature_hash",
+                        "text",
+                        "Hash of the recognition-matrix footprint or embedding.",
+                    ),
+                    WeaviateProperty(
+                        "vector_kind",
+                        "text",
+                        "numeric_embedding (values kept as given) or hashed_signature (bucketed fingerprint of a structured payload); never compared across kinds.",
+                    ),
+                    WeaviateProperty(
+                        "source_object_id",
+                        "text",
+                        "Source image, study, finding, concept or morph object identifier.",
+                    ),
+                    WeaviateProperty(
+                        "modality",
+                        "text",
+                        "CT, MRI, XR, pathology, multimodal or unknown.",
+                    ),
+                    WeaviateProperty(
+                        "salience", "number", "Signal salience or reviewed score."
+                    ),
                     WeaviateProperty("uncertainty", "number", "Uncertainty score."),
-                    WeaviateProperty("provenance", "object", "Source, license, transformation and governance metadata."),
-                    WeaviateProperty("learning_status", "text", "candidate, promoted, rejected, needs_review or retired."),
+                    WeaviateProperty(
+                        "provenance",
+                        "object",
+                        "Source, license, transformation and governance metadata.",
+                    ),
+                    WeaviateProperty(
+                        "learning_status",
+                        "text",
+                        "candidate, promoted, rejected, needs_review or retired.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("representsConcept", "VisualConcept", "Semantic visual concept represented by this imprint."),
-                    WeaviateReference("variantOf", "VisualRecognitionImprint", "Parent or related imprint variant."),
-                    WeaviateReference("derivedFromStudy", "ImagingStudy", "Imaging study from which the imprint was derived."),
-                    WeaviateReference("derivedFromFinding", "ImagingFinding", "Finding from which the imprint was derived."),
+                    WeaviateReference(
+                        "representsConcept",
+                        "VisualConcept",
+                        "Semantic visual concept represented by this imprint.",
+                    ),
+                    WeaviateReference(
+                        "variantOf",
+                        "VisualRecognitionImprint",
+                        "Parent or related imprint variant.",
+                    ),
+                    WeaviateReference(
+                        "derivedFromStudy",
+                        "ImagingStudy",
+                        "Imaging study from which the imprint was derived.",
+                    ),
+                    WeaviateReference(
+                        "derivedFromFinding",
+                        "ImagingFinding",
+                        "Finding from which the imprint was derived.",
+                    ),
                 ),
-                named_vectors=("recognition_matrix_vector", "numeric_embedding_vector", "semantic_concept_vector", "morphed_imprint_vector"),
+                named_vectors=(
+                    "recognition_matrix_vector",
+                    "numeric_embedding_vector",
+                    "semantic_concept_vector",
+                    "morphed_imprint_vector",
+                ),
             ),
             WeaviateClassSchema(
                 name="ClinicalDocument",
@@ -185,13 +393,29 @@ class MelampoWeaviateSchema:
                     WeaviateProperty("section", "text", "Document section or heading."),
                     WeaviateProperty("page", "int", "Page number when available."),
                     WeaviateProperty("text", "text", "Chunk text."),
-                    WeaviateProperty("publication_date", "date", "Publication or update date when available."),
+                    WeaviateProperty(
+                        "publication_date",
+                        "date",
+                        "Publication or update date when available.",
+                    ),
                     WeaviateProperty("license", "text", "License or access class."),
                 ),
                 references=(
-                    WeaviateReference("mentionsSymptom", "Symptom", "Symptoms mentioned by this document."),
-                    WeaviateReference("mentionsPathology", "Pathology", "Pathologies mentioned by this document."),
-                    WeaviateReference("mentionsFinding", "ImagingFinding", "Imaging findings mentioned by this document."),
+                    WeaviateReference(
+                        "mentionsSymptom",
+                        "Symptom",
+                        "Symptoms mentioned by this document.",
+                    ),
+                    WeaviateReference(
+                        "mentionsPathology",
+                        "Pathology",
+                        "Pathologies mentioned by this document.",
+                    ),
+                    WeaviateReference(
+                        "mentionsFinding",
+                        "ImagingFinding",
+                        "Imaging findings mentioned by this document.",
+                    ),
                 ),
                 named_vectors=("document_text_vector", "document_layout_vector"),
             ),
@@ -202,14 +426,40 @@ class MelampoWeaviateSchema:
                     "retrieval path, and admissible only as exclusion hypotheses in the differential."
                 ),
                 properties=(
-                    WeaviateProperty("label", "text", "Candidate condition proposed by hypothesis enumeration."),
-                    WeaviateProperty("rationale", "text", "Concept-graph path that produced the candidate."),
-                    WeaviateProperty("origin", "text", "Channel that generated it: enumeration or family history."),
-                    WeaviateProperty("novelty_score", "number", "How far outside routine consideration the candidate sits."),
-                    WeaviateProperty("learning_status", "text", "Always candidate; never promoted to grounded by this class."),
-                    WeaviateProperty("promotion_state", "text", "Requires validation before any clinical consideration."),
                     WeaviateProperty(
-                        "human_review_before_clinical_use", "boolean", "Always true for quarantined candidates."
+                        "label",
+                        "text",
+                        "Candidate condition proposed by hypothesis enumeration.",
+                    ),
+                    WeaviateProperty(
+                        "rationale",
+                        "text",
+                        "Concept-graph path that produced the candidate.",
+                    ),
+                    WeaviateProperty(
+                        "origin",
+                        "text",
+                        "Channel that generated it: enumeration or family history.",
+                    ),
+                    WeaviateProperty(
+                        "novelty_score",
+                        "number",
+                        "How far outside routine consideration the candidate sits.",
+                    ),
+                    WeaviateProperty(
+                        "learning_status",
+                        "text",
+                        "Always candidate; never promoted to grounded by this class.",
+                    ),
+                    WeaviateProperty(
+                        "promotion_state",
+                        "text",
+                        "Requires validation before any clinical consideration.",
+                    ),
+                    WeaviateProperty(
+                        "human_review_before_clinical_use",
+                        "boolean",
+                        "Always true for quarantined candidates.",
                     ),
                 ),
             ),
@@ -217,14 +467,30 @@ class MelampoWeaviateSchema:
                 name="EpidemiologicalFactor",
                 description="Exposure, demographic or prevalence factor used to shape pre-test probability.",
                 properties=(
-                    WeaviateProperty("name", "text", "Risk or epidemiological factor name."),
+                    WeaviateProperty(
+                        "name", "text", "Risk or epidemiological factor name."
+                    ),
                     WeaviateProperty("description", "text", "Factor description."),
-                    WeaviateProperty("region", "text", "Geographic region when relevant."),
-                    WeaviateProperty("prevalence_band", "text", "Prevalence band or qualitative likelihood."),
+                    WeaviateProperty(
+                        "region", "text", "Geographic region when relevant."
+                    ),
+                    WeaviateProperty(
+                        "prevalence_band",
+                        "text",
+                        "Prevalence band or qualitative likelihood.",
+                    ),
                 ),
                 references=(
-                    WeaviateReference("increasesRiskOf", "Pathology", "Pathologies whose probability is increased by this factor."),
-                    WeaviateReference("appearsInCase", "ClinicalCase", "Cases where this factor appears."),
+                    WeaviateReference(
+                        "increasesRiskOf",
+                        "Pathology",
+                        "Pathologies whose probability is increased by this factor.",
+                    ),
+                    WeaviateReference(
+                        "appearsInCase",
+                        "ClinicalCase",
+                        "Cases where this factor appears.",
+                    ),
                 ),
                 named_vectors=("epidemiology_text_vector",),
             ),

@@ -78,7 +78,9 @@ class ConfidenceCalibrationEvaluator:
     def evaluate(self, records: Iterable[dict[str, Any]]) -> CalibrationReport:
         parsed: list[tuple[float, float]] = []
         for record in records:
-            confidence = _clamp(_safe_float(record.get("confidence", record.get("score", 0.0))))
+            confidence = _clamp(
+                _safe_float(record.get("confidence", record.get("score", 0.0)))
+            )
             correct = 1.0 if bool(record.get("correct", False)) else 0.0
             parsed.append((confidence, correct))
 
@@ -96,12 +98,16 @@ class ConfidenceCalibrationEvaluator:
             lower = index / self.bin_count
             upper = (index + 1) / self.bin_count
             if values:
-                mean_confidence = sum(confidence for confidence, _ in values) / len(values)
+                mean_confidence = sum(confidence for confidence, _ in values) / len(
+                    values
+                )
                 empirical_accuracy = sum(correct for _, correct in values) / len(values)
                 gap = abs(mean_confidence - empirical_accuracy)
                 expected_calibration_error += (len(values) / max(sample_count, 1)) * gap
                 maximum_calibration_error = max(maximum_calibration_error, gap)
-                brier_score += sum((confidence - correct) ** 2 for confidence, correct in values)
+                brier_score += sum(
+                    (confidence - correct) ** 2 for confidence, correct in values
+                )
             else:
                 mean_confidence = 0.0
                 empirical_accuracy = 0.0
@@ -126,13 +132,25 @@ class ConfidenceCalibrationEvaluator:
             governance={
                 "interpretation": "lower_ece_mce_brier_are_better",
                 "scope": "selected_prediction_binary_correctness",
-                "required_next_slices": ["modality", "pathology_family", "site", "prevalence_band", "learning_status"],
+                "required_next_slices": [
+                    "modality",
+                    "pathology_family",
+                    "site",
+                    "prevalence_band",
+                    "learning_status",
+                ],
                 "clinical_warning": "Calibration metrics do not imply clinical validity without prospective validation.",
             },
         )
 
-    def suggest_thresholds(self, report: CalibrationReport, target_min_accuracy: float = 0.8) -> dict[str, Any]:
-        eligible_bins = [bin_ for bin_ in report.bins if bin_.count > 0 and bin_.empirical_accuracy >= target_min_accuracy]
+    def suggest_thresholds(
+        self, report: CalibrationReport, target_min_accuracy: float = 0.8
+    ) -> dict[str, Any]:
+        eligible_bins = [
+            bin_
+            for bin_ in report.bins
+            if bin_.count > 0 and bin_.empirical_accuracy >= target_min_accuracy
+        ]
         if not eligible_bins:
             return {
                 "status": "no_threshold_suggested",

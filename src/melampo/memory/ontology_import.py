@@ -90,10 +90,14 @@ class Annotation:
 
     @property
     def is_excluded(self) -> bool:
-        return self.qualifier.upper() == NOT_QUALIFIER or self.frequency == EXCLUDED_TERM
+        return (
+            self.qualifier.upper() == NOT_QUALIFIER or self.frequency == EXCLUDED_TERM
+        )
 
 
-def wilson_interval(positive: int, total: int, z: float = WILSON_Z) -> tuple[float, float]:
+def wilson_interval(
+    positive: int, total: int, z: float = WILSON_Z
+) -> tuple[float, float]:
     """Score interval for a proportion, with no external dependency.
 
     Chosen over the plain proportion because the plain proportion discards the
@@ -187,16 +191,28 @@ def annotation_to_edge(
     if not source or not target:
         return None
 
-    provenance = f"hpoa:{annotation.disease_id}:{annotation.reference or 'unreferenced'}"
+    provenance = (
+        f"hpoa:{annotation.disease_id}:{annotation.reference or 'unreferenced'}"
+    )
 
     if annotation.is_excluded:
-        return ConceptEdge(source, RELATION_HAS_PHENOTYPE, target, weight=0.0, provenance=provenance, lower=0.0, upper=0.0)
+        return ConceptEdge(
+            source,
+            RELATION_HAS_PHENOTYPE,
+            target,
+            weight=0.0,
+            provenance=provenance,
+            lower=0.0,
+            upper=0.0,
+        )
 
     bounds = parse_frequency(annotation.frequency)
     if bounds is None:
         if not unstated_frequency_is_gap:
             return None
-        return ConceptEdge.unknown(source, RELATION_HAS_PHENOTYPE, target, provenance=provenance)
+        return ConceptEdge.unknown(
+            source, RELATION_HAS_PHENOTYPE, target, provenance=provenance
+        )
 
     lower, upper = bounds
     return ConceptEdge(
@@ -219,7 +235,9 @@ def build_edges(
     edges: list[ConceptEdge] = []
     for annotation in annotations:
         edge = annotation_to_edge(
-            annotation, label_for=label_for, unstated_frequency_is_gap=unstated_frequency_is_gap
+            annotation,
+            label_for=label_for,
+            unstated_frequency_is_gap=unstated_frequency_is_gap,
         )
         if edge is not None:
             edges.append(edge)
@@ -235,7 +253,9 @@ def build_graph(
     """Read HPOA content into a traversable concept graph."""
     return InMemoryConceptGraph.from_edges(
         build_edges(
-            parse_hpoa(lines), label_for=label_for, unstated_frequency_is_gap=unstated_frequency_is_gap
+            parse_hpoa(lines),
+            label_for=label_for,
+            unstated_frequency_is_gap=unstated_frequency_is_gap,
         )
     )
 

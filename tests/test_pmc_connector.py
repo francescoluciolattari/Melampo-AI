@@ -40,11 +40,19 @@ PRESENTATION = (
 )
 
 
-def _xml(title="Case report", license_url="https://creativecommons.org/licenses/by/4.0/",
-         license_text="CC BY", presentation=PRESENTATION, diagnosis="cardiac amyloidosis"):
+def _xml(
+    title="Case report",
+    license_url="https://creativecommons.org/licenses/by/4.0/",
+    license_text="CC BY",
+    presentation=PRESENTATION,
+    diagnosis="cardiac amyloidosis",
+):
     return CASE_XML_TEMPLATE.format(
-        title=title, license_url=license_url, license_text=license_text,
-        presentation=presentation, diagnosis=diagnosis,
+        title=title,
+        license_url=license_url,
+        license_text=license_text,
+        presentation=presentation,
+        diagnosis=diagnosis,
     )
 
 
@@ -84,7 +92,10 @@ def test_an_article_under_the_wrong_license_is_skipped_not_kept():
     config = FetchConfig(email="ops@example.org", license_group=LICENSE_COMMERCIAL)
 
     def transport(url, params):
-        return _xml(license_url="https://creativecommons.org/licenses/by-nc/4.0/", license_text="CC BY-NC")
+        return _xml(
+            license_url="https://creativecommons.org/licenses/by-nc/4.0/",
+            license_text="CC BY-NC",
+        )
 
     fetcher = PmcCaseReportFetcher(config=config, transport=transport)
     fetcher.fetch_articles(["PMC1"])
@@ -107,7 +118,9 @@ def test_license_is_read_per_article_not_assumed_from_the_search_filter():
     config = FetchConfig(email="ops@example.org", license_group=LICENSE_NONCOMMERCIAL)
     fetcher = PmcCaseReportFetcher(
         config=config,
-        transport=lambda url, params: _xml(license_url="https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+        transport=lambda url, params: _xml(
+            license_url="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+        ),
     )
     fetcher.fetch_articles(["PMC1"])
     assert fetcher.fetched[0].license_group == LICENSE_NONCOMMERCIAL
@@ -119,24 +132,30 @@ def test_license_is_read_per_article_not_assumed_from_the_search_filter():
 
 
 def test_cc_by_is_read_as_commercial():
-    article = _parse_article_xml("PMC1", _xml(license_url="https://creativecommons.org/licenses/by/4.0/"))
+    article = _parse_article_xml(
+        "PMC1", _xml(license_url="https://creativecommons.org/licenses/by/4.0/")
+    )
     assert article.license_group == LICENSE_COMMERCIAL
 
 
 def test_cc_by_nc_is_read_as_noncommercial():
-    article = _parse_article_xml("PMC1", _xml(license_url="https://creativecommons.org/licenses/by-nc/4.0/"))
+    article = _parse_article_xml(
+        "PMC1", _xml(license_url="https://creativecommons.org/licenses/by-nc/4.0/")
+    )
     assert article.license_group == LICENSE_NONCOMMERCIAL
 
 
 def test_no_license_element_is_read_as_other():
     xml = CASE_XML_TEMPLATE.replace(
-        '''<permissions>
+        """<permissions>
         <license xlink:href="{license_url}" xmlns:xlink="http://www.w3.org/1999/xlink">
           <license-p>{license_text}</license-p>
         </license>
-      </permissions>''',
+      </permissions>""",
         "",
-    ).format(title="Case report", presentation=PRESENTATION, diagnosis="cardiac amyloidosis")
+    ).format(
+        title="Case report", presentation=PRESENTATION, diagnosis="cardiac amyloidosis"
+    )
     article = _parse_article_xml("PMC1", xml)
     assert article.license_group == LICENSE_OTHER
 
@@ -177,21 +196,29 @@ def test_leaked_presentations_are_rejected_by_the_same_rule_as_any_other_source(
     config = FetchConfig(email="ops@example.org")
     leaking_presentation = PRESENTATION + " This is a case of cardiac amyloidosis."
     fetcher = PmcCaseReportFetcher(
-        config=config, transport=lambda url, params: _xml(presentation=leaking_presentation)
+        config=config,
+        transport=lambda url, params: _xml(presentation=leaking_presentation),
     )
     fetcher.fetch_articles(["PMC1"])
     report = fetcher.to_evaluation_cases()
     assert report.cases == []
-    assert any(reason == "presentation_contains_the_diagnosis" for _, reason in report.rejected)
+    assert any(
+        reason == "presentation_contains_the_diagnosis" for _, reason in report.rejected
+    )
 
 
 def test_a_diagnosis_prefix_is_stripped():
-    assert _extract_diagnosis("Final diagnosis: cardiac amyloidosis. Further details.") == "cardiac amyloidosis"
+    assert (
+        _extract_diagnosis("Final diagnosis: cardiac amyloidosis. Further details.")
+        == "cardiac amyloidosis"
+    )
 
 
 def test_no_diagnosis_section_is_skipped_with_a_reason():
     config = FetchConfig(email="ops@example.org")
-    xml = _xml().replace("Final diagnosis: cardiac amyloidosis. The patient was treated accordingly.", "")
+    xml = _xml().replace(
+        "Final diagnosis: cardiac amyloidosis. The patient was treated accordingly.", ""
+    )
     fetcher = PmcCaseReportFetcher(config=config, transport=lambda url, params: xml)
     fetcher.fetch_articles(["PMC1"])
     fetcher.to_evaluation_cases()
@@ -215,7 +242,9 @@ def test_the_report_summarises_fetched_and_skipped():
     config = FetchConfig(email="ops@example.org", license_group=LICENSE_COMMERCIAL)
     fetcher = PmcCaseReportFetcher(
         config=config,
-        transport=lambda url, params: _xml(license_url="https://creativecommons.org/licenses/by-nc/4.0/"),
+        transport=lambda url, params: _xml(
+            license_url="https://creativecommons.org/licenses/by-nc/4.0/"
+        ),
     )
     fetcher.fetch_articles(["PMC1"])
     summary = fetcher.report()
@@ -235,7 +264,9 @@ def test_the_limiter_enforces_the_minimum_interval():
     for _ in range(3):
         limiter.wait()
     elapsed = time.monotonic() - start
-    assert elapsed >= 0.2 - 0.02  # two intervals of 0.1s, small tolerance for scheduling
+    assert (
+        elapsed >= 0.2 - 0.02
+    )  # two intervals of 0.1s, small tolerance for scheduling
 
 
 def test_a_zero_rate_never_blocks():
@@ -285,7 +316,10 @@ def test_from_environment_reads_the_key_from_the_expected_variable(monkeypatch):
     monkeypatch.setenv("NCBI_API_KEY", "test-key-value")
     config = FetchConfig.from_environment()
     assert config.api_key == "test-key-value"
-    assert config.requests_per_second == pytest.approx(10.0) or config.requests_per_second > 0
+    assert (
+        config.requests_per_second == pytest.approx(10.0)
+        or config.requests_per_second > 0
+    )
 
 
 def test_from_environment_uses_the_project_contact_email_by_default(monkeypatch):
@@ -331,4 +365,6 @@ def test_no_literal_looking_ncbi_key_is_committed_in_this_module():
     # Real NCBI keys are 36-character hex strings. Flag anything that shape
     # appearing next to "api_key" or "NCBI_API_KEY" outside the env var name itself.
     suspicious = re.findall(r"[0-9a-f]{32,40}", source)
-    assert suspicious == [], f"a literal key-shaped string was found in source: {suspicious}"
+    assert suspicious == [], (
+        f"a literal key-shaped string was found in source: {suspicious}"
+    )

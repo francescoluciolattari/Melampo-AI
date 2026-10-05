@@ -102,7 +102,11 @@ class FetchConfig:
 
     @property
     def requests_per_second(self) -> float:
-        return REQUESTS_PER_SECOND_WITH_KEY if self.api_key else REQUESTS_PER_SECOND_WITHOUT_KEY
+        return (
+            REQUESTS_PER_SECOND_WITH_KEY
+            if self.api_key
+            else REQUESTS_PER_SECOND_WITHOUT_KEY
+        )
 
     @classmethod
     def from_environment(
@@ -196,7 +200,9 @@ class PmcCaseReportFetcher:
         never has to be discarded after being fetched.
         """
         terms = list(query_terms) or ["case report"]
-        query = " AND ".join([*terms, "case reports[Publication Type]", "open access[filter]"])
+        query = " AND ".join(
+            [*terms, "case reports[Publication Type]", "open access[filter]"]
+        )
         params = {
             "db": "pmc",
             "term": query,
@@ -230,14 +236,14 @@ class PmcCaseReportFetcher:
             if article is None:
                 continue
             if article.license_group != self.config.license_group:
-                self.skipped.append((pmcid, f"license_mismatch:{article.license_group}"))
+                self.skipped.append(
+                    (pmcid, f"license_mismatch:{article.license_group}")
+                )
                 continue
             self.fetched.append(article)
         return self.fetched
 
-    def to_evaluation_cases(
-        self, diagnosis_headings: Sequence[str] = ()
-    ) -> LoadReport:
+    def to_evaluation_cases(self, diagnosis_headings: Sequence[str] = ()) -> LoadReport:
         """Split each fetched article and load it through the shared corpus discipline.
 
         Reuses ``case_corpus.load_records``, so a leaked diagnosis or a too-short
@@ -249,7 +255,9 @@ class PmcCaseReportFetcher:
 
         records = []
         for article in self.fetched:
-            presentation, revealed = split_presentation(article.full_text, diagnosis_headings)
+            presentation, revealed = split_presentation(
+                article.full_text, diagnosis_headings
+            )
             diagnosis = _extract_diagnosis(revealed)
             if not diagnosis:
                 self.skipped.append((article.pmcid, "no_diagnosis_section_found"))
@@ -296,7 +304,9 @@ class PmcCaseReportFetcher:
     def _get_text(self, url: str, params: dict[str, str]) -> str:
         if self.transport is not None:
             return self.transport(url, params)
-        request = Request(f"{url}?{urlencode(params)}", headers={"User-Agent": self.config.tool})
+        request = Request(
+            f"{url}?{urlencode(params)}", headers={"User-Agent": self.config.tool}
+        )
         with urlopen(request, timeout=30) as response:
             return response.read().decode("utf-8", errors="replace")
 
@@ -309,7 +319,9 @@ def _parse_article_xml(pmcid: str, xml_text: str) -> FetchedArticle | None:
         return None
 
     title_element = root.find(".//article-title")
-    title = "".join(title_element.itertext()).strip() if title_element is not None else ""
+    title = (
+        "".join(title_element.itertext()).strip() if title_element is not None else ""
+    )
 
     body_element = root.find(".//body")
     full_text = "\n\n".join(
@@ -321,7 +333,11 @@ def _parse_article_xml(pmcid: str, xml_text: str) -> FetchedArticle | None:
 
     license_group, license_url = _extract_license(root)
     return FetchedArticle(
-        pmcid=pmcid, title=title, full_text=full_text, license_group=license_group, license_url=license_url
+        pmcid=pmcid,
+        title=title,
+        full_text=full_text,
+        license_group=license_group,
+        license_url=license_url,
     )
 
 
@@ -333,14 +349,25 @@ def _extract_license(root: ET.Element) -> tuple[str, str | None]:
     per-article record is the authoritative statement of terms.
     """
     license_element = root.find(".//license")
-    url = license_element.get("{http://www.w3.org/1999/xlink}href") if license_element is not None else None
-    text = "".join(license_element.itertext()).lower() if license_element is not None else ""
+    url = (
+        license_element.get("{http://www.w3.org/1999/xlink}href")
+        if license_element is not None
+        else None
+    )
+    text = (
+        "".join(license_element.itertext()).lower()
+        if license_element is not None
+        else ""
+    )
 
     if url:
         lowered_url = url.lower()
         if "by-nc" in lowered_url:
             return LICENSE_NONCOMMERCIAL, url
-        if any(marker in lowered_url for marker in ("/by/", "/by-sa/", "/by-nd/", "publicdomain", "zero")):
+        if any(
+            marker in lowered_url
+            for marker in ("/by/", "/by-sa/", "/by-nd/", "publicdomain", "zero")
+        ):
             return LICENSE_COMMERCIAL, url
 
     if "non-commercial" in text or "noncommercial" in text or "nc-" in text:

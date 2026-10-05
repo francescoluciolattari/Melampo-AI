@@ -18,7 +18,9 @@ from .self_evolution import NexusSelfEvolutionLoop
 
 def _job_id(case_context: dict[str, Any], scheduled_at: float) -> str:
     case_id = str(case_context.get("case_id", "unknown_case"))
-    digest = hashlib.sha256(f"job:{case_id}:{json.dumps(case_context, sort_keys=True, default=str)}:{scheduled_at}".encode()).hexdigest()
+    digest = hashlib.sha256(
+        f"job:{case_id}:{json.dumps(case_context, sort_keys=True, default=str)}:{scheduled_at}".encode()
+    ).hexdigest()
     return f"nexus_job:{case_id}:{digest[:12]}"
 
 
@@ -32,7 +34,10 @@ class LowActivityPolicy:
         activity = activity or {}
         active_requests = int(activity.get("active_requests", 0) or 0)
         idle_seconds = float(activity.get("idle_seconds", 0.0) or 0.0)
-        allowed = active_requests <= self.max_active_requests and idle_seconds >= self.min_idle_seconds
+        allowed = (
+            active_requests <= self.max_active_requests
+            and idle_seconds >= self.min_idle_seconds
+        )
         reasons = []
         if active_requests > self.max_active_requests:
             reasons.append("active_requests_above_low_activity_threshold")
@@ -41,7 +46,10 @@ class LowActivityPolicy:
         return {
             "allowed": allowed,
             "reasons": reasons,
-            "observed": {"active_requests": active_requests, "idle_seconds": idle_seconds},
+            "observed": {
+                "active_requests": active_requests,
+                "idle_seconds": idle_seconds,
+            },
             "thresholds": {
                 "max_active_requests": self.max_active_requests,
                 "min_idle_seconds": self.min_idle_seconds,
@@ -79,16 +87,24 @@ class NexusScheduler:
     """Synchronous low-activity nexus replay scheduler with promotion guardrails."""
 
     candidate_store: NexusCandidateStore = field(default_factory=NexusCandidateStore)
-    vector_store: InMemoryVectorStore = field(default_factory=InMemoryVectorStore.enterprise_default)
-    self_evolution_loop: NexusSelfEvolutionLoop = field(default_factory=NexusSelfEvolutionLoop)
-    validator: RationalControlValidator = field(default_factory=RationalControlValidator)
+    vector_store: InMemoryVectorStore = field(
+        default_factory=InMemoryVectorStore.enterprise_default
+    )
+    self_evolution_loop: NexusSelfEvolutionLoop = field(
+        default_factory=NexusSelfEvolutionLoop
+    )
+    validator: RationalControlValidator = field(
+        default_factory=RationalControlValidator
+    )
     promotion_policy: PromotionPolicy = field(default_factory=PromotionPolicy)
     low_activity_policy: LowActivityPolicy = field(default_factory=LowActivityPolicy)
     queue: list[NexusReplayJob] = field(default_factory=list)
     execution_log: list[dict[str, Any]] = field(default_factory=list)
     password: str | None = None
     path: Any = None
-    _encrypted_store: EncryptedJsonlStore | None = field(default=None, repr=False, compare=False)
+    _encrypted_store: EncryptedJsonlStore | None = field(
+        default=None, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         """Optional persistence for the queue itself -- the gap found running the real trigger script for the first time.
@@ -108,7 +124,9 @@ class NexusScheduler:
         """
         if self.password is None or self.path is None:
             return
-        self._encrypted_store = EncryptedJsonlStore(path=self.path, password=self.password)
+        self._encrypted_store = EncryptedJsonlStore(
+            path=self.path, password=self.password
+        )
         self._load_queue_from_disk()
 
     def _load_queue_from_disk(self) -> None:
@@ -153,7 +171,9 @@ class NexusScheduler:
             scheduled_at=scheduled_at,
         )
         self.queue.append(job)
-        self.execution_log.append({"event": "job_enqueued", "job_id": job.job_id, "timestamp": scheduled_at})
+        self.execution_log.append(
+            {"event": "job_enqueued", "job_id": job.job_id, "timestamp": scheduled_at}
+        )
         self._persist_job(job)
         return job
 
@@ -185,7 +205,9 @@ class NexusScheduler:
         # (self.password is None) stores no identifiers, since hashing
         # without a real secret would offer no protection worth having.
         patient_identifiers = (
-            PatientIdentifiers.from_payload(job.case_context, self.password).as_dict() if self.password else None
+            PatientIdentifiers.from_payload(job.case_context, self.password).as_dict()
+            if self.password
+            else None
         )
         # candidate_score now comes from generate_candidate()'s own
         # metadata (consolidated there from NexusTrainer's former
@@ -193,7 +215,9 @@ class NexusScheduler:
         # used) -- auto_evolution_plan itself is no longer read here.
         candidate_payload = {
             **candidate_payload,
-            "case_id": job.case_context.get("case_id", metadata.get("case_id", "unknown_case")),
+            "case_id": job.case_context.get(
+                "case_id", metadata.get("case_id", "unknown_case")
+            ),
             # Preserved raw, not just folded into generate_candidate()'s
             # composed text field -- pending_case_router.py's merge needs
             # the report_text on its own to build the next update, and the
@@ -208,8 +232,13 @@ class NexusScheduler:
             "metadata": {
                 **metadata,
                 "risk": job.governance_scores.get("risk", metadata.get("risk", 0.0)),
-                "retrieval_coverage": job.governance_scores.get("retrieval_coverage", job.retrieval_context.get("retrieval_coverage", 0.0)),
-                "provenance_quality": job.governance_scores.get("provenance_quality", metadata.get("provenance_quality", 0.0)),
+                "retrieval_coverage": job.governance_scores.get(
+                    "retrieval_coverage",
+                    job.retrieval_context.get("retrieval_coverage", 0.0),
+                ),
+                "provenance_quality": job.governance_scores.get(
+                    "provenance_quality", metadata.get("provenance_quality", 0.0)
+                ),
                 "source": "nexus_scheduler",
             },
         }
@@ -225,9 +254,15 @@ class NexusScheduler:
             retrieval_context=job.retrieval_context,
             governance_scores=job.governance_scores,
         )
-        record_payload = self.candidate_store.attach_validation(record.candidate_id, validation)
-        decision = self.promotion_policy.decide(candidate=record_payload, validation=validation)
-        record_payload = self.candidate_store.attach_promotion_decision(record.candidate_id, decision)
+        record_payload = self.candidate_store.attach_validation(
+            record.candidate_id, validation
+        )
+        decision = self.promotion_policy.decide(
+            candidate=record_payload, validation=validation
+        )
+        record_payload = self.candidate_store.attach_promotion_decision(
+            record.candidate_id, decision
+        )
         memory_doc = self.candidate_store.get(record.candidate_id).to_memory_document()
         memory_record = self.vector_store.upsert(
             text=memory_doc["text"],
@@ -245,17 +280,28 @@ class NexusScheduler:
             "promotion_decision": decision,
             "memory_record": memory_record.describe(),
         }
-        self.execution_log.append({"event": "job_completed", "job_id": job.job_id, "candidate_id": record.candidate_id, "timestamp": time.time()})
+        self.execution_log.append(
+            {
+                "event": "job_completed",
+                "job_id": job.job_id,
+                "candidate_id": record.candidate_id,
+                "timestamp": time.time(),
+            }
+        )
         return result
 
-    def run_once(self, activity: dict[str, Any] | None = None, max_jobs: int | None = None) -> dict[str, Any]:
+    def run_once(
+        self, activity: dict[str, Any] | None = None, max_jobs: int | None = None
+    ) -> dict[str, Any]:
         permission = self.low_activity_policy.should_run(activity=activity)
         if not permission["allowed"]:
             return {
                 "status": "skipped",
                 "reason": permission["reasons"],
                 "low_activity": permission,
-                "queued_jobs": len([job for job in self.queue if job.status == "queued"]),
+                "queued_jobs": len(
+                    [job for job in self.queue if job.status == "queued"]
+                ),
                 "results": [],
             }
         limit = max_jobs or self.low_activity_policy.max_jobs_per_window
@@ -265,7 +311,9 @@ class NexusScheduler:
             "status": "completed",
             "low_activity": permission,
             "processed_jobs": len(results),
-            "queued_jobs_remaining": len([job for job in self.queue if job.status == "queued"]),
+            "queued_jobs_remaining": len(
+                [job for job in self.queue if job.status == "queued"]
+            ),
             "results": results,
             "candidate_store": {"record_count": len(self.candidate_store.records)},
             "vector_memory": self.vector_store.describe(),

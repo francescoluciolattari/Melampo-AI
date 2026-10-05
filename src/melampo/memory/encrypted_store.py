@@ -44,7 +44,9 @@ KDF_ITERATIONS = 600_000  # OWASP's 2023 minimum recommendation for PBKDF2-HMAC-
 
 
 def _derive_key(password: str, salt: bytes) -> bytes:
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=KDF_ITERATIONS)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(), length=32, salt=salt, iterations=KDF_ITERATIONS
+    )
     return base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
 
 
@@ -82,7 +84,9 @@ class EncryptedJsonlStore:
 
     def append(self, record: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        ciphertext = self._fernet.encrypt(json.dumps(record, ensure_ascii=False).encode("utf-8"))
+        ciphertext = self._fernet.encrypt(
+            json.dumps(record, ensure_ascii=False).encode("utf-8")
+        )
         with self.path.open("ab") as handle:
             handle.write(ciphertext + b"\n")
 
@@ -92,7 +96,9 @@ class EncryptedJsonlStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("ab") as handle:
             for record in records:
-                ciphertext = self._fernet.encrypt(json.dumps(record, ensure_ascii=False).encode("utf-8"))
+                ciphertext = self._fernet.encrypt(
+                    json.dumps(record, ensure_ascii=False).encode("utf-8")
+                )
                 handle.write(ciphertext + b"\n")
         return len(records)
 
@@ -108,7 +114,9 @@ class EncryptedJsonlStore:
         """
         if not self.path.exists():
             return
-        for line_number, line in enumerate(self.path.read_bytes().splitlines(), start=1):
+        for line_number, line in enumerate(
+            self.path.read_bytes().splitlines(), start=1
+        ):
             if not line.strip():
                 continue
             try:

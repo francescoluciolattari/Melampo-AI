@@ -92,9 +92,15 @@ def index():
 
 def test_only_equivalent_xrefs_are_kept(index):
     influenza = index.diseases["MONDO:0005812"]
-    assert set(influenza.equivalent_xrefs) == {"DOID:8469", "NCIT:C53482", "UMLS:C0021400"}
+    assert set(influenza.equivalent_xrefs) == {
+        "DOID:8469",
+        "NCIT:C53482",
+        "UMLS:C0021400",
+    }
     assert index.mondo_for("OMIM:614680") == set()  # obsoleteEquivalent is not followed
-    assert index.mondo_for("ICD9:487") == set()  # a provenance pointer is not an equivalence
+    assert (
+        index.mondo_for("ICD9:487") == set()
+    )  # a provenance pointer is not an equivalence
 
 
 def test_exact_synonyms_only(index):
@@ -121,12 +127,16 @@ def test_xrefs_of_by_prefix(index):
 
 
 def test_an_id_claimed_by_two_mondo_diseases_is_not_assigned(index):
-    link = SymptomLink("hpo", "OMIM:100100", "x", "HP:1", "", RELATION_HAS_FINDING, TIER_CURATED)
+    link = SymptomLink(
+        "hpo", "OMIM:100100", "x", "HP:1", "", RELATION_HAS_FINDING, TIER_CURATED
+    )
     assert assign_mondo([link], index)[0].mondo_id == ""
 
 
 def test_an_unambiguous_id_is_assigned(index):
-    link = SymptomLink(SOURCE_DO, "DOID:8469", "influenza", "SYMP:1", "fever", RELATION_HAS_FINDING, 2)
+    link = SymptomLink(
+        SOURCE_DO, "DOID:8469", "influenza", "SYMP:1", "fever", RELATION_HAS_FINDING, 2
+    )
     assert assign_mondo([link], index)[0].mondo_id == "MONDO:0005812"
 
 
@@ -136,11 +146,15 @@ def test_an_unambiguous_id_is_assigned(index):
 
 
 def _annotation(aspect="P", qualifier="", frequency=""):
-    return Annotation("OMIM:100100", "x", "HP:0001945", frequency, qualifier, "PMID:1", aspect)
+    return Annotation(
+        "OMIM:100100", "x", "HP:0001945", frequency, qualifier, "PMID:1", aspect
+    )
 
 
 def test_hpoa_keeps_phenotypic_abnormality_rows_only():
-    links = list(links_from_hpoa([_annotation("P"), _annotation("I"), _annotation("C")]))
+    links = list(
+        links_from_hpoa([_annotation("P"), _annotation("I"), _annotation("C")])
+    )
     assert len(links) == 1
     assert links[0].hpo_id == "HP:0001945"
     assert links[0].mapping == MAPPING_SOURCE
@@ -190,7 +204,9 @@ DOID_OWL = b"""<?xml version="1.0"?>
 def test_parse_doid_owl_reads_has_symptom_axioms_only():
     classes = {cls.doid: cls for cls in parse_doid_owl(io.BytesIO(DOID_OWL))}
     assert set(classes) == {"DOID:8469", "DOID:1"}
-    assert classes["DOID:8469"].symptom_ids == ("SYMP:0000613",)  # the located_in restriction is ignored
+    assert classes["DOID:8469"].symptom_ids == (
+        "SYMP:0000613",
+    )  # the located_in restriction is ignored
     assert classes["DOID:1"].deprecated
 
 
@@ -199,7 +215,9 @@ def test_doid_links_axioms_at_tier_2_and_new_text_symptoms_at_tier_4():
     links = list(links_from_doid(classes, {"SYMP:0000613": "fever"}))
     axiom = [link for link in links if link.source == SOURCE_DO]
     text = [link for link in links if link.source == SOURCE_DO_TEXT]
-    assert [(link.symptom_label, link.tier) for link in axiom] == [("fever", TIER_CURATED_POSSIBLE)]
+    assert [(link.symptom_label, link.tier) for link in axiom] == [
+        ("fever", TIER_CURATED_POSSIBLE)
+    ]
     # "fever" is already an axiom, so the text copy is not repeated
     assert [link.symptom_label for link in text] == ["dry cough", "muscle aches"]
     assert all(link.tier == TIER_COMMUNITY_UNREFERENCED for link in text)
@@ -212,11 +230,20 @@ def test_symptoms_in_a_real_disease_ontology_definition():
         "Chikungunya virus, which is transmitted_by Aedes mosquito bite. The infection has_symptom fever, "
         "has_symptom arthralgia, and has_symptom maculopapular rash."
     )
-    assert symptoms_in_definition(definition) == ["fever", "arthralgia", "maculopapular rash"]
+    assert symptoms_in_definition(definition) == [
+        "fever",
+        "arthralgia",
+        "maculopapular rash",
+    ]
 
 
 def test_a_definition_without_has_symptom_yields_nothing():
-    assert symptoms_in_definition("A disease that results_in inflammation located_in liver.") == []
+    assert (
+        symptoms_in_definition(
+            "A disease that results_in inflammation located_in liver."
+        )
+        == []
+    )
 
 
 # --------------------------------------------------------------------------
@@ -234,29 +261,53 @@ def _row(label, code="C3038", name="Fever", source="NCI"):
 
 
 def test_orientation_is_inferred_from_the_dominant_label_family():
-    forward = label_counts([_row("disease_has_finding")] * 30 + [_row("is_finding_of_disease")] * 3)
-    inverse = label_counts([_row("is_finding_of_disease")] * 30 + [_row("disease_has_finding")] * 3)
+    forward = label_counts(
+        [_row("disease_has_finding")] * 30 + [_row("is_finding_of_disease")] * 3
+    )
+    inverse = label_counts(
+        [_row("is_finding_of_disease")] * 30 + [_row("disease_has_finding")] * 3
+    )
     assert infer_orientation(forward) == ORIENTATION_QUERIED_IS_SUBJECT
     assert infer_orientation(inverse) == ORIENTATION_RELATED_IS_SUBJECT
 
 
 def test_orientation_is_undetermined_on_thin_or_tied_evidence():
-    assert infer_orientation(label_counts([_row("disease_has_finding")] * 5)) == ORIENTATION_UNDETERMINED
-    tied = label_counts([_row("disease_has_finding")] * 15 + [_row("is_finding_of_disease")] * 15)
+    assert (
+        infer_orientation(label_counts([_row("disease_has_finding")] * 5))
+        == ORIENTATION_UNDETERMINED
+    )
+    tied = label_counts(
+        [_row("disease_has_finding")] * 15 + [_row("is_finding_of_disease")] * 15
+    )
     assert infer_orientation(tied) == ORIENTATION_UNDETERMINED
 
 
 def test_label_counts_ignores_unrelated_labels():
-    assert label_counts([_row("disease_has_finding"), _row("has_associated_site")]) == {"disease_has_finding": 1}
+    assert label_counts([_row("disease_has_finding"), _row("has_associated_site")]) == {
+        "disease_has_finding": 1
+    }
 
 
 def test_ncit_links_follow_the_orientation():
-    rows = [_row("disease_has_finding"), _row("is_finding_of_disease", code="C2", name="Some disease")]
+    rows = [
+        _row("disease_has_finding"),
+        _row("is_finding_of_disease", code="C2", name="Some disease"),
+    ]
     forward = list(
-        links_from_ncit_relations(rows, queried_code="C53482", disease_label="Influenza", orientation=ORIENTATION_QUERIED_IS_SUBJECT)
+        links_from_ncit_relations(
+            rows,
+            queried_code="C53482",
+            disease_label="Influenza",
+            orientation=ORIENTATION_QUERIED_IS_SUBJECT,
+        )
     )
     inverse = list(
-        links_from_ncit_relations(rows, queried_code="C53482", disease_label="Influenza", orientation=ORIENTATION_RELATED_IS_SUBJECT)
+        links_from_ncit_relations(
+            rows,
+            queried_code="C53482",
+            disease_label="Influenza",
+            orientation=ORIENTATION_RELATED_IS_SUBJECT,
+        )
     )
     assert [link.symptom_id for link in forward] == ["NCIT:C3038"]
     assert [link.symptom_id for link in inverse] == ["NCIT:C2"]
@@ -264,7 +315,17 @@ def test_ncit_links_follow_the_orientation():
 
 def test_ncit_undetermined_orientation_produces_no_links():
     rows = [_row("disease_has_finding")]
-    assert list(links_from_ncit_relations(rows, queried_code="C1", disease_label="x", orientation=ORIENTATION_UNDETERMINED)) == []
+    assert (
+        list(
+            links_from_ncit_relations(
+                rows,
+                queried_code="C1",
+                disease_label="x",
+                orientation=ORIENTATION_UNDETERMINED,
+            )
+        )
+        == []
+    )
 
 
 def test_ncit_relation_kinds_and_tiers():
@@ -276,22 +337,50 @@ def test_ncit_relation_kinds_and_tiers():
     links = {
         link.symptom_id: link
         for link in links_from_ncit_relations(
-            rows, queried_code="C9", disease_label="x", orientation=ORIENTATION_QUERIED_IS_SUBJECT, mondo_id="MONDO:1"
+            rows,
+            queried_code="C9",
+            disease_label="x",
+            orientation=ORIENTATION_QUERIED_IS_SUBJECT,
+            mondo_id="MONDO:1",
         )
     }
-    assert links["NCIT:C1"].relation == RELATION_HAS_FINDING and links["NCIT:C1"].tier == TIER_CURATED
-    assert links["NCIT:C2"].relation == RELATION_MAY_HAVE_FINDING and links["NCIT:C2"].tier == TIER_CURATED_POSSIBLE
+    assert (
+        links["NCIT:C1"].relation == RELATION_HAS_FINDING
+        and links["NCIT:C1"].tier == TIER_CURATED
+    )
+    assert (
+        links["NCIT:C2"].relation == RELATION_MAY_HAVE_FINDING
+        and links["NCIT:C2"].tier == TIER_CURATED_POSSIBLE
+    )
     assert links["NCIT:C3"].is_exclusion
-    assert all(link.source == SOURCE_NCIT and link.mondo_id == "MONDO:1" for link in links.values())
+    assert all(
+        link.source == SOURCE_NCIT and link.mondo_id == "MONDO:1"
+        for link in links.values()
+    )
 
 
 def test_rows_from_another_source_are_ignored():
     rows = [_row("disease_has_finding", source="MTH")]
-    assert list(links_from_ncit_relations(rows, queried_code="C1", disease_label="x", orientation=ORIENTATION_QUERIED_IS_SUBJECT)) == []
+    assert (
+        list(
+            links_from_ncit_relations(
+                rows,
+                queried_code="C1",
+                disease_label="x",
+                orientation=ORIENTATION_QUERIED_IS_SUBJECT,
+            )
+        )
+        == []
+    )
 
 
 def test_code_from_uts_url():
-    assert code_from_uts_url("https://uts-ws.nlm.nih.gov/rest/content/2026AA/source/NCI/C3038") == "C3038"
+    assert (
+        code_from_uts_url(
+            "https://uts-ws.nlm.nih.gov/rest/content/2026AA/source/NCI/C3038"
+        )
+        == "C3038"
+    )
     assert code_from_uts_url("") == ""
 
 
@@ -327,11 +416,19 @@ def test_wikidata_referenced_statement_is_tier_3_and_unreferenced_tier_4():
 
 def test_wikidata_mondo_value_without_prefix_is_normalised():
     assert next(links_from_wikidata([_wd(mondo="0005812")])).mondo_id == "MONDO:0005812"
-    assert next(links_from_wikidata([_wd(mondo="MONDO:0005812")])).mondo_id == "MONDO:0005812"
+    assert (
+        next(links_from_wikidata([_wd(mondo="MONDO:0005812")])).mondo_id
+        == "MONDO:0005812"
+    )
 
 
 def test_wikidata_doid_key_is_mapped_to_mondo():
-    link = next(links_from_wikidata([_wd(mondo="", doid="DOID:8469")], mondo_for_doid={"DOID:8469": "MONDO:0005812"}))
+    link = next(
+        links_from_wikidata(
+            [_wd(mondo="", doid="DOID:8469")],
+            mondo_for_doid={"DOID:8469": "MONDO:0005812"},
+        )
+    )
     assert link.mondo_id == "MONDO:0005812"
 
 
@@ -392,7 +489,16 @@ def test_hpo_xref_map_drops_ids_claimed_twice(hpo_terms):
 
 
 def _link(symptom_id="", label="", hpo_id=""):
-    return SymptomLink(SOURCE_NCIT, "NCIT:C1", "x", symptom_id, label, RELATION_HAS_FINDING, 1, hpo_id=hpo_id)
+    return SymptomLink(
+        SOURCE_NCIT,
+        "NCIT:C1",
+        "x",
+        symptom_id,
+        label,
+        RELATION_HAS_FINDING,
+        1,
+        hpo_id=hpo_id,
+    )
 
 
 def test_normalisation_prefers_source_then_xref_then_label(hpo_terms):

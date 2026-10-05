@@ -59,8 +59,13 @@ def test_a_laboratory_report_passes_redaction_unchanged(processor):
         "312 250 198",
     ],
 )
-def test_ranges_and_value_series_are_never_taken_for_phone_numbers(processor, value_text):
-    assert processor.redact_text(f"Valore {value_text} fine")[0] == f"Valore {value_text} fine"
+def test_ranges_and_value_series_are_never_taken_for_phone_numbers(
+    processor, value_text
+):
+    assert (
+        processor.redact_text(f"Valore {value_text} fine")[0]
+        == f"Valore {value_text} fine"
+    )
 
 
 @pytest.mark.parametrize(
@@ -88,12 +93,16 @@ def test_italian_phone_numbers_are_still_redacted(processor, phone):
 
 
 @pytest.mark.parametrize("prefix", ["Tel.", "Tel:", "Telefono", "Cell.", "Fax"])
-def test_a_number_after_an_explicit_phone_word_is_redacted_even_without_a_0_or_3_prefix(processor, prefix):
+def test_a_number_after_an_explicit_phone_word_is_redacted_even_without_a_0_or_3_prefix(
+    processor, prefix
+):
     redacted, _ = processor.redact_text(f"{prefix} 800 123456")
     assert redacted == f"{prefix} [REDACTED_PHONE]"
 
 
-@pytest.mark.parametrize("date", ["12/09/2026", "12.09.2026", "03.10.2026", "12-09-2026"])
+@pytest.mark.parametrize(
+    "date", ["12/09/2026", "12.09.2026", "03.10.2026", "12-09-2026"]
+)
 def test_dates_are_redacted_as_dates_with_any_single_separator(processor, date):
     redacted, kinds = processor.redact_text(f"Data prelievo: {date}")
     assert redacted == "Data prelievo: [REDACTED_DATE]"
@@ -107,16 +116,23 @@ def test_a_decimal_range_is_not_mistaken_for_a_date(processor):
 
 
 def test_email_redaction_is_unchanged(processor):
-    assert processor.redact_text("Scrivere a lab@ospedale.it")[0] == "Scrivere a [REDACTED_EMAIL]"
+    assert (
+        processor.redact_text("Scrivere a lab@ospedale.it")[0]
+        == "Scrivere a [REDACTED_EMAIL]"
+    )
 
 
 def _long_report(lines: int = 120) -> str:
-    return "EMOCROMO\n" + "\n".join(f"Parametro{i:03d}  valore {i} unita" for i in range(lines))
+    return "EMOCROMO\n" + "\n".join(
+        f"Parametro{i:03d}  valore {i} unita" for i in range(lines)
+    )
 
 
 def test_a_completed_result_carries_the_whole_redacted_text(processor):
     text = _long_report() + "\nContatto: lab@ospedale.it"
-    result = processor.process_document_bytes(text.encode(), prefer_structured_parser=False)
+    result = processor.process_document_bytes(
+        text.encode(), prefer_structured_parser=False
+    )
     assert result["status"] == "completed"
     assert result["chunk_count"] > 1
     assert result["text"] == processor.redact_text(text)[0]
@@ -126,15 +142,22 @@ def test_attachment_text_is_the_whole_document_with_no_duplicated_lines(processo
     """The exact scenario that exposed defect 2: ~3,900 characters, default
     chunking -- 12 lines used to come back twice."""
     report = _long_report()
-    bundle = process_case_attachments([CaseAttachment(filename="emocromo.txt", data=report.encode())], processor=processor)
+    bundle = process_case_attachments(
+        [CaseAttachment(filename="emocromo.txt", data=report.encode())],
+        processor=processor,
+    )
     text = bundle.attachments[0].text
     assert text == report
-    duplicated = [line for line, count in Counter(text.splitlines()).items() if count > 1]
+    duplicated = [
+        line for line, count in Counter(text.splitlines()).items() if count > 1
+    ]
     assert duplicated == []
 
 
 def test_chunks_for_memory_still_overlap_as_designed(processor):
     """The fix only stops re-joining chunks into document text; retrieval chunks keep their overlap."""
-    result = processor.process_document_bytes(_long_report().encode(), prefer_structured_parser=False)
+    result = processor.process_document_bytes(
+        _long_report().encode(), prefer_structured_parser=False
+    )
     first, second = result["documents"][0], result["documents"][1]
     assert first["metadata"]["char_end"] > second["metadata"]["char_start"]

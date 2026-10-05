@@ -85,7 +85,11 @@ ITALIAN_CONNECTIVES: dict[str, int] = {
     "improbabile": 5,
 }
 
-RANK_BY_CERTAINTY = {CERTAINTY_FACTUAL: 2, CERTAINTY_POSSIBLE: 3, CERTAINTY_HYPOTHETICAL: 4}
+RANK_BY_CERTAINTY = {
+    CERTAINTY_FACTUAL: 2,
+    CERTAINTY_POSSIBLE: 3,
+    CERTAINTY_HYPOTHETICAL: 4,
+}
 
 
 @dataclass
@@ -115,7 +119,9 @@ class ClinicalDiscourseReader:
 
     resolver: ConceptResolver
     cues: CueSet = ENGLISH_CUES
-    connectives: dict[str, int] = field(default_factory=lambda: dict(DIAGNOSTIC_CONNECTIVES))
+    connectives: dict[str, int] = field(
+        default_factory=lambda: dict(DIAGNOSTIC_CONNECTIVES)
+    )
     window: int = 60
 
     def read(self, text: str) -> DiscourseReading:
@@ -125,7 +131,9 @@ class ClinicalDiscourseReader:
         detector = AssertionDetector(cues=self.cues)
         lowered = text.lower()
         extraction = attach_modifiers(self.resolver.resolve_text(text))
-        ordered = sorted(extraction.findings, key=lambda item: item.concept.char_start or 0)
+        ordered = sorted(
+            extraction.findings, key=lambda item: item.concept.char_start or 0
+        )
 
         previous_end = 0
         for finding in ordered:
@@ -135,7 +143,9 @@ class ClinicalDiscourseReader:
             # A connective binds the concept immediately after it. The window is
             # clipped at the previous concept so "consistent with X, though the Y"
             # does not carry X's connective onto Y.
-            connective, rank = self._preceding_connective(lowered, start, floor=previous_end)
+            connective, rank = self._preceding_connective(
+                lowered, start, floor=previous_end
+            )
             previous_end = end
 
             if status.polarity == POLARITY_NEGATED:
@@ -145,7 +155,9 @@ class ClinicalDiscourseReader:
                 reading.candidates.append((concept, rank, connective))
                 continue
             if status.certainty in {CERTAINTY_POSSIBLE, CERTAINTY_HYPOTHETICAL}:
-                reading.candidates.append((concept, RANK_BY_CERTAINTY[status.certainty], status.certainty))
+                reading.candidates.append(
+                    (concept, RANK_BY_CERTAINTY[status.certainty], status.certainty)
+                )
                 continue
             if self._flagged_discordant(lowered, start):
                 reading.discordant.append(concept)
@@ -193,7 +205,15 @@ class ClinicalDiscourseReader:
         window = lowered[max(0, start - self.window) : start + self.window]
         return any(
             marker in window
-            for marker in ("does not fit", "bothers me", "discordant", "atypical", "unexpected", "non torna", "atipico")
+            for marker in (
+                "does not fit",
+                "bothers me",
+                "discordant",
+                "atypical",
+                "unexpected",
+                "non torna",
+                "atipico",
+            )
         )
 
 

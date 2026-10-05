@@ -39,15 +39,38 @@ class VisualDiagnosticArea:
             salient_streams.append("patient_visual")
         if labs_snapshot:
             salient_streams.append("labs_snapshot")
-        if external_area.get("status") not in {None, "not_called"} or external_area.get("claims"):
+        if external_area.get("status") not in {None, "not_called"} or external_area.get(
+            "claims"
+        ):
             salient_streams.append("specialist_radiology_signal")
 
-        base_salience = _clamp(0.2 * len([item for item in salient_streams if item != "specialist_radiology_signal"]))
-        specialist_salience = _clamp(float(external_area.get("salience_score", 0.0) or 0.0))
-        specialist_uncertainty = _clamp(float(external_area.get("uncertainty_score", 1.0) or 1.0))
-        specialist_active = bool(external_area.get("claims")) or external_area.get("status") not in {None, "not_called"}
-        salience_score = _clamp(base_salience + (0.25 * specialist_salience if specialist_active else 0.0))
-        uncertainty_score = _clamp((1.0 - base_salience) * 0.75 + specialist_uncertainty * 0.25) if specialist_active else _clamp(1.0 - base_salience)
+        base_salience = _clamp(
+            0.2
+            * len(
+                [
+                    item
+                    for item in salient_streams
+                    if item != "specialist_radiology_signal"
+                ]
+            )
+        )
+        specialist_salience = _clamp(
+            float(external_area.get("salience_score", 0.0) or 0.0)
+        )
+        specialist_uncertainty = _clamp(
+            float(external_area.get("uncertainty_score", 1.0) or 1.0)
+        )
+        specialist_active = bool(external_area.get("claims")) or external_area.get(
+            "status"
+        ) not in {None, "not_called"}
+        salience_score = _clamp(
+            base_salience + (0.25 * specialist_salience if specialist_active else 0.0)
+        )
+        uncertainty_score = (
+            _clamp((1.0 - base_salience) * 0.75 + specialist_uncertainty * 0.25)
+            if specialist_active
+            else _clamp(1.0 - base_salience)
+        )
 
         return {
             "area": "visual_diagnostic",

@@ -156,7 +156,14 @@ def parse_obo(lines: Iterable[str]) -> Iterator[OntologyTerm]:
             if finished is not None:
                 yield finished
             inside = line.strip() == "[Term]"
-            term_id, name, synonyms, alt_ids, parents, obsolete = "", "", [], [], [], False
+            term_id, name, synonyms, alt_ids, parents, obsolete = (
+                "",
+                "",
+                [],
+                [],
+                [],
+                False,
+            )
             definition = ""
             xrefs = []
             continue
@@ -262,7 +269,9 @@ class TermIndex:
             index.by_id[term.term_id] = term
             for alt in term.alt_ids:
                 index.by_id.setdefault(alt, term)
-            for surface, kind in term.surface_forms(scopes, include_layperson=include_layperson):
+            for surface, kind in term.surface_forms(
+                scopes, include_layperson=include_layperson
+            ):
                 key = normalise_surface(surface)
                 if not key:
                     continue
@@ -315,7 +324,8 @@ class TermIndex:
             if term_id not in holders:
                 holders.append(term_id)
             self.match_kind.setdefault(
-                key, MATCH_TRANSLATION_OFFICIAL if official else MATCH_TRANSLATION_CANDIDATE
+                key,
+                MATCH_TRANSLATION_OFFICIAL if official else MATCH_TRANSLATION_CANDIDATE,
             )
             added["official" if official else "candidate"] += 1
         return added
@@ -424,7 +434,11 @@ class UnresolvedSurface:
     candidates: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
-        return {"surface": self.surface, "outcome": self.outcome, "candidates": list(self.candidates)}
+        return {
+            "surface": self.surface,
+            "outcome": self.outcome,
+            "candidates": list(self.candidates),
+        }
 
 
 @dataclass
@@ -489,7 +503,9 @@ class ConceptResolver:
                     surface=text,
                     term_id=term.term_id,
                     label=term.name,
-                    match_kind=self.index.match_kind.get(normalise_surface(text), MATCH_NAME),
+                    match_kind=self.index.match_kind.get(
+                        normalise_surface(text), MATCH_NAME
+                    ),
                     role=self.index.role_of(term.term_id),
                 )
             )
@@ -535,7 +551,9 @@ class ConceptResolver:
                     role=self.index.role_of(term.term_id),
                 )
             )
-        return sorted(found, key=lambda item: (item.char_start is None, item.char_start or 0))
+        return sorted(
+            found, key=lambda item: (item.char_start is None, item.char_start or 0)
+        )
 
 
 @dataclass(frozen=True)
@@ -590,8 +608,12 @@ class ExtractionResult:
     def as_dict(self) -> dict[str, Any]:
         return {
             "findings": [item.as_dict() for item in self.findings],
-            "collapsed_modifiers": [item.as_dict() for item in self.collapsed_modifiers],
-            "inheritance_statements": [item.as_dict() for item in self.inheritance_statements],
+            "collapsed_modifiers": [
+                item.as_dict() for item in self.collapsed_modifiers
+            ],
+            "inheritance_statements": [
+                item.as_dict() for item in self.inheritance_statements
+            ],
             "finding_count": len(self.findings),
         }
 
@@ -609,10 +631,14 @@ def attach_modifiers(
     """
     result = ExtractionResult()
     findings = [item for item in concepts if item.role == ROLE_FINDING]
-    result.inheritance_statements = [item for item in concepts if item.role == ROLE_INHERITANCE]
+    result.inheritance_statements = [
+        item for item in concepts if item.role == ROLE_INHERITANCE
+    ]
     modifiers = [item for item in concepts if item.role == ROLE_MODIFIER]
 
-    attached: dict[int, list[ResolvedConcept]] = {index: [] for index in range(len(findings))}
+    attached: dict[int, list[ResolvedConcept]] = {
+        index: [] for index in range(len(findings))
+    }
     for modifier in modifiers:
         index = _nearest_finding(modifier, findings, window)
         if index is None:
@@ -706,10 +732,16 @@ def measure_language_coverage(
     terms: set[str] = set()
     for row in rows:
         term_id = str(row.get("subject_id", "")).strip()
-        if term_id not in index.by_id or not str(row.get("translation_value", "")).strip():
+        if (
+            term_id not in index.by_id
+            or not str(row.get("translation_value", "")).strip()
+        ):
             continue
         terms.add(term_id)
-        if str(row.get("translation_status", "")).strip().upper() == TRANSLATION_STATUS_OFFICIAL:
+        if (
+            str(row.get("translation_status", "")).strip().upper()
+            == TRANSLATION_STATUS_OFFICIAL
+        ):
             official += 1
         else:
             candidate += 1
@@ -759,7 +791,10 @@ def diagnose_empty_result(
 
 def normalise_surface(value: str) -> str:
     return " ".join(
-        "".join(character if character.isalnum() else " " for character in str(value).lower()).split()
+        "".join(
+            character if character.isalnum() else " "
+            for character in str(value).lower()
+        ).split()
     )
 
 

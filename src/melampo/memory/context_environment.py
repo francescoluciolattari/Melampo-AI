@@ -169,8 +169,12 @@ class ContextEnvironment:
         graph_expand_fn: GraphExpandFn | None = None,
     ) -> "ContextEnvironment":
         indexed = {document.document_id: document for document in documents}
-        environment = cls(documents=indexed, search_fn=search_fn, graph_expand_fn=graph_expand_fn)
-        environment.ledger.total_characters = sum(document.length for document in indexed.values())
+        environment = cls(
+            documents=indexed, search_fn=search_fn, graph_expand_fn=graph_expand_fn
+        )
+        environment.ledger.total_characters = sum(
+            document.length for document in indexed.values()
+        )
         return environment
 
     def describe(self) -> dict[str, Any]:
@@ -186,14 +190,18 @@ class ContextEnvironment:
                     "page": document.page,
                     "characters": document.length,
                 }
-                for document in sorted(self.documents.values(), key=lambda item: item.document_id)
+                for document in sorted(
+                    self.documents.values(), key=lambda item: item.document_id
+                )
             ],
         }
 
     def list_documents(self) -> list[str]:
         return sorted(self.documents.keys())
 
-    def grep(self, pattern: str, *, window: int = 240, limit: int = 20) -> list[Fragment]:
+    def grep(
+        self, pattern: str, *, window: int = 240, limit: int = 20
+    ) -> list[Fragment]:
         """Case-insensitive literal search returning windowed, offset-anchored fragments."""
         if not pattern:
             return []
@@ -259,7 +267,9 @@ class ContextEnvironment:
     def coverage(self) -> dict[str, Any]:
         return self.ledger.snapshot()
 
-    def _fragment(self, document: EnvironmentDocument, start: int, end: int) -> Fragment:
+    def _fragment(
+        self, document: EnvironmentDocument, start: int, end: int
+    ) -> Fragment:
         self.ledger.record_span(document.document_id, start, end)
         return Fragment(
             document_id=document.document_id,

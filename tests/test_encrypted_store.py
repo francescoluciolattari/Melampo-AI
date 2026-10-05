@@ -23,7 +23,9 @@ def test_data_is_genuinely_encrypted_on_disk_not_just_obfuscated():
 def test_the_correct_password_decrypts_what_was_written():
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "store.jsonl"
-        EncryptedJsonlStore(path=path, password="a-real-secret").append({"term": "Burns"})
+        EncryptedJsonlStore(path=path, password="a-real-secret").append(
+            {"term": "Burns"}
+        )
 
         loaded = list(EncryptedJsonlStore(path=path, password="a-real-secret").load())
 
@@ -36,7 +38,9 @@ def test_the_wrong_password_is_rejected_explicitly():
     skipped."""
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "store.jsonl"
-        EncryptedJsonlStore(path=path, password="correct-secret").append({"term": "Burns"})
+        EncryptedJsonlStore(path=path, password="correct-secret").append(
+            {"term": "Burns"}
+        )
 
         wrong = EncryptedJsonlStore(path=path, password="wrong-secret")
         with pytest.raises(WrongPasswordError):
@@ -96,7 +100,9 @@ def test_append_many_with_nothing_writes_nothing_and_creates_no_file():
 
 def test_loading_a_missing_file_yields_nothing_not_an_error():
     with tempfile.TemporaryDirectory() as directory:
-        store = EncryptedJsonlStore(path=Path(directory) / "never_written.jsonl", password="x")
+        store = EncryptedJsonlStore(
+            path=Path(directory) / "never_written.jsonl", password="x"
+        )
         assert list(store.load()) == []
         assert len(store) == 0
 

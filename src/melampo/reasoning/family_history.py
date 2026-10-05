@@ -60,7 +60,11 @@ INHERITANCE_PRIOR_SHIFT: dict[str, tuple[float, float]] = {
 }
 
 # Attenuation by how far the relative sits from the patient.
-DEGREE_ATTENUATION: dict[int, float] = {DEGREE_FIRST: 1.0, DEGREE_SECOND: 0.5, DEGREE_THIRD: 0.25}
+DEGREE_ATTENUATION: dict[int, float] = {
+    DEGREE_FIRST: 1.0,
+    DEGREE_SECOND: 0.5,
+    DEGREE_THIRD: 0.25,
+}
 
 ACTIONABLE_INHERITANCE = frozenset(
     {
@@ -166,7 +170,9 @@ class FamilyHistoryChannel:
     prior_shift_by_inheritance: dict[str, tuple[float, float]] = field(
         default_factory=lambda: dict(INHERITANCE_PRIOR_SHIFT)
     )
-    degree_attenuation: dict[int, float] = field(default_factory=lambda: dict(DEGREE_ATTENUATION))
+    degree_attenuation: dict[int, float] = field(
+        default_factory=lambda: dict(DEGREE_ATTENUATION)
+    )
     actionable_inheritance: frozenset[str] = ACTIONABLE_INHERITANCE
     unknown_inheritance_is_actionable: bool = True
 
@@ -217,7 +223,9 @@ class FamilyHistoryChannel:
             return self.unknown_inheritance_is_actionable
         return inheritance in self.actionable_inheritance
 
-    def _onset_is_reachable(self, entry: FamilyHistoryEntry, patient_age_years: float | None) -> bool:
+    def _onset_is_reachable(
+        self, entry: FamilyHistoryEntry, patient_age_years: float | None
+    ) -> bool:
         if entry.onset_age_years is None or patient_age_years is None:
             return True
         return patient_age_years >= entry.onset_age_years
@@ -245,7 +253,10 @@ def assert_not_a_finding(items: Sequence[dict[str, Any]]) -> None:
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             continue
-        if item.get("role") == ROLE_SCREENING_HYPOTHESIS or item.get("belongs_in_differential") is False:
+        if (
+            item.get("role") == ROLE_SCREENING_HYPOTHESIS
+            or item.get("belongs_in_differential") is False
+        ):
             raise ValueError(
                 f"item {index} is a family-history screening hypothesis and is not a patient finding"
             )

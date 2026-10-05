@@ -81,50 +81,196 @@ class CueSet:
 
 ENGLISH_CUES = CueSet(
     negation_before=(
-        "no", "not", "denies", "denied", "without", "absent", "negative for",
-        "no evidence of", "free of", "rules out", "ruled out", "resolved",
+        "no",
+        "not",
+        "denies",
+        "denied",
+        "without",
+        "absent",
+        "negative for",
+        "no evidence of",
+        "free of",
+        "rules out",
+        "ruled out",
+        "resolved",
     ),
     negation_after=(
-        "was ruled out", "is ruled out", "not seen", "not present", "absent",
+        "was ruled out",
+        "is ruled out",
+        "not seen",
+        "not present",
+        "absent",
         # Absence carried by the clinical term itself, with no negation marker.
         # Enumerable — a few dozen per language — and the part neither a lexicon
         # of negation words nor a parser reaches, because nothing in the sentence
         # signals negation except what the term means.
-        "unremarkable", "within normal limits", "grossly normal", "non contributory",
-        "noncontributory", "clear", "patent", "intact", "negative",
+        "unremarkable",
+        "within normal limits",
+        "grossly normal",
+        "non contributory",
+        "noncontributory",
+        "clear",
+        "patent",
+        "intact",
+        "negative",
     ),
-    hypothetical=("rule out", "r/o", "evaluate for", "screen for", "if", "to exclude", "workup for"),
-    possible=("possible", "probable", "suspected", "suspicious for", "cannot be excluded", "may", "might"),
+    hypothetical=(
+        "rule out",
+        "r/o",
+        "evaluate for",
+        "screen for",
+        "if",
+        "to exclude",
+        "workup for",
+    ),
+    possible=(
+        "possible",
+        "probable",
+        "suspected",
+        "suspicious for",
+        "cannot be excluded",
+        "may",
+        "might",
+    ),
     experiencer_other=(
-        "family history", "mother", "father", "sister", "brother", "sibling",
-        "parent", "grandmother", "grandfather", "aunt", "uncle", "cousin", "in the family",
+        "family history",
+        "mother",
+        "father",
+        "sister",
+        "brother",
+        "sibling",
+        "parent",
+        "grandmother",
+        "grandfather",
+        "aunt",
+        "uncle",
+        "cousin",
+        "in the family",
     ),
-    historical=("history of", "previous", "prior", "past", "formerly", "in the past", "resolved", "status post"),
-    objective=("examination", "exam shows", "on examination", "imaging", "radiograph", "ecg", "laboratory", "reveals", "demonstrates"),
+    historical=(
+        "history of",
+        "previous",
+        "prior",
+        "past",
+        "formerly",
+        "in the past",
+        "resolved",
+        "status post",
+    ),
+    objective=(
+        "examination",
+        "exam shows",
+        "on examination",
+        "imaging",
+        "radiograph",
+        "ecg",
+        "laboratory",
+        "reveals",
+        "demonstrates",
+    ),
     subjective=("reports", "complains", "denies", "describes", "states", "refers"),
-    terminators=("but", "however", "although", "though", "except", "aside from", "otherwise"),
+    terminators=(
+        "but",
+        "however",
+        "although",
+        "though",
+        "except",
+        "aside from",
+        "otherwise",
+    ),
 )
 
 ITALIAN_CUES = CueSet(
     negation_before=(
-        "non", "nega", "negato", "senza", "assente", "assenza di", "nessun", "nessuna",
-        "negativo per", "non si evidenzia", "esclude", "escluso", "risolto",
+        "non",
+        "nega",
+        "negato",
+        "senza",
+        "assente",
+        "assenza di",
+        "nessun",
+        "nessuna",
+        "negativo per",
+        "non si evidenzia",
+        "esclude",
+        "escluso",
+        "risolto",
     ),
     negation_after=(
-        "non riscontrato", "non presente", "assente", "escluso",
-        "nella norma", "nei limiti", "nei limiti di norma", "regolare", "libero",
-        "indenne", "negativo", "silente",
+        "non riscontrato",
+        "non presente",
+        "assente",
+        "escluso",
+        "nella norma",
+        "nei limiti",
+        "nei limiti di norma",
+        "regolare",
+        "libero",
+        "indenne",
+        "negativo",
+        "silente",
     ),
-    hypothetical=("da escludere", "per escludere", "in caso di", "valutare per", "screening per", "sospetto di"),
-    possible=("possibile", "probabile", "sospetto", "non si puo escludere", "potrebbe", "verosimile"),
+    hypothetical=(
+        "da escludere",
+        "per escludere",
+        "in caso di",
+        "valutare per",
+        "screening per",
+        "sospetto di",
+    ),
+    possible=(
+        "possibile",
+        "probabile",
+        "sospetto",
+        "non si puo escludere",
+        "potrebbe",
+        "verosimile",
+    ),
     experiencer_other=(
-        "familiarita", "madre", "padre", "sorella", "fratello", "genitore",
-        "nonna", "nonno", "zia", "zio", "cugino", "in famiglia", "anamnesi familiare",
+        "familiarita",
+        "madre",
+        "padre",
+        "sorella",
+        "fratello",
+        "genitore",
+        "nonna",
+        "nonno",
+        "zia",
+        "zio",
+        "cugino",
+        "in famiglia",
+        "anamnesi familiare",
     ),
-    historical=("anamnesi", "pregresso", "pregressa", "precedente", "in passato", "risolto", "esiti di"),
-    objective=("esame obiettivo", "all esame", "imaging", "radiografia", "ecg", "laboratorio", "si riscontra", "si rileva", "evidenzia"),
+    historical=(
+        "anamnesi",
+        "pregresso",
+        "pregressa",
+        "precedente",
+        "in passato",
+        "risolto",
+        "esiti di",
+    ),
+    objective=(
+        "esame obiettivo",
+        "all esame",
+        "imaging",
+        "radiografia",
+        "ecg",
+        "laboratorio",
+        "si riscontra",
+        "si rileva",
+        "evidenzia",
+    ),
     subjective=("riferisce", "lamenta", "nega", "descrive", "sostiene"),
-    terminators=("ma", "tuttavia", "sebbene", "benche", "eccetto", "a parte", "peraltro"),
+    terminators=(
+        "ma",
+        "tuttavia",
+        "sebbene",
+        "benche",
+        "eccetto",
+        "a parte",
+        "peraltro",
+    ),
 )
 
 CUE_SETS: dict[str, CueSet] = {"en": ENGLISH_CUES, "it": ITALIAN_CUES}
@@ -184,7 +330,10 @@ class AssertionStatus:
             # An open question is not evidence of presence or of absence.
             return (0.0, 1.0)
         lower, upper, _ = ASSERTION_INTERVALS[(self.polarity, self.source)]
-        if self.temporality == TEMPORALITY_HISTORICAL and self.polarity == POLARITY_AFFIRMED:
+        if (
+            self.temporality == TEMPORALITY_HISTORICAL
+            and self.polarity == POLARITY_AFFIRMED
+        ):
             upper = min(upper, HISTORICAL_CEILING)
             lower = min(lower, upper)
         return (lower, upper)
@@ -227,7 +376,9 @@ class AssertionDetector:
         """Classify how the span between the offsets is asserted."""
         normalised = _normalise(text)
         clause_start, clause_end = self._clause_bounds(normalised, char_start, char_end)
-        before = normalised[max(clause_start, char_start - self.scope_characters) : char_start]
+        before = normalised[
+            max(clause_start, char_start - self.scope_characters) : char_start
+        ]
         after = normalised[char_end : min(clause_end, char_end + self.scope_characters)]
         clause = normalised[clause_start:clause_end]
 
@@ -295,7 +446,9 @@ class AssertionDetector:
             cues=tuple(fired),
         )
 
-    def _clause_bounds(self, text: str, char_start: int, char_end: int) -> tuple[int, int]:
+    def _clause_bounds(
+        self, text: str, char_start: int, char_end: int
+    ) -> tuple[int, int]:
         """Bound the scope at sentence edges and at adversative terminators."""
         start = max(text.rfind(".", 0, char_start), text.rfind(";", 0, char_start)) + 1
         end_candidates = [text.find(".", char_end), text.find(";", char_end)]
@@ -336,7 +489,11 @@ class ResolvedAssertion:
         return self.decided_by == DECIDED_BY_RULES
 
     def as_dict(self) -> dict[str, Any]:
-        return {**self.status.as_dict(), "decided_by": self.decided_by, "explained": self.is_explained}
+        return {
+            **self.status.as_dict(),
+            "decided_by": self.decided_by,
+            "explained": self.is_explained,
+        }
 
 
 @dataclass
@@ -364,7 +521,9 @@ class LayeredAssertionResolver:
         if self.fallback is not None:
             proposed = self.fallback(text, char_start, char_end)
             if isinstance(proposed, AssertionStatus):
-                return ResolvedAssertion(status=proposed, decided_by=DECIDED_BY_FALLBACK)
+                return ResolvedAssertion(
+                    status=proposed, decided_by=DECIDED_BY_FALLBACK
+                )
         return ResolvedAssertion(status=status, decided_by=DECIDED_BY_DEFAULT)
 
 
@@ -421,9 +580,14 @@ def measure_residue(
 def _normalise(text: str) -> str:
     """Lowercase and flatten punctuation to spaces, preserving offsets."""
     return "".join(
-        character.lower() if character.isalnum() or character in ".;" else " " for character in text
+        character.lower() if character.isalnum() or character in ".;" else " "
+        for character in text
     )
 
 
 def _contains_cue(window: str, cue: str) -> bool:
-    return f" {cue} " in f" {window.strip()} " or window.strip().startswith(f"{cue} ") or window.strip().endswith(f" {cue}")
+    return (
+        f" {cue} " in f" {window.strip()} "
+        or window.strip().startswith(f"{cue} ")
+        or window.strip().endswith(f" {cue}")
+    )

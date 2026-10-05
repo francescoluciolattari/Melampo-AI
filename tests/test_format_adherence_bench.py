@@ -26,8 +26,20 @@ def _doc(text: str) -> EnvironmentDocument:
 
 
 CASES = (
-    BenchCase("c1", (_doc("Chest radiograph shows bibasilar opacities. Prednisone 40 mg was started."),), "dose?"),
-    BenchCase("c2", (_doc("Progressive dyspnoea over three weeks with no fever."),), "symptoms?"),
+    BenchCase(
+        "c1",
+        (
+            _doc(
+                "Chest radiograph shows bibasilar opacities. Prednisone 40 mg was started."
+            ),
+        ),
+        "dose?",
+    ),
+    BenchCase(
+        "c2",
+        (_doc("Progressive dyspnoea over three weeks with no fever."),),
+        "symptoms?",
+    ),
 )
 
 
@@ -143,8 +155,17 @@ def test_an_unknown_licence_is_not_assumed_cleared():
 def test_the_registry_covers_every_benched_family():
     providers = {item.provider for item in DEFAULT_CANDIDATES}
     assert providers == {
-        "mistral", "qwen", "google", "meta", "anthropic", "openai", "z-ai",
-        "moonshotai", "deepseek", "xai", "nvidia",
+        "mistral",
+        "qwen",
+        "google",
+        "meta",
+        "anthropic",
+        "openai",
+        "z-ai",
+        "moonshotai",
+        "deepseek",
+        "xai",
+        "nvidia",
     }
 
 
@@ -165,14 +186,18 @@ def test_all_three_claude_tiers_are_benched_rather_than_one_assumed_representati
     from melampo.models.rlm_model_adapter import DEFAULT_CANDIDATES
 
     tiers = {item.name for item in DEFAULT_CANDIDATES if item.provider == "anthropic"}
-    assert len(tiers) == 3, "Sonnet, Opus and Fable must each be measured, not extrapolated from one"
+    assert len(tiers) == 3, (
+        "Sonnet, Opus and Fable must each be measured, not extrapolated from one"
+    )
 
 
 def test_openai_is_present_after_being_omitted_from_the_first_registry():
     """The omission was an oversight, not a decision, and the record says so."""
     from melampo.models.rlm_model_adapter import LICENCE_OPENAI_COMMERCIAL
 
-    openai_candidate = next(item for item in DEFAULT_CANDIDATES if item.provider == "openai")
+    openai_candidate = next(
+        item for item in DEFAULT_CANDIDATES if item.provider == "openai"
+    )
     assert openai_candidate.licence == LICENCE_OPENAI_COMMERCIAL
     assert openai_candidate.eu_commercial_cleared is None
     assert "oversight" in openai_candidate.note.lower()
@@ -184,7 +209,9 @@ def test_openai_is_present_after_being_omitted_from_the_first_registry():
 
 
 def test_a_disabled_client_yields_empty_text_rather_than_raising():
-    client = SafeModelClient(provider="p", model_name="m", role="root", config=ModelClientConfig())
+    client = SafeModelClient(
+        provider="p", model_name="m", role="root", config=ModelClientConfig()
+    )
     adapter = RootModelAdapter(client=client)
     assert adapter("any prompt") == ""
     assert adapter.report()["not_called"] == 1
@@ -193,7 +220,9 @@ def test_a_disabled_client_yields_empty_text_rather_than_raising():
 def test_an_engine_driven_by_a_disabled_client_records_no_action():
     from melampo.reasoning.rlm_engine import STOP_NO_ACTION, RlmEngine
 
-    client = SafeModelClient(provider="p", model_name="m", role="root", config=ModelClientConfig())
+    client = SafeModelClient(
+        provider="p", model_name="m", role="root", config=ModelClientConfig()
+    )
     trajectory = RlmEngine(root_model=RootModelAdapter(client=client)).run(
         "c1", [_doc("text")], "q"
     )
@@ -238,7 +267,9 @@ def test_llama_is_benched_for_comparison_but_flagged():
     )
 
     llama = next(item for item in DEFAULT_CANDIDATES if item.provider == "meta")
-    assert llama.name == "llama-3.3-70b", "the EU-restricted Llama 4 family is deliberately absent"
+    assert llama.name == "llama-3.3-70b", (
+        "the EU-restricted Llama 4 family is deliberately absent"
+    )
     assert llama.eu_commercial_cleared is None
     assert llama.licence in BENCH_ONLY_UNTIL_LICENCE_REVIEW
 
@@ -254,7 +285,9 @@ def test_every_candidate_with_an_unresolved_licence_is_marked_bench_only():
 
 def test_a_model_mixing_prose_with_actions_scores_between_the_extremes():
     """The realistic case: understands the format, wraps it in commentary."""
-    result = bench_model("mixed", lambda p: "Let me search.\ngrep(prednisone)\nfinal(x)", CASES)
+    result = bench_model(
+        "mixed", lambda p: "Let me search.\ngrep(prednisone)\nfinal(x)", CASES
+    )
     assert 0.0 < result.adherence < 1.0
     assert result.completion_rate == 1.0, "commentary does not prevent completion"
     assert result.prose_lines == ["Let me search.", "Let me search."]
@@ -293,9 +326,17 @@ def test_bench_models_accepts_a_custom_budget_factory():
         seen_budgets.append(budget)
         return budget
 
-    bench_models({"a": lambda p: "grep(x)\ngrep(y)\ngrep(z)"}, CASES, budget_factory=_tracking_factory)
-    assert len(seen_budgets) == len(CASES), "a fresh Budget per case, not one reused across all of them"
-    assert all(budget.iterations <= 2 for budget in seen_budgets), "the custom limit must actually apply"
+    bench_models(
+        {"a": lambda p: "grep(x)\ngrep(y)\ngrep(z)"},
+        CASES,
+        budget_factory=_tracking_factory,
+    )
+    assert len(seen_budgets) == len(CASES), (
+        "a fresh Budget per case, not one reused across all of them"
+    )
+    assert all(budget.iterations <= 2 for budget in seen_budgets), (
+        "the custom limit must actually apply"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -311,7 +352,10 @@ def test_a_model_that_always_hits_the_ceiling_is_reported_as_budget_bound():
         return "grep(x)"
 
     result = bench_model(
-        "never-finals", _never_finals, CASES, budget_factory=lambda: _RlmBudget(max_iterations=3)
+        "never-finals",
+        _never_finals,
+        CASES,
+        budget_factory=lambda: _RlmBudget(max_iterations=3),
     )
     assert result.completion_rate == 0.0
     assert result.budget_bound is True
@@ -438,7 +482,9 @@ def test_bench_report_as_dict_results_are_ranked():
     """as_dict()'s results must be in ranked order, matching .ranked(), since
     the summary step in both workflows reads row order directly as the
     comparison table's row order."""
-    report = bench_models({"weak": lambda p: "prose", "strong": lambda p: "final(x)"}, CASES)
+    report = bench_models(
+        {"weak": lambda p: "prose", "strong": lambda p: "final(x)"}, CASES
+    )
     payload = report.as_dict()
     assert [item["model_name"] for item in payload["results"]] == ["strong", "weak"]
 
@@ -463,8 +509,13 @@ def test_grok_gemini_nemotron_are_in_the_default_candidates_registry():
 def test_nemotron_note_names_its_relevant_capability():
     """Not a generic capability claim: the note should reflect the specific
     reason this candidate was added over other options considered."""
-    nemotron = next(item for item in DEFAULT_CANDIDATES if item.name == "nemotron-3-super")
-    assert "cross-document" in nemotron.note.lower() or "multi-step" in nemotron.note.lower()
+    nemotron = next(
+        item for item in DEFAULT_CANDIDATES if item.name == "nemotron-3-super"
+    )
+    assert (
+        "cross-document" in nemotron.note.lower()
+        or "multi-step" in nemotron.note.lower()
+    )
 
 
 # --------------------------------------------------------------------------
@@ -485,18 +536,32 @@ def test_the_circuit_breaker_trips_after_the_window_of_consecutive_slow_cases():
 
     import melampo.evaluation.format_adherence_bench as bench_module
 
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(6))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(6)
+    )
 
     def slow_model(prompt):
         time_module.sleep(0.01)
         return "final(x)"
 
-    result = bench_model("slow", slow_model, cases, budget_factory=lambda: Budget(max_wall_clock_seconds=0.005))
+    result = bench_model(
+        "slow",
+        slow_model,
+        cases,
+        budget_factory=lambda: Budget(max_wall_clock_seconds=0.005),
+    )
 
     assert result.runs == bench_module.LATENCY_CIRCUIT_BREAKER_WINDOW
     assert result.abandoned_for_latency is True
-    assert result.cases_skipped_for_latency == len(cases) - bench_module.LATENCY_CIRCUIT_BREAKER_WINDOW
+    assert (
+        result.cases_skipped_for_latency
+        == len(cases) - bench_module.LATENCY_CIRCUIT_BREAKER_WINDOW
+    )
 
 
 def test_the_circuit_breaker_does_not_trip_on_a_single_slow_case():
@@ -508,30 +573,50 @@ def test_the_circuit_breaker_does_not_trip_on_a_single_slow_case():
     stay low -- never three consecutive over threshold, so no trip."""
     import time as time_module
 
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(5))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(5)
+    )
 
     call_count = {"n": 0}
 
     def one_tight_budget():
         call_count["n"] += 1
-        return Budget(max_wall_clock_seconds=0.005) if call_count["n"] == 2 else Budget(max_wall_clock_seconds=5.0)
+        return (
+            Budget(max_wall_clock_seconds=0.005)
+            if call_count["n"] == 2
+            else Budget(max_wall_clock_seconds=5.0)
+        )
 
     def mostly_fast_model(prompt):
         if call_count["n"] == 2:  # the one case with the tight ceiling
             time_module.sleep(0.01)
         return "final(x)"
 
-    result = bench_model("mostly-fast", mostly_fast_model, cases, budget_factory=one_tight_budget)
+    result = bench_model(
+        "mostly-fast", mostly_fast_model, cases, budget_factory=one_tight_budget
+    )
 
     assert result.runs == len(cases), "all cases must still run"
     assert result.abandoned_for_latency is False
-    assert result.case_latency_ratios[1] >= 1.0, "the isolated slow case must genuinely have tripped its own ceiling"
+    assert result.case_latency_ratios[1] >= 1.0, (
+        "the isolated slow case must genuinely have tripped its own ceiling"
+    )
 
 
 def test_a_fast_model_never_trips_the_breaker():
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(6))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(6)
+    )
     result = bench_model("fast", lambda p: "final(x)", cases)
     assert result.abandoned_for_latency is False
     assert result.cases_skipped_for_latency == 0
@@ -539,11 +624,19 @@ def test_a_fast_model_never_trips_the_breaker():
 
 
 def test_case_elapsed_seconds_are_tracked_per_case():
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(3))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(3)
+    )
     result = bench_model("m", lambda p: "final(x)", cases)
     assert len(result.case_elapsed_seconds) == 3
-    assert all(isinstance(value, float) and value >= 0 for value in result.case_elapsed_seconds)
+    assert all(
+        isinstance(value, float) and value >= 0 for value in result.case_elapsed_seconds
+    )
 
 
 def test_mean_and_max_case_seconds_are_none_when_no_cases_ran():
@@ -553,10 +646,21 @@ def test_mean_and_max_case_seconds_are_none_when_no_cases_ran():
 
 
 def test_as_dict_carries_the_latency_fields():
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(2))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(2)
+    )
     payload = bench_model("m", lambda p: "final(x)", cases).as_dict()
-    for key in ("mean_case_seconds", "max_case_seconds", "abandoned_for_latency", "cases_skipped_for_latency"):
+    for key in (
+        "mean_case_seconds",
+        "max_case_seconds",
+        "abandoned_for_latency",
+        "cases_skipped_for_latency",
+    ):
         assert key in payload
 
 
@@ -566,15 +670,24 @@ def test_the_breaker_condemning_reason_survives_into_stop_reasons_context():
     abandoned_for_latency is what explains the missing ones."""
     import time as time_module
 
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(5))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(5)
+    )
 
     def slow_model(prompt):
         time_module.sleep(0.01)
         return "final(x)"
 
     result = bench_model(
-        "slow", slow_model, cases, budget_factory=lambda: Budget(max_wall_clock_seconds=0.005)
+        "slow",
+        slow_model,
+        cases,
+        budget_factory=lambda: Budget(max_wall_clock_seconds=0.005),
     )
     assert sum(result.stop_reasons.values()) == result.runs
     assert result.runs < len(cases)
@@ -594,8 +707,14 @@ def test_a_candidate_consistently_at_80_percent_of_ceiling_now_trips():
         "this assumption needs revisiting alongside it"
     )
 
-    cases = tuple(BenchCase(f"c{i}", (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),), "q")
-                  for i in range(6))
+    cases = tuple(
+        BenchCase(
+            f"c{i}",
+            (EnvironmentDocument("d", "text", metadata={"data_class": "synthetic"}),),
+            "q",
+        )
+        for i in range(6)
+    )
     ceiling = 0.02
 
     def eighty_percent_model(prompt):
@@ -603,7 +722,9 @@ def test_a_candidate_consistently_at_80_percent_of_ceiling_now_trips():
         return "final(x)"
 
     result = bench_model(
-        "consistently-slow-not-exhausted", eighty_percent_model, cases,
+        "consistently-slow-not-exhausted",
+        eighty_percent_model,
+        cases,
         budget_factory=lambda: Budget(max_wall_clock_seconds=ceiling),
     )
 
@@ -622,8 +743,12 @@ def test_a_candidate_consistently_at_80_percent_of_ceiling_now_trips():
 
 def _perfect_result(name: str, mean_seconds) -> dict:
     return {
-        "model_name": name, "adherence": 1.0, "completion_rate": 1.0,
-        "accepted_lines": 10, "rejected_lines": 0, "near_miss_share": 0.0,
+        "model_name": name,
+        "adherence": 1.0,
+        "completion_rate": 1.0,
+        "accepted_lines": 10,
+        "rejected_lines": 0,
+        "near_miss_share": 0.0,
         "mean_case_seconds": mean_seconds,
     }
 
@@ -649,7 +774,10 @@ def test_the_verdict_names_the_tiebreak_when_multiple_candidates_are_tied():
 
 
 def test_the_verdict_does_not_mention_a_tiebreak_when_only_one_candidate_wins_outright():
-    results = [_perfect_result("clear-winner", 1.0), {**_perfect_result("also-ran", 9.0), "adherence": 0.5}]
+    results = [
+        _perfect_result("clear-winner", 1.0),
+        {**_perfect_result("also-ran", 9.0), "adherence": 0.5},
+    ]
     from melampo.evaluation.format_adherence_bench import compute_verdict
 
     verdict = compute_verdict(results)
@@ -683,7 +811,9 @@ def test_bench_report_ranked_applies_the_same_tiebreak_as_rank_result_dicts():
 def test_all_cases_completed_is_true_when_every_case_finished():
     result = bench_model("perfect", lambda p: "final(x)", CASES)
     assert result.all_cases_completed is True
-    assert result.budget_bound is False, "budget_bound alone cannot tell this apart from a real failure"
+    assert result.budget_bound is False, (
+        "budget_bound alone cannot tell this apart from a real failure"
+    )
 
 
 def test_all_cases_completed_is_false_when_any_case_failed_for_any_reason():

@@ -16,13 +16,29 @@ class PromotionPolicy:
     require_human_review_for_promoted: bool = True
     promotion_scope: str = "synthetic_curriculum_or_vector_memory_only"
 
-    def decide(self, candidate: dict[str, Any], validation: dict[str, Any]) -> dict[str, Any]:
+    def decide(
+        self, candidate: dict[str, Any], validation: dict[str, Any]
+    ) -> dict[str, Any]:
         candidate = candidate or {}
         validation = validation or {}
         payload = candidate.get("payload", candidate)
-        metadata = payload.get("metadata", {}) if isinstance(payload.get("metadata", {}), dict) else {}
-        auto_plan = payload.get("auto_evolution_plan", metadata.get("auto_evolution_plan", {}))
-        candidate_score = float(auto_plan.get("candidate_score", metadata.get("candidate_score", validation.get("observed", {}).get("candidate_score", 0.0))))
+        metadata = (
+            payload.get("metadata", {})
+            if isinstance(payload.get("metadata", {}), dict)
+            else {}
+        )
+        auto_plan = payload.get(
+            "auto_evolution_plan", metadata.get("auto_evolution_plan", {})
+        )
+        candidate_score = float(
+            auto_plan.get(
+                "candidate_score",
+                metadata.get(
+                    "candidate_score",
+                    validation.get("observed", {}).get("candidate_score", 0.0),
+                ),
+            )
+        )
         validation_allowed = bool(validation.get("allowed_for_promotion", False))
         current_status = candidate.get("learning_status", "candidate")
 
@@ -32,13 +48,20 @@ class PromotionPolicy:
         if candidate_score < self.min_candidate_score:
             reasons.append("candidate_score_below_promotion_policy_threshold")
 
-        if validation.get("status") == "rejected" or validation.get("hard_reject", False):
+        if validation.get("status") == "rejected" or validation.get(
+            "hard_reject", False
+        ):
             target = "rejected"
             action = "reject_candidate"
         elif reasons:
-            target = "needs_review" if self.promote_to_review_by_default else "candidate"
+            target = (
+                "needs_review" if self.promote_to_review_by_default else "candidate"
+            )
             action = "hold_for_review"
-        elif self.allow_automatic_promotion and not self.require_human_review_for_promoted:
+        elif (
+            self.allow_automatic_promotion
+            and not self.require_human_review_for_promoted
+        ):
             target = "promoted"
             action = "promote_to_governed_memory"
         else:
@@ -50,7 +73,9 @@ class PromotionPolicy:
             target=target,
             evidence={
                 "rational_control_validation": validation_allowed,
-                "provenance_available": bool(validation.get("observed", {}).get("provenance_available", False)),
+                "provenance_available": bool(
+                    validation.get("observed", {}).get("provenance_available", False)
+                ),
                 "clinical_deployment": False,
             },
         )

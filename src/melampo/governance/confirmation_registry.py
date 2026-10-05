@@ -85,7 +85,9 @@ class Confirmation:
             "term_id": self.term_id,
             "source": self.source,
             "reviewer_blinded_to_suggestion": self.reviewer_blinded_to_suggestion,
-            "confirmed_on": self.confirmed_on.isoformat() if self.confirmed_on else None,
+            "confirmed_on": self.confirmed_on.isoformat()
+            if self.confirmed_on
+            else None,
             "independent": self.is_independent,
             "note": self.note,
         }
@@ -132,23 +134,36 @@ class ConfirmationRegistry:
             return
         from ..memory.encrypted_store import EncryptedJsonlStore
 
-        self._encrypted_store = EncryptedJsonlStore(path=self.path, password=self.password)
+        self._encrypted_store = EncryptedJsonlStore(
+            path=self.path, password=self.password
+        )
         self._load_from_disk()
 
     def _load_from_disk(self) -> None:
         for event in self._encrypted_store.load():
             confirmation = Confirmation(
-                case_id=event["case_id"], diagnosis=event["diagnosis"], source=event["source"],
-                reviewer_blinded_to_suggestion=event.get("reviewer_blinded_to_suggestion"),
-                confirmed_on=date.fromisoformat(event["confirmed_on"]) if event.get("confirmed_on") else None,
-                term_id=event.get("term_id"), note=event.get("note"),
+                case_id=event["case_id"],
+                diagnosis=event["diagnosis"],
+                source=event["source"],
+                reviewer_blinded_to_suggestion=event.get(
+                    "reviewer_blinded_to_suggestion"
+                ),
+                confirmed_on=date.fromisoformat(event["confirmed_on"])
+                if event.get("confirmed_on")
+                else None,
+                term_id=event.get("term_id"),
+                note=event.get("note"),
             )
             if event["_event"] == "admitted":
                 self.admitted.append(confirmation)
             else:
-                self.rejected.append(RejectedConfirmation(confirmation, event["reason"]))
+                self.rejected.append(
+                    RejectedConfirmation(confirmation, event["reason"])
+                )
 
-    def _persist_event(self, confirmation: Confirmation, *, admitted: bool, reason: str | None = None) -> None:
+    def _persist_event(
+        self, confirmation: Confirmation, *, admitted: bool, reason: str | None = None
+    ) -> None:
         if self._encrypted_store is None:
             return
         self._encrypted_store.append(
@@ -158,7 +173,9 @@ class ConfirmationRegistry:
                 "diagnosis": confirmation.diagnosis,
                 "source": confirmation.source,
                 "reviewer_blinded_to_suggestion": confirmation.reviewer_blinded_to_suggestion,
-                "confirmed_on": confirmation.confirmed_on.isoformat() if confirmation.confirmed_on else None,
+                "confirmed_on": confirmation.confirmed_on.isoformat()
+                if confirmation.confirmed_on
+                else None,
                 "term_id": confirmation.term_id,
                 "note": confirmation.note,
                 "reason": reason,
@@ -219,7 +236,10 @@ class ConfirmationRegistry:
             return REJECT_NOT_INDEPENDENT
         if confirmation.source not in INDEPENDENT_SOURCES:
             return REJECT_NOT_INDEPENDENT
-        if confirmation.source == SOURCE_INDEPENDENT_REVIEW and confirmation.reviewer_blinded_to_suggestion is not True:
+        if (
+            confirmation.source == SOURCE_INDEPENDENT_REVIEW
+            and confirmation.reviewer_blinded_to_suggestion is not True
+        ):
             return REJECT_REVIEWER_SAW_SUGGESTION
         return None
 

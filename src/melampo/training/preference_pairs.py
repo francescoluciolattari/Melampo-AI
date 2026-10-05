@@ -129,7 +129,9 @@ def extract_preference_pairs(
             report.cases_with_no_alternative += 1
             continue
 
-        prompt = (prompt_for_case or {}).get(case_id, f"What is the most likely diagnosis for case {case_id}?")
+        prompt = (prompt_for_case or {}).get(
+            case_id, f"What is the most likely diagnosis for case {case_id}?"
+        )
         for alternative in alternatives:
             report.pairs.append(
                 PreferencePair(

@@ -5,7 +5,12 @@ from dataclasses import dataclass
 class EpidemiologyArea:
     """Aggregate prevalence, exposure, and population context signals."""
 
-    def integrate(self, demographics: dict | None = None, provenance: dict | None = None, exposures: dict | None = None) -> dict:
+    def integrate(
+        self,
+        demographics: dict | None = None,
+        provenance: dict | None = None,
+        exposures: dict | None = None,
+    ) -> dict:
         demographics = demographics or {}
         provenance = provenance or {}
         exposures = exposures or {}

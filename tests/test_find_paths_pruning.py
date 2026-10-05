@@ -27,7 +27,16 @@ from melampo.memory.concept_paths import (
 )
 
 
-def _unpruned(graph, start, end, *, max_hops=3, min_edge_weight=0.0, max_paths=8, max_gap_edges=None):
+def _unpruned(
+    graph,
+    start,
+    end,
+    *,
+    max_hops=3,
+    min_edge_weight=0.0,
+    max_paths=8,
+    max_gap_edges=None,
+):
     """The implementation before pruning, verbatim -- the reference every test compares with."""
     start_key, end_key = normalise_concept(start), normalise_concept(end)
     if not start_key or not end_key or start_key == end_key:
@@ -44,7 +53,10 @@ def _unpruned(graph, start, end, *, max_hops=3, min_edge_weight=0.0, max_paths=8
                 if target_key in visited:
                     continue
                 extended = path + (edge,)
-                if max_gap_edges is not None and sum(1 for item in extended if item.is_gap) > max_gap_edges:
+                if (
+                    max_gap_edges is not None
+                    and sum(1 for item in extended if item.is_gap) > max_gap_edges
+                ):
                     continue
                 if target_key == end_key:
                     found.append(ConceptPath(edges=extended))
@@ -69,9 +81,19 @@ def _random_graph(seed: int, nodes: int, edges: int) -> InMemoryConceptGraph:
     for _ in range(edges):
         source, target = rng.sample(names, 2)
         weight = rng.choice([1.0, 0.9, 0.6, 0.3, 0.05])
-        lower, upper = (weight, weight) if rng.random() < 0.8 else (0.0, 1.0)  # some gap edges
-        built.append(ConceptEdge(source=source, relation=rng.choice(["has_phenotype", "associated_gene"]),
-                                 target=target, weight=weight, lower=lower, upper=upper))
+        lower, upper = (
+            (weight, weight) if rng.random() < 0.8 else (0.0, 1.0)
+        )  # some gap edges
+        built.append(
+            ConceptEdge(
+                source=source,
+                relation=rng.choice(["has_phenotype", "associated_gene"]),
+                target=target,
+                weight=weight,
+                lower=lower,
+                upper=upper,
+            )
+        )
     return InMemoryConceptGraph.from_edges(built)
 
 
@@ -88,7 +110,9 @@ def test_identical_to_the_unpruned_search_on_random_graphs(seed):
             "max_paths": rng.choice([1, 3, 8, 32]),
             "max_gap_edges": rng.choice([None, 0, 1]),
         }
-        assert _describe(find_paths(graph, start, end, **options)) == _describe(_unpruned(graph, start, end, **options)), (start, end, options)
+        assert _describe(find_paths(graph, start, end, **options)) == _describe(
+            _unpruned(graph, start, end, **options)
+        ), (start, end, options)
 
 
 class _CountingGraph:
@@ -110,11 +134,25 @@ def _hub_graph():
     phenotypes and genes, and a destination reachable only through one gene."""
     edges = []
     for d in range(40):
-        edges.append(ConceptEdge(source=f"disease{d}", relation="has_phenotype", target="finding"))
+        edges.append(
+            ConceptEdge(
+                source=f"disease{d}", relation="has_phenotype", target="finding"
+            )
+        )
         for p in range(25):
-            edges.append(ConceptEdge(source=f"disease{d}", relation="has_phenotype", target=f"phen{d}_{p}"))
-        edges.append(ConceptEdge(source=f"gene{d}", relation="causes", target=f"disease{d}"))
-    edges.append(ConceptEdge(source="gene7", relation="causes", target="gene_only_disease"))
+            edges.append(
+                ConceptEdge(
+                    source=f"disease{d}",
+                    relation="has_phenotype",
+                    target=f"phen{d}_{p}",
+                )
+            )
+        edges.append(
+            ConceptEdge(source=f"gene{d}", relation="causes", target=f"disease{d}")
+        )
+    edges.append(
+        ConceptEdge(source="gene7", relation="causes", target="gene_only_disease")
+    )
     return InMemoryConceptGraph.from_edges(edges)
 
 
@@ -124,7 +162,9 @@ def test_a_poorly_connected_destination_no_longer_costs_the_whole_neighbourhood(
     before = _unpruned(naive, "finding", "gene_only_disease")
     after = find_paths(pruned, "finding", "gene_only_disease")
     assert _describe(after) == _describe(before)
-    assert _describe(after) == ["finding -[inverse_has_phenotype]-> disease7 -[inverse_causes]-> gene7 -[causes]-> gene_only_disease"]
+    assert _describe(after) == [
+        "finding -[inverse_has_phenotype]-> disease7 -[inverse_causes]-> gene7 -[causes]-> gene_only_disease"
+    ]
     # The unpruned search expands every one of the 40 diseases' ~26 neighbours;
     # the pruned one only what can still reach the destination.
     assert naive.calls > 1000
@@ -133,7 +173,9 @@ def test_a_poorly_connected_destination_no_longer_costs_the_whole_neighbourhood(
 
 def test_an_unreachable_destination_returns_nothing_at_once():
     graph = _CountingGraph(_hub_graph())
-    edges = list(graph.graph.edges) + [ConceptEdge(source="island_a", relation="r", target="island_b")]
+    edges = list(graph.graph.edges) + [
+        ConceptEdge(source="island_a", relation="r", target="island_b")
+    ]
     graph = _CountingGraph(InMemoryConceptGraph.from_edges(edges))
     assert find_paths(graph, "finding", "island_b") == []
     assert graph.calls < 10

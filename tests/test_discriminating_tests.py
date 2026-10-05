@@ -74,13 +74,20 @@ def test_unconditional_blocking_claims_are_live_under_any_route():
     program = FalsificationProgram()
     program.active_routes = set()
     blocking = {claim.claim_id for claim in program.blocking_claims()}
-    assert blocking == {"rlm.dual_path_beats_single_path", "rlm.disagreement_is_informative"}
+    assert blocking == {
+        "rlm.dual_path_beats_single_path",
+        "rlm.disagreement_is_informative",
+    }
 
 
 def test_resolving_a_claim_removes_it_from_blocking():
     program = FalsificationProgram()
-    program.resolve("rlm.dual_path_beats_single_path", CLAIM_CORROBORATED, evidence="run_7")
-    assert "rlm.dual_path_beats_single_path" not in {claim.claim_id for claim in program.blocking_claims()}
+    program.resolve(
+        "rlm.dual_path_beats_single_path", CLAIM_CORROBORATED, evidence="run_7"
+    )
+    assert "rlm.dual_path_beats_single_path" not in {
+        claim.claim_id for claim in program.blocking_claims()
+    }
 
 
 def test_reformulated_claims_name_what_would_refute_them():
@@ -118,7 +125,9 @@ def test_a_perfectly_discriminating_test_resolves_a_full_bit():
 
 def test_a_test_equally_likely_under_every_hypothesis_gains_nothing():
     prior = {"a": 0.5, "b": 0.5}
-    assert expected_information_gain(prior, {"a": 0.6, "b": 0.6}) == pytest.approx(0.0, abs=1e-9)
+    assert expected_information_gain(prior, {"a": 0.6, "b": 0.6}) == pytest.approx(
+        0.0, abs=1e-9
+    )
 
 
 def test_information_gain_is_never_negative():
@@ -143,11 +152,37 @@ def test_when_one_hypothesis_already_dominates_there_is_little_left_to_learn():
 def _graph() -> InMemoryConceptGraph:
     return InMemoryConceptGraph.from_edges(
         [
-            ConceptEdge("congestive cardiac failure", "indicates", "bnp assay", 0.9, "cardiology_guideline"),
-            ConceptEdge("congestive cardiac failure", "indicates", "chest radiograph", 0.8, "cardiology_guideline"),
-            ConceptEdge("pneumonia", "indicates", "chest radiograph", 0.8, "radiology_ontology"),
-            ConceptEdge("pneumonia", "indicates", "sputum culture", 0.75, "microbiology_guideline"),
-            ConceptEdge("congestive cardiac failure", "causes", "pulmonary oedema", 0.9, "cardiology_ontology"),
+            ConceptEdge(
+                "congestive cardiac failure",
+                "indicates",
+                "bnp assay",
+                0.9,
+                "cardiology_guideline",
+            ),
+            ConceptEdge(
+                "congestive cardiac failure",
+                "indicates",
+                "chest radiograph",
+                0.8,
+                "cardiology_guideline",
+            ),
+            ConceptEdge(
+                "pneumonia", "indicates", "chest radiograph", 0.8, "radiology_ontology"
+            ),
+            ConceptEdge(
+                "pneumonia",
+                "indicates",
+                "sputum culture",
+                0.75,
+                "microbiology_guideline",
+            ),
+            ConceptEdge(
+                "congestive cardiac failure",
+                "causes",
+                "pulmonary oedema",
+                0.9,
+                "cardiology_ontology",
+            ),
         ]
     )
 
@@ -158,17 +193,25 @@ def _selector(**kwargs) -> DiscriminatingTestSelector:
 
 def test_candidate_tests_come_only_from_the_graph():
     selector = _selector()
-    hypotheses = [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)]
+    hypotheses = [
+        WeightedHypothesis("congestive cardiac failure", 0.5),
+        WeightedHypothesis("pneumonia", 0.5),
+    ]
     candidates = selector.candidate_tests(hypotheses)
     assert set(candidates) == {"bnp assay", "chest radiograph", "sputum culture"}
-    assert "pulmonary oedema" not in candidates, "a causal relation is not an investigation"
+    assert "pulmonary oedema" not in candidates, (
+        "a causal relation is not an investigation"
+    )
 
 
 def test_a_test_shared_equally_by_both_hypotheses_is_not_suggested():
     """It may still be clinically necessary; it simply resolves nothing here."""
     selector = _selector()
     ranked = selector.rank(
-        [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)]
+        [
+            WeightedHypothesis("congestive cardiac failure", 0.5),
+            WeightedHypothesis("pneumonia", 0.5),
+        ]
     )
     names = [item.name for item in ranked]
     assert names[0] in {"bnp assay", "sputum culture"}
@@ -180,12 +223,18 @@ def test_the_shared_test_can_be_reported_with_a_gain_of_zero_on_request():
     ranked = {
         item.name: item
         for item in selector.rank(
-            [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)],
+            [
+                WeightedHypothesis("congestive cardiac failure", 0.5),
+                WeightedHypothesis("pneumonia", 0.5),
+            ],
             include_non_discriminating=True,
         )
     }
     assert ranked["chest radiograph"].information_gain == pytest.approx(0.0, abs=1e-9)
-    assert ranked["bnp assay"].information_gain > ranked["chest radiograph"].information_gain
+    assert (
+        ranked["bnp assay"].information_gain
+        > ranked["chest radiograph"].information_gain
+    )
     assert ranked["chest radiograph"].discriminates_between == (
         "congestive cardiac failure",
         "pneumonia",
@@ -200,16 +249,25 @@ def test_a_single_hypothesis_yields_no_suggestions():
 def test_hypotheses_absent_from_the_graph_produce_nothing_rather_than_guesses():
     selector = _selector()
     ranked = selector.rank(
-        [WeightedHypothesis("fractured radius", 0.5), WeightedHypothesis("sprained ankle", 0.5)]
+        [
+            WeightedHypothesis("fractured radius", 0.5),
+            WeightedHypothesis("sprained ankle", 0.5),
+        ]
     )
     assert ranked == []
 
 
 def test_burden_is_reported_separately_and_never_folded_into_the_gain():
     selector = _selector(burdens={"bnp assay": 4.0})
-    ranked = {item.name: item for item in selector.rank(
-        [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)]
-    )}
+    ranked = {
+        item.name: item
+        for item in selector.rank(
+            [
+                WeightedHypothesis("congestive cardiac failure", 0.5),
+                WeightedHypothesis("pneumonia", 0.5),
+            ]
+        )
+    }
     bnp = ranked["bnp assay"]
     assert bnp.burden == 4.0
     assert bnp.gain_per_burden == pytest.approx(bnp.information_gain / 4.0, abs=1e-4)
@@ -218,16 +276,25 @@ def test_burden_is_reported_separately_and_never_folded_into_the_gain():
 
 def test_missing_edges_are_treated_as_silence_not_as_impossibility():
     selector = _selector(absent_likelihood=0.05)
-    ranked = {item.name: item for item in selector.rank(
-        [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)]
-    )}
+    ranked = {
+        item.name: item
+        for item in selector.rank(
+            [
+                WeightedHypothesis("congestive cardiac failure", 0.5),
+                WeightedHypothesis("pneumonia", 0.5),
+            ]
+        )
+    }
     assert ranked["bnp assay"].likelihoods["pneumonia"] == 0.05
 
 
 def test_suggestions_carry_provenance_and_decision_support_markers():
     selector = _selector()
     ranked = selector.rank(
-        [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)]
+        [
+            WeightedHypothesis("congestive cardiac failure", 0.5),
+            WeightedHypothesis("pneumonia", 0.5),
+        ]
     )
     payload = ranked[0].as_dict()
     assert payload["decision_support_only"] is True
@@ -237,7 +304,10 @@ def test_suggestions_carry_provenance_and_decision_support_markers():
 
 
 def test_ranking_is_deterministic():
-    hypotheses = [WeightedHypothesis("congestive cardiac failure", 0.5), WeightedHypothesis("pneumonia", 0.5)]
+    hypotheses = [
+        WeightedHypothesis("congestive cardiac failure", 0.5),
+        WeightedHypothesis("pneumonia", 0.5),
+    ]
     first = [item.name for item in _selector().rank(hypotheses)]
     second = [item.name for item in _selector().rank(hypotheses)]
     assert first == second
@@ -258,7 +328,10 @@ def test_hypotheses_are_read_from_the_differential_payload():
         ]
     }
     extracted = WeightedHypothesis.from_differential(differential)
-    assert [item.label for item in extracted] == ["congestive cardiac failure", "pneumonia"]
+    assert [item.label for item in extracted] == [
+        "congestive cardiac failure",
+        "pneumonia",
+    ]
 
 
 def test_suggest_reports_prior_entropy_alongside_the_tests():
@@ -311,7 +384,9 @@ def test_zero_scores_fall_back_to_a_uniform_prior():
 
 
 def test_investigation_with_zero_burden_does_not_divide_by_zero():
-    item = Investigation(name="x", information_gain=0.5, burden=0.0, discriminates_between=())
+    item = Investigation(
+        name="x", information_gain=0.5, burden=0.0, discriminates_between=()
+    )
     assert item.gain_per_burden == 0.0
 
 
@@ -323,7 +398,10 @@ def test_gain_matches_a_hand_computed_value():
     posterior_positive = [0.5 * 0.8 / positive, 0.5 * 0.2 / positive]
     posterior_negative = [0.5 * 0.2 / (1 - positive), 0.5 * 0.8 / (1 - positive)]
     expected = 1.0 - (
-        positive * entropy(posterior_positive) + (1 - positive) * entropy(posterior_negative)
+        positive * entropy(posterior_positive)
+        + (1 - positive) * entropy(posterior_negative)
     )
     assert expected_information_gain(prior, likelihoods) == pytest.approx(expected)
-    assert expected == pytest.approx(1.0 - -(0.8 * math.log2(0.8) + 0.2 * math.log2(0.2)), abs=1e-9)
+    assert expected == pytest.approx(
+        1.0 - -(0.8 * math.log2(0.8) + 0.2 * math.log2(0.2)), abs=1e-9
+    )

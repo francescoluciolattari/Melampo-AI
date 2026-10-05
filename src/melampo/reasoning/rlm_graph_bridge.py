@@ -162,8 +162,12 @@ class BridgeResult:
             "candidate_conditions": list(self.candidate_conditions),
             "mode": self.outcome.mode if self.outcome else None,
             "hypotheses": [
-                {"condition": item.condition, "support": round(item.support, 4),
-                 "plausibility": round(item.plausibility, 4), "origin": ORIGIN_GRAPH}
+                {
+                    "condition": item.condition,
+                    "support": round(item.support, 4),
+                    "plausibility": round(item.plausibility, 4),
+                    "origin": ORIGIN_GRAPH,
+                }
                 for item in (self.outcome.hypotheses if self.outcome else [])
             ],
             "open_questions": [
@@ -172,11 +176,15 @@ class BridgeResult:
             ],
             "predicted_findings": list(self.predicted_findings),
             "vetted_claims": [claim.as_dict() for claim in self.vetted_claims],
-            "retrieved_literature": [item.as_dict() for item in self.retrieved_literature],
+            "retrieved_literature": [
+                item.as_dict() for item in self.retrieved_literature
+            ],
         }
 
 
-def findings_from_trajectory(trajectory: Any, graph: ConceptGraphView) -> tuple[list[str], list[str]]:
+def findings_from_trajectory(
+    trajectory: Any, graph: ConceptGraphView
+) -> tuple[list[str], list[str]]:
     """Concepts the graph recognises in what the RLM actually read.
 
     Reads the trajectory's evidence fragments rather than only its final
@@ -211,7 +219,11 @@ def findings_from_trajectory(trajectory: Any, graph: ConceptGraphView) -> tuple[
 
 
 def predicted_findings_for(
-    outcome: EnumerationOutcome, graph: ConceptGraphView, observed: Sequence[str], *, limit: int = 8
+    outcome: EnumerationOutcome,
+    graph: ConceptGraphView,
+    observed: Sequence[str],
+    *,
+    limit: int = 8,
 ) -> list[str]:
     """What the leading hypotheses predict but the case has not shown yet.
 
@@ -258,8 +270,12 @@ def vet_rlm_claims(
     citations_by_claim = citations_by_claim or {}
     return [
         VettedClaim(
-            factor=factor, target=target, mechanism=mechanism,
-            verification=verify_mechanism(graph, factor, target, mechanism, table=table),
+            factor=factor,
+            target=target,
+            mechanism=mechanism,
+            verification=verify_mechanism(
+                graph, factor, target, mechanism, table=table
+            ),
             citations=tuple(citations_by_claim.get(index, ())),
         )
         for index, (factor, target, mechanism) in enumerate(claims)
@@ -291,7 +307,9 @@ def bridge(
     given up the distinction its whole provenance design rests on.
     """
     result = BridgeResult()
-    result.findings_from_documents, result.findings_unresolved = findings_from_trajectory(trajectory, graph)
+    result.findings_from_documents, result.findings_unresolved = (
+        findings_from_trajectory(trajectory, graph)
+    )
 
     if result.findings_from_documents:
         retrieval = retrieve_candidates(result.findings_from_documents, graph)
@@ -300,7 +318,9 @@ def bridge(
 
         if result.candidate_conditions:
             engine = enumerator or MechanismEnumerator(graph=graph)
-            result.outcome = engine.run(result.findings_from_documents, result.candidate_conditions)
+            result.outcome = engine.run(
+                result.findings_from_documents, result.candidate_conditions
+            )
             result.predicted_findings = predicted_findings_for(
                 result.outcome, graph, result.findings_from_documents
             )

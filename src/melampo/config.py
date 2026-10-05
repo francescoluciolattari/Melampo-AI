@@ -37,8 +37,16 @@ class RuntimeConfig:
     service_registry: dict[str, ServiceConfig] = field(default_factory=dict)
 
     def describe(self) -> dict:
-        enabled = {name: service.describe() for name, service in self.service_registry.items() if service.enabled}
-        disabled = {name: service.describe() for name, service in self.service_registry.items() if not service.enabled}
+        enabled = {
+            name: service.describe()
+            for name, service in self.service_registry.items()
+            if service.enabled
+        }
+        disabled = {
+            name: service.describe()
+            for name, service in self.service_registry.items()
+            if not service.enabled
+        }
         return {
             "project_name": self.project_name,
             "environment": self.environment,
@@ -54,27 +62,45 @@ class RuntimeConfig:
         }
 
 
-def build_default_config(runtime_profile: str = "local_research", allow_remote_models: bool = False, imaging_provider_strategy: str | None = None) -> RuntimeConfig:
+def build_default_config(
+    runtime_profile: str = "local_research",
+    allow_remote_models: bool = False,
+    imaging_provider_strategy: str | None = None,
+) -> RuntimeConfig:
     """Build a default runtime config with explicit placeholder services."""
     placeholders = {
         "volume_encoder": ServiceConfig(provider="api_for_service_volume_encoder"),
-        "pathology_encoder": ServiceConfig(provider="api_for_service_pathology_encoder"),
-        "clinical_text_encoder": ServiceConfig(provider="api_for_service_clinical_text_encoder"),
-        "multimodal_reasoner": ServiceConfig(provider="api_for_service_multimodal_reasoner"),
+        "pathology_encoder": ServiceConfig(
+            provider="api_for_service_pathology_encoder"
+        ),
+        "clinical_text_encoder": ServiceConfig(
+            provider="api_for_service_clinical_text_encoder"
+        ),
+        "multimodal_reasoner": ServiceConfig(
+            provider="api_for_service_multimodal_reasoner"
+        ),
         "critique_service": ServiceConfig(provider="api_for_service_critique_model"),
-        "synthetic_case_generator": ServiceConfig(provider="api_for_service_synthetic_case_generator"),
+        "synthetic_case_generator": ServiceConfig(
+            provider="api_for_service_synthetic_case_generator"
+        ),
         "vector_store": ServiceConfig(provider="api_for_service_vector_store"),
         "knowledge_graph": ServiceConfig(provider="api_for_service_knowledge_graph"),
         "document_rag": ServiceConfig(provider="api_for_service_document_rag"),
         "mcp_server": ServiceConfig(provider="api_for_service_mcp_server"),
         "a2a_router": ServiceConfig(provider="api_for_service_a2a_router"),
-        "theoretical_quantum": ServiceConfig(provider="api_for_service_theoretical_quantum_module", enabled=False),
+        "theoretical_quantum": ServiceConfig(
+            provider="api_for_service_theoretical_quantum_module", enabled=False
+        ),
     }
     if imaging_provider_strategy is None:
         imaging_provider_strategy = "local_metadata"
     if runtime_profile == "remote_research":
         allow_remote_models = True
-        imaging_provider_strategy = "hybrid_multimodal" if imaging_provider_strategy == "local_metadata" else imaging_provider_strategy
+        imaging_provider_strategy = (
+            "hybrid_multimodal"
+            if imaging_provider_strategy == "local_metadata"
+            else imaging_provider_strategy
+        )
         placeholders["theoretical_quantum"].enabled = True
     return RuntimeConfig(
         runtime_profile=runtime_profile,

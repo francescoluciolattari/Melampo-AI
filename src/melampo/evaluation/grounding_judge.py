@@ -121,7 +121,50 @@ ASSERTION_MARKERS = (
 )
 
 STOPWORDS = frozenset(
-    ["a", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "for", "from", "had", "has", "have", "in", "into", "is", "it", "its", "of", "on", "or", "that", "the", "their", "there", "these", "this", "to", "was", "were", "will", "with", "without", "which", "who", "whom", "whose", "than", "then"]
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "being",
+        "but",
+        "by",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "their",
+        "there",
+        "these",
+        "this",
+        "to",
+        "was",
+        "were",
+        "will",
+        "with",
+        "without",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "than",
+        "then",
+    ]
 )
 
 VERDICT_GROUNDED = "grounded"
@@ -186,12 +229,16 @@ class GroundingJudge:
     max_hops: int = 3
     min_edge_weight: float = 0.0
 
-    def assess(self, claim: str, fragments: Sequence[dict[str, Any] | str]) -> GroundingAssessment:
+    def assess(
+        self, claim: str, fragments: Sequence[dict[str, Any] | str]
+    ) -> GroundingAssessment:
         texts = [_fragment_text(fragment) for fragment in fragments]
         texts = [text for text in texts if text]
 
         if not claim.strip():
-            return GroundingAssessment(verdict=VERDICT_GROUNDED, overreach_score=0.0, notes=["empty claim"])
+            return GroundingAssessment(
+                verdict=VERDICT_GROUNDED, overreach_score=0.0, notes=["empty claim"]
+            )
         if not texts:
             return GroundingAssessment(
                 verdict=VERDICT_OVERREACH,
@@ -201,13 +248,17 @@ class GroundingJudge:
 
         claim_terms = _content_terms(claim)
         fragment_term_sets = [_content_terms(text) for text in texts]
-        all_fragment_terms: set[str] = set().union(*fragment_term_sets) if fragment_term_sets else set()
+        all_fragment_terms: set[str] = (
+            set().union(*fragment_term_sets) if fragment_term_sets else set()
+        )
 
         unsupported = sorted(claim_terms - all_fragment_terms)
         term_penalty = len(unsupported) / max(len(claim_terms), 1)
 
         relation_findings = self._unsupported_relations(claim, fragment_term_sets)
-        unsupported_relations, mediated_relations = self._split_by_knowledge(relation_findings)
+        unsupported_relations, mediated_relations = self._split_by_knowledge(
+            relation_findings
+        )
         relation_penalty = min(1.0, len(unsupported_relations) * 0.5)
 
         escalations = self._modality_escalations(claim, texts)
@@ -218,7 +269,10 @@ class GroundingJudge:
 
         overreach_score = min(
             1.0,
-            term_penalty * 0.3 + relation_penalty * 0.4 + modality_penalty * 0.2 + inflation_penalty * 0.1,
+            term_penalty * 0.3
+            + relation_penalty * 0.4
+            + modality_penalty * 0.2
+            + inflation_penalty * 0.1,
         )
 
         if overreach_score >= self.overreach_threshold:
@@ -232,9 +286,13 @@ class GroundingJudge:
 
         notes: list[str] = []
         if unsupported_relations:
-            notes.append("relation asserted between entities that never co-occur in a cited fragment")
+            notes.append(
+                "relation asserted between entities that never co-occur in a cited fragment"
+            )
         if mediated_relations:
-            notes.append("relation absent from the case but supported by a concept graph path")
+            notes.append(
+                "relation absent from the case but supported by a concept graph path"
+            )
         if escalations:
             notes.append("claim asserts what the source hedges")
         if inflation_penalty:
@@ -251,7 +309,9 @@ class GroundingJudge:
             notes=notes,
         )
 
-    def faithfulness(self, claims: Iterable[tuple[str, Sequence[dict[str, Any] | str]]]) -> float:
+    def faithfulness(
+        self, claims: Iterable[tuple[str, Sequence[dict[str, Any] | str]]]
+    ) -> float:
         """Fraction of claims judged grounded. Complements term-overlap faithfulness."""
         assessments = [self.assess(claim, fragments) for claim, fragments in claims]
         if not assessments:
@@ -332,7 +392,10 @@ class GroundingJudge:
                     max_hops=self.max_hops,
                     min_edge_weight=self.min_edge_weight,
                 ):
-                    if best is None or (path.hops, -path.strength) < (best.hops, -best.strength):
+                    if best is None or (path.hops, -path.strength) < (
+                        best.hops,
+                        -best.strength,
+                    ):
                         best = path
         return best
 
@@ -352,11 +415,17 @@ class GroundingJudge:
     def _modality_escalations(self, claim: str, texts: list[str]) -> list[str]:
         lowered = claim.lower()
         source = " ".join(texts).lower()
-        claim_hedges = {marker for marker in HEDGE_MARKERS if f" {marker} " in f" {lowered} "}
-        source_hedges = {marker for marker in HEDGE_MARKERS if f" {marker} " in f" {source} "}
+        claim_hedges = {
+            marker for marker in HEDGE_MARKERS if f" {marker} " in f" {lowered} "
+        }
+        source_hedges = {
+            marker for marker in HEDGE_MARKERS if f" {marker} " in f" {source} "
+        }
         if not source_hedges or claim_hedges:
             return []
-        asserted = [marker for marker in ASSERTION_MARKERS if f" {marker} " in f" {lowered} "]
+        asserted = [
+            marker for marker in ASSERTION_MARKERS if f" {marker} " in f" {lowered} "
+        ]
         return sorted(set(asserted))
 
 
@@ -369,5 +438,7 @@ def _fragment_text(fragment: dict[str, Any] | str) -> str:
 
 
 def _content_terms(text: str) -> set[str]:
-    tokens = "".join(character if character.isalnum() else " " for character in text.lower()).split()
+    tokens = "".join(
+        character if character.isalnum() else " " for character in text.lower()
+    ).split()
     return {token for token in tokens if len(token) > 2 and token not in STOPWORDS}

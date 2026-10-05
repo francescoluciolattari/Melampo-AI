@@ -20,7 +20,9 @@ def _graph() -> InMemoryConceptGraph:
     return InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
-            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
+            ConceptEdge(
+                "connective tissue weakness", "causes", "aortic root dilation", 0.85
+            ),
             ConceptEdge("pulmonary", "has_phenotype", "aortic root dilation", 0.3),
         ]
     )
@@ -28,11 +30,20 @@ def _graph() -> InMemoryConceptGraph:
 
 def _table() -> InformationContentTable:
     return InformationContentTable.from_frequencies(
-        {"pulmonary": 5000, "aortic root dilation": 300, "connective tissue weakness": 120, "marfan syndrome": 40}
+        {
+            "pulmonary": 5000,
+            "aortic root dilation": 300,
+            "connective tissue weakness": 120,
+            "marfan syndrome": 40,
+        }
     )
 
 
-def _answer(mechanism: str, factor: str = "marfan syndrome", target: str = "aortic root dilation") -> str:
+def _answer(
+    mechanism: str,
+    factor: str = "marfan syndrome",
+    target: str = "aortic root dilation",
+) -> str:
     return f"{factor} | {target} | yes | {mechanism}"
 
 
@@ -43,7 +54,11 @@ def _answer(mechanism: str, factor: str = "marfan syndrome", target: str = "aort
 
 def test_a_mechanism_the_graph_supports_is_grounded():
     verification = verify_mechanism(
-        _graph(), "marfan syndrome", "aortic root dilation", "connective tissue weakness", table=_table()
+        _graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        "connective tissue weakness",
+        table=_table(),
     )
     assert verification.grounding == GROUNDING_SUPPORTED
     assert verification.is_grounded is True
@@ -54,7 +69,11 @@ def test_an_invented_mechanism_is_not_grounded_even_though_the_concepts_are_conn
     """The graph links these two concepts, but not by what was claimed --
     distinct from the graph knowing of no connection at all."""
     verification = verify_mechanism(
-        _graph(), "marfan syndrome", "aortic root dilation", "cosmic ray exposure", table=_table()
+        _graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        "cosmic ray exposure",
+        table=_table(),
     )
     assert verification.grounding == GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM
     assert verification.is_grounded is False
@@ -69,10 +88,14 @@ def test_unconnected_but_real_concepts_yield_no_connection():
     graph = InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
-            ConceptEdge("isolated concept", "unrelated_relation_not_admitted", "elsewhere", 0.5),
+            ConceptEdge(
+                "isolated concept", "unrelated_relation_not_admitted", "elsewhere", 0.5
+            ),
         ]
     )
-    verification = verify_mechanism(graph, "marfan syndrome", "isolated concept", "anything", table=_table())
+    verification = verify_mechanism(
+        graph, "marfan syndrome", "isolated concept", "anything", table=_table()
+    )
     assert verification.grounding == GROUNDING_NO_CONNECTION
     assert verification.graph_supports_any_connection is False
 
@@ -83,14 +106,18 @@ def test_a_target_that_resolves_to_no_graph_concept_is_not_checkable_not_no_conn
     the graph was never successfully asked, which must not read the same as
     the graph having been asked and finding nothing."""
     verification = verify_mechanism(
-        _graph(), "marfan syndrome", "something entirely absent from this graph", "anything", table=_table()
+        _graph(),
+        "marfan syndrome",
+        "something entirely absent from this graph",
+        "anything",
+        table=_table(),
     )
     assert verification.grounding == GROUNDING_NOT_CHECKABLE
     assert verification.is_grounded is False
 
 
 def test_a_low_information_content_concept_does_not_count_as_support():
-    """"pulmonary" is reached from both origins in this fixture but its
+    """ "pulmonary" is reached from both origins in this fixture but its
     weighted activation is ~0.004 -- admitting it would undo the entire
     Information Content result this builds on."""
     verification = verify_mechanism(
@@ -100,13 +127,17 @@ def test_a_low_information_content_concept_does_not_count_as_support():
 
 
 def test_an_unstated_factor_or_target_is_not_checkable():
-    verification = verify_mechanism(_graph(), "", "aortic root dilation", "something", table=_table())
+    verification = verify_mechanism(
+        _graph(), "", "aortic root dilation", "something", table=_table()
+    )
     assert verification.grounding == GROUNDING_NOT_CHECKABLE
     assert verification.notes
 
 
 def test_no_mechanism_claimed_still_reports_what_the_graph_offers():
-    verification = verify_mechanism(_graph(), "marfan syndrome", "aortic root dilation", "", table=_table())
+    verification = verify_mechanism(
+        _graph(), "marfan syndrome", "aortic root dilation", "", table=_table()
+    )
     assert verification.is_grounded is False
     assert "connective tissue weakness" in verification.candidate_mechanisms
 
@@ -117,11 +148,15 @@ def test_no_mechanism_claimed_still_reports_what_the_graph_offers():
 
 
 def test_a_reordered_phrasing_matches_the_same_concept():
-    """"weakness of connective tissue" and "connective tissue weakness" are
+    """ "weakness of connective tissue" and "connective tissue weakness" are
     one concept permuted -- containment misses it because the words are
     reordered rather than nested."""
     verification = verify_mechanism(
-        _graph(), "marfan syndrome", "aortic root dilation", "weakness of connective tissue", table=_table()
+        _graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        "weakness of connective tissue",
+        table=_table(),
     )
     assert verification.is_grounded is True
 
@@ -135,20 +170,28 @@ def test_sharing_a_word_is_not_enough_to_match():
             ConceptEdge("aortic dilation", "causes", "b", 0.9),
         ]
     )
-    table = InformationContentTable.from_frequencies({"a": 10, "b": 10, "aortic dilation": 10})
+    table = InformationContentTable.from_frequencies(
+        {"a": 10, "b": 10, "aortic dilation": 10}
+    )
     verification = verify_mechanism(graph, "a", "b", "pulmonary dilation", table=table)
     assert verification.is_grounded is False
 
 
 def test_synonym_resolution_is_a_recorded_miss_not_a_silent_guess():
-    """"inherited aortopathy" and "connective tissue weakness" may name the
+    """ "inherited aortopathy" and "connective tissue weakness" may name the
     same real thing; this module does not pretend to know that, and says so
     rather than guessing."""
     verification = verify_mechanism(
-        _graph(), "marfan syndrome", "aortic root dilation", "inherited aortopathy", table=_table()
+        _graph(),
+        "marfan syndrome",
+        "aortic root dilation",
+        "inherited aortopathy",
+        table=_table(),
     )
     assert verification.is_grounded is False
-    assert verification.candidate_mechanisms, "what the graph does offer is still reported"
+    assert verification.candidate_mechanisms, (
+        "what the graph does offer is still reported"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -158,7 +201,10 @@ def test_synonym_resolution_is_a_recorded_miss_not_a_silent_guess():
 
 def test_two_models_agreeing_on_a_grounded_mechanism_needs_no_review():
     check = cross_check_mechanisms(
-        _graph(), _answer("connective tissue weakness"), _answer("connective tissue weakness"), table=_table()
+        _graph(),
+        _answer("connective tissue weakness"),
+        _answer("connective tissue weakness"),
+        table=_table(),
     )
     assert check.disposition == DISPOSITION_AGREED_AND_GROUNDED
     assert check.needs_review is False
@@ -169,7 +215,10 @@ def test_two_models_agreeing_on_an_invented_mechanism_is_caught():
     the same thing looked identical to clean agreement -- agreement measures
     whether two answers match each other, not whether either is grounded."""
     check = cross_check_mechanisms(
-        _graph(), _answer("cosmic ray exposure"), _answer("cosmic ray exposure"), table=_table()
+        _graph(),
+        _answer("cosmic ray exposure"),
+        _answer("cosmic ray exposure"),
+        table=_table(),
     )
     assert check.disposition == DISPOSITION_AGREED_BUT_UNGROUNDED
     assert check.models_agree is True, "they do agree -- that is exactly the danger"
@@ -181,7 +230,10 @@ def test_different_wording_of_one_grounded_concept_is_agreement():
     resolves it without needing a synonym table, because both claims land on
     the same node."""
     check = cross_check_mechanisms(
-        _graph(), _answer("connective tissue weakness"), _answer("weakness of connective tissue"), table=_table()
+        _graph(),
+        _answer("connective tissue weakness"),
+        _answer("weakness of connective tissue"),
+        table=_table(),
     )
     assert check.disposition == DISPOSITION_AGREED_AND_GROUNDED
     assert check.needs_review is False
@@ -189,7 +241,10 @@ def test_different_wording_of_one_grounded_concept_is_agreement():
 
 def test_one_grounded_one_not_is_disagreement_needing_review():
     check = cross_check_mechanisms(
-        _graph(), _answer("connective tissue weakness"), _answer("pulmonary"), table=_table()
+        _graph(),
+        _answer("connective tissue weakness"),
+        _answer("pulmonary"),
+        table=_table(),
     )
     assert check.disposition == DISPOSITION_DISAGREED_AND_UNGROUNDED
     assert check.needs_review is True
@@ -201,7 +256,9 @@ def test_each_model_is_checked_against_its_own_stated_factor_and_target():
     check = cross_check_mechanisms(
         _graph(),
         _answer("connective tissue weakness"),
-        _answer("connective tissue weakness", factor="pulmonary", target="something else"),
+        _answer(
+            "connective tissue weakness", factor="pulmonary", target="something else"
+        ),
         table=_table(),
     )
     assert check.primary.factor == "marfan syndrome"
@@ -212,7 +269,10 @@ def test_agreement_and_grounding_are_reported_as_separate_axes():
     """Collapsing them into one verdict would discard exactly what the graph
     was consulted for."""
     check = cross_check_mechanisms(
-        _graph(), _answer("cosmic ray exposure"), _answer("cosmic ray exposure"), table=_table()
+        _graph(),
+        _answer("cosmic ray exposure"),
+        _answer("cosmic ray exposure"),
+        table=_table(),
     )
     payload = check.as_dict()
     assert payload["models_agree"] is True
@@ -226,10 +286,16 @@ def test_agreement_and_grounding_are_reported_as_separate_axes():
 
 def test_summarise_counts_by_disposition():
     grounded = cross_check_mechanisms(
-        _graph(), _answer("connective tissue weakness"), _answer("connective tissue weakness"), table=_table()
+        _graph(),
+        _answer("connective tissue weakness"),
+        _answer("connective tissue weakness"),
+        table=_table(),
     )
     ungrounded = cross_check_mechanisms(
-        _graph(), _answer("cosmic ray exposure"), _answer("cosmic ray exposure"), table=_table()
+        _graph(),
+        _answer("cosmic ray exposure"),
+        _answer("cosmic ray exposure"),
+        table=_table(),
     )
     summary = summarise([grounded, ungrounded])
     assert summary["cases"] == 2
@@ -242,7 +308,10 @@ def test_summarise_of_nothing_does_not_divide_by_zero():
 
 def test_as_dict_carries_what_a_reviewer_needs():
     check = cross_check_mechanisms(
-        _graph(), _answer("cosmic ray exposure"), _answer("connective tissue weakness"), table=_table()
+        _graph(),
+        _answer("cosmic ray exposure"),
+        _answer("connective tissue weakness"),
+        table=_table(),
     )
     payload = check.as_dict()
     for key in ("disposition", "needs_review", "primary", "secondary"):
@@ -269,7 +338,10 @@ def _weak_link_graph():
 
 def test_without_a_fallback_model_a_weak_connection_is_reported_as_none():
     verification = verify_mechanism(
-        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
+        _weak_link_graph(),
+        "rare syndrome x",
+        "target finding z",
+        "obscure mechanism y",
         support_threshold=0.9,
     )
     assert verification.is_grounded is False
@@ -278,11 +350,19 @@ def test_without_a_fallback_model_a_weak_connection_is_reported_as_none():
 
 def test_a_fallback_model_finds_the_grounding_the_deterministic_pass_missed():
     def guided(prompt):
-        return "final(obscure mechanism y)" if "obscure mechanism y" in prompt else "neighbor(obscure mechanism y)"
+        return (
+            "final(obscure mechanism y)"
+            if "obscure mechanism y" in prompt
+            else "neighbor(obscure mechanism y)"
+        )
 
     verification = verify_mechanism(
-        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
-        support_threshold=0.9, fallback_model=guided,
+        _weak_link_graph(),
+        "rare syndrome x",
+        "target finding z",
+        "obscure mechanism y",
+        support_threshold=0.9,
+        fallback_model=guided,
     )
     assert verification.is_grounded is True
     assert verification.via_guided_expansion is True
@@ -293,15 +373,26 @@ def test_guided_grounding_is_never_confused_with_the_deterministic_grounding():
     """The whole reason this stays a separate value: a reader checking
     `grounding == "supported"` specifically must not be fooled by a result
     that came from a model-dependent walk instead."""
+
     def guided(prompt):
-        return "final(obscure mechanism y)" if "obscure mechanism y" in prompt else "neighbor(obscure mechanism y)"
+        return (
+            "final(obscure mechanism y)"
+            if "obscure mechanism y" in prompt
+            else "neighbor(obscure mechanism y)"
+        )
 
     verification = verify_mechanism(
-        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
-        support_threshold=0.9, fallback_model=guided,
+        _weak_link_graph(),
+        "rare syndrome x",
+        "target finding z",
+        "obscure mechanism y",
+        support_threshold=0.9,
+        fallback_model=guided,
     )
     assert verification.grounding != "supported"
-    assert verification.is_grounded is True, "but is_grounded is still true -- it checks both states"
+    assert verification.is_grounded is True, (
+        "but is_grounded is still true -- it checks both states"
+    )
 
 
 def test_a_fallback_that_finds_a_different_mechanism_is_not_treated_as_grounded():
@@ -309,8 +400,12 @@ def test_a_fallback_that_finds_a_different_mechanism_is_not_treated_as_grounded(
         return "final(some other unrelated concept)"
 
     verification = verify_mechanism(
-        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
-        support_threshold=0.9, fallback_model=guided,
+        _weak_link_graph(),
+        "rare syndrome x",
+        "target finding z",
+        "obscure mechanism y",
+        support_threshold=0.9,
+        fallback_model=guided,
     )
     assert verification.is_grounded is False
     assert verification.via_guided_expansion is False
@@ -330,23 +425,39 @@ def test_the_fallback_is_never_tried_when_the_deterministic_pass_already_found_s
     graph = InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
-            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
+            ConceptEdge(
+                "connective tissue weakness", "causes", "aortic root dilation", 0.85
+            ),
         ]
     )
     table = InformationContentTable.from_frequencies(
-        {"marfan syndrome": 40, "connective tissue weakness": 120, "aortic root dilation": 300}
+        {
+            "marfan syndrome": 40,
+            "connective tissue weakness": 120,
+            "aortic root dilation": 300,
+        }
     )
     verify_mechanism(
-        graph, "marfan syndrome", "aortic root dilation", "cosmic ray exposure",
-        table=table, fallback_model=guided,
+        graph,
+        "marfan syndrome",
+        "aortic root dilation",
+        "cosmic ray exposure",
+        table=table,
+        fallback_model=guided,
     )
-    assert called["n"] == 0, "the deterministic pass found a connection (just not this mechanism); fallback must not run"
+    assert called["n"] == 0, (
+        "the deterministic pass found a connection (just not this mechanism); fallback must not run"
+    )
 
 
 def test_a_fallback_model_that_also_finds_nothing_leaves_grounding_as_no_connection():
     verification = verify_mechanism(
-        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y",
-        support_threshold=0.9, fallback_model=lambda p: "give_up()",
+        _weak_link_graph(),
+        "rare syndrome x",
+        "target finding z",
+        "obscure mechanism y",
+        support_threshold=0.9,
+        fallback_model=lambda p: "give_up()",
     )
     assert verification.grounding == "no_connection"
     assert verification.via_guided_expansion is False
@@ -357,7 +468,11 @@ def test_no_fallback_model_given_is_the_default_and_behaves_as_before():
     """Backward compatibility: omitting fallback_model must reproduce exactly
     the pre-existing behaviour."""
     verification = verify_mechanism(
-        _weak_link_graph(), "rare syndrome x", "target finding z", "obscure mechanism y", support_threshold=0.9
+        _weak_link_graph(),
+        "rare syndrome x",
+        "target finding z",
+        "obscure mechanism y",
+        support_threshold=0.9,
     )
     assert verification.grounding == "no_connection"
 
@@ -377,8 +492,12 @@ def test_no_fallback_model_given_is_the_default_and_behaves_as_before():
 def _ckd_graph():
     return InMemoryConceptGraph.from_edges(
         [
-            ConceptEdge("chronic kidney disease", "causes", "secondary hyperparathyroidism", 0.8),
-            ConceptEdge("secondary hyperparathyroidism", "causes", "renal osteodystrophy", 0.75),
+            ConceptEdge(
+                "chronic kidney disease", "causes", "secondary hyperparathyroidism", 0.8
+            ),
+            ConceptEdge(
+                "secondary hyperparathyroidism", "causes", "renal osteodystrophy", 0.75
+            ),
         ]
     )
 
@@ -387,10 +506,16 @@ def test_a_parenthetical_abbreviation_no_longer_defeats_resolution():
     """The exact failure from the live run: "chronic kidney disease (ckd)"
     must resolve to the graph's "chronic kidney disease" node."""
     table = InformationContentTable.from_frequencies(
-        {"chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60}
+        {
+            "chronic kidney disease": 900,
+            "secondary hyperparathyroidism": 150,
+            "renal osteodystrophy": 60,
+        }
     )
     verification = verify_mechanism(
-        _ckd_graph(), "chronic kidney disease (ckd)", "renal osteodystrophy.",
+        _ckd_graph(),
+        "chronic kidney disease (ckd)",
+        "renal osteodystrophy.",
         "secondary hyperparathyroidism due to phosphate retention and reduced vitamin d activation",
         table=table,
     )
@@ -399,13 +524,19 @@ def test_a_parenthetical_abbreviation_no_longer_defeats_resolution():
 
 
 def test_natural_phrasing_wrapping_a_concept_no_longer_defeats_resolution():
-    """"the patient's chronic kidney disease" -- a real model's actual
+    """ "the patient's chronic kidney disease" -- a real model's actual
     phrasing style, not a hand-picked edge case."""
     table = InformationContentTable.from_frequencies(
-        {"chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60}
+        {
+            "chronic kidney disease": 900,
+            "secondary hyperparathyroidism": 150,
+            "renal osteodystrophy": 60,
+        }
     )
     verification = verify_mechanism(
-        _ckd_graph(), "the patient's chronic kidney disease", "the bone findings (renal osteodystrophy)",
+        _ckd_graph(),
+        "the patient's chronic kidney disease",
+        "the bone findings (renal osteodystrophy)",
         "secondary hyperparathyroidism",
         table=table,
     )
@@ -418,7 +549,9 @@ def test_a_target_with_no_resolvable_concept_at_all_is_reported_as_not_checkable
     checked-and-empty result would give."""
     table = InformationContentTable.from_frequencies({"chronic kidney disease": 900})
     verification = verify_mechanism(
-        _ckd_graph(), "chronic kidney disease", "a finding this graph has never heard of",
+        _ckd_graph(),
+        "chronic kidney disease",
+        "a finding this graph has never heard of",
         "anything",
         table=table,
     )
@@ -431,10 +564,18 @@ def test_resolution_does_not_paper_over_a_genuinely_unsupported_mechanism_claim(
     it should be: a claim the graph genuinely does not support after correct
     resolution still fails."""
     table = InformationContentTable.from_frequencies(
-        {"chronic kidney disease": 900, "secondary hyperparathyroidism": 150, "renal osteodystrophy": 60}
+        {
+            "chronic kidney disease": 900,
+            "secondary hyperparathyroidism": 150,
+            "renal osteodystrophy": 60,
+        }
     )
     verification = verify_mechanism(
-        _ckd_graph(), "chronic kidney disease (ckd)", "renal osteodystrophy.", "cosmic ray exposure", table=table
+        _ckd_graph(),
+        "chronic kidney disease (ckd)",
+        "renal osteodystrophy.",
+        "cosmic ray exposure",
+        table=table,
     )
     assert verification.is_grounded is False
     assert verification.grounding == GROUNDING_CONNECTION_WITHOUT_THIS_MECHANISM

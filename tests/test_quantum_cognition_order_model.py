@@ -61,7 +61,9 @@ def test_a_valid_rotated_projector_pair_is_accepted():
 def test_complementary_projector_probabilities_sum_to_one():
     state = QuantumBeliefState.normalised((0.6 + 0j, 0.8 + 0j))
     yes, no = rotation_projector_pair(math.pi / 5)
-    assert yes.probability(state) + no.probability(state) == pytest.approx(1.0, abs=1e-9)
+    assert yes.probability(state) + no.probability(state) == pytest.approx(
+        1.0, abs=1e-9
+    )
 
 
 def test_probability_is_always_between_zero_and_one():
@@ -108,8 +110,12 @@ def test_the_order_effect_grows_with_how_incompatible_the_questions_are():
     state = QuantumBeliefState.normalised((0.6 + 0j, 0.8 + 0j))
     a_yes, _ = rotation_projector_pair(0.0)
 
-    small_angle_effect = abs(order_effect(state, a_yes, rotation_projector_pair(math.pi / 12)[0]))
-    large_angle_effect = abs(order_effect(state, a_yes, rotation_projector_pair(math.pi / 4)[0]))
+    small_angle_effect = abs(
+        order_effect(state, a_yes, rotation_projector_pair(math.pi / 12)[0])
+    )
+    large_angle_effect = abs(
+        order_effect(state, a_yes, rotation_projector_pair(math.pi / 4)[0])
+    )
 
     assert large_angle_effect > small_angle_effect
 
@@ -119,7 +125,9 @@ def test_swapping_the_order_of_the_same_two_questions_negates_the_effect():
     a_yes, _ = rotation_projector_pair(0.0)
     b_yes, _ = rotation_projector_pair(math.pi / 6)
 
-    assert order_effect(state, a_yes, b_yes) == pytest.approx(-order_effect(state, b_yes, a_yes), abs=1e-9)
+    assert order_effect(state, a_yes, b_yes) == pytest.approx(
+        -order_effect(state, b_yes, a_yes), abs=1e-9
+    )
 
 
 # --------------------------------------------------------------------------

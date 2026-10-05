@@ -66,7 +66,11 @@ def test_rational_control_validator_validates_favorable_candidate():
         candidate=candidate,
         area_dynamics=_favorable_area_dynamics(),
         retrieval_context={"retrieval_coverage": 0.6},
-        governance_scores={"risk": 0.1, "provenance_quality": 0.9, "retrieval_coverage": 0.6},
+        governance_scores={
+            "risk": 0.1,
+            "provenance_quality": 0.9,
+            "retrieval_coverage": 0.6,
+        },
     )
     assert validation["allowed_for_promotion"] is True
     assert validation["status"] == "validated_for_promotion_review"
@@ -88,16 +92,26 @@ def test_promotion_policy_queues_for_review_by_default():
         "observed": {"provenance_available": True, "candidate_score": 0.8},
     }
     store.attach_validation(record.candidate_id, validation)
-    decision = PromotionPolicy().decide(store.get(record.candidate_id).as_dict(), validation)
+    decision = PromotionPolicy().decide(
+        store.get(record.candidate_id).as_dict(), validation
+    )
     updated = store.attach_promotion_decision(record.candidate_id, decision)
     assert decision["target_learning_status"] == "needs_review"
     assert updated["learning_status"] == "needs_review"
 
 
 def test_nexus_scheduler_runs_only_in_low_activity_window():
-    scheduler = NexusScheduler(low_activity_policy=LowActivityPolicy(min_idle_seconds=10, max_active_requests=0))
+    scheduler = NexusScheduler(
+        low_activity_policy=LowActivityPolicy(
+            min_idle_seconds=10, max_active_requests=0
+        )
+    )
     scheduler.enqueue(
-        case_context={"case_id": "case-idle", "report_text": "opacity cough", "patient_complaints": "fever"},
+        case_context={
+            "case_id": "case-idle",
+            "report_text": "opacity cough",
+            "patient_complaints": "fever",
+        },
         area_dynamics=_favorable_area_dynamics(),
         nexus={
             "auto_evolution_plan": {
@@ -110,7 +124,11 @@ def test_nexus_scheduler_runs_only_in_low_activity_window():
             }
         },
         retrieval_context={"retrieval_coverage": 0.7},
-        governance_scores={"risk": 0.1, "provenance_quality": 0.9, "retrieval_coverage": 0.7},
+        governance_scores={
+            "risk": 0.1,
+            "provenance_quality": 0.9,
+            "retrieval_coverage": 0.7,
+        },
     )
     skipped = scheduler.run_once(activity={"active_requests": 1, "idle_seconds": 0})
     assert skipped["status"] == "skipped"
@@ -127,21 +145,34 @@ def test_nexus_scheduler_runs_only_in_low_activity_window():
 
 def test_outcome_feedback_attaches_to_candidate_and_memory():
     store = NexusCandidateStore()
-    record = store.create_candidate({"text": "candidate", "metadata": {"case_id": "case-outcome"}}, case_id="case-outcome")
+    record = store.create_candidate(
+        {"text": "candidate", "metadata": {"case_id": "case-outcome"}},
+        case_id="case-outcome",
+    )
     ingestor = OutcomeFeedbackIngestor()
     updated = ingestor.attach_to_candidate(
         store,
         record.candidate_id,
-        diagnostic_result={"case_id": "case-outcome", "result_label": "pneumonia", "top_hypothesis": {"score": 0.8}},
+        diagnostic_result={
+            "case_id": "case-outcome",
+            "result_label": "pneumonia",
+            "top_hypothesis": {"score": 0.8},
+        },
         outcome={"accepted_labels": ["pneumonia"], "notes": "reviewed by specialist"},
     )
     assert updated["outcome_feedback"][0]["correct"] is True
 
     vector_store = InMemoryVectorStore.enterprise_default()
     feedback = ingestor.build_feedback(
-        diagnostic_result={"case_id": "case-outcome", "result_label": "pneumonia", "top_hypothesis": {"score": 0.8}},
+        diagnostic_result={
+            "case_id": "case-outcome",
+            "result_label": "pneumonia",
+            "top_hypothesis": {"score": 0.8},
+        },
         outcome={"accepted_labels": ["pneumonia"]},
     )
-    memory = ingestor.consolidate_to_memory(vector_store, feedback, learning_status="candidate")
+    memory = ingestor.consolidate_to_memory(
+        vector_store, feedback, learning_status="candidate"
+    )
     assert memory["metadata"]["memory_role"] == "reviewed_outcome_feedback"
     assert vector_store.describe()["record_count"] == 1

@@ -17,12 +17,21 @@ from melampo.training.patient_matching import (
 )
 
 _GRAPH = InMemoryConceptGraph.from_edges(
-    [ConceptEdge("Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9)]
+    [
+        ConceptEdge(
+            "Marfan syndrome", "has_phenotype", "Aortic root aneurysm", weight=0.9
+        )
+    ]
 )
 
 
 def _identifiers(name, surname, date, question, fiscal_code=None, password="secret"):
-    payload = {"patient_name": name, "patient_surname": surname, "case_date": date, "diagnostic_question": question}
+    payload = {
+        "patient_name": name,
+        "patient_surname": surname,
+        "case_date": date,
+        "diagnostic_question": question,
+    }
     if fiscal_code:
         payload["patient_fiscal_code"] = fiscal_code
     return PatientIdentifiers.from_payload(payload, password)
@@ -42,7 +51,9 @@ def test_accents_are_stripped():
 
 
 def test_internal_double_spaces_collapse():
-    assert normalize_name_component("Mario  Rossi") == normalize_name_component("Mario Rossi")
+    assert normalize_name_component("Mario  Rossi") == normalize_name_component(
+        "Mario Rossi"
+    )
 
 
 def test_leading_and_trailing_whitespace_is_trimmed():
@@ -68,43 +79,77 @@ def test_a_different_password_changes_the_hash():
 
 
 def test_fiscal_code_alone_is_decisive_regardless_of_case():
-    a = _identifiers("Mario", "Rossi", "2026-01-01", "unrelated question", fiscal_code="RSSMRA80A01H501U")
-    b = _identifiers("Different", "Name", "2099-12-31", "totally unrelated", fiscal_code="rssmra80a01h501u")
+    a = _identifiers(
+        "Mario",
+        "Rossi",
+        "2026-01-01",
+        "unrelated question",
+        fiscal_code="RSSMRA80A01H501U",
+    )
+    b = _identifiers(
+        "Different",
+        "Name",
+        "2099-12-31",
+        "totally unrelated",
+        fiscal_code="rssmra80a01h501u",
+    )
     assert identifiers_match(a, b, _GRAPH) is True
 
 
 def test_a_different_fiscal_code_never_matches_even_with_everything_else_equal():
-    a = _identifiers("Mario", "Rossi", "2026-01-01", "same question", fiscal_code="RSSMRA80A01H501U")
-    b = _identifiers("Mario", "Rossi", "2026-01-01", "same question", fiscal_code="VRDLGU75B02H501X")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-01-01", "same question", fiscal_code="RSSMRA80A01H501U"
+    )
+    b = _identifiers(
+        "Mario", "Rossi", "2026-01-01", "same question", fiscal_code="VRDLGU75B02H501X"
+    )
     assert identifiers_match(a, b, _GRAPH) is False
 
 
 def test_name_surname_date_and_overlapping_question_together_match():
-    a = _identifiers("Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm")
-    b = _identifiers("MARIO", "  Rossi  ", "2026-09-01", "Suspected aortic root aneurysm, follow-up")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm"
+    )
+    b = _identifiers(
+        "MARIO", "  Rossi  ", "2026-09-01", "Suspected aortic root aneurysm, follow-up"
+    )
     assert identifiers_match(a, b, _GRAPH) is True
 
 
 def test_a_different_surname_never_matches_even_with_everything_else_equal():
-    a = _identifiers("Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm")
-    b = _identifiers("Mario", "Bianchi", "2026-09-01", "Evaluate for aortic root aneurysm")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm"
+    )
+    b = _identifiers(
+        "Mario", "Bianchi", "2026-09-01", "Evaluate for aortic root aneurysm"
+    )
     assert identifiers_match(a, b, _GRAPH) is False
 
 
 def test_a_different_date_never_matches_even_with_everything_else_equal():
-    a = _identifiers("Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm")
-    b = _identifiers("Mario", "Rossi", "2026-09-02", "Evaluate for aortic root aneurysm")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm"
+    )
+    b = _identifiers(
+        "Mario", "Rossi", "2026-09-02", "Evaluate for aortic root aneurysm"
+    )
     assert identifiers_match(a, b, _GRAPH) is False
 
 
 def test_an_unrelated_diagnostic_question_never_matches_even_with_everything_else_equal():
-    a = _identifiers("Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm")
-    b = _identifiers("Mario", "Rossi", "2026-09-01", "Routine follow-up, no specific complaint")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm"
+    )
+    b = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Routine follow-up, no specific complaint"
+    )
     assert identifiers_match(a, b, _GRAPH) is False
 
 
 def test_missing_name_or_surname_never_matches_without_a_fiscal_code():
-    a = PatientIdentifiers.from_payload({"case_date": "2026-09-01", "diagnostic_question": "x"}, "secret")
+    a = PatientIdentifiers.from_payload(
+        {"case_date": "2026-09-01", "diagnostic_question": "x"}, "secret"
+    )
     b = _identifiers("Mario", "Rossi", "2026-09-01", "x")
     assert identifiers_match(a, b, _GRAPH) is False
 
@@ -117,18 +162,28 @@ def test_missing_name_or_surname_never_matches_without_a_fiscal_code():
 
 
 def test_italian_phrasing_with_genuine_overlap_matches_via_the_word_fallback():
-    a = _identifiers("Mario", "Rossi", "2026-09-01", "Valutare aneurisma della radice aortica")
-    b = _identifiers("Mario", "Rossi", "2026-09-01", "Sospetto aneurisma della radice aortica")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Valutare aneurisma della radice aortica"
+    )
+    b = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Sospetto aneurisma della radice aortica"
+    )
     assert identifiers_match(a, b, _GRAPH) is True
 
 
 def test_italian_phrasing_with_no_real_overlap_does_not_match():
-    a = _identifiers("Mario", "Rossi", "2026-09-01", "Valutare aneurisma della radice aortica")
-    b = _identifiers("Mario", "Rossi", "2026-09-01", "Controllo di routine, nessun sintomo specifico")
+    a = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Valutare aneurisma della radice aortica"
+    )
+    b = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Controllo di routine, nessun sintomo specifico"
+    )
     assert identifiers_match(a, b, _GRAPH) is False
 
 
 def test_an_empty_diagnostic_question_on_either_side_never_matches():
     a = _identifiers("Mario", "Rossi", "2026-09-01", "")
-    b = _identifiers("Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm")
+    b = _identifiers(
+        "Mario", "Rossi", "2026-09-01", "Evaluate for aortic root aneurysm"
+    )
     assert identifiers_match(a, b, _GRAPH) is False

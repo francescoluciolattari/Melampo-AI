@@ -89,14 +89,20 @@ class ModelReleaseGate:
                 failures.append("benchmark_sample_count_below_threshold")
             if _safe_float(benchmark, "coverage") < self.min_coverage:
                 failures.append("coverage_below_threshold")
-            if _safe_float(benchmark, "selective_accuracy") < self.min_selective_accuracy:
+            if (
+                _safe_float(benchmark, "selective_accuracy")
+                < self.min_selective_accuracy
+            ):
                 failures.append("selective_accuracy_below_threshold")
         else:
             failures.append("benchmark_report_missing")
 
         if calibration:
             observed["calibration"] = calibration
-            if _safe_float(calibration, "expected_calibration_error") > self.max_expected_calibration_error:
+            if (
+                _safe_float(calibration, "expected_calibration_error")
+                > self.max_expected_calibration_error
+            ):
                 failures.append("calibration_ece_above_threshold")
         else:
             warnings.append("calibration_report_missing")
@@ -107,7 +113,11 @@ class ModelReleaseGate:
             observed_rag = rag.get("observed", rag)
             if rag_status and rag_status not in {"pass", "research_pass"}:
                 failures.append("rag_thresholds_not_passing")
-            provenance = _safe_float(observed_rag, "provenance_completeness", _safe_float(rag, "provenance_completeness"))
+            provenance = _safe_float(
+                observed_rag,
+                "provenance_completeness",
+                _safe_float(rag, "provenance_completeness"),
+            )
             if provenance < self.min_rag_provenance:
                 failures.append("rag_provenance_below_threshold")
         else:
@@ -125,13 +135,25 @@ class ModelReleaseGate:
                 protocol_metrics = {
                     "coverage": benchmark.get("coverage"),
                     "selective_accuracy": benchmark.get("selective_accuracy"),
-                    "expected_calibration_error": calibration.get("expected_calibration_error", 0.0) if calibration else 0.0,
-                    "provenance_completeness": rag.get("provenance_completeness", rag.get("observed", {}).get("provenance_completeness", 1.0)) if rag else 0.0,
+                    "expected_calibration_error": calibration.get(
+                        "expected_calibration_error", 0.0
+                    )
+                    if calibration
+                    else 0.0,
+                    "provenance_completeness": rag.get(
+                        "provenance_completeness",
+                        rag.get("observed", {}).get("provenance_completeness", 1.0),
+                    )
+                    if rag
+                    else 0.0,
                 }
                 protocol_result = protocol.evaluate_observed_metrics(protocol_metrics)
                 observed["protocol_endpoint_evaluation"] = protocol_result
                 if protocol_result["status"] != "pass":
-                    failures.extend(f"protocol_endpoint:{failure}" for failure in protocol_result["failures"])
+                    failures.extend(
+                        f"protocol_endpoint:{failure}"
+                        for failure in protocol_result["failures"]
+                    )
 
         if dataset_manifest is None:
             failures.append("dataset_manifest_missing")
@@ -139,7 +161,9 @@ class ModelReleaseGate:
             manifest_validation = dataset_manifest.validate()
             observed["dataset_manifest"] = manifest_validation
             if manifest_validation["status"] != "pass":
-                failures.extend(f"dataset:{failure}" for failure in manifest_validation["failures"])
+                failures.extend(
+                    f"dataset:{failure}" for failure in manifest_validation["failures"]
+                )
             warnings.extend(manifest_validation.get("warnings", []))
 
         if slices:
@@ -155,7 +179,10 @@ class ModelReleaseGate:
             observed["change_control"] = change_control
             if change_control.get("approval_status") in {"rejected", "blocked"}:
                 failures.append("change_control_rejected")
-            if change_control.get("risk_level") == "high" and change_control.get("approval_status") != "approved":
+            if (
+                change_control.get("risk_level") == "high"
+                and change_control.get("approval_status") != "approved"
+            ):
                 failures.append("high_risk_change_not_approved")
         else:
             warnings.append("change_control_not_attached")
@@ -165,7 +192,9 @@ class ModelReleaseGate:
         status = "research_pass" if not deduped_failures else "blocked"
         return ReleaseGateDecision(
             status=status,
-            allowed_use="research_only" if status == "research_pass" else "blocked_pending_review",
+            allowed_use="research_only"
+            if status == "research_pass"
+            else "blocked_pending_review",
             clinical_use_allowed=False,
             promotion_allowed=status == "research_pass",
             failures=deduped_failures,

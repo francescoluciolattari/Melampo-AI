@@ -15,14 +15,21 @@ def test_specialist_adapters_are_safe_by_default():
     gemma = Gemma4ClinicalReasoningAdapter()
     claude = ClaudeCritiqueAdapter()
 
-    pillar_response = pillar.infer_volume("study-1", ["/tmp/nonexistent.dcm"], {"modality": "CT"})
-    gemma_response = gemma.reason_over_text("case-1", "Patient reports cough and fever.", {"hits": []})
+    pillar_response = pillar.infer_volume(
+        "study-1", ["/tmp/nonexistent.dcm"], {"modality": "CT"}
+    )
+    gemma_response = gemma.reason_over_text(
+        "case-1", "Patient reports cough and fever.", {"hits": []}
+    )
     claude_response = claude.critique({"result_label": "abstain_or_escalate"})
 
     assert pillar_response.status == "not_called"
     assert gemma_response.status == "not_called"
     assert claude_response.status == "not_called"
-    assert pillar_response.as_area_signal("visual_diagnostic")["area"] == "visual_diagnostic"
+    assert (
+        pillar_response.as_area_signal("visual_diagnostic")["area"]
+        == "visual_diagnostic"
+    )
     assert gemma_response.as_area_signal("language_listening")["limitations"]
 
 
@@ -41,9 +48,14 @@ def test_weaviate_adapter_prepares_schema_without_network_calls():
 
 def test_document_processor_plain_text_fallback(tmp_path: Path):
     path = tmp_path / "guideline.txt"
-    path.write_text("Fever and cough can support infectious differential reasoning." * 5, encoding="utf-8")
+    path.write_text(
+        "Fever and cough can support infectious differential reasoning." * 5,
+        encoding="utf-8",
+    )
     processor = ClinicalDocumentProcessor(chunk_size=80, chunk_overlap=10)
-    result = processor.process_document(path, metadata={"source_type": "unit_test"}, prefer_structured_parser=False)
+    result = processor.process_document(
+        path, metadata={"source_type": "unit_test"}, prefer_structured_parser=False
+    )
 
     assert result["status"] == "completed"
     assert result["parser"] == "plain_text_fallback"
@@ -80,7 +92,9 @@ def test_nemotron_parse_is_reported_unavailable_without_configuration():
 
 
 def test_nemotron_parse_is_reported_available_once_configured():
-    processor = ClinicalDocumentProcessor(nemotron_parse_endpoint="https://example", nemotron_parse_api_key="k")
+    processor = ClinicalDocumentProcessor(
+        nemotron_parse_endpoint="https://example", nemotron_parse_api_key="k"
+    )
     assert processor._nemotron_parse_available()["available"] is True
 
 
@@ -90,10 +104,15 @@ def test_llamaparse_is_off_by_default_and_cloud_only(tmp_path):
     processor = ClinicalDocumentProcessor()
     assert processor._llamaparse_available()["available"] is False
     description = processor.describe()
-    assert "no true on-premise" in description["cross_check_parser"].lower() or "vpc" in description["cross_check_parser"].lower()
+    assert (
+        "no true on-premise" in description["cross_check_parser"].lower()
+        or "vpc" in description["cross_check_parser"].lower()
+    )
 
 
-def test_processing_falls_back_to_plain_text_when_nemotron_parse_is_unconfigured(tmp_path):
+def test_processing_falls_back_to_plain_text_when_nemotron_parse_is_unconfigured(
+    tmp_path,
+):
     """The graceful-degradation contract Docling held is preserved under the
     new name -- callers already handling this status need no change."""
     path = tmp_path / "referto.txt"
@@ -120,7 +139,9 @@ def test_cross_check_is_off_by_default(tmp_path):
 def test_cross_check_result_is_attached_when_requested(tmp_path):
     path = tmp_path / "referto.txt"
     path.write_text("text")
-    result = ClinicalDocumentProcessor().process_document(path, also_cross_check_with_llamaparse=True)
+    result = ClinicalDocumentProcessor().process_document(
+        path, also_cross_check_with_llamaparse=True
+    )
     assert "cross_check" in result
     assert result["cross_check"]["status"] == "not_executed"
 

@@ -15,14 +15,18 @@ def _area_dynamics():
 
 def test_a_scheduler_with_no_password_or_path_is_pure_in_memory_as_before():
     scheduler = NexusScheduler()
-    job = scheduler.enqueue(case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics())
+    job = scheduler.enqueue(
+        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+    )
     assert job in scheduler.queue
 
 
 def test_an_enqueued_job_survives_a_new_scheduler_instance(tmp_path):
     path = tmp_path / "queue.jsonl"
     first = NexusScheduler(password="secret", path=path)
-    job = first.enqueue(case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics())
+    job = first.enqueue(
+        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+    )
 
     second = NexusScheduler(password="secret", path=path)
 
@@ -31,7 +35,9 @@ def test_an_enqueued_job_survives_a_new_scheduler_instance(tmp_path):
     assert second.queue[0].status == "queued"
 
 
-def test_a_genuinely_separate_process_can_process_a_queue_it_never_enqueued_to(tmp_path):
+def test_a_genuinely_separate_process_can_process_a_queue_it_never_enqueued_to(
+    tmp_path,
+):
     """The property that mattered in practice: process A enqueues, process
     B (a fresh NexusScheduler instance, same password/path) processes."""
     path = tmp_path / "queue.jsonl"
@@ -48,7 +54,9 @@ def test_a_genuinely_separate_process_can_process_a_queue_it_never_enqueued_to(t
 def test_a_processed_job_status_is_persisted_as_completed(tmp_path):
     path = tmp_path / "queue.jsonl"
     scheduler = NexusScheduler(password="secret", path=path)
-    scheduler.enqueue(case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics())
+    scheduler.enqueue(
+        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+    )
     scheduler.run_once(activity={"active_requests": 0, "idle_seconds": 600})
 
     reloaded = NexusScheduler(password="secret", path=path)
@@ -59,7 +67,9 @@ def test_a_processed_job_status_is_persisted_as_completed(tmp_path):
 def test_only_the_latest_event_per_job_wins_on_reload(tmp_path):
     path = tmp_path / "queue.jsonl"
     scheduler = NexusScheduler(password="secret", path=path)
-    scheduler.enqueue(case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics())
+    scheduler.enqueue(
+        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+    )
     scheduler.run_once(activity={"active_requests": 0, "idle_seconds": 600})
 
     reloaded = NexusScheduler(password="secret", path=path)

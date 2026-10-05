@@ -70,7 +70,9 @@ def test_a_treatment_is_not_cautionary():
 
 def test_cautions_for_returns_only_the_warnings():
     index = MedicalActionIndex.from_annotations(_parse(_TREATS_ROW, _CONTRA_ROW))
-    assert [action.relation for action in index.cautions_for("MONDO:0100135")] == ["CONTRAINDICATED"]
+    assert [action.relation for action in index.cautions_for("MONDO:0100135")] == [
+        "CONTRAINDICATED"
+    ]
     assert index.cautions_for("MONDO:0008854") == []
 
 

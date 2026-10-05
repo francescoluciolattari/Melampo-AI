@@ -149,7 +149,9 @@ def test_enumeration_no_longer_discards_the_uncertain_paths():
             candidate_conditions=["known condition", "speculative condition"],
         )
     ]
-    assert "speculative condition" in labels, "a path through a gap is a hypothesis, not noise"
+    assert "speculative condition" in labels, (
+        "a path through a gap is a hypothesis, not noise"
+    )
     assert "known condition" in labels
 
 
@@ -276,10 +278,15 @@ def test_a_test_whose_advantage_is_a_missing_edge_no_longer_wins():
         ]
     )
     selector = DiscriminatingTestSelector(graph=graph)
-    ranked = selector.rank([WeightedHypothesis("condition a", 0.5), WeightedHypothesis("condition b", 0.5)])
+    ranked = selector.rank(
+        [WeightedHypothesis("condition a", 0.5), WeightedHypothesis("condition b", 0.5)]
+    )
     by_name = {item.name: item for item in ranked}
 
-    assert by_name["unmapped test"].information_gain > by_name["documented test"].information_gain
+    assert (
+        by_name["unmapped test"].information_gain
+        > by_name["documented test"].information_gain
+    )
     assert by_name["unmapped test"].information_gain_lower == 0.0
     assert by_name["documented test"].information_gain_lower > 0.0
     assert ranked[0].name == "documented test"
@@ -293,7 +300,9 @@ def test_an_explicit_unknown_edge_also_guarantees_nothing():
         ]
     )
     selector = DiscriminatingTestSelector(graph=graph)
-    ranked = selector.rank([WeightedHypothesis("condition a", 0.5), WeightedHypothesis("condition b", 0.5)])
+    ranked = selector.rank(
+        [WeightedHypothesis("condition a", 0.5), WeightedHypothesis("condition b", 0.5)]
+    )
     assert ranked[0].information_gain_lower == 0.0
 
 

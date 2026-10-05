@@ -19,7 +19,9 @@ from melampo.training.vector_evolution_engine import (
 
 
 def _space(directory) -> HypothesisVectorSpace:
-    return HypothesisVectorSpace(store=EncryptedJsonlStore(path=Path(directory) / "vectors.jsonl", password="x"))
+    return HypothesisVectorSpace(
+        store=EncryptedJsonlStore(path=Path(directory) / "vectors.jsonl", password="x")
+    )
 
 
 # --------------------------------------------------------------------------
@@ -52,11 +54,15 @@ def test_overlap_is_direction_only_not_magnitude():
 
 
 def test_no_elapsed_time_leaves_the_vector_unchanged():
-    assert leaky_integrate((1.0, 0.0), (0.0, 1.0), elapsed_seconds=0, tau_seconds=100) == (1.0, 0.0)
+    assert leaky_integrate(
+        (1.0, 0.0), (0.0, 1.0), elapsed_seconds=0, tau_seconds=100
+    ) == (1.0, 0.0)
 
 
 def test_evidence_pulls_the_vector_toward_it_over_time():
-    result = leaky_integrate((1.0, 0.0), (0.0, 1.0), elapsed_seconds=50, tau_seconds=100)
+    result = leaky_integrate(
+        (1.0, 0.0), (0.0, 1.0), elapsed_seconds=50, tau_seconds=100
+    )
     assert 0.0 < result[0] < 1.0
     assert 0.0 < result[1] < 1.0
 
@@ -64,7 +70,9 @@ def test_evidence_pulls_the_vector_toward_it_over_time():
 def test_a_very_long_elapsed_time_converges_on_the_new_evidence():
     """Old state decays away entirely; the vector becomes what the new
     evidence says, the leaky integrator's asymptotic behaviour."""
-    result = leaky_integrate((1.0, 0.0), (0.0, 1.0), elapsed_seconds=100_000, tau_seconds=10)
+    result = leaky_integrate(
+        (1.0, 0.0), (0.0, 1.0), elapsed_seconds=100_000, tau_seconds=10
+    )
     assert result[0] == pytest.approx(0.0, abs=1e-6)
     assert result[1] == pytest.approx(1.0, abs=1e-6)
 
@@ -104,7 +112,9 @@ def test_reinforcement_scales_with_how_correlated_the_pair_already_is():
     a, b, learning_rate = (1.0, 0.0, 0.0), (0.4, 0.9, 0.1), 0.2
     overlap = cosine_overlap(a, b)
     midpoint = tuple((x + y) / 2.0 for x, y in zip(a, b))
-    expected_a = tuple(x + (learning_rate * overlap) * (m - x) for x, m in zip(a, midpoint))
+    expected_a = tuple(
+        x + (learning_rate * overlap) * (m - x) for x, m in zip(a, midpoint)
+    )
 
     new_a, _ = hebbian_reinforce(a, b, learning_rate=learning_rate)
 
@@ -139,7 +149,9 @@ def test_a_second_update_evolves_rather_than_replaces():
     with tempfile.TemporaryDirectory() as directory:
         space = _space(directory)
         space.update("case-1", "sarcoidosis", (1.0, 0.0, 0.0), now=1000.0)
-        result = space.update("case-1", "sarcoidosis", (0.0, 1.0, 0.0), now=1000.0 + space.tau_seconds)
+        result = space.update(
+            "case-1", "sarcoidosis", (0.0, 1.0, 0.0), now=1000.0 + space.tau_seconds
+        )
     assert 0.0 < result.vector[0] < 1.0
     assert 0.0 < result.vector[1] < 1.0
 
@@ -211,21 +223,31 @@ def test_the_space_persists_and_reloads_with_correct_evolved_state():
     replaying every event, not just the last one."""
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "vectors.jsonl"
-        first = HypothesisVectorSpace(store=EncryptedJsonlStore(path=path, password="x"), tau_seconds=100)
+        first = HypothesisVectorSpace(
+            store=EncryptedJsonlStore(path=path, password="x"), tau_seconds=100
+        )
         first.update("case-A", "sarcoidosis", (1.0, 0.0), now=1000.0)
         first.update("case-A", "sarcoidosis", (0.0, 1.0), now=1100.0)
 
-        second = HypothesisVectorSpace(store=EncryptedJsonlStore(path=path, password="x"), tau_seconds=100)
-        overlap_with_pure_evidence = second.overlap("case-A::sarcoidosis", "case-A::sarcoidosis")
+        second = HypothesisVectorSpace(
+            store=EncryptedJsonlStore(path=path, password="x"), tau_seconds=100
+        )
+        overlap_with_pure_evidence = second.overlap(
+            "case-A::sarcoidosis", "case-A::sarcoidosis"
+        )
 
-    assert overlap_with_pure_evidence == 1.0  # a vector always overlaps completely with itself
+    assert (
+        overlap_with_pure_evidence == 1.0
+    )  # a vector always overlaps completely with itself
     assert len(second) == 1
 
 
 def test_the_event_log_is_encrypted_on_disk():
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "vectors.jsonl"
-        space = HypothesisVectorSpace(store=EncryptedJsonlStore(path=path, password="x"))
+        space = HypothesisVectorSpace(
+            store=EncryptedJsonlStore(path=path, password="x")
+        )
         space.update("case-A", "a very specific rare diagnosis", (1.0, 0.0), now=1000.0)
 
         raw = path.read_bytes()
@@ -241,7 +263,10 @@ def test_the_event_log_is_encrypted_on_disk():
 def test_without_a_configured_vector_space_both_methods_degrade_gracefully(tmp_path):
     assembly = assemble(list(DIFFERENTIAL_GRAPH_EDGES), tmp_path / "learned.jsonl")
 
-    assert assembly.record_hypothesis_vector("c1", "sarcoidosis", HashingEmbeddingModel()) is None
+    assert (
+        assembly.record_hypothesis_vector("c1", "sarcoidosis", HashingEmbeddingModel())
+        is None
+    )
     assert assembly.cross_case_correlations() == []
 
 
@@ -252,8 +277,12 @@ def test_with_a_configured_space_hypotheses_from_two_cases_correlate(tmp_path):
     )
     embedder = HashingEmbeddingModel()
 
-    assembly.record_hypothesis_vector("case-1", "sarcoidosis with pulmonary involvement", embedder, now=1000.0)
-    assembly.record_hypothesis_vector("case-2", "sarcoidosis with lung involvement", embedder, now=1000.0)
+    assembly.record_hypothesis_vector(
+        "case-1", "sarcoidosis with pulmonary involvement", embedder, now=1000.0
+    )
+    assembly.record_hypothesis_vector(
+        "case-2", "sarcoidosis with lung involvement", embedder, now=1000.0
+    )
 
     correlations = assembly.cross_case_correlations(min_overlap=0.3)
 

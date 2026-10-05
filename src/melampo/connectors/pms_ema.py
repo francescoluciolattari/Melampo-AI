@@ -135,11 +135,15 @@ def _passage_from_product(resource: dict[str, Any]) -> LiteraturePassage | None:
 
     ingredients: list[str] = []
     for ingredient in resource.get("ingredient") or []:
-        substance = (ingredient.get("substance") or {}).get("code", {}).get("concept", {})
+        substance = (
+            (ingredient.get("substance") or {}).get("code", {}).get("concept", {})
+        )
         text = substance.get("text") or ""
         if text:
             ingredients.append(str(text))
-    ingredients_text = f" Active ingredients: {', '.join(ingredients)}." if ingredients else ""
+    ingredients_text = (
+        f" Active ingredients: {', '.join(ingredients)}." if ingredients else ""
+    )
 
     return LiteraturePassage(
         passage_id=f"pms-ema:{resource_id}",
@@ -165,11 +169,14 @@ class PmsEmaConnector:
     def availability(self) -> PmsEmaAvailability:
         if not self.config.client_id or not self.config.client_secret:
             return PmsEmaAvailability(
-                available=False, reason="PMS_EMA_CLIENT_ID/PMS_EMA_CLIENT_SECRET not configured"
+                available=False,
+                reason="PMS_EMA_CLIENT_ID/PMS_EMA_CLIENT_SECRET not configured",
             )
         return PmsEmaAvailability(available=True)
 
-    def search(self, product_name: str, *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search(
+        self, product_name: str, *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         """Search MedicinalProductDefinition resources by name."""
         if not self.availability().available or not product_name:
             return []
@@ -188,7 +195,9 @@ class PmsEmaConnector:
                     break
         return passages
 
-    def search_for_concepts(self, concepts: Sequence[str], *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search_for_concepts(
+        self, concepts: Sequence[str], *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         passages: list[LiteraturePassage] = []
         for concept in concepts:
             if not concept:
@@ -199,11 +208,21 @@ class PmsEmaConnector:
         return passages[:max_results]
 
     def populate(
-        self, index: Any, product_name: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+        self,
+        index: Any,
+        product_name: str,
+        *,
+        max_results: int = 25,
+        store: Any = None,
+        graph: Any = None,
     ) -> int:
         """Superseded by ``graph`` -- see europe_pmc.py's populate() for why passing it skips the separate JSONL write."""
         passages = self.search(product_name, max_results=max_results)
-        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        added = (
+            index.add_many(passages, source_graph=graph)
+            if graph is not None
+            else index.add_many(passages)
+        )
         if store is not None and graph is None:
             from ..memory.literature_persistence import persist_passage
 
@@ -243,20 +262,28 @@ class PmsEmaConnector:
         request = Request(
             self.config.token_url,
             data=body,
-            headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": self.config.tool},
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": self.config.tool,
+            },
             method="POST",
         )
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8", errors="ignore"))
 
-    def _fetch_search_page(self, product_name: str) -> dict[str, Any]:  # pragma: no cover - network call
+    def _fetch_search_page(
+        self, product_name: str
+    ) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()
         token = self._get_access_token()
         params = {"name": product_name}
         url = f"{PMS_EMA_BASE}/MedicinalProductDefinition?{urlencode(params)}"
         request = Request(
             url,
-            headers={"User-Agent": self.config.tool, "Authorization": f"Bearer {token}"},
+            headers={
+                "User-Agent": self.config.tool,
+                "Authorization": f"Bearer {token}",
+            },
         )
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8", errors="ignore"))

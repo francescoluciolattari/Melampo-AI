@@ -121,7 +121,12 @@ class SymptomLink:
 # Mondo: the disease identity layer
 # ---------------------------------------------------------------------------
 
-_XREF_PREFIX_ALIASES = {"ORPHANET": "ORPHA", "UMLS_CUI": "UMLS", "NCI": "NCIT", "MIM": "OMIM"}
+_XREF_PREFIX_ALIASES = {
+    "ORPHANET": "ORPHA",
+    "UMLS_CUI": "UMLS",
+    "NCI": "NCIT",
+    "MIM": "OMIM",
+}
 
 
 def normalise_xref(xref: str) -> str:
@@ -160,7 +165,9 @@ def parse_mondo(lines: Iterable[str]) -> Iterator[MondoDisease]:
     def flush() -> MondoDisease | None:
         if not inside or not term_id.startswith("MONDO:"):
             return None
-        return MondoDisease(term_id, label, tuple(synonyms), tuple(xrefs), tuple(parents), obsolete)
+        return MondoDisease(
+            term_id, label, tuple(synonyms), tuple(xrefs), tuple(parents), obsolete
+        )
 
     for raw in lines:
         line = raw.rstrip("\n")
@@ -169,7 +176,14 @@ def parse_mondo(lines: Iterable[str]) -> Iterator[MondoDisease]:
             if finished is not None:
                 yield finished
             inside = line.strip() == "[Term]"
-            term_id, label, synonyms, xrefs, parents, obsolete = "", "", [], [], [], False
+            term_id, label, synonyms, xrefs, parents, obsolete = (
+                "",
+                "",
+                [],
+                [],
+                [],
+                False,
+            )
             continue
         if not inside or not line:
             continue
@@ -237,7 +251,9 @@ class DiseaseIndex:
         return seen
 
 
-def assign_mondo(links: Iterable[SymptomLink], index: DiseaseIndex) -> list[SymptomLink]:
+def assign_mondo(
+    links: Iterable[SymptomLink], index: DiseaseIndex
+) -> list[SymptomLink]:
     """Attach the Mondo id to links that arrived with only a source-native disease id.
 
     A source id that maps to more than one Mondo disease is left unassigned:
@@ -250,7 +266,11 @@ def assign_mondo(links: Iterable[SymptomLink], index: DiseaseIndex) -> list[Symp
             assigned.append(link)
             continue
         candidates = index.mondo_for(link.disease_id)
-        assigned.append(replace(link, mondo_id=next(iter(candidates))) if len(candidates) == 1 else link)
+        assigned.append(
+            replace(link, mondo_id=next(iter(candidates)))
+            if len(candidates) == 1
+            else link
+        )
     return assigned
 
 
@@ -274,7 +294,9 @@ def links_from_hpoa(annotations: Iterable[Any]) -> Iterator[SymptomLink]:
             disease_label=annotation.disease_name,
             symptom_id=annotation.phenotype_id,
             symptom_label="",
-            relation=RELATION_EXCLUDES_FINDING if annotation.is_excluded else RELATION_HAS_FINDING,
+            relation=RELATION_EXCLUDES_FINDING
+            if annotation.is_excluded
+            else RELATION_HAS_FINDING,
             tier=TIER_CURATED,
             reference=annotation.reference,
             hpo_id=annotation.phenotype_id,
@@ -337,16 +359,23 @@ def parse_doid_owl(source: str | Path | IO[bytes]) -> Iterator[DoidClass]:
                     symptoms.append(symptom)
         yield DoidClass(
             doid=_curie(about),
-            label=(label_element.text or "").strip() if label_element is not None else "",
-            definition=(definition_element.text or "").strip() if definition_element is not None else "",
+            label=(label_element.text or "").strip()
+            if label_element is not None
+            else "",
+            definition=(definition_element.text or "").strip()
+            if definition_element is not None
+            else "",
             symptom_ids=tuple(symptoms),
-            deprecated=deprecated_element is not None and (deprecated_element.text or "").strip() == "true",
+            deprecated=deprecated_element is not None
+            and (deprecated_element.text or "").strip() == "true",
         )
         element.clear()
 
 
 # "has_symptom fever, has_symptom arthralgia, and has_symptom maculopapular rash."
-_TEXT_SYMPTOM = re.compile(r"has_symptom\s+(.+?)(?=,|;|\.(?:\s|$)|\s+and\s+has_symptom|$)")
+_TEXT_SYMPTOM = re.compile(
+    r"has_symptom\s+(.+?)(?=,|;|\.(?:\s|$)|\s+and\s+has_symptom|$)"
+)
 
 
 def symptoms_in_definition(definition: str) -> list[str]:
@@ -360,7 +389,9 @@ def symptoms_in_definition(definition: str) -> list[str]:
     return phrases
 
 
-def links_from_doid(classes: Iterable[DoidClass], symptom_labels: Mapping[str, str]) -> Iterator[SymptomLink]:
+def links_from_doid(
+    classes: Iterable[DoidClass], symptom_labels: Mapping[str, str]
+) -> Iterator[SymptomLink]:
     """DO axioms (tier 2) plus the definition-text symptoms no axiom already states (tier 4)."""
     for cls in classes:
         if cls.deprecated:
@@ -424,7 +455,9 @@ _NCIT_TIER = {
 }
 
 
-def infer_orientation(label_counts: Mapping[str, int], *, minimum_rows: int = 20) -> str:
+def infer_orientation(
+    label_counts: Mapping[str, int], *, minimum_rows: int = 20
+) -> str:
     """Decide how the API orients NCIt role labels, from rows returned for disease codes.
 
     Every code queried by the coverage probe is a disease. A disease is the
@@ -440,7 +473,11 @@ def infer_orientation(label_counts: Mapping[str, int], *, minimum_rows: int = 20
     inverse = sum(label_counts.get(label, 0) for label in NCIT_INVERSE_LABELS)
     if forward + inverse < minimum_rows or forward == inverse:
         return ORIENTATION_UNDETERMINED
-    return ORIENTATION_QUERIED_IS_SUBJECT if forward > inverse else ORIENTATION_RELATED_IS_SUBJECT
+    return (
+        ORIENTATION_QUERIED_IS_SUBJECT
+        if forward > inverse
+        else ORIENTATION_RELATED_IS_SUBJECT
+    )
 
 
 def code_from_uts_url(url: str) -> str:
@@ -499,7 +536,11 @@ def _mondo_curie(value: str) -> str:
     return value if value.upper().startswith("MONDO:") else f"MONDO:{value}"
 
 
-def links_from_wikidata(bindings: Iterable[Mapping[str, Any]], *, mondo_for_doid: Mapping[str, str] | None = None) -> Iterator[SymptomLink]:
+def links_from_wikidata(
+    bindings: Iterable[Mapping[str, Any]],
+    *,
+    mondo_for_doid: Mapping[str, str] | None = None,
+) -> Iterator[SymptomLink]:
     """Rows of `connectors.wikidata.symptom_query` results as links.
 
     Each row is keyed by either a Mondo id (P5270) or a DOID (P699), and
@@ -533,7 +574,9 @@ def links_from_wikidata(bindings: Iterable[Mapping[str, Any]], *, mondo_for_doid
             symptom_id=symptom_id,
             symptom_label=_binding(row, "symptomLabel"),
             relation=RELATION_HAS_FINDING,
-            tier=TIER_COMMUNITY_REFERENCED if references > 0 else TIER_COMMUNITY_UNREFERENCED,
+            tier=TIER_COMMUNITY_REFERENCED
+            if references > 0
+            else TIER_COMMUNITY_UNREFERENCED,
             mondo_id=mondo_id,
             reference=f"{references} reference(s) on the statement",
             hpo_id=hpo if hpo.startswith("HP:") else "",
@@ -585,12 +628,16 @@ def normalise_to_hpo(
         if link.hpo_id:
             result.append(link)
             continue
-        mapped = xref_map.get(normalise_xref(link.symptom_id)) if link.symptom_id else None
+        mapped = (
+            xref_map.get(normalise_xref(link.symptom_id)) if link.symptom_id else None
+        )
         if mapped:
             result.append(replace(link, hpo_id=mapped, mapping=MAPPING_XREF))
             continue
         if term_index is not None and link.symptom_label:
-            holders = term_index.by_surface.get(normalise_surface(link.symptom_label), [])
+            holders = term_index.by_surface.get(
+                normalise_surface(link.symptom_label), []
+            )
             if len(holders) == 1:
                 result.append(replace(link, hpo_id=holders[0], mapping=MAPPING_LABEL))
                 continue

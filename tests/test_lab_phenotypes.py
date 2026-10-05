@@ -65,7 +65,12 @@ def annotated_term_ids():
 
 
 def _all_terms():
-    return [(rule.key, direction, term) for rule in RULES for direction, term in (("high", rule.high), ("low", rule.low)) if term]
+    return [
+        (rule.key, direction, term)
+        for rule in RULES
+        for direction, term in (("high", rule.high), ("low", rule.low))
+        if term
+    ]
 
 
 def test_every_term_exists_is_current_and_keeps_its_label(hpo_terms):
@@ -73,12 +78,18 @@ def test_every_term_exists_is_current_and_keeps_its_label(hpo_terms):
     for key, direction, term in _all_terms():
         found = hpo_terms.get(term.term_id)
         if found is None or found.obsolete or found.name != term.label:
-            problems.append((key, direction, term.term_id, term.label, getattr(found, "name", None)))
+            problems.append(
+                (key, direction, term.term_id, term.label, getattr(found, "name", None))
+            )
     assert problems == []
 
 
 def test_every_term_is_annotated_to_at_least_one_disease(annotated_term_ids):
-    assert [(key, term.term_id) for key, _, term in _all_terms() if term.term_id not in annotated_term_ids] == []
+    assert [
+        (key, term.term_id)
+        for key, _, term in _all_terms()
+        if term.term_id not in annotated_term_ids
+    ] == []
 
 
 def test_no_printed_name_belongs_to_two_rules_for_the_same_specimen():
@@ -95,7 +106,9 @@ def test_no_printed_name_belongs_to_two_rules_for_the_same_specimen():
 
 
 def _map(text: str):
-    return map_observations_to_phenotypes(extract_lab_results(text).observations("attachment-1"))
+    return map_observations_to_phenotypes(
+        extract_lab_results(text).observations("attachment-1")
+    )
 
 
 def _labels(mapping):
@@ -158,16 +171,34 @@ def test_out_of_range_rows_become_their_phenotypes(mapped):
 
 
 def test_each_phenotype_is_traceable_to_its_line(mapped):
-    creatinine = next(item for item in mapped.phenotypes if item.label == "Elevated circulating creatinine concentration")
-    assert (creatinine.term_id, creatinine.direction, creatinine.sources, creatinine.analytes) == (
-        "HP:0003259", "high", ("attachment-1:line-9",), ("Creatinina",),
+    creatinine = next(
+        item
+        for item in mapped.phenotypes
+        if item.label == "Elevated circulating creatinine concentration"
+    )
+    assert (
+        creatinine.term_id,
+        creatinine.direction,
+        creatinine.sources,
+        creatinine.analytes,
+    ) == (
+        "HP:0003259",
+        "high",
+        ("attachment-1:line-9",),
+        ("Creatinina",),
     )
 
 
 def test_urine_leukocytes_are_pyuria_never_leukocytosis(mapped):
     pyuria = next(item for item in mapped.phenotypes if item.label == "Pyuria")
-    leukocytosis = next(item for item in mapped.phenotypes if item.label == "Increased total leukocyte count")
-    assert pyuria.analytes == ("Leucociti",) and leukocytosis.analytes == ("Globuli bianchi (WBC)",)
+    leukocytosis = next(
+        item
+        for item in mapped.phenotypes
+        if item.label == "Increased total leukocyte count"
+    )
+    assert pyuria.analytes == ("Leucociti",) and leukocytosis.analytes == (
+        "Globuli bianchi (WBC)",
+    )
     assert "Hyperglycemia" not in _labels(mapped)
 
 
@@ -193,9 +224,14 @@ def test_a_row_under_no_recognised_header_is_not_assumed_to_be_blood():
 
 
 def test_the_same_phenotype_from_two_rows_is_one_finding_with_both_sources():
-    mapping = _map("EMOCROMO\nEmoglobina   9,8   g/dL   12,0 - 16,0\nHb   9,6   g/dL   12,0 - 16,0")
+    mapping = _map(
+        "EMOCROMO\nEmoglobina   9,8   g/dL   12,0 - 16,0\nHb   9,6   g/dL   12,0 - 16,0"
+    )
     [anemia] = mapping.phenotypes
-    assert (anemia.label, anemia.sources) == ("Anemia", ("attachment-1:line-2", "attachment-1:line-3"))
+    assert (anemia.label, anemia.sources) == (
+        "Anemia",
+        ("attachment-1:line-2", "attachment-1:line-3"),
+    )
 
 
 @pytest.mark.parametrize(
@@ -211,7 +247,9 @@ def test_the_same_phenotype_from_two_rows_is_one_finding_with_both_sources():
         (None, "Glucosio", None),
     ],
 )
-def test_specimen_comes_from_the_header_or_the_analyte_never_assumed(section, analyte, expected):
+def test_specimen_comes_from_the_header_or_the_analyte_never_assumed(
+    section, analyte, expected
+):
     assert specimen_of(section, analyte) == expected
 
 
@@ -221,41 +259,81 @@ def test_specimen_comes_from_the_header_or_the_analyte_never_assumed(section, an
 
 
 def _prepare(payload, **options):
-    pipeline = ClinicalIngestionPipeline(document_processor=ClinicalDocumentProcessor(), **options)
+    pipeline = ClinicalIngestionPipeline(
+        document_processor=ClinicalDocumentProcessor(), **options
+    )
     return pipeline.prepare_payload(payload)
 
 
 def test_phenotypes_are_appended_after_the_physicians_findings_without_duplicates():
-    prepared = _prepare({"case_id": "c1", "findings": ["Fever", "anemia"], "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}]})
+    prepared = _prepare(
+        {
+            "case_id": "c1",
+            "findings": ["Fever", "anemia"],
+            "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}],
+        }
+    )
     assert prepared["findings"][:2] == ["Fever", "anemia"]
-    assert "Anemia" not in prepared["findings"]  # already typed, compared case-insensitively
+    assert (
+        "Anemia" not in prepared["findings"]
+    )  # already typed, compared case-insensitively
     assert "Elevated circulating creatinine concentration" in prepared["findings"]
     assert prepared["lab_phenotypes"]["added_findings"] == prepared["findings"][2:]
 
 
 def test_findings_are_created_when_the_physician_typed_none():
-    prepared = _prepare({"case_id": "c1", "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}]})
+    prepared = _prepare(
+        {
+            "case_id": "c1",
+            "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}],
+        }
+    )
     assert "Anemia" in prepared["findings"]
 
 
 def test_provenance_travels_with_the_case():
     pipeline = ClinicalIngestionPipeline(document_processor=ClinicalDocumentProcessor())
-    case = pipeline.from_payload({"case_id": "c1", "attachments": [{"filename": "Rossi_Mario.txt", "data": REPORT.encode()}]})
+    case = pipeline.from_payload(
+        {
+            "case_id": "c1",
+            "attachments": [{"filename": "Rossi_Mario.txt", "data": REPORT.encode()}],
+        }
+    )
     provenance = case.provenance["lab_phenotypes"]
     assert provenance["withheld_by_reason"][WITHHELD_PERCENT] == 2
-    assert all("Rossi" not in str(item) for item in provenance["phenotypes"] + provenance["withheld"])
+    assert all(
+        "Rossi" not in str(item)
+        for item in provenance["phenotypes"] + provenance["withheld"]
+    )
 
 
 def test_it_can_be_switched_off():
-    prepared = _prepare({"case_id": "c1", "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}]}, derive_lab_findings=False)
+    prepared = _prepare(
+        {
+            "case_id": "c1",
+            "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}],
+        },
+        derive_lab_findings=False,
+    )
     assert "findings" not in prepared and "lab_phenotypes" not in prepared
 
 
 def test_caller_findings_of_an_unexpected_shape_are_left_untouched():
-    prepared = _prepare({"case_id": "c1", "findings": "fever", "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}]})
+    prepared = _prepare(
+        {
+            "case_id": "c1",
+            "findings": "fever",
+            "attachments": [{"filename": "esami.txt", "data": REPORT.encode()}],
+        }
+    )
     assert prepared["findings"] == "fever"
-    assert prepared["lab_phenotypes"]["not_merged_reason"] == "caller_findings_not_a_list"
+    assert (
+        prepared["lab_phenotypes"]["not_merged_reason"] == "caller_findings_not_a_list"
+    )
 
 
 def test_no_attachments_means_no_change_at_all():
-    assert _prepare({"case_id": "c1", "findings": ["Fever"]}) == {"case_id": "c1", "findings": ["Fever"]}
+    assert _prepare({"case_id": "c1", "findings": ["Fever"]}) == {
+        "case_id": "c1",
+        "findings": ["Fever"],
+    }

@@ -133,17 +133,29 @@ def _evidence(record_id: str, *, offsets: bool = True, score: float = 0.6) -> di
     if offsets:
         document_id, span = record_id.split(":")
         start, end = span.split("-")
-        item["provenance"] = {"document_id": document_id, "char_start": int(start), "char_end": int(end)}
+        item["provenance"] = {
+            "document_id": document_id,
+            "char_start": int(start),
+            "char_end": int(end),
+        }
     return item
 
 
 def test_reconciliation_confirms_overlap_and_admits_verified_recall_gain():
-    one_shot = {"query": "q", "evidence": [_evidence("report_1:0-20"), _evidence("note_1:0-15")]}
-    recursive = {"query": "q", "evidence": [_evidence("report_1:0-20"), _evidence("note_1:40-60")]}
+    one_shot = {
+        "query": "q",
+        "evidence": [_evidence("report_1:0-20"), _evidence("note_1:0-15")],
+    }
+    recursive = {
+        "query": "q",
+        "evidence": [_evidence("report_1:0-20"), _evidence("note_1:40-60")],
+    }
 
     verdict = reconcile(one_shot, recursive)
 
-    dispositions = {item["record_id"]: item["reconciliation"] for item in verdict.evidence}
+    dispositions = {
+        item["record_id"]: item["reconciliation"] for item in verdict.evidence
+    }
     assert dispositions["report_1:0-20"] == DISPOSITION_CONFIRMED
     assert dispositions["note_1:40-60"] == DISPOSITION_RLM_ONLY_VERIFIED
     assert verdict.recall_gain == 1
@@ -155,14 +167,19 @@ def test_recursive_only_findings_without_offsets_are_discarded_as_overreach():
     one_shot = {"query": "q", "evidence": [_evidence("report_1:0-20")]}
     recursive = {
         "query": "q",
-        "evidence": [_evidence("report_1:0-20"), {"text": "a synthesised connection", "grounding_score": 0.9}],
+        "evidence": [
+            _evidence("report_1:0-20"),
+            {"text": "a synthesised connection", "grounding_score": 0.9},
+        ],
     }
 
     verdict = reconcile(one_shot, recursive)
 
     assert verdict.overreach_blocked == 1
     assert verdict.recall_gain == 0
-    assert all(item.get("text") != "a synthesised connection" for item in verdict.evidence)
+    assert all(
+        item.get("text") != "a synthesised connection" for item in verdict.evidence
+    )
 
 
 def test_full_disagreement_produces_maximum_conflict_signal():
@@ -187,10 +204,15 @@ def test_dual_path_payload_satisfies_the_shared_contract():
         "evidence": [_evidence("report_1:0-20")],
         "case_context_keys": ["age"],
     }
-    recursive = {"query": "therapy", "evidence": [_evidence("report_1:0-20"), _evidence("note_1:0-15")]}
+    recursive = {
+        "query": "therapy",
+        "evidence": [_evidence("report_1:0-20"), _evidence("note_1:0-15")],
+    }
 
     verdict = reconcile(one_shot, recursive)
-    payload = build_dual_path_payload(one_shot, recursive, verdict, coverage={"coverage_ratio": 0.62})
+    payload = build_dual_path_payload(
+        one_shot, recursive, verdict, coverage={"coverage_ratio": 0.62}
+    )
 
     assert_retrieval_contract(payload)
     assert payload["retrieval_quality"]["memory_backed"] is True
@@ -231,7 +253,9 @@ def test_hypothesis_channel_opens_under_high_indeterminacy():
 
 
 def test_hypotheses_cannot_cross_into_the_evidence_path():
-    hypothesis = HypothesisEnvelope(label="alt_a", novelty_score=0.5).as_exclusion_hypothesis()
+    hypothesis = HypothesisEnvelope(
+        label="alt_a", novelty_score=0.5
+    ).as_exclusion_hypothesis()
     with pytest.raises(ValueError):
         assert_not_evidence([hypothesis])
 
@@ -240,6 +264,14 @@ def test_hypotheses_cannot_cross_into_the_evidence_path():
 
 def test_gate_requires_all_three_conditions():
     gate = IndeterminacyGate()
-    assert gate.is_open({"convergence_index": 0.3, "conflict_load": 0.7}, risk=0.6) is True
-    assert gate.is_open({"convergence_index": 0.3, "conflict_load": 0.1}, risk=0.6) is False
-    assert gate.is_open({"convergence_index": 0.3, "conflict_load": 0.7}, risk=0.1) is False
+    assert (
+        gate.is_open({"convergence_index": 0.3, "conflict_load": 0.7}, risk=0.6) is True
+    )
+    assert (
+        gate.is_open({"convergence_index": 0.3, "conflict_load": 0.1}, risk=0.6)
+        is False
+    )
+    assert (
+        gate.is_open({"convergence_index": 0.3, "conflict_load": 0.7}, risk=0.1)
+        is False
+    )

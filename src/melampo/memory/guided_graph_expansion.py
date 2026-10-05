@@ -57,7 +57,9 @@ STOP_ITERATIONS = "iteration_budget_exhausted"
 STOP_NO_ACTION = "model_emitted_no_action"
 STOP_DEAD_END = "no_neighbours_to_offer"
 
-_ACTION_RE = re.compile(r"^\s*(neighbor|final|give_up)\s*\(([^)]*)\)\s*$", re.IGNORECASE)
+_ACTION_RE = re.compile(
+    r"^\s*(neighbor|final|give_up)\s*\(([^)]*)\)\s*$", re.IGNORECASE
+)
 
 DEFAULT_MAX_HOPS = 6
 
@@ -112,10 +114,18 @@ def _neighbours(
 def _format_neighbours(neighbours: list[tuple[str, str, float]]) -> str:
     if not neighbours:
         return "(none)"
-    return "\n".join(f"  - {relation} -> {target} (weight {weight:.2f})" for target, relation, weight in neighbours)
+    return "\n".join(
+        f"  - {relation} -> {target} (weight {weight:.2f})"
+        for target, relation, weight in neighbours
+    )
 
 
-def _prompt(target: str, current: str, path: tuple[str, ...], neighbours: list[tuple[str, str, float]]) -> str:
+def _prompt(
+    target: str,
+    current: str,
+    path: tuple[str, ...],
+    neighbours: list[tuple[str, str, float]],
+) -> str:
     return (
         f"You are looking for a concept that connects to both '{target}' and the concept you started "
         f"from, by following real edges in a knowledge graph. You are currently at '{current}'.\n"
@@ -144,14 +154,22 @@ def guided_expand(
     whether to invoke this at all -- see the module docstring for why that
     decision is deliberately kept external.
     """
-    allowed = frozenset(allowed_relations) if allowed_relations is not None else DEFAULT_ALLOWED_RELATIONS
+    allowed = (
+        frozenset(allowed_relations)
+        if allowed_relations is not None
+        else DEFAULT_ALLOWED_RELATIONS
+    )
     current = normalise_concept(start)
     target_norm = normalise_concept(target)
     path: tuple[str, ...] = (current,)
     visited: set[str] = {current}
 
     for hop in range(max_hops):
-        neighbours = [item for item in _neighbours(graph, current, allowed) if item[0] not in visited]
+        neighbours = [
+            item
+            for item in _neighbours(graph, current, allowed)
+            if item[0] not in visited
+        ]
         if not neighbours:
             return GuidedExpansionResult(None, path, STOP_DEAD_END, hop)
 
@@ -164,7 +182,9 @@ def guided_expand(
         if verb == VERB_GIVE_UP:
             return GuidedExpansionResult(None, path, STOP_GAVE_UP, hop)
         if verb == VERB_FINAL:
-            return GuidedExpansionResult(normalise_concept(arg) or current, path, STOP_FINAL, hop)
+            return GuidedExpansionResult(
+                normalise_concept(arg) or current, path, STOP_FINAL, hop
+            )
         if verb == VERB_NEIGHBOR:
             chosen = normalise_concept(arg)
             valid = {item[0] for item in neighbours}

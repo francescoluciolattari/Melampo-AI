@@ -41,9 +41,16 @@ def _minimal_pipeline(monkeypatch) -> ClinicalInferencePipeline:
 
     def _fake_load_graph(*args, **kwargs):
         graph = differential_graph()
-        return GraphSource(graph=graph, source="fixture", edge_count=len(graph.edges), detail="test fixture")
+        return GraphSource(
+            graph=graph,
+            source="fixture",
+            edge_count=len(graph.edges),
+            detail="test fixture",
+        )
 
-    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _fake_load_graph)
+    monkeypatch.setattr(
+        "melampo.reasoning.clinical_pipeline.load_verification_graph", _fake_load_graph
+    )
 
     field_names = {f.name for f in fields(ClinicalInferencePipeline)}
     kwargs = dict.fromkeys(field_names, object())
@@ -63,11 +70,22 @@ def _run(pipeline, payload):
     which this test's stub dependencies cannot support."""
     from melampo.types import CaseContext
 
-    case = CaseContext(case_id=payload.get("case_id", "c"), report_text="", ehr_text="", demographics={}, provenance={})
+    case = CaseContext(
+        case_id=payload.get("case_id", "c"),
+        report_text="",
+        ehr_text="",
+        demographics={},
+        provenance={},
+    )
     components = pipeline._build_runtime_components()
     return pipeline._run_nexus_branch(
-        components=components, payload=payload, case=case, bundle={"a": 1},
-        area_dynamics={}, governance_scores={"nexus_coherence": 0.5, "risk": 0.2}, visual_imprints=[],
+        components=components,
+        payload=payload,
+        case=case,
+        bundle={"a": 1},
+        area_dynamics={},
+        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+        visual_imprints=[],
     )
 
 
@@ -103,7 +121,13 @@ def test_an_empty_findings_list_behaves_the_same_as_no_findings_key(monkeypatch)
 
 def test_findings_attach_a_real_enumerator(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
-    _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"]})
+    _run(
+        pipeline,
+        {
+            "case_id": "c1",
+            "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"],
+        },
+    )
     assert pipeline._nexus_enumerator is not None
 
 
@@ -113,7 +137,11 @@ def test_findings_produce_real_enumerated_hypotheses(monkeypatch):
         pipeline,
         {
             "case_id": "c1",
-            "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"],
+            "findings": [
+                "bilateral hilar lymphadenopathy",
+                "hypercalcaemia",
+                "erythema nodosum",
+            ],
         },
     )
     hypotheses = result["alternative_hypotheses"]
@@ -124,10 +152,23 @@ def test_an_enumerated_hypothesis_carries_a_real_graph_path_as_provenance(monkey
     pipeline = _minimal_pipeline(monkeypatch)
     result = _run(
         pipeline,
-        {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"]},
+        {
+            "case_id": "c1",
+            "findings": [
+                "bilateral hilar lymphadenopathy",
+                "hypercalcaemia",
+                "erythema nodosum",
+            ],
+        },
     )
-    enumerated = next(h for h in result["alternative_hypotheses"] if h.get("kind") == "enumerated_mechanism")
-    assert enumerated["paths"], "an enumerated hypothesis must carry the path that found it"
+    enumerated = next(
+        h
+        for h in result["alternative_hypotheses"]
+        if h.get("kind") == "enumerated_mechanism"
+    )
+    assert enumerated["paths"], (
+        "an enumerated hypothesis must carry the path that found it"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -141,13 +182,27 @@ def test_the_graph_loads_only_once_across_multiple_calls(monkeypatch):
     def _counting_load_graph(*args, **kwargs):
         calls["n"] += 1
         graph = differential_graph()
-        return GraphSource(graph=graph, source="fixture", edge_count=len(graph.edges), detail="test")
+        return GraphSource(
+            graph=graph, source="fixture", edge_count=len(graph.edges), detail="test"
+        )
 
-    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _counting_load_graph)
+    monkeypatch.setattr(
+        "melampo.reasoning.clinical_pipeline.load_verification_graph",
+        _counting_load_graph,
+    )
     pipeline = _minimal_pipeline(monkeypatch)
-    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _counting_load_graph)
+    monkeypatch.setattr(
+        "melampo.reasoning.clinical_pipeline.load_verification_graph",
+        _counting_load_graph,
+    )
 
-    _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"]})
+    _run(
+        pipeline,
+        {
+            "case_id": "c1",
+            "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"],
+        },
+    )
     _run(pipeline, {"case_id": "c2", "findings": ["erythema nodosum"]})
 
     assert calls["n"] == 1
@@ -162,7 +217,9 @@ def test_the_graph_loads_only_once_across_multiple_calls(monkeypatch):
 def test_candidate_conditions_are_capped():
     from melampo.reasoning.clinical_pipeline import NEXUS_ENUMERATION_CANDIDATE_CAP
 
-    assert 1 <= NEXUS_ENUMERATION_CANDIDATE_CAP <= 20, "cap must be small enough to keep the branch usable"
+    assert 1 <= NEXUS_ENUMERATION_CANDIDATE_CAP <= 20, (
+        "cap must be small enough to keep the branch usable"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -193,11 +250,19 @@ def test_no_findings_returns_an_empty_list_without_touching_the_graph(monkeypatc
     def _counting_load_graph(*args, **kwargs):
         calls["n"] += 1
         graph = differential_graph()
-        return GraphSource(graph=graph, source="fixture", edge_count=len(graph.edges), detail="test")
+        return GraphSource(
+            graph=graph, source="fixture", edge_count=len(graph.edges), detail="test"
+        )
 
-    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _counting_load_graph)
+    monkeypatch.setattr(
+        "melampo.reasoning.clinical_pipeline.load_verification_graph",
+        _counting_load_graph,
+    )
     pipeline = _minimal_pipeline(monkeypatch)
-    monkeypatch.setattr("melampo.reasoning.clinical_pipeline.load_verification_graph", _counting_load_graph)
+    monkeypatch.setattr(
+        "melampo.reasoning.clinical_pipeline.load_verification_graph",
+        _counting_load_graph,
+    )
 
     result = pipeline._graph_candidates_for([])
 
@@ -208,7 +273,9 @@ def test_no_findings_returns_an_empty_list_without_touching_the_graph(monkeypatc
 def test_real_findings_produce_real_ic_weighted_candidates(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
 
-    result = pipeline._graph_candidates_for(["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"])
+    result = pipeline._graph_candidates_for(
+        ["bilateral hilar lymphadenopathy", "hypercalcaemia", "erythema nodosum"]
+    )
 
     assert result
     assert all("condition" in item and "specificity_score" in item for item in result)
@@ -245,7 +312,13 @@ def test_the_scheduler_is_cached_across_calls(monkeypatch):
 
 def test_enqueue_adds_a_job_carrying_the_nexus_branch_own_output(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
-    nexus = _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"]})
+    nexus = _run(
+        pipeline,
+        {
+            "case_id": "c1",
+            "findings": ["bilateral hilar lymphadenopathy", "hypercalcaemia"],
+        },
+    )
     scheduler = pipeline._nexus_scheduler_instance()
 
     scheduler.enqueue(
@@ -269,8 +342,14 @@ def test_multiple_enqueued_jobs_accumulate_in_the_same_queue(monkeypatch):
     for case_id in ("c1", "c2", "c3"):
         nexus = _run(pipeline, {"case_id": case_id})
         scheduler.enqueue(
-            case_context={"case_id": case_id, "report_text": "", "patient_complaints": ""},
-            area_dynamics={}, nexus=nexus, retrieval_context={},
+            case_context={
+                "case_id": case_id,
+                "report_text": "",
+                "patient_complaints": "",
+            },
+            area_dynamics={},
+            nexus=nexus,
+            retrieval_context={},
             governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
         )
 
@@ -284,7 +363,9 @@ def test_a_queued_job_processes_successfully_during_simulated_low_activity(monke
     nexus = _run(pipeline, {"case_id": "c1"})
     scheduler.enqueue(
         case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
-        area_dynamics={}, nexus=nexus, retrieval_context={},
+        area_dynamics={},
+        nexus=nexus,
+        retrieval_context={},
         governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
     )
 
@@ -302,7 +383,9 @@ def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypat
     nexus = _run(pipeline, {"case_id": "c1"})
     scheduler.enqueue(
         case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
-        area_dynamics={}, nexus=nexus, retrieval_context={},
+        area_dynamics={},
+        nexus=nexus,
+        retrieval_context={},
         governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
     )
 
@@ -325,10 +408,15 @@ def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypat
 
 def test_the_live_auto_evolution_plan_contains_only_status(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
-    nexus = _run(pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy"]})
+    nexus = _run(
+        pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy"]}
+    )
 
     assert set(nexus["auto_evolution_plan"].keys()) == {"status"}
-    assert nexus["auto_evolution_plan"]["status"] in {"candidate", "hold_for_more_evidence"}
+    assert nexus["auto_evolution_plan"]["status"] in {
+        "candidate",
+        "hold_for_more_evidence",
+    }
 
 
 def test_the_live_auto_evolution_plan_no_longer_carries_candidate_score(monkeypatch):

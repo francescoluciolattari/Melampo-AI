@@ -106,7 +106,9 @@ class CrossCheckResult:
         second opinion to confirm. That case is a distinct outcome
         (`disposition` reports it separately), not a quiet pass.
         """
-        return self.both_completed and self.answer_similarity >= ANSWER_AGREEMENT_THRESHOLD
+        return (
+            self.both_completed and self.answer_similarity >= ANSWER_AGREEMENT_THRESHOLD
+        )
 
     @property
     def evidence_agreement_ratio(self) -> float:
@@ -118,8 +120,10 @@ class CrossCheckResult:
         two models finding the one obvious passage. This does not change the
         verdict; it is recorded so the distinction is visible.
         """
-        union = len(self.shared_evidence_ids) + len(self.primary_only_evidence_ids) + len(
-            self.secondary_only_evidence_ids
+        union = (
+            len(self.shared_evidence_ids)
+            + len(self.primary_only_evidence_ids)
+            + len(self.secondary_only_evidence_ids)
         )
         return len(self.shared_evidence_ids) / union if union else 0.0
 
@@ -173,8 +177,12 @@ class CrossCheckResult:
             "secondary_only_evidence_count": len(self.secondary_only_evidence_ids),
             "disposition": self.disposition,
             "needs_review": self.needs_review,
-            "frame_comparison": self.frame_comparison.as_dict() if self.frame_comparison else None,
-            "mechanism_check": self.mechanism_check.as_dict() if self.mechanism_check else None,
+            "frame_comparison": self.frame_comparison.as_dict()
+            if self.frame_comparison
+            else None,
+            "mechanism_check": self.mechanism_check.as_dict()
+            if self.mechanism_check
+            else None,
             "notes": list(self.notes),
         }
 
@@ -273,11 +281,27 @@ def cross_check(
     graph handy still gets a usable, if less precise, comparison rather than
     an error.
     """
-    result = CrossCheckResult(case_id=case_id, primary_model=primary_name, secondary_model=secondary_name)
+    result = CrossCheckResult(
+        case_id=case_id, primary_model=primary_name, secondary_model=secondary_name
+    )
 
-    primary_trajectory = _run_one(primary_model, case_id, documents, question, budget_factory, search_fn, graph_expand_fn)
+    primary_trajectory = _run_one(
+        primary_model,
+        case_id,
+        documents,
+        question,
+        budget_factory,
+        search_fn,
+        graph_expand_fn,
+    )
     secondary_trajectory = _run_one(
-        secondary_model, case_id, documents, question, budget_factory, search_fn, graph_expand_fn
+        secondary_model,
+        case_id,
+        documents,
+        question,
+        budget_factory,
+        search_fn,
+        graph_expand_fn,
     )
 
     result.primary_completed = primary_trajectory.stop_reason == STOP_FINAL
@@ -311,18 +335,32 @@ def cross_check(
             )
 
     else:
-        result.answer_similarity = answer_similarity(result.primary_answer, result.secondary_answer)
+        result.answer_similarity = answer_similarity(
+            result.primary_answer, result.secondary_answer
+        )
 
-    primary_ids = {item.get("record_id", "") for item in primary_trajectory.evidence() if item.get("record_id")}
-    secondary_ids = {item.get("record_id", "") for item in secondary_trajectory.evidence() if item.get("record_id")}
+    primary_ids = {
+        item.get("record_id", "")
+        for item in primary_trajectory.evidence()
+        if item.get("record_id")
+    }
+    secondary_ids = {
+        item.get("record_id", "")
+        for item in secondary_trajectory.evidence()
+        if item.get("record_id")
+    }
     result.shared_evidence_ids = sorted(primary_ids & secondary_ids)
     result.primary_only_evidence_ids = sorted(primary_ids - secondary_ids)
     result.secondary_only_evidence_ids = sorted(secondary_ids - primary_ids)
 
     if not result.primary_completed:
-        result.notes.append(f"{primary_name} did not complete: {primary_trajectory.stop_reason}")
+        result.notes.append(
+            f"{primary_name} did not complete: {primary_trajectory.stop_reason}"
+        )
     if not result.secondary_completed:
-        result.notes.append(f"{secondary_name} did not complete: {secondary_trajectory.stop_reason}")
+        result.notes.append(
+            f"{secondary_name} did not complete: {secondary_trajectory.stop_reason}"
+        )
     if result.frame_comparison and result.frame_comparison.polarity_conflict:
         result.notes.append(
             "the two models disagree on POLARITY -- one states the finding as present, the other "
@@ -354,8 +392,12 @@ def _run_one(
 ) -> Trajectory:
     engine = RlmEngine(root_model=model, depth=0)
     return engine.run(
-        case_id, documents, question,
-        budget=budget_factory(), search_fn=search_fn, graph_expand_fn=graph_expand_fn,
+        case_id,
+        documents,
+        question,
+        budget=budget_factory(),
+        search_fn=search_fn,
+        graph_expand_fn=graph_expand_fn,
     )
 
 
@@ -367,11 +409,19 @@ class CrossCheckReport:
 
     @property
     def agreement_rate(self) -> float:
-        return sum(1 for item in self.results if item.answers_agree) / len(self.results) if self.results else 0.0
+        return (
+            sum(1 for item in self.results if item.answers_agree) / len(self.results)
+            if self.results
+            else 0.0
+        )
 
     @property
     def review_rate(self) -> float:
-        return sum(1 for item in self.results if item.needs_review) / len(self.results) if self.results else 0.0
+        return (
+            sum(1 for item in self.results if item.needs_review) / len(self.results)
+            if self.results
+            else 0.0
+        )
 
     def by_disposition(self) -> dict[str, int]:
         counts: dict[str, int] = {}
@@ -402,5 +452,9 @@ def cross_check_cases(
     """Cross-check a sequence of (case_id, documents, question) triples."""
     report = CrossCheckReport()
     for case_id, documents, question in cases:
-        report.results.append(cross_check(case_id, documents, question, primary_model, secondary_model, **kwargs))
+        report.results.append(
+            cross_check(
+                case_id, documents, question, primary_model, secondary_model, **kwargs
+            )
+        )
     return report

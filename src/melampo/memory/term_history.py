@@ -99,7 +99,14 @@ def diff_releases(
             continue
         new_name = current_terms.get(term_id)
         if new_name and new_name != old_name:
-            renames.append(TermRename(term_id=term_id, old_name=old_name, new_name=new_name, detected_in_release=release))
+            renames.append(
+                TermRename(
+                    term_id=term_id,
+                    old_name=old_name,
+                    new_name=new_name,
+                    detected_in_release=release,
+                )
+            )
 
     return renames, obsoletions
 
@@ -129,7 +136,9 @@ class TermHistoryStore:
         return self._append(self.renames_path, [rename.as_dict() for rename in renames])
 
     def append_obsoletions(self, obsoletions: Iterable[TermObsoletion]) -> int:
-        return self._append(self.obsoletions_path, [item.as_dict() for item in obsoletions])
+        return self._append(
+            self.obsoletions_path, [item.as_dict() for item in obsoletions]
+        )
 
     def _append(self, path: Path, records: list[dict[str, Any]]) -> int:
         if not records:
@@ -144,7 +153,9 @@ class TermHistoryStore:
         return [TermRename(**record) for record in self._load(self.renames_path)]
 
     def load_obsoletions(self) -> list[TermObsoletion]:
-        return [TermObsoletion(**record) for record in self._load(self.obsoletions_path)]
+        return [
+            TermObsoletion(**record) for record in self._load(self.obsoletions_path)
+        ]
 
     def _load(self, path: Path) -> list[dict[str, Any]]:
         if not path.exists():
@@ -180,6 +191,9 @@ class TermHistoryStore:
         that surfacing nothing is safer than guessing which hop to prefer.
         """
         for obsoletion in self.load_obsoletions():
-            if obsoletion.term_id == name_or_id or obsoletion.last_known_name == name_or_id:
+            if (
+                obsoletion.term_id == name_or_id
+                or obsoletion.last_known_name == name_or_id
+            ):
                 return obsoletion.replaced_by
         return None

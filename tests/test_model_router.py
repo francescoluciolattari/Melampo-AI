@@ -38,11 +38,14 @@ def test_pick_pending_case_finds_a_case_already_pending():
     store = NexusCandidateStore()
     store.create_candidate(
         payload={"case_context": {"case_id": "case-1", "report_text": "initial"}},
-        case_id="case-1", learning_status="needs_review",
+        case_id="case-1",
+        learning_status="needs_review",
     )
     router = ModelRouter(candidate_store=store)
 
-    decision = router.pick_pending_case({"case_id": "case-1", "report_text": "follow-up"})
+    decision = router.pick_pending_case(
+        {"case_id": "case-1", "report_text": "follow-up"}
+    )
 
     assert decision.action == "merge_and_rerun"
 
@@ -74,7 +77,9 @@ def test_many_findings_is_dual_path_even_with_low_risk():
 
 def test_unresolved_area_mismatch_is_dual_path_extended_budget():
     mode, reason = _router().pick_mode(
-        findings=[], area_dynamics={"mismatch_score": 0.9}, governance_scores={"risk": 0.1}
+        findings=[],
+        area_dynamics={"mismatch_score": 0.9},
+        governance_scores={"risk": 0.1},
     )
     assert mode == MODE_DUAL_PATH_EXTENDED_BUDGET
     assert "mismatch" in reason
@@ -85,7 +90,9 @@ def test_mismatch_takes_priority_even_with_low_risk_and_few_findings():
     case of the other two -- it must win regardless of what the other
     signals say."""
     mode, _ = _router().pick_mode(
-        findings=[], area_dynamics={"mismatch_score": 0.9}, governance_scores={"risk": 0.05}
+        findings=[],
+        area_dynamics={"mismatch_score": 0.9},
+        governance_scores={"risk": 0.05},
     )
     assert mode == MODE_DUAL_PATH_EXTENDED_BUDGET
 

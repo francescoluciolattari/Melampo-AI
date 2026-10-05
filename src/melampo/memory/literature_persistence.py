@@ -37,7 +37,9 @@ from typing import Any
 from .literature_index import LiteratureIndex, LiteraturePassage
 from .vector_memory import PersistentJsonlVectorStore
 
-LEARNING_STATUS_LITERATURE = "promoted"  # literature is retained, never a "candidate" awaiting review
+LEARNING_STATUS_LITERATURE = (
+    "promoted"  # literature is retained, never a "candidate" awaiting review
+)
 
 
 def passage_to_metadata(passage: LiteraturePassage) -> dict[str, Any]:
@@ -63,7 +65,9 @@ def metadata_to_passage(text: str, metadata: dict[str, Any]) -> LiteraturePassag
     )
 
 
-def persist_passage(store: PersistentJsonlVectorStore, passage: LiteraturePassage) -> None:
+def persist_passage(
+    store: PersistentJsonlVectorStore, passage: LiteraturePassage
+) -> None:
     """Write one passage into the vector store.
 
     `upsert` deduplicates by `record_id` (set here to the passage's own id),

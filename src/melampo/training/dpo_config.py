@@ -66,7 +66,11 @@ class DpoTrainingConfig:
     num_train_epochs: int = DEFAULT_NUM_TRAIN_EPOCHS
 
     def as_trl_kwargs(self) -> dict[str, Any]:
-        return {"beta": self.beta, "learning_rate": self.learning_rate, "num_train_epochs": self.num_train_epochs}
+        return {
+            "beta": self.beta,
+            "learning_rate": self.learning_rate,
+            "num_train_epochs": self.num_train_epochs,
+        }
 
     def as_dict(self) -> dict[str, Any]:
         return dict(self.as_trl_kwargs())
@@ -87,13 +91,21 @@ class DpoReadiness:
     is_ready: bool
 
     def as_dict(self) -> dict[str, Any]:
-        return {"pair_count": self.pair_count, "usable_cases": self.usable_cases, "is_ready": self.is_ready}
+        return {
+            "pair_count": self.pair_count,
+            "usable_cases": self.usable_cases,
+            "is_ready": self.is_ready,
+        }
 
 
-def assess_readiness(report: ExtractionReport, *, min_pairs: int = MIN_PAIRS_RECOMMENDED) -> DpoReadiness:
+def assess_readiness(
+    report: ExtractionReport, *, min_pairs: int = MIN_PAIRS_RECOMMENDED
+) -> DpoReadiness:
     """Whether an extraction report has enough pairs to be worth training on yet."""
     return DpoReadiness(
-        pair_count=len(report.pairs), usable_cases=report.usable_cases, is_ready=len(report.pairs) >= min_pairs
+        pair_count=len(report.pairs),
+        usable_cases=report.usable_cases,
+        is_ready=len(report.pairs) >= min_pairs,
     )
 
 

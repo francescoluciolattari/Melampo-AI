@@ -73,14 +73,18 @@ def test_recall_and_ranking_are_reported_separately():
     )
     result = bench_enumeration(MechanismEnumerator(graph=graph), cases)
     assert result.recall == 1.0, "it is in the spread"
-    assert result.top_rank_rate == 0.0, "but not at the top -- a distinct, lesser failure"
+    assert result.top_rank_rate == 0.0, (
+        "but not at the top -- a distinct, lesser failure"
+    )
     assert result.mean_rank > 1.0
 
 
 def test_mean_rank_averages_only_over_cases_where_the_condition_appeared():
     """Averaging in a sentinel for absent cases would blend two different
     failures into one number that recall already reports more honestly."""
-    graph = InMemoryConceptGraph.from_edges([ConceptEdge("something else", "manifests_as", "a finding", 0.9)])
+    graph = InMemoryConceptGraph.from_edges(
+        [ConceptEdge("something else", "manifests_as", "a finding", 0.9)]
+    )
     cases = (
         DifferentialCase(
             "absent_entirely",
@@ -120,7 +124,10 @@ def test_the_case_set_exercises_both_registers():
     """A fixture where every neighbourhood is well covered would never test
     restraint at all -- the property most worth measuring."""
     enumerator = default_enumerator()
-    modes = {enumerator.run(list(case.findings), list(case.candidate_conditions)).mode for case in DIFFERENTIAL_CASES}
+    modes = {
+        enumerator.run(list(case.findings), list(case.candidate_conditions)).mode
+        for case in DIFFERENTIAL_CASES
+    }
     assert MODE_HYPOTHESES in modes
     assert MODE_KNOWLEDGE_GAP in modes
 
@@ -131,11 +138,15 @@ def test_the_restraint_case_findings_are_genuinely_absent_from_the_graph():
     whether the findings themselves are mapped, so restraint needs findings
     the graph has never heard of."""
     graph = differential_graph()
-    restraint_cases = [case for case in DIFFERENTIAL_CASES if not case.graph_should_support_conclusion]
+    restraint_cases = [
+        case for case in DIFFERENTIAL_CASES if not case.graph_should_support_conclusion
+    ]
     assert restraint_cases, "the fixture must contain at least one restraint case"
     for case in restraint_cases:
         for finding in case.findings:
-            assert not graph.edges_from(finding), f"{finding!r} must be absent for this case to test restraint"
+            assert not graph.edges_from(finding), (
+                f"{finding!r} must be absent for this case to test restraint"
+            )
 
 
 def test_every_conclusive_case_names_a_confirmed_condition():
@@ -147,5 +158,11 @@ def test_every_conclusive_case_names_a_confirmed_condition():
 
 def test_as_dict_carries_what_a_reviewer_needs():
     payload = bench_enumeration(default_enumerator(), DIFFERENTIAL_CASES).as_dict()
-    for key in ("recall", "top_rank_rate", "restraint_rate", "question_quality", "per_case"):
+    for key in (
+        "recall",
+        "top_rank_rate",
+        "restraint_rate",
+        "question_quality",
+        "per_case",
+    ):
         assert key in payload

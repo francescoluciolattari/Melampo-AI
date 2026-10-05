@@ -42,9 +42,21 @@ def _write(dataset) -> bytes:
     return buffer.getvalue()
 
 
-def _series(positions, *, orientation=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0), pixel_spacing=(0.661468, 0.661468),
-            thickness=5.0, thicknesses=None, spacing_tag=None, frame_uid="1.2.826.0.1.3680043.8.498.1",
-            frame_uids=None, kernel="STANDARD", model="LightSpeed", modality=None, seed=3):
+def _series(
+    positions,
+    *,
+    orientation=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+    pixel_spacing=(0.661468, 0.661468),
+    thickness=5.0,
+    thicknesses=None,
+    spacing_tag=None,
+    frame_uid="1.2.826.0.1.3680043.8.498.1",
+    frame_uids=None,
+    kernel="STANDARD",
+    model="LightSpeed",
+    modality=None,
+    seed=3,
+):
     """One de-identified slice per position (3-vectors), shuffled; each slice's pixels offset by its index."""
     base = pydicom.dcmread(get_testdata_file("CT_small.dcm"))
     series_uid = generate_uid()
@@ -77,7 +89,10 @@ def _series(positions, *, orientation=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0), pixel_spac
 
 
 def _axial(count=20, spacing=5.0, **options):
-    return _series([(ORIGIN[0], ORIGIN[1], ORIGIN[2] + spacing * k) for k in range(count)], **options)
+    return _series(
+        [(ORIGIN[0], ORIGIN[1], ORIGIN[2] + spacing * k) for k in range(count)],
+        **options,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -92,42 +107,64 @@ def test_the_affine_maps_voxels_to_patient_millimetres_with_row_spacing_first():
     assert assessment.usable
     assert index_to_patient_mm(assessment, 0, 0, 0) == pytest.approx(ORIGIN)
     # One column step moves along the row direction (x) by the column spacing.
-    assert index_to_patient_mm(assessment, 0, 0, 10) == pytest.approx((ORIGIN[0] + 8.0, ORIGIN[1], ORIGIN[2]))
+    assert index_to_patient_mm(assessment, 0, 0, 10) == pytest.approx(
+        (ORIGIN[0] + 8.0, ORIGIN[1], ORIGIN[2])
+    )
     # One row step moves along the column direction (y) by the row spacing.
-    assert index_to_patient_mm(assessment, 0, 10, 0) == pytest.approx((ORIGIN[0], ORIGIN[1] + 5.0, ORIGIN[2]))
-    assert index_to_patient_mm(assessment, 19, 0, 0) == pytest.approx((ORIGIN[0], ORIGIN[1], ORIGIN[2] + 95.0))
+    assert index_to_patient_mm(assessment, 0, 10, 0) == pytest.approx(
+        (ORIGIN[0], ORIGIN[1] + 5.0, ORIGIN[2])
+    )
+    assert index_to_patient_mm(assessment, 19, 0, 0) == pytest.approx(
+        (ORIGIN[0], ORIGIN[1], ORIGIN[2] + 95.0)
+    )
 
 
 def test_fractional_indices_give_sub_voxel_positions():
     assessment = assess_series(_axial(pixel_spacing=(0.5, 0.8)))
-    assert index_to_patient_mm(assessment, 2.5, 1.5, 0.25) == pytest.approx((ORIGIN[0] + 0.2, ORIGIN[1] + 0.75, ORIGIN[2] + 12.5))
+    assert index_to_patient_mm(assessment, 2.5, 1.5, 0.25) == pytest.approx(
+        (ORIGIN[0] + 0.2, ORIGIN[1] + 0.75, ORIGIN[2] + 12.5)
+    )
 
 
 def test_the_affine_matches_the_array_load_volume_hu_returns():
     instances = _axial()
     assessment = assess_series(instances)
     volume = load_volume_hu(instances, assessment)
-    base = pydicom.dcmread(get_testdata_file("CT_small.dcm")).pixel_array.astype(np.int32)
+    base = pydicom.dcmread(get_testdata_file("CT_small.dcm")).pixel_array.astype(
+        np.int32
+    )
     # Slice k of the array is the slice whose pixels were offset by k, and the affine puts it at z0 + 5k.
     for k in (0, 11, 19):
         assert np.array_equal(volume[k], base + k - 1024)
-        assert index_to_patient_mm(assessment, k, 0, 0)[2] == pytest.approx(ORIGIN[2] + 5.0 * k)
+        assert index_to_patient_mm(assessment, k, 0, 0)[2] == pytest.approx(
+            ORIGIN[2] + 5.0 * k
+        )
 
 
 def test_an_oblique_orientation_is_carried_by_the_affine():
     angle = math.radians(30)
     row = (math.cos(angle), math.sin(angle), 0.0)
     column = (-math.sin(angle), math.cos(angle), 0.0)
-    assessment = assess_series(_axial(orientation=(*row, *column), pixel_spacing=(1.0, 1.0)))
+    assessment = assess_series(
+        _axial(orientation=(*row, *column), pixel_spacing=(1.0, 1.0))
+    )
     x, y, z = index_to_patient_mm(assessment, 0, 0, 10)
-    assert (x, y, z) == pytest.approx((ORIGIN[0] + 10 * row[0], ORIGIN[1] + 10 * row[1], ORIGIN[2]))
+    assert (x, y, z) == pytest.approx(
+        (ORIGIN[0] + 10 * row[0], ORIGIN[1] + 10 * row[1], ORIGIN[2])
+    )
 
 
 @pytest.mark.parametrize(
     "positions",
     [
-        [(ORIGIN[0], ORIGIN[1], ORIGIN[2] + z) for z in [5.0 * i for i in range(10)] + [5.0 * i for i in range(11, 21)]],
-        [(ORIGIN[0] + (2.0 if k == 7 else 0.0), ORIGIN[1], ORIGIN[2] + 5.0 * k) for k in range(20)],
+        [
+            (ORIGIN[0], ORIGIN[1], ORIGIN[2] + z)
+            for z in [5.0 * i for i in range(10)] + [5.0 * i for i in range(11, 21)]
+        ],
+        [
+            (ORIGIN[0] + (2.0 if k == 7 else 0.0), ORIGIN[1], ORIGIN[2] + 5.0 * k)
+            for k in range(20)
+        ],
     ],
     ids=["uneven_spacing", "off_line_slice"],
 )
@@ -144,8 +181,12 @@ def test_a_reversed_column_direction_keeps_array_and_affine_on_the_same_slice():
     # slices are then ordered from the highest z down, and slice 0 must be that one.
     assessment = assess_series(_axial(orientation=(1.0, 0.0, 0.0, 0.0, -1.0, 0.0)))
     assert assessment.usable
-    assert index_to_patient_mm(assessment, 0, 0, 0)[2] == pytest.approx(ORIGIN[2] + 95.0)
-    assert index_to_patient_mm(assessment, 0, 10, 0)[1] == pytest.approx(ORIGIN[1] - 6.61468)
+    assert index_to_patient_mm(assessment, 0, 0, 0)[2] == pytest.approx(
+        ORIGIN[2] + 95.0
+    )
+    assert index_to_patient_mm(assessment, 0, 10, 0)[1] == pytest.approx(
+        ORIGIN[1] - 6.61468
+    )
     assert index_to_patient_mm(assessment, 19, 0, 0)[2] == pytest.approx(ORIGIN[2])
 
 
@@ -180,16 +221,25 @@ def test_no_geometry_means_no_measurement():
 
 def test_a_tilted_gantry_is_measured_from_positions_and_kept_in_the_affine():
     tilt = 15.0
-    shift = 5.0 * math.tan(math.radians(tilt))  # y drift per slice for 5 mm along the normal
-    positions = [(ORIGIN[0], ORIGIN[1] + shift * k, ORIGIN[2] + 5.0 * k) for k in range(20)]
+    shift = 5.0 * math.tan(
+        math.radians(tilt)
+    )  # y drift per slice for 5 mm along the normal
+    positions = [
+        (ORIGIN[0], ORIGIN[1] + shift * k, ORIGIN[2] + 5.0 * k) for k in range(20)
+    ]
     assessment = assess_series(_series(positions))
     assert assessment.usable, assessment.problems
     assert "sheared_volume_gantry_tilt" in assessment.notes
     assert assessment.tilt_degrees == pytest.approx(tilt, abs=1e-3)
-    assert assessment.slice_spacing == pytest.approx(5.0)  # distance between planes, along the normal
+    assert assessment.slice_spacing == pytest.approx(
+        5.0
+    )  # distance between planes, along the normal
     # The last slice lands exactly where the scanner put it, drift included.
     assert index_to_patient_mm(assessment, 19, 0, 0) == pytest.approx(positions[19])
-    assert "sheared_volume_measure_through_affine_only" in measurement_precision(assessment).reasons
+    assert (
+        "sheared_volume_measure_through_affine_only"
+        in measurement_precision(assessment).reasons
+    )
 
 
 def test_an_untilted_series_has_zero_tilt_and_no_note():
@@ -226,7 +276,9 @@ def test_contiguous_slices_have_neither_gaps_nor_overlap():
 
 def test_mixed_slice_thickness_and_a_wrong_spacing_tag_are_reported():
     thicknesses = [1.25] * 10 + [2.5] * 10
-    assessment = assess_series(_axial(spacing=1.25, thicknesses=thicknesses, spacing_tag=2.0))
+    assessment = assess_series(
+        _axial(spacing=1.25, thicknesses=thicknesses, spacing_tag=2.0)
+    )
     assert "inconsistent_slice_thickness" in assessment.notes
     assert "spacing_between_slices_tag_disagrees" in assessment.notes
 
@@ -266,11 +318,20 @@ def test_series_are_spatially_related_only_when_they_share_a_known_frame():
         (1.25, 1.25, PRECISION_HIGH),
         (2.5, 2.5, PRECISION_REDUCED),
         (5.0, 5.0, PRECISION_LOW),
-        (1.0, 2.0, PRECISION_LOW),  # thin slices with gaps: anatomy between them is never sampled
+        (
+            1.0,
+            2.0,
+            PRECISION_LOW,
+        ),  # thin slices with gaps: anatomy between them is never sampled
     ],
 )
 def test_the_declared_precision_follows_the_acquisition(thickness, spacing, level):
-    assert measurement_precision(assess_series(_axial(spacing=spacing, thickness=thickness))).level == level
+    assert (
+        measurement_precision(
+            assess_series(_axial(spacing=spacing, thickness=thickness))
+        ).level
+        == level
+    )
 
 
 def test_an_unusable_series_supports_no_measurement():
@@ -280,13 +341,17 @@ def test_an_unusable_series_supports_no_measurement():
 
 
 def test_mr_is_flagged_for_non_absolute_intensities():
-    precision = measurement_precision(assess_series(_axial(spacing=1.0, thickness=1.0, modality="MR")))
+    precision = measurement_precision(
+        assess_series(_axial(spacing=1.0, thickness=1.0, modality="MR"))
+    )
     assert precision.level == PRECISION_HIGH
     assert "mr_intensities_not_absolute" in precision.reasons
 
 
 def test_two_identical_acquisitions_are_comparable():
-    comparison = compare_acquisitions(assess_series(_axial()), assess_series(_axial(seed=9)))
+    comparison = compare_acquisitions(
+        assess_series(_axial()), assess_series(_axial(seed=9))
+    )
     assert comparison.qiba_comparable and comparison.differences == ()
 
 
@@ -308,6 +373,11 @@ def test_an_unknown_scanner_model_is_not_assumed_comparable():
 
 def test_the_assessment_serialises_its_geometry():
     data = assess_series(_axial(pixel_spacing=(0.5, 0.8))).as_dict()
-    assert data["affine"][0][0] == pytest.approx(0.8) and data["affine"][1][1] == pytest.approx(0.5)
+    assert data["affine"][0][0] == pytest.approx(0.8) and data["affine"][1][
+        1
+    ] == pytest.approx(0.5)
     assert data["frame_of_reference_uid"] == "1.2.826.0.1.3680043.8.498.1"
-    assert data["convolution_kernel"] == "STANDARD" and data["manufacturer_model"] == "LightSpeed"
+    assert (
+        data["convolution_kernel"] == "STANDARD"
+        and data["manufacturer_model"] == "LightSpeed"
+    )

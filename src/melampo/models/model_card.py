@@ -13,7 +13,9 @@ class ModelCard:
     modalities: list[str]
     deployment_status: str = "contract_or_research"
     limitations: list[str] = field(default_factory=list)
-    safety_boundary: str = "Research scaffold only; not validated for autonomous diagnosis."
+    safety_boundary: str = (
+        "Research scaffold only; not validated for autonomous diagnosis."
+    )
     validation_requirements: list[str] = field(default_factory=list)
     governance: dict[str, Any] = field(default_factory=dict)
 
@@ -49,7 +51,9 @@ class ModelCard:
         lines.extend(f"- {item}" for item in (self.limitations or ["Not specified"]))
         lines.append("")
         lines.append("## Validation requirements")
-        lines.extend(f"- {item}" for item in (self.validation_requirements or ["Not specified"]))
+        lines.extend(
+            f"- {item}" for item in (self.validation_requirements or ["Not specified"])
+        )
         return "\n".join(lines) + "\n"
 
 

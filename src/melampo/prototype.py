@@ -13,7 +13,11 @@ class PrototypeInputValidator:
     """Validate minimal clinical prototype payloads before running the core pipeline."""
 
     required_fields: tuple[str, ...] = ("case_id",)
-    narrative_fields: tuple[str, ...] = ("report_text", "ehr_text", "patient_complaints")
+    narrative_fields: tuple[str, ...] = (
+        "report_text",
+        "ehr_text",
+        "patient_complaints",
+    )
 
     def validate(self, payload: Mapping[str, Any]) -> dict:
         errors = []
@@ -21,7 +25,9 @@ class PrototypeInputValidator:
         for field_name in self.required_fields:
             if not payload.get(field_name):
                 errors.append(f"missing_required_field:{field_name}")
-        if not any(payload.get(field_name) for field_name in self.narrative_fields) and not payload.get("imaging"):
+        if not any(
+            payload.get(field_name) for field_name in self.narrative_fields
+        ) and not payload.get("imaging"):
             warnings.append("minimal_payload_without_narrative_or_imaging")
         return {
             "valid": not errors,
@@ -39,7 +45,11 @@ class ClinicalPrototypeRunner:
     validator: PrototypeInputValidator = field(default_factory=PrototypeInputValidator)
 
     @classmethod
-    def from_profile(cls, runtime_profile: str = "local_research", imaging_strategy: str | None = None) -> ClinicalPrototypeRunner:
+    def from_profile(
+        cls,
+        runtime_profile: str = "local_research",
+        imaging_strategy: str | None = None,
+    ) -> ClinicalPrototypeRunner:
         return cls(
             config=build_default_config(
                 runtime_profile=runtime_profile,
@@ -77,7 +87,11 @@ class ClinicalPrototypeRunner:
         }
 
 
-def run_prototype_case(payload: Mapping[str, Any], runtime_profile: str = "local_research", imaging_strategy: str | None = None) -> dict:
+def run_prototype_case(
+    payload: Mapping[str, Any],
+    runtime_profile: str = "local_research",
+    imaging_strategy: str | None = None,
+) -> dict:
     """Run one clinical research prototype case using the requested runtime profile."""
 
     return ClinicalPrototypeRunner.from_profile(

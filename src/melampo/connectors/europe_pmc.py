@@ -117,7 +117,11 @@ def _passage_from_result(record: dict[str, Any]) -> LiteraturePassage | None:
         source_id = f"europepmc:{record.get('id', 'unknown')}"
 
     journal_info = record.get("journalInfo") or {}
-    journal_title = ((journal_info.get("journal") or {}).get("title")) if isinstance(journal_info, dict) else None
+    journal_title = (
+        ((journal_info.get("journal") or {}).get("title"))
+        if isinstance(journal_info, dict)
+        else None
+    )
     year_raw = record.get("pubYear")
     year = int(year_raw) if isinstance(year_raw, str) and year_raw.isdigit() else None
 
@@ -167,7 +171,9 @@ class EuropePmcConnector:
                 break
         return passages
 
-    def search_for_concepts(self, concepts: Sequence[str], *, max_results: int = 25) -> list[LiteraturePassage]:
+    def search_for_concepts(
+        self, concepts: Sequence[str], *, max_results: int = 25
+    ) -> list[LiteraturePassage]:
         """Build a reasonable query from case concepts and search for them.
 
         Multi-word concepts are quoted so Europe PMC treats them as a
@@ -175,13 +181,23 @@ class EuropePmcConnector:
         weakness" unquoted would match any record containing all three words
         anywhere, not the phrase.
         """
-        terms = [f'"{concept}"' if " " in concept else concept for concept in concepts if concept]
+        terms = [
+            f'"{concept}"' if " " in concept else concept
+            for concept in concepts
+            if concept
+        ]
         if not terms:
             return []
         return self.search(" OR ".join(terms), max_results=max_results)
 
     def populate(
-        self, index: LiteratureIndex, query: str, *, max_results: int = 25, store: Any = None, graph: Any = None
+        self,
+        index: LiteratureIndex,
+        query: str,
+        *,
+        max_results: int = 25,
+        store: Any = None,
+        graph: Any = None,
     ) -> int:
         """Search and add results directly to an index, returning how many were added.
 
@@ -201,7 +217,11 @@ class EuropePmcConnector:
         matches concepts at search time instead.
         """
         passages = self.search(query, max_results=max_results)
-        added = index.add_many(passages, source_graph=graph) if graph is not None else index.add_many(passages)
+        added = (
+            index.add_many(passages, source_graph=graph)
+            if graph is not None
+            else index.add_many(passages)
+        )
         if store is not None and graph is None:
             from ..memory.literature_persistence import (
                 persist_passage,
@@ -211,7 +231,9 @@ class EuropePmcConnector:
                 persist_passage(store, passage)
         return added
 
-    def _fetch_page(self, query: str, cursor: str) -> dict[str, Any]:  # pragma: no cover - network call
+    def _fetch_page(
+        self, query: str, cursor: str
+    ) -> dict[str, Any]:  # pragma: no cover - network call
         self._limiter.wait()
         params = {
             "query": query,
@@ -229,7 +251,10 @@ class EuropePmcConnector:
 
 
 def populate_index_for_concepts(
-    index: LiteratureIndex, concepts: Iterable[str], *, connector: EuropePmcConnector | None = None,
+    index: LiteratureIndex,
+    concepts: Iterable[str],
+    *,
+    connector: EuropePmcConnector | None = None,
     max_results: int = 25,
 ) -> int:
     """Convenience entry point: search Europe PMC for these concepts, add what is usable.
@@ -240,4 +265,8 @@ def populate_index_for_concepts(
     known set of clinical concepts.
     """
     connector = connector or EuropePmcConnector()
-    return connector.populate(index, " OR ".join(f'"{c}"' if " " in c else c for c in concepts), max_results=max_results)
+    return connector.populate(
+        index,
+        " OR ".join(f'"{c}"' if " " in c else c for c in concepts),
+        max_results=max_results,
+    )

@@ -108,11 +108,17 @@ def reconcile(
         item["rank"] = index
 
     if verdict.recall_gain:
-        verdict.notes.append(f"{verdict.recall_gain} finding(s) recovered only by recursive retrieval")
+        verdict.notes.append(
+            f"{verdict.recall_gain} finding(s) recovered only by recursive retrieval"
+        )
     if verdict.overreach_blocked:
-        verdict.notes.append(f"{verdict.overreach_blocked} unverifiable recursive finding(s) discarded")
+        verdict.notes.append(
+            f"{verdict.overreach_blocked} unverifiable recursive finding(s) discarded"
+        )
     if union and not confirmed:
-        verdict.notes.append("no overlap between retrieval paths; treat conclusions as low confidence")
+        verdict.notes.append(
+            "no overlap between retrieval paths; treat conclusions as low confidence"
+        )
 
     return verdict
 
@@ -127,15 +133,21 @@ def build_dual_path_payload(
     """Render a reconciled payload in the shared retrieval contract shape."""
     evidence = verdict.evidence
     mean_grounding = (
-        sum(float(item.get("grounding_score", 0.0) or 0.0) for item in evidence) / len(evidence) if evidence else 0.0
+        sum(float(item.get("grounding_score", 0.0) or 0.0) for item in evidence)
+        / len(evidence)
+        if evidence
+        else 0.0
     )
     coverage_ratio = float((coverage or {}).get("coverage_ratio", 0.0))
 
     return {
         "query": one_shot.get("query") or recursive.get("query", ""),
         "focus": one_shot.get("focus") or recursive.get("focus", "general"),
-        "target_areas": one_shot.get("target_areas") or recursive.get("target_areas", []),
-        "status": "grounded_retrieval_ready" if evidence else "insufficient_grounded_evidence",
+        "target_areas": one_shot.get("target_areas")
+        or recursive.get("target_areas", []),
+        "status": "grounded_retrieval_ready"
+        if evidence
+        else "insufficient_grounded_evidence",
         "retrieval_mode": RETRIEVAL_MODE_DUAL,
         "evidence": evidence,
         "evidence_count": len(evidence),
@@ -155,7 +167,9 @@ def build_dual_path_payload(
     }
 
 
-def conflict_inputs_for_neuro_dynamics(verdict: ReconciliationVerdict) -> dict[str, float]:
+def conflict_inputs_for_neuro_dynamics(
+    verdict: ReconciliationVerdict,
+) -> dict[str, float]:
     """Expose the reconciliation as inputs to the neuro-dynamic conflict metrics.
 
     ``conflict_load`` and ``revision_pressure`` are currently derived from area

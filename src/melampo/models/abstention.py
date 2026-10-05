@@ -10,7 +10,13 @@ class AbstentionPolicy:
     def assess(self, uncertainty: float) -> dict:
         abstain = uncertainty >= self.threshold
         margin = round(uncertainty - self.threshold, 3)
-        level = "high" if uncertainty >= (self.threshold + 0.15) else "guarded" if abstain else "low"
+        level = (
+            "high"
+            if uncertainty >= (self.threshold + 0.15)
+            else "guarded"
+            if abstain
+            else "low"
+        )
         reasons = ["uncertainty_above_abstention_threshold"] if abstain else []
         return {
             "abstain": abstain,

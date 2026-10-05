@@ -20,7 +20,16 @@ def script():
     return module
 
 
-def _correct_model(endpoint, key, model, prompt, *, timeout, disable_reasoning=False, system_prompt=None):
+def _correct_model(
+    endpoint,
+    key,
+    model,
+    prompt,
+    *,
+    timeout,
+    disable_reasoning=False,
+    system_prompt=None,
+):
     """Answers any shipped vetting case correctly, matched by its own question
     text rather than a hand-picked keyword list -- the v1 version of this
     mock only recognised four cases and silently failed the other twelve
@@ -58,24 +67,38 @@ def test_list_candidates_defaults_to_the_two_vetting_role_candidates(script, cap
 
 
 def test_list_candidates_with_roster_restricts_the_list(script, capsys, monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--list-candidates", "--roster", "claude-opus-5"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--list-candidates", "--roster", "claude-opus-5"],
+    )
     exit_code = script.main()
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == ["claude-opus-5"]
 
 
 def test_list_candidates_rejects_an_unknown_name(script, monkeypatch, capsys):
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--list-candidates", "--roster", "not-a-real-model"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--list-candidates", "--roster", "not-a-real-model"],
+    )
     exit_code = script.main()
     assert exit_code == 1
     assert "not-a-real-model" in capsys.readouterr().err
 
 
-def test_gpt_oss_120b_is_a_recognised_name_even_though_not_in_the_shared_registry_check(script, capsys, monkeypatch):
+def test_gpt_oss_120b_is_a_recognised_name_even_though_not_in_the_shared_registry_check(
+    script, capsys, monkeypatch
+):
     """gpt-oss-120b IS in the shared CANDIDATE_MODELS registry now, but this
     guards the case where the roster names it explicitly alongside a name
     that predates the registry addition."""
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--list-candidates", "--roster", "gpt-oss-120b"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--list-candidates", "--roster", "gpt-oss-120b"],
+    )
     exit_code = script.main()
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == ["gpt-oss-120b"]
@@ -86,12 +109,18 @@ def test_gpt_oss_120b_is_a_recognised_name_even_though_not_in_the_shared_registr
 # --------------------------------------------------------------------------
 
 
-def test_a_reachable_correct_candidate_produces_a_completed_result(script, tmp_path, monkeypatch):
+def test_a_reachable_correct_candidate_produces_a_completed_result(
+    script, tmp_path, monkeypatch
+):
     out = tmp_path / "result.json"
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setattr(script, "_preflight", _ok_preflight)
     monkeypatch.setattr(script, "_http_chat_completion", _correct_model)
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)],
+    )
 
     exit_code = script.main()
 
@@ -101,11 +130,19 @@ def test_a_reachable_correct_candidate_produces_a_completed_result(script, tmp_p
     assert payload["results"][0]["grounding_rate"] == 1.0
 
 
-def test_an_unreachable_candidate_still_writes_diagnostics(script, tmp_path, monkeypatch):
+def test_an_unreachable_candidate_still_writes_diagnostics(
+    script, tmp_path, monkeypatch
+):
     out = tmp_path / "result.json"
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setattr(script, "_preflight", lambda *a, **k: (False, "HTTP 403 Forbidden"))
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)])
+    monkeypatch.setattr(
+        script, "_preflight", lambda *a, **k: (False, "HTTP 403 Forbidden")
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)],
+    )
 
     exit_code = script.main()
 
@@ -115,10 +152,16 @@ def test_an_unreachable_candidate_still_writes_diagnostics(script, tmp_path, mon
     assert payload["reason"] == "HTTP 403 Forbidden"
 
 
-def test_a_missing_api_key_is_reported_not_silently_skipped(script, tmp_path, monkeypatch):
+def test_a_missing_api_key_is_reported_not_silently_skipped(
+    script, tmp_path, monkeypatch
+):
     out = tmp_path / "result.json"
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)],
+    )
 
     exit_code = script.main()
 
@@ -130,7 +173,11 @@ def test_a_missing_api_key_is_reported_not_silently_skipped(script, tmp_path, mo
 def test_an_unknown_candidate_name_fails_clearly(script, tmp_path, monkeypatch):
     out = tmp_path / "result.json"
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--candidate", "not-a-real-model", "--out", str(out)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--candidate", "not-a-real-model", "--out", str(out)],
+    )
 
     exit_code = script.main()
 
@@ -156,7 +203,9 @@ def test_gpt_oss_120b_resolves_to_the_verified_slug_from_the_shared_registry(scr
     assert entry == ("gpt-oss-120b", "openai/gpt-oss-120b", True)
 
 
-def test_a_slug_correction_in_the_shared_registry_is_picked_up_without_editing_this_script(script):
+def test_a_slug_correction_in_the_shared_registry_is_picked_up_without_editing_this_script(
+    script,
+):
     """The whole point of importing CANDIDATE_MODELS rather than copying it:
     a correction made in run_format_adherence_bench.py must be visible here
     automatically."""
@@ -167,7 +216,7 @@ def test_a_slug_correction_in_the_shared_registry_is_picked_up_without_editing_t
             base.CANDIDATE_MODELS = (
                 *base.CANDIDATE_MODELS[:index],
                 (name, "anthropic/claude-opus-5-corrected", disable_reasoning),
-                *base.CANDIDATE_MODELS[index + 1:],
+                *base.CANDIDATE_MODELS[index + 1 :],
             )
             break
     try:
@@ -182,7 +231,9 @@ def test_a_slug_correction_in_the_shared_registry_is_picked_up_without_editing_t
 # --------------------------------------------------------------------------
 
 
-def test_an_unforeseen_exception_still_writes_diagnostics(script, tmp_path, monkeypatch):
+def test_an_unforeseen_exception_still_writes_diagnostics(
+    script, tmp_path, monkeypatch
+):
     out = tmp_path / "result.json"
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
@@ -190,7 +241,11 @@ def test_an_unforeseen_exception_still_writes_diagnostics(script, tmp_path, monk
         raise RuntimeError("never seen before")
 
     monkeypatch.setattr(script, "_preflight", boom)
-    monkeypatch.setattr(sys, "argv", ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_vetting_bench.py", "--candidate", "claude-opus-5", "--out", str(out)],
+    )
 
     exit_code = script.main()
 
@@ -209,7 +264,9 @@ def test_an_unforeseen_exception_still_writes_diagnostics(script, tmp_path, monk
 # --------------------------------------------------------------------------
 
 
-def test_the_vetting_bench_sends_its_own_system_prompt_not_the_navigation_one(script, monkeypatch):
+def test_the_vetting_bench_sends_its_own_system_prompt_not_the_navigation_one(
+    script, monkeypatch
+):
     """Three live runs showed both candidates emitting document-navigation
     actions -- describe(), grep(...), even wrapping their real answer in
     final(...) -- because reusing _http_chat_completion unchanged sent
@@ -220,7 +277,16 @@ def test_the_vetting_bench_sends_its_own_system_prompt_not_the_navigation_one(sc
 
     captured = {}
 
-    def capturing_call(endpoint, key, model, prompt, *, timeout, disable_reasoning=False, system_prompt=None):
+    def capturing_call(
+        endpoint,
+        key,
+        model,
+        prompt,
+        *,
+        timeout,
+        disable_reasoning=False,
+        system_prompt=None,
+    ):
         captured["system_prompt"] = system_prompt
         return "chronic kidney disease | renal osteodystrophy | yes | secondary hyperparathyroidism"
 
@@ -230,7 +296,10 @@ def test_the_vetting_bench_sends_its_own_system_prompt_not_the_navigation_one(sc
     candidates["claude-opus-5"]("any prompt")
 
     assert captured["system_prompt"] == script.VETTING_SYSTEM_PROMPT
-    assert "you navigate a document environment" not in script.VETTING_SYSTEM_PROMPT.lower()
+    assert (
+        "you navigate a document environment"
+        not in script.VETTING_SYSTEM_PROMPT.lower()
+    )
 
 
 def test_the_vetting_system_prompt_explicitly_forbids_navigation_actions(script):
@@ -239,7 +308,15 @@ def test_the_vetting_system_prompt_explicitly_forbids_navigation_actions(script)
     task. The prompt now says plainly not to, for every verb the navigation
     grammar defines."""
     prompt = script.VETTING_SYSTEM_PROMPT.lower()
-    for verb in ("search(", "grep(", "slice(", "describe(", "expand(", "query(", "final("):
+    for verb in (
+        "search(",
+        "grep(",
+        "slice(",
+        "describe(",
+        "expand(",
+        "query(",
+        "final(",
+    ):
         assert verb in prompt
 
 
@@ -256,7 +333,9 @@ def test_the_navigation_bench_system_prompt_is_unaffected(monkeypatch):
 
     class _FakeResponse:
         def read(self):
-            return json.dumps({"choices": [{"message": {"content": "final(ok)"}}]}).encode()
+            return json.dumps(
+                {"choices": [{"message": {"content": "final(ok)"}}]}
+            ).encode()
 
         def __enter__(self):
             return self
@@ -265,10 +344,14 @@ def test_the_navigation_bench_system_prompt_is_unaffected(monkeypatch):
             return False
 
     def fake_urlopen(request, timeout=30):
-        captured["system_prompt"] = json.loads(request.data.decode())["messages"][0]["content"]
+        captured["system_prompt"] = json.loads(request.data.decode())["messages"][0][
+            "content"
+        ]
         return _FakeResponse()
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
-    rfab._http_chat_completion("https://example", "key", "model", "a question", timeout=30)
+    rfab._http_chat_completion(
+        "https://example", "key", "model", "a question", timeout=30
+    )
 
     assert "you navigate a document environment" in captured["system_prompt"].lower()

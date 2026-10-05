@@ -16,11 +16,23 @@ class IntuitionEngine:
 
     belief_layer: QuantumBeliefLayer
 
-    def _extract_metrics(self, area_dynamics: dict, neuro_metrics: dict) -> tuple[float, ...]:
+    def _extract_metrics(
+        self, area_dynamics: dict, neuro_metrics: dict
+    ) -> tuple[float, ...]:
         return (
-            _float_metric(area_dynamics, "pi_score", _float_metric(neuro_metrics, "pi_score")),
-            _float_metric(area_dynamics, "prediction_error", _float_metric(neuro_metrics, "prediction_error")),
-            _float_metric(area_dynamics, "precision_weighted_coherence", _float_metric(neuro_metrics, "precision_weighted_coherence")),
+            _float_metric(
+                area_dynamics, "pi_score", _float_metric(neuro_metrics, "pi_score")
+            ),
+            _float_metric(
+                area_dynamics,
+                "prediction_error",
+                _float_metric(neuro_metrics, "prediction_error"),
+            ),
+            _float_metric(
+                area_dynamics,
+                "precision_weighted_coherence",
+                _float_metric(neuro_metrics, "precision_weighted_coherence"),
+            ),
             _float_metric(neuro_metrics, "convergence_index"),
             _float_metric(neuro_metrics, "mismatch_index"),
             _float_metric(neuro_metrics, "inhibitory_control"),
@@ -40,14 +52,35 @@ class IntuitionEngine:
             _float_metric(neuro_metrics, "deductive_stability"),
         )
 
-    def _rank_areas(self, area_signals: dict) -> tuple[list[dict], list[str], float, float]:
+    def _rank_areas(
+        self, area_signals: dict
+    ) -> tuple[list[dict], list[str], float, float]:
         area_ranking = []
         for name, payload in area_signals.items():
             signal_size = len(payload) if isinstance(payload, dict) else 1
-            signal_count = int(payload.get("signal_count", signal_size)) if isinstance(payload, dict) else signal_size
-            salience = float(payload.get("salience_score", 0.0)) if isinstance(payload, dict) else 0.0
-            uncertainty = float(payload.get("uncertainty_score", max(0.0, 1.0 - min(salience, 1.0)))) if isinstance(payload, dict) else 1.0
-            area_ranking.append({"area": name, "weight": signal_size + signal_count + salience - uncertainty})
+            signal_count = (
+                int(payload.get("signal_count", signal_size))
+                if isinstance(payload, dict)
+                else signal_size
+            )
+            salience = (
+                float(payload.get("salience_score", 0.0))
+                if isinstance(payload, dict)
+                else 0.0
+            )
+            uncertainty = (
+                float(
+                    payload.get("uncertainty_score", max(0.0, 1.0 - min(salience, 1.0)))
+                )
+                if isinstance(payload, dict)
+                else 1.0
+            )
+            area_ranking.append(
+                {
+                    "area": name,
+                    "weight": signal_size + signal_count + salience - uncertainty,
+                }
+            )
         area_ranking.sort(key=lambda item: item["weight"], reverse=True)
         top_areas = [item["area"] for item in area_ranking[:2]]
         if area_ranking:
@@ -60,7 +93,15 @@ class IntuitionEngine:
             conflict_score = 0.0
         return area_ranking, top_areas, convergence_score, conflict_score
 
-    def _area_pair_bonus(self, top_areas: list[str], coherence_score: float, pi_score: float, convergence_index: float, interdependence_index: float, evidence_integration_score: float) -> float:
+    def _area_pair_bonus(
+        self,
+        top_areas: list[str],
+        coherence_score: float,
+        pi_score: float,
+        convergence_index: float,
+        interdependence_index: float,
+        evidence_integration_score: float,
+    ) -> float:
         base_bonus = 0.0
         top_area_pair = tuple(sorted(top_areas))
         if top_area_pair == ("language_listening", "visual_diagnostic"):
@@ -79,7 +120,16 @@ class IntuitionEngine:
             3,
         )
 
-    def _disagreement_penalty(self, conflict_score: float, mismatch_score: float, prediction_error: float, mismatch_index: float, inhibitory_control: float, noise_suppression_score: float, deductive_stability: float) -> float:
+    def _disagreement_penalty(
+        self,
+        conflict_score: float,
+        mismatch_score: float,
+        prediction_error: float,
+        mismatch_index: float,
+        inhibitory_control: float,
+        noise_suppression_score: float,
+        deductive_stability: float,
+    ) -> float:
         return round(
             max(
                 0.0,
@@ -95,13 +145,22 @@ class IntuitionEngine:
         )
 
     def infer(
-        self, case_id: str, ranked_evidence: list, nexus: dict, quantum_allowed: bool,
-        area_signals: dict | None = None, area_dynamics: dict | None = None,
+        self,
+        case_id: str,
+        ranked_evidence: list,
+        nexus: dict,
+        quantum_allowed: bool,
+        area_signals: dict | None = None,
+        area_dynamics: dict | None = None,
         graph_candidates: list | None = None,
     ) -> dict:
         area_signals = area_signals or {}
         area_dynamics = area_dynamics or {}
-        neuro_metrics = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics, dict) else {}
+        neuro_metrics = (
+            area_dynamics.get("neuro_dynamic_metrics", {})
+            if isinstance(area_dynamics, dict)
+            else {}
+        )
         (
             pi_score,
             prediction_error,
@@ -125,11 +184,19 @@ class IntuitionEngine:
             deductive_stability,
         ) = self._extract_metrics(area_dynamics, neuro_metrics)
 
-        rehearsal_profile = nexus.get("rehearsal_profile", {}) if isinstance(nexus, dict) else {}
-        alternative_hypotheses = nexus.get("alternative_hypotheses", []) if isinstance(nexus, dict) else []
-        contradiction_rehearsal = bool(rehearsal_profile.get("contradiction_rehearsal", False))
+        rehearsal_profile = (
+            nexus.get("rehearsal_profile", {}) if isinstance(nexus, dict) else {}
+        )
+        alternative_hypotheses = (
+            nexus.get("alternative_hypotheses", []) if isinstance(nexus, dict) else []
+        )
+        contradiction_rehearsal = bool(
+            rehearsal_profile.get("contradiction_rehearsal", False)
+        )
         revision_bias = rehearsal_profile.get("revision_bias", "exploratory")
-        post_error_adjustment = rehearsal_profile.get("post_error_adjustment", "stabilize_primary")
+        post_error_adjustment = rehearsal_profile.get(
+            "post_error_adjustment", "stabilize_primary"
+        )
         coherence_score_ext = float(area_dynamics.get("coherence_score", 0.0))
         mismatch_score_ext = float(area_dynamics.get("mismatch_score", 0.0))
 
@@ -150,14 +217,22 @@ class IntuitionEngine:
             if index < len(graph_candidates):
                 candidate = graph_candidates[index]
                 label = candidate.get("condition", f"candidate_{index + 1}")
-                support_weight = candidate.get("specificity_score", item.get("weight", 1))
+                support_weight = candidate.get(
+                    "specificity_score", item.get("weight", 1)
+                )
             else:
                 label = f"candidate_{index + 1}"
                 support_weight = item.get("weight", 1)
             inductive_candidates.append(
-                {"label": label, "support_weight": support_weight, "source": item.get("item", {}).get("source", "unknown")}
+                {
+                    "label": label,
+                    "support_weight": support_weight,
+                    "source": item.get("item", {}).get("source", "unknown"),
+                }
             )
-        area_ranking, top_areas, convergence_score, conflict_score = self._rank_areas(area_signals)
+        area_ranking, top_areas, convergence_score, conflict_score = self._rank_areas(
+            area_signals
+        )
         area_pair_bonus = self._area_pair_bonus(
             top_areas,
             coherence_score_ext,
@@ -176,12 +251,28 @@ class IntuitionEngine:
             deductive_stability,
         )
 
-        rapid_intuition = inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
-        rational_revision = inductive_candidates[1]["label"] if len(inductive_candidates) > 1 else rapid_intuition
-        contradiction_revision = alternative_hypotheses[0]["label"] if alternative_hypotheses else rational_revision
+        rapid_intuition = (
+            inductive_candidates[0]["label"] if inductive_candidates else "no_candidate"
+        )
+        rational_revision = (
+            inductive_candidates[1]["label"]
+            if len(inductive_candidates) > 1
+            else rapid_intuition
+        )
+        contradiction_revision = (
+            alternative_hypotheses[0]["label"]
+            if alternative_hypotheses
+            else rational_revision
+        )
 
-        first_support = float(inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0)
-        second_support = float(inductive_candidates[1]["support_weight"] if len(inductive_candidates) > 1 else 0.0)
+        first_support = float(
+            inductive_candidates[0]["support_weight"] if inductive_candidates else 0.0
+        )
+        second_support = float(
+            inductive_candidates[1]["support_weight"]
+            if len(inductive_candidates) > 1
+            else 0.0
+        )
         temperature_damping = max(candidate_temperature, 0.35)
         rapid_score = round(
             (
@@ -229,11 +320,23 @@ class IntuitionEngine:
 
         candidate_scores = [
             {"mode": "rapid_intuition", "label": rapid_intuition, "score": rapid_score},
-            {"mode": "rational_revision", "label": rational_revision, "score": rational_score},
-            {"mode": "contradiction_revision", "label": contradiction_revision, "score": contradiction_score},
+            {
+                "mode": "rational_revision",
+                "label": rational_revision,
+                "score": rational_score,
+            },
+            {
+                "mode": "contradiction_revision",
+                "label": contradiction_revision,
+                "score": contradiction_score,
+            },
         ]
         candidate_scores.sort(key=lambda item: item["score"], reverse=True)
-        selected = candidate_scores[0] if candidate_scores else {"mode": "rapid_intuition", "label": "no_candidate", "score": 0.0}
+        selected = (
+            candidate_scores[0]
+            if candidate_scores
+            else {"mode": "rapid_intuition", "label": "no_candidate", "score": 0.0}
+        )
         intuition = selected["label"]
         reasoning_mode = selected["mode"]
 
@@ -312,7 +415,10 @@ class IntuitionEngine:
                 belief_context["nexus_mode"] = belief.get("mode", "none")
         if quantum_allowed:
             belief_update = self.belief_layer.update(
-                prior={"case_id": case_id, "candidate_count": len(inductive_candidates)},
+                prior={
+                    "case_id": case_id,
+                    "candidate_count": len(inductive_candidates),
+                },
                 context=belief_context,
             )
         else:
@@ -338,7 +444,9 @@ class IntuitionEngine:
         return {
             "intuition": intuition_payload.get("intuition", "none"),
             "candidate_count": len(intuition_payload.get("inductive_candidates", [])),
-            "belief_mode": intuition_payload.get("belief_update", {}).get("mode", "none"),
+            "belief_mode": intuition_payload.get("belief_update", {}).get(
+                "mode", "none"
+            ),
             "active_areas": sorted(area_signals.keys()),
             "top_areas": deductive.get("top_areas", []),
             "convergence_score": deductive.get("convergence_score", 0.0),
@@ -347,7 +455,9 @@ class IntuitionEngine:
             "mismatch_score": deductive.get("mismatch_score", 0.0),
             "pi_score": deductive.get("pi_score", 0.0),
             "prediction_error": deductive.get("prediction_error", 0.0),
-            "precision_weighted_coherence": deductive.get("precision_weighted_coherence", 0.0),
+            "precision_weighted_coherence": deductive.get(
+                "precision_weighted_coherence", 0.0
+            ),
             "convergence_index": deductive.get("convergence_index", 0.0),
             "mismatch_index": deductive.get("mismatch_index", 0.0),
             "inhibitory_control": deductive.get("inhibitory_control", 0.0),
@@ -356,7 +466,9 @@ class IntuitionEngine:
             "candidate_temperature": deductive.get("candidate_temperature", 1.0),
             "belief_update_rate": deductive.get("belief_update_rate", 0.0),
             "interdependence_index": deductive.get("interdependence_index", 0.0),
-            "evidence_integration_score": deductive.get("evidence_integration_score", 0.0),
+            "evidence_integration_score": deductive.get(
+                "evidence_integration_score", 0.0
+            ),
             "noise_suppression_score": deductive.get("noise_suppression_score", 0.0),
             "action_potential_gate": deductive.get("action_potential_gate", 0.0),
             "deep_inference_score": deductive.get("deep_inference_score", 0.0),
@@ -365,6 +477,8 @@ class IntuitionEngine:
             "disagreement_penalty": deductive.get("disagreement_penalty", 0.0),
             "contradiction_rehearsal": deductive.get("contradiction_rehearsal", False),
             "revision_bias": deductive.get("revision_bias", "exploratory"),
-            "post_error_adjustment": deductive.get("post_error_adjustment", "stabilize_primary"),
+            "post_error_adjustment": deductive.get(
+                "post_error_adjustment", "stabilize_primary"
+            ),
             "reasoning_mode": deductive.get("reasoning_mode", "rapid_intuition"),
         }

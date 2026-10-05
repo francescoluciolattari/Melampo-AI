@@ -77,7 +77,9 @@ def load_records(
                 presentation=presentation,
                 documented_diagnosis=diagnosis,
                 candidate_conditions=tuple(
-                    str(item) for item in (record.get(candidates_key) or ()) if str(item).strip()
+                    str(item)
+                    for item in (record.get(candidates_key) or ())
+                    if str(item).strip()
                 ),
                 source=source or record.get("source"),
             )
@@ -112,7 +114,9 @@ def load_pmc_patients(lines: Iterable[str]) -> LoadReport:
     )
 
 
-def split_presentation(text: str, diagnosis_headings: Sequence[str] = ()) -> tuple[str, str]:
+def split_presentation(
+    text: str, diagnosis_headings: Sequence[str] = ()
+) -> tuple[str, str]:
     """Split a case report into presentation and the section that reveals the outcome.
 
     Case reports state the diagnosis in a later section. Splitting on that

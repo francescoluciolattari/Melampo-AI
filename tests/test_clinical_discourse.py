@@ -40,7 +40,9 @@ def _reader(italian: bool = False) -> ClinicalDiscourseReader:
     if italian:
         index.add_translations(parse_babelon(BABELON.splitlines()))
         return ClinicalDiscourseReader(
-            resolver=ConceptResolver(index=index), cues=ITALIAN_CUES, connectives=dict(ITALIAN_CONNECTIVES)
+            resolver=ConceptResolver(index=index),
+            cues=ITALIAN_CUES,
+            connectives=dict(ITALIAN_CONNECTIVES),
         )
     return ClinicalDiscourseReader(resolver=ConceptResolver(index=index))
 
@@ -52,13 +54,22 @@ def _reader(italian: bool = False) -> ClinicalDiscourseReader:
 
 def test_observed_findings_are_separated_from_proposed_explanations():
     reading = _reader().read(PRESENTATION)
-    assert [item.label for item in reading.findings] == ["Dyspnea", "Orthopnea", "Fever"]
-    assert [item.label for item, _, _ in reading.candidates] == ["Congestive heart failure", "Pneumonia"]
+    assert [item.label for item in reading.findings] == [
+        "Dyspnea",
+        "Orthopnea",
+        "Fever",
+    ]
+    assert [item.label for item, _, _ in reading.candidates] == [
+        "Congestive heart failure",
+        "Pneumonia",
+    ]
 
 
 def test_commitment_is_read_from_the_connective_and_becomes_rank():
     reading = _reader().read(PRESENTATION)
-    by_label = {item.label: (rank, commitment) for item, rank, commitment in reading.candidates}
+    by_label = {
+        item.label: (rank, commitment) for item, rank, commitment in reading.candidates
+    }
     assert by_label["Congestive heart failure"] == (2, "consistent with")
     assert by_label["Pneumonia"] == (4, "rule out")
 
@@ -98,7 +109,10 @@ def test_empty_discourse_reads_as_nothing():
 
 def test_the_script_orders_the_differential_by_commitment():
     script = _reader().to_script(PRESENTATION)
-    assert [entry.condition for entry in script.differential] == ["Congestive heart failure", "Pneumonia"]
+    assert [entry.condition for entry in script.differential] == [
+        "Congestive heart failure",
+        "Pneumonia",
+    ]
     assert script.differential[0].rank < script.differential[1].rank
     assert all(entry.origin == ORIGIN_MODEL for entry in script.differential)
 
@@ -111,23 +125,35 @@ def test_the_script_keeps_the_discordant_note():
 
 
 def test_the_leading_hypothesis_is_the_one_the_presenter_committed_to():
-    assert _reader().to_script(PRESENTATION).leading.condition == "Congestive heart failure"
+    assert (
+        _reader().to_script(PRESENTATION).leading.condition
+        == "Congestive heart failure"
+    )
 
 
 def test_the_full_path_from_presentation_to_grounding():
     graph = InMemoryConceptGraph.from_edges(
         [
-            ConceptEdge("Dyspnea", "manifests", "Congestive heart failure", 0.8, "cardiology"),
+            ConceptEdge(
+                "Dyspnea", "manifests", "Congestive heart failure", 0.8, "cardiology"
+            ),
             ConceptEdge("Fever", "manifests", "Pneumonia", 0.8, "infectious"),
         ]
     )
     out = read_and_verify(
-        PRESENTATION, _reader(), ScriptVerifier(graph=graph), case_findings=["Dyspnea", "Orthopnea", "Fever"]
+        PRESENTATION,
+        _reader(),
+        ScriptVerifier(graph=graph),
+        case_findings=["Dyspnea", "Orthopnea", "Fever"],
     )
-    verdicts = {item["element"]: item["verdict"] for item in out["verification"]["differential"]}
+    verdicts = {
+        item["element"]: item["verdict"] for item in out["verification"]["differential"]
+    }
     assert verdicts["Congestive heart failure"] == VERDICT_KNOWLEDGE_MEDIATED
     assert verdicts["Pneumonia"] == VERDICT_KNOWLEDGE_MEDIATED
-    consequences = {item["element"]: item["verdict"] for item in out["verification"]["consequences"]}
+    consequences = {
+        item["element"]: item["verdict"] for item in out["verification"]["consequences"]
+    }
     assert consequences["Dyspnea"] == VERDICT_GROUNDED_IN_CASE
 
 

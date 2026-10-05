@@ -28,9 +28,15 @@ class SpecialistRuntime:
     explicitly marked as non-final.
     """
 
-    registry: ModelCapabilityRegistry = field(default_factory=ModelCapabilityRegistry.build_default)
-    radiology_adapter: Pillar0RadiologyAdapter = field(default_factory=Pillar0RadiologyAdapter)
-    text_adapter: Gemma4ClinicalReasoningAdapter = field(default_factory=Gemma4ClinicalReasoningAdapter)
+    registry: ModelCapabilityRegistry = field(
+        default_factory=ModelCapabilityRegistry.build_default
+    )
+    radiology_adapter: Pillar0RadiologyAdapter = field(
+        default_factory=Pillar0RadiologyAdapter
+    )
+    text_adapter: Gemma4ClinicalReasoningAdapter = field(
+        default_factory=Gemma4ClinicalReasoningAdapter
+    )
     critic_adapter: ClaudeCritiqueAdapter = field(default_factory=ClaudeCritiqueAdapter)
 
     def radiology_signal(
@@ -39,7 +45,9 @@ class SpecialistRuntime:
         series_paths: list[str],
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        response = self.radiology_adapter.infer_volume(study_id=study_id, series_paths=series_paths, metadata=metadata)
+        response = self.radiology_adapter.infer_volume(
+            study_id=study_id, series_paths=series_paths, metadata=metadata
+        )
         return {
             "capability": _capability(self.registry, "Pillar-0"),
             "response": response.as_dict(),
@@ -59,7 +67,9 @@ class SpecialistRuntime:
         text: str,
         grounding: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        response = self.text_adapter.reason_over_text(case_id=case_id, text=text, grounding=grounding)
+        response = self.text_adapter.reason_over_text(
+            case_id=case_id, text=text, grounding=grounding
+        )
         return {
             "capability": _capability(self.registry, "Gemma 4"),
             "response": response.as_dict(),

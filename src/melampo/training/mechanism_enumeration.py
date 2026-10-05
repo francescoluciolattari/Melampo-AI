@@ -182,7 +182,11 @@ class MechanismEnumerator:
                     min_edge_weight=self.min_edge_weight,
                     max_gap_edges=self.max_gap_edges,
                 )
-                usable = [path for path in found if path.strength_upper >= self.min_plausibility]
+                usable = [
+                    path
+                    for path in found
+                    if path.strength_upper >= self.min_plausibility
+                ]
                 if usable:
                     paths.extend(usable)
                     linked.append(finding)
@@ -192,16 +196,26 @@ class MechanismEnumerator:
         hypotheses = [
             MechanismHypothesis(
                 condition=condition,
-                paths=tuple(sorted(paths, key=lambda path: (path.hops, -path.strength))),
+                paths=tuple(
+                    sorted(paths, key=lambda path: (path.hops, -path.strength))
+                ),
                 findings_linked=tuple(linked),
             )
             for condition, (paths, linked) in collected.items()
         ]
 
-        hypotheses.sort(key=lambda item: (-item.corroboration, -item.plausibility, item.shortest_hops))
+        hypotheses.sort(
+            key=lambda item: (
+                -item.corroboration,
+                -item.plausibility,
+                item.shortest_hops,
+            )
+        )
         return hypotheses[: self.max_candidates]
 
-    def envelopes(self, hypotheses: Sequence[MechanismHypothesis]) -> list[HypothesisEnvelope]:
+    def envelopes(
+        self, hypotheses: Sequence[MechanismHypothesis]
+    ) -> list[HypothesisEnvelope]:
         return [hypothesis.as_envelope() for hypothesis in hypotheses]
 
     def run(
@@ -230,19 +244,31 @@ class MechanismEnumerator:
         corroborated hypothesis survives a sparse neighbourhood.
         """
         density = local_density(self.graph, findings)
-        hypotheses = self.enumerate(findings, candidate_conditions, already_considered=already_considered)
+        hypotheses = self.enumerate(
+            findings, candidate_conditions, already_considered=already_considered
+        )
 
         if density.density >= self.min_density:
-            return EnumerationOutcome(mode=MODE_HYPOTHESES, density=density, hypotheses=hypotheses)
+            return EnumerationOutcome(
+                mode=MODE_HYPOTHESES, density=density, hypotheses=hypotheses
+            )
 
-        corroborated = [item for item in hypotheses if item.corroboration >= self.min_corroboration_when_sparse]
+        corroborated = [
+            item
+            for item in hypotheses
+            if item.corroboration >= self.min_corroboration_when_sparse
+        ]
         if corroborated:
-            return EnumerationOutcome(mode=MODE_HYPOTHESES, density=density, hypotheses=corroborated)
+            return EnumerationOutcome(
+                mode=MODE_HYPOTHESES, density=density, hypotheses=corroborated
+            )
 
         return EnumerationOutcome(
             mode=MODE_KNOWLEDGE_GAP,
             density=density,
-            open_questions=self._open_questions(findings, candidate_conditions, hypotheses),
+            open_questions=self._open_questions(
+                findings, candidate_conditions, hypotheses
+            ),
         )
 
     def _open_questions(

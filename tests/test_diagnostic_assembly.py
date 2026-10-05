@@ -61,8 +61,12 @@ def test_an_assembly_over_an_empty_store_reports_no_learned_edges(tmp_path):
 def _confirm_three_times(assembly, source, target):
     for case_id in ("c1", "c2", "c3"):
         assembly.ledger.test(
-            source, target, case_id,
-            Confirmation(case_id=case_id, diagnosis=target, source=SOURCE_HISTOPATHOLOGY),
+            source,
+            target,
+            case_id,
+            Confirmation(
+                case_id=case_id, diagnosis=target, source=SOURCE_HISTOPATHOLOGY
+            ),
         )
 
 
@@ -85,7 +89,9 @@ def test_a_promoted_edge_carries_an_interval_not_a_point_estimate(tmp_path):
     edge = assembly.promote_confirmed()[0]
 
     assert edge.lower is not None and edge.upper is not None
-    assert edge.lower < edge.upper, "three confirmations is not certainty, and the interval must show it"
+    assert edge.lower < edge.upper, (
+        "three confirmations is not certainty, and the interval must show it"
+    )
 
 
 def test_a_promoted_edge_is_marked_as_learned_not_imported(tmp_path):
@@ -112,7 +118,9 @@ def test_what_the_system_learned_survives_a_restart(tmp_path):
 
     second = assemble(list(DIFFERENTIAL_GRAPH_EDGES), path)
 
-    assert second.learned_edge_count == 1, "a fresh process sees what the previous one learned"
+    assert second.learned_edge_count == 1, (
+        "a fresh process sees what the previous one learned"
+    )
 
 
 def test_promotion_is_a_separate_call_not_a_side_effect_of_answering_a_case(tmp_path):
@@ -145,7 +153,9 @@ def test_nexus_context_supplies_the_candidates_the_trainer_needed(tmp_path):
     candidate_conditions, and nothing in the pipeline put them there -- which
     is why it fell through to rehearsal labels on every real case."""
     assembly = _assembly(tmp_path)
-    context = nexus_context_for(["bilateral hilar lymphadenopathy", "hypercalcaemia"], assembly.graph)
+    context = nexus_context_for(
+        ["bilateral hilar lymphadenopathy", "hypercalcaemia"], assembly.graph
+    )
 
     assert context["findings"]
     assert context["candidate_conditions"], "the field that was always empty before"
@@ -154,7 +164,9 @@ def test_nexus_context_supplies_the_candidates_the_trainer_needed(tmp_path):
 
 def test_nexus_context_passes_through_extra_keys(tmp_path):
     assembly = _assembly(tmp_path)
-    context = nexus_context_for(["hypercalcaemia"], assembly.graph, already_considered=["lymphoma"])
+    context = nexus_context_for(
+        ["hypercalcaemia"], assembly.graph, already_considered=["lymphoma"]
+    )
     assert context["already_considered"] == ["lymphoma"]
 
 
@@ -169,7 +181,9 @@ def test_candidate_conditions_for_is_the_same_retrieval_the_bridge_uses(tmp_path
 # --------------------------------------------------------------------------
 
 
-def test_information_content_falls_back_to_graph_structure_without_frequencies(tmp_path):
+def test_information_content_falls_back_to_graph_structure_without_frequencies(
+    tmp_path,
+):
     """A caller with no frequency data still gets specificity weighting --
     the documented intrinsic-IC path, not a degraded one."""
     assembly = _assembly(tmp_path)

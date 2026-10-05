@@ -44,7 +44,9 @@ class UmlsCache:
     def _key(self, hpo_id: str, target_source: str | None) -> str:
         return f"{hpo_id}|{target_source or ''}"
 
-    def get(self, hpo_id: str, target_source: str | None = None) -> list[dict[str, Any]] | None:
+    def get(
+        self, hpo_id: str, target_source: str | None = None
+    ) -> list[dict[str, Any]] | None:
         """Cached crosswalk results for this HPO code, or None if never cached.
 
         None (never cached) is distinct from an empty list (cached, and UMLS
@@ -54,7 +56,9 @@ class UmlsCache:
         """
         return self._ensure_loaded().get(self._key(hpo_id, target_source))
 
-    def put(self, hpo_id: str, target_source: str | None, results: list[dict[str, Any]]) -> None:
+    def put(
+        self, hpo_id: str, target_source: str | None, results: list[dict[str, Any]]
+    ) -> None:
         self.store.append({"key": self._key(hpo_id, target_source), "result": results})
         self._ensure_loaded()[self._key(hpo_id, target_source)] = results
 
@@ -74,17 +78,25 @@ class CachedUmlsConnector:
     connector: Any
     cache: UmlsCache | None
 
-    def crosswalk_from_hpo(self, hpo_id: str, target_source: str | None = None) -> list[Any]:
+    def crosswalk_from_hpo(
+        self, hpo_id: str, target_source: str | None = None
+    ) -> list[Any]:
         if self.cache is None:
             # No DB_PASSWORD configured: never fall back to caching UMLS
             # content in plaintext, since that would defeat the exact
             # protection obligation this cache exists to satisfy. Live
             # calls still work for the current session; nothing persists.
-            return self.connector.crosswalk_from_hpo(hpo_id, target_source=target_source)
-        return crosswalk_with_cache(self.connector, self.cache, hpo_id, target_source=target_source)
+            return self.connector.crosswalk_from_hpo(
+                hpo_id, target_source=target_source
+            )
+        return crosswalk_with_cache(
+            self.connector, self.cache, hpo_id, target_source=target_source
+        )
 
 
-def build_umls_for_cascade(cache_path: Path | str = "data/umls_cache.jsonl") -> CachedUmlsConnector | None:
+def build_umls_for_cascade(
+    cache_path: Path | str = "data/umls_cache.jsonl",
+) -> CachedUmlsConnector | None:
     """Assemble a cache-backed UMLS connector from UMLS_API_KEY and DB_PASSWORD, or None if unconfigured.
 
     Returns None -- not a connector that will silently do nothing -- when
@@ -109,7 +121,11 @@ def build_umls_for_cascade(cache_path: Path | str = "data/umls_cache.jsonl") -> 
 
     connector = UmlsConnector(config=config)
     password = os.environ.get("DB_PASSWORD")
-    cache = UmlsCache(store=EncryptedJsonlStore(path=Path(cache_path), password=password)) if password else None
+    cache = (
+        UmlsCache(store=EncryptedJsonlStore(path=Path(cache_path), password=password))
+        if password
+        else None
+    )
     return CachedUmlsConnector(connector=connector, cache=cache)
 
 

@@ -20,7 +20,10 @@ class _Trajectory:
         self.final_answer = final_answer
 
     def evidence(self):
-        return [{"record_id": f"r{i}", "text": text} for i, text in enumerate(self._fragments)]
+        return [
+            {"record_id": f"r{i}", "text": text}
+            for i, text in enumerate(self._fragments)
+        ]
 
 
 _SARCOID_CASE = _Trajectory(
@@ -43,7 +46,9 @@ def test_findings_are_read_from_the_evidence_not_only_the_final_answer():
     touched. A differential should come from what the case contains."""
     resolved, _ = findings_from_trajectory(_SARCOID_CASE, differential_graph())
     assert "hypercalcaemia" in resolved
-    assert "erythema nodosum" in resolved, "present only in a fragment, not in the final answer"
+    assert "erythema nodosum" in resolved, (
+        "present only in a fragment, not in the final answer"
+    )
 
 
 def test_the_full_bridge_produces_a_ranked_differential_from_raw_documents():
@@ -56,14 +61,21 @@ def test_the_full_bridge_produces_a_ranked_differential_from_raw_documents():
 
 def test_candidates_come_from_the_graph_not_from_the_caller():
     result = bridge(_SARCOID_CASE, differential_graph())
-    assert set(result.candidate_conditions) == {"sarcoidosis", "lymphoma", "tuberculosis"}
+    assert set(result.candidate_conditions) == {
+        "sarcoidosis",
+        "lymphoma",
+        "tuberculosis",
+    }
 
 
 def test_a_trajectory_with_nothing_the_graph_recognises_produces_no_false_differential():
     """Silence is the right output when the graph recognises nothing --
     inventing a differential from unrecognised text would be worse than
     saying nothing."""
-    result = bridge(_Trajectory(["The patient reports feeling generally unwell."]), differential_graph())
+    result = bridge(
+        _Trajectory(["The patient reports feeling generally unwell."]),
+        differential_graph(),
+    )
     assert result.candidate_conditions == []
     assert result.outcome is None
 
@@ -93,7 +105,9 @@ def test_no_predictions_are_offered_when_the_enumerator_declined_to_rank():
     """If the graph could not support a conclusion, it has no basis for
     predicting anything either."""
     graph = differential_graph()
-    outcome = MechanismEnumerator(graph=graph).run(["periorbital purpura"], ["amyloidosis"])
+    outcome = MechanismEnumerator(graph=graph).run(
+        ["periorbital purpura"], ["amyloidosis"]
+    )
     assert predicted_findings_for(outcome, graph, ["periorbital purpura"]) == []
 
 
@@ -160,7 +174,9 @@ def test_every_part_of_the_output_declares_where_it_came_from():
     document, a concept the graph supplied, and one the RLM merely
     proposed."""
     result = bridge(
-        _SARCOID_CASE, differential_graph(), rlm_claims=[("hypercalcaemia", "erythema nodosum", "sarcoidosis")]
+        _SARCOID_CASE,
+        differential_graph(),
+        rlm_claims=[("hypercalcaemia", "erythema nodosum", "sarcoidosis")],
     )
     payload = result.as_dict()
 
@@ -186,5 +202,10 @@ def test_an_injected_enumerator_is_used_rather_than_a_fresh_one():
 
 def test_as_dict_carries_what_a_reviewer_needs():
     payload = bridge(_SARCOID_CASE, differential_graph()).as_dict()
-    for key in ("findings_from_documents", "candidate_conditions", "hypotheses", "predicted_findings"):
+    for key in (
+        "findings_from_documents",
+        "candidate_conditions",
+        "hypotheses",
+        "predicted_findings",
+    ):
         assert key in payload

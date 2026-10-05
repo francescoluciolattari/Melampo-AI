@@ -86,7 +86,9 @@ class CaseOutcome:
 
     @property
     def band(self) -> str:
-        return next(label for low, high, label in DENSITY_BANDS if low <= self.density < high)
+        return next(
+            label for low, high, label in DENSITY_BANDS if low <= self.density < high
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -126,7 +128,11 @@ class CaptureReport:
     @property
     def attention_cost(self) -> float:
         """Hypotheses emitted per diagnosis captured. Lower is better."""
-        return self.hypotheses_emitted / len(self.captures) if self.captures else float("inf")
+        return (
+            self.hypotheses_emitted / len(self.captures)
+            if self.captures
+            else float("inf")
+        )
 
     def by_band(self) -> dict[str, dict[str, Any]]:
         bands: dict[str, list[CaseOutcome]] = {}
@@ -136,7 +142,9 @@ class CaptureReport:
             band: {
                 "missed": len(items),
                 "captured": sum(1 for item in items if item.is_capture),
-                "capture_rate": round(sum(1 for item in items if item.is_capture) / len(items), 3),
+                "capture_rate": round(
+                    sum(1 for item in items if item.is_capture) / len(items), 3
+                ),
             }
             for band, items in sorted(bands.items())
         }
@@ -156,18 +164,26 @@ class CaptureReport:
             "base_rate": None if self.base_rate is None else round(self.base_rate, 4),
             "exceeds_base_rate": self.exceeds_base_rate(),
             "hypotheses_emitted": self.hypotheses_emitted,
-            "attention_cost": None if self.attention_cost == float("inf") else round(self.attention_cost, 2),
+            "attention_cost": None
+            if self.attention_cost == float("inf")
+            else round(self.attention_cost, 2),
             "by_density_band": self.by_band(),
             "outcomes": [item.as_dict() for item in self.outcomes],
         }
 
 
-def evaluate(outcomes: Sequence[CaseOutcome], *, base_rate: float | None = None) -> CaptureReport:
+def evaluate(
+    outcomes: Sequence[CaseOutcome], *, base_rate: float | None = None
+) -> CaptureReport:
     return CaptureReport(outcomes=list(outcomes), base_rate=base_rate)
 
 
 def estimate_base_rate(
-    cases: Sequence[EvaluationCase], hypotheses_per_case: int, *, seed: int = 20260906, trials: int = 200
+    cases: Sequence[EvaluationCase],
+    hypotheses_per_case: int,
+    *,
+    seed: int = 20260906,
+    trials: int = 200,
 ) -> float:
     """Capture rate obtained by drawing candidates at random, as the floor to beat.
 
@@ -195,7 +211,9 @@ def capture_at_k(outcome: CaseOutcome, confirming_test: str) -> bool:
     A hypothesis present but unactionable has not done the work: the point of
     raising it is to make the next step obvious.
     """
-    return outcome.is_capture and _contains(outcome.discriminating_tests, confirming_test)
+    return outcome.is_capture and _contains(
+        outcome.discriminating_tests, confirming_test
+    )
 
 
 def _contains(items: Sequence[str], target: str) -> bool:

@@ -63,7 +63,9 @@ def test_a_rule_out_is_an_open_question_not_evidence():
     status = _detect("Chest CT ordered to rule out pneumonia.", "pneumonia")
     assert status.certainty == CERTAINTY_HYPOTHETICAL
     assert status.state() == STATE_GAP
-    assert status.bounds() == (0.0, 1.0), "an open question is evidence of neither presence nor absence"
+    assert status.bounds() == (0.0, 1.0), (
+        "an open question is evidence of neither presence nor absence"
+    )
 
 
 def test_family_history_is_not_a_finding_of_this_patient():
@@ -120,9 +122,18 @@ def test_the_objective_observation_is_recognised_across_the_adversative():
 
 
 def test_possible_is_distinguished_from_hypothetical_and_from_factual():
-    assert _detect("Findings suspicious for pneumonia.", "pneumonia").certainty == CERTAINTY_POSSIBLE
-    assert _detect("Evaluate for pneumonia.", "pneumonia").certainty == CERTAINTY_HYPOTHETICAL
-    assert _detect("Imaging demonstrates pneumonia.", "pneumonia").certainty == CERTAINTY_FACTUAL
+    assert (
+        _detect("Findings suspicious for pneumonia.", "pneumonia").certainty
+        == CERTAINTY_POSSIBLE
+    )
+    assert (
+        _detect("Evaluate for pneumonia.", "pneumonia").certainty
+        == CERTAINTY_HYPOTHETICAL
+    )
+    assert (
+        _detect("Imaging demonstrates pneumonia.", "pneumonia").certainty
+        == CERTAINTY_FACTUAL
+    )
 
 
 # --------------------------------------------------------------------------
@@ -138,7 +149,9 @@ def test_italian_cues_detect_the_same_distinctions():
     familial = _detect("Familiarita per diabete.", "diabete", cues=ITALIAN_CUES)
     assert familial.experiencer == EXPERIENCER_OTHER
 
-    objective = _detect("All esame obiettivo si riscontra aritmia.", "aritmia", cues=ITALIAN_CUES)
+    objective = _detect(
+        "All esame obiettivo si riscontra aritmia.", "aritmia", cues=ITALIAN_CUES
+    )
     assert objective.source == SOURCE_OBJECTIVE
     assert objective.polarity == POLARITY_AFFIRMED
 
@@ -160,7 +173,11 @@ def test_the_four_zero_cases_stay_distinguishable():
     objective_exclusion = _detect("On examination there is no cough.", "cough")
     open_question = _detect("Evaluate for cough.", "cough")
 
-    states = {reported_denial.state(), objective_exclusion.state(), open_question.state()}
+    states = {
+        reported_denial.state(),
+        objective_exclusion.state(),
+        open_question.state(),
+    }
     assert len(states) == 3
     assert open_question.bounds()[1] == 1.0, "an open question keeps its full interval"
 
@@ -183,10 +200,16 @@ def _candidate(label: str, **kwargs) -> dict:
 def test_only_current_asserted_patient_findings_are_admitted():
     result = assemble(
         [
-            _candidate("Dyspnea", assertion=_detect("Presents with dyspnea.", "dyspnea")),
+            _candidate(
+                "Dyspnea", assertion=_detect("Presents with dyspnea.", "dyspnea")
+            ),
             _candidate("Fever", assertion=_detect("Denies fever.", "fever")),
-            _candidate("Pneumonia", assertion=_detect("Rule out pneumonia.", "pneumonia")),
-            _candidate("Diabetes", assertion=_detect("Family history of diabetes.", "diabetes")),
+            _candidate(
+                "Pneumonia", assertion=_detect("Rule out pneumonia.", "pneumonia")
+            ),
+            _candidate(
+                "Diabetes", assertion=_detect("Family history of diabetes.", "diabetes")
+            ),
         ]
     )
     assert result.concepts == ["Dyspnea"]
@@ -197,7 +220,9 @@ def test_only_current_asserted_patient_findings_are_admitted():
 
 
 def test_every_rejection_names_where_the_item_belongs_instead():
-    result = assemble([_candidate("Fever", assertion=_detect("Denies fever.", "fever"))])
+    result = assemble(
+        [_candidate("Fever", assertion=_detect("Denies fever.", "fever"))]
+    )
     assert result.rejected[0].route == "documented_exclusion"
 
 
@@ -234,12 +259,16 @@ def test_the_guard_raises_on_the_production_path():
 
 
 def test_the_guard_passes_clean_findings():
-    assert_findings_only([_candidate("Dyspnea", assertion=_detect("Presents with dyspnea.", "dyspnea"))])
+    assert_findings_only(
+        [_candidate("Dyspnea", assertion=_detect("Presents with dyspnea.", "dyspnea"))]
+    )
 
 
 def test_candidates_without_an_assertion_are_admitted_unchanged():
     """Assertion detection is optional; its absence must not silently drop findings."""
-    result = assemble([_candidate("Dyspnea", term_id="HP:0002094", modifiers=["Progressive"])])
+    result = assemble(
+        [_candidate("Dyspnea", term_id="HP:0002094", modifiers=["Progressive"])]
+    )
     assert result.concepts == ["Dyspnea"]
     assert result.admitted[0].modifiers == ("Progressive",)
 
@@ -258,4 +287,6 @@ def test_cue_sets_are_selected_per_language_and_never_merged():
     assert select_cues("IT-it") is ITALIAN_CUES
     assert select_cues("en") is ENGLISH_CUES
     assert select_cues("") is ENGLISH_CUES
-    assert select_cues("de") is ENGLISH_CUES, "an unsupported language falls back rather than guessing"
+    assert select_cues("de") is ENGLISH_CUES, (
+        "an unsupported language falls back rather than guessing"
+    )

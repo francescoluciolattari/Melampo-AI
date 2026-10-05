@@ -36,7 +36,9 @@ def _cosine(left: list[float], right: list[float]) -> float:
         return 0.0
     left_norm = math.sqrt(sum(value * value for value in left)) or 1.0
     right_norm = math.sqrt(sum(value * value for value in right)) or 1.0
-    return _clamp(sum(a * b for a, b in zip(left, right, strict=True)) / (left_norm * right_norm))
+    return _clamp(
+        sum(a * b for a, b in zip(left, right, strict=True)) / (left_norm * right_norm)
+    )
 
 
 # What an imprint's vector is. The two kinds live in unrelated spaces and are
@@ -68,13 +70,21 @@ def _numeric_vector(value: Any) -> list[float] | None:
     """
     if hasattr(value, "tolist") and not isinstance(value, str | bytes):
         value = value.tolist()
-    while isinstance(value, list | tuple) and len(value) == 1 and isinstance(value[0], list | tuple):
+    while (
+        isinstance(value, list | tuple)
+        and len(value) == 1
+        and isinstance(value[0], list | tuple)
+    ):
         value = value[0]
     if not isinstance(value, list | tuple) or not value:
         return None
     numbers_out: list[float] = []
     for item in value:
-        if isinstance(item, bool) or type(item).__name__ == "bool_" or not isinstance(item, numbers.Real):
+        if (
+            isinstance(item, bool)
+            or type(item).__name__ == "bool_"
+            or not isinstance(item, numbers.Real)
+        ):
             return None
         number = float(item)
         if not math.isfinite(number):
@@ -90,7 +100,9 @@ def _unit(vector: list[float]) -> list[float]:
     which changed matrix_signature_hash on every as_dict() round trip.
     """
     norm = math.sqrt(sum(value * value for value in vector))
-    if abs(norm - 1.0) <= _UNIT_TOLERANCE and all(round(value, 6) == value for value in vector):
+    if abs(norm - 1.0) <= _UNIT_TOLERANCE and all(
+        round(value, 6) == value for value in vector
+    ):
         return list(vector)
     return _normalize(vector)
 
@@ -116,8 +128,12 @@ def _present(value: Any) -> bool:
     return bool(value)
 
 
-def _comparable(left: VisualRecognitionImprint, right: VisualRecognitionImprint) -> bool:
-    return left.vector_kind == right.vector_kind and len(left.vector) == len(right.vector)
+def _comparable(
+    left: VisualRecognitionImprint, right: VisualRecognitionImprint
+) -> bool:
+    return left.vector_kind == right.vector_kind and len(left.vector) == len(
+        right.vector
+    )
 
 
 def _stable_vector(seed: str, dimensions: int = 64) -> list[float]:
@@ -129,7 +145,9 @@ def _stable_vector(seed: str, dimensions: int = 64) -> list[float]:
     return _normalize(buckets)
 
 
-def _matrix_to_vector(matrix: Any, fallback_seed: str, dimensions: int = 64) -> list[float]:
+def _matrix_to_vector(
+    matrix: Any, fallback_seed: str, dimensions: int = 64
+) -> list[float]:
     """A 64-value fingerprint of a structured payload -- the hashed_signature kind.
 
     Lossy by design: at most 256 values are read, folded into 64 buckets
@@ -172,27 +190,58 @@ def _hash_vector(vector: list[float]) -> str:
 
 
 _TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
-_STOP_TERMS = {"and", "or", "of", "the", "a", "an", "with", "without", "di", "del", "della", "dei", "e", "o"}
+_STOP_TERMS = {
+    "and",
+    "or",
+    "of",
+    "the",
+    "a",
+    "an",
+    "with",
+    "without",
+    "di",
+    "del",
+    "della",
+    "dei",
+    "e",
+    "o",
+}
 
 
 def _concept_terms(concept: str) -> set[str]:
-    return {term for term in _TOKEN_RE.findall(concept.casefold()) if len(term) >= 3 and term not in _STOP_TERMS}
+    return {
+        term
+        for term in _TOKEN_RE.findall(concept.casefold())
+        if len(term) >= 3 and term not in _STOP_TERMS
+    }
 
 
-def _semantic_relation(left: VisualRecognitionImprint, right: VisualRecognitionImprint) -> dict[str, Any]:
+def _semantic_relation(
+    left: VisualRecognitionImprint, right: VisualRecognitionImprint
+) -> dict[str, Any]:
     if left.semantic_concept == right.semantic_concept:
         return {
             "score": 1.0,
             "match_type": "total_semantic_concept",
             "shared_terms": sorted(_concept_terms(left.semantic_concept)),
-            "shared_ontology_refs": sorted(set(left.ontology_refs).intersection(right.ontology_refs)),
+            "shared_ontology_refs": sorted(
+                set(left.ontology_refs).intersection(right.ontology_refs)
+            ),
         }
     left_terms = _concept_terms(left.semantic_concept)
     right_terms = _concept_terms(right.semantic_concept)
     shared_terms = left_terms.intersection(right_terms)
     ontology_overlap = set(left.ontology_refs).intersection(right.ontology_refs)
-    containment = len(shared_terms) / max(min(len(left_terms), len(right_terms)), 1) if shared_terms else 0.0
-    jaccard = len(shared_terms) / max(len(left_terms.union(right_terms)), 1) if shared_terms else 0.0
+    containment = (
+        len(shared_terms) / max(min(len(left_terms), len(right_terms)), 1)
+        if shared_terms
+        else 0.0
+    )
+    jaccard = (
+        len(shared_terms) / max(len(left_terms.union(right_terms)), 1)
+        if shared_terms
+        else 0.0
+    )
     ontology_score = 1.0 if ontology_overlap else 0.0
     score = _clamp(max(containment * 0.78 + jaccard * 0.22, ontology_score))
     if ontology_overlap and shared_terms:
@@ -243,13 +292,39 @@ class VisualRecognitionImprint:
     vector_kind: str = VECTOR_KIND_SIGNATURE
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any], *, default_concept: str = "visual_pattern") -> VisualRecognitionImprint:
+    def from_payload(
+        cls, payload: dict[str, Any], *, default_concept: str = "visual_pattern"
+    ) -> VisualRecognitionImprint:
         payload = payload if isinstance(payload, dict) else {}
-        concept = str(payload.get("semantic_concept") or payload.get("concept") or payload.get("normalized_entity") or default_concept)
-        variant_label = str(payload.get("variant_label") or payload.get("label") or payload.get("name") or "observed_variant")
-        source_object_id = str(payload.get("source_object_id") or payload.get("study_id") or payload.get("object_id") or "unknown")
+        concept = str(
+            payload.get("semantic_concept")
+            or payload.get("concept")
+            or payload.get("normalized_entity")
+            or default_concept
+        )
+        variant_label = str(
+            payload.get("variant_label")
+            or payload.get("label")
+            or payload.get("name")
+            or "observed_variant"
+        )
+        source_object_id = str(
+            payload.get("source_object_id")
+            or payload.get("study_id")
+            or payload.get("object_id")
+            or "unknown"
+        )
         vector = next(
-            (payload[key] for key in ("vector", "embedding", "matrix_signature", "recognition_matrix") if _present(payload.get(key))),
+            (
+                payload[key]
+                for key in (
+                    "vector",
+                    "embedding",
+                    "matrix_signature",
+                    "recognition_matrix",
+                )
+                if _present(payload.get(key))
+            ),
             None,
         )
         numeric = _numeric_vector(vector)
@@ -257,11 +332,18 @@ class VisualRecognitionImprint:
         if numeric is not None and stated_kind in (None, VECTOR_KIND_NUMERIC):
             vector_kind, dense_vector = VECTOR_KIND_NUMERIC, _unit(numeric)
         elif numeric is not None and stated_kind == VECTOR_KIND_SIGNATURE:
-            vector_kind, dense_vector = VECTOR_KIND_SIGNATURE, _unit(numeric)  # an already-built signature, read back
+            vector_kind, dense_vector = (
+                VECTOR_KIND_SIGNATURE,
+                _unit(numeric),
+            )  # an already-built signature, read back
         else:
             vector_kind = VECTOR_KIND_SIGNATURE
-            dense_vector = _matrix_to_vector(vector, fallback_seed=f"{concept}:{variant_label}:{source_object_id}")
-        imprint_id = str(payload.get("imprint_id") or f"vimprint:{_hash_vector(dense_vector)}")
+            dense_vector = _matrix_to_vector(
+                vector, fallback_seed=f"{concept}:{variant_label}:{source_object_id}"
+            )
+        imprint_id = str(
+            payload.get("imprint_id") or f"vimprint:{_hash_vector(dense_vector)}"
+        )
         return cls(
             imprint_id=imprint_id,
             semantic_concept=concept.casefold().strip() or default_concept,
@@ -269,10 +351,20 @@ class VisualRecognitionImprint:
             vector=dense_vector,
             source_object_id=source_object_id,
             modality=str(payload.get("modality", "imaging")),
-            salience=_clamp(_safe_float(payload.get("salience", payload.get("salience_score", 0.0)))),
-            uncertainty=_clamp(_safe_float(payload.get("uncertainty", payload.get("uncertainty_score", 1.0)))),
-            ontology_refs=[str(ref) for ref in payload.get("ontology_refs", [])] if isinstance(payload.get("ontology_refs", []), list) else [],
-            provenance=dict(payload.get("provenance", {})) if isinstance(payload.get("provenance", {}), dict) else {},
+            salience=_clamp(
+                _safe_float(payload.get("salience", payload.get("salience_score", 0.0)))
+            ),
+            uncertainty=_clamp(
+                _safe_float(
+                    payload.get("uncertainty", payload.get("uncertainty_score", 1.0))
+                )
+            ),
+            ontology_refs=[str(ref) for ref in payload.get("ontology_refs", [])]
+            if isinstance(payload.get("ontology_refs", []), list)
+            else [],
+            provenance=dict(payload.get("provenance", {}))
+            if isinstance(payload.get("provenance", {}), dict)
+            else {},
             learning_status=str(payload.get("learning_status", "candidate")),
             vector_kind=vector_kind,
         )
@@ -300,28 +392,52 @@ class VisualRecognitionImprint:
 class VisualImprintBuilder:
     """Build governed visual imprints from Melampo visual-area signals."""
 
-    def from_visual_area(self, signal: dict[str, Any], volume_features: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    def from_visual_area(
+        self, signal: dict[str, Any], volume_features: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         signal = signal if isinstance(signal, dict) else {}
         volume_features = volume_features if isinstance(volume_features, dict) else {}
-        claims = signal.get("claims", []) if isinstance(signal.get("claims", []), list) else []
+        claims = (
+            signal.get("claims", [])
+            if isinstance(signal.get("claims", []), list)
+            else []
+        )
         concept_payloads = [
             (
                 str(claim.get("normalized_entity") or claim.get("label")),
-                claim.get("ontology_refs", []) if isinstance(claim.get("ontology_refs", []), list) else [],
+                claim.get("ontology_refs", [])
+                if isinstance(claim.get("ontology_refs", []), list)
+                else [],
             )
             for claim in claims
-            if isinstance(claim, dict) and (claim.get("normalized_entity") or claim.get("label"))
+            if isinstance(claim, dict)
+            and (claim.get("normalized_entity") or claim.get("label"))
         ]
         if not concept_payloads:
-            concept_payloads = [(str(volume_features.get("input_kind") or signal.get("focus") or "diagnostic_visual_pattern"), [])]
+            concept_payloads = [
+                (
+                    str(
+                        volume_features.get("input_kind")
+                        or signal.get("focus")
+                        or "diagnostic_visual_pattern"
+                    ),
+                    [],
+                )
+            ]
         imprints = []
         for index, (concept, ontology_refs) in enumerate(concept_payloads[:4], start=1):
             imprint = VisualRecognitionImprint.from_payload(
                 {
                     "semantic_concept": concept,
                     "variant_label": f"observed_visual_variant_{index}",
-                    "source_object_id": volume_features.get("study_id", "unknown_study"),
-                    "modality": volume_features.get("metadata", {}).get("modality", volume_features.get("input_kind", "imaging")) if isinstance(volume_features.get("metadata", {}), dict) else volume_features.get("input_kind", "imaging"),
+                    "source_object_id": volume_features.get(
+                        "study_id", "unknown_study"
+                    ),
+                    "modality": volume_features.get("metadata", {}).get(
+                        "modality", volume_features.get("input_kind", "imaging")
+                    )
+                    if isinstance(volume_features.get("metadata", {}), dict)
+                    else volume_features.get("input_kind", "imaging"),
                     "recognition_matrix": {
                         "volume": volume_features,
                         "visual_signal": signal,
@@ -361,10 +477,20 @@ class VisualImprintMorpher:
     min_semantic_overlap: float = 0.34
     max_pairs: int = 512
     return_vectors: bool = True
-    allowed_learning_statuses: tuple[str, ...] = ("candidate", "needs_review", "promoted")
+    allowed_learning_statuses: tuple[str, ...] = (
+        "candidate",
+        "needs_review",
+        "promoted",
+    )
 
-    def _as_imprints(self, payloads: list[dict[str, Any]] | None) -> list[VisualRecognitionImprint]:
-        return [VisualRecognitionImprint.from_payload(payload) for payload in payloads or [] if isinstance(payload, dict)]
+    def _as_imprints(
+        self, payloads: list[dict[str, Any]] | None
+    ) -> list[VisualRecognitionImprint]:
+        return [
+            VisualRecognitionImprint.from_payload(payload)
+            for payload in payloads or []
+            if isinstance(payload, dict)
+        ]
 
     def nexus_morph(
         self,
@@ -384,16 +510,30 @@ class VisualImprintMorpher:
             if imprint.learning_status in set(self.allowed_learning_statuses)
         ] or source_imprints
         area_dynamics = area_dynamics if isinstance(area_dynamics, dict) else {}
-        neuro = area_dynamics.get("neuro_dynamic_metrics", {}) if isinstance(area_dynamics.get("neuro_dynamic_metrics", {}), dict) else {}
-        pi_score = _safe_float(neuro.get("pi_score", area_dynamics.get("pi_score", 0.0)))
-        prediction_error = _safe_float(neuro.get("prediction_error", area_dynamics.get("prediction_error", 0.0)))
-        mismatch_index = _safe_float(neuro.get("mismatch_index", area_dynamics.get("mismatch_index", 0.0)))
+        neuro = (
+            area_dynamics.get("neuro_dynamic_metrics", {})
+            if isinstance(area_dynamics.get("neuro_dynamic_metrics", {}), dict)
+            else {}
+        )
+        pi_score = _safe_float(
+            neuro.get("pi_score", area_dynamics.get("pi_score", 0.0))
+        )
+        prediction_error = _safe_float(
+            neuro.get("prediction_error", area_dynamics.get("prediction_error", 0.0))
+        )
+        mismatch_index = _safe_float(
+            neuro.get("mismatch_index", area_dynamics.get("mismatch_index", 0.0))
+        )
         nexus_plasticity = _safe_float(neuro.get("nexus_plasticity", 0.0))
         action_gate = _safe_float(neuro.get("action_potential_gate", 0.0))
 
         morphs: list[dict[str, Any]] = []
         semantic_links: list[dict[str, Any]] = []
-        alpha_base = _clamp(self.interpolation_alpha + (nexus_plasticity - mismatch_index) * 0.1, 0.2, 0.8)
+        alpha_base = _clamp(
+            self.interpolation_alpha + (nexus_plasticity - mismatch_index) * 0.1,
+            0.2,
+            0.8,
+        )
         evaluated_pair_count = 0
         incomparable_pair_count = 0
         pair_budget_exhausted = False
@@ -421,29 +561,73 @@ class VisualImprintMorpher:
                     0.8,
                 )
                 bridge_seed = " ".join(
-                    [left.semantic_concept, right.semantic_concept, *relation["shared_terms"], *relation["shared_ontology_refs"]]
+                    [
+                        left.semantic_concept,
+                        right.semantic_concept,
+                        *relation["shared_terms"],
+                        *relation["shared_ontology_refs"],
+                    ]
                 )
-                bridge_vector = _stable_vector(bridge_seed or f"{left.semantic_concept}:{right.semantic_concept}", dimensions=min(len(left.vector), len(right.vector)))
-                bridge_gain = _clamp(semantic_relation_score * 0.18 + action_gate * 0.05 - prediction_error * 0.04, 0.0, 0.28)
-                morphed_vector = _normalize([
-                    (1.0 - alpha) * left.vector[index]
-                    + alpha * right.vector[index]
-                    + bridge_gain * bridge_vector[index]
-                    for index in range(min(len(left.vector), len(right.vector), len(bridge_vector)))
-                ])
+                bridge_vector = _stable_vector(
+                    bridge_seed or f"{left.semantic_concept}:{right.semantic_concept}",
+                    dimensions=min(len(left.vector), len(right.vector)),
+                )
+                bridge_gain = _clamp(
+                    semantic_relation_score * 0.18
+                    + action_gate * 0.05
+                    - prediction_error * 0.04,
+                    0.0,
+                    0.28,
+                )
+                morphed_vector = _normalize(
+                    [
+                        (1.0 - alpha) * left.vector[index]
+                        + alpha * right.vector[index]
+                        + bridge_gain * bridge_vector[index]
+                        for index in range(
+                            min(len(left.vector), len(right.vector), len(bridge_vector))
+                        )
+                    ]
+                )
                 source_similarity = _cosine(left.vector, right.vector)
-                comparable_targets = [item for item in diagnostic if _comparable(left, item)]
+                comparable_targets = [
+                    item for item in diagnostic if _comparable(left, item)
+                ]
                 related_targets = [
                     item
                     for item in comparable_targets
-                    if _semantic_relation(left, item)["score"] >= self.min_semantic_overlap
-                    or _semantic_relation(right, item)["score"] >= self.min_semantic_overlap
+                    if _semantic_relation(left, item)["score"]
+                    >= self.min_semantic_overlap
+                    or _semantic_relation(right, item)["score"]
+                    >= self.min_semantic_overlap
                 ] or comparable_targets
-                best_target = max(related_targets, key=lambda item: _cosine(morphed_vector, item.vector), default=None)
-                target_similarity = _cosine(morphed_vector, best_target.vector) if best_target else 0.0
-                target_relation = _semantic_relation(left, best_target) if best_target else {"score": 0.0, "match_type": "none", "shared_terms": [], "shared_ontology_refs": []}
-                right_target_relation = _semantic_relation(right, best_target) if best_target else {"score": 0.0}
-                target_semantic_score = max(_safe_float(target_relation.get("score", 0.0)), _safe_float(right_target_relation.get("score", 0.0)))
+                best_target = max(
+                    related_targets,
+                    key=lambda item: _cosine(morphed_vector, item.vector),
+                    default=None,
+                )
+                target_similarity = (
+                    _cosine(morphed_vector, best_target.vector) if best_target else 0.0
+                )
+                target_relation = (
+                    _semantic_relation(left, best_target)
+                    if best_target
+                    else {
+                        "score": 0.0,
+                        "match_type": "none",
+                        "shared_terms": [],
+                        "shared_ontology_refs": [],
+                    }
+                )
+                right_target_relation = (
+                    _semantic_relation(right, best_target)
+                    if best_target
+                    else {"score": 0.0}
+                )
+                target_semantic_score = max(
+                    _safe_float(target_relation.get("score", 0.0)),
+                    _safe_float(right_target_relation.get("score", 0.0)),
+                )
                 inference_weight = _clamp(
                     semantic_relation_score * 0.30
                     + target_semantic_score * 0.22
@@ -456,7 +640,11 @@ class VisualImprintMorpher:
                     - mismatch_index * 0.08
                 )
                 interference = _clamp(
-                    (source_similarity * 0.45 + semantic_relation_score * 0.35 + target_semantic_score * 0.20)
+                    (
+                        source_similarity * 0.45
+                        + semantic_relation_score * 0.35
+                        + target_semantic_score * 0.20
+                    )
                     * (0.55 + action_gate * 0.25 + nexus_plasticity * 0.20)
                     - prediction_error * 0.12
                 )
@@ -474,7 +662,9 @@ class VisualImprintMorpher:
                 if relation["match_type"] == "total_semantic_concept":
                     semantic_concept = left.semantic_concept
                 else:
-                    shared = " ".join(relation["shared_terms"]) or " / ".join([left.semantic_concept, right.semantic_concept])
+                    shared = " ".join(relation["shared_terms"]) or " / ".join(
+                        [left.semantic_concept, right.semantic_concept]
+                    )
                     semantic_concept = f"partial:{shared}"
                 morph = {
                     "morph_id": f"vmorph:{_hash_vector(morphed_vector)}",
@@ -483,7 +673,9 @@ class VisualImprintMorpher:
                     "right_semantic_concept": right.semantic_concept,
                     "left_imprint_id": left.imprint_id,
                     "right_imprint_id": right.imprint_id,
-                    "target_imprint_id": best_target.imprint_id if best_target else "none",
+                    "target_imprint_id": best_target.imprint_id
+                    if best_target
+                    else "none",
                     "morphing_mode": "inferential_semantic_matrix_morphing",
                     "vector_kind": left.vector_kind,
                     "semantic_match_type": relation["match_type"],
@@ -507,16 +699,20 @@ class VisualImprintMorpher:
                     morph["vector"] = morphed_vector
                 morphs.append(morph)
                 if intuitive_link_score >= self.min_similarity:
-                    semantic_links.append({
-                        "semantic_concept": semantic_concept,
-                        "morph_id": morph["morph_id"],
-                        "target_imprint_id": morph["target_imprint_id"],
-                        "relationship": "nexus_morphed_visual_imprint_suggests_diagnostic_correlation",
-                        "semantic_match_type": relation["match_type"],
-                        "semantic_relation_score": round(semantic_relation_score, 3),
-                        "score": round(intuitive_link_score, 3),
-                        "requires_review": True,
-                    })
+                    semantic_links.append(
+                        {
+                            "semantic_concept": semantic_concept,
+                            "morph_id": morph["morph_id"],
+                            "target_imprint_id": morph["target_imprint_id"],
+                            "relationship": "nexus_morphed_visual_imprint_suggests_diagnostic_correlation",
+                            "semantic_match_type": relation["match_type"],
+                            "semantic_relation_score": round(
+                                semantic_relation_score, 3
+                            ),
+                            "score": round(intuitive_link_score, 3),
+                            "requires_review": True,
+                        }
+                    )
 
         morphs.sort(key=lambda item: item["intuitive_link_score"], reverse=True)
         semantic_links.sort(key=lambda item: item["score"], reverse=True)
@@ -532,7 +728,9 @@ class VisualImprintMorpher:
             "pair_budget_exhausted": pair_budget_exhausted,
             "max_pairs": self.max_pairs,
             "warnings": (
-                [f"incomparable_vectors_skipped:{incomparable_pair_count} pairs of different vector_kind or dimension"]
+                [
+                    f"incomparable_vectors_skipped:{incomparable_pair_count} pairs of different vector_kind or dimension"
+                ]
                 if incomparable_pair_count
                 else []
             ),
@@ -540,7 +738,15 @@ class VisualImprintMorpher:
             "semantic_links": semantic_links[:limit],
             "visual_morph_coherence": round(top_score, 3),
             "visual_prediction_link_score": round(top_score, 3),
-            "visual_morph_intuition_gain": round(_clamp(top_score * 0.55 + nexus_plasticity * 0.25 + action_gate * 0.20 - prediction_error * 0.15), 3),
+            "visual_morph_intuition_gain": round(
+                _clamp(
+                    top_score * 0.55
+                    + nexus_plasticity * 0.25
+                    + action_gate * 0.20
+                    - prediction_error * 0.15
+                ),
+                3,
+            ),
             "neuroquantum_trace": {
                 "formalism": "quantum_like_latent_interference_not_physical_quantum_claim",
                 "morphing_mode": "inferential_semantic_matrix_morphing",

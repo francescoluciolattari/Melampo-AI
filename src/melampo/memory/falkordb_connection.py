@@ -98,7 +98,9 @@ class FalkorDBConfig:
     def _from_raw(cls, raw: dict[str, Any]) -> "FalkorDBConfig":
         mode = str(raw.get("mode", MODE_LITE)).strip().lower()
         if mode not in (MODE_LITE, MODE_SERVICE):
-            raise ValueError(f"falkordb config: unrecognised mode {mode!r}, expected 'lite' or 'service'")
+            raise ValueError(
+                f"falkordb config: unrecognised mode {mode!r}, expected 'lite' or 'service'"
+            )
         lite = raw.get("lite", {}) or {}
         service = raw.get("service", {}) or {}
         return cls(
@@ -106,7 +108,9 @@ class FalkorDBConfig:
             lite_db_path=str(lite.get("db_path", DEFAULT_LITE_DB_PATH)),
             service_host=str(service.get("host", "localhost")),
             service_port=int(service.get("port", 6379)),
-            service_password=(str(service.get("password")) or None) if service.get("password") else None,
+            service_password=(str(service.get("password")) or None)
+            if service.get("password")
+            else None,
             service_ssl=bool(service.get("ssl", False)),
         )
 

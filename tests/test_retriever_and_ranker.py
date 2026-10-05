@@ -13,4 +13,8 @@ def test_retriever_infers_focus_and_ranker_orders_grounded_items():
     ranked = EvidenceRanker().rank(result["evidence"])
     assert ranked[0]["rank"] == 1
     assert ranked[0]["weight"] >= ranked[-1]["weight"]
-    assert ranked[0]["item"]["source"] in ["semantic_memory", "knowledge_graph", "episodic_memory"]
+    assert ranked[0]["item"]["source"] in [
+        "semantic_memory",
+        "knowledge_graph",
+        "episodic_memory",
+    ]

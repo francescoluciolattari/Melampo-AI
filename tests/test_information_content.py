@@ -24,8 +24,12 @@ def _marfan_graph() -> InMemoryConceptGraph:
     return InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("marfan syndrome", "causes", "connective tissue weakness", 0.9),
-            ConceptEdge("connective tissue weakness", "causes", "aortic root dilation", 0.85),
-            ConceptEdge("marfan syndrome", "associated_with", "aortic root dilation", 0.7),
+            ConceptEdge(
+                "connective tissue weakness", "causes", "aortic root dilation", 0.85
+            ),
+            ConceptEdge(
+                "marfan syndrome", "associated_with", "aortic root dilation", 0.7
+            ),
         ]
     )
 
@@ -45,7 +49,9 @@ def test_a_common_concept_scores_far_lower_than_a_rare_one():
     )
     assert table.value("pulmonary") < table.value("aortic root dilation")
     assert table.value("aortic root dilation") < table.value("marfan syndrome")
-    assert table.value("pulmonary") < 0.1, "a ubiquitous term must carry almost no information"
+    assert table.value("pulmonary") < 0.1, (
+        "a ubiquitous term must carry almost no information"
+    )
 
 
 def test_information_content_is_normalised_to_the_unit_range():
@@ -108,7 +114,14 @@ def test_graph_structure_makes_hub_concepts_general_and_leaf_concepts_specific()
 
 
 def test_graph_structure_on_an_empty_graph_yields_an_empty_table():
-    assert len(InformationContentTable.from_graph_structure(InMemoryConceptGraph.from_edges([]))) == 0
+    assert (
+        len(
+            InformationContentTable.from_graph_structure(
+                InMemoryConceptGraph.from_edges([])
+            )
+        )
+        == 0
+    )
 
 
 # --------------------------------------------------------------------------
@@ -126,37 +139,61 @@ def test_a_path_through_specific_concepts_outscores_one_through_general_ones():
         [ConceptEdge("pulmonary", "part_of", "abnormality", 0.8)]
     )
     table = InformationContentTable.from_frequencies(
-        {"pulmonary": 5000, "abnormality": 8000, "marfan syndrome": 40, "aortic root dilation": 300}
+        {
+            "pulmonary": 5000,
+            "abnormality": 8000,
+            "marfan syndrome": 40,
+            "aortic root dilation": 300,
+        }
     )
 
-    specific = score_path(find_paths(specific_graph, "marfan syndrome", "aortic root dilation")[0], table)
-    general = score_path(find_paths(general_graph, "pulmonary", "abnormality")[0], table)
+    specific = score_path(
+        find_paths(specific_graph, "marfan syndrome", "aortic root dilation")[0], table
+    )
+    general = score_path(
+        find_paths(general_graph, "pulmonary", "abnormality")[0], table
+    )
 
-    assert specific.path_strength == pytest.approx(general.path_strength), "identical link strength"
-    assert specific.weighted_strength > general.weighted_strength, "but not identical meaning"
+    assert specific.path_strength == pytest.approx(general.path_strength), (
+        "identical link strength"
+    )
+    assert specific.weighted_strength > general.weighted_strength, (
+        "but not identical meaning"
+    )
 
 
 def test_both_the_raw_and_weighted_strength_are_carried():
     """The supporting evidence for IC weighting is on UMLS/MeSH for word
     sense disambiguation, not on this graph for this task -- so the
     difference the weighting makes must be visible, not folded away."""
-    table = InformationContentTable.from_frequencies({"marfan syndrome": 40, "aortic root dilation": 300})
-    score = score_path(find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation")[0], table)
+    table = InformationContentTable.from_frequencies(
+        {"marfan syndrome": 40, "aortic root dilation": 300}
+    )
+    score = score_path(
+        find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation")[0], table
+    )
     assert score.path_strength > 0
     assert score.mean_information_content > 0
-    assert score.weighted_strength == pytest.approx(score.path_strength * score.mean_information_content)
+    assert score.weighted_strength == pytest.approx(
+        score.path_strength * score.mean_information_content
+    )
 
 
 def test_a_score_resting_on_defaults_reports_that_it_is_not_measured():
     """A weighted score built mostly from DEFAULT_IC reports an assumption,
     not a measurement, and a reader must be able to tell which they have."""
     empty_table = InformationContentTable()
-    score = score_path(find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation")[0], empty_table)
+    score = score_path(
+        find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation")[0],
+        empty_table,
+    )
     assert score.all_concepts_measured is False
 
 
 def test_path_concepts_lists_every_waypoint_in_order_without_repeats():
-    path = find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3)[0]
+    path = find_paths(
+        _marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3
+    )[0]
     concepts = path_concepts(path)
     assert concepts[0] == "marfan syndrome"
     assert concepts[-1] == "aortic root dilation"
@@ -165,9 +202,18 @@ def test_path_concepts_lists_every_waypoint_in_order_without_repeats():
 
 def test_rank_paths_orders_by_weighted_strength_strongest_first():
     table = InformationContentTable.from_frequencies(
-        {"marfan syndrome": 40, "connective tissue weakness": 120, "aortic root dilation": 300}
+        {
+            "marfan syndrome": 40,
+            "connective tissue weakness": 120,
+            "aortic root dilation": 300,
+        }
     )
-    ranked = rank_paths(find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3), table)
+    ranked = rank_paths(
+        find_paths(
+            _marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3
+        ),
+        table,
+    )
     assert ranked == sorted(ranked, key=lambda item: -item.weighted_strength)
 
 
@@ -180,9 +226,15 @@ def test_two_independent_routes_score_above_the_best_single_one():
     """The graph-level analogue of this project's own cross-check principle:
     two independent routes to the same conclusion are worth more than one."""
     table = InformationContentTable.from_frequencies(
-        {"marfan syndrome": 40, "connective tissue weakness": 120, "aortic root dilation": 300}
+        {
+            "marfan syndrome": 40,
+            "connective tissue weakness": 120,
+            "aortic root dilation": 300,
+        }
     )
-    paths = find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3)
+    paths = find_paths(
+        _marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3
+    )
     convergence = score_convergence(paths, table)
 
     assert convergence.independent_path_count == 2
@@ -222,7 +274,9 @@ def test_converged_strength_never_exceeds_certainty():
             ConceptEdge("d", "r5", "b", 1.0),
         ]
     )
-    convergence = score_convergence(find_paths(graph, "a", "b", max_hops=3, max_paths=8), table)
+    convergence = score_convergence(
+        find_paths(graph, "a", "b", max_hops=3, max_paths=8), table
+    )
     assert convergence.converged_strength <= 1.0
 
 
@@ -242,7 +296,9 @@ def test_an_intermediate_shared_by_every_route_is_reported():
     """A common waypoint is often the mechanism itself -- a real feature of
     the connection, not a defect -- but a reader should see when every route
     funnels through one node."""
-    table = InformationContentTable.from_frequencies({"a": 10, "b": 10, "bottleneck": 10, "x": 10})
+    table = InformationContentTable.from_frequencies(
+        {"a": 10, "b": 10, "bottleneck": 10, "x": 10}
+    )
     graph = InMemoryConceptGraph.from_edges(
         [
             ConceptEdge("a", "r1", "bottleneck", 0.9),
@@ -262,8 +318,12 @@ def test_no_paths_yields_a_zero_score_rather_than_a_crash():
 
 
 def test_as_dict_carries_what_a_reviewer_needs():
-    table = InformationContentTable.from_frequencies({"marfan syndrome": 40, "aortic root dilation": 300})
-    paths = find_paths(_marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3)
+    table = InformationContentTable.from_frequencies(
+        {"marfan syndrome": 40, "aortic root dilation": 300}
+    )
+    paths = find_paths(
+        _marfan_graph(), "marfan syndrome", "aortic root dilation", max_hops=3
+    )
     payload = score_convergence(paths, table).as_dict()
     for key in ("independent_path_count", "converged_strength", "is_single_thread"):
         assert key in payload

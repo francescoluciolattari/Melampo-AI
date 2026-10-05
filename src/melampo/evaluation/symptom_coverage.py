@@ -44,7 +44,11 @@ class ReferenceDisease:
 
 
 def load_reference(path: str | Path) -> list[ReferenceDisease]:
-    lines = [line for line in Path(path).read_text(encoding="utf-8").splitlines() if line and not line.startswith("#")]
+    lines = [
+        line
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    ]
     return [
         ReferenceDisease(
             mondo_id=row["mondo_id"],
@@ -96,7 +100,9 @@ def measure(
     usable_threshold: int = DEFAULT_USABLE_THRESHOLD,
 ) -> dict[str, Any]:
     """Per-disease and per-source coverage of ``reference`` by ``links``."""
-    by_source_disease: dict[str, dict[str, list[SymptomLink]]] = defaultdict(lambda: defaultdict(list))
+    by_source_disease: dict[str, dict[str, list[SymptomLink]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for link in links:
         if link.mondo_id:
             by_source_disease[link.source][link.mondo_id].append(link)
@@ -109,7 +115,9 @@ def measure(
         union_hpo[disease.mondo_id] = set()
         for source in sources:
             own = by_source_disease[source].get(disease.mondo_id, [])
-            present = {_symptom_key(link): link for link in own if not link.is_exclusion}
+            present = {
+                _symptom_key(link): link for link in own if not link.is_exclusion
+            }
             excluded = {_symptom_key(link) for link in own if link.is_exclusion}
             narrower = {
                 _symptom_key(link)
@@ -125,13 +133,21 @@ def measure(
                 tiers=Counter(link.tier for link in present.values()),
             )
             per_disease[disease.mondo_id][source] = coverage
-            union_hpo[disease.mondo_id].update(link.hpo_id for link in present.values() if link.hpo_id)
+            union_hpo[disease.mondo_id].update(
+                link.hpo_id for link in present.values() if link.hpo_id
+            )
 
-    summaries = [_summarise(source, per_disease, usable_threshold) for source in sources]
+    summaries = [
+        _summarise(source, per_disease, usable_threshold) for source in sources
+    ]
     union_covered = sum(1 for hpo_ids in union_hpo.values() if hpo_ids)
-    union_usable = sum(1 for hpo_ids in union_hpo.values() if len(hpo_ids) >= usable_threshold)
+    union_usable = sum(
+        1 for hpo_ids in union_hpo.values() if len(hpo_ids) >= usable_threshold
+    )
 
-    specialties: dict[str, dict[str, int]] = defaultdict(lambda: {"diseases": 0, "usable_union_hpo": 0})
+    specialties: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"diseases": 0, "usable_union_hpo": 0}
+    )
     for disease in reference:
         specialties[disease.specialty]["diseases"] += 1
         if len(union_hpo[disease.mondo_id]) >= usable_threshold:
@@ -166,7 +182,9 @@ def measure(
     }
 
 
-def _summarise(source: str, per_disease: Mapping[str, Mapping[str, DiseaseCoverage]], usable: int) -> SourceSummary:
+def _summarise(
+    source: str, per_disease: Mapping[str, Mapping[str, DiseaseCoverage]], usable: int
+) -> SourceSummary:
     rows = [by_source[source] for by_source in per_disease.values()]
     covered = [row for row in rows if row.present > 0]
     total_present = sum(row.present for row in rows)
@@ -177,11 +195,19 @@ def _summarise(source: str, per_disease: Mapping[str, Mapping[str, DiseaseCovera
         source=source,
         diseases_with_links=len(covered),
         diseases_usable=sum(1 for row in rows if row.present >= usable),
-        diseases_only_via_descendants=sum(1 for row in rows if row.present == 0 and row.via_descendants > 0),
+        diseases_only_via_descendants=sum(
+            1 for row in rows if row.present == 0 and row.via_descendants > 0
+        ),
         total_present=total_present,
         total_excluded=sum(row.excluded for row in rows),
-        hpo_mapping_rate=round(sum(row.mapped_to_hpo for row in rows) / total_present, 3) if total_present else 0.0,
-        median_present_when_covered=statistics.median([row.present for row in covered]) if covered else 0.0,
+        hpo_mapping_rate=round(
+            sum(row.mapped_to_hpo for row in rows) / total_present, 3
+        )
+        if total_present
+        else 0.0,
+        median_present_when_covered=statistics.median([row.present for row in covered])
+        if covered
+        else 0.0,
         tiers=dict(sorted(tiers.items())),
     )
 
@@ -207,7 +233,10 @@ def render_markdown(
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for summary in result["sources"]:
-        tiers = ", ".join(f"T{tier}: {count}" for tier, count in summary["tiers"].items()) or "–"
+        tiers = (
+            ", ".join(f"T{tier}: {count}" for tier, count in summary["tiers"].items())
+            or "–"
+        )
         lines.append(
             f"| {summary['source']} | {summary['diseases_with_links']}/{size} | {summary['diseases_usable']}/{size} "
             f"| {summary['diseases_only_via_descendants']} | {summary['total_present']} | {summary['total_excluded']} "
@@ -225,10 +254,16 @@ def render_markdown(
         "|---|---|---|",
     ]
     for specialty, counts in sorted(result["specialties"].items()):
-        lines.append(f"| {specialty} | {counts['diseases']} | {counts['usable_union_hpo']} |")
+        lines.append(
+            f"| {specialty} | {counts['diseases']} | {counts['usable_union_hpo']} |"
+        )
     label_for = {disease.mondo_id: disease.mondo_label for disease in reference}
     uncovered = result["uncovered_everywhere"]
-    lines += ["", f"**No link from any source ({len(uncovered)}):** " + (", ".join(label_for.get(m, m) for m in uncovered) or "none")]
+    lines += [
+        "",
+        f"**No link from any source ({len(uncovered)}):** "
+        + (", ".join(label_for.get(m, m) for m in uncovered) or "none"),
+    ]
     if notes:
         lines += ["", "**Run notes**", "", *[f"- {note}" for note in notes]]
     return "\n".join(lines) + "\n"

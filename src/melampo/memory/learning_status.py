@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-ALLOWED_LEARNING_STATUSES = ("candidate", "needs_review", "promoted", "rejected", "retired")
+ALLOWED_LEARNING_STATUSES = (
+    "candidate",
+    "needs_review",
+    "promoted",
+    "rejected",
+    "retired",
+)
 
 GOVERNED_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "candidate": ("candidate", "needs_review", "promoted", "rejected", "retired"),
@@ -47,7 +53,9 @@ def validate_learning_transition(
     normalized_target = normalize_learning_status(target)
     reasons: list[str] = []
 
-    if normalized_target not in GOVERNED_TRANSITIONS.get(normalized_current, ()):  # defensive fallback
+    if normalized_target not in GOVERNED_TRANSITIONS.get(
+        normalized_current, ()
+    ):  # defensive fallback
         reasons.append("transition_not_allowed_by_learning_status_policy")
 
     if normalized_target == "promoted":

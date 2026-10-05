@@ -18,7 +18,11 @@ def __getattr__(name: str):
         from .app import build_default_runtime
 
         return build_default_runtime
-    if name in {"ClinicalPrototypeRunner", "PrototypeInputValidator", "run_prototype_case"}:
+    if name in {
+        "ClinicalPrototypeRunner",
+        "PrototypeInputValidator",
+        "run_prototype_case",
+    }:
         from .prototype import (
             ClinicalPrototypeRunner,
             PrototypeInputValidator,

@@ -119,7 +119,9 @@ def _safe_metadata(dataset: Any) -> dict[str, Any]:
             except (TypeError, ValueError):
                 metadata[keyword] = [str(item) for item in value]
         else:
-            metadata[keyword] = str(value) if not isinstance(value, (int, float)) else value
+            metadata[keyword] = (
+                str(value) if not isinstance(value, (int, float)) else value
+            )
     return metadata
 
 
@@ -179,9 +181,13 @@ def _render_images(dataset: Any, notes: list[str]) -> tuple[list[bytes], int]:
     try:
         pixels = dataset.pixel_array
     except Exception as exc:  # noqa: BLE001 - pydicom aggregates every decoder plugin's failure into one error type chain; reported, not swallowed
-        transfer_syntax = getattr(getattr(dataset, "file_meta", None), "TransferSyntaxUID", None)
+        transfer_syntax = getattr(
+            getattr(dataset, "file_meta", None), "TransferSyntaxUID", None
+        )
         name = getattr(transfer_syntax, "name", str(transfer_syntax))
-        notes.append(f"pixel_data_not_decodable: {name}: {str(exc).splitlines()[0][:160]}")
+        notes.append(
+            f"pixel_data_not_decodable: {name}: {str(exc).splitlines()[0][:160]}"
+        )
         return [], 0
 
     is_color = _safe_int(dataset.get("SamplesPerPixel", 1), default=1) == 3
@@ -204,19 +210,33 @@ def _render_images(dataset: Any, notes: list[str]) -> tuple[list[bytes], int]:
 def _structured_report_text(dataset: Any) -> str:
     """The SR content tree as plain text -- person-name (PNAME) nodes skipped, never copied."""
     lines: list[str] = []
-    title = dataset.ConceptNameCodeSequence[0].CodeMeaning if "ConceptNameCodeSequence" in dataset else None
+    title = (
+        dataset.ConceptNameCodeSequence[0].CodeMeaning
+        if "ConceptNameCodeSequence" in dataset
+        else None
+    )
     if title:
         lines.append(str(title))
 
     def walk(sequence: Any, depth: int) -> None:
         for item in sequence:
             value_type = item.get("ValueType")
-            concept = item.ConceptNameCodeSequence[0].CodeMeaning if "ConceptNameCodeSequence" in item else ""
+            concept = (
+                item.ConceptNameCodeSequence[0].CodeMeaning
+                if "ConceptNameCodeSequence" in item
+                else ""
+            )
             indent = "  " * depth
             if value_type == "TEXT" and item.get("TextValue"):
-                lines.append(f"{indent}{concept}: {item.TextValue}" if concept else f"{indent}{item.TextValue}")
+                lines.append(
+                    f"{indent}{concept}: {item.TextValue}"
+                    if concept
+                    else f"{indent}{item.TextValue}"
+                )
             elif value_type == "CODE" and "ConceptCodeSequence" in item:
-                lines.append(f"{indent}{concept}: {item.ConceptCodeSequence[0].CodeMeaning}")
+                lines.append(
+                    f"{indent}{concept}: {item.ConceptCodeSequence[0].CodeMeaning}"
+                )
             elif value_type == "NUM" and "MeasuredValueSequence" in item:
                 measured = item.MeasuredValueSequence[0]
                 units = (
@@ -224,7 +244,9 @@ def _structured_report_text(dataset: Any) -> str:
                     if "MeasurementUnitsCodeSequence" in measured
                     else ""
                 )
-                lines.append(f"{indent}{concept}: {measured.NumericValue} {units}".rstrip())
+                lines.append(
+                    f"{indent}{concept}: {measured.NumericValue} {units}".rstrip()
+                )
             elif value_type in ("DATE", "DATETIME", "TIME"):
                 raw = item.get("Date") or item.get("DateTime") or item.get("Time")
                 if raw:
@@ -252,8 +274,17 @@ def extract_dicom(data: bytes, processor: Any = None) -> DicomExtraction:
 
     try:
         dataset = pydicom.dcmread(io.BytesIO(data))
-    except (InvalidDicomError, BytesLengthException, NotImplementedError, EOFError, ValueError, OSError) as exc:
-        return DicomExtraction(status="failed", notes=[f"not_readable_as_dicom: {str(exc)[:160]}"])
+    except (
+        InvalidDicomError,
+        BytesLengthException,
+        NotImplementedError,
+        EOFError,
+        ValueError,
+        OSError,
+    ) as exc:
+        return DicomExtraction(
+            status="failed", notes=[f"not_readable_as_dicom: {str(exc)[:160]}"]
+        )
 
     notes: list[str] = []
     metadata = _safe_metadata(dataset)
@@ -268,7 +299,9 @@ def extract_dicom(data: bytes, processor: Any = None) -> DicomExtraction:
 
             processor = ClinicalDocumentProcessor()
         pdf_bytes = bytes(dataset.EncapsulatedDocument).rstrip(b"\x00")
-        parsed = processor.process_document_bytes(pdf_bytes, source_name="dicom_encapsulated_pdf")
+        parsed = processor.process_document_bytes(
+            pdf_bytes, source_name="dicom_encapsulated_pdf"
+        )
         if parsed.get("status") == "completed":
             # The whole text, not the overlapping chunks re-joined (which duplicated every overlap).
             report_text = str(parsed.get("text", ""))
@@ -276,7 +309,11 @@ def extract_dicom(data: bytes, processor: Any = None) -> DicomExtraction:
         else:
             notes.append(f"encapsulated_pdf_no_text: {parsed.get('reason')}")
     elif sop_class == ENCAPSULATED_CDA_SOP_CLASS and "EncapsulatedDocument" in dataset:
-        report_text = bytes(dataset.EncapsulatedDocument).rstrip(b"\x00").decode("utf-8", errors="replace")
+        report_text = (
+            bytes(dataset.EncapsulatedDocument)
+            .rstrip(b"\x00")
+            .decode("utf-8", errors="replace")
+        )
         report_source = "encapsulated_cda"
     elif modality == "SR":
         report_text = _structured_report_text(dataset) or None
@@ -295,6 +332,12 @@ def extract_dicom(data: bytes, processor: Any = None) -> DicomExtraction:
         status = "no_content"
         notes.append("no_pixel_data_and_no_report")
     return DicomExtraction(
-        status=status, modality=modality, metadata=metadata, images_png=images, total_frames=total_frames,
-        report_text=report_text, report_source=report_source, notes=notes,
+        status=status,
+        modality=modality,
+        metadata=metadata,
+        images_png=images,
+        total_frames=total_frames,
+        report_text=report_text,
+        report_source=report_source,
+        notes=notes,
     )

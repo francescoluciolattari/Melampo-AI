@@ -33,7 +33,9 @@ def test_area_modules_expose_focus_and_salience_metadata():
     assert epidemiology["focus"] == "epidemiology_led"
     assert epidemiology["signal_count"] == 3
 
-    context = CaseContextArea().integrate({"bundle_keys": ["Condition"], "priority": "high"})
+    context = CaseContextArea().integrate(
+        {"bundle_keys": ["Condition"], "priority": "high"}
+    )
     assert context["focus"] == "multimodal_context"
     assert context["signal_count"] == 2
     assert context["salience_score"] > 0.0

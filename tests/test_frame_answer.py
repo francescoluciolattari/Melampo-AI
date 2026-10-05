@@ -34,7 +34,9 @@ def test_clinically_opposite_findings_conflict_on_the_finding_slot():
     )
     assert comparison.agrees is False
     assert comparison.conflicting_slots == ["finding"]
-    assert "site" in comparison.agreeing_slots, "the shared word agrees where it is uninformative"
+    assert "site" in comparison.agreeing_slots, (
+        "the shared word agrees where it is uninformative"
+    )
 
 
 def test_the_same_answer_stated_more_verbosely_agrees():
@@ -56,7 +58,7 @@ def test_the_same_answer_stated_more_verbosely_agrees():
 
 
 def test_the_same_finding_with_opposite_polarity_is_a_conflict():
-    """"pulmonary embolism, confirmed" and "pulmonary embolism, excluded"
+    """ "pulmonary embolism, confirmed" and "pulmonary embolism, excluded"
     name the same finding in different mental spaces. Character comparison
     sees them as nearly identical; a polarity slot sees them as opposite."""
     comparison = compare_frame_answers(
@@ -131,7 +133,9 @@ def test_agreement_ratio_counts_only_slots_both_models_stated():
 
 
 def test_parsing_splits_on_the_separator_in_slot_order():
-    parsed = parse_frame_answer(FRAME_MEDICATION, f"prednisone | 40 mg | daily | {POLARITY_AFFIRMED}")
+    parsed = parse_frame_answer(
+        FRAME_MEDICATION, f"prednisone | 40 mg | daily | {POLARITY_AFFIRMED}"
+    )
     assert parsed.slots["drug"] == "prednisone"
     assert parsed.slots["dose"] == "40 mg"
     assert parsed.slots["frequency"] == "daily"
@@ -149,7 +153,9 @@ def test_an_answer_with_too_few_parts_leaves_the_rest_unstated():
 
 
 def test_an_answer_with_too_many_parts_drops_the_extras():
-    parsed = parse_frame_answer(FRAME_FINDING, "embolism | pulmonary | affirmed | extra | more")
+    parsed = parse_frame_answer(
+        FRAME_FINDING, "embolism | pulmonary | affirmed | extra | more"
+    )
     assert set(parsed.slots) == set(FRAME_SLOTS[FRAME_FINDING])
 
 
@@ -180,13 +186,20 @@ def test_normalise_handles_none_and_empty():
 def test_free_text_frame_keeps_the_whole_answer_in_one_slot():
     """Not every question decomposes into slots; forcing a frame that does
     not fit would get a worse answer, not a better comparison."""
-    parsed = parse_frame_answer(FRAME_FREE_TEXT, "The family history raises the aortic threshold concern.")
-    assert parsed.slots["text"] == "The family history raises the aortic threshold concern."
+    parsed = parse_frame_answer(
+        FRAME_FREE_TEXT, "The family history raises the aortic threshold concern."
+    )
+    assert (
+        parsed.slots["text"]
+        == "The family history raises the aortic threshold concern."
+    )
 
 
 def test_free_text_answers_compare_as_whole_strings():
     same = compare_frame_answers(FRAME_FREE_TEXT, "the same thing", "the same thing")
-    different = compare_frame_answers(FRAME_FREE_TEXT, "one thing", "a completely other thing")
+    different = compare_frame_answers(
+        FRAME_FREE_TEXT, "one thing", "a completely other thing"
+    )
     assert same.agrees is True
     assert different.agrees is False
 
@@ -200,7 +213,11 @@ def test_the_instruction_names_every_slot_in_order():
     instruction = frame_prompt_instruction(FRAME_MEDICATION)
     for slot in FRAME_SLOTS[FRAME_MEDICATION]:
         assert slot in instruction
-    assert instruction.index("drug") < instruction.index("dose") < instruction.index("frequency")
+    assert (
+        instruction.index("drug")
+        < instruction.index("dose")
+        < instruction.index("frequency")
+    )
 
 
 def test_the_instruction_constrains_polarity_to_the_two_valid_values():
@@ -258,12 +275,18 @@ def test_the_two_questions_that_were_falling_through_are_now_recognised():
         recognise_frame,
     )
 
-    assert recognise_frame(
-        "What laboratory abnormality supports the imaging impression, and which document reports it?"
-    ) == FRAME_ATTRIBUTION
-    assert recognise_frame(
-        "Does the family history have any bearing on today's aortic measurement, and why?"
-    ) == FRAME_RELEVANCE
+    assert (
+        recognise_frame(
+            "What laboratory abnormality supports the imaging impression, and which document reports it?"
+        )
+        == FRAME_ATTRIBUTION
+    )
+    assert (
+        recognise_frame(
+            "Does the family history have any bearing on today's aortic measurement, and why?"
+        )
+        == FRAME_RELEVANCE
+    )
 
 
 def test_relevance_wins_when_a_question_evokes_both():
@@ -272,16 +295,22 @@ def test_relevance_wins_when_a_question_evokes_both():
     other failed, which is the worse failure."""
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE, recognise_frame
 
-    assert recognise_frame(
-        "Which document reports it, and does it have any bearing on the measurement?"
-    ) == FRAME_RELEVANCE
+    assert (
+        recognise_frame(
+            "Which document reports it, and does it have any bearing on the measurement?"
+        )
+        == FRAME_RELEVANCE
+    )
 
 
 def test_yes_no_finding_questions_are_recognised_as_the_finding_frame():
     from melampo.reasoning.frame_answer import FRAME_FINDING, recognise_frame
 
     assert recognise_frame("Is fever present according to the report?") == FRAME_FINDING
-    assert recognise_frame("Is a pericardial effusion present, and how does it differ?") == FRAME_FINDING
+    assert (
+        recognise_frame("Is a pericardial effusion present, and how does it differ?")
+        == FRAME_FINDING
+    )
 
 
 def test_an_unrecognised_question_falls_back_to_free_text_rather_than_guessing():
@@ -297,7 +326,9 @@ def test_an_unrecognised_question_falls_back_to_free_text_rather_than_guessing()
 def test_recognition_is_case_and_whitespace_insensitive():
     from melampo.reasoning.frame_answer import FRAME_RELEVANCE, recognise_frame
 
-    assert recognise_frame("  DOES THIS  HAVE ANY BEARING ON that?  ") == FRAME_RELEVANCE
+    assert (
+        recognise_frame("  DOES THIS  HAVE ANY BEARING ON that?  ") == FRAME_RELEVANCE
+    )
 
 
 def test_recognition_consults_no_model_and_is_deterministic():
@@ -306,7 +337,11 @@ def test_recognition_consults_no_model_and_is_deterministic():
     from melampo.reasoning.frame_answer import recognise_frame
 
     question = "Does the family history have any bearing on today's aortic measurement?"
-    assert recognise_frame(question) == recognise_frame(question) == recognise_frame(question)
+    assert (
+        recognise_frame(question)
+        == recognise_frame(question)
+        == recognise_frame(question)
+    )
 
 
 # --------------------------------------------------------------------------
@@ -349,7 +384,9 @@ def test_contradicts_covers_both_kinds_of_direct_opposition():
     from melampo.reasoning.frame_answer import FRAME_FINDING, FRAME_RELEVANCE
 
     polarity = compare_frame_answers(
-        FRAME_FINDING, "embolism | pulmonary | affirmed", "embolism | pulmonary | negated"
+        FRAME_FINDING,
+        "embolism | pulmonary | affirmed",
+        "embolism | pulmonary | negated",
     )
     judgment = compare_frame_answers(
         FRAME_RELEVANCE, "a | b | yes | m", "a | b | no | m"
@@ -422,8 +459,12 @@ def test_excess_segments_are_absorbed_by_the_last_slot_not_discarded():
     parsed = parse_frame_answer(FRAME_RELEVANCE, answer)
 
     mechanism = parsed.value("mechanism")
-    assert "calcium-sensing receptor" in mechanism, "previously lost past the fourth segment"
-    assert "channel" in mechanism, "the trailing fragment must survive too, not just the middle one"
+    assert "calcium-sensing receptor" in mechanism, (
+        "previously lost past the fourth segment"
+    )
+    assert "channel" in mechanism, (
+        "the trailing fragment must survive too, not just the middle one"
+    )
 
 
 def test_earlier_slots_are_unaffected_by_excess_segments():
@@ -467,7 +508,11 @@ def test_the_recovered_mechanism_actually_grounds_where_it_previously_could_not(
     graph, table = vetting_graph(), vetting_table()
 
     verification = verify_mechanism(
-        graph, parsed.value("factor"), parsed.value("target"), parsed.value("mechanism"), table=table
+        graph,
+        parsed.value("factor"),
+        parsed.value("target"),
+        parsed.value("mechanism"),
+        table=table,
     )
 
     assert verification.is_grounded is True

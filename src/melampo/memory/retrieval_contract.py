@@ -22,7 +22,9 @@ RETRIEVAL_MODE_FALLBACK = "fallback_contract_only"
 RETRIEVAL_MODE_RLM = "rlm_environment"
 RETRIEVAL_MODE_DUAL = "dual_path_reconciled"
 
-GROUNDED_MODES = frozenset({RETRIEVAL_MODE_SEMANTIC, RETRIEVAL_MODE_RLM, RETRIEVAL_MODE_DUAL})
+GROUNDED_MODES = frozenset(
+    {RETRIEVAL_MODE_SEMANTIC, RETRIEVAL_MODE_RLM, RETRIEVAL_MODE_DUAL}
+)
 
 COVERAGE_BASIS_TOPK = "topk_ratio"
 COVERAGE_BASIS_CORPUS = "corpus_characters"
@@ -47,7 +49,12 @@ REQUIRED_KEYS = (
     "retrieval_quality",
 )
 
-REQUIRED_QUALITY_KEYS = ("memory_backed", "coverage", "mean_grounding_score", "fallback_used")
+REQUIRED_QUALITY_KEYS = (
+    "memory_backed",
+    "coverage",
+    "mean_grounding_score",
+    "fallback_used",
+)
 
 
 @runtime_checkable
@@ -75,32 +82,47 @@ class ContractViolation:
     detail: str
 
 
-def validate_retrieval_payload(payload: dict[str, Any], *, require_provenance: bool = True) -> list[ContractViolation]:
+def validate_retrieval_payload(
+    payload: dict[str, Any], *, require_provenance: bool = True
+) -> list[ContractViolation]:
     """Return contract violations for a retrieval payload. Empty list means valid."""
     violations: list[ContractViolation] = []
 
     for key in REQUIRED_KEYS:
         if key not in payload:
-            violations.append(ContractViolation("missing_key", f"payload is missing '{key}'"))
+            violations.append(
+                ContractViolation("missing_key", f"payload is missing '{key}'")
+            )
 
     evidence = payload.get("evidence")
     if evidence is not None and not isinstance(evidence, list):
-        violations.append(ContractViolation("invalid_evidence", "'evidence' must be a list"))
+        violations.append(
+            ContractViolation("invalid_evidence", "'evidence' must be a list")
+        )
         evidence = None
 
     if isinstance(evidence, list) and payload.get("evidence_count") != len(evidence):
         violations.append(
-            ContractViolation("evidence_count_mismatch", "'evidence_count' does not match len(evidence)")
+            ContractViolation(
+                "evidence_count_mismatch",
+                "'evidence_count' does not match len(evidence)",
+            )
         )
 
     quality = payload.get("retrieval_quality")
     if not isinstance(quality, dict):
-        violations.append(ContractViolation("missing_quality", "'retrieval_quality' must be a dict"))
+        violations.append(
+            ContractViolation("missing_quality", "'retrieval_quality' must be a dict")
+        )
         quality = {}
 
     for key in REQUIRED_QUALITY_KEYS:
         if key not in quality:
-            violations.append(ContractViolation("missing_quality_key", f"retrieval_quality is missing '{key}'"))
+            violations.append(
+                ContractViolation(
+                    "missing_quality_key", f"retrieval_quality is missing '{key}'"
+                )
+            )
 
     mode = payload.get("retrieval_mode")
     if mode in GROUNDED_MODES and quality.get("memory_backed") is not True:
@@ -114,7 +136,11 @@ def validate_retrieval_payload(payload: dict[str, Any], *, require_provenance: b
     if require_provenance and isinstance(evidence, list):
         for index, item in enumerate(evidence):
             if not isinstance(item, dict):
-                violations.append(ContractViolation("invalid_evidence_item", f"evidence[{index}] is not a dict"))
+                violations.append(
+                    ContractViolation(
+                        "invalid_evidence_item", f"evidence[{index}] is not a dict"
+                    )
+                )
                 continue
             if not _has_trace(item):
                 violations.append(
@@ -127,9 +153,13 @@ def validate_retrieval_payload(payload: dict[str, Any], *, require_provenance: b
     return violations
 
 
-def assert_retrieval_contract(payload: dict[str, Any], *, require_provenance: bool = True) -> None:
+def assert_retrieval_contract(
+    payload: dict[str, Any], *, require_provenance: bool = True
+) -> None:
     """Raise ``ValueError`` when the payload violates the retrieval contract."""
-    violations = validate_retrieval_payload(payload, require_provenance=require_provenance)
+    violations = validate_retrieval_payload(
+        payload, require_provenance=require_provenance
+    )
     if violations:
         detail = "; ".join(f"{item.code}: {item.detail}" for item in violations)
         raise ValueError(f"retrieval contract violation -> {detail}")
@@ -148,7 +178,9 @@ def coverage_basis(payload: dict[str, Any]) -> str:
     quality = payload.get("retrieval_quality") if isinstance(payload, dict) else None
     if isinstance(quality, dict) and quality.get("coverage_basis"):
         return str(quality["coverage_basis"])
-    return DEFAULT_COVERAGE_BASIS_BY_MODE.get(str(payload.get("retrieval_mode")), COVERAGE_BASIS_NONE)
+    return DEFAULT_COVERAGE_BASIS_BY_MODE.get(
+        str(payload.get("retrieval_mode")), COVERAGE_BASIS_NONE
+    )
 
 
 def assert_coverage_comparable(*payloads: dict[str, Any]) -> str:
@@ -162,7 +194,8 @@ def assert_coverage_comparable(*payloads: dict[str, Any]) -> str:
     bases.discard(COVERAGE_BASIS_NONE)
     if len(bases) > 1:
         raise ValueError(
-            "coverage figures use incompatible bases and cannot be compared directly: " + ", ".join(sorted(bases))
+            "coverage figures use incompatible bases and cannot be compared directly: "
+            + ", ".join(sorted(bases))
         )
     return bases.pop() if bases else COVERAGE_BASIS_NONE
 
@@ -179,4 +212,6 @@ def _has_trace(item: dict[str, Any]) -> bool:
         if isinstance(start, int) and isinstance(end, int) and end > start:
             return True
     metadata = item.get("metadata")
-    return isinstance(metadata, dict) and bool(metadata.get("page") or metadata.get("section"))
+    return isinstance(metadata, dict) and bool(
+        metadata.get("page") or metadata.get("section")
+    )

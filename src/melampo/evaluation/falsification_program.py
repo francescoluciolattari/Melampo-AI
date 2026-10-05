@@ -256,7 +256,11 @@ class FalsificationProgram:
         another, and the privacy claims exist because the external-API route
         carries its own.
         """
-        return [claim for claim in self.claims if claim.is_blocking_under(self.active_routes)]
+        return [
+            claim
+            for claim in self.claims
+            if claim.is_blocking_under(self.active_routes)
+        ]
 
     def dormant_claims(self) -> list[FalsifiableClaim]:
         """Open blocking claims whose route is not currently active.
@@ -267,7 +271,9 @@ class FalsificationProgram:
         return [
             claim
             for claim in self.open_claims()
-            if claim.blocking and claim.conditional_on is not None and claim.conditional_on not in self.active_routes
+            if claim.blocking
+            and claim.conditional_on is not None
+            and claim.conditional_on not in self.active_routes
         ]
 
     def activate_route(self, route: str) -> None:
@@ -286,7 +292,9 @@ class FalsificationProgram:
             "blocking_open": len(self.blocking_claims()),
             "dormant_blocking": len(self.dormant_claims()),
             "refuted": len(self.refuted_claims()),
-            "withdrawn": len([claim for claim in self.claims if claim.status == CLAIM_WITHDRAWN]),
+            "withdrawn": len(
+                [claim for claim in self.claims if claim.status == CLAIM_WITHDRAWN]
+            ),
             "active_routes": sorted(self.active_routes),
             "claims": [claim.as_dict() for claim in self.claims],
         }

@@ -14,7 +14,11 @@ _RECORD = {
     "case_id": "case-1",
     "case_context": {
         "report_text": "Persistent cough, fever.",
-        "demographics": {"nome": "Mario", "cognome": "Rossi", "codice_fiscale": "RSSMRA80A01H501U"},
+        "demographics": {
+            "nome": "Mario",
+            "cognome": "Rossi",
+            "codice_fiscale": "RSSMRA80A01H501U",
+        },
     },
     "confirmed_diagnosis": "Sarcoidosis",
 }
@@ -32,12 +36,16 @@ def test_an_identifying_field_is_replaced_with_a_hash():
 
 
 def test_a_non_identifying_field_is_left_untouched():
-    result = anonymize_identifying_fields({"case_id": "case-1", "nome": "Mario"}, "secret")
+    result = anonymize_identifying_fields(
+        {"case_id": "case-1", "nome": "Mario"}, "secret"
+    )
     assert result["case_id"] == "case-1"
 
 
 def test_nested_identifying_fields_are_found_and_hashed():
-    result = anonymize_identifying_fields({"case_context": {"demographics": {"cognome": "Rossi"}}}, "secret")
+    result = anonymize_identifying_fields(
+        {"case_context": {"demographics": {"cognome": "Rossi"}}}, "secret"
+    )
     assert result["case_context"]["demographics"]["cognome"] != "Rossi"
 
 
@@ -63,7 +71,9 @@ def test_an_empty_identifying_field_is_left_empty_not_hashed():
 def test_an_unlisted_identifying_looking_field_is_not_touched():
     """The allowlist is deliberate, not exhaustive by shape-guessing --
     only IDENTIFYING_FIELDS' exact names are caught."""
-    result = anonymize_identifying_fields({"patient_notes": "Mario mentioned in passing"}, "secret")
+    result = anonymize_identifying_fields(
+        {"patient_notes": "Mario mentioned in passing"}, "secret"
+    )
     assert result["patient_notes"] == "Mario mentioned in passing"
 
 
@@ -99,7 +109,9 @@ def test_wrong_password_cannot_read_the_store(tmp_path):
     store = ConfirmedCaseStore(password="secret", path=tmp_path / "confirmed.jsonl")
     store.persist(_RECORD)
 
-    wrong = ConfirmedCaseStore(password="wrong-password", path=tmp_path / "confirmed.jsonl")
+    wrong = ConfirmedCaseStore(
+        password="wrong-password", path=tmp_path / "confirmed.jsonl"
+    )
     try:
         list(wrong.load())
         raised = False

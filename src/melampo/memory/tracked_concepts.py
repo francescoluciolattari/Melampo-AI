@@ -101,7 +101,9 @@ class TrackedConceptStore:
         key = concept.strip().lower()
         if not key or key in self.concepts:
             return False
-        self.concepts[key] = TrackedConcept(concept=concept.strip(), added_from=source, added_at=time.time())
+        self.concepts[key] = TrackedConcept(
+            concept=concept.strip(), added_from=source, added_at=time.time()
+        )
         return True
 
     def track_many(self, concepts: Iterable[str], *, source: str) -> int:
@@ -126,7 +128,9 @@ class TrackedConceptStore:
         """
         ordered = sorted(
             self.concepts.values(),
-            key=lambda item: item.last_refreshed_at if item.last_refreshed_at is not None else -1.0,
+            key=lambda item: (
+                item.last_refreshed_at if item.last_refreshed_at is not None else -1.0
+            ),
         )
         return ordered[:limit]
 
@@ -139,7 +143,9 @@ class TrackedConceptStore:
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = path.with_suffix(path.suffix + ".tmp")
-        tmp_path.write_text(json.dumps(self.as_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp_path.write_text(
+            json.dumps(self.as_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         tmp_path.replace(path)
 
     @classmethod

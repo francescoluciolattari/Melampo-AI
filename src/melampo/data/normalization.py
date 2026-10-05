@@ -12,7 +12,9 @@ class ClinicalNormalizer:
 
     def to_fhir_bundle(self, case: CaseContext) -> dict[str, FHIRResourceEnvelope]:
         return {
-            "patient": FHIRResourceEnvelope("Patient", {"id": case.patient_id or case.case_id}),
+            "patient": FHIRResourceEnvelope(
+                "Patient", {"id": case.patient_id or case.case_id}
+            ),
             "diagnostic_report": FHIRResourceEnvelope(
                 "DiagnosticReport",
                 {

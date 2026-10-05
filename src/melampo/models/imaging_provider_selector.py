@@ -56,8 +56,16 @@ class ImagingProviderSelector:
                 readiness_requirement="dicom_or_volumetric_series_required",
             )
         if strategy == "hybrid_multimodal":
-            provider_kind = "remote_3d_dicom_foundation_model" if input_kind == "volumetric_dicom_or_series" else "remote_projection_radiology_vlm"
-            provider_name = "remote_dicom_3d_provider" if input_kind == "volumetric_dicom_or_series" else "remote_radiology_vlm_provider"
+            provider_kind = (
+                "remote_3d_dicom_foundation_model"
+                if input_kind == "volumetric_dicom_or_series"
+                else "remote_projection_radiology_vlm"
+            )
+            provider_name = (
+                "remote_dicom_3d_provider"
+                if input_kind == "volumetric_dicom_or_series"
+                else "remote_radiology_vlm_provider"
+            )
             return ImagingProviderSelection(
                 strategy=strategy,
                 provider_kind=provider_kind,

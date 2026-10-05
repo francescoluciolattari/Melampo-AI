@@ -63,7 +63,11 @@ class SliceAnalysisRunner:
     min_selective_accuracy: float = 0.6
     min_coverage: float = 0.4
 
-    def run(self, records: Iterable[dict[str, Any]] | Any, required_slices: list[str] | None = None) -> SliceAnalysisReport:
+    def run(
+        self,
+        records: Iterable[dict[str, Any]] | Any,
+        required_slices: list[str] | None = None,
+    ) -> SliceAnalysisReport:
         rows = _as_rows(records)
         grouped: dict[str, list[dict[str, Any]]] = {}
         observed_slice_names: set[str] = set()
@@ -79,14 +83,19 @@ class SliceAnalysisRunner:
         for slice_key, slice_rows in sorted(grouped.items()):
             answered = [row for row in slice_rows if not row.get("abstained", False)]
             correct_count = sum(1 for row in answered if row.get("correct", False))
-            confidence_values = [float(row.get("confidence", 0.0) or 0.0) for row in slice_rows]
+            confidence_values = [
+                float(row.get("confidence", 0.0) or 0.0) for row in slice_rows
+            ]
             coverage = len(answered) / max(len(slice_rows), 1)
             selective_accuracy = correct_count / max(len(answered), 1)
             mean_confidence = sum(confidence_values) / max(len(confidence_values), 1)
             status = "pass"
             if len(slice_rows) < self.min_slice_size:
                 status = "too_small"
-            elif coverage < self.min_coverage or selective_accuracy < self.min_selective_accuracy:
+            elif (
+                coverage < self.min_coverage
+                or selective_accuracy < self.min_selective_accuracy
+            ):
                 status = "underperforming"
                 underperforming.append(slice_key)
             metrics[slice_key] = SliceMetric(

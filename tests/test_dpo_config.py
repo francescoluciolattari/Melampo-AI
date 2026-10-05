@@ -23,7 +23,11 @@ def _report_with_pairs(count: int):
     raised = {}
     for i in range(count):
         case_id = f"c{i}"
-        registry.register(Confirmation(case_id=case_id, diagnosis="right", source=SOURCE_HISTOPATHOLOGY))
+        registry.register(
+            Confirmation(
+                case_id=case_id, diagnosis="right", source=SOURCE_HISTOPATHOLOGY
+            )
+        )
         raised[case_id] = ["right", "wrong"]
     return extract_preference_pairs(raised, registry)
 
@@ -118,8 +122,16 @@ def test_readiness_reflects_the_same_thinness_measured_in_the_decision_record():
     cases with no alternative, and unraised-but-confirmed diagnoses are
     correctly excluded."""
     registry = ConfirmationRegistry()
-    registry.register(Confirmation(case_id="c1", diagnosis="sarcoidosis", source=SOURCE_HISTOPATHOLOGY))
-    registry.register(Confirmation(case_id="c2", diagnosis="coeliac disease", source=SOURCE_HISTOPATHOLOGY))
+    registry.register(
+        Confirmation(
+            case_id="c1", diagnosis="sarcoidosis", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
+    registry.register(
+        Confirmation(
+            case_id="c2", diagnosis="coeliac disease", source=SOURCE_HISTOPATHOLOGY
+        )
+    )
     report = extract_preference_pairs(
         {"c1": ["tuberculosis", "sarcoidosis"], "c2": ["coeliac disease"]}, registry
     )

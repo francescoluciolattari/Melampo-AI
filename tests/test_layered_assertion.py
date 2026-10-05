@@ -46,8 +46,14 @@ def test_an_objective_paraphrase_reads_as_a_documented_exclusion():
 
 
 def test_italian_paraphrases_are_covered_too():
-    assert _detect("Torace nella norma.", "torace", cues=ITALIAN_CUES).polarity == POLARITY_NEGATED
-    assert _detect("Esame cardiaco nei limiti.", "cardiaco", cues=ITALIAN_CUES).polarity == POLARITY_NEGATED
+    assert (
+        _detect("Torace nella norma.", "torace", cues=ITALIAN_CUES).polarity
+        == POLARITY_NEGATED
+    )
+    assert (
+        _detect("Esame cardiaco nei limiti.", "cardiaco", cues=ITALIAN_CUES).polarity
+        == POLARITY_NEGATED
+    )
 
 
 def test_a_paraphrase_does_not_reach_a_finding_in_another_sentence():
@@ -81,7 +87,9 @@ def test_the_residue_is_what_the_rules_leave_undecided():
 
 
 def test_the_residue_carries_examples_so_the_gap_is_inspectable():
-    report = measure_residue(AssertionDetector(), [("Fever was never documented.", 0, 5)])
+    report = measure_residue(
+        AssertionDetector(), [("Fever was never documented.", 0, 5)]
+    )
     assert "never documented" in report.residue[0]
 
 
@@ -91,7 +99,9 @@ def test_an_empty_sample_reports_zero_rather_than_dividing():
 
 
 def test_full_coverage_leaves_no_residue():
-    report = measure_residue(AssertionDetector(), [("The patient denies fever.", 20, 25)])
+    report = measure_residue(
+        AssertionDetector(), [("The patient denies fever.", 20, 25)]
+    )
     assert report.coverage == 1.0
     assert report.residue == []
 
@@ -102,7 +112,9 @@ def test_full_coverage_leaves_no_residue():
 
 
 def _fallback(text: str, start: int, end: int) -> AssertionStatus | None:
-    return AssertionStatus(polarity=POLARITY_NEGATED) if "never" in text.lower() else None
+    return (
+        AssertionStatus(polarity=POLARITY_NEGATED) if "never" in text.lower() else None
+    )
 
 
 def test_where_a_rule_fires_the_rule_decides_and_the_explanation_survives():
@@ -131,7 +143,10 @@ def test_a_fallback_that_declines_leaves_the_default():
 
 def test_without_a_fallback_the_behaviour_is_the_rules_alone():
     resolver = LayeredAssertionResolver()
-    assert resolver.resolve("Fever was never documented.", 0, 5).decided_by == DECIDED_BY_DEFAULT
+    assert (
+        resolver.resolve("Fever was never documented.", 0, 5).decided_by
+        == DECIDED_BY_DEFAULT
+    )
 
 
 def test_a_fallback_cannot_override_a_rule():
@@ -147,9 +162,11 @@ def test_a_fallback_cannot_override_a_rule():
 
 
 def test_the_resolution_payload_reports_which_layer_decided():
-    payload = LayeredAssertionResolver(fallback=_fallback).resolve(
-        "Fever was never documented.", 0, 5
-    ).as_dict()
+    payload = (
+        LayeredAssertionResolver(fallback=_fallback)
+        .resolve("Fever was never documented.", 0, 5)
+        .as_dict()
+    )
     assert payload["decided_by"] == DECIDED_BY_FALLBACK
     assert payload["explained"] is False
     assert payload["polarity"] == POLARITY_NEGATED

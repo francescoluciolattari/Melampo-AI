@@ -27,6 +27,8 @@ class RuntimeServices:
             "route": route,
             "service": service,
             "available": available,
-            "protocol": service.get("protocol", route.get("protocol_hint", "service")) if isinstance(service, dict) else route.get("protocol_hint", "service"),
+            "protocol": service.get("protocol", route.get("protocol_hint", "service"))
+            if isinstance(service, dict)
+            else route.get("protocol_hint", "service"),
             "resolution_mode": "direct_registry_match" if available else "router_only",
         }

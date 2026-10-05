@@ -36,13 +36,22 @@ def test_vector_memory_prefers_weaviate_and_preserves_relations():
             "record_id": "symptom:febrile_cough",
             "focus": "language_listening",
             "ontology_refs": ["SNOMED:placeholder"],
-            "relations": [{"from": "Symptom:Fever", "predicate": "suggestsPathology", "to": "Pathology:Infection"}],
+            "relations": [
+                {
+                    "from": "Symptom:Fever",
+                    "predicate": "suggestsPathology",
+                    "to": "Pathology:Infection",
+                }
+            ],
         },
         source="unit_test",
     )
     hits = memory.search("cough infection", limit=1)
 
-    assert memory.describe()["recommended_enterprise_backend"] == "weaviate_object_property_semantic_graph_rag"
+    assert (
+        memory.describe()["recommended_enterprise_backend"]
+        == "weaviate_object_property_semantic_graph_rag"
+    )
     assert record.record_id == "symptom:febrile_cough"
     assert hits[0]["ontology_refs"] == ["SNOMED:placeholder"]
     assert hits[0]["relations"][0]["predicate"] == "suggestsPathology"
@@ -55,11 +64,16 @@ def test_diagnostic_orchestrator_abstains_when_policy_requires_it():
             "case_id": "case-1",
             "area_dynamics": {
                 "pi_score": 0.1,
-                "neuro_dynamic_metrics": {"mismatch_index": 0.9, "candidate_temperature": 1.2},
+                "neuro_dynamic_metrics": {
+                    "mismatch_index": 0.9,
+                    "candidate_temperature": 1.2,
+                },
             },
             "coordinated": {
                 "state_summary": {"uncertainty": 0.8},
-                "differential": {"hypotheses": [{"label": "candidate_a", "score": 0.4}]},
+                "differential": {
+                    "hypotheses": [{"label": "candidate_a", "score": 0.4}]
+                },
                 "policy": {"abstain": True, "escalate": True},
                 "trace": ["trace-entry"],
             },

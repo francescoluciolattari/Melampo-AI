@@ -82,7 +82,9 @@ def _split_header(line: str) -> dict[str, int]:
     return {name.strip(): index for index, name in enumerate(fields)}
 
 
-def parse_genes_to_phenotype(lines: Iterable[str]) -> Iterator[GenePhenotypeAssociation]:
+def parse_genes_to_phenotype(
+    lines: Iterable[str],
+) -> Iterator[GenePhenotypeAssociation]:
     """Parse genes_to_phenotype.txt or phenotype_to_genes.txt.
 
     Both files carry the same association in the two directions HPO
@@ -97,7 +99,11 @@ def parse_genes_to_phenotype(lines: Iterable[str]) -> Iterator[GenePhenotypeAsso
             continue
         if columns is None:
             columns = _split_header(line)
-            resolved_names = _resolve(columns, GENE_PHENOTYPE_FIELD_ALIASES, required=("gene_symbol", "hpo_id"))
+            resolved_names = _resolve(
+                columns,
+                GENE_PHENOTYPE_FIELD_ALIASES,
+                required=("gene_symbol", "hpo_id"),
+            )
             if resolved_names is None:
                 # Not the header row this parser expects -- HPO releases have
                 # used more than one column-naming convention over time.
@@ -116,7 +122,9 @@ def parse_genes_to_phenotype(lines: Iterable[str]) -> Iterator[GenePhenotypeAsso
         hpo_term_name = _field(fields, columns, resolved_names.get("hpo_term_name", ""))
         if not gene_symbol or not hpo_id:
             continue
-        yield GenePhenotypeAssociation(gene_symbol=gene_symbol, hpo_id=hpo_id, hpo_term_name=hpo_term_name)
+        yield GenePhenotypeAssociation(
+            gene_symbol=gene_symbol, hpo_id=hpo_id, hpo_term_name=hpo_term_name
+        )
 
 
 def parse_genes_to_disease(lines: Iterable[str]) -> Iterator[GeneDiseaseAssociation]:
@@ -135,7 +143,11 @@ def parse_genes_to_disease(lines: Iterable[str]) -> Iterator[GeneDiseaseAssociat
             continue
         if columns is None:
             columns = _split_header(line)
-            resolved_names = _resolve(columns, GENE_DISEASE_FIELD_ALIASES, required=("gene_symbol", "disease_id"))
+            resolved_names = _resolve(
+                columns,
+                GENE_DISEASE_FIELD_ALIASES,
+                required=("gene_symbol", "disease_id"),
+            )
             if resolved_names is None:
                 raise ValueError(
                     f"unrecognised genes_to_disease header: {line!r}; "
@@ -146,13 +158,22 @@ def parse_genes_to_disease(lines: Iterable[str]) -> Iterator[GeneDiseaseAssociat
         fields = line.split("\t")
         gene_symbol = _field(fields, columns, resolved_names["gene_symbol"])
         disease_id = _field(fields, columns, resolved_names["disease_id"])
-        disease_name = _field(fields, columns, resolved_names.get("disease_name", "disease_name"))
+        disease_name = _field(
+            fields, columns, resolved_names.get("disease_name", "disease_name")
+        )
         if not gene_symbol or not disease_id:
             continue
-        yield GeneDiseaseAssociation(gene_symbol=gene_symbol, disease_id=disease_id, disease_name=disease_name)
+        yield GeneDiseaseAssociation(
+            gene_symbol=gene_symbol, disease_id=disease_id, disease_name=disease_name
+        )
 
 
-def _resolve(columns: dict[str, int], aliases_by_field: dict[str, tuple[str, ...]], *, required: tuple[str, ...]) -> dict[str, str] | None:
+def _resolve(
+    columns: dict[str, int],
+    aliases_by_field: dict[str, tuple[str, ...]],
+    *,
+    required: tuple[str, ...],
+) -> dict[str, str] | None:
     """Map each canonical field name to whichever of its known aliases is present.
 
     Optional fields (not in ``required``) that match nothing are simply
@@ -177,7 +198,9 @@ def _field(fields: list[str], columns: dict[str, int], name: str) -> str:
     return fields[index].strip()
 
 
-def gene_phenotype_edges(associations: Iterable[GenePhenotypeAssociation]) -> Iterator[ConceptEdge]:
+def gene_phenotype_edges(
+    associations: Iterable[GenePhenotypeAssociation],
+) -> Iterator[ConceptEdge]:
     """Turn gene-phenotype associations into graph edges.
 
     Weight is deliberately uniform rather than invented: HPO's own
@@ -201,7 +224,9 @@ def gene_phenotype_edges(associations: Iterable[GenePhenotypeAssociation]) -> It
 
 
 def gene_disease_edges(
-    associations: Iterable[GeneDiseaseAssociation], *, name_for_disease_id: dict[str, str] | None = None
+    associations: Iterable[GeneDiseaseAssociation],
+    *,
+    name_for_disease_id: dict[str, str] | None = None,
 ) -> Iterator[ConceptEdge]:
     """Turn gene-disease associations into graph edges, on the same uniform-weight basis.
 
@@ -220,7 +245,11 @@ def gene_disease_edges(
     """
     name_for_disease_id = name_for_disease_id or {}
     for association in associations:
-        target = association.disease_name or name_for_disease_id.get(association.disease_id) or association.disease_id
+        target = (
+            association.disease_name
+            or name_for_disease_id.get(association.disease_id)
+            or association.disease_id
+        )
         if not target:
             continue
         yield ConceptEdge(

@@ -9,9 +9,13 @@ from melampo.reasoning.intuition_engine import IntuitionEngine
 
 def test_area_signals_feed_intuition_engine():
     visual = VisualDiagnosticArea().integrate({"study_id": "s1"}, {"slide_id": "p1"})
-    language = LanguageListeningArea().integrate(report_text="possible lesion", patient_complaints="cough")
+    language = LanguageListeningArea().integrate(
+        report_text="possible lesion", patient_complaints="cough"
+    )
     context = CaseContextArea().integrate({"age": 64, "sex": "F"})
-    epidemiology = EpidemiologyArea().integrate(demographics={"age": 64}, exposures={"smoking": True})
+    epidemiology = EpidemiologyArea().integrate(
+        demographics={"age": 64}, exposures={"smoking": True}
+    )
     area_signals = {
         "visual_diagnostic": visual,
         "language_listening": language,
@@ -29,8 +33,15 @@ def test_area_signals_feed_intuition_engine():
         ],
         nexus={
             "belief": {"mode": "quantum_like_belief_update"},
-            "rehearsal_profile": {"contradiction_rehearsal": False, "revision_bias": "exploratory", "post_error_adjustment": "stabilize_primary"},
-            "alternative_hypotheses": [{"label": "case-2_alt_1"}, {"label": "case-2_alt_2"}],
+            "rehearsal_profile": {
+                "contradiction_rehearsal": False,
+                "revision_bias": "exploratory",
+                "post_error_adjustment": "stabilize_primary",
+            },
+            "alternative_hypotheses": [
+                {"label": "case-2_alt_1"},
+                {"label": "case-2_alt_2"},
+            ],
         },
         quantum_allowed=True,
         area_signals=area_signals,
@@ -38,9 +49,16 @@ def test_area_signals_feed_intuition_engine():
     )
     assert payload["intuition"] in ["candidate_1", "candidate_2", "case-2_alt_1"]
     assert payload["rapid_intuition"] == "candidate_1"
-    assert payload["deductive_filter"]["reasoning_mode"] in ["rapid_intuition", "rational_revision", "contradiction_revision"]
+    assert payload["deductive_filter"]["reasoning_mode"] in [
+        "rapid_intuition",
+        "rational_revision",
+        "contradiction_revision",
+    ]
     assert len(payload["candidate_scores"]) == 3
-    assert payload["candidate_scores"][0]["score"] >= payload["candidate_scores"][1]["score"]
+    assert (
+        payload["candidate_scores"][0]["score"]
+        >= payload["candidate_scores"][1]["score"]
+    )
     assert "epidemiology" in payload["area_signals"]
     assert payload["deductive_filter"]["top_areas"]
     assert payload["deductive_filter"]["convergence_score"] >= 0.0

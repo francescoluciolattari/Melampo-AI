@@ -21,7 +21,10 @@ from melampo.connectors.wikidata import (
 
 def test_mondo_ids_are_queried_in_both_formats():
     assert key_values(KEY_MONDO, ["MONDO:0005812"]) == ["0005812", "MONDO:0005812"]
-    assert key_values(KEY_MONDO, ["0005812", "MONDO:0005812"]) == ["0005812", "MONDO:0005812"]
+    assert key_values(KEY_MONDO, ["0005812", "MONDO:0005812"]) == [
+        "0005812",
+        "MONDO:0005812",
+    ]
 
 
 def test_doid_values_are_used_as_given():
@@ -33,7 +36,7 @@ def test_query_filters_deprecated_statements_and_counts_references():
     assert "wdt:P5270" in query
     assert "wikibase:DeprecatedRank" in query
     assert "prov:wasDerivedFrom" in query
-    assert 'COUNT(DISTINCT ?ref) AS ?refs' in query
+    assert "COUNT(DISTINCT ?ref) AS ?refs" in query
     assert '"0005812"' in query and '"MONDO:0005812"' in query
 
 
@@ -54,7 +57,9 @@ def test_connector_batches_and_concatenates():
         return {"results": {"bindings": [{"n": {"value": str(len(seen))}}]}}
 
     connector = WikidataConnector(batch_size=2, transport=transport)
-    rows = connector.symptom_bindings(KEY_MONDO, ["MONDO:1", "MONDO:2", "MONDO:3", "MONDO:1"])
+    rows = connector.symptom_bindings(
+        KEY_MONDO, ["MONDO:1", "MONDO:2", "MONDO:3", "MONDO:1"]
+    )
     assert len(seen) == 2  # three unique ids, batches of two
     assert len(rows) == 2
 
@@ -88,7 +93,9 @@ def test_source_relations_pages_until_a_short_page():
         size = 2 if params["pageNumber"] == "1" else 1
         return {"result": [{"additionalRelationLabel": "disease_has_finding"}] * size}
 
-    rows = _connector(transport).source_relations("NCI", "C53482", additional_labels=["disease_has_finding"], page_size=2)
+    rows = _connector(transport).source_relations(
+        "NCI", "C53482", additional_labels=["disease_has_finding"], page_size=2
+    )
     assert len(rows) == 3
     assert calls[0][0].endswith("/content/current/source/NCI/C53482/relations")
     assert calls[0][1]["includeAdditionalRelationLabels"] == "disease_has_finding"
@@ -120,8 +127,12 @@ def test_source_codes_for_cui_reads_codes_from_atoms():
         assert url.endswith("/CUI/C0021400/atoms") and params["sabs"] == "NCI"
         return {
             "result": [
-                {"code": "https://uts-ws.nlm.nih.gov/rest/content/2026AA/source/NCI/C53482"},
-                {"code": "https://uts-ws.nlm.nih.gov/rest/content/2026AA/source/NCI/C53482"},
+                {
+                    "code": "https://uts-ws.nlm.nih.gov/rest/content/2026AA/source/NCI/C53482"
+                },
+                {
+                    "code": "https://uts-ws.nlm.nih.gov/rest/content/2026AA/source/NCI/C53482"
+                },
             ]
         }
 
