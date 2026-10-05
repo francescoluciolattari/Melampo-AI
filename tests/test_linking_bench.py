@@ -274,3 +274,64 @@ def test_script_rejects_unknown_names():
     spec.loader.exec_module(module)
     with pytest.raises(SystemExit):
         module._names("nope", module.ENCODERS, module.DEFAULT_ENCODERS)
+
+
+def test_chain_counts_what_the_agent_does_to_the_reranker_top_one(gold, cases):
+    subset = cases[:20]
+    # An agent that always answers 0 abstains everywhere: it can only "catch" or "lose".
+    abstaining = lb.evaluate_chain(
+        _scripted_chat(subset, choice_for="0"), _hash_embedder, gold, subset, workers=2
+    )
+    transitions = abstaining["agent_vs_rerank"]
+    assert sum(transitions.values()) == 20
+    assert set(transitions) <= {"abstained_on_a_correct", "caught_a_wrong"}
+    assert abstaining["stage3"]["abstain"] == 1.0
+    assert abstaining["gold_in_agent_options"] <= abstaining["gold_in_kept"] <= 1.0
+
+
+def test_chain_agent_only_sees_the_best_three_candidates(gold, cases):
+    subset = cases[:6]
+    seen = []
+
+    def chat(prompt):
+        if prompt.startswith("Sei un radiologo"):
+            return "x"
+        if prompt.startswith("Collega"):
+            seen.append(
+                sum(
+                    1
+                    for line in prompt.splitlines()
+                    if line[:1].isdigit() and ". " in line and "nessuna" not in line
+                )
+            )
+        return "0"
+
+    lb.evaluate_chain(chat, _hash_embedder, gold, subset, workers=1)
+    assert seen and set(seen) == {3}
+
+
+def test_chain_validation_can_change_the_choice_and_is_counted(gold, cases):
+    subset = cases[:8]
+    result = lb.evaluate_chain(
+        _scripted_chat(subset, choice_for="1", verdict="2"),
+        _hash_embedder,
+        gold,
+        subset,
+        workers=2,
+    )
+    assert result["stage2"]["abstain"] == 0.0
+    assert all(r["stage3_choice"] != r["stage2_choice"] for r in result["_records"])
+
+
+def test_render_includes_the_chain_section(gold, cases):
+    subset = cases[:6]
+    chain = lb.evaluate_chain(
+        _scripted_chat(subset), _hash_embedder, gold, subset, workers=1
+    )
+    text = lb.render_markdown(
+        {
+            "chain": {"m": chain, "bad": {"error": "boom"}},
+            "chain_agreement": {"stage3": lb.agreement(chain, chain, subset)},
+        }
+    )
+    assert "Chain: CIFSYN-style" in text and "boom" in text and "fixed" in text

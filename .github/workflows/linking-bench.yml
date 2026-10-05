@@ -15,16 +15,16 @@ on:
       mode:
         description: "What to run"
         type: choice
-        options: [all, contextual, deepel, sparse]
+        options: [all, chain, contextual, deepel, sparse]
         default: all
       encoders:
         description: "Contextual-stage encoders, comma-separated (empty = default three)"
         required: false
         default: ""
       deepel_encoder:
-        description: "Encoder that generates candidates for the DeepEL-style stages"
+        description: "Encoder for the DeepEL-style and chain stages"
         required: false
-        default: "google-gemini-embedding-001"
+        default: "voyage-4-large"
 
 jobs:
   linking:
