@@ -47,11 +47,16 @@ delivered as if it were right is the failure the design is built against.
 candidates the system supplies; models asked to emit ontology identifiers fail
 on most terms they rarely saw in training (arXiv 2509.04458).
 
-**Known limits, stated rather than hidden.** Parts of organs that imply a side
-or a number ("lingula", "processo odontoideo") abstain when the whole exists on
-both sides or at several levels: a reader would infer it, this module does not
-yet. Anatomical spaces ("loggia renale") are not linked to the organ, because
-after surgery the space is empty.
+**Known limits, stated rather than hidden** (each is a strict xfail in the tests).
+A mention with no structural word at all ("lingula", "dolore epatico") can still
+be linked wrongly if retrieval ranks a wrong organ first *and* both models pick
+it: no attribute shows the error. Closing it needs part-of knowledge (a curated
+parts table, or the ontology's part_of relations once Italian names exist).
+Parts that imply a side or a number ("processo odontoideo" -> C2) abstain.
+Spaces ("loggia renale", "ipocondrio") are never linked to the organ, because
+after surgery the space is empty. Bare level codes ("L5", "D2", "T2", "S1") are
+accepted only with positive evidence; T1/T2 only with a vertebra word in the
+mention, since in an MRI report they are sequences.
 """
 
 import re
@@ -109,9 +114,33 @@ _PLURALS = {
 }
 # Words naming the tissue or container of a structure, not a different one.
 _NOISE = frozenset((
-    "parenchima", "parete", "pareti", "lume", "tratto", "regione", "area", "sede", "ghiandola",
+    "parenchima", "parete", "pareti", "lume", "tratto", "ghiandola",
     "muscolo", "muscoli", "osso", "corpo", "soma", "livello", "corrispondenza",
-    "parenchyma", "wall", "lumen", "region", "gland", "muscle", "muscles", "bone", "body", "level",
+    "parenchyma", "wall", "lumen", "gland", "muscle", "muscles", "bone", "body", "level",
+))
+# A space where an organ is, or was: after nephrectomy the "loggia renale" is empty.
+CONTAINER_WORDS = frozenset((
+    "loggia", "logge", "sede", "regione", "area", "fossa", "letto", "spazio", "bed", "space", "region",
+    # abdominal regions are places on the body, not organs
+    "ipocondrio", "epigastrio", "mesogastrio", "ipogastrio", "fianco", "quadrante",
+    "hypochondrium", "epigastrium", "hypogastrium", "flank", "quadrant",
+))
+# What kind of structure a word names. A mention of an artery is never an organ or a vein:
+# "arteria femorale" is not the femur, "arteria splenica" is not the splenic vein, an "ilo" is not the organ.
+_TYPE_WORDS = {
+    **dict.fromkeys(("arteria", "arterie", "artery", "arteries", "arterioso", "arteriosa", "arterial"), "<art>"),
+    **dict.fromkeys(("vena", "vene", "vein", "veins", "venoso", "venosa", "venous"), "<vein>"),
+    **dict.fromkeys(("dotto", "dotti", "duct", "ducts", "duttale"), "<duct>"),
+    **dict.fromkeys(("nervo", "nervi", "nerve", "nerves"), "<nerve>"),
+    **dict.fromkeys(("linfonodo", "linfonodi", "linfonodale", "linfonodali", "lymph", "node", "nodes", "nodal"), "<node>"),
+    **dict.fromkeys(("ilo", "ili", "ilare", "ilari", "hilum", "hilar", "hila"), "<hilum>"),
+}
+STRUCTURE_TYPES = frozenset(_TYPE_WORDS.values())
+# Positive evidence that a bare level code ("L5", "D7", "S1") names a vertebra.
+VERTEBRA_WORDS = frozenset((
+    "vertebra", "soma", "somatico", "somatica", "somi", "peduncolo", "pedicle", "lamina", "apofisi", "spinosa",
+    "spinous", "crollo", "collapse", "frattura", "fracture", "schmorl", "spondilolisi", "spondylolysis", "listesi",
+    "spondilolistesi", "spondylolisthesis", "livello", "level", "metamero", "emisoma",
 ))
 _STOP = frozenset((
     "di", "del", "della", "dello", "dei", "degli", "delle", "la", "il", "lo", "i", "gli", "le",
@@ -160,12 +189,13 @@ _SPINE_REGION = {
 REGION_CUES = {
     "liver": frozenset(("fegato", "liver", "couinaud", "ipocondrio")),
     "spine": frozenset(("rachide", "colonna", "vertebra", "spine", "spinal", "sacro", "sacrum", "sacrale", "sacral",
-                        "lombare", "lumbar", "cervicale", "cervical", "dorsale", "midollo", "cord", "canale",
+                        "lombare", "lumbar", "cervicale", "cervical", "midollo", "cord", "canale",
                         "soma", "somatico", "osseo", "ossea", "ossei", "ossee", "osseous", "bone", "litica", "litico",
                         "lytic", "sclerotica", "sclerotico", "sclerotic", "crollo", "frattura", "fracture", "spongiosa")),
     "lung": frozenset(("polmone", "lung", "bronco", "bronchus", "torace", "thorax", "chest", "pleura", "pleurico", "pleural")),
     "heart": frozenset(("cuore", "heart", "coronaria", "coronarico", "coronary", "iva", "lad", "circonflessa", "circumflex")),
-    "abdomen": frozenset(("duodeno", "duodenum", "stomaco", "stomach", "addome", "abdomen", "pancreas", "papilla")),
+    "abdomen": frozenset(("duodeno", "duodenum", "stomaco", "stomach", "addome", "abdomen", "pancreas", "papilla",
+                          "diverticolo", "diverticulum", "bulbo", "bulb", "ampolla", "ampulla", "ams", "mesenterica")),
 }
 # Words of MRI signal: "iperintensa in T2" names a sequence, not a vertebra.
 MRI_SIGNAL_CUES = frozenset((
@@ -229,7 +259,9 @@ def normalise(
         if token in (",", "/", "&", "+") or token in _COORD:
             out.append(COORDINATION)
         elif original.lower() in ("a.", "art."):
-            out.append("arteria")
+            out.append("<art>")
+        elif token in _TYPE_WORDS:
+            out.append(_TYPE_WORDS[token])
         elif original in ("R", "L"):
             out.append(SIDE_RIGHT if original == "R" else SIDE_LEFT)
         elif level := _LEVEL.match(token):
@@ -337,6 +369,41 @@ def region_supported(region: str, mention: str, sentence: str) -> bool:
     return False
 
 
+_TNM = re.compile(r"\b[cpyr]?T[0-4][a-d]?\s*N[0-3x]", re.IGNORECASE)
+
+
+def staging_context(sentence: str) -> bool:
+    """A sentence about tumour staging: "T3" there is a T stage."""
+    return bool(_STAGING_CUES & set(context_tokens(sentence)) or _TNM.search(sentence))
+
+
+def level_evidence(mention: str, sentence: str) -> bool:
+    """Positive evidence that a level code names a vertebra, not a sequence, stage, root or duodenum.
+
+    T1 and T2 need a vertebra word in the mention itself ("soma di T2"): in a spine
+    MRI report a nearby vertebra word does not stop "T2" from being the sequence.
+    Other codes accept one within three words, in the same clause.
+    """
+    mention_words = context_tokens(mention)
+    if VERTEBRA_WORDS & set(mention_words):
+        return True
+    if re.search(r"\bT\s*[12]\b", mention):
+        return False
+    words_split = re.split(
+        r"[;.,:]|\s(?:e|ed|con|and|with)\s", sentence, flags=re.IGNORECASE
+    )
+    for clause in words_split:
+        clause_words = context_tokens(clause)
+        for start in range(len(clause_words) - len(mention_words) + 1):
+            if clause_words[start : start + len(mention_words)] == mention_words:
+                low = max(0, start - _CONTEXT_WINDOW)
+                if VERTEBRA_WORDS & set(
+                    clause_words[low : start + len(mention_words) + _CONTEXT_WINDOW]
+                ):
+                    return True
+    return False
+
+
 # --------------------------------------------------------------------------
 # Attributes and the deterministic integration check
 # --------------------------------------------------------------------------
@@ -350,6 +417,7 @@ class Attributes:
     qualifiers: frozenset[str]
     coordination: bool
     number_kind: str | None
+    types: frozenset[str] = frozenset()
 
     @classmethod
     def of(cls, tokens: Iterable[str]) -> "Attributes":
@@ -372,6 +440,7 @@ class Attributes:
             qualifiers=frozenset(tokens & _QUALIFIERS),
             coordination=COORDINATION in tokens,
             number_kind=kind if numbers else None,
+            types=frozenset(tokens & STRUCTURE_TYPES),
         )
 
 
@@ -464,6 +533,8 @@ def verify(
         return "position_not_stated_in_mention"
     if mention.qualifiers != cand.qualifiers:
         return "qualifier_names_a_different_structure"
+    if mention.types and not mention.types <= cand.types:
+        return "structure_type_mismatch"
     return None
 
 
@@ -655,9 +726,6 @@ def _parse(answer: str, n: int) -> int | None:
     return value if 0 <= value <= n else None
 
 
-_AMBIGUOUS_LEVEL_SURFACE = re.compile(r"\b(?:[Dd]\s*\d{1,2}|T\s*[12]|[Ss]\s*\d)\b")
-
-
 @dataclass
 class AnatomyLinker:
     lexicon: Lexicon
@@ -666,6 +734,8 @@ class AnatomyLinker:
     retriever: Retriever | None = None
     chats: dict[str, ChatFn] = field(default_factory=dict)
     max_options: int = 10
+    nearest: int = 10
+    closest: int = 5
 
     def __post_init__(self) -> None:
         self._by_id = {c.cid: c for c in self.pool}
@@ -692,12 +762,34 @@ class AnatomyLinker:
             "liver", mention, sentence
         ):
             return False
-        if _class_kind(cid) == "vertebra" and _AMBIGUOUS_LEVEL_SURFACE.search(mention):
-            region = (
-                "spine_no_signal" if re.search(r"\bT\s*[12]\b", mention) else "spine"
-            )
-            return region_supported(region, mention, sentence)
+        if _class_kind(cid) == "vertebra" and any(
+            t.startswith("@") for t in normalise(mention)
+        ):
+            return level_evidence(mention, sentence)
         return True
+
+    def _link_level(self, code: str, mention: str, sentence: str) -> LinkResult:
+        """A bare level code: a vertebra only with vertebra evidence, a liver segment only with the liver named."""
+        letter, number = code[1], int(code[2:])
+        vertebra = f"vertebrae_{'T' if letter == 'D' else letter}{number}"
+        readings = []
+        if vertebra in self.lexicon.classes and level_evidence(mention, sentence):
+            readings.append(vertebra)
+        segment = f"liver_segment_{number}"
+        if (
+            letter == "S"
+            and segment in self.lexicon.classes
+            and region_supported("liver", mention, sentence)
+        ):
+            readings.append(segment)
+        if len(readings) == 1:
+            return LinkResult(
+                ACCEPTED, readings[0], "lexicon", "level_code_with_evidence"
+            )
+        reason = (
+            "level_code_reads_two_ways" if readings else "level_code_without_evidence"
+        )
+        return LinkResult(ABSTAINED, None, "lexicon", reason, options=readings)
 
     def link(self, mention: str, sentence: str) -> LinkResult:
         tokens = normalise(mention)
@@ -715,10 +807,14 @@ class AnatomyLinker:
             )
         if set(tokens) & AMBIGUOUS_ABBREVIATIONS:
             return LinkResult(ABSTAINED, None, "integration", "ambiguous_abbreviation")
-        if any(t.startswith("@T") for t in tokens) and _STAGING_CUES & set(
-            context_tokens(sentence)
-        ):
+        if any(t.startswith("@T") for t in tokens) and staging_context(sentence):
             return LinkResult(ABSTAINED, None, "integration", "t_stage_not_a_vertebra")
+        if set(tokens) & CONTAINER_WORDS:
+            return LinkResult(
+                ABSTAINED, None, "integration", "mention_names_a_space_not_an_organ"
+            )
+        if len(tokens) == 1 and tokens[0].startswith("@"):
+            return self._link_level(tokens[0], mention, sentence)
 
         recognised, how = self.lexicon.recognise(mention, sentence)
         if how == "recognised":
@@ -731,23 +827,31 @@ class AnatomyLinker:
                 ABSTAINED, None, "lexicon", "unknown_name_and_no_deliberation_stage"
             )
 
-        ranked = self.retriever(mention, sentence, 60)
-        options: list[str] = []
-        for cid in ranked:
-            candidate = self._by_id.get(cid)
-            if (
-                candidate
-                and cid not in options
-                and verify(tokens, candidate, self._sided) is None
-                and self._anchored(tokens, candidate)
-                and self._context_allows(candidate, mention, sentence)
-            ):
-                options.append(cid)
-            if len(options) == self.max_options:
-                break
+        # Only near candidates are offered. When the closest ones are all rejected,
+        # what is left is far from the mention, and two models agreeing on a far
+        # option is exactly the correlated error this design does not trust.
+        ranked = list(dict.fromkeys(self.retriever(mention, sentence, self.nearest)))[
+            : self.nearest
+        ]
+        options = [
+            cid
+            for cid in ranked
+            if (candidate := self._by_id.get(cid))
+            and verify(tokens, candidate, self._sided) is None
+            and self._anchored(tokens, candidate)
+            and self._context_allows(candidate, mention, sentence)
+        ][: self.max_options]
         if not options:
             return LinkResult(
                 ABSTAINED, None, "integration", "no_candidate_survives_the_checks"
+            )
+        if not set(options) & set(ranked[: self.closest]):
+            return LinkResult(
+                ABSTAINED,
+                None,
+                "integration",
+                "closest_candidates_all_rejected",
+                options,
             )
 
         labels = [self._by_id[c].label for c in options]

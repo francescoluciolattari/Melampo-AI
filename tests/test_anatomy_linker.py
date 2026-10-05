@@ -48,9 +48,9 @@ def heldout():
         ("terzo medio del femore destro", ("<dx>", "<mid>", "femore")),
         ("right kidney's upper pole", ("<dx>", "<sup>", "kidney", "pole")),
         ("L 5 rib", ("#5", "<sn>", "rib")),
-        ("arteria ipogastrica sinistra", ("<int>", "<sn>", "arteria")),
+        ("arteria ipogastrica sinistra", ("<art>", "<int>", "<sn>")),
         ("C5-C6", ("@C5", "@C6")),
-        ("a. iliaca comune dx", ("<com>", "<dx>", "arteria", "iliaca")),
+        ("a. iliaca comune dx", ("<art>", "<com>", "<dx>", "iliaca")),
         ("fegato e milza", ("<and>", "fegato", "milza")),
         ("parenchima splenico", ("milza",)),
         ("hepatic segment IV", ("#4", "liver", "segment")),
@@ -414,13 +414,14 @@ def _adversarial(lexicon, pick):
                 return number
         return "0"
 
+    # The wrong pick is ranked first, as if retrieval itself had been fooled.
+    ranked = [pick] + [c.cid for c in pool if c.cid != pick]
     return al.AnatomyLinker(
         lexicon,
         pool,
         equivalent,
-        retriever=lambda m, s, k: [c.cid for c in pool],
+        retriever=lambda m, s, k: ranked,
         chats={"a": chat, "b": chat},
-        max_options=len(pool),
     )
 
 
@@ -597,13 +598,78 @@ _ATTACKS = [
     ("L 5 rib", "Fracture of the L 5 rib.", "vertebrae_L5", "rib_left_5"),
     ("L 1 rib", "Fracture of the L 1 rib.", "vertebrae_L1", "rib_left_1"),
     ("colica renale", "Colica renale destra.", "colon", None),
+    # third review round
+    ("T2", "Rachide cervicale: mielopatia in T2.", "vertebrae_T2", None),
+    ("T2", "Colonna dorsale: edema in T2 senza crollo.", "vertebrae_T2", None),
+    ("T1", "Rachide: enhancement dopo gadolinio in T1.", "vertebrae_T1", None),
+    ("D2", "Diverticolo della parete dorsale di D2.", "vertebrae_T2", None),
+    (
+        "sede renale destra",
+        "Esiti di nefrectomia destra; in sede renale destra non recidive.",
+        "kidney_right",
+        None,
+    ),
+    (
+        "regione surrenalica sinistra",
+        "Regione surrenalica sinistra libera dopo surrenectomia.",
+        "adrenal_gland_left",
+        None,
+    ),
+    ("sede splenica", "Esiti di splenectomia; sede splenica libera.", "spleen", None),
+    ("T3", "Carcinoma del retto cT3N1.", "vertebrae_T3", None),
+    (
+        "vena succlavia sinistra",
+        "Trombosi della vena succlavia sinistra.",
+        "subclavian_artery_left",
+        None,
+    ),
+    (
+        "arteria splenica",
+        "Aneurisma dell'arteria splenica.",
+        "portal_vein_and_splenic_vein",
+        None,
+    ),
+    ("arteria polmonare", "Embolia nell'arteria polmonare.", "pulmonary_vein", None),
+    (
+        "arteria femorale sinistra",
+        "Stenosi dell'arteria femorale sinistra.",
+        "femur_left",
+        None,
+    ),
+    (
+        "vena femorale destra",
+        "Trombosi della vena femorale destra.",
+        "femur_right",
+        None,
+    ),
+    (
+        "vena renale sinistra",
+        "Trombosi della vena renale sinistra.",
+        "kidney_left",
+        None,
+    ),
+    ("arteria epatica", "Arteria epatica pervia.", "liver", None),
+    (
+        "loggia renale destra",
+        "Esiti di nefrectomia: loggia renale destra libera.",
+        "kidney_right",
+        None,
+    ),
+    ("ipocondrio destro", "Dolorabilità all'ipocondrio destro.", "liver", None),
+    ("ilo epatico", "Linfoadenopatie all'ilo epatico.", "liver", None),
+    ("L5", "Radicolopatia L5 sinistra.", "vertebrae_L5", None),
 ]
 
 # Semantic errors that no attribute check can see: the mention is not a
 # structure at all. Only the models' own "0" and the review list guard these.
 _KNOWN_SEMANTIC_LIMITS = [
-    # The hilum is not the organ, but every attribute agrees: only the models' "0" guards this.
-    ("ilo epatico", "Linfoadenopatie all'ilo epatico.", "liver", None),
+    # A symptom phrase whose organ word is a class: every attribute agrees with the
+    # organ, so if retrieval and both models are fooled together, only review catches it.
+    ("dolore epatico", "Dolore epatico da distensione capsulare.", "liver", None),
+    # A part named without structural words, with retrieval and both models fooled
+    # together: no attribute can show that the spleen is not the lingula. Needs the
+    # part-of knowledge (curated parts table or ontology part_of) planned next.
+    ("lingula", "Atelettasia della lingula.", "spleen", None),
 ]
 
 
