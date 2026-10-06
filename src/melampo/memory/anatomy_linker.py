@@ -183,10 +183,41 @@ _QUALIFIERS = frozenset(_QUALIFIER_WORDS.values())
 # "terzo medio della clavicola" is a third of the bone, not the third of anything.
 _FRACTION_PARTS = frozenset(("prossimale", "medio", "distale", "proximal", "middle", "distal"))
 _FRACTION_WORDS = frozenset(("terzo", "third"))
-# Ambiguous abbreviations never linked by any stage: LM is the middle lobe or the left main coronary;
+# Ambiguous abbreviations never linked by any stage: LM is the middle lobe or the left main coronary.
+AMBIGUOUS_ABBREVIATIONS = frozenset(("lm",))
 # GB is the gallbladder in English radiology but the white cell count ("globuli bianchi") in Italian
-# clinical text ("GB 5040/mmc"), found in the E3C Italian cases, and also gigabytes.
-AMBIGUOUS_ABBREVIATIONS = frozenset(("lm", "gb"))
+# clinical text ("GB 5040/mmc", found in the E3C Italian cases), and also gigabytes. It is linked only
+# when the sentence gives positive hepatobiliary evidence and no blood-count evidence.
+_GB_BILIARY = frozenset(
+    "gallbladder cholecystitis cholecystectomy cholelithiasis cholecystic gallstone gallstones biliary "
+    "bile sludge cystic choledocholithiasis colecisti colecistite colecistectomia colelitiasi biliare "
+    "bili cistifellea fegato epatico epatica epatici liver hepatic".split()
+)
+_GB_BLOOD_WORDS = frozenset(
+    "wbc leucociti leucocitosi leukocytes leukocyte leukocytosis globuli neutrofili linfociti emocromo "
+    "piastrine plt hb emoglobina crasi hemoglobin platelets neutrophils lymphocytes".split()
+)
+_GB_BLOOD_UNITS = re.compile(r"\d\s*%|/\s?(?:mmc|mm3|mm³|mcl|µl|μl|ul|dl)\b", re.IGNORECASE)
+
+
+_GB_NEXT_TO_A_NUMBER = re.compile(r"\bgb\b\s*[:=]?\s*\d|\d\s*gb\b", re.IGNORECASE)
+
+
+def gb_reading(sentence: str) -> str | None:
+    """Why "GB" cannot be taken as the gallbladder in this sentence, or None when it can."""
+    words = {_fold(t).rstrip(".") for t in _raw_tokens(sentence)}
+    if (
+        words & _GB_BLOOD_WORDS
+        or _GB_BLOOD_UNITS.search(sentence)
+        or _GB_NEXT_TO_A_NUMBER.search(sentence)
+    ):
+        return "gb_is_a_blood_count_here"
+    if not words & _GB_BILIARY:
+        return "ambiguous_abbreviation"
+    return None
+
+
+CONTEXT_ABBREVIATIONS = {"gb": gb_reading}
 # A "T" level in a sentence about tumour staging is a T stage, not a vertebra.
 _STAGING_CUES = frozenset(("stadio", "stadiazione", "stage", "staging", "tnm", "ptnm", "ctnm"))
 _ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10, "xi": 11, "xii": 12}
@@ -991,6 +1022,10 @@ class AnatomyLinker:
             )
         if set(tokens) & AMBIGUOUS_ABBREVIATIONS:
             return LinkResult(ABSTAINED, None, "integration", "ambiguous_abbreviation")
+        for token in tokens:
+            blocked = CONTEXT_ABBREVIATIONS.get(token, lambda _s: None)(sentence)
+            if blocked:
+                return LinkResult(ABSTAINED, None, "integration", blocked)
         if any(t.startswith("@T") for t in tokens) and staging_context(sentence):
             return LinkResult(ABSTAINED, None, "integration", "t_stage_not_a_vertebra")
         if set(tokens) & CONTAINER_WORDS:
