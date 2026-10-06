@@ -166,3 +166,28 @@ def lexicon_and_pool():
     )
     pool, equivalent = al.build_pool(lexicon)
     return lexicon, pool, equivalent
+
+
+def test_a_form_inside_a_hyphenated_word_is_not_the_form(inventory):
+    """Found on the bench: "ileo-psoas" is the iliopsoas muscle, not the ileum or an ileus."""
+    for mention in ("muscolo ileo-psoas di sinistra", "valvola ileo-cecale"):
+        verdict = inventory.judge(mention, f"Ispessimento del {mention}.")
+        assert verdict.accepted and not verdict.scores
+
+
+def test_no_bench_mention_with_a_target_is_blocked_by_the_senses(inventory):
+    """Regression guard: the inventory must not cost coverage on the written bench sets."""
+    rows = []
+    for name in ("heldout_it", "heldout_en", "heldout2_it", "heldout2_en"):
+        path = DATA / f"{name}.jsonl"
+        rows += [
+            json.loads(line)
+            for line in path.read_text("utf-8").splitlines()
+            if line.strip()
+        ]
+    blocked = [
+        r["mention"]
+        for r in rows
+        if r.get("target") and not inventory.judge(r["mention"], r["sentence"]).accepted
+    ]
+    assert blocked == []

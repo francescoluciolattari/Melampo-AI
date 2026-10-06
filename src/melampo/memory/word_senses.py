@@ -59,6 +59,8 @@ DEFAULT_PATH = (
 )
 
 _WORD = re.compile(r"[A-Za-zÀ-ÿ0-9]+")
+# A written form is a whole word: "ileo" in "ileo-psoas" or "ileo-cecale" is part of another word.
+_WHOLE_WORD = re.compile(r"[A-Za-zÀ-ÿ0-9]+(?:-[A-Za-zÀ-ÿ0-9]+)*")
 # Words that belong to exactly one of the two languages. Short, frequent, and not shared
 # ("a", "in", "no" and "per" are left out because both languages use them).
 _ITALIAN = frozenset(
@@ -195,7 +197,8 @@ class SenseInventory:
 
     def forms_in(self, mention: str) -> list[str]:
         """The listed forms the mention is written with."""
-        return [w for w in dict.fromkeys(words_of(mention)) if w in self.forms]
+        words = (_fold(w) for w in _WHOLE_WORD.findall(mention))
+        return [w for w in dict.fromkeys(words) if w in self.forms]
 
     def judge(self, mention: str, sentence: str, context: str = "") -> SenseVerdict:
         """Whether the mention can be read as an anatomical structure here, given everything around it."""
