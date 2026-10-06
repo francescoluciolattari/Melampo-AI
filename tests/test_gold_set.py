@@ -53,7 +53,11 @@ def test_language_is_guessed_from_function_words():
 
 def test_known_names_are_proposed_with_their_side(lexicon, parts):
     found = gs.propose_mentions(REPORTS[0]["text"], lexicon, parts)
-    assert [m["mention"] for m in found] == ["Fegato", "rene destro", "Milza"]
+    assert [m["mention"] for m in found] == [
+        "Fegato",
+        "Cisti del rene destro",
+        "Milza",
+    ]
     text = REPORTS[0]["text"]
     assert all(text[m["start"] : m["end"]] == m["mention"] for m in found)
 
@@ -258,7 +262,7 @@ def test_command_line_runs_the_whole_study(tmp_path, monkeypatch, lexicon):
     out = tmp_path / "study"
     assert cli.main(["sample", str(reports), "--out", str(out)]) == 0
     sheet_a, sheet_b = out / "annotator_A.csv", out / "annotator_B.csv"
-    answers = {"Fegato": ("liver", "equal"), "rene destro": ("kidney_right", "equal"), "Milza": ("spleen", "equal"),
+    answers = {"Fegato": ("liver", "equal"), "Cisti del rene destro": ("kidney_cyst_right", "equal"), "Milza": ("spleen", "equal"),
                "The liver": ("liver", "equal"), "liver": ("liver", "equal"), "left kidney": ("kidney_left", "equal"),
                "sigma": ("colon", "part_of")}  # fmt: skip
 
@@ -312,3 +316,24 @@ def test_command_line_runs_the_whole_study(tmp_path, monkeypatch, lexicon):
     report = json.loads((tmp_path / "report.json").read_text())
     assert report["wrong"] == 0 and report["accepted"] == report["n"] == 3
     assert report["verdict"].startswith("Not certified")  # three items certify nothing
+
+
+def test_a_part_word_is_not_trimmed_as_if_it_were_a_function_word():
+    """ "colon discendente" must reach the annotators whole, not as "colon" (found in the E3C dry run)."""
+    import json
+    from pathlib import Path
+
+    from melampo.memory import anatomy_linker as al
+    from melampo.memory import anatomy_parts as ap
+
+    data = Path(__file__).resolve().parent.parent / "data" / "linking"
+    real = al.Lexicon.from_json(
+        json.loads((data / "anatomy_lexicon.json").read_text("utf-8"))
+    )
+    table = ap.PartTable.from_json(
+        json.loads((data / "anatomy_parts.json").read_text("utf-8")), real
+    )
+    text = "Dilatazione del colon discendente con diverticoli."
+    assert [m["mention"] for m in gs.propose_mentions(text, real, table)] == [
+        "colon discendente"
+    ]
