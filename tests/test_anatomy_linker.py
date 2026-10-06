@@ -834,3 +834,27 @@ def test_a_homonym_from_the_nervous_system_is_not_offered_in_a_lung_sentence(lex
         linker.link("lingula", "Lingula del cervelletto, encefalo normale.").status
         == al.ACCEPTED
     )
+
+
+@pytest.mark.parametrize(
+    ("sentence", "linked"),
+    [
+        ("GB wall thickening with gallstones.", True),
+        ("The GB is distended with sludge; the liver is normal.", True),
+        ("Colecistectomia pregressa, GB non visualizzata, fegato regolare.", True),
+        ("Hb 12,3 g/dL; GB 5040/mmc (N 48%; L 42%).", False),
+        ("Nei limiti la crasi ematica (GB: 11250/mmc).", False),
+        ("GB 11.2 with a fatty liver on ultrasound.", False),
+        ("GB wbc 11,2 and hepatic steatosis.", False),
+        ("GB: normal.", False),
+    ],
+)
+def test_gb_is_the_gallbladder_only_with_hepatobiliary_evidence(
+    lexicon, sentence, linked
+):
+    pool, equivalent = al.build_pool(lexicon)
+    result = al.AnatomyLinker(lexicon, pool, equivalent).link("GB", sentence)
+    if linked:
+        assert result.cid == "gallbladder"
+    else:
+        assert result.cid is None and result.status == al.ABSTAINED
