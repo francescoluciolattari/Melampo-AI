@@ -1,0 +1,88 @@
+name: Public report corpora (sources for the gold-set sample)
+
+# Manual trigger only. Downloads public radiology report corpora (no patient data, no paid API) and
+# turns them into reports.jsonl for scripts/gold_set.py. The runner has open internet; the author's
+# cloud session does not, so this is where the download happens.
+#
+#   discover-parrot  lists what PARROT (fictional multilingual reports) really contains, plus its licence,
+#                    so the loader is adapted to the real format before anything is trusted.
+#   parrot-it        PARROT Italian reports -> parrot_it.jsonl
+#   iuxray           Indiana University chest X-ray reports (NLM Open-i) -> iuxray.jsonl
+#
+# Each run also draws the blind annotation sheets (sample) from what it fetched, with the pinned seed.
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Which corpus"
+        type: choice
+        options: [discover-parrot, parrot-it, iuxray]
+        default: discover-parrot
+      n:
+        description: "Mentions to sample for the sheets (empty = all proposed)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    name: Fetch and sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Fetch PARROT
+        if: ${{ inputs.source != 'iuxray' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p corpora/parrot
+          for repo in $(gh repo list PARROT-reports --limit 50 --json name --jq '.[].name'); do
+            git clone --depth 1 "https://github.com/PARROT-reports/${repo}.git" "corpora/parrot/${repo}"
+          done
+          {
+            echo "## PARROT repositories"
+            ls corpora/parrot
+            echo "## Tabular files"
+            uv run python scripts/fetch_public_reports.py discover corpora/parrot
+            for f in corpora/parrot/*/LICENSE* corpora/parrot/*/README*; do
+              [ -f "$f" ] && { echo "## $f"; head -60 "$f"; }
+            done
+          } | tee discovery.md
+          cat discovery.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: PARROT Italian reports
+        if: ${{ inputs.source == 'parrot-it' }}
+        run: |
+          uv run python scripts/fetch_public_reports.py parrot corpora/parrot --out reports.jsonl
+
+      - name: IU X-ray reports
+        if: ${{ inputs.source == 'iuxray' }}
+        run: |
+          uv run python scripts/fetch_public_reports.py iuxray --out reports.jsonl
+
+      - name: Draw the blind sheets
+        if: ${{ inputs.source != 'discover-parrot' }}
+        env:
+          N: ${{ inputs.n }}
+        run: |
+          args=(sample reports.jsonl --out gold_study)
+          if [ -n "$N" ]; then args+=(--n "$N"); fi
+          uv run python scripts/gold_set.py "${args[@]}"
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-reports-${{ inputs.source }}
+          path: |
+            discovery.md
+            reports.jsonl
+            gold_study/
