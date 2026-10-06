@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from melampo.evaluation import linking_bench as lb  # noqa: E402
 from melampo.memory import anatomy_linker as al  # noqa: E402
+from melampo.memory import anatomy_parts as ap  # noqa: E402
 from melampo.evaluation.encoder_bench import (  # noqa: E402
     DEFAULT_DATA_DIR,
     EncoderError,
@@ -63,13 +64,16 @@ def _linker_sets(data_dir: Path, cases) -> dict:
             for c in cases
         ]
     }
-    for language in ("it", "en"):
-        path = data_dir.parent / "linking" / f"heldout_{language}.jsonl"
-        sets[f"heldout_{language}"] = [
-            json.loads(line)
-            for line in path.read_text("utf-8").splitlines()
-            if line.strip()
-        ]
+    for stem in ("heldout", "heldout2"):
+        for language in ("it", "en"):
+            path = data_dir.parent / "linking" / f"{stem}_{language}.jsonl"
+            if not path.exists():
+                continue
+            sets[f"{stem}_{language}"] = [
+                json.loads(line)
+                for line in path.read_text("utf-8").splitlines()
+                if line.strip()
+            ]
     return sets
 
 
@@ -91,8 +95,14 @@ def _run_linker(args, gold, cases, key: str):
         )
     pool, equivalent = al.build_pool(lexicon, terms)
     sets = _linker_sets(data_dir, cases)
+    parts = ap.PartTable.from_json(
+        json.loads(
+            (data_dir.parent / "linking" / "anatomy_parts.json").read_text("utf-8")
+        ),
+        lexicon,
+    )
 
-    deterministic = al.AnatomyLinker(lexicon, pool, equivalent)
+    deterministic = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts)
     det = {
         name: lb.evaluate_anatomy_linker(deterministic, rows)
         for name, rows in sets.items()
@@ -106,7 +116,9 @@ def _run_linker(args, gold, cases, key: str):
     retriever = lb.EmbeddingRetriever(
         _embedder(args.deepel_encoder, key), pool, describe=chats["nemotron-3-super"]
     )
-    full = al.AnatomyLinker(lexicon, pool, equivalent, retriever=retriever, chats=chats)
+    full = al.AnatomyLinker(
+        lexicon, pool, equivalent, retriever=retriever, chats=chats, parts=parts
+    )
     try:
         report = {
             name: lb.evaluate_anatomy_linker(full, rows, workers=args.workers)

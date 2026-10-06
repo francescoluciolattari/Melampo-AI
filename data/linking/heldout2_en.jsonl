@@ -1,0 +1,37 @@
+{"mention": "right humeral head", "start": 25, "sentence": "Mild irregularity of the right humeral head.", "target": "humerus_right", "kind": "part"}
+{"mention": "neck of the left femur", "start": 16, "sentence": "Fracture of the neck of the left femur.", "target": "femur_left", "kind": "part"}
+{"mention": "thyroid isthmus", "start": 14, "sentence": "Nodule of the thyroid isthmus.", "target": "thyroid_gland", "kind": "part"}
+{"mention": "bladder dome", "start": 18, "sentence": "Thickening of the bladder dome.", "target": "urinary_bladder", "kind": "part"}
+{"mention": "gallbladder fundus", "start": 13, "sentence": "Polyp of the gallbladder fundus.", "target": "gallbladder", "kind": "part"}
+{"mention": "cardiac apex", "start": 16, "sentence": "Thinning of the cardiac apex.", "target": "heart", "kind": "part"}
+{"mention": "aortic arch", "start": 25, "sentence": "Calcified plaques of the aortic arch.", "target": "aorta", "kind": "part"}
+{"mention": "carina", "start": 3, "sentence": "Subcarinal nodes; carina is normal.", "target": "trachea", "kind": "part"}
+{"mention": "xiphoid process", "start": 16, "sentence": "Fracture of the xiphoid process.", "target": "sternum", "kind": "part"}
+{"mention": "left iliac wing", "start": 20, "sentence": "Lytic lesion of the left iliac wing.", "target": "hip_left", "kind": "part"}
+{"mention": "right glenoid", "start": 12, "sentence": "Wear of the right glenoid.", "target": "scapula_right", "kind": "part"}
+{"mention": "left acromion", "start": 12, "sentence": "Spur of the left acromion.", "target": "scapula_left", "kind": "part"}
+{"mention": "frontal lobe", "start": 22, "sentence": "Hypodense area in the frontal lobe.", "target": "brain", "kind": "part"}
+{"mention": "cerebellum", "start": 0, "sentence": "Cerebellum is in place without lesions.", "target": "brain", "kind": "part"}
+{"mention": "upper pole of the left kidney", "start": 12, "sentence": "Cyst of the upper pole of the left kidney.", "target": "kidney_left", "kind": "part"}
+{"mention": "right renal sinus", "start": 13, "sentence": "Stone in the right renal sinus.", "target": null, "kind": "trap"}
+{"mention": "pancreatic head", "start": 12, "sentence": "Mass of the pancreatic head.", "target": "pancreas", "kind": "part"}
+{"mention": "uncinate process", "start": 0, "sentence": "Uncinate process is unremarkable.", "target": "pancreas", "kind": "part"}
+{"mention": "splenic flexure", "start": 18, "sentence": "Thickening of the splenic flexure.", "target": "colon", "kind": "part"}
+{"mention": "transverse colon", "start": 18, "sentence": "Distension of the transverse colon.", "target": "colon", "kind": "part"}
+{"mention": "pylorus", "start": 16, "sentence": "Stenosis of the pylorus.", "target": "stomach", "kind": "part"}
+{"mention": "bladder trigone", "start": 18, "sentence": "Thickening of the bladder trigone.", "target": "urinary_bladder", "kind": "part"}
+{"mention": "transition zone of the prostate", "start": 19, "sentence": "Hypertrophy of the transition zone of the prostate.", "target": "prostate", "kind": "part"}
+{"mention": "apical segment of the right upper lobe", "start": 21, "sentence": "Consolidation in the apical segment of the right upper lobe.", "target": "lung_upper_lobe_right", "kind": "part_not_in_table"}
+{"mention": "gastric wall", "start": 18, "sentence": "Thickening of the gastric wall.", "target": "stomach", "kind": "part_not_in_table"}
+{"mention": "falciform ligament", "start": 11, "sentence": "Fat in the falciform ligament.", "target": null, "kind": "out_of_scope"}
+{"mention": "greater omentum", "start": 19, "sentence": "Enhancement of the greater omentum.", "target": null, "kind": "out_of_scope"}
+{"mention": "diaphragm", "start": 0, "sentence": "Diaphragm is regular.", "target": null, "kind": "out_of_scope"}
+{"mention": "pleura", "start": 18, "sentence": "Thickening of the pleura.", "target": null, "kind": "out_of_scope"}
+{"mention": "rectal wall", "start": 18, "sentence": "Thickening of the rectal wall.", "target": null, "kind": "out_of_scope"}
+{"mention": "splenic hilum", "start": 15, "sentence": "Vessels of the splenic hilum are regular.", "target": null, "kind": "trap"}
+{"mention": "hepatic hilum", "start": 12, "sentence": "Node at the hepatic hilum.", "target": null, "kind": "trap"}
+{"mention": "head of the liver", "start": 0, "sentence": "Head of the liver is normal.", "target": null, "kind": "trap"}
+{"mention": "vertebral canal", "start": 0, "sentence": "Vertebral canal is wide.", "target": null, "kind": "trap"}
+{"mention": "hemipelvis", "start": 14, "sentence": "Lesion of the hemipelvis.", "target": null, "kind": "equivocal"}
+{"mention": "iliac", "start": 32, "sentence": "Regular appearance of the right iliac.", "target": null, "kind": "equivocal"}
+{"mention": "lobe", "start": 10, "sentence": "Irregular lobe.", "target": null, "kind": "equivocal"}

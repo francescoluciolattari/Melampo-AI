@@ -1,0 +1,37 @@
+{"mention": "testa omerale destra", "start": 25, "sentence": "Lieve irregolarità della testa omerale destra.", "target": "humerus_right", "kind": "part"}
+{"mention": "collo del femore sinistro", "start": 13, "sentence": "Frattura del collo del femore sinistro.", "target": "femur_left", "kind": "part"}
+{"mention": "istmo tiroideo", "start": 12, "sentence": "Nodulo dell'istmo tiroideo.", "target": "thyroid_gland", "kind": "part"}
+{"mention": "cupola vescicale", "start": 19, "sentence": "Ispessimento della cupola vescicale.", "target": "urinary_bladder", "kind": "part"}
+{"mention": "fondo della colecisti", "start": 11, "sentence": "Polipo del fondo della colecisti.", "target": "gallbladder", "kind": "part"}
+{"mention": "apice cardiaco", "start": 22, "sentence": "Assottigliamento dell'apice cardiaco.", "target": "heart", "kind": "part"}
+{"mention": "arco aortico", "start": 24, "sentence": "Placche calcifiche dell'arco aortico.", "target": "aorta", "kind": "part"}
+{"mention": "carena", "start": 15, "sentence": "Linfonodi sottocarenali; carena regolare.", "target": "trachea", "kind": "part"}
+{"mention": "xifoide", "start": 14, "sentence": "Frattura dell'xifoide.", "target": "sternum", "kind": "part"}
+{"mention": "ala iliaca sinistra", "start": 20, "sentence": "Lesione litica dell'ala iliaca sinistra.", "target": "hip_left", "kind": "part"}
+{"mention": "glena destra", "start": 12, "sentence": "Usura della glena destra.", "target": "scapula_right", "kind": "part"}
+{"mention": "acromion sinistro", "start": 10, "sentence": "Spur dell'acromion sinistro.", "target": "scapula_left", "kind": "part"}
+{"mention": "lobo frontale", "start": 18, "sentence": "Area ipodensa del lobo frontale.", "target": "brain", "kind": "part"}
+{"mention": "cervelletto", "start": 0, "sentence": "Cervelletto in sede, senza lesioni.", "target": "brain", "kind": "part"}
+{"mention": "polo superiore del rene sinistro", "start": 10, "sentence": "Cisti del polo superiore del rene sinistro.", "target": "kidney_left", "kind": "part"}
+{"mention": "seno renale destro", "start": 12, "sentence": "Calcolo nel seno renale destro.", "target": null, "kind": "trap"}
+{"mention": "coda del pancreas", "start": 14, "sentence": "Lesione della coda del pancreas.", "target": "pancreas", "kind": "part"}
+{"mention": "processo uncinato", "start": 0, "sentence": "Processo uncinato nei limiti.", "target": "pancreas", "kind": "part"}
+{"mention": "flessura splenica", "start": 19, "sentence": "Ispessimento della flessura splenica.", "target": "colon", "kind": "part"}
+{"mention": "colon trasverso", "start": 16, "sentence": "Distensione del colon trasverso.", "target": "colon", "kind": "part"}
+{"mention": "piloro", "start": 12, "sentence": "Stenosi del piloro.", "target": "stomach", "kind": "part"}
+{"mention": "trigono vescicale", "start": 17, "sentence": "Ispessimento del trigono vescicale.", "target": "urinary_bladder", "kind": "part"}
+{"mention": "zona di transizione prostatica", "start": 17, "sentence": "Ipertrofia della zona di transizione prostatica.", "target": "prostate", "kind": "part"}
+{"mention": "segmento apicale del lobo superiore destro", "start": 17, "sentence": "Addensamento nel segmento apicale del lobo superiore destro.", "target": "lung_upper_lobe_right", "kind": "part_not_in_table"}
+{"mention": "parete gastrica", "start": 19, "sentence": "Ispessimento della parete gastrica.", "target": "stomach", "kind": "part_not_in_table"}
+{"mention": "legamento falciforme", "start": 11, "sentence": "Grasso nel legamento falciforme.", "target": null, "kind": "out_of_scope"}
+{"mention": "grande omento", "start": 18, "sentence": "Impregnazione del grande omento.", "target": null, "kind": "out_of_scope"}
+{"mention": "diaframma", "start": 0, "sentence": "Diaframma regolare.", "target": null, "kind": "out_of_scope"}
+{"mention": "pleura", "start": 19, "sentence": "Ispessimento della pleura.", "target": null, "kind": "out_of_scope"}
+{"mention": "parete del retto", "start": 19, "sentence": "Ispessimento della parete del retto.", "target": null, "kind": "out_of_scope"}
+{"mention": "ilo splenico", "start": 10, "sentence": "Vasi dell'ilo splenico regolari.", "target": null, "kind": "trap"}
+{"mention": "ilo epatico", "start": 14, "sentence": "Linfonodo all'ilo epatico.", "target": null, "kind": "trap"}
+{"mention": "testa del fegato", "start": 0, "sentence": "Testa del fegato nei limiti.", "target": null, "kind": "trap"}
+{"mention": "canale vertebrale", "start": 0, "sentence": "Canale vertebrale ampio.", "target": null, "kind": "trap"}
+{"mention": "emibacino", "start": 13, "sentence": "Lesione dell'emibacino.", "target": null, "kind": "equivocal"}
+{"mention": "iliaco destro", "start": 22, "sentence": "Aspetto regolare dell'iliaco destro.", "target": null, "kind": "equivocal"}
+{"mention": "lobo", "start": 0, "sentence": "Lobo irregolare.", "target": null, "kind": "equivocal"}
