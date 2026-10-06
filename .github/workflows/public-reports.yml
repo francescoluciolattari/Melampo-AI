@@ -1,22 +1,38 @@
 name: Public report corpora (sources for the gold-set sample)
 
-# Manual trigger only. Downloads public radiology report corpora (no patient data, no paid API) and
-# turns them into reports.jsonl for scripts/gold_set.py. The runner has open internet; the author's
-# cloud session does not, so this is where the download happens.
+# Manual trigger only. Downloads public corpora (no patient data, no paid API) and turns them into
+# reports.jsonl for scripts/gold_set.py. The runner has open internet; the author's cloud session does
+# not, so this is where the download happens.
 #
-#   discover-parrot  lists what PARROT (fictional multilingual reports) really contains, plus its licence,
-#                    so the loader is adapted to the real format before anything is trusted.
-#   parrot-it        PARROT Italian reports -> parrot_it.jsonl
-#   iuxray           Indiana University chest X-ray reports (NLM Open-i) -> iuxray.jsonl
+# The format of a corpus the author has not seen is found with its discover-* run first; the loader is
+# adapted only after reading that output.
 #
-# Each run also draws the blind annotation sheets (sample) from what it fetched, with the pinned seed.
+#   discover-parrot    PARROT (fictional multilingual radiology reports): files, columns, licence
+#   parrot-it          PARROT Italian reports
+#   iuxray             Indiana University chest X-ray reports (NLM Open-i), English, real
+#   discover-e3c       E3C (FBK, Italian clinical cases, CC BY-NC): file layout and licence
+#   e3c-it             E3C Italian clinical cases (narratives, not radiology reports)
+#   discover-radgpt    RadGPT / AbdomenAtlas 3.0 (semi-synthetic English reports): layout and licence
+#   discover-multicare list the files of MultiCaRe on Zenodo (CC BY 4.0)
+#   multicare          MultiCaRe case reports that mention imaging, English
+#
+# Each fetch run also draws the blind annotation sheets (sample) with the pinned seed. The sheets hold
+# no system output; items.jsonl is for the developers and must not go to the annotators.
 on:
   workflow_dispatch:
     inputs:
       source:
         description: "Which corpus"
         type: choice
-        options: [discover-parrot, parrot-it, iuxray]
+        options:
+          - discover-parrot
+          - parrot-it
+          - iuxray
+          - discover-e3c
+          - e3c-it
+          - discover-radgpt
+          - discover-multicare
+          - multicare
         default: discover-parrot
       n:
         description: "Mentions to sample for the sheets (empty = all proposed)"
@@ -30,7 +46,7 @@ jobs:
   fetch:
     name: Fetch and sample
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -39,7 +55,7 @@ jobs:
           uv sync --locked
 
       - name: Fetch PARROT
-        if: ${{ inputs.source != 'iuxray' }}
+        if: ${{ inputs.source == 'discover-parrot' || inputs.source == 'parrot-it' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -58,18 +74,63 @@ jobs:
           } | tee discovery.md
           cat discovery.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: PARROT Italian reports
+      - name: Fetch E3C
+        if: ${{ inputs.source == 'discover-e3c' || inputs.source == 'e3c-it' }}
+        run: |
+          git clone --depth 1 https://github.com/hltfbk/E3C-Corpus.git corpora/e3c
+          {
+            echo "## E3C layout"
+            uv run python scripts/fetch_public_reports.py tree corpora/e3c
+            for f in corpora/e3c/LICENSE* corpora/e3c/README*; do
+              [ -f "$f" ] && { echo "## $f"; head -80 "$f"; }
+            done
+          } | tee discovery.md
+          cat discovery.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fetch RadGPT
+        if: ${{ inputs.source == 'discover-radgpt' }}
+        run: |
+          git clone --depth 1 https://github.com/MrGiovanni/RadGPT.git corpora/radgpt
+          {
+            echo "## RadGPT layout"
+            uv run python scripts/fetch_public_reports.py tree corpora/radgpt
+            for f in corpora/radgpt/LICENSE* corpora/radgpt/README*; do
+              [ -f "$f" ] && { echo "## $f"; head -120 "$f"; }
+            done
+          } | tee discovery.md
+          cat discovery.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: List MultiCaRe files
+        if: ${{ inputs.source == 'discover-multicare' }}
+        run: |
+          {
+            echo "## MultiCaRe files on Zenodo"
+            uv run python scripts/fetch_public_reports.py multicare-files
+          } | tee discovery.md
+          cat discovery.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Convert PARROT Italian reports
         if: ${{ inputs.source == 'parrot-it' }}
         run: |
           uv run python scripts/fetch_public_reports.py parrot corpora/parrot --out reports.jsonl
 
-      - name: IU X-ray reports
+      - name: Convert E3C Italian cases
+        if: ${{ inputs.source == 'e3c-it' }}
+        run: |
+          uv run python scripts/fetch_public_reports.py e3c corpora/e3c --language Italian --out reports.jsonl
+
+      - name: Convert IU X-ray reports
         if: ${{ inputs.source == 'iuxray' }}
         run: |
           uv run python scripts/fetch_public_reports.py iuxray --out reports.jsonl
 
+      - name: Convert MultiCaRe cases
+        if: ${{ inputs.source == 'multicare' }}
+        run: |
+          uv run python scripts/fetch_public_reports.py multicare --out reports.jsonl
+
       - name: Draw the blind sheets
-        if: ${{ inputs.source != 'discover-parrot' }}
+        if: ${{ !startsWith(inputs.source, 'discover-') }}
         env:
           N: ${{ inputs.n }}
         run: |
