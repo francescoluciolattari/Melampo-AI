@@ -337,3 +337,15 @@ def test_a_part_word_is_not_trimmed_as_if_it_were_a_function_word():
     assert [m["mention"] for m in gs.propose_mentions(text, real, table)] == [
         "colon discendente"
     ]
+
+
+def test_cap_per_mention_limits_one_dominant_name(lexicon, parts):
+    reports = [
+        {"report_id": f"H{i}", "text": "The heart is normal in size.", "language": "en"}
+        for i in range(10)
+    ] + [{"report_id": "L1", "text": "The spleen is normal.", "language": "en"}]
+    full = gs.sample_items(reports, lexicon, parts)
+    capped = gs.sample_items(reports, lexicon, parts, cap_per_mention=3)
+    assert sum(i["mention"].lower() == "heart" for i in full) == 10
+    assert sum(i["mention"].lower() == "heart" for i in capped) == 3
+    assert any(i["mention"].lower() == "spleen" for i in capped)

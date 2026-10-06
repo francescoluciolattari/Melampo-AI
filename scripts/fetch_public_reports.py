@@ -84,7 +84,9 @@ def read_table(path: Path) -> list[dict]:
     suffix = path.suffix.lower()
     raw = path.read_text("utf-8-sig")
     if suffix == ".jsonl":
-        return [json.loads(x) for x in raw.splitlines() if x.strip()]
+        # split on "\n" only: str.splitlines also cuts at U+2028, U+0085 and form feeds that
+        # appear inside JSON strings (the PARROT v1.0 file broke on exactly this)
+        return [json.loads(x) for x in raw.split("\n") if x.strip()]
     if suffix == ".json":
         data = json.loads(raw)
         if isinstance(data, dict):
@@ -156,15 +158,20 @@ def discover(root: Path) -> str:
 
 
 def tree(root: Path, limit: int = 40) -> str:
-    """File counts by extension and the first paths: the real layout of a cloned corpus."""
+    """File counts by extension, the first paths, and the start of one file of each text-like kind."""
     files = sorted(p for p in root.rglob("*") if p.is_file() and ".git" not in p.parts)
     counts: dict[str, int] = {}
+    first: dict[str, Path] = {}
     for p in files:
-        counts[p.suffix.lower() or "(none)"] = (
-            counts.get(p.suffix.lower() or "(none)", 0) + 1
-        )
+        key = p.suffix.lower() or "(none)"
+        counts[key] = counts.get(key, 0) + 1
+        first.setdefault(key, p)
     lines = [f"{len(files)} files; by extension: {dict(sorted(counts.items()))}"]
     lines += [str(p.relative_to(root)) for p in files[:limit]]
+    for key in (".json", ".jsonl", ".csv", ".tsv", ".txt", ".xml", ".xmi"):
+        if key in first:
+            head = first[key].read_text("utf-8", errors="replace")[:500]
+            lines += [f"--- start of {first[key].relative_to(root)}", head]
     return "\n".join(lines)
 
 
@@ -226,15 +233,24 @@ def zenodo_files(record: dict) -> list[dict]:
 
 
 def pick_cases_file(files: list[dict], max_bytes: int) -> dict | None:
-    """The smallest CSV that looks like the cases table and fits the size limit."""
+    """The smallest cases table (CSV, gzipped CSV or Parquet) that fits the size limit."""
     fits = [
         f
         for f in files
         if "case" in f["key"].lower()
-        and f["key"].lower().endswith((".csv", ".csv.gz"))
+        and "caption" not in f["key"].lower()
+        and "image" not in f["key"].lower()
+        and f["key"].lower().endswith((".csv", ".csv.gz", ".parquet"))
         and f["size"] <= max_bytes
     ]
     return min(fits, key=lambda f: f["size"]) if fits else None
+
+
+def _parquet_rows(raw: bytes) -> list[dict]:
+    """Rows of a Parquet file; pyarrow is installed for this step only (uv run --with pyarrow)."""
+    import pyarrow.parquet as pq
+
+    return pq.read_table(io.BytesIO(raw)).to_pylist()
 
 
 def multicare_reports(rows: list[dict]) -> list[dict]:
@@ -318,6 +334,12 @@ def main(argv=None) -> int:
         if args.cmd == "multicare-files":
             for f in sorted(files, key=lambda f: f["size"]):
                 print(f"{f['size'] / 1e6:10.1f} MB  {f['key']}")
+            dictionary = next(
+                (f for f in files if f["key"] == "data_dictionary.csv"), None
+            )
+            if dictionary:
+                print("\n## data_dictionary.csv")
+                print(_get(dictionary["url"]).decode("utf-8", errors="replace")[:6000])
             return 0
         chosen = pick_cases_file(files, args.max_mb * 1_000_000)
         if chosen is None:
@@ -327,10 +349,17 @@ def main(argv=None) -> int:
             )
             return 2
         raw = _get(chosen["url"])
-        if chosen["key"].lower().endswith(".gz"):
-            raw = gzip.decompress(raw)
-        csv.field_size_limit(sys.maxsize)
-        table = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+        key = chosen["key"].lower()
+        if key.endswith(".parquet"):
+            table = _parquet_rows(raw)
+        else:
+            if key.endswith(".gz"):
+                raw = gzip.decompress(raw)
+            csv.field_size_limit(sys.maxsize)
+            table = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+        print(
+            f"{chosen['key']}: {len(table)} rows, columns {list(table[0]) if table else []}"
+        )
         _write(multicare_reports(table), Path(args.out))
         return 0
     if args.cmd == "parrot":
