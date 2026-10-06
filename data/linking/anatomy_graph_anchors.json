@@ -1,0 +1,741 @@
+{
+ "note": "Ancore fra le classi TotalSegmentator e i termini UBERON (uberon-basic v2025-05-28). 'uberon': termini equivalenti alla classe. 'family': il termine senza lato (rene) di cui la classe e il lato sinistro o destro; si usa solo quando la menzione dice il lato. Proposte generate per nome esatto e sinonimi EXACT, poi riviste a mano: tolti 'large intestine' per colon (include cieco e retto), 'infralimbic area' per brain, 'insect arista' per segmento 6, 'inferior lobe' (zebrafish) per i lobi inferiori. Le cisti renali e i segmenti epatici 2-8 non hanno un termine UBERON. Ogni voce e verificata da test sul file UBERON. 'refused': termini che non vengono mai riportati al padre, con il motivo. Il codice rifiuta inoltre ogni risalita che passa per uno spazio, una superficie, un punto o solco, un forame osseo, un vaso, un linfonodo, un nervo, un legamento, un mesentere, una struttura embrionale o un 'tipo di' (anatomy_graph.REFUSED_KINDS).",
+ "release": "uberon-basic v2025-05-28",
+ "anchors": {
+  "spleen": {
+   "uberon": {
+    "UBERON:0002106": "spleen"
+   },
+   "family": {}
+  },
+  "kidney_right": {
+   "uberon": {
+    "UBERON:0004539": "right kidney"
+   },
+   "family": {
+    "UBERON:0002113": "kidney"
+   }
+  },
+  "kidney_left": {
+   "uberon": {
+    "UBERON:0004538": "left kidney"
+   },
+   "family": {
+    "UBERON:0002113": "kidney"
+   }
+  },
+  "gallbladder": {
+   "uberon": {
+    "UBERON:0002110": "gallbladder"
+   },
+   "family": {}
+  },
+  "liver": {
+   "uberon": {
+    "UBERON:0002107": "liver"
+   },
+   "family": {}
+  },
+  "stomach": {
+   "uberon": {
+    "UBERON:0000945": "stomach"
+   },
+   "family": {}
+  },
+  "pancreas": {
+   "uberon": {
+    "UBERON:0001264": "pancreas"
+   },
+   "family": {}
+  },
+  "adrenal_gland_right": {
+   "uberon": {
+    "UBERON:0001233": "right adrenal gland"
+   },
+   "family": {
+    "UBERON:0002369": "adrenal gland"
+   }
+  },
+  "adrenal_gland_left": {
+   "uberon": {
+    "UBERON:0001234": "left adrenal gland"
+   },
+   "family": {
+    "UBERON:0002369": "adrenal gland"
+   }
+  },
+  "lung_upper_lobe_left": {
+   "uberon": {
+    "UBERON:0008952": "upper lobe of left lung"
+   },
+   "family": {
+    "UBERON:0008948": "upper lobe of lung"
+   }
+  },
+  "lung_lower_lobe_left": {
+   "uberon": {
+    "UBERON:0008953": "lower lobe of left lung"
+   },
+   "family": {
+    "UBERON:0008949": "lower lobe of lung"
+   }
+  },
+  "lung_upper_lobe_right": {
+   "uberon": {
+    "UBERON:0002170": "upper lobe of right lung"
+   },
+   "family": {
+    "UBERON:0008948": "upper lobe of lung"
+   }
+  },
+  "lung_middle_lobe_right": {
+   "uberon": {
+    "UBERON:0002174": "middle lobe of right lung"
+   },
+   "family": {
+    "UBERON:0008955": "middle lobe of lung"
+   }
+  },
+  "lung_lower_lobe_right": {
+   "uberon": {
+    "UBERON:0002171": "lower lobe of right lung"
+   },
+   "family": {
+    "UBERON:0008949": "lower lobe of lung"
+   }
+  },
+  "esophagus": {
+   "uberon": {
+    "UBERON:0001043": "esophagus"
+   },
+   "family": {}
+  },
+  "trachea": {
+   "uberon": {
+    "UBERON:0003126": "trachea"
+   },
+   "family": {}
+  },
+  "thyroid_gland": {
+   "uberon": {
+    "UBERON:0002046": "thyroid gland"
+   },
+   "family": {}
+  },
+  "small_bowel": {
+   "uberon": {
+    "UBERON:0002108": "small intestine"
+   },
+   "family": {}
+  },
+  "duodenum": {
+   "uberon": {
+    "UBERON:0002114": "duodenum"
+   },
+   "family": {}
+  },
+  "colon": {
+   "uberon": {
+    "UBERON:0001155": "colon"
+   },
+   "family": {}
+  },
+  "urinary_bladder": {
+   "uberon": {
+    "UBERON:0001255": "urinary bladder"
+   },
+   "family": {}
+  },
+  "prostate": {
+   "uberon": {
+    "UBERON:0002367": "prostate gland"
+   },
+   "family": {}
+  },
+  "sacrum": {
+   "uberon": {
+    "UBERON:0003690": "fused sacrum"
+   },
+   "family": {}
+  },
+  "vertebrae_S1": {
+   "uberon": {
+    "UBERON:0004622": "sacral vertebra 1"
+   },
+   "family": {}
+  },
+  "vertebrae_L5": {
+   "uberon": {
+    "UBERON:0004621": "lumbar vertebra 5"
+   },
+   "family": {}
+  },
+  "vertebrae_L4": {
+   "uberon": {
+    "UBERON:0004620": "lumbar vertebra 4"
+   },
+   "family": {}
+  },
+  "vertebrae_L3": {
+   "uberon": {
+    "UBERON:0004619": "lumbar vertebra 3"
+   },
+   "family": {}
+  },
+  "vertebrae_L2": {
+   "uberon": {
+    "UBERON:0004618": "lumbar vertebra 2"
+   },
+   "family": {}
+  },
+  "vertebrae_L1": {
+   "uberon": {
+    "UBERON:0004617": "lumbar vertebra 1"
+   },
+   "family": {}
+  },
+  "vertebrae_T12": {
+   "uberon": {
+    "UBERON:0004636": "thoracic vertebra 12"
+   },
+   "family": {}
+  },
+  "vertebrae_T11": {
+   "uberon": {
+    "UBERON:0004635": "thoracic vertebra 11"
+   },
+   "family": {}
+  },
+  "vertebrae_T10": {
+   "uberon": {
+    "UBERON:0004634": "thoracic vertebra 10"
+   },
+   "family": {}
+  },
+  "vertebrae_T9": {
+   "uberon": {
+    "UBERON:0004633": "thoracic vertebra 9"
+   },
+   "family": {}
+  },
+  "vertebrae_T8": {
+   "uberon": {
+    "UBERON:0011050": "thoracic vertebra 8"
+   },
+   "family": {}
+  },
+  "vertebrae_T7": {
+   "uberon": {
+    "UBERON:0004632": "thoracic vertebra 7"
+   },
+   "family": {}
+  },
+  "vertebrae_T6": {
+   "uberon": {
+    "UBERON:0004631": "thoracic vertebra 6"
+   },
+   "family": {}
+  },
+  "vertebrae_T5": {
+   "uberon": {
+    "UBERON:0004630": "thoracic vertebra 5"
+   },
+   "family": {}
+  },
+  "vertebrae_T4": {
+   "uberon": {
+    "UBERON:0004629": "thoracic vertebra 4"
+   },
+   "family": {}
+  },
+  "vertebrae_T3": {
+   "uberon": {
+    "UBERON:0004628": "thoracic vertebra 3"
+   },
+   "family": {}
+  },
+  "vertebrae_T2": {
+   "uberon": {
+    "UBERON:0004627": "thoracic vertebra 2"
+   },
+   "family": {}
+  },
+  "vertebrae_T1": {
+   "uberon": {
+    "UBERON:0004626": "thoracic vertebra 1"
+   },
+   "family": {}
+  },
+  "vertebrae_C7": {
+   "uberon": {
+    "UBERON:0004616": "mammalian cervical vertebra 7"
+   },
+   "family": {}
+  },
+  "vertebrae_C6": {
+   "uberon": {
+    "UBERON:0004615": "mammalian cervical vertebra 6"
+   },
+   "family": {}
+  },
+  "vertebrae_C5": {
+   "uberon": {
+    "UBERON:0004614": "mammalian cervical vertebra 5"
+   },
+   "family": {}
+  },
+  "vertebrae_C4": {
+   "uberon": {
+    "UBERON:0004613": "mammalian cervical vertebra 4"
+   },
+   "family": {}
+  },
+  "vertebrae_C3": {
+   "uberon": {
+    "UBERON:0004612": "mammalian cervical vertebra 3"
+   },
+   "family": {}
+  },
+  "vertebrae_C2": {
+   "uberon": {
+    "UBERON:0001093": "vertebral bone 2"
+   },
+   "family": {}
+  },
+  "vertebrae_C1": {
+   "uberon": {
+    "UBERON:0001092": "vertebral bone 1"
+   },
+   "family": {}
+  },
+  "heart": {
+   "uberon": {
+    "UBERON:0000948": "heart"
+   },
+   "family": {}
+  },
+  "aorta": {
+   "uberon": {
+    "UBERON:0000947": "aorta"
+   },
+   "family": {}
+  },
+  "pulmonary_vein": {
+   "uberon": {
+    "UBERON:0002016": "pulmonary vein"
+   },
+   "family": {}
+  },
+  "brachiocephalic_trunk": {
+   "uberon": {
+    "UBERON:0001529": "brachiocephalic artery"
+   },
+   "family": {}
+  },
+  "subclavian_artery_right": {
+   "uberon": {
+    "UBERON:0001534": "right subclavian artery"
+   },
+   "family": {
+    "UBERON:0001533": "subclavian artery"
+   }
+  },
+  "subclavian_artery_left": {
+   "uberon": {
+    "UBERON:0001584": "left subclavian artery"
+   },
+   "family": {
+    "UBERON:0001533": "subclavian artery"
+   }
+  },
+  "common_carotid_artery_right": {
+   "uberon": {
+    "UBERON:0001531": "right common carotid artery plus branches"
+   },
+   "family": {
+    "UBERON:0001530": "common carotid artery plus branches"
+   }
+  },
+  "common_carotid_artery_left": {
+   "uberon": {
+    "UBERON:0001536": "left common carotid artery plus branches"
+   },
+   "family": {
+    "UBERON:0001530": "common carotid artery plus branches"
+   }
+  },
+  "brachiocephalic_vein_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0003711": "brachiocephalic vein"
+   }
+  },
+  "brachiocephalic_vein_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0003711": "brachiocephalic vein"
+   }
+  },
+  "atrial_appendage_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0006618": "atrium auricular region"
+   }
+  },
+  "superior_vena_cava": {
+   "uberon": {
+    "UBERON:0001585": "anterior vena cava"
+   },
+   "family": {}
+  },
+  "inferior_vena_cava": {
+   "uberon": {
+    "UBERON:0001072": "inferior vena cava"
+   },
+   "family": {}
+  },
+  "portal_vein_and_splenic_vein": {
+   "uberon": {
+    "UBERON:0002017": "portal vein",
+    "UBERON:0003713": "splenic vein"
+   },
+   "family": {}
+  },
+  "iliac_artery_left": {
+   "uberon": {
+    "UBERON:0035529": "left common iliac artery"
+   },
+   "family": {
+    "UBERON:0001191": "common iliac artery"
+   }
+  },
+  "iliac_artery_right": {
+   "uberon": {
+    "UBERON:0035322": "right common iliac artery"
+   },
+   "family": {
+    "UBERON:0001191": "common iliac artery"
+   }
+  },
+  "iliac_vena_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001139": "common iliac vein"
+   }
+  },
+  "iliac_vena_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001139": "common iliac vein"
+   }
+  },
+  "humerus_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0000976": "humerus"
+   }
+  },
+  "humerus_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0000976": "humerus"
+   }
+  },
+  "scapula_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0006849": "scapula"
+   }
+  },
+  "scapula_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0006849": "scapula"
+   }
+  },
+  "clavicula_left": {
+   "uberon": {
+    "UBERON:0008256": "left clavicle"
+   },
+   "family": {
+    "UBERON:0001105": "clavicle bone"
+   }
+  },
+  "clavicula_right": {
+   "uberon": {
+    "UBERON:0008255": "right clavicle"
+   },
+   "family": {
+    "UBERON:0001105": "clavicle bone"
+   }
+  },
+  "femur_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0000981": "femur"
+   }
+  },
+  "femur_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0000981": "femur"
+   }
+  },
+  "hip_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001272": "innominate bone"
+   }
+  },
+  "hip_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001272": "innominate bone"
+   }
+  },
+  "spinal_cord": {
+   "uberon": {
+    "UBERON:0002240": "spinal cord"
+   },
+   "family": {}
+  },
+  "gluteus_maximus_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001370": "gluteus maximus"
+   }
+  },
+  "gluteus_maximus_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001370": "gluteus maximus"
+   }
+  },
+  "gluteus_medius_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001371": "gluteus medius"
+   }
+  },
+  "gluteus_medius_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001371": "gluteus medius"
+   }
+  },
+  "gluteus_minimus_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0008521": "gluteus minimus"
+   }
+  },
+  "gluteus_minimus_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0008521": "gluteus minimus"
+   }
+  },
+  "autochthon_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0002462": "erector spinae muscle group"
+   }
+  },
+  "autochthon_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0002462": "erector spinae muscle group"
+   }
+  },
+  "iliopsoas_left": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001999": "iliopsoas"
+   }
+  },
+  "iliopsoas_right": {
+   "uberon": {},
+   "family": {
+    "UBERON:0001999": "iliopsoas"
+   }
+  },
+  "brain": {
+   "uberon": {
+    "UBERON:0000955": "brain"
+   },
+   "family": {}
+  },
+  "skull": {
+   "uberon": {
+    "UBERON:0003129": "skull"
+   },
+   "family": {}
+  },
+  "rib_left_1": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004601": "rib 1"
+   }
+  },
+  "rib_left_2": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004602": "rib 2"
+   }
+  },
+  "rib_left_3": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004603": "rib 3"
+   }
+  },
+  "rib_left_4": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004604": "rib 4"
+   }
+  },
+  "rib_left_5": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004605": "rib 5"
+   }
+  },
+  "rib_left_6": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004606": "rib 6"
+   }
+  },
+  "rib_left_7": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004607": "rib 7"
+   }
+  },
+  "rib_left_8": {
+   "uberon": {},
+   "family": {
+    "UBERON:0010757": "rib 8"
+   }
+  },
+  "rib_left_9": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004608": "rib 9"
+   }
+  },
+  "rib_left_10": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004609": "rib 10"
+   }
+  },
+  "rib_left_11": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004610": "rib 11"
+   }
+  },
+  "rib_left_12": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004611": "rib 12"
+   }
+  },
+  "rib_right_1": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004601": "rib 1"
+   }
+  },
+  "rib_right_2": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004602": "rib 2"
+   }
+  },
+  "rib_right_3": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004603": "rib 3"
+   }
+  },
+  "rib_right_4": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004604": "rib 4"
+   }
+  },
+  "rib_right_5": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004605": "rib 5"
+   }
+  },
+  "rib_right_6": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004606": "rib 6"
+   }
+  },
+  "rib_right_7": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004607": "rib 7"
+   }
+  },
+  "rib_right_8": {
+   "uberon": {},
+   "family": {
+    "UBERON:0010757": "rib 8"
+   }
+  },
+  "rib_right_9": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004608": "rib 9"
+   }
+  },
+  "rib_right_10": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004609": "rib 10"
+   }
+  },
+  "rib_right_11": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004610": "rib 11"
+   }
+  },
+  "rib_right_12": {
+   "uberon": {},
+   "family": {
+    "UBERON:0004611": "rib 12"
+   }
+  },
+  "sternum": {
+   "uberon": {
+    "UBERON:0000975": "sternum"
+   },
+   "family": {}
+  },
+  "costal_cartilages": {
+   "uberon": {
+    "UBERON:0002236": "costal cartilage"
+   },
+   "family": {}
+  },
+  "liver_segment_1": {
+   "uberon": {
+    "UBERON:0001117": "caudate lobe of liver"
+   },
+   "family": {}
+  }
+ },
+ "refused": {
+  "UBERON:0014908": "cerebellopontine angle: spazio liquorale fra cervelletto, ponte e rocca, fuori dal parenchima cerebrale (revisione indipendente, 7 ottobre 2026)",
+  "UBERON:0005282": "ventricular system of brain: sistema di cavita liquorali, non parenchima (seconda revisione indipendente, 7 ottobre 2026)"
+ }
+}

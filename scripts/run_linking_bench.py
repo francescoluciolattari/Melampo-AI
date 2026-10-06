@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from melampo.evaluation import linking_bench as lb  # noqa: E402
 from melampo.memory import anatomy_linker as al  # noqa: E402
 from melampo.memory import anatomy_parts as ap  # noqa: E402
+from melampo.memory.anatomy_graph import AnatomyGraph  # noqa: E402
 from melampo.evaluation.encoder_bench import (  # noqa: E402
     DEFAULT_DATA_DIR,
     EncoderError,
@@ -85,9 +86,13 @@ def _run_linker(args, gold, cases, key: str):
         )
     )
     terms = []
+    graph = None
     if Path(args.uberon).exists():
         with open(args.uberon, encoding="utf-8") as handle:
             terms = al.load_obo_terms(handle)
+        if not args.no_graph:
+            with open(args.uberon, encoding="utf-8") as handle:
+                graph = AnatomyGraph.from_obo(handle)
     else:
         print(
             f"{args.uberon} not found: the pool has no ontology distractors",
@@ -102,13 +107,16 @@ def _run_linker(args, gold, cases, key: str):
         lexicon,
     )
 
-    deterministic = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts)
+    deterministic = al.AnatomyLinker(
+        lexicon, pool, equivalent, parts=parts, graph=graph
+    )
     det = {
         name: lb.evaluate_anatomy_linker(deterministic, rows)
         for name, rows in sets.items()
     }
     for row in det.values():
         row["pool_size"] = len(pool)
+        row["graph"] = graph is not None
     if not key:
         return det, {}
 
@@ -117,7 +125,13 @@ def _run_linker(args, gold, cases, key: str):
         _embedder(args.deepel_encoder, key), pool, describe=chats["nemotron-3-super"]
     )
     full = al.AnatomyLinker(
-        lexicon, pool, equivalent, retriever=retriever, chats=chats, parts=parts
+        lexicon,
+        pool,
+        equivalent,
+        retriever=retriever,
+        chats=chats,
+        parts=parts,
+        graph=graph,
     )
     try:
         report = {
@@ -138,6 +152,7 @@ def _run_linker(args, gold, cases, key: str):
         }
     for row in report.values():
         row["pool_size"] = len(pool)
+        row["graph"] = graph is not None
     return det, report
 
 
@@ -172,6 +187,11 @@ def main(argv: list[str] | None = None) -> int:
         "--uberon",
         default="data/linking/uberon-basic.obo",
         help="UBERON OBO file for the distractor pool (the workflow downloads a pinned release)",
+    )
+    parser.add_argument(
+        "--no-graph",
+        action="store_true",
+        help="do not use the UBERON graph (neighbour check, fallback to the parent): to compare",
     )
     parser.add_argument("--chat-models", help="comma-separated; default both")
     parser.add_argument(
