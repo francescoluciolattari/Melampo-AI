@@ -21,10 +21,14 @@ delivered as if it were right is the failure the design is built against.
    reanalysis (the N400/P600 retrieval-integration account). "S1" is the first
    sacral vertebra in a spine report and Couinaud segment I in a liver report;
    "D2" is a vertebra or the second part of the duodenum; "T2" is a vertebra
-   or an MRI sequence; "LM" is the middle lobe or the left main coronary
-   artery. Such names are accepted only when the region is stated next to
-   them (in the mention, a section heading, or a few words away) and no other
-   region is named in the sentence. Otherwise the linker abstains.
+   or an MRI sequence. Such names are accepted only when the region is stated
+   next to them (in the mention, a section heading, or a few words away) and
+   no other region is named in the sentence. Otherwise the linker abstains.
+   The same holds for a written form with several meanings ("GB": gallbladder
+   in English, white cell count in Italian clinical text; "LM"; "ponte"):
+   every meaning competes on the evidence of the sentence, its numbers and
+   units and its language, and the structure is linked only when its meaning
+   wins by a margin (`word_senses`, data in `data/linking/word_senses.json`).
 3. *Integration check* (`verify`). Attributes a reader would never get wrong
    when reading slowly -- side, rib or vertebral number and what kind of thing
    carries the number, lobe position, internal versus common, one structure
@@ -75,6 +79,8 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
+
+from melampo.memory.word_senses import SenseInventory
 
 SIDE_RIGHT = "<dx>"
 SIDE_LEFT = "<sn>"
@@ -183,41 +189,6 @@ _QUALIFIERS = frozenset(_QUALIFIER_WORDS.values())
 # "terzo medio della clavicola" is a third of the bone, not the third of anything.
 _FRACTION_PARTS = frozenset(("prossimale", "medio", "distale", "proximal", "middle", "distal"))
 _FRACTION_WORDS = frozenset(("terzo", "third"))
-# Ambiguous abbreviations never linked by any stage: LM is the middle lobe or the left main coronary.
-AMBIGUOUS_ABBREVIATIONS = frozenset(("lm",))
-# GB is the gallbladder in English radiology but the white cell count ("globuli bianchi") in Italian
-# clinical text ("GB 5040/mmc", found in the E3C Italian cases), and also gigabytes. It is linked only
-# when the sentence gives positive hepatobiliary evidence and no blood-count evidence.
-_GB_BILIARY = frozenset(
-    "gallbladder cholecystitis cholecystectomy cholelithiasis cholecystic gallstone gallstones biliary "
-    "bile sludge cystic choledocholithiasis colecisti colecistite colecistectomia colelitiasi biliare "
-    "bili cistifellea fegato epatico epatica epatici liver hepatic".split()
-)
-_GB_BLOOD_WORDS = frozenset(
-    "wbc leucociti leucocitosi leukocytes leukocyte leukocytosis globuli neutrofili linfociti emocromo "
-    "piastrine plt hb emoglobina crasi hemoglobin platelets neutrophils lymphocytes".split()
-)
-_GB_BLOOD_UNITS = re.compile(r"\d\s*%|/\s?(?:mmc|mm3|mm³|mcl|µl|μl|ul|dl)\b", re.IGNORECASE)
-
-
-_GB_NEXT_TO_A_NUMBER = re.compile(r"\bgb\b\s*[:=]?\s*\d|\d\s*gb\b", re.IGNORECASE)
-
-
-def gb_reading(sentence: str) -> str | None:
-    """Why "GB" cannot be taken as the gallbladder in this sentence, or None when it can."""
-    words = {_fold(t).rstrip(".") for t in _raw_tokens(sentence)}
-    if (
-        words & _GB_BLOOD_WORDS
-        or _GB_BLOOD_UNITS.search(sentence)
-        or _GB_NEXT_TO_A_NUMBER.search(sentence)
-    ):
-        return "gb_is_a_blood_count_here"
-    if not words & _GB_BILIARY:
-        return "ambiguous_abbreviation"
-    return None
-
-
-CONTEXT_ABBREVIATIONS = {"gb": gb_reading}
 # A "T" level in a sentence about tumour staging is a T stage, not a vertebra.
 _STAGING_CUES = frozenset(("stadio", "stadiazione", "stage", "staging", "tnm", "ptnm", "ctnm"))
 _ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10, "xi": 11, "xii": 12}
@@ -935,6 +906,9 @@ class AnatomyLinker:
     closest: int = 5
     parts: Any = None  # anatomy_parts.PartTable
     translate: bool = True
+    # Which meaning of an ambiguous written form is meant (GB, LM, ponte...). Loaded from
+    # data/linking/word_senses.json; pass SenseInventory.empty() only to measure without it.
+    senses: SenseInventory = field(default_factory=SenseInventory.load)
 
     def __post_init__(self) -> None:
         self._by_id = {c.cid: c for c in self.pool}
@@ -1006,7 +980,25 @@ class AnatomyLinker:
         )
         return LinkResult(ABSTAINED, None, "lexicon", reason, options=readings)
 
-    def link(self, mention: str, sentence: str) -> LinkResult:
+    def link(self, mention: str, sentence: str, context: str = "") -> LinkResult:
+        """Link ``mention``. ``context`` is optional text around the sentence (the rest of the report, a
+        heading); it counts for half in deciding which meaning of an ambiguous form is meant."""
+        verdict = self.senses.judge(mention, sentence, context)
+        if not verdict.accepted:
+            return LinkResult(ABSTAINED, None, "senses", verdict.reason)
+        result = self._link(mention, sentence)
+        if (
+            result.status == ACCEPTED
+            and verdict.classes
+            and self.equivalent.get(result.cid, result.cid) not in verdict.classes
+            and result.cid not in verdict.classes
+        ):
+            return LinkResult(
+                ABSTAINED, None, "senses", f"sense_{verdict.sense}_names_another_class"
+            )
+        return result
+
+    def _link(self, mention: str, sentence: str) -> LinkResult:
         tokens = normalise(mention)
         attributes = Attributes.of(tokens)
         if attributes.coordination or SIDE_BOTH in attributes.sides:
@@ -1020,12 +1012,6 @@ class AnatomyLinker:
                 "integration",
                 "number_refers_to_a_root_disc_or_foramen",
             )
-        if set(tokens) & AMBIGUOUS_ABBREVIATIONS:
-            return LinkResult(ABSTAINED, None, "integration", "ambiguous_abbreviation")
-        for token in tokens:
-            blocked = CONTEXT_ABBREVIATIONS.get(token, lambda _s: None)(sentence)
-            if blocked:
-                return LinkResult(ABSTAINED, None, "integration", blocked)
         if any(t.startswith("@T") for t in tokens) and staging_context(sentence):
             return LinkResult(ABSTAINED, None, "integration", "t_stage_not_a_vertebra")
         if set(tokens) & CONTAINER_WORDS:
