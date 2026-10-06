@@ -1,0 +1,489 @@
+{
+  "note": "Forme scritte con piu di un significato. Per ognuna: i sensi (almeno uno 'anatomico', cioe una struttura che il linker conosce e puo collegare, e uno diverso), le lingue in cui il senso e attestato (vuoto = tutte), gli indizi forti (parole o schemi che ha quasi solo quel senso) e deboli (parole che accompagnano il senso ma compaiono anche altrove). Le parole sono confrontate senza accenti e in minuscolo. Il senso anatomico passa solo con prove positive e un margine sugli altri (anatomy_linker, word_senses.py); altrimenti il linker si astiene e nomina il senso concorrente. E un inventario di partenza, scelto a mano e provato su frasi costruite e sui casi clinici italiani in cui e emerso l'errore GB: non e misurato su un gold set e non copre le forme non elencate. Una forma nuova e una voce nuova piu un test, non codice nuovo. 'classes' limita le classi a cui il senso anatomico puo portare.",
+  "forms": {
+    "gb": {
+      "gallbladder": {
+        "anatomical": true,
+        "classes": [
+          "gallbladder"
+        ],
+        "languages": [
+          "en"
+        ],
+        "strong": [
+          "gallstone",
+          "gallstones",
+          "cholecystitis",
+          "cholecystectomy",
+          "cholelithiasis",
+          "cholecystic",
+          "choledocholithiasis",
+          "sludge",
+          "murphy",
+          "colecisti",
+          "colecistite",
+          "colecistectomia",
+          "colelitiasi",
+          "calcolo",
+          "calcoli",
+          "cistifellea",
+          "biliare",
+          "biliary",
+          "bile"
+        ],
+        "weak": [
+          "liver",
+          "hepatic",
+          "fegato",
+          "epatico",
+          "epatica",
+          "distended",
+          "distesa",
+          "wall",
+          "parete",
+          "ultrasound",
+          "ecografia",
+          "pericholecystic",
+          "lithiasis",
+          "litiasi",
+          "duct",
+          "coledoco",
+          "ercp"
+        ]
+      },
+      "white_blood_cells": {
+        "anatomical": false,
+        "strong": [
+          "wbc",
+          "leucociti",
+          "leucocitosi",
+          "leucopenia",
+          "leukocytes",
+          "leukocyte",
+          "leukocytosis",
+          "globuli",
+          "neutrofili",
+          "linfociti",
+          "emocromo",
+          "crasi",
+          "ematica",
+          "neutrophils",
+          "lymphocytes",
+          "hb",
+          "emoglobina",
+          "hemoglobin",
+          "piastrine",
+          "plt",
+          "platelets",
+          "pcr",
+          "crp",
+          "mcv"
+        ],
+        "patterns": [
+          "\\d\\s*%",
+          "/\\s?(?:mmc|mm3|mm³|mcl|µl|μl|ul|dl)\\b",
+          "\\bgb\\b\\s*[:=]?\\s*\\d"
+        ]
+      },
+      "gigabyte": {
+        "anatomical": false,
+        "strong": [
+          "storage",
+          "memoria",
+          "memory",
+          "ram",
+          "disco",
+          "disk",
+          "file",
+          "dicom",
+          "mb",
+          "tb",
+          "megabyte",
+          "gigabyte",
+          "dataset",
+          "archiviazione"
+        ],
+        "patterns": [
+          "\\d\\s*gb\\b"
+        ]
+      }
+    },
+    "lm": {
+      "lung_middle_lobe": {
+        "anatomical": true,
+        "classes": [
+          "lung_middle_lobe_right"
+        ],
+        "strong": [
+          "polmone",
+          "polmonare",
+          "polmonari",
+          "lung",
+          "pulmonary",
+          "bronco",
+          "bronchus",
+          "lobare",
+          "lobar",
+          "lobo",
+          "lobe",
+          "lingula",
+          "pleura",
+          "pleurico",
+          "pleural"
+        ],
+        "weak": [
+          "torace",
+          "chest",
+          "thorax",
+          "atelettasia",
+          "atelectasis",
+          "consolidamento",
+          "consolidation",
+          "parenchimale",
+          "parenchyma"
+        ]
+      },
+      "left_main_coronary": {
+        "anatomical": false,
+        "strong": [
+          "coronaria",
+          "coronarie",
+          "coronarica",
+          "coronarico",
+          "coronary",
+          "iva",
+          "lad",
+          "circonflessa",
+          "circumflex",
+          "stent",
+          "bypass",
+          "angioplastica",
+          "pci",
+          "sindrome",
+          "ischemia",
+          "ischemic",
+          "infarto",
+          "infarction",
+          "angiografia",
+          "angiography"
+        ],
+        "weak": [
+          "stenosi",
+          "stenosis",
+          "calcificazioni",
+          "calcifications",
+          "calcificazione",
+          "calcification",
+          "cuore",
+          "heart",
+          "cardiaco",
+          "cardiac",
+          "critica",
+          "critical",
+          "tronco",
+          "comune",
+          "main",
+          "left",
+          "sinistro"
+        ]
+      }
+    },
+    "ponte": {
+      "pons": {
+        "anatomical": true,
+        "strong": [
+          "encefalo",
+          "encefalico",
+          "cervelletto",
+          "cerebellare",
+          "cerebellum",
+          "mesencefalo",
+          "midbrain",
+          "bulbo",
+          "medulla",
+          "pontino",
+          "pontina",
+          "pontine",
+          "varolio",
+          "brainstem",
+          "troncoencefalo",
+          "basilare",
+          "basilar",
+          "brain",
+          "cerebrale",
+          "cerebral"
+        ],
+        "weak": [
+          "lesione",
+          "lesion",
+          "ischemia",
+          "ischemic",
+          "signal",
+          "segnale",
+          "rm",
+          "mri",
+          "t2",
+          "flair",
+          "cranio",
+          "fossa"
+        ]
+      },
+      "bridge_or_graft": {
+        "anatomical": false,
+        "strong": [
+          "aortocoronarico",
+          "aortocoronarici",
+          "coronarico",
+          "coronarici",
+          "bypass",
+          "graft",
+          "safena",
+          "mammaria",
+          "dentale",
+          "dentali",
+          "dental",
+          "protesi",
+          "impianto",
+          "corona",
+          "denti",
+          "dente",
+          "osseo",
+          "rapido"
+        ],
+        "weak": [
+          "pervio",
+          "pervi",
+          "pervieta",
+          "patent",
+          "stenosi",
+          "stenosis",
+          "chirurgico",
+          "surgical",
+          "bridge"
+        ]
+      }
+    },
+    "ileo": {
+      "ileum": {
+        "anatomical": true,
+        "strong": [
+          "digiuno",
+          "digiunale",
+          "jejunum",
+          "tenue",
+          "ileale",
+          "ileal",
+          "ileocecale",
+          "ileocolica",
+          "crohn",
+          "mesentere",
+          "mesentery",
+          "ileoscopia"
+        ],
+        "weak": [
+          "parete",
+          "wall",
+          "ispessimento",
+          "thickening",
+          "intestino",
+          "bowel",
+          "distale",
+          "distal",
+          "ansa",
+          "anse",
+          "valvola",
+          "terminale",
+          "terminal"
+        ]
+      },
+      "ileus": {
+        "anatomical": false,
+        "strong": [
+          "paralitico",
+          "paralytic",
+          "adinamico",
+          "adynamic",
+          "meccanico",
+          "mechanical",
+          "biliare",
+          "gallstone",
+          "meconio",
+          "meconium",
+          "ostruzione",
+          "ostruttivo",
+          "subocclusione",
+          "occlusione",
+          "obstruction",
+          "obstructive",
+          "postoperatorio",
+          "postoperative",
+          "dismotilita"
+        ],
+        "weak": [
+          "distensione",
+          "distension",
+          "livelli",
+          "idroaerei",
+          "air-fluid",
+          "dilatate",
+          "dilated",
+          "vomito",
+          "vomiting",
+          "alvo",
+          "chiuso"
+        ]
+      }
+    },
+    "digiuno": {
+      "jejunum": {
+        "anatomical": true,
+        "strong": [
+          "ileo",
+          "ileale",
+          "ileum",
+          "tenue",
+          "digiunale",
+          "digiunali",
+          "duodeno",
+          "duodenodigiunale",
+          "treitz",
+          "jejunal",
+          "valvole",
+          "conniventi",
+          "anastomosi",
+          "digiunostomia"
+        ],
+        "weak": [
+          "intestino",
+          "bowel",
+          "parete",
+          "wall",
+          "ispessimento",
+          "thickening",
+          "mesentere",
+          "crohn",
+          "prossimale",
+          "proximal",
+          "ansa",
+          "anse",
+          "plica",
+          "pliche"
+        ]
+      },
+      "fasting": {
+        "anatomical": false,
+        "strong": [
+          "glicemia",
+          "glucose",
+          "glycemia",
+          "colazione",
+          "fasting",
+          "digiunare",
+          "preparazione",
+          "dieta",
+          "insulina",
+          "colesterolo",
+          "trigliceridi",
+          "emocromo",
+          "ematochimici"
+        ],
+        "weak": [
+          "ore",
+          "hours",
+          "paziente",
+          "patient",
+          "stato",
+          "state",
+          "prelievo"
+        ]
+      }
+    },
+    "midollo": {
+      "spinal_cord": {
+        "anatomical": true,
+        "classes": [
+          "spinal_cord"
+        ],
+        "strong": [
+          "spinale",
+          "spinal",
+          "rachide",
+          "rachideo",
+          "canale",
+          "mielopatia",
+          "myelopathy",
+          "mielite",
+          "myelitis",
+          "cervicale",
+          "cervical",
+          "cono",
+          "conus",
+          "compressione",
+          "compression",
+          "siringomielia",
+          "syrinx",
+          "cord"
+        ],
+        "weak": [
+          "segnale",
+          "signal",
+          "t2",
+          "stir",
+          "intramidollare",
+          "intramedullary",
+          "ernia",
+          "disco",
+          "disc",
+          "lesione",
+          "lesion",
+          "dorsale",
+          "thoracic"
+        ]
+      },
+      "bone_marrow": {
+        "anatomical": false,
+        "strong": [
+          "osseo",
+          "ossea",
+          "ossei",
+          "bone",
+          "marrow",
+          "emopoietico",
+          "hematopoietic",
+          "osteomidollare",
+          "biopsia",
+          "biopsy",
+          "trapianto",
+          "transplant",
+          "aspirato",
+          "aspirate",
+          "mieloma",
+          "myeloma",
+          "leucemia",
+          "leukemia",
+          "linfoma",
+          "lymphoma",
+          "infiltrazione",
+          "infiltration",
+          "aplasia",
+          "ricostituzione",
+          "conversione",
+          "grasso",
+          "fat",
+          "edema",
+          "oedema",
+          "spongiosa"
+        ],
+        "weak": [
+          "metastasi",
+          "metastases",
+          "secondarismi",
+          "vertebra",
+          "vertebrale",
+          "vertebral",
+          "ossee"
+        ]
+      }
+    }
+  }
+}
