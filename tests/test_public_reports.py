@@ -194,3 +194,32 @@ def test_tree_counts_extensions_and_skips_git(tmp_path):
     (tmp_path / "b.json").write_text("{}", "utf-8")
     out = fpr.tree(tmp_path)
     assert out.startswith("2 files") and ".git" not in out
+
+
+def test_jsonl_is_split_on_newlines_only(tmp_path):
+    """U+2028 and U+0085 inside a JSON string must not cut a record (PARROT v1.0 broke on this)."""
+    path = tmp_path / "d.jsonl"
+    rows = [
+        {"language": "it", "report": "Fegato\u2028nei limiti.\x85Milza normale."},
+        {"language": "it", "report": "Rene destro normale."},
+    ]
+    path.write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", "utf-8"
+    )
+    assert fpr.read_table(path) == rows
+
+
+def test_multicare_picks_a_parquet_cases_table_and_skips_images_and_captions():
+    files = [
+        {"key": "case_images.parquet", "size": 50, "url": "a"},
+        {"key": "captions_and_labels.csv", "size": 40, "url": "b"},
+        {"key": "cases.parquet", "size": 168, "url": "c"},
+        {"key": "PMC1.zip", "size": 9, "url": "d"},
+    ]
+    assert fpr.pick_cases_file(files, 1000)["key"] == "cases.parquet"
+
+
+def test_tree_shows_the_start_of_one_file_per_text_kind(tmp_path):
+    (tmp_path / "a.json").write_text('{"text": "Fegato nei limiti."}', "utf-8")
+    out = fpr.tree(tmp_path)
+    assert "--- start of a.json" in out and "Fegato nei limiti." in out

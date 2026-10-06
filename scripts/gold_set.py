@@ -51,6 +51,12 @@ def main(argv=None) -> int:
     s.add_argument("--out", default="gold_study")
     s.add_argument("--n", type=int, default=None)
     s.add_argument("--seed", type=int, default=20261006)
+    s.add_argument(
+        "--cap-per-mention",
+        type=int,
+        default=None,
+        help="at most this many items per written mention (not population-weighted)",
+    )
     c = sub.add_parser("check")
     c.add_argument("sheet")
     a = sub.add_parser("agree")
@@ -74,7 +80,12 @@ def main(argv=None) -> int:
     lexicon, parts = _load()
     if args.cmd == "sample":
         items = gs.sample_items(
-            _jsonl(args.reports), lexicon, parts, n=args.n, seed=args.seed
+            _jsonl(args.reports),
+            lexicon,
+            parts,
+            n=args.n,
+            seed=args.seed,
+            cap_per_mention=args.cap_per_mention,
         )
         out = Path(args.out)
         gs.write_sheets(items, out, class_ids=sorted(lexicon.classes))

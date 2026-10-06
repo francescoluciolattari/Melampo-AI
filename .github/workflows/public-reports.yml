@@ -38,6 +38,10 @@ on:
         description: "Mentions to sample for the sheets (empty = all proposed)"
         required: false
         default: ""
+      cap:
+        description: "At most this many items per written mention (empty = no cap). Use it where one name dominates (IU X-ray: heart); the sample is then not population-weighted."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -94,6 +98,8 @@ jobs:
           {
             echo "## RadGPT layout"
             uv run python scripts/fetch_public_reports.py tree corpora/radgpt
+            echo "## RadGPT tables"
+            uv run python scripts/fetch_public_reports.py discover corpora/radgpt
             for f in corpora/radgpt/LICENSE* corpora/radgpt/README*; do
               [ -f "$f" ] && { echo "## $f"; head -120 "$f"; }
             done
@@ -127,15 +133,18 @@ jobs:
       - name: Convert MultiCaRe cases
         if: ${{ inputs.source == 'multicare' }}
         run: |
-          uv run python scripts/fetch_public_reports.py multicare --out reports.jsonl
+          # pyarrow is added for this step only: MultiCaRe ships its cases as Parquet
+          uv run --with pyarrow python scripts/fetch_public_reports.py multicare --out reports.jsonl
 
       - name: Draw the blind sheets
         if: ${{ !startsWith(inputs.source, 'discover-') }}
         env:
           N: ${{ inputs.n }}
+          CAP: ${{ inputs.cap }}
         run: |
           args=(sample reports.jsonl --out gold_study)
           if [ -n "$N" ]; then args+=(--n "$N"); fi
+          if [ -n "$CAP" ]; then args+=(--cap-per-mention "$CAP"); fi
           uv run python scripts/gold_set.py "${args[@]}"
 
       - name: Upload

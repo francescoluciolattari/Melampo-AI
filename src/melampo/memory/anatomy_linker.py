@@ -183,8 +183,10 @@ _QUALIFIERS = frozenset(_QUALIFIER_WORDS.values())
 # "terzo medio della clavicola" is a third of the bone, not the third of anything.
 _FRACTION_PARTS = frozenset(("prossimale", "medio", "distale", "proximal", "middle", "distal"))
 _FRACTION_WORDS = frozenset(("terzo", "third"))
-# Ambiguous abbreviations never linked by any stage: LM is the middle lobe or the left main coronary.
-AMBIGUOUS_ABBREVIATIONS = frozenset(("lm",))
+# Ambiguous abbreviations never linked by any stage: LM is the middle lobe or the left main coronary;
+# GB is the gallbladder in English radiology but the white cell count ("globuli bianchi") in Italian
+# clinical text ("GB 5040/mmc"), found in the E3C Italian cases, and also gigabytes.
+AMBIGUOUS_ABBREVIATIONS = frozenset(("lm", "gb"))
 # A "T" level in a sentence about tumour staging is a T stage, not a vertebra.
 _STAGING_CUES = frozenset(("stadio", "stadiazione", "stage", "staging", "tnm", "ptnm", "ctnm"))
 _ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10, "xi": 11, "xii": 12}

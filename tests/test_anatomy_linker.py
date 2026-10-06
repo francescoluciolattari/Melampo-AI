@@ -564,6 +564,14 @@ _ATTACKS = [
     ("S1", "Metastasi ossee in S1 e nel fegato.", "liver_segment_1", None),
     ("S1", "Lesione litica di S1 con secondarismi epatici.", "liver_segment_1", None),
     ("LM", "Torace: calcificazioni del LM.", "lung_middle_lobe_right", None),
+    # E3C Italian cases: GB is the white cell count, not the gallbladder
+    (
+        "GB",
+        "Hb 12,3 g/dL; GB 5040/mmc (N 48%; L 42%); Plt 247000/mmc.",
+        "gallbladder",
+        None,
+    ),
+    ("GB", "Nei limiti la crasi ematica (GB: 11250/mmc; N 20%).", "gallbladder", None),
     ("T4", "Neoplasia del retto in stadio T4.", "vertebrae_T4", None),
     (
         "terzo distale della clavicola sinistra",

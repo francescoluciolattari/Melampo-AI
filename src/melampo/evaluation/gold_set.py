@@ -171,8 +171,14 @@ def sample_items(
     per_report: int = 1,
     n: int | None = None,
     seed: int = 20261006,
+    cap_per_mention: int | None = None,
 ) -> list[dict[str, Any]]:
     """One (or `per_report`) random mention per report; stratified draw by language when `n` is set.
+
+    `cap_per_mention` keeps at most that many items with the same written mention (case-folded). A
+    corpus where "heart" is 62% of the proposals (IU X-ray) would otherwise spend the annotators' time
+    on one easy name and say nothing about the rare structures. The capped sample is not
+    population-weighted: report error per structure, not one overall rate.
 
     One mention per report keeps items independent: two mentions of the same report share the
     author's habits and the same dictation errors, and would inflate the sample size.
@@ -196,6 +202,15 @@ def sample_items(
                 }
             )
     rng.shuffle(pool)
+    if cap_per_mention is not None:
+        seen: dict[str, int] = defaultdict(int)
+        capped = []
+        for item in pool:
+            key = item["mention"].casefold()
+            if seen[key] < cap_per_mention:
+                seen[key] += 1
+                capped.append(item)
+        pool = capped
     if n is not None and n < len(pool):
         by_language: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for item in pool:
