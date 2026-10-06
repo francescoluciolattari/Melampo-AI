@@ -85,14 +85,24 @@ def propose_mentions(
             if not _known(piece, lexicon, parts):
                 continue
             j0, j1 = i, i + size - 1
+
             # drop edge words that add nothing ("del sigma con" -> "sigma")
-            while j0 < j1 and _known(
-                text[spans[j0 + 1][0] : spans[j1][1]], lexicon, parts
-            ):
+            # Trim an edge word that adds nothing ("del", "con"), or that only leniency accepts
+            # ("... e dilatazione del"), but never into an exact name ("colon discendente").
+            def current() -> str:
+                return text[spans[j0][0] : spans[j1][1]]
+
+            def trims(shorter: str) -> bool:
+                if not _known(shorter, lexicon, parts):
+                    return False
+                same = al.normalise(shorter, keep_noise=True) == al.normalise(
+                    current(), keep_noise=True
+                )
+                return same or not _exact(current(), lexicon, parts)
+
+            while j0 < j1 and trims(text[spans[j0 + 1][0] : spans[j1][1]]):
                 j0 += 1
-            while j1 > j0 and _known(
-                text[spans[j0][0] : spans[j1 - 1][1]], lexicon, parts
-            ):
+            while j1 > j0 and trims(text[spans[j0][0] : spans[j1 - 1][1]]):
                 j1 -= 1
             if j0 > 0 and not taken[j0 - 1] and spans[j0 - 1][2].lower() in _SIDE:
                 j0 -= 1
@@ -107,6 +117,17 @@ def propose_mentions(
             start, end = spans[j0][0], spans[j1][1]
             found.append({"mention": text[start:end], "start": start, "end": end})
     return sorted(found, key=lambda m: m["start"])
+
+
+def _exact(piece: str, lexicon: al.Lexicon, parts: Any) -> bool:
+    """The piece is a name as written: no tissue or space word dropped, or a whole table entry."""
+    kept = al.normalise(piece, keep_noise=True)
+    if kept == al.normalise(piece) and kept in lexicon.index:
+        return True
+    if parts is None:
+        return False
+    side = {al.SIDE_RIGHT, al.SIDE_LEFT, al.SIDE_BOTH}
+    return frozenset(t for t in kept if t not in side) in parts.strict
 
 
 def _known(piece: str, lexicon: al.Lexicon, parts: Any) -> bool:
