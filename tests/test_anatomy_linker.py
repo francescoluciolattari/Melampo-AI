@@ -858,3 +858,54 @@ def test_gb_is_the_gallbladder_only_with_hepatobiliary_evidence(
         assert result.cid == "gallbladder"
     else:
         assert result.cid is None and result.status == al.ABSTAINED
+
+
+@pytest.mark.parametrize(
+    ("mention", "sentence", "expected"),
+    [
+        # the region is not the muscle: "paraspinal adenopathy" names no muscle
+        (
+            "left paraspinal",
+            "Low left paraspinal/retrocrural adenopathy is present.",
+            [],
+        ),
+        (
+            "muscoli paravertebrali destro",
+            "Ipotrofia dei muscoli paravertebrali destro.",
+            ["autochthon_right"],
+        ),
+        (
+            "left paraspinal muscles",
+            "Atrophy of the left paraspinal muscles.",
+            ["autochthon_left"],
+        ),
+        # the bare name of a muscle that is a muscle by definition is still recognised
+        (
+            "left erector spinae",
+            "Atrophy of the left erector spinae.",
+            ["autochthon_left"],
+        ),
+    ],
+)
+def test_a_bare_name_that_is_the_region_does_not_name_the_muscle(
+    lexicon, mention, sentence, expected
+):
+    kept, _ = lexicon.recognise(mention, sentence)
+    assert kept == expected
+
+
+def test_not_bare_is_data_and_only_applies_to_names_nobody_else_spells_bare():
+    data = {
+        "classes": {
+            "muscle_left": {
+                "it": [],
+                "en": ["left paraspinal muscles"],
+                "not_bare": ["left paraspinal muscles"],
+            },
+            "other": {"it": [], "en": ["left paraspinal muscles"]},
+        }
+    }
+    lexicon = al.Lexicon.from_json(data)
+    assert (
+        not lexicon.needs_full_name
+    )  # another class spells the same key without the mark

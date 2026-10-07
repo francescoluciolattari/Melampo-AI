@@ -17,6 +17,7 @@ use that goes beyond internal evaluation (PARROT and E3C may be non-commercial).
 """
 
 import argparse
+from collections import Counter
 import csv
 import gzip
 import io
@@ -254,21 +255,35 @@ def _parquet_rows(raw: bytes) -> list[dict]:
 
 
 def multicare_reports(rows: list[dict]) -> list[dict]:
-    """English case reports whose text mentions imaging; other cases carry no anatomy to link."""
+    """English case reports whose text mentions imaging; other cases carry no anatomy to link.
+
+    The real table (cases.parquet, 76,137 rows) has the columns ``cases`` (the text) and
+    ``article_id`` (the PMC article, shared by every case of that article). An id that
+    repeats gets the case's position within its article, so report ids stay unique and
+    do not change when the imaging filter changes.
+    """
     if not rows:
         return []
-    text_key = _column(rows[0], ("case_text", "text", "case"))
-    id_key = _column(rows[0], ("case_id", "id"))
+    text_key = _column(rows[0], ("case_text", "text", "case", "cases"))
+    id_key = _column(rows[0], ("case_id", "id", "article_id"))
     if text_key is None:
         raise ValueError(f"cannot find the case text column among {list(rows[0])}")
+    ids = [
+        str(row[id_key]).strip() if id_key and row.get(id_key) else str(index)
+        for index, row in enumerate(rows)
+    ]
+    repeated = {i for i, n in Counter(ids).items() if n > 1}
+    seen: Counter = Counter()
     out = []
-    for index, row in enumerate(rows):
+    for row, rid in zip(rows, ids):
+        seen[rid] += 1
         text = " ".join(str(row.get(text_key, "")).split())
         if text and _IMAGING.search(text):
-            rid = str(row[id_key]).strip() if id_key and row.get(id_key) else str(index)
             out.append(
                 {
-                    "report_id": f"multicare-{rid}",
+                    "report_id": f"multicare-{rid}-{seen[rid]}"
+                    if rid in repeated
+                    else f"multicare-{rid}",
                     "text": text,
                     "language": "en",
                     "site": "multicare",

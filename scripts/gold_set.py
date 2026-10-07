@@ -72,6 +72,11 @@ def main(argv=None) -> int:
     e = sub.add_parser("evaluate")
     e.add_argument("gold")
     e.add_argument("--uberon", default=None)
+    e.add_argument(
+        "--reports",
+        default=None,
+        help="reports.jsonl the items were sampled from: the linker then also gets the state of the report",
+    )
     e.add_argument("--out", default="gold_report.json")
     z = sub.add_parser("size")
     z.add_argument("--target", type=float, default=0.01)
@@ -145,7 +150,12 @@ def main(argv=None) -> int:
                 graph = AnatomyGraph.from_obo(handle)
         pool, equivalent = al.build_pool(lexicon, terms)
         linker = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts, graph=graph)
-        report = gs.evaluate(linker, _jsonl(args.gold))
+        reports = (
+            {r["report_id"]: r["text"] for r in _jsonl(args.reports)}
+            if args.reports
+            else None
+        )
+        report = gs.evaluate(linker, _jsonl(args.gold), reports=reports)
         Path(args.out).write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
         )
