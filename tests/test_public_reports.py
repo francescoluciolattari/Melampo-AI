@@ -153,6 +153,23 @@ def test_multicare_keeps_cases_that_mention_imaging():
     ]
 
 
+def test_multicare_real_columns_and_repeated_article_ids():
+    # cases.parquet: columns ['cases', 'article_id'], several cases per article
+    rows = [
+        {"cases": "Chest CT showed a nodule.", "article_id": "PMC1"},
+        {"cases": "The patient recovered.", "article_id": "PMC1"},
+        {"cases": "MRI of the brain was normal.", "article_id": "PMC1"},
+        {"cases": "Abdominal ultrasound: gallbladder stones.", "article_id": "PMC2"},
+    ]
+    out = fpr.multicare_reports(rows)
+    assert [r["report_id"] for r in out] == [
+        "multicare-PMC1-1",
+        "multicare-PMC1-3",
+        "multicare-PMC2",
+    ]
+    assert len({r["report_id"] for r in out}) == len(out)
+
+
 def test_multicare_imaging_words_need_word_boundaries():
     rows = [{"case_id": "x", "case_text": "Scanty discharge and a doctor's note."}]
     assert fpr.multicare_reports(rows) == []
