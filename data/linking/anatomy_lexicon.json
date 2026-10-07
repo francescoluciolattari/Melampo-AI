@@ -919,10 +919,6 @@
     "left paraspinal muscles",
     "left erector spinae",
     "left autochthonous back muscles"
-   ],
-   "not_bare": [
-    "muscoli paravertebrali sinistro",
-    "left paraspinal muscles"
    ]
   },
   "autochthon_right": {
@@ -937,10 +933,6 @@
     "right paraspinal muscles",
     "right erector spinae",
     "right autochthonous back muscles"
-   ],
-   "not_bare": [
-    "muscoli paravertebrali destro",
-    "right paraspinal muscles"
    ]
   },
   "iliopsoas_left": {

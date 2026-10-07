@@ -484,6 +484,115 @@
           "ossee"
         ]
       }
+    },
+    "paraspinal": {
+      "muscle": {
+        "anatomical": true,
+        "classes": [
+          "autochthon_left",
+          "autochthon_right"
+        ],
+        "strong": [
+          "muscle",
+          "muscles",
+          "muscular",
+          "muscolo",
+          "muscoli",
+          "muscolare",
+          "muscolari",
+          "muscolatura",
+          "atrophy",
+          "atrofia",
+          "ipotrofia",
+          "hypotrophy",
+          "steatosi",
+          "steatosis",
+          "fatty",
+          "spasm",
+          "spasmo",
+          "contrattura",
+          "contracture",
+          "strain",
+          "mioflogosi",
+          "myositis",
+          "denervation",
+          "denervazione",
+          "erector",
+          "erettori"
+        ],
+        "weak": [
+          "infiltration",
+          "infiltrazione",
+          "edema",
+          "edema",
+          "hypertrophy",
+          "ipertrofia",
+          "wasting",
+          "asimmetria",
+          "asymmetry"
+        ]
+      },
+      "region": {
+        "anatomical": false,
+        "strong": [
+          "adenopathy",
+          "adenopathies",
+          "adenopatia",
+          "adenopatie",
+          "lymph",
+          "linfonodo",
+          "linfonodi",
+          "linfonodale",
+          "node",
+          "nodes",
+          "mass",
+          "massa",
+          "masse",
+          "collection",
+          "raccolta",
+          "ascesso",
+          "abscess",
+          "hematoma",
+          "ematoma",
+          "tumor",
+          "tumour",
+          "neoplasia",
+          "neoplasm",
+          "lesione",
+          "lesion",
+          "retrocrural",
+          "retroperitoneal",
+          "retroperitoneale",
+          "metastasi",
+          "metastasis",
+          "metastases",
+          "schwannoma",
+          "neurofibroma",
+          "paraganglioma"
+        ],
+        "weak": [
+          "space",
+          "spazio",
+          "region",
+          "regione",
+          "fat",
+          "grasso",
+          "tissue",
+          "tessuti",
+          "fluid",
+          "liquido",
+          "swelling",
+          "enhancement",
+          "captazione",
+          "sede"
+        ]
+      }
     }
+  },
+  "aliases": {
+    "paraspinali": "paraspinal",
+    "paravertebral": "paraspinal",
+    "paravertebrale": "paraspinal",
+    "paravertebrali": "paraspinal"
   }
 }
