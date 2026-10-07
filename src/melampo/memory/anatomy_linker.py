@@ -634,6 +634,9 @@ class Lexicon:
     classes: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Names with their tissue and container words kept: "lume esofageo" is not a name of the esophagus.
     noisy: frozenset[tuple[str, ...]] = frozenset()
+    # Keys of names whose dropped word is what makes them the structure: "paraspinal muscles" is
+    # the muscle, "paraspinal" alone is the region (adenopathy, soft tissue). Data: ``not_bare``.
+    needs_full_name: frozenset[tuple[str, ...]] = frozenset()
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Lexicon":
@@ -649,6 +652,13 @@ class Lexicon:
                     index[key].append((cid, region))
                 if region is None:
                     strict[normalise(name, keep_noise=True, map_words=False)].add(cid)
+        marked: set[tuple[str, ...]] = set()
+        unmarked: set[tuple[str, ...]] = set()
+        for entry in data["classes"].values():
+            refused = set(entry.get("not_bare", ()))
+            for name in entry["it"] + entry["en"]:
+                (marked if name in refused else unmarked).add(normalise(name))
+        lexicon.needs_full_name = frozenset(marked - unmarked)
         lexicon.index = dict(index)
         lexicon.strict = dict(strict)
         lexicon.noisy = frozenset(
@@ -664,6 +674,8 @@ class Lexicon:
         if not hits:
             return [], "unknown_name"
         with_tissue = normalise(mention, keep_noise=True)
+        if normalise(mention) in self.needs_full_name and with_tissue not in self.noisy:
+            return [], "unknown_name"
         if with_tissue != normalise(mention) and with_tissue not in self.noisy:
             # "lume esofageo", "parete aortica", "muscolo sternale": a tissue or a space of the
             # organ, not the organ. Dropping the word would report a part as the whole.
