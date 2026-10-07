@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from ..memory import anatomy_linker as al
+from ..memory.report_state import ReportState
 from .linking_bench import upper_error_bound
 
 NONE_IN_CLASSES = (
@@ -167,12 +168,8 @@ def _known(piece: str, lexicon: al.Lexicon, parts: Any) -> bool:
 
 
 def sentence_of(text: str, start: int, end: int) -> str:
-    left = max(text.rfind(".", 0, start), text.rfind("\n", 0, start))
-    right_candidates = [
-        i for i in (text.find(".", end), text.find("\n", end)) if i != -1
-    ]
-    right = min(right_candidates) if right_candidates else len(text) - 1
-    return text[left + 1 : right + 1].strip()
+    """The sentence of the mention, without the header label or the neighbouring sentences."""
+    return ReportState.parse(text).sentence_at(start, end)
 
 
 def family(cid: str | None) -> str:
@@ -216,12 +213,14 @@ def sample_items(
             continue
         picked = rng.sample(mentions, min(per_report, len(mentions)))
         language = report.get("language") or language_of(text)
+        state = ReportState.parse(text)
         for m in picked:
             pool.append(
                 {
                     "report_id": report["report_id"],
                     "language": language,
-                    "sentence": sentence_of(text, m["start"], m["end"]),
+                    "sentence": state.sentence_at(m["start"], m["end"]),
+                    "section": state.section_at(m["start"]),
                     **m,
                 }
             )
@@ -385,6 +384,8 @@ def merge_gold(
                 "language": a.get("language", ""),
                 "sentence": a["sentence"],
                 "mention": a["mention"],
+                "start": a.get("start", ""),
+                "end": a.get("end", ""),
                 "structure": source["structure"].strip(),
                 "relation": source.get("relation", "").strip() or "equal",
                 "agreed": agreed,
@@ -394,15 +395,30 @@ def merge_gold(
 
 
 def evaluate(
-    linker: Any, gold: Sequence[dict[str, Any]], confidence: float = 0.95
+    linker: Any,
+    gold: Sequence[dict[str, Any]],
+    confidence: float = 0.95,
+    reports: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Score the linker on final labels. Items labelled NOT_ANATOMY/AMBIGUOUS expect an abstention."""
+    """Score the linker on final labels. Items labelled NOT_ANATOMY/AMBIGUOUS expect an abstention.
+
+    With ``reports`` (report id -> text) the linker also gets the state of the report and the
+    place of the mention, as it will in use; without them it sees the sentence alone.
+    """
+    states: dict[str, ReportState] = {}
     tally: Counter[str] = Counter()
     reasons: Counter[str] = Counter()
     by_language: dict[str, Counter[str]] = defaultdict(Counter)
     errors: list[dict[str, Any]] = []
     for row in gold:
-        result = linker.link(row["mention"], row["sentence"])
+        text = (reports or {}).get(row.get("report_id", ""))
+        if text is not None and str(row.get("start", "")).strip().isdigit():
+            state = states.setdefault(row["report_id"], ReportState.parse(text))
+            result = linker.link(
+                row["mention"], row["sentence"], report=state, at=int(row["start"])
+            )
+        else:
+            result = linker.link(row["mention"], row["sentence"])
         label = row["structure"]
         if result.status != al.ACCEPTED:
             outcome = "abstained"

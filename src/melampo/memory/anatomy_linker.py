@@ -89,6 +89,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from melampo.memory.report_state import CLINICAL, TECHNIQUE, ReportState
 from melampo.memory.word_senses import SenseInventory
 
 SIDE_RIGHT = "<dx>"
@@ -427,6 +428,40 @@ def level_evidence(mention: str, sentence: str) -> bool:
                 ):
                     return True
     return False
+
+
+# What a level code names when one of these is in the sentence: a root, a disc, a foramen, the
+# spaces between vertebrae ("spazi intersomatici del tratto C3-C7"), a nerve. Stems, so plurals and
+# compounds ("disco-artrosico", "intersomatici") are caught too.
+_NOT_A_VERTEBRA_STEMS = (
+    "radic", "disc", "foram", "interso", "intervert", "spazi", "space", "nerv", "gangl",
+)  # fmt: skip
+
+
+def level_from_report(
+    code: str, sentence: str, report: ReportState | None, at: int | None
+) -> bool:
+    """The report, read from the top, says the spine is what is being described.
+
+    Prediction from above: in a report whose clinical question or technique names the spine and
+    no other region, a level code in a finding sentence is a vertebra ("Anterolistesi di L4 su
+    L5"). Not for T1 and T2 (sequences even there), not in the header itself, and never when the
+    sentence speaks of MRI signal, tumour staging, a root, a disc or a foramen, or names another
+    region.
+    """
+    if report is None or at is None or not report.spine_scope:
+        return False
+    if report.section_at(at) in (CLINICAL, TECHNIQUE, "label"):
+        return False
+    if code in ("@T1", "@T2"):
+        return False
+    words = set(context_tokens(sentence))
+    return not (
+        words & MRI_SIGNAL_CUES
+        or any(w.startswith(_NOT_A_VERTEBRA_STEMS) for w in words)
+        or staging_context(sentence)
+        or regions_named(words) - {"spine"}
+    )
 
 
 # --------------------------------------------------------------------------
@@ -1012,13 +1047,25 @@ class AnatomyLinker:
             return level_evidence(mention, sentence)
         return True
 
-    def _link_level(self, code: str, mention: str, sentence: str) -> LinkResult:
+    def _link_level(
+        self,
+        code: str,
+        mention: str,
+        sentence: str,
+        report: ReportState | None = None,
+        at: int | None = None,
+    ) -> LinkResult:
         """A bare level code: a vertebra only with vertebra evidence, a liver segment only with the liver named."""
         letter, number = code[1], int(code[2:])
         vertebra = f"vertebrae_{'T' if letter == 'D' else letter}{number}"
         readings = []
-        if vertebra in self.lexicon.classes and level_evidence(mention, sentence):
-            readings.append(vertebra)
+        from_report = False
+        if vertebra in self.lexicon.classes:
+            if level_evidence(mention, sentence):
+                readings.append(vertebra)
+            elif level_from_report(code, sentence, report, at):
+                readings.append(vertebra)
+                from_report = True
         segment = f"liver_segment_{number}"
         if (
             letter == "S"
@@ -1028,14 +1075,26 @@ class AnatomyLinker:
             readings.append(segment)
         if len(readings) == 1:
             return LinkResult(
-                ACCEPTED, readings[0], "lexicon", "level_code_with_evidence"
+                ACCEPTED,
+                readings[0],
+                "lexicon",
+                "level_code_from_the_report_state"
+                if from_report and readings[0] == vertebra
+                else "level_code_with_evidence",
             )
         reason = (
             "level_code_reads_two_ways" if readings else "level_code_without_evidence"
         )
         return LinkResult(ABSTAINED, None, "lexicon", reason, options=readings)
 
-    def link(self, mention: str, sentence: str, context: str = "") -> LinkResult:
+    def link(
+        self,
+        mention: str,
+        sentence: str,
+        context: str = "",
+        report: ReportState | None = None,
+        at: int | None = None,
+    ) -> LinkResult:
         """Link ``mention``, or abstain with the reason.
 
         The cheap streams (senses, integration checks, level codes, lexicon, part table) each read the
@@ -1043,9 +1102,13 @@ class AnatomyLinker:
         them in a fixed order of authority. The expensive streams (retrieval + two models, translation)
         run only when the cheap ones leave the mention undecided. ``context`` is optional text around
         the sentence (the rest of the report, a heading); it counts half in choosing between the
-        meanings of an ambiguous form.
+        meanings of an ambiguous form. ``report`` (a ``ReportState``) and ``at`` (where the mention
+        starts in the report text) give the expectation read from the top; without them nothing
+        changes, and the header becomes the context when none is given.
         """
-        trace = self.read(mention, sentence, context)
+        if report is not None and not context:
+            context = report.header()
+        trace = self.read(mention, sentence, context, report, at)
         result = self._decide(trace, mention, sentence)
         senses = next(e for e in trace if e.stream == "senses")
         if (
@@ -1149,7 +1212,14 @@ class AnatomyLinker:
             "graph", UNDECIDED, result.cid, lifted or "no_class_near"
         )
 
-    def read(self, mention: str, sentence: str, context: str = "") -> list[Evidence]:
+    def read(
+        self,
+        mention: str,
+        sentence: str,
+        context: str = "",
+        report: ReportState | None = None,
+        at: int | None = None,
+    ) -> list[Evidence]:
         """Every cheap stream's reading of the mention. Pure: no stream depends on another."""
         evidence: list[Evidence] = []
         verdict = self.senses.judge(mention, sentence, context)
@@ -1183,7 +1253,7 @@ class AnatomyLinker:
             if failed:
                 evidence.append(Evidence("integration", VETO, None, reason))
         if len(tokens) == 1 and tokens[0].startswith("@"):
-            level = self._link_level(tokens[0], mention, sentence)
+            level = self._link_level(tokens[0], mention, sentence, report, at)
             evidence.append(
                 Evidence(
                     "levels",
