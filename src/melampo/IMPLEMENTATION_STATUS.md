@@ -13,6 +13,7 @@ This document tracks the current status of the Melampo baseline scaffold.
 | evaluation | validation, falsification, metrics, calibration, risk-coverage | baseline scaffold in place |
 | orchestration | routing, contracts, bootstrap, MCP, A2A | baseline scaffold in place |
 | resources | prompts and schemas | baseline scaffold in place |
+| anatomy linker | streams, sense inventory, form ambiguity, report state, UBERON graph, verify stream (unmeasured with live models) | in progress; see `docs/linker/` |
 | tests | smoke coverage | growing |
 
 The scaffold is intentionally lightweight and provider-neutral. Concrete model and infrastructure bindings should be added incrementally.
