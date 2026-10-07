@@ -189,6 +189,11 @@ class SenseInventory:
                     f"{form!r}: an ambiguous form needs an anatomical sense and at least one other"
                 )
             forms[_fold(form)] = tuple(built)
+        # Other written forms of the same word (plural, other language) share its senses.
+        for alias, target in data.get("aliases", {}).items():
+            if _fold(target) not in forms:
+                raise ValueError(f"alias {alias!r}: unknown form {target!r}")
+            forms[_fold(alias)] = forms[_fold(target)]
         return cls(forms)
 
     @classmethod

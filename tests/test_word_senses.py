@@ -77,7 +77,8 @@ def test_every_form_has_an_anatomical_sense_and_a_rival():
 
 def test_the_shipped_inventory_loads_and_every_cue_is_folded(inventory):
     data = json.loads((DATA / "word_senses.json").read_text("utf-8"))
-    assert set(inventory.forms) == {ws._fold(f) for f in data["forms"]}
+    written = set(data["forms"]) | set(data.get("aliases", {}))
+    assert set(inventory.forms) == {ws._fold(f) for f in written}
     for senses in inventory.forms.values():
         for sense in senses:
             for cue in sense.strong | sense.weak:
@@ -191,3 +192,51 @@ def test_no_bench_mention_with_a_target_is_blocked_by_the_senses(inventory):
         if r.get("target") and not inventory.judge(r["mention"], r["sentence"]).accepted
     ]
     assert blocked == []
+
+
+# "paraspinal" is the muscle or the region beside the spine: the sentence decides, the word does not.
+@pytest.mark.parametrize(
+    ("mention", "sentence", "accepted"),
+    [
+        ("left paraspinal", "Fatty atrophy of the left paraspinal.", True),
+        ("left paraspinal muscles", "Atrophy of the left paraspinal muscles.", True),
+        (
+            "muscoli paravertebrali",
+            "Ipotrofia dei muscoli paravertebrali destri.",
+            True,
+        ),
+        ("paravertebrale", "Contrattura della muscolatura paravertebrale.", True),
+        (
+            "left paraspinal",
+            "Low left paraspinal/retrocrural adenopathy is present.",
+            False,
+        ),
+        ("paravertebrale destro", "Massa paravertebrale destra con linfonodi.", False),
+        # silence is not evidence for the muscle
+        ("left paraspinal", "The left paraspinal is normal.", False),
+    ],
+)
+def test_paraspinal_is_the_muscle_or_the_region_by_context(
+    inventory, mention, sentence, accepted
+):
+    assert inventory.judge(mention, sentence).accepted is accepted
+
+
+def test_the_linker_reads_paraspinal_adenopathy_as_a_region_and_atrophy_as_the_muscle():
+    lexicon = al.Lexicon.from_json(
+        json.loads((DATA / "anatomy_lexicon.json").read_text("utf-8"))
+    )
+    linker = al.AnatomyLinker(lexicon, [], {})
+    region = linker.link(
+        "left paraspinal", "Low left paraspinal/retrocrural adenopathy is present."
+    )
+    assert region.status == al.ABSTAINED and region.reason == "sense_conflict:region"
+    muscle = linker.link("left paraspinal", "Fatty atrophy of the left paraspinal.")
+    assert (muscle.status, muscle.cid) == (al.ACCEPTED, "autochthon_left")
+
+
+def test_aliases_share_the_senses_of_their_form_and_must_name_a_known_one():
+    inv = ws.SenseInventory.from_json({**TOY, "aliases": {"xyzs": "xyz"}})
+    assert inv.judge("xyzs", "The xyzs biopsy shows tissue.").accepted
+    with pytest.raises(ValueError, match="unknown form"):
+        ws.SenseInventory.from_json({**TOY, "aliases": {"abc": "nope"}})
