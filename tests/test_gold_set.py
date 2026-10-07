@@ -249,6 +249,12 @@ def test_evaluate_counts_every_outcome_separately():
     assert report["accepted"] == 4 and report["wrong"] == 3
     assert {e["mention"] for e in report["errors"]} == {"b", "c", "d", "e"}
     assert report["coverage"] == round(4 / 6, 4)
+    # 3 errors in 4 accepted links certify nothing, overall or in any stratum
+    assert report["certification"]["overall"]["threshold"] is None
+    assert report["certification"]["overall"]["total"] == 4
+    assert all(
+        c["threshold"] is None for c in report["certification"]["by_stratum"].values()
+    )
 
 
 def test_zero_errors_in_299_accepted_certify_one_percent_and_298_do_not():

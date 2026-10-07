@@ -49,7 +49,7 @@ def _read_jsonl(path: Path):
                 yield json.loads(line)
 
 
-def build_linkers(uberon: Path, chats: dict | None, scope: str):
+def build_linkers(uberon: Path, chats: dict | None, scope: str, style: str = "yes_no"):
     lexicon = al.Lexicon.from_json(
         json.loads((ROOT / "data/linking/anatomy_lexicon.json").read_text("utf-8"))
     )
@@ -78,6 +78,7 @@ def build_linkers(uberon: Path, chats: dict | None, scope: str):
             chats=chats,
             verify=True,
             verify_all=scope == "all",
+            verify_style=style,
             **common,
         )
         if chats
@@ -189,6 +190,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--items", required=True)
     parser.add_argument("--reports", required=True)
     parser.add_argument("--scope", choices=("flagged", "all"), default="flagged")
+    parser.add_argument(
+        "--style",
+        choices=("yes_no", "choice"),
+        default="yes_no",
+        help="how the models are asked: a yes/no question, or five balanced options",
+    )
     parser.add_argument("--uberon", default=str(ROOT / "data/linking/uberon-basic.obo"))
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--out", default="verify_probe.json")
@@ -213,18 +220,29 @@ def main(argv: list[str] | None = None) -> int:
     for report in _read_jsonl(Path(args.reports)):
         if report["report_id"] in need:
             texts[report["report_id"]] = report["text"]
-    plain, asking, flags = build_linkers(Path(args.uberon), chats, args.scope)
+    plain, asking, flags = build_linkers(
+        Path(args.uberon), chats, args.scope, args.style
+    )
     rows = probe(items, texts, plain, asking, flags, args.workers)
     summary = summarise(rows)
     Path(args.out).write_text(
         json.dumps(
-            {"scope": args.scope, "summary": summary, "rows": rows},
+            {
+                "scope": args.scope,
+                "style": args.style,
+                "summary": summary,
+                "rows": rows,
+            },
             ensure_ascii=False,
             indent=1,
         ),
         encoding="utf-8",
     )
-    Path(args.markdown).write_text(render(rows, summary), encoding="utf-8")
+    Path(args.markdown).write_text(
+        f"Scope `{args.scope}`, question style `{args.style}`.\n\n"
+        + render(rows, summary),
+        encoding="utf-8",
+    )
     print(json.dumps(summary, ensure_ascii=False))
     return 0
 

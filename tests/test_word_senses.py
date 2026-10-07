@@ -253,8 +253,12 @@ def test_aliases_share_the_senses_of_their_form_and_must_name_a_known_one():
         ("thyroid", "Normal thyroid-stimulating hormone.", "stimulating"),
         ("thyroid", "Anti-thyroid peroxidase antibodies were raised.", "anti"),
         ("kidney", "Kidney function was preserved.", "function"),
-        ("fegato", "Funzione del fegato nella norma.", ""),
-        ("fegato", "Enzimi del fegato nella norma.", ""),
+        ("fegato", "Funzione del fegato nella norma.", "funzione"),
+        ("fegato", "Enzimi del fegato nella norma.", "enzimi"),
+        ("tiroide", "Dosaggio ormoni tiroide nei limiti.", "ormoni"),
+        ("cuore", "Toni del cuore validi.", "toni"),
+        ("liver", "Function of the liver was preserved.", "function"),
+        ("utero", "Anticorpi anti utero.", "anti"),
         ("fegato", "Fegato enzimi aumentati.", "enzimi"),
         ("heart", "RAISE score by heart teams would help.", "teams"),
         ("liver", "Renal and liver parameters were normal.", "parameters"),
@@ -264,6 +268,8 @@ def test_aliases_share_the_senses_of_their_form_and_must_name_a_known_one():
             "antigen",
         ),
         ("liver", "The liver biopsy showed steatosis.", ""),
+        ("fegato", "Biopsia del fegato: epatite cronica.", ""),
+        ("liver", "In the arterial phase liver lesions enhance.", ""),
         ("heart", "She has heart failure.", ""),
         ("thyroid", "Thyroid, parathyroid and vitamin D were normal.", ""),
         ("liver", "Nothing in the liver. Function was not assessed.", ""),
@@ -273,6 +279,24 @@ def test_the_word_next_to_a_structure_can_make_it_a_measurement(
     mention, sentence, head
 ):
     assert ws.SenseInventory.load().attribute_head(mention, sentence) == head
+
+
+@pytest.mark.parametrize(
+    ("mention", "sentence", "head"),
+    [
+        ("liver", "The liver biopsy showed steatosis.", "biopsy"),
+        ("fegato", "Biopsia del fegato: epatite cronica.", "biopsia"),
+        ("epatica", "Resezione epatica atipica.", "resezione"),
+        ("kidney", "Kidney transplantation in 2019.", "transplantation"),
+        ("liver", "The liver is enlarged.", ""),
+        ("liver", "Liver function tests were normal.", ""),
+    ],
+)
+def test_a_procedure_word_next_to_a_structure_makes_it_the_procedure_site(
+    mention, sentence, head
+):
+    """SNOMED CT keeps "procedure site" apart from "finding site": the structure is named."""
+    assert ws.SenseInventory.load().procedure_head(mention, sentence) == head
 
 
 def test_without_the_data_no_neighbour_counts():

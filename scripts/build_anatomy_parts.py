@@ -409,7 +409,10 @@ add(
 )
 
 # Sided families (the side comes from the mention)
-add("hip", "approx", "emibacino", "emipelvi", "hemipelvis")
+# "anca" / "hip" in a report is the hip region or joint (UBERON:0001464 hip is a region), not
+# the hip bone (TotalSegmentator hip = os coxae): the nearest class, said as approx (decided
+# 7 Oct 2026; the radiologists of the gold set check it).
+add("hip", "approx", "emibacino", "emipelvi", "hemipelvis", "anca", "hip")
 add("hip", "equal", "osso iliaco", "iliac bone")
 add(
     "hip",

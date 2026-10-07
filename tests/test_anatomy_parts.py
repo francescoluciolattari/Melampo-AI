@@ -432,3 +432,48 @@ def test_colluding_translations_that_swap_a_part_or_an_organ_do_not_pass(
 def test_faithful_translations_still_link(lexicon, mention, term, cid):
     result = _t(lexicon, term).link(mention, f"{mention} regolare.")
     assert (result.status, result.cid) == (al.ACCEPTED, cid)
+
+
+@pytest.mark.parametrize(
+    ("mention", "sentence", "cid"),
+    [
+        ("anca sinistra", "RM pelvi: anca sinistra con regolare segnale.", "hip_left"),
+        ("anca dx", "RM pelvi: anca dx con regolare segnale.", "hip_right"),
+        ("left hip", "Pain in the left hip after a fall.", "hip_left"),
+    ],
+)
+def test_the_hip_without_bone_is_the_nearest_class_said_as_approx(
+    lexicon, table, mention, sentence, cid
+):
+    """Decided 7 Oct 2026: "anca" / "hip" is the region or the joint (UBERON:0001464 hip is a
+    region), the class is the hip bone; the link says approx, never equal."""
+    result = _linker(lexicon, table).link(mention, sentence)
+    assert (result.status, result.cid, result.relation) == (al.ACCEPTED, cid, "approx")
+
+
+def test_the_hip_bone_named_with_its_head_noun_is_equal(lexicon, table):
+    result = _linker(lexicon, table).link(
+        "osso dell'anca destro", "Frattura dell'osso dell'anca destro."
+    )
+    assert (result.status, result.cid, result.relation) == (
+        al.ACCEPTED,
+        "hip_right",
+        "equal",
+    )
+
+
+@pytest.mark.parametrize(
+    ("mention", "sentence"),
+    [
+        ("left innominate", "The left innominate is compressed by the mass."),
+        ("coxale sinistro", "Dolore coxale sinistro."),
+    ],
+)
+def test_a_name_without_its_head_noun_is_not_the_lexicon_name(
+    lexicon, table, mention, sentence
+):
+    """ "left innominate bone" minus "bone" can be the innominate vein or artery: the head noun of
+    a name says what it refers to, so the shortened form is never recognised as the name."""
+    recognised, how = lexicon.recognise(mention, sentence)
+    assert (recognised, how) == ([], "name_without_its_head_noun")
+    assert _linker(lexicon, table).link(mention, sentence).cid is None
