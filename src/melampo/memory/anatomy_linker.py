@@ -71,12 +71,21 @@ Parts that the table does not list abstain. Spaces ("loggia renale", "ipocondrio
 are never linked to the organ, because after surgery the space is empty. Bare level
 codes ("L5", "D2", "T2", "S1") are accepted only with positive evidence; T1/T2 only
 with a vertebra word in the mention, since in an MRI report they are sequences.
-"""
+
+
+**Streams, not a cascade (7 October 2026).** The cheap readers above (senses, integration checks,
+level codes, lexicon, part table) are evaluated independently and all of them are kept in
+``LinkResult.trace``; ``_decide`` weighs them in the same order of authority as before, so every
+decision is unchanged (858 of 858 bench decisions identical, deterministic and with fake models).
+The two models are asked in parallel. With ``graph`` (``anatomy_graph.AnatomyGraph``) the models'
+choice is also checked against its graph neighbours and a finer UBERON term gets a proposed parent
+class (``fallback``), applied only when ``accept_parent_fallback`` is set."""
 
 import re
 import unicodedata
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -802,6 +811,27 @@ ACCEPTED = "accepted"
 ABSTAINED = "abstained"
 
 
+@dataclass(frozen=True)
+class Evidence:
+    """What one stream said about the mention, independently of the others.
+
+    ``verdict`` is ``support`` (this stream links ``cid``), ``veto`` (this stream rules the mention or
+    the candidate out, with ``reason``), ``abstain`` (the stream looked and could not decide) or
+    ``silent`` (the stream has nothing to say about this mention).
+    """
+
+    stream: str
+    verdict: str
+    cid: str | None = None
+    reason: str = ""
+    relation: str = "equal"
+    part: str = ""
+    options: tuple[str, ...] = ()
+
+
+SUPPORT, VETO, UNDECIDED, SILENT = "support", "veto", "abstain", "silent"
+
+
 @dataclass
 class LinkResult:
     status: str
@@ -810,8 +840,13 @@ class LinkResult:
     reason: str
     options: list[str] = field(default_factory=list)
     votes: dict[str, str | None] = field(default_factory=dict)
-    relation: str = "equal"  # equal, part_of, contour_of, approx
+    relation: str = "equal"  # equal, part_of, kind_of, contour_of, approx
     part: str = ""
+    # The class the graph proposes for a link to a finer UBERON term, when it is not applied
+    # (accept_parent_fallback=False): a suggestion for the review queue, not a link.
+    fallback: str = ""
+    # Every stream's evidence, in the order the decision considered it (audit trail).
+    trace: list[Evidence] = field(default_factory=list, compare=False)
 
 
 _NO_OPTION_REASONS = frozenset(
@@ -909,6 +944,14 @@ class AnatomyLinker:
     # Which meaning of an ambiguous written form is meant (GB, LM, ponte...). Loaded from
     # data/linking/word_senses.json; pass SenseInventory.empty() only to measure without it.
     senses: SenseInventory = field(default_factory=SenseInventory.load)
+    # UBERON is-a/part-of anchored to the classes (anatomy_graph.AnatomyGraph): the neighbour check
+    # on the models' choice and the fallback to the parent. None keeps the linker as it was.
+    graph: Any = None
+    # Whether the graph's parent becomes the link (True) or only a proposal (False, the default).
+    # Three blind reviews of 100 random lifts each found 3%, 1% and 5% of them wrong before the
+    # rules they suggested; the rate after them is not measured on fresh data. Until the gold set
+    # certifies the fallback (step 9), it proposes and does not decide.
+    accept_parent_fallback: bool = False
 
     def __post_init__(self) -> None:
         self._by_id = {c.cid: c for c in self.pool}
@@ -981,46 +1024,163 @@ class AnatomyLinker:
         return LinkResult(ABSTAINED, None, "lexicon", reason, options=readings)
 
     def link(self, mention: str, sentence: str, context: str = "") -> LinkResult:
-        """Link ``mention``. ``context`` is optional text around the sentence (the rest of the report, a
-        heading); it counts for half in deciding which meaning of an ambiguous form is meant."""
-        verdict = self.senses.judge(mention, sentence, context)
-        if not verdict.accepted:
-            return LinkResult(ABSTAINED, None, "senses", verdict.reason)
-        result = self._link(mention, sentence)
+        """Link ``mention``, or abstain with the reason.
+
+        The cheap streams (senses, integration checks, level codes, lexicon, part table) each read the
+        mention on their own and are all evaluated; none sees another's answer. ``_decide`` then weighs
+        them in a fixed order of authority. The expensive streams (retrieval + two models, translation)
+        run only when the cheap ones leave the mention undecided. ``context`` is optional text around
+        the sentence (the rest of the report, a heading); it counts half in choosing between the
+        meanings of an ambiguous form.
+        """
+        trace = self.read(mention, sentence, context)
+        result = self._decide(trace, mention, sentence)
+        senses = next(e for e in trace if e.stream == "senses")
         if (
             result.status == ACCEPTED
-            and verdict.classes
-            and self.equivalent.get(result.cid, result.cid) not in verdict.classes
-            and result.cid not in verdict.classes
+            and senses.options
+            and self.equivalent.get(result.cid, result.cid) not in senses.options
+            and result.cid not in senses.options
         ):
-            return LinkResult(
-                ABSTAINED, None, "senses", f"sense_{verdict.sense}_names_another_class"
+            result = LinkResult(
+                ABSTAINED, None, "senses", f"sense_{senses.cid}_names_another_class"
             )
+        trace = trace + [
+            Evidence(
+                result.stage,
+                SUPPORT if result.status == ACCEPTED else UNDECIDED,
+                result.cid,
+                result.reason,
+                result.relation,
+                result.part,
+                tuple(result.options),
+            )
+        ]
+        if self.graph is not None and result.status == ACCEPTED:
+            result, graph_evidence = self._converge_on_graph(result, mention)
+            trace.append(graph_evidence)
+        result.trace = trace
         return result
 
-    def _link(self, mention: str, sentence: str) -> LinkResult:
+    def _converge_on_graph(
+        self, result: LinkResult, mention: str
+    ) -> tuple[LinkResult, Evidence]:
+        """Steps 5 and 9 on the anatomical graph, for a link the other streams accepted.
+
+        * A choice made by the models (deliberation) whose graph neighbour -- the other side, a
+          sister, a parent or child, a structure declared disjoint -- is also among the options that
+          passed every deterministic check: only the models' agreement separates the two, and two
+          LLMs agreeing is not independent evidence. Abstain.
+        * A link to an UBERON term finer than any class: climb to the nearest class and say how
+          (``part_of``); refuse when the climb is ambiguous, needs a side the mention does not state,
+          or passes through a space, a vessel, a ligament, a mesentery or an embryonic structure.
+          A refusal keeps the UBERON link as it was, flagged in the trace.
+        """
+        if result.stage == "deliberation":
+            chosen = {v for v in result.votes.values() if v}
+            for raw in chosen:
+                for other in result.options:
+                    how = self.graph.related(raw, other) if other != raw else None
+                    if how:
+                        return (
+                            LinkResult(
+                                ABSTAINED,
+                                None,
+                                "graph",
+                                f"neighbour_passes_the_same_checks:{how}",
+                                result.options,
+                                result.votes,
+                            ),
+                            Evidence(
+                                "graph",
+                                VETO,
+                                raw,
+                                how,
+                                options=(other,),
+                            ),
+                        )
+        if result.cid in self.lexicon.classes:
+            return result, Evidence("graph", SILENT, result.cid, "already_a_class")
+        from .anatomy_graph import Lift
+
+        sides = Attributes.of(normalise(mention)).sides
+        lifted = self.graph.lift(result.cid, sides)
+        if isinstance(lifted, Lift):
+            name = self.graph.names.get(result.cid, result.cid)
+            relation = "equal" if lifted.relation == "equal" else "part_of"
+            evidence = Evidence(
+                "graph",
+                SUPPORT,
+                lifted.cid,
+                f"lift_depth_{lifted.depth}",
+                relation,
+                name,
+                lifted.path,
+            )
+            if not self.accept_parent_fallback:
+                result.fallback = lifted.cid
+                return result, evidence
+            return (
+                LinkResult(
+                    ACCEPTED,
+                    lifted.cid,
+                    result.stage,
+                    f"{result.reason}+graph_{relation}",
+                    result.options,
+                    result.votes,
+                    relation=relation,
+                    part="" if relation == "equal" else name,
+                ),
+                evidence,
+            )
+        return result, Evidence(
+            "graph", UNDECIDED, result.cid, lifted or "no_class_near"
+        )
+
+    def read(self, mention: str, sentence: str, context: str = "") -> list[Evidence]:
+        """Every cheap stream's reading of the mention. Pure: no stream depends on another."""
+        evidence: list[Evidence] = []
+        verdict = self.senses.judge(mention, sentence, context)
+        evidence.append(
+            Evidence(
+                "senses",
+                (SUPPORT if verdict.form else SILENT) if verdict.accepted else VETO,
+                verdict.sense or None,
+                verdict.reason,
+                options=tuple(sorted(verdict.classes)),
+            )
+        )
         tokens = normalise(mention)
         attributes = Attributes.of(tokens)
-        if attributes.coordination or SIDE_BOTH in attributes.sides:
-            return LinkResult(
-                ABSTAINED, None, "integration", "mention_names_more_than_one_structure"
-            )
-        if attributes.numbers and set(tokens) & _NON_STRUCTURE_NUMBERED:
-            return LinkResult(
-                ABSTAINED,
-                None,
-                "integration",
+        checks = (
+            (
+                attributes.coordination or SIDE_BOTH in attributes.sides,
+                "mention_names_more_than_one_structure",
+            ),
+            (
+                bool(attributes.numbers and set(tokens) & _NON_STRUCTURE_NUMBERED),
                 "number_refers_to_a_root_disc_or_foramen",
-            )
-        if any(t.startswith("@T") for t in tokens) and staging_context(sentence):
-            return LinkResult(ABSTAINED, None, "integration", "t_stage_not_a_vertebra")
-        if set(tokens) & CONTAINER_WORDS:
-            return LinkResult(
-                ABSTAINED, None, "integration", "mention_names_a_space_not_an_organ"
-            )
+            ),
+            (
+                any(t.startswith("@T") for t in tokens) and staging_context(sentence),
+                "t_stage_not_a_vertebra",
+            ),
+            (bool(set(tokens) & CONTAINER_WORDS), "mention_names_a_space_not_an_organ"),
+        )
+        for failed, reason in checks:
+            if failed:
+                evidence.append(Evidence("integration", VETO, None, reason))
         if len(tokens) == 1 and tokens[0].startswith("@"):
-            return self._link_level(tokens[0], mention, sentence)
-
+            level = self._link_level(tokens[0], mention, sentence)
+            evidence.append(
+                Evidence(
+                    "levels",
+                    SUPPORT if level.status == ACCEPTED else UNDECIDED,
+                    level.cid,
+                    level.reason,
+                    options=tuple(level.options),
+                )
+            )
         content = [t for t in tokens if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)]
         raw = [
             t
@@ -1028,34 +1188,87 @@ class AnatomyLinker:
             if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)
         ]
         if raw and all(t in _ADJECTIVES for t in raw) and content:
-            return LinkResult(
-                ABSTAINED, None, "lexicon", "bare_adjective_names_no_structure"
+            evidence.append(
+                Evidence("adjective", VETO, None, "bare_adjective_names_no_structure")
             )
         if self.parts is not None:
-            from .anatomy_parts import PartLink, strip_wrapper
+            from .anatomy_parts import strip_wrapper
 
             mention = strip_wrapper(mention)
-            tokens = normalise(mention)
         recognised, how = self.lexicon.recognise(mention, sentence)
         if how == "recognised":
-            return LinkResult(ACCEPTED, recognised[0], "lexicon", how)
-        if how in ("ambiguous_name", "context_does_not_support_the_name"):
-            return LinkResult(ABSTAINED, None, "lexicon", how, options=recognised)
-
+            evidence.append(Evidence("lexicon", SUPPORT, recognised[0], how))
+        elif how in ("ambiguous_name", "context_does_not_support_the_name"):
+            evidence.append(
+                Evidence("lexicon", UNDECIDED, None, how, options=tuple(recognised))
+            )
+        else:
+            evidence.append(Evidence("lexicon", SILENT, None, how))
         if self.parts is not None:
+            from .anatomy_parts import PartLink
+
             known = self.parts.resolve(mention, sentence)
             if isinstance(known, PartLink):
-                return LinkResult(
-                    ACCEPTED,
-                    known.cid,
-                    "parts",
-                    known.reason,
-                    relation=known.relation,
-                    part=known.part,
+                evidence.append(
+                    Evidence(
+                        "parts",
+                        SUPPORT,
+                        known.cid,
+                        known.reason,
+                        relation=known.relation,
+                        part=known.part,
+                    )
                 )
-            if isinstance(known, str):
-                return LinkResult(ABSTAINED, None, "parts", known)
+            elif isinstance(known, str):
+                evidence.append(Evidence("parts", UNDECIDED, None, known))
+            else:
+                evidence.append(Evidence("parts", SILENT))
+        return evidence
 
+    def _decide(
+        self, trace: Sequence[Evidence], mention: str, sentence: str
+    ) -> LinkResult:
+        """Weigh the streams. A veto from the senses or the integration checks wins over any support;
+        then a level code; then a bare adjective; then the lexicon; then the part table; and only when
+        none of them decides, the expensive streams."""
+        by_stream: dict[str, list[Evidence]] = defaultdict(list)
+        for item in trace:
+            by_stream[item.stream].append(item)
+        for name in ("senses", "integration"):
+            for item in by_stream.get(name, ()):
+                if item.verdict == VETO:
+                    return LinkResult(ABSTAINED, None, name, item.reason)
+        for item in by_stream.get("levels", ()):
+            status = ACCEPTED if item.verdict == SUPPORT else ABSTAINED
+            return LinkResult(
+                status, item.cid, "lexicon", item.reason, list(item.options)
+            )
+        for item in by_stream.get("adjective", ()):
+            return LinkResult(ABSTAINED, None, "lexicon", item.reason)
+        for name in ("lexicon", "parts"):
+            for item in by_stream.get(name, ()):
+                if item.verdict == SUPPORT:
+                    return LinkResult(
+                        ACCEPTED,
+                        item.cid,
+                        name,
+                        item.reason,
+                        relation=item.relation,
+                        part=item.part,
+                    )
+                if item.verdict == UNDECIDED:
+                    return LinkResult(
+                        ABSTAINED, None, name, item.reason, list(item.options)
+                    )
+        if self.parts is not None:
+            from .anatomy_parts import strip_wrapper
+
+            mention = strip_wrapper(mention)
+        return self._deliberate_or_translate(mention, sentence, normalise(mention))
+
+    def _deliberate_or_translate(
+        self, mention: str, sentence: str, tokens: tuple[str, ...]
+    ) -> LinkResult:
         if len(self.chats) < 2 or (self.retriever is None and not self.translate):
             return LinkResult(
                 ABSTAINED, None, "lexicon", "unknown_name_and_no_deliberation_stage"
@@ -1074,6 +1287,15 @@ class AnatomyLinker:
         return outcome or LinkResult(
             ABSTAINED, None, "integration", "no_candidate_survives_the_checks"
         )
+
+    def _ask(self, prompt: str) -> dict[str, str]:
+        """The same prompt to every model at once: the calls are independent, so they run in parallel."""
+        names = list(self.chats)
+        if len(names) < 2:
+            return {name: self.chats[name](prompt) for name in names}
+        with ThreadPoolExecutor(max_workers=len(names)) as pool:
+            answers = list(pool.map(lambda name: self.chats[name](prompt), names))
+        return dict(zip(names, answers, strict=True))
 
     def _deliberate(
         self, mention: str, sentence: str, tokens: tuple[str, ...]
@@ -1110,8 +1332,8 @@ class AnatomyLinker:
         labels = [self._by_id[c].label for c in options]
         prompt = _choice_prompt(mention, sentence, labels)
         votes: dict[str, str | None] = {}
-        for name, chat in self.chats.items():
-            choice = _parse(chat(prompt), len(options))
+        for name, answer in self._ask(prompt).items():
+            choice = _parse(answer, len(options))
             votes[name] = options[choice - 1] if choice else None
         chosen = set(votes.values())
         if None in chosen or len(chosen) != 1:
@@ -1164,7 +1386,7 @@ class AnatomyLinker:
         """
         prompt = _translate_prompt(mention, sentence)
         terms: dict[str, str | None] = {
-            name: _clean_term(chat(prompt)) for name, chat in self.chats.items()
+            name: _clean_term(answer) for name, answer in self._ask(prompt).items()
         }
         if None in terms.values():
             return LinkResult(

@@ -821,6 +821,7 @@ def evaluate_anatomy_linker(
 
     results = _run(workers, lambda r: linker.link(r["mention"], r["sentence"]), rows)
     tally: Counter[str] = Counter()
+    fallback: Counter[str] = Counter()
     by_stage: dict[str, Counter[str]] = defaultdict(Counter)
     reasons: Counter[str] = Counter()
     details: list[dict[str, Any]] = []
@@ -834,6 +835,14 @@ def evaluate_anatomy_linker(
                 outcome = "wrong"
             else:
                 outcome = "other_concept"
+                # What the graph's parent proposal would have been worth (not applied).
+                proposed = getattr(result, "fallback", "")
+                if proposed:
+                    fallback[
+                        "matches_target"
+                        if proposed == target
+                        else "differs_from_target"
+                    ] += 1
         else:
             outcome = "abstained_as_expected" if target is None else "abstained"
             reasons[result.reason] += 1
@@ -848,6 +857,9 @@ def evaluate_anatomy_linker(
                     "kind": row.get("kind"),
                     "outcome": outcome,
                     "chosen": result.cid,
+                    "relation": getattr(result, "relation", "equal"),
+                    "part": getattr(result, "part", ""),
+                    "fallback": getattr(result, "fallback", ""),
                     "stage": result.stage,
                     "reason": result.reason,
                     "votes": result.votes,
@@ -859,6 +871,7 @@ def evaluate_anatomy_linker(
         "n": len(rows),
         "with_target": with_target,
         "outcomes": dict(tally),
+        "graph_fallback_proposals": dict(fallback),
         "by_stage": {k: dict(v) for k, v in by_stage.items()},
         "abstention_reasons": dict(reasons),
         "precision_of_accepted": round(tally["correct"] / accepted_class, 4)

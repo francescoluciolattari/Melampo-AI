@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from melampo.evaluation import gold_set as gs  # noqa: E402
 from melampo.memory import anatomy_linker as al  # noqa: E402
 from melampo.memory import anatomy_parts as ap  # noqa: E402
+from melampo.memory.anatomy_graph import AnatomyGraph  # noqa: E402
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "linking"
 
@@ -136,11 +137,14 @@ def main(argv=None) -> int:
         return 0
     if args.cmd == "evaluate":
         terms = []
+        graph = None
         if args.uberon and Path(args.uberon).exists():
             with open(args.uberon, encoding="utf-8") as handle:
                 terms = al.load_obo_terms(handle)
+            with open(args.uberon, encoding="utf-8") as handle:
+                graph = AnatomyGraph.from_obo(handle)
         pool, equivalent = al.build_pool(lexicon, terms)
-        linker = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts)
+        linker = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts, graph=graph)
         report = gs.evaluate(linker, _jsonl(args.gold))
         Path(args.out).write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
