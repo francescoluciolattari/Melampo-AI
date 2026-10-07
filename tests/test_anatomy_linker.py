@@ -858,3 +858,53 @@ def test_gb_is_the_gallbladder_only_with_hepatobiliary_evidence(
         assert result.cid == "gallbladder"
     else:
         assert result.cid is None and result.status == al.ABSTAINED
+
+
+def test_a_model_that_does_not_answer_is_an_abstention_not_a_crash(lexicon):
+    ranked = ["UBERON:0009001", "UBERON:0009002"]
+
+    def down(prompt):
+        raise RuntimeError("HTTP 429 from model-a")
+
+    linker = _linker(lexicon, ranked, {"a": "2", "b": "2"})
+    linker.chats["a"] = down
+    result = linker.link("twin viscus", "Twin viscus nei limiti.")
+    assert (result.status, result.reason, result.stage) == (
+        al.ABSTAINED,
+        "model_unavailable",
+        "models",
+    )
+
+
+def test_a_retriever_that_does_not_answer_is_an_abstention_too(lexicon):
+    pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(_OBO.splitlines()))
+
+    def broken(mention, sentence, k):
+        raise RuntimeError("encoder 429")
+
+    linker = al.AnatomyLinker(
+        lexicon,
+        pool,
+        equivalent,
+        retriever=broken,
+        chats={"a": lambda p: "1", "b": lambda p: "1"},
+    )
+    result = linker.link("twin viscus", "Twin viscus nei limiti.")
+    assert (result.status, result.reason) == (al.ABSTAINED, "model_unavailable")
+
+
+def test_a_structure_that_only_modifies_a_measurement_is_not_linked(lexicon):
+    linker = al.AnatomyLinker(lexicon, [], {})
+    for mention, sentence in [
+        ("heart", "Her heart rate was 144 beats per minute."),
+        ("liver", "Liver function tests were normal."),
+        ("thyroid", "Normal thyroid-stimulating hormone and free T4."),
+    ]:
+        result = linker.link(mention, sentence)
+        assert result.status == al.ABSTAINED
+        assert result.reason.startswith("attribute_head_names_a_measurement:")
+    # the same names, as structures, are still linked
+    assert (
+        linker.link("liver", "The liver biopsy showed steatosis.").status == al.ACCEPTED
+    )
+    assert linker.link("heart", "The heart is enlarged.").cid == "heart"

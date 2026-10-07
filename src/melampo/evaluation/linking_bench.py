@@ -36,6 +36,7 @@ here exercises its validation prompt, not inter-entity reasoning.
 import json
 import math
 import re
+import threading
 import time
 import unicodedata
 import urllib.error
@@ -587,6 +588,8 @@ class OpenRouterChat:
         retries: int = 2,
         sleep: Callable[[float], None] = time.sleep,
         max_tokens: int = 200,
+        min_interval: float = 0.0,
+        max_wait: float = 60.0,
     ) -> None:
         self.slug = slug
         self._api_key = api_key
@@ -595,10 +598,37 @@ class OpenRouterChat:
         self.retries = retries
         self._sleep = sleep
         self.max_tokens = max_tokens
+        # Pacing: at least ``min_interval`` seconds between two requests of this model,
+        # whichever thread sends them (a rate limit is per model, not per thread).
+        self.min_interval = min_interval
+        self.max_wait = max_wait
+        self._pace = threading.Lock()
+        self._last = 0.0
+
+    def _wait_for_turn(self) -> None:
+        if self.min_interval <= 0:
+            return
+        with self._pace:
+            pause = self._last + self.min_interval - time.monotonic()
+            if pause > 0:
+                self._sleep(pause)
+            self._last = time.monotonic()
+
+    def _backoff(self, attempt: int, error: urllib.error.HTTPError | None) -> float:
+        """Seconds to wait: the server's Retry-After when it gives one, else doubling, capped."""
+        header = getattr(error, "headers", None)
+        said = header.get("Retry-After") if header is not None else None
+        try:
+            if said is not None:
+                return min(max(float(said), 0.0), self.max_wait)
+        except (TypeError, ValueError):
+            pass
+        return min(float(2**attempt), self.max_wait)
 
     def __call__(self, prompt: str) -> str:
         hint = True
         for attempt in range(self.retries + 2):
+            self._wait_for_turn()
             body = {
                 "model": self.slug,
                 "messages": [{"role": "user", "content": prompt}],
@@ -625,7 +655,7 @@ class OpenRouterChat:
                     )
                     continue
                 if error.code in self._RETRYABLE and attempt < self.retries + 1:
-                    self._sleep(2**attempt)
+                    self._sleep(self._backoff(attempt, error))
                     continue
                 raise EncoderError(f"HTTP {error.code} from {self.slug}") from error
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
@@ -905,6 +935,25 @@ def render_linker_markdown(report: dict[str, Any]) -> str:
             f"{o.get('abstained', 0) + o.get('abstained_as_expected', 0)} | {o.get('abstained_as_expected', 0)} | "
             f"{precision} | {_pct(row['error_rate_upper_95'])} | {coverage} |"
         )
+    lines.append("")
+    for name, row in report.items():
+        reasons = row.get("abstention_reasons") or {}
+        lost = reasons.get("model_unavailable", 0)
+        if lost:
+            lines.append(
+                f"**WARNING {name}: {lost} of {row['n']} rows lost a model answer** (rate limit or network) "
+                "and abstained for that reason: this run does not measure the models on those rows."
+            )
+        stopped = {
+            k.split(":")[-1]: v
+            for k, v in reasons.items()
+            if k.startswith("context_check_failed")
+        }
+        if stopped:
+            detail = ", ".join(f"{kind} {n}" for kind, n in sorted(stopped.items()))
+            lines.append(
+                f"{name}: the context check stopped {sum(stopped.values())} links ({detail})"
+            )
     lines.append("")
     for name, row in report.items():
         flagged = [

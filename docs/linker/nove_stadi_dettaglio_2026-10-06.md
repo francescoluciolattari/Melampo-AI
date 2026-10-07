@@ -1,3 +1,4 @@
+# I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 5 del 7 ottobre notte: flussi paralleli, grafo, stato del referto, vicino a destra)
 # I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 4 del 7 ottobre sera: flussi paralleli, grafo, stato del referto)
 
 Aggiornamento del 7 ottobre: gli stadi sono ora flussi indipendenti con traccia, e i due LLM sono interrogati in parallelo. Sulla scelta dei modelli c'è un controllo dei vicini nel grafo UBERON, e il ripiego al padre è una proposta. Dettagli in `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 7.
@@ -70,6 +71,8 @@ Questo risolve il compromesso che Frank ha rifiutato: non si perde "GB" inglese 
 **Come cresce.** Nuova forma ambigua = una voce JSON + un test, nessun codice. Ogni errore di senso trovato dal gold set diventa una voce e un test di regressione.
 **Scoperta sistematica (da fare).** Invece di aspettare che le sigle ambigue emergano una per una, scansionare il lessico e il pool con UMLS (la chiave c'è): una stringa che mappa su concetti di tipi semantici diversi (struttura anatomica / test di laboratorio / unità / procedura) è una forma da inventariare. Per le forme trovate, gli indizi si ricavano dalle definizioni e dai contesti dei corpora, poi vanno rivisti da una persona.
 Da fare anche: rendere l'integrazione un punteggio per soglia (accetta / ripiega / astieni), non solo un sì/no.
+
+**Aggiornamento 7 ottobre (notte): il vicino a destra e a sinistra.** Una parola anatomica seguita da un nome di misura o di esame ("heart rate", "liver function", "thyroid hormone", "anti-thyroid") non nomina la struttura: il linker si astiene con `attribute_head_names_a_measurement:<parola>`. È una proprietà del vicino, valida per tutte le strutture (dati in `word_senses.json`, chiave `attribute_heads`). Su 600 menzioni di case report ha corretto 48 link, tutti verificati a mano; "axis" (seconda vertebra o asse geometrico) è ora un profilo dei sensi. Dettagli e limiti in `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 12.
 
 ## 5. Controllo dei vicini
 Umano: l'illusione di Mosè: la sostituzione di una parola simile passa inosservata (5–60% dei casi). È l'errore "struttura sorella" o "lato opposto".

@@ -886,6 +886,10 @@ ACCEPTED = "accepted"
 ABSTAINED = "abstained"
 
 
+class ModelUnavailable(RuntimeError):
+    """A model or the retriever did not answer (rate limit, network). Never a guess: the link abstains."""
+
+
 @dataclass(frozen=True)
 class Evidence:
     """What one stream said about the mention, independently of the others.
@@ -1027,6 +1031,10 @@ class AnatomyLinker:
     # in its sentence by every model and kept only if all of them say it is that structure.
     ambiguous: frozenset[tuple[str, ...]] = frozenset()
     verify: bool = False
+    # Measurement option: read every link made from the name alone, not only the flagged forms.
+    # The 2026-10-07 reading of 600 case-report mentions found misses the structural flags do not
+    # mark ("heart rate", "short axis view"); this shows how many such links the models stop.
+    verify_all: bool = False
     # Whether the graph's parent becomes the link (True) or only a proposal (False, the default).
     # Three blind reviews of 100 random lifts each found 3%, 1% and 5% of them wrong before the
     # rules they suggested; the rate after them is not measured on fresh data. Until the gold set
@@ -1169,7 +1177,7 @@ class AnatomyLinker:
             and self.chats
             and result.status == ACCEPTED
             and result.stage in ("lexicon", "parts")
-            and normalise(mention) in self.ambiguous
+            and (self.verify_all or normalise(mention) in self.ambiguous)
             and not senses.options  # a form with a sense profile has been read in context already
         ):
             result, check = self._verify_in_context(result, mention, sentence)
@@ -1312,6 +1320,16 @@ class AnatomyLinker:
             for t in normalise(mention, keep_noise=True, map_words=False)
             if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)
         ]
+        head = self.senses.attribute_head(mention, sentence)
+        if head:
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"attribute_head_names_a_measurement:{head}",
+                )
+            )
         if raw and all(t in _ADJECTIVES for t in raw) and content:
             evidence.append(
                 Evidence("adjective", VETO, None, "bare_adjective_names_no_structure")
@@ -1405,6 +1423,20 @@ class AnatomyLinker:
     def _deliberate_or_translate(
         self, mention: str, sentence: str, tokens: tuple[str, ...]
     ) -> LinkResult:
+        try:
+            return self._deliberate_or_translate_models(mention, sentence, tokens)
+        except ModelUnavailable as error:
+            return LinkResult(
+                ABSTAINED,
+                None,
+                "models",
+                "model_unavailable",
+                votes={"error": str(error)[:200]},
+            )
+
+    def _deliberate_or_translate_models(
+        self, mention: str, sentence: str, tokens: tuple[str, ...]
+    ) -> LinkResult:
         if len(self.chats) < 2 or (self.retriever is None and not self.translate):
             return LinkResult(
                 ABSTAINED, None, "lexicon", "unknown_name_and_no_deliberation_stage"
@@ -1455,9 +1487,19 @@ class AnatomyLinker:
             "word, a word that is not anatomy). Answer UNSURE if the sentence does not settle it.\n"
             "Reply with one word: YES, NO or UNSURE."
         )
+        try:
+            replies = self._ask(prompt)
+        except ModelUnavailable as error:
+            reason = "model_unavailable"
+            return (
+                LinkResult(
+                    ABSTAINED, None, "verify", reason, votes={"error": str(error)[:200]}
+                ),
+                Evidence("verify", VETO, None, reason),
+            )
         answers = {
             name: (reply.strip().split() or ["UNSURE"])[0].strip(".,:;!").upper()
-            for name, reply in self._ask(prompt).items()
+            for name, reply in replies.items()
         }
         verdicts = {a if a in ("YES", "NO") else "UNSURE" for a in answers.values()}
         if verdicts == {"YES"}:
@@ -1473,10 +1515,17 @@ class AnatomyLinker:
     def _ask(self, prompt: str) -> dict[str, str]:
         """The same prompt to every model at once: the calls are independent, so they run in parallel."""
         names = list(self.chats)
+
+        def one(name: str) -> str:
+            try:
+                return self.chats[name](prompt)
+            except Exception as error:  # a model that does not answer is not a vote
+                raise ModelUnavailable(f"{name}: {error}") from error
+
         if len(names) < 2:
-            return {name: self.chats[name](prompt) for name in names}
+            return {name: one(name) for name in names}
         with ThreadPoolExecutor(max_workers=len(names)) as pool:
-            answers = list(pool.map(lambda name: self.chats[name](prompt), names))
+            answers = list(pool.map(one, names))
         return dict(zip(names, answers, strict=True))
 
     def _deliberate(
@@ -1485,9 +1534,11 @@ class AnatomyLinker:
         # Only near candidates are offered. When the closest ones are all rejected,
         # what is left is far from the mention, and two models agreeing on a far
         # option is exactly the correlated error this design does not trust.
-        ranked = list(dict.fromkeys(self.retriever(mention, sentence, self.nearest)))[
-            : self.nearest
-        ]
+        try:
+            found = self.retriever(mention, sentence, self.nearest)
+        except Exception as error:  # the encoder or the describing model did not answer
+            raise ModelUnavailable(f"retriever: {error}") from error
+        ranked = list(dict.fromkeys(found))[: self.nearest]
         options = [
             cid
             for cid in ranked

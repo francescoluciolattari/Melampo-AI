@@ -39,6 +39,7 @@ This index links the current documentation set for Project Melampo's enterprise-
 ## Anatomy linker (radiology mentions → TotalSegmentator / UBERON)
 
 - [`gold_set_protocollo.md`](gold_set_protocollo.md) - gold-set protocol for the certified error bound on accepted links.
+- [`linker_operativo_github_actions.md`](linker_operativo_github_actions.md) - how to run the `public-reports`, `linking-bench` and `verify-probe` workflows (n, cap, graph, verify, run_id) and what HTTP 429 does.
 - [`linker_operativo_github_actions.md`](linker_operativo_github_actions.md) - how to run the `public-reports` and `linking-bench` workflows (n, cap, graph, verify).
 - [`linker/architettura_parallela_predittiva_linker_2026-10-06.md`](linker/architettura_parallela_predittiva_linker_2026-10-06.md) - parallel, predictive linker architecture, sources, stage plan and status.
 - [`linker/nove_stadi_dettaglio_2026-10-06.md`](linker/nove_stadi_dettaglio_2026-10-06.md) - the nine stages in detail, with current status.

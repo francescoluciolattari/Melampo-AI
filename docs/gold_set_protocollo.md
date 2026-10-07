@@ -43,6 +43,7 @@ Regole:
 - Si etichetta la struttura *nominata*, non la patologia né la presenza: "assenza del rene destro" → rene destro (l'assenza è polarità, un attributo a parte).
 - Un lume o uno spazio non è l'organo: "loggia renale", "lume esofageo", "ilo epatico" → `NONE_IN_CLASSES` (o `NOT_ANATOMY` se non è una struttura).
 - Parete, parenchima, corpo di un organo → l'organo con `part_of`.
+- Una struttura nominata solo come modificatore di una misura o di un esame ("frequenza cardiaca", "heart rate", "funzione epatica", "liver function tests", "ormone tiroideo", "thyroid-stimulating hormone") → `NOT_ANATOMY`. (Regola proposta il 7 ottobre dopo la lettura di 600 menzioni di case report; da confermare con i due radiologi prima di congelare le schede.) "Biopsia epatica", "insufficienza cardiaca", "RM encefalo" nominano la struttura.
 - Lato non scritto in una struttura pari → `AMBIGUOUS`, anche se il resto del referto lo lascia intuire.
 - Se non si è sicuri, `AMBIGUOUS`: l'astensione del sistema su questi casi è corretta e va misurata come tale.
 

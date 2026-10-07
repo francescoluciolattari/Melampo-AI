@@ -402,3 +402,72 @@ def test_heldout2_rows_point_at_their_mention():
                 row["sentence"][start : start + len(row["mention"])].lower()
                 == row["mention"].lower()
             )
+
+
+def _http_error_with(code, headers):
+    return urllib.error.HTTPError("u", code, "err", headers, io.BytesIO(b"{}"))
+
+
+def test_chat_client_waits_as_long_as_the_server_says_and_then_succeeds(monkeypatch):
+    calls = {"n": 0}
+
+    def flaky(request, timeout):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise _http_error_with(429, {"Retry-After": "7"})
+        return _Response(
+            json.dumps({"choices": [{"message": {"content": "ok"}}]}).encode()
+        )
+
+    waits = []
+    monkeypatch.setattr(lb.urllib.request, "urlopen", flaky)
+    chat = lb.OpenRouterChat("m", "k", sleep=waits.append, retries=4)
+    assert chat("x") == "ok"
+    assert waits == [7.0, 7.0]
+
+
+def test_chat_client_backoff_doubles_and_is_capped(monkeypatch):
+    monkeypatch.setattr(
+        lb.urllib.request,
+        "urlopen",
+        lambda r, timeout: (_ for _ in ()).throw(_http_error(429)),
+    )
+    waits = []
+    chat = lb.OpenRouterChat("m", "k", sleep=waits.append, retries=6, max_wait=10.0)
+    with pytest.raises(EncoderError):
+        chat("x")
+    assert waits == [1.0, 2.0, 4.0, 8.0, 10.0, 10.0, 10.0]
+
+
+def test_chat_client_keeps_a_minimum_interval_between_requests(monkeypatch):
+    monkeypatch.setattr(
+        lb.urllib.request,
+        "urlopen",
+        lambda r, timeout: _Response(
+            json.dumps({"choices": [{"message": {"content": "1"}}]}).encode()
+        ),
+    )
+    waits = []
+    chat = lb.OpenRouterChat("m", "k", sleep=waits.append, min_interval=5.0)
+    chat("a")
+    chat("b")
+    assert len(waits) == 1 and 0 < waits[0] <= 5.0
+
+
+def test_the_summary_warns_when_rows_lost_a_model_answer():
+    row = {
+        "n": 10,
+        "outcomes": {"abstained": 10},
+        "precision_of_accepted": None,
+        "error_rate_upper_95": 1.0,
+        "coverage": 0.0,
+        "details": [],
+        "abstention_reasons": {
+            "model_unavailable": 4,
+            "context_check_failed:no": 2,
+            "context_check_failed:unsure": 1,
+        },
+    }
+    text = lb.render_linker_markdown({"dev_it": row})
+    assert "WARNING dev_it: 4 of 10 rows lost a model answer" in text
+    assert "stopped 3 links (no 2, unsure 1)" in text

@@ -32,6 +32,23 @@ Per misurare l'effetto della verifica si lanciano **due run identici**, uno con 
 
 Come si riconosce il run: il riepilogo del run in cima riporta ramo, commit, mode, graph e verify. L'artifact si chiama `linking-bench-results-graph-<true|false>-verify-<true|false>`, quindi i due zip hanno nomi diversi. Contiene `linking_results.json` e `linking_summary.md`.
 
+## `verify-probe` (la verifica sul testo reale)
+
+Serve a misurare la verifica con i due modelli su frasi vere, non sintetiche. Si lancia dopo un run di `public-reports`.
+
+| Campo | Cosa scrivere |
+|---|---|
+| Use workflow from | un ramo che contiene `verify-probe.yml` (`main` dopo il merge, o `feat/linker-streams`) |
+| run_id | il numero nell'indirizzo del run di `public-reports` (…/actions/runs/**NUMERO**) |
+| source | `multicare` (il nome del corpus di quel run) |
+| scope | `all` (ogni link dal solo nome) oppure `flagged` (solo le forme marcate) |
+
+Risultato: l'artifact `verify-probe-<source>-<scope>` con `verify_probe.md` (link fermati da leggere e un campione dei confermati) e `verify_probe.json`. Se in cima c'è "WARNING … lost a model answer", il limite di frequenza ha fatto perdere righe e la misura non vale.
+
+## Il limite di frequenza (HTTP 429)
+
+I modelli di OpenRouter rispondono 429 quando ricevono troppe richieste insieme. Dal commit di questa versione il client aspetta quanto dice il server (fino a 60 s), tiene almeno 0,5 s fra due richieste dello stesso modello e ritenta 8 volte. Una riga che non ottiene risposta si astiene con `model_unavailable` e il riepilogo lo scrive in grassetto; prima il run intero si fermava a 0 righe (come il 7 ottobre).
+
 ## Se qualcosa non torna
 
 | Sintomo | Causa probabile | Rimedio |
@@ -41,6 +58,7 @@ Come si riconosce il run: il riepilogo del run in cima riporta ramo, commit, mod
 | `n and cap take a whole number` | valore non numerico | scrivere solo cifre |
 | il run `public-reports` per MultiCaRe dura ore | ramo senza il campionamento con arresto anticipato | usare un ramo con il bundle |
 | il run con `verify` non chiama i modelli | manca `OPENROUTER_API_KEY` | aggiungere il secret |
+| i due run `linking-bench` sono identici e la sezione con i modelli ha n=0 con "HTTP 429" | limite di frequenza, client senza attesa | usare la versione con l'attesa (questo bundle) |
 
 ## Applicare un bundle (Termux)
 

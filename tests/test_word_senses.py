@@ -240,3 +240,59 @@ def test_aliases_share_the_senses_of_their_form_and_must_name_a_known_one():
     assert inv.judge("xyzs", "The xyzs biopsy shows tissue.").accepted
     with pytest.raises(ValueError, match="unknown form"):
         ws.SenseInventory.from_json({**TOY, "aliases": {"abc": "nope"}})
+
+
+# --- the neighbour that turns a structure into a measurement ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("mention", "sentence", "head"),
+    [
+        ("heart", "Her heart rate was 144 beats per minute.", "rate"),
+        ("liver", "Liver function tests were normal.", "function"),
+        ("thyroid", "Normal thyroid-stimulating hormone.", "stimulating"),
+        ("thyroid", "Anti-thyroid peroxidase antibodies were raised.", "anti"),
+        ("kidney", "Kidney function was preserved.", "function"),
+        ("fegato", "Funzione del fegato nella norma.", ""),
+        ("fegato", "Enzimi del fegato nella norma.", ""),
+        ("fegato", "Fegato enzimi aumentati.", "enzimi"),
+        ("liver", "The liver biopsy showed steatosis.", ""),
+        ("heart", "She has heart failure.", ""),
+        ("thyroid", "Thyroid, parathyroid and vitamin D were normal.", ""),
+        ("liver", "Nothing in the liver. Function was not assessed.", ""),
+    ],
+)
+def test_the_word_next_to_a_structure_can_make_it_a_measurement(
+    mention, sentence, head
+):
+    assert ws.SenseInventory.load().attribute_head(mention, sentence) == head
+
+
+def test_without_the_data_no_neighbour_counts():
+    assert ws.SenseInventory.empty().attribute_head("heart", "heart rate 80") == ""
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "The parasternal short axis view demonstrated an enlarged pulmonary artery.",
+        "The ECG showed a normal axis and sinus tachycardia.",
+        "Refractive power was -1.50 Dcyl Axis 90 in the right eye.",
+        "A mass at the 12:00 axis of the left breast.",
+    ],
+)
+def test_axis_in_a_view_an_ecg_or_an_eye_is_not_the_second_vertebra(sentence):
+    verdict = ws.SenseInventory.load().judge("axis", sentence)
+    assert not verdict.accepted
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Fracture of the axis with odontoid involvement.",
+        "Dens fracture of the axis (C2) with cervical instability.",
+    ],
+)
+def test_axis_with_the_vertebra_around_it_is_the_vertebra(sentence):
+    verdict = ws.SenseInventory.load().judge("axis", sentence)
+    assert verdict.accepted and verdict.classes == frozenset({"vertebrae_C2"})

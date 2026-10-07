@@ -156,9 +156,18 @@ class SenseVerdict:
 _PASS = SenseVerdict(accepted=True)
 
 
+_WORD_AFTER = re.compile(r"^[\s-]*([A-Za-zÀ-ÿ]+)")
+_WORD_BEFORE = re.compile(r"([A-Za-zÀ-ÿ]+)[\s-]*$")
+
+
 @dataclass
 class SenseInventory:
     forms: dict[str, tuple[Sense, ...]] = field(default_factory=dict)
+    # Words next to a structure's name that make it the modifier of a measurement or an assay
+    # ("heart rate", "liver function", "anti-thyroid"): true for every structure, so it is data
+    # about the neighbour, not about the structure.
+    heads_after: frozenset[str] = frozenset()
+    heads_before: frozenset[str] = frozenset()
 
     @classmethod
     def empty(cls) -> "SenseInventory":
@@ -194,11 +203,36 @@ class SenseInventory:
             if _fold(target) not in forms:
                 raise ValueError(f"alias {alias!r}: unknown form {target!r}")
             forms[_fold(alias)] = forms[_fold(target)]
-        return cls(forms)
+        heads = data.get("attribute_heads", {})
+        return cls(
+            forms,
+            frozenset(_fold(w) for w in heads.get("after", ())),
+            frozenset(_fold(w) for w in heads.get("before", ())),
+        )
 
     @classmethod
     def load(cls, path: Path = DEFAULT_PATH) -> "SenseInventory":
         return cls.from_json(json.loads(path.read_text("utf-8")))
+
+    def attribute_head(self, mention: str, sentence: str) -> str:
+        """The neighbouring word that makes the mention the modifier of a measurement, else "".
+
+        "heart rate", "liver function tests", "thyroid-stimulating hormone", "anti-thyroid
+        antibodies": the structure is named but not meant. Only the word right after (or right
+        before) the mention counts; a comma or a full stop ends the construction.
+        """
+        if not (self.heads_after or self.heads_before):
+            return ""
+        match = re.search(re.escape(mention.strip()), sentence, flags=re.IGNORECASE)
+        if not match:
+            return ""
+        after = _WORD_AFTER.match(sentence[match.end() :])
+        if after and _fold(after.group(1)) in self.heads_after:
+            return _fold(after.group(1))
+        before = _WORD_BEFORE.search(sentence[: match.start()])
+        if before and _fold(before.group(1)) in self.heads_before:
+            return _fold(before.group(1))
+        return ""
 
     def forms_in(self, mention: str) -> list[str]:
         """The listed forms the mention is written with."""
