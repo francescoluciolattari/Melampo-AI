@@ -30,6 +30,7 @@ from typing import Any
 from ..memory import anatomy_linker as al
 from ..memory.report_state import ReportState
 from .linking_bench import upper_error_bound
+from .selective_calibration import certify, certify_by_stratum
 
 NONE_IN_CLASSES = (
     "NONE_IN_CLASSES"  # a real anatomical structure that is not one of the classes
@@ -419,6 +420,7 @@ def evaluate(
     reasons: Counter[str] = Counter()
     by_language: dict[str, Counter[str]] = defaultdict(Counter)
     errors: list[dict[str, Any]] = []
+    scored: list[tuple[str, float, bool]] = []
     for row in gold:
         text = (reports or {}).get(row.get("report_id", ""))
         if text is not None and str(row.get("start", "")).strip().isdigit():
@@ -444,6 +446,19 @@ def evaluate(
             outcome = "correct"
         tally[outcome] += 1
         by_language[row.get("language", "")][outcome] += 1
+        if outcome in ("correct", "wrong_critical", "wrong_relation"):
+            stage = (
+                "models"
+                if result.stage in ("deliberation", "translation")
+                else result.stage
+            )
+            scored.append(
+                (
+                    f"{row.get('language', '') or '?'}|{stage}",
+                    float(getattr(result, "convergence", 0)),
+                    outcome == "correct",
+                )
+            )
         if outcome.startswith("wrong") or outcome == "accepted_outside_classes":
             errors.append(
                 {"item_id": row["item_id"], "mention": row["mention"], "gold": label, "gold_relation": row["relation"],
@@ -467,6 +482,20 @@ def evaluate(
         "by_language": {k: dict(v) for k, v in by_language.items()},
         "errors": errors,
         "verdict": verdict(accepted, wrong, confidence),
+        # Which convergence threshold keeps the error <= 1% with probability >= 1 - (1 - confidence),
+        # overall and per stratum (language | stage): Learn-then-Test, fixed-sequence testing.
+        "certification": {
+            "overall": certify(
+                [s for _, s, _ in scored],
+                [ok for _, _, ok in scored],
+                0.01,
+                1 - confidence,
+            ).as_dict(),
+            "by_stratum": {
+                str(k): v.as_dict()
+                for k, v in certify_by_stratum(scored, 0.01, 1 - confidence).items()
+            },
+        },
     }
 
 

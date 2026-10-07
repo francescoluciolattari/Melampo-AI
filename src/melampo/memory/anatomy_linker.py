@@ -89,7 +89,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from melampo.memory.exam_frame import ExamFrames
+from melampo.memory.exam_area import ADJACENT, EXPECTED, OUTSIDE, ExamAreas
+from melampo.memory.exam_frame import IMAGING, ExamFrames
 from melampo.memory.report_state import (
     CLINICAL,
     CONCLUSIONS,
@@ -942,6 +943,9 @@ class Evidence:
 
 
 SUPPORT, VETO, UNDECIDED, SILENT = "support", "veto", "abstain", "silent"
+# Evidence against the hypothesis that is not a veto: a prediction error (a structure far from the
+# area of the exam). It is recorded, lowers the convergence and sends an ambiguous form to the models.
+AGAINST = "against"
 
 
 @dataclass
@@ -959,7 +963,27 @@ class LinkResult:
     fallback: str = ""
     # Every stream's evidence, in the order the decision considered it (audit trail).
     trace: list[Evidence] = field(default_factory=list, compare=False)
+    # The independent mechanisms that support the accepted class and the conflicts found (T3,
+    # 8 Oct 2026). Mechanisms: name (lexicon, part table, level code), sense (an ambiguous form read
+    # in its sentence), frame (the sentence is imaging findings), area (the structure belongs to the
+    # area of the exam), models (the two models' choice or their check in context; one mechanism,
+    # not two: their errors are correlated). ``convergence`` = mechanisms - conflicts is the score
+    # the gold set will calibrate (Learn-then-Test, ``selective_calibration``); it decides nothing yet.
+    support: tuple[str, ...] = ()
+    conflicts: tuple[str, ...] = ()
+    # The role of the structure in the sentence, SNOMED CT style: "procedure_site" (a biopsy, a
+    # resection of it), "inherent_location" (a measurement of it: "heart rate", "funzione del
+    # fegato"; the link abstains, ``about`` says which structure was measured), "" otherwise.
+    role: str = ""
+    about: str | None = None
 
+    @property
+    def convergence(self) -> int:
+        return len(self.support) - len(self.conflicts)
+
+
+_MEASUREMENT_VETOES = ("frame_is_a_measurement", "attribute_head_names_a_measurement")
+_MODEL_STAGES = frozenset(("deliberation", "translation"))
 
 _NO_OPTION_REASONS = frozenset(
     ("no_candidate_survives_the_checks", "closest_candidates_all_rejected")
@@ -974,6 +998,18 @@ def _verdict(reply: str) -> str:
     the verdict is the one of the three words the reply uses; none, or two different, is UNSURE."""
     found = set(_VERDICT_WORD.findall((reply or "").upper()))
     return found.pop() if len(found) == 1 else "UNSURE"
+
+
+_CHOICE_NUMBER = re.compile(r"\b([1-5])\b")
+
+
+def _choice_verdict(reply: str) -> str:
+    """1 is YES, 2 to 4 are NO, 5 (or no single number) is UNSURE."""
+    found = set(_CHOICE_NUMBER.findall(reply or ""))
+    if len(found) != 1:
+        return "UNSURE"
+    number = found.pop()
+    return {"1": "YES", "5": "UNSURE"}.get(number, "NO")
 
 
 def _mark(sentence: str, mention: str) -> str:
@@ -1072,6 +1108,45 @@ def _findings_of_an_imaging_report(report: ReportState | None, at: int | None) -
     return report.section_at(at) in (FINDINGS, CONCLUSIONS)
 
 
+def _a_written_name(mention: str) -> bool:
+    """A structure written out as a word ("liver", "tiroide"), not a code or a short form: "C3" in
+    laboratory results is the complement protein, not the third cervical vertebra measured."""
+    tokens = normalise(mention)
+    if any(t.startswith("@") for t in tokens):
+        return False
+    words = re.findall(r"[A-Za-zÀ-ÿ]+", mention)
+    return any(len(w) >= 4 and not w.isupper() for w in words)
+
+
+def _profile(
+    trace: Sequence[Evidence], result: LinkResult, flagged: bool
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """The independent mechanisms behind an accepted link, and the conflicts left.
+
+    Each mechanism counts once whatever the number of streams in it: the two models are one, the
+    lexicon and the part table are one (curated names). Nothing here changes the decision; it is the
+    second-order reading (how well supported the link is), kept for calibration on the gold set.
+    """
+    support: list[str] = []
+    if result.stage in ("lexicon", "parts"):
+        support.append("name")
+    by = {(e.stream, e.verdict) for e in trace}
+    if any(e.stream == "senses" and e.verdict == SUPPORT and e.options for e in trace):
+        support.append("sense")
+    if ("frame", SUPPORT) in by:
+        support.append("frame")
+    if ("area", SUPPORT) in by:
+        support.append("area")
+    if result.stage in _MODEL_STAGES or ("verify", SUPPORT) in by:
+        support.append("models")
+    conflicts: list[str] = []
+    if ("area", AGAINST) in by:
+        conflicts.append("outside_the_exam_area")
+    if flagged and ("verify", SUPPORT) not in by:
+        conflicts.append("ambiguous_form_not_checked")
+    return tuple(support), tuple(conflicts)
+
+
 @dataclass
 class AnatomyLinker:
     lexicon: Lexicon
@@ -1090,6 +1165,9 @@ class AnatomyLinker:
     # The frame a sentence is written in (exam_frame): laboratory results and vital signs name a
     # structure only as the modifier of a measurement. ExamFrames.empty() measures without it.
     frames: ExamFrames = field(default_factory=ExamFrames.load)
+    # The area of the exam (exam_area): the region the exam studies, read from the exam's name in
+    # the sentence or in the report header. An expectation, never a veto on its own.
+    areas: ExamAreas = field(default_factory=ExamAreas.load)
     # UBERON is-a/part-of anchored to the classes (anatomy_graph.AnatomyGraph): the neighbour check
     # on the models' choice and the fallback to the parent. None keeps the linker as it was.
     graph: Any = None
@@ -1102,6 +1180,12 @@ class AnatomyLinker:
     # The 2026-10-07 reading of 600 case-report mentions found misses the structural flags do not
     # mark ("heart rate", "short axis view"); this shows how many such links the models stop.
     verify_all: bool = False
+    # How the check in context asks. "yes_no": "is the marked text the <structure>?" (the question
+    # names the answer, and models lean towards yes). "choice": the same sentence with five balanced
+    # options and an explicit "cannot be determined" (chain-of-verification style questions, and an
+    # explicit abstain option, which raised safe abstention more than anything else in MedAbstain,
+    # EACL 2026). Measured against each other with the verify-probe before either becomes the default.
+    verify_style: str = "yes_no"
     # Whether the graph's parent becomes the link (True) or only a proposal (False, the default).
     # Three blind reviews of 100 random lifts each found 3%, 1% and 5% of them wrong before the
     # rules they suggested; the rate after them is not measured on fresh data. Until the gold set
@@ -1239,21 +1323,72 @@ class AnatomyLinker:
                 tuple(result.options),
             )
         ]
-        if (
-            self.verify
-            and self.chats
-            and result.status == ACCEPTED
-            and result.stage in ("lexicon", "parts")
-            and (self.verify_all or normalise(mention) in self.ambiguous)
-            and not senses.options  # a form with a sense profile has been read in context already
+        expectation = self._expectation(result, sentence, report)
+        trace.append(expectation)
+        by_name = result.status == ACCEPTED and result.stage in ("lexicon", "parts")
+        flagged = normalise(mention) in self.ambiguous and not senses.options
+        surprise = by_name and flagged and expectation.verdict == AGAINST
+        if surprise and not self.chats:
+            # A form that can mean several things, far from the area of the exam: the prediction
+            # error is what a reader would stop at, and there is no one to ask.
+            result = LinkResult(
+                ABSTAINED,
+                None,
+                "area",
+                f"ambiguous_form_outside_the_exam_area:{expectation.reason.split(':', 1)[-1]}",
+            )
+        elif (
+            self.chats
+            and by_name
+            and (
+                surprise
+                or (
+                    self.verify
+                    and (self.verify_all or normalise(mention) in self.ambiguous)
+                    and not senses.options  # a form with a sense profile was read in context already
+                )
+            )
         ):
+            # Deliberate reading (System 2) when the fast reading meets a conflict, or by request.
             result, check = self._verify_in_context(result, mention, sentence)
             trace.append(check)
         if self.graph is not None and result.status == ACCEPTED:
             result, graph_evidence = self._converge_on_graph(result, mention)
             trace.append(graph_evidence)
+        if result.status == ACCEPTED:
+            result.support, result.conflicts = _profile(trace, result, flagged)
+            if self.senses.procedure_head(mention, sentence):
+                result.role = "procedure_site"
         result.trace = trace
         return result
+
+    def _expectation(
+        self, result: LinkResult, sentence: str, report: ReportState | None
+    ) -> Evidence:
+        """Does the linked structure belong to the area of the exam? The exam named in the sentence
+        ("RM pelvi: ...") comes first, then the one in the report header."""
+        if result.status != ACCEPTED or not result.cid:
+            return Evidence("area", SILENT)
+        areas = self.areas.of(sentence) or (
+            report.areas if report is not None else frozenset()
+        )
+        cid = self.equivalent.get(result.cid, result.cid)
+        region = self.lexicon.classes.get(cid, {}).get("region")
+        relation = self.areas.relation(region, areas)
+        named = ",".join(sorted(areas))
+        if relation == EXPECTED:
+            return Evidence(
+                "area", SUPPORT, result.cid, f"expected_in_the_exam_area:{named}"
+            )
+        if relation == OUTSIDE:
+            return Evidence(
+                "area", AGAINST, result.cid, f"outside_the_exam_area:{named}"
+            )
+        if relation == ADJACENT:
+            return Evidence(
+                "area", SILENT, result.cid, f"next_to_the_exam_area:{named}"
+            )
+        return Evidence("area", SILENT, result.cid, "exam_area_unknown")
 
     def _converge_on_graph(
         self, result: LinkResult, mention: str
@@ -1392,6 +1527,8 @@ class AnatomyLinker:
             evidence.append(
                 Evidence("frame", VETO, None, f"frame_is_a_measurement:{frame.frame}")
             )
+        elif frame.frame == IMAGING or _findings_of_an_imaging_report(report, at):
+            evidence.append(Evidence("frame", SUPPORT, None, "frame_is_imaging"))
         if _first_part_of_a_compound(mention, sentence):
             evidence.append(
                 Evidence(
@@ -1471,7 +1608,26 @@ class AnatomyLinker:
         for name in ("senses", "frame", "integration"):
             for item in by_stream.get(name, ()):
                 if item.verdict == VETO:
-                    return LinkResult(ABSTAINED, None, name, item.reason)
+                    result = LinkResult(ABSTAINED, None, name, item.reason)
+                    if item.reason.startswith(_MEASUREMENT_VETOES):
+                        # Not a link, but not lost either: the structure whose property is measured
+                        # (SNOMED CT "has inherent location"), for whoever reads measurements.
+                        named = [
+                            e.cid
+                            for e in (
+                                *by_stream.get("lexicon", ()),
+                                *by_stream.get("parts", ()),
+                            )
+                            if e.verdict == SUPPORT and e.cid
+                        ]
+                        head = item.reason.rpartition(":")[2]
+                        if (
+                            named
+                            and _a_written_name(mention)
+                            and head not in self.senses.heads_not_measured
+                        ):
+                            result.role, result.about = "inherent_location", named[0]
+                    return result
         for item in by_stream.get("levels", ()):
             status = ACCEPTED if item.verdict == SUPPORT else ABSTAINED
             return LinkResult(
@@ -1557,6 +1713,8 @@ class AnatomyLinker:
             "contour_of": f"the outline or silhouette of the {label}",
             "approx": f"approximately the {label}",
         }.get(result.relation, f"the {label} itself")
+        if self.verify_style == "choice":
+            return self._verify_by_choice(result, sentence, mention, what)
         prompt = (
             "You check one automatic link in a radiology or clinical text.\n"
             f"Text: {_mark(sentence, mention)}\n"
@@ -1578,6 +1736,43 @@ class AnatomyLinker:
                 Evidence("verify", VETO, None, reason),
             )
         answers = {name: _verdict(reply) for name, reply in replies.items()}
+        verdicts = set(answers.values())
+        if verdicts == {"YES"}:
+            return result, Evidence(
+                "verify", SUPPORT, result.cid, "context_confirmed_by_every_model"
+            )
+        reason = "context_check_failed:" + ("no" if "NO" in verdicts else "unsure")
+        return (
+            LinkResult(ABSTAINED, None, "verify", reason, votes=dict(answers)),
+            Evidence("verify", VETO, None, reason),
+        )
+
+    def _verify_by_choice(
+        self, result: LinkResult, sentence: str, mention: str, what: str
+    ) -> tuple[LinkResult, Evidence]:
+        prompt = (
+            "Read one sentence from a radiology or clinical text.\n"
+            f"Text: {_mark(sentence, mention)}\n"
+            "In this sentence, what does the text between <tgt> tags refer to?\n"
+            f"1. {what}\n"
+            "2. another anatomical structure, or a region or space next to it\n"
+            "3. a test, a measurement, a function, a hormone or an antibody: the structure only says "
+            "what is measured\n"
+            "4. an abbreviation of something else, or a word that is not anatomy\n"
+            "5. the sentence does not settle it\n"
+            "Reply with the number only."
+        )
+        try:
+            replies = self._ask(prompt)
+        except ModelUnavailable as error:
+            reason = "model_unavailable"
+            return (
+                LinkResult(
+                    ABSTAINED, None, "verify", reason, votes={"error": str(error)[:200]}
+                ),
+                Evidence("verify", VETO, None, reason),
+            )
+        answers = {name: _choice_verdict(reply) for name, reply in replies.items()}
         verdicts = set(answers.values())
         if verdicts == {"YES"}:
             return result, Evidence(

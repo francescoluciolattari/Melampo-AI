@@ -19,6 +19,11 @@ on:
         type: choice
         options: [all, flagged]
         default: all
+      style:
+        description: "yes_no = 'is the marked text this structure?'; choice = five balanced options with 'cannot be determined' (run both to compare)"
+        type: choice
+        options: [yes_no, choice]
+        default: yes_no
 
 permissions:
   contents: read
@@ -59,10 +64,11 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SCOPE: ${{ inputs.scope }}
+          STYLE: ${{ inputs.style }}
         run: |
           uv run python scripts/verify_probe.py \
             --items sheets/gold_study/items.jsonl --reports sheets/reports.jsonl \
-            --scope "$SCOPE" --out verify_probe.json --markdown verify_probe.md
+            --scope "$SCOPE" --style "$STYLE" --out verify_probe.json --markdown verify_probe.md
 
       - name: Summarise
         if: always()
@@ -73,7 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: verify-probe-${{ inputs.source }}-${{ inputs.scope }}
+          name: verify-probe-${{ inputs.source }}-${{ inputs.scope }}-${{ inputs.style }}
           path: |
             verify_probe.json
             verify_probe.md

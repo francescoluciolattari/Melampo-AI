@@ -1,0 +1,143 @@
+{
+  "note": "L'area dell'esame (Region Imaged del LOINC/RSNA Radiology Playbook): la regione del corpo studiata, letta dal nome dell'esame (modalita + regione: 'RM pelvi', 'TC torace-addome', 'CT of the chest', 'MRI of the knee', 'brain MRI', 'abdominal CT'): dalla parola della modalita si leggono le parole vicine, prima e dopo, finche sono parole di regione o di collegamento (connectors), e ci si ferma alla prima parola diversa o alla punteggiatura forte. Le regioni sono quelle del lessico (campo region di ogni classe). Si legge solo dove il nome dell'esame sta: il titolo, la tecnica, la prima frase del referto e la frase stessa della menzione; la storia clinica non conta ('pregressa frattura del femore' in una TC torace non fa del femore un'area). Un'area attesa sostiene il link, un'area vicina e neutra, un'area lontana e un errore di previsione: per una forma che puo voler dire piu cose porta alla verifica dei modelli (o all'astensione se non ci sono), per un nome non ambiguo resta come conflitto registrato (reperto fuori campo, spesso storia clinica). Non e mai un veto da solo: un reperto incidentale fuori dalla regione studiata e normale (ACR Incidental Findings Committee) e la TC del torace copre in media circa 7 cm oltre le basi polmonari (Campbell, AJR 2005;185:1525).",
+  "sources": [
+    "LOINC/RSNA Radiology Playbook User Guide: Anatomic Location = Region Imaged + Imaging Focus + Laterality (https://loinc.org/kb/users-guide/loinc-rsna-radiology-playbook-user-guide)",
+    "Vreeman DJ et al., The LOINC RSNA radiology playbook - a unified terminology for radiology procedures, JAMIA 2018 (https://lhncbc.nlm.nih.gov/LHC-publications/pubs/TheLOINCRSNARadiologyPlaybookAunifiedterminologyforradiologyprocedures.html)",
+    "Campbell J et al., AJR 2005;185:1525: excess z-axis coverage of chest CT, mostly below the lung bases (cited in https://www.nibib.nih.gov/sites/default/files/Quint.pdf)"
+  ],
+  "modality": "\\b(?:tc|tac|ct|cta|angio-?tc|angio-?ct|uro-?tc|entero-?tc|entero-?rm|colangio-?rm|rm|rmn|mri|risonanza(?:\\s+magnetica)?|rx|radiografia|radiograph(?:y|s)?|x-?rays?|ecografia|ecografico|eco|ecocolordoppler|doppler|ultrasound|ultrasonography|sonography|pet(?:[-/ ]?(?:tc|ct))?|scintigrafia|scintigraphy|mammografia|mammography|scan)\\b",
+  "whole_body": "\\b(?:total[- ]?body|whole[- ]?body|corpo\\s+intero|pet[-/ ]?(?:tc|ct))\\b",
+  "regions": {
+    "head": "\\b(?:encefal\\w*|cerebral\\w*|cervello|cranio|cranic\\w*|capo|testa|orbit\\w*|massiccio\\s+facciale|seni\\s+paranasali|sella|rocche|brain|head|cranial|skull|orbits?|sinus(?:es)?|neuro\\w*)\\b",
+    "neck": "\\b(?:collo|cervico-?facciale|tiroid\\w*|paratiroid\\w*|laring\\w*|faring\\w*|neck|thyroid|parathyroid|larynx|pharynx|carotid\\w*|tsa|tronchi\\s+sovraortici)\\b",
+    "thorax": "\\b(?:torace|toracic\\w*|torac\\w*|polmon\\w*|mediastin\\w*|cardi\\w*|cuore|coronar\\w*|mammell\\w*|mammari\\w*|chest|thorax|thoracic|lungs?|pulmonary|mediastin\\w*|cardiac|heart|coronary|breasts?|aorta\\s+toracica)\\b",
+    "abdomen": "\\b(?:addom\\w*|epat\\w*|fegato|pancrea\\w*|bilia\\w*|colangio\\w*|rene|reni|renal\\w*|surren\\w*|milza|splen\\w*|entero\\w*|abdom\\w*|liver|hepatic|pancreas|biliary|kidneys?|adrenals?|spleen|bowel)\\b",
+    "pelvis": "\\b(?:pelvi\\w*|bacino|prostat\\w*|uter\\w*|ovai\\w*|vescic\\w*|retto|anca|anche|coxo-?femoral\\w*|sacro-?iliac\\w*|pelvis|pelvic|prostate|uterus|ovar\\w*|bladder|rectum|hips?|sacroiliac)\\b",
+    "spine": "\\b(?:rachide|rachid\\w*|colonna|vertebral\\w*|lombo-?sacral\\w*|dorso-?lombar\\w*|cervico-?dorsal\\w*|spine|cervical\\w*|cervicale|cervicali|dorsale|dorsali|dorsal|lombare|lombari|sacrale|coccig\\w*|spinal|lumbar|lumbosacral|thoracolumbar|cervical\\s+spine|whole\\s+spine|rachide\\s+in\\s+toto)\\b",
+    "upper_limb": "\\b(?:spall\\w*|omero|omerale|gomit\\w*|avambracci\\w*|bracci\\w*|polso|polsi|mano|mani|dita|shoulders?|humer\\w*|elbows?|forearms?|arms?|wrists?|hands?|fingers?|clavicol\\w*|clavicle|scapol\\w*|scapula)\\b",
+    "lower_limb": "\\b(?:ginocchi\\w*|femor\\w*|cosci\\w*|gamb\\w*|cavigli\\w*|piede|piedi|tibia|perone|knees?|femur|femoral|thighs?|legs?|ankles?|feet|foot|tibia|fibula)\\b"
+  },
+  "adjacent": [
+    [
+      "head",
+      "neck"
+    ],
+    [
+      "head",
+      "spine"
+    ],
+    [
+      "neck",
+      "thorax"
+    ],
+    [
+      "neck",
+      "spine"
+    ],
+    [
+      "thorax",
+      "abdomen"
+    ],
+    [
+      "thorax",
+      "upper_limb"
+    ],
+    [
+      "thorax",
+      "spine"
+    ],
+    [
+      "abdomen",
+      "pelvis"
+    ],
+    [
+      "abdomen",
+      "spine"
+    ],
+    [
+      "pelvis",
+      "lower_limb"
+    ],
+    [
+      "pelvis",
+      "spine"
+    ]
+  ],
+  "connectors": [
+    "of",
+    "the",
+    "a",
+    "an",
+    "di",
+    "del",
+    "dello",
+    "della",
+    "dell",
+    "dei",
+    "degli",
+    "delle",
+    "e",
+    "ed",
+    "and",
+    "al",
+    "allo",
+    "alla",
+    "all",
+    "ai",
+    "in",
+    "toto",
+    "scan",
+    "scans",
+    "exam",
+    "esame",
+    "study",
+    "studio",
+    "imaging",
+    "con",
+    "senza",
+    "with",
+    "without",
+    "mdc",
+    "contrast",
+    "contrasto",
+    "enhanced",
+    "contrast-enhanced",
+    "unenhanced",
+    "non",
+    "completo",
+    "completa",
+    "complete",
+    "total",
+    "totale",
+    "superiore",
+    "inferiore",
+    "upper",
+    "lower",
+    "destro",
+    "destra",
+    "sinistro",
+    "sinistra",
+    "dx",
+    "sn",
+    "sx",
+    "right",
+    "left",
+    "bilaterale",
+    "bilateral",
+    "entrambi",
+    "both",
+    "low",
+    "dose",
+    "alta",
+    "risoluzione",
+    "high",
+    "resolution",
+    "hr",
+    "multistrato",
+    "multislice",
+    "spirale",
+    "basale",
+    "plain",
+    "native"
+  ]
+}

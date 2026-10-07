@@ -158,6 +158,43 @@ _PASS = SenseVerdict(accepted=True)
 
 _WORD_AFTER = re.compile(r"^[\s-]*([A-Za-zÀ-ÿ]+)")
 _WORD_BEFORE = re.compile(r"([A-Za-zÀ-ÿ]+)[\s-]*$")
+# A head before the structure with a preposition between: "function of the liver", "toni del cuore",
+# "funzione dell'utero". English and Italian, since reports mix them.
+_WORD_BEFORE_OF = re.compile(
+    r"([A-Za-zÀ-ÿ]+)\s+(?:of(?:\s+the)?\s+|(?:di|del|della|dello|dei|degli|delle)\s+|(?:dell|d)['’]\s*)$",
+    re.IGNORECASE,
+)
+
+
+def _head(
+    mention: str, sentence: str, after: frozenset[str], before: frozenset[str]
+) -> str:
+    """The head word next to the mention: where the head stands follows the syntax of the language.
+
+    An English compound has its head on the right ("liver function"): ``after``. Italian puts the
+    head on the left ("funzione epatica", "ormoni tiroide"): ``before``. Both languages can put it
+    on the left with a preposition ("function of the liver", "toni del cuore"): every word of
+    either list, except a prefix such as "anti". A comma or a full stop ends the construction.
+    """
+    if not (after or before):
+        return ""
+    match = re.search(re.escape(mention.strip()), sentence, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    found = _WORD_AFTER.match(sentence[match.end() :])
+    if found and _fold(found.group(1)) in after:
+        return _fold(found.group(1))
+    left = sentence[: match.start()]
+    found = _WORD_BEFORE.search(left)
+    if found and _fold(found.group(1)) in before:
+        return _fold(found.group(1))
+    found = _WORD_BEFORE_OF.search(left)
+    if found and _fold(found.group(1)) in (after | before) - _PREFIXES:
+        return _fold(found.group(1))
+    return ""
+
+
+_PREFIXES = frozenset(("anti",))
 
 
 @dataclass
@@ -168,6 +205,13 @@ class SenseInventory:
     # about the neighbour, not about the structure.
     heads_after: frozenset[str] = frozenset()
     heads_before: frozenset[str] = frozenset()
+    # Words of a procedure on the structure ("liver biopsy", "biopsia del fegato"): the structure is
+    # named, and its role in the sentence is the site of a procedure, not of a finding.
+    procedures_after: frozenset[str] = frozenset()
+    procedures_before: frozenset[str] = frozenset()
+    # Heads that stop the link without making the structure the site of a measurement
+    # ("para-aortic lymph nodes", "heart team", "portal phase").
+    heads_not_measured: frozenset[str] = frozenset()
 
     @classmethod
     def empty(cls) -> "SenseInventory":
@@ -204,10 +248,14 @@ class SenseInventory:
                 raise ValueError(f"alias {alias!r}: unknown form {target!r}")
             forms[_fold(alias)] = forms[_fold(target)]
         heads = data.get("attribute_heads", {})
+        procedures = data.get("procedure_heads", {})
         return cls(
             forms,
             frozenset(_fold(w) for w in heads.get("after", ())),
             frozenset(_fold(w) for w in heads.get("before", ())),
+            frozenset(_fold(w) for w in procedures.get("after", ())),
+            frozenset(_fold(w) for w in procedures.get("before", ())),
+            frozenset(_fold(w) for w in heads.get("not_a_measurement", ())),
         )
 
     @classmethod
@@ -221,18 +269,12 @@ class SenseInventory:
         antibodies": the structure is named but not meant. Only the word right after (or right
         before) the mention counts; a comma or a full stop ends the construction.
         """
-        if not (self.heads_after or self.heads_before):
-            return ""
-        match = re.search(re.escape(mention.strip()), sentence, flags=re.IGNORECASE)
-        if not match:
-            return ""
-        after = _WORD_AFTER.match(sentence[match.end() :])
-        if after and _fold(after.group(1)) in self.heads_after:
-            return _fold(after.group(1))
-        before = _WORD_BEFORE.search(sentence[: match.start()])
-        if before and _fold(before.group(1)) in self.heads_before:
-            return _fold(before.group(1))
-        return ""
+        return _head(mention, sentence, self.heads_after, self.heads_before)
+
+    def procedure_head(self, mention: str, sentence: str) -> str:
+        """The neighbouring word of a procedure done on the structure ("liver biopsy", "biopsia del
+        fegato", "resezione epatica"), else "". Same positions as ``attribute_head``."""
+        return _head(mention, sentence, self.procedures_after, self.procedures_before)
 
     def forms_in(self, mention: str) -> list[str]:
         """The listed forms the mention is written with."""

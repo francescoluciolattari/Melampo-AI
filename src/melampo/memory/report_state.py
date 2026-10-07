@@ -8,7 +8,8 @@ reads the cheap, certain part of that state and nothing else:
 * the sections the report states itself ("Quesito clinico:", "Dati tecnici:", "Referto",
   "Conclusioni:", "Technique:", "Findings:", "Impression:") and the technique sentences that
   are not labelled ("L'esame è stato eseguito con sequenze T1 e T2");
-* the language, the modalities and the region the header names (spine only, so far);
+* the language, the modalities and the region the header names: the spine scope, and the area of
+  the exam (``exam_area``: the exam's name in the title, the technique or the first sentence);
 * sentence spans that never include a header label, so a sentence handed to the linker is the
   sentence of the finding and not "Quesito clinico: sospetta colelitiasi Il fegato ...".
 
@@ -20,8 +21,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
+from melampo.memory.exam_area import ExamAreas
 from melampo.memory.word_senses import detect_language
+
+
+@lru_cache(maxsize=1)
+def _areas() -> ExamAreas:
+    return ExamAreas.load()
+
 
 CLINICAL, TECHNIQUE, COMPARISON, FINDINGS, CONCLUSIONS = (
     "clinical",
@@ -156,6 +165,7 @@ class ReportState:
     spine_scope: bool = False
     labelled: bool = False
     labels: tuple[tuple[str, int, int], ...] = field(default=(), compare=False)
+    areas: frozenset[str] = frozenset()
 
     @classmethod
     def parse(cls, text: str) -> "ReportState":
@@ -190,6 +200,12 @@ class ReportState:
             (m.group("label").lower(), m.start("label"), m.end())
             for m in _all_labels(text)
         )
+        # The area of the exam: where the exam is named (title, technique, first sentence), never the
+        # clinical history, which speaks of other regions as a matter of course.
+        named = [text[s.start : s.end] for s in sentences if s.kind == TECHNIQUE]
+        if sentences:
+            named.append(text[sentences[0].start : sentences[0].end])
+        areas = frozenset().union(*(_areas().of(chunk) for chunk in named))
         return cls(
             text=text,
             sentences=tuple(sentences),
@@ -198,6 +214,7 @@ class ReportState:
             spine_scope=spine,
             labelled=bool(labels),
             labels=labels,
+            areas=areas,
         )
 
     def span_at(self, position: int) -> Span | None:
