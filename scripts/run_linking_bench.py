@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from melampo.evaluation import linking_bench as lb  # noqa: E402
 from melampo.memory import anatomy_linker as al  # noqa: E402
 from melampo.memory import anatomy_parts as ap  # noqa: E402
+from melampo.memory import form_ambiguity as fa  # noqa: E402
 from melampo.memory.anatomy_graph import AnatomyGraph  # noqa: E402
 from melampo.evaluation.encoder_bench import (  # noqa: E402
     DEFAULT_DATA_DIR,
@@ -124,6 +125,16 @@ def _run_linker(args, gold, cases, key: str):
     retriever = lb.EmbeddingRetriever(
         _embedder(args.deepel_encoder, key), pool, describe=chats["nemotron-3-super"]
     )
+    flags = fa.audit(
+        lexicon,
+        [
+            (name, entry["whole"])
+            for entry in json.loads(
+                (data_dir.parent / "linking" / "anatomy_parts.json").read_text("utf-8")
+            )["direct"]
+            for name in entry["names"]
+        ],
+    )
     full = al.AnatomyLinker(
         lexicon,
         pool,
@@ -132,6 +143,8 @@ def _run_linker(args, gold, cases, key: str):
         chats=chats,
         parts=parts,
         graph=graph,
+        ambiguous=fa.keys(flags),
+        verify=args.verify,
     )
     try:
         report = {
@@ -153,6 +166,7 @@ def _run_linker(args, gold, cases, key: str):
     for row in report.values():
         row["pool_size"] = len(pool)
         row["graph"] = graph is not None
+        row["verify"] = bool(args.verify)
     return det, report
 
 
@@ -192,6 +206,12 @@ def main(argv: list[str] | None = None) -> int:
         "--no-graph",
         action="store_true",
         help="do not use the UBERON graph (neighbour check, fallback to the parent): to compare",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="both models read the sentence for every link made from the name alone to a form the "
+        "data flags as able to mean more than one thing (form_ambiguity); extra calls",
     )
     parser.add_argument("--chat-models", help="comma-separated; default both")
     parser.add_argument(

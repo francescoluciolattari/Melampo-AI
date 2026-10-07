@@ -20,7 +20,7 @@ Link accettati necessari per certificare ≤1% al 95% (esatto, Clopper-Pearson):
 ## Passi
 
 1. **Preparare `reports.jsonl`**, una riga per referto: `{"report_id": "...", "text": "<testo pseudonimizzato>", "language": "it|en" (facoltativo), "site": "..."}`.
-2. **Campionare**: `python scripts/gold_set.py sample reports.jsonl --out gold_study --n 2300`. Produce `annotator_A.csv`, `annotator_B.csv` (stesso contenuto, ordine diverso), `valid_structures.txt`, `items.jsonl`. Le schede non contengono nulla del sistema.
+2. **Campionare**: `python scripts/gold_set.py sample reports.jsonl --out gold_study --n 2300`. Produce `annotator_A.csv`, `annotator_B.csv` (stesso contenuto, ordine diverso), `valid_structures.txt`, `items.jsonl`. Le schede non contengono nulla del sistema. Con il workflow `public-reports` i valori `n` e `cap` si scrivono come numeri nudi (vedi `linker_operativo_github_actions.md`).
 3. **Etichettare** (ogni radiologo da solo, senza vedere l'altro né il sistema), vedi le regole sotto.
 4. **Controllare le schede**: `python scripts/gold_set.py check annotator_A.csv`.
 5. **Accordo e coda**: `python scripts/gold_set.py agree annotator_A.csv annotator_B.csv --out adjudication.csv`. Stampa accordo e kappa e scrive i casi in disaccordo. Il terzo revisore compila `structure` e `relation` in `adjudication.csv`.

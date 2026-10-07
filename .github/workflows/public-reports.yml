@@ -35,11 +35,11 @@ on:
           - multicare
         default: discover-parrot
       n:
-        description: "Mentions to sample for the sheets (empty = all proposed)"
+        description: "Mentions to sample for the sheets (empty = all proposed). Type only the number, e.g. 600"
         required: false
         default: ""
       cap:
-        description: "At most this many items per written mention (empty = no cap). Use it where one name dominates (IU X-ray: heart); the sample is then not population-weighted."
+        description: "At most this many items per written mention (empty = no cap). Type only the number, e.g. 30. Use it where one name dominates (IU X-ray: heart); the sample is then not population-weighted."
         required: false
         default: ""
 
@@ -142,6 +142,14 @@ jobs:
           N: ${{ inputs.n }}
           CAP: ${{ inputs.cap }}
         run: |
+          # The form field is already called n / cap: a pasted "n=600" means 600.
+          N="${N#*=}"; N="${N//[[:space:]]/}"
+          CAP="${CAP#*=}"; CAP="${CAP//[[:space:]]/}"
+          for v in "$N" "$CAP"; do
+            if [ -n "$v" ] && ! [[ "$v" =~ ^[0-9]+$ ]]; then
+              echo "::error::n and cap take a whole number such as 600 (got '$v')"; exit 2
+            fi
+          done
           args=(sample reports.jsonl --out gold_study)
           if [ -n "$N" ]; then args+=(--n "$N"); fi
           if [ -n "$CAP" ]; then args+=(--cap-per-mention "$CAP"); fi
