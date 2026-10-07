@@ -898,7 +898,7 @@ def test_a_structure_that_only_modifies_a_measurement_is_not_linked(lexicon):
     for mention, sentence in [
         ("heart", "Her heart rate was high."),
         ("liver", "Liver function was abnormal."),
-        ("thyroid", "Thyroid-stimulating hormone was normal."),
+        ("thyroid", "Thyroid stimulating hormone was normal."),
     ]:
         result = linker.link(mention, sentence)
         assert result.status == al.ABSTAINED
@@ -908,3 +908,27 @@ def test_a_structure_that_only_modifies_a_measurement_is_not_linked(lexicon):
         linker.link("liver", "The liver biopsy showed steatosis.").status == al.ACCEPTED
     )
     assert linker.link("heart", "The heart is enlarged.").cid == "heart"
+
+
+def test_a_word_joined_to_the_next_by_a_hyphen_is_a_combining_form(lexicon):
+    linker = al.AnatomyLinker(lexicon, [], {})
+    for mention, sentence in [
+        ("Cranio", "Admitted for Cranio-facial trauma."),
+        ("cranio", "Dissecting the muscles cranio-caudally."),
+    ]:
+        result = linker.link(mention, sentence)
+        assert result.status == al.ABSTAINED
+        assert result.reason == "mention_is_the_first_part_of_a_compound"
+    assert linker.link("liver", "The liver is enlarged.").cid == "liver"
+    assert linker.link("C5", "Compression at the C5-6 level.").status == al.ACCEPTED
+
+
+def test_the_verdict_is_the_word_the_reply_uses_not_its_first_word():
+    assert [al._verdict(r) for r in ("YES", "Word: YES", "**NO**", "", "UNSURE.")] == [
+        "YES",
+        "YES",
+        "NO",
+        "UNSURE",
+        "UNSURE",
+    ]
+    assert al._verdict("It could be yes or no") == "UNSURE"

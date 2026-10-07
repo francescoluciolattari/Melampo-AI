@@ -590,6 +590,7 @@ class OpenRouterChat:
         max_tokens: int = 200,
         min_interval: float = 0.0,
         max_wait: float = 60.0,
+        empty_retries: int = 2,
     ) -> None:
         self.slug = slug
         self._api_key = api_key
@@ -602,6 +603,7 @@ class OpenRouterChat:
         # whichever thread sends them (a rate limit is per model, not per thread).
         self.min_interval = min_interval
         self.max_wait = max_wait
+        self.empty_retries = empty_retries
         self._pace = threading.Lock()
         self._last = 0.0
 
@@ -627,6 +629,7 @@ class OpenRouterChat:
 
     def __call__(self, prompt: str) -> str:
         hint = True
+        empty = 0
         for attempt in range(self.retries + 2):
             self._wait_for_turn()
             body = {
@@ -666,7 +669,12 @@ class OpenRouterChat:
                     f"{type(error).__name__} calling {self.slug}"
                 ) from error
             try:
-                return str(payload["choices"][0]["message"]["content"] or "")
+                content = str(payload["choices"][0]["message"]["content"] or "")
+                if not content.strip() and empty < self.empty_retries:
+                    empty += 1  # an empty reply is a failed call, not an answer
+                    self._sleep(self._backoff(attempt, None))
+                    continue
+                return content
             except (KeyError, IndexError, TypeError) as error:
                 raise EncoderError(
                     f"{self.slug} returned an unreadable chat payload"

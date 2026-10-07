@@ -940,6 +940,16 @@ _NO_OPTION_REASONS = frozenset(
 )
 
 
+_VERDICT_WORD = re.compile(r"\b(YES|NO|UNSURE)\b")
+
+
+def _verdict(reply: str) -> str:
+    """YES, NO or UNSURE from a model's reply. The first word is not enough ("Word: YES" is a yes):
+    the verdict is the one of the three words the reply uses; none, or two different, is UNSURE."""
+    found = set(_VERDICT_WORD.findall((reply or "").upper()))
+    return found.pop() if len(found) == 1 else "UNSURE"
+
+
 def _mark(sentence: str, mention: str) -> str:
     """The sentence with the mention between <tgt> tags (mention-anchored prompting, BioELX 2026)."""
     match = re.search(re.escape(mention.strip()), sentence, flags=re.IGNORECASE)
@@ -1013,6 +1023,19 @@ def _parse(answer: str, n: int) -> int | None:
         return None
     value = int(match.group())
     return value if 0 <= value <= n else None
+
+
+_COMPOUND_AFTER = re.compile(r"-[A-Za-zÀ-ÿ]")
+
+
+def _first_part_of_a_compound(mention: str, sentence: str) -> bool:
+    """A single word joined to the next by a hyphen ("cranio-facial", "cranio-caudally",
+    "ileo-psoas") is a combining form, not the structure. Level codes (C5-6, L4-L5) are not words."""
+    text = mention.strip()
+    if " " in text or any(c.isdigit() for c in text) or not text.isalpha():
+        return False
+    match = re.search(rf"(?<![\w-]){re.escape(text)}", sentence, flags=re.IGNORECASE)
+    return bool(match and _COMPOUND_AFTER.match(sentence[match.end() :]))
 
 
 def _findings_of_an_imaging_report(report: ReportState | None, at: int | None) -> bool:
@@ -1343,6 +1366,12 @@ class AnatomyLinker:
             evidence.append(
                 Evidence("frame", VETO, None, f"frame_is_a_measurement:{frame.frame}")
             )
+        if _first_part_of_a_compound(mention, sentence):
+            evidence.append(
+                Evidence(
+                    "integration", VETO, None, "mention_is_the_first_part_of_a_compound"
+                )
+            )
         head = self.senses.attribute_head(mention, sentence)
         if head:
             evidence.append(
@@ -1520,11 +1549,8 @@ class AnatomyLinker:
                 ),
                 Evidence("verify", VETO, None, reason),
             )
-        answers = {
-            name: (reply.strip().split() or ["UNSURE"])[0].strip(".,:;!").upper()
-            for name, reply in replies.items()
-        }
-        verdicts = {a if a in ("YES", "NO") else "UNSURE" for a in answers.values()}
+        answers = {name: _verdict(reply) for name, reply in replies.items()}
+        verdicts = set(answers.values())
         if verdicts == {"YES"}:
             return result, Evidence(
                 "verify", SUPPORT, result.cid, "context_confirmed_by_every_model"

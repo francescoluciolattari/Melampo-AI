@@ -471,3 +471,21 @@ def test_the_summary_warns_when_rows_lost_a_model_answer():
     text = lb.render_linker_markdown({"dev_it": row})
     assert "WARNING dev_it: 4 of 10 rows lost a model answer" in text
     assert "stopped 3 links (no 2, unsure 1)" in text
+
+
+def test_chat_client_retries_an_empty_reply_and_then_returns_it(monkeypatch):
+    replies = iter(["", "", "YES"])
+
+    def fake(request, timeout):
+        return _Response(
+            json.dumps({"choices": [{"message": {"content": next(replies)}}]}).encode()
+        )
+
+    monkeypatch.setattr(lb.urllib.request, "urlopen", fake)
+    chat = lb.OpenRouterChat("m", "k", sleep=lambda s: None)
+    assert chat("x") == "YES"
+    always_empty = lambda r, timeout: _Response(  # noqa: E731
+        json.dumps({"choices": [{"message": {"content": ""}}]}).encode()
+    )
+    monkeypatch.setattr(lb.urllib.request, "urlopen", always_empty)
+    assert lb.OpenRouterChat("m", "k", sleep=lambda s: None)("x") == ""
