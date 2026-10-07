@@ -79,7 +79,16 @@ level codes, lexicon, part table) are evaluated independently and all of them ar
 decision is unchanged (858 of 858 bench decisions identical, deterministic and with fake models).
 The two models are asked in parallel. With ``graph`` (``anatomy_graph.AnatomyGraph``) the models'
 choice is also checked against its graph neighbours and a finer UBERON term gets a proposed parent
-class (``fallback``), applied only when ``accept_parent_fallback`` is set."""
+class (``fallback``), applied only when ``accept_parent_fallback`` is set.
+
+**Area, profile and roles (T3, 7 October 2026, night).** The area of the exam (``exam_area``, the
+region the exam's name says it studies) is an expectation: a structure of the area supports the
+link, a far one is a prediction error that sends an ambiguous form to the models (or to an
+abstention without them). Every accepted link carries the independent mechanisms behind it
+(``support``), the conflicts left (``conflicts``) and their difference (``convergence``), the score
+the gold set will calibrate with Learn-then-Test (``evaluation.selective_calibration``). ``role``
+says whether the structure is the site of a procedure ("liver biopsy") or the structure a
+measurement is about ("heart rate": no link, ``about`` keeps the structure)."""
 
 import re
 import unicodedata
@@ -964,7 +973,7 @@ class LinkResult:
     # Every stream's evidence, in the order the decision considered it (audit trail).
     trace: list[Evidence] = field(default_factory=list, compare=False)
     # The independent mechanisms that support the accepted class and the conflicts found (T3,
-    # 8 Oct 2026). Mechanisms: name (lexicon, part table, level code), sense (an ambiguous form read
+    # 7 Oct 2026). Mechanisms: name (lexicon, part table, level code), sense (an ambiguous form read
     # in its sentence), frame (the sentence is imaging findings), area (the structure belongs to the
     # area of the exam), models (the two models' choice or their check in context; one mechanism,
     # not two: their errors are correlated). ``convergence`` = mechanisms - conflicts is the score

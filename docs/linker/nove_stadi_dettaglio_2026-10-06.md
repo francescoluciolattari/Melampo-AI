@@ -86,6 +86,15 @@ Umano: decisione fra alternative note.
 Cosa fa: Nemotron e Gemma scelgono una lettera fra candidati già filtrati, con la menzione marcata `<tgt>`, e l'opzione "nessuna". Mai codici liberi (GPT-4 sbaglia i codici ICD nel 54–66% dei casi, 18,5% inventati: NEJM AI 2024). Le forme ambigue arrivano qui solo dopo il passo 4.
 Stato: fatto. Limite: due LLM che sbagliano scelgono la stessa risposta ~60% delle volte (Kim 2025): sono copertura, non prova. Anche sulle sigle cliniche gli LLM hanno mostrato calo in lingue diverse dall'inglese e sovra-confidenza (vedi documento di sintesi): un motivo in più per non lasciare il senso a loro.
 
+**Aggiunto il 7 ottobre (notte), stadi 1, 4 e 8.**
+- *Stadio 1, area dell'esame.* L'area si legge dal nome dell'esame (`exam_area`): "RM pelvi", "TC torace-addome", "brain MRI". Una struttura dell'area sostiene il link; una lontana è un errore di previsione.
+- *Stadio 4, integrazione.*
+  - Una forma di composizione unita da trattino ("cranio-facial") non è la struttura.
+  - Un nome senza la sua parola-testa ("anca" per "osso dell'anca", "left innominate") non è quel nome.
+  - Le teste di misura seguono la sintassi della lingua: a destra in inglese, a sinistra in italiano.
+- *Stadio 8, conflitto.* Una forma ambigua lontana dall'area va ai modelli (Sistema 2 sul conflitto). Ogni link accettato porta il suo profilo: meccanismi a favore (`support`), conflitti (`conflicts`), `convergence`, e il ruolo (`procedure_site` / `inherent_location`).
+- *Stadio 9.* Lo strumento di certificazione è pronto (`selective_calibration.py`, Learn-then-Test per strato) e attende il gold set.
+
 ## 7. Ri-derivazione cieca
 Umano: la metacomprensione migliora (r da 0,14 a 0,41) solo se si ricostruisce il significato dopo un intervallo; spiegare la propria risposta non aiuta (Prinz 2020).
 Cosa fa: un secondo lettore *di meccanismo diverso* (encoder + regole, oppure un LLM che non vede la prima risposta) deriva il concetto dalla sola menzione. Il disaccordo è un'astensione.

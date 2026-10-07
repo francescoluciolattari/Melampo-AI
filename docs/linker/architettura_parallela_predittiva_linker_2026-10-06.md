@@ -122,8 +122,8 @@ Ogni decisione salva: l'attivazione dall'alto, l'evidenza di ogni flusso per ogn
 | T0 ✔ (7 ott) | Rifattorizzare gli stadi attuali in flussi che **restituiscono evidenze** invece di fermarsi al primo esito; stesse decisioni di oggi | Stesse decisioni su tutti i test e sul bench (nessuna differenza); traccia per flusso |
 | T1 ◐ (7 ott) | Grafo anatomico da UBERON basic (parte-di + è-un + disgiunti) + famiglie TotalSegmentator per il lato; flusso F (vicini) e ripiego al padre | Zero nuovi errori silenziosi su dev/held-out IT/EN; quante astensioni diventano link al padre corretti |
 | T2 ◐ (7 ott sera) | Stato del referto: parser dell'intestazione, lingua, strutture già collegate; previsione con `spreading_activation`; il referto intero passato come contesto | Errori di "distretto sbagliato" intercettati su casi costruiti e sui corpora pubblici; nessun calo di precisione |
-| T3 | Convergenza con propagazione e decisione a quattro condizioni; LLM come flusso unico e solo se serve | Copertura e precisione rispetto a T2; chiamate LLM risparmiate; latenza |
-| T4 | Gold set: affidabilità e correlazione per flusso, pesi appresi, soglia certificata (LTT/SCRC) | Precisione ≥99% certificata sugli accettati, con copertura dichiarata |
+| T3 ◐ (7 ott) | Convergenza: profilo dei meccanismi (support/conflicts), area dell'esame come previsione, Sistema 2 sul conflitto, ruoli; la soglia sulla convergenza attende il gold set | Copertura e precisione rispetto a T2; chiamate LLM risparmiate; latenza |
+| T4 ◐ (7 ott: strumento pronto) | Gold set: affidabilità e correlazione per flusso, pesi appresi, soglia certificata (LTT/SCRC; `selective_calibration.py`) | Precisione ≥99% certificata sugli accettati, con copertura dichiarata |
 
 T0 e T1 si possono fare subito e non dipendono dal gold set. T4 sì.
 
@@ -308,3 +308,50 @@ Run con `scope=all`, branch con il quadro dell'esame: 600 elementi, 297 link acc
 Bench sintetico identico (0 errori silenziosi); IU X-ray invariato.
 
 **Ancora aperti.** (a) L'accordo dei due modelli è un controllo severo (Nemotron dice NO più spesso di Gemma: 8 stop su 12 sono NO di Nemotron contro SÌ di Gemma). (b) "left hip" come osso e "hip pain" (regione/articolazione): serve la decisione sulla relazione `approx`. (c) Elenchi di esami senza parole del quadro. (d) Un gold set vero: queste sono 600 menzioni inglesi di case report, non referti di radiologia italiani.
+
+## 15. Ragionamento umano simulato e rigore in parallelo: verifica, idee dalle fonti, T3 (7 ottobre 2026, tarda notte)
+
+Domanda di Frank: il ragionamento umano simulato e il rigore dell'IA lavorano davvero in parallelo e rispettano l'obiettivo? Quali idee recenti (neurobiologia, filosofia della comprensione, strumenti di IA, nuove relazioni) migliorano il modello? Poi avanti con i prossimi passi. Prima, due decisioni approvate: "anca" come `approx` e la regola `NOT_ANATOMY`.
+
+### 15.1 Verifica sul codice e sui 600 MultiCaRe
+
+| Domanda | Risposta (misurata) |
+|---|---|
+| La lettura è parallela? | **Sì.** `read()` è pura: sensi, quadro, integrazione, codici di livello, lessico e tabella parti leggono la menzione ognuno per conto suo. I due modelli sono chiamati insieme. |
+| La decisione è convergente? | **No, prima di oggi.** `_decide` accettava il primo flusso a favore senza veti. Sui 293 link accettati dei 600 MultiCaRe, **tutti** poggiavano su un solo meccanismo (il nome curato). I flussi "umani" lavoravano solo come inibizione (veto), mai come conferma. |
+| L'area dell'esame era letta? | Solo per il rachide. Il "tipo" (modalità) e il "quadro" sì; l'**area** no. |
+| La sintassi era della lingua giusta? | **No: difetto trovato.** Le teste di misura erano cercate come in inglese (testa a destra: "liver function"). In italiano la testa sta a sinistra: "Funzione del fegato", "Ormoni della tiroide", "Toni del cuore", "Dosaggio ormoni tiroide" erano **accettati**. Corretto (15.3). |
+| Un nome accorciato era trattato come il nome? | **Sì: difetto trovato.** "anca" = "osso dell'anca" senza "osso"; "left innominate" = "left innominate bone" senza "bone" (ma può essere la vena o l'arteria anonima); "paravertebrali" = "muscoli paravertebrali". La testa del sintagma dice a che cosa si riferisce; toglierla cambia il referente. Corretto (15.2). |
+| C'era una misura di confidenza? | No. Nessuna lettura di secondo ordine ("quanto è sostenuto questo link"), quindi niente da calibrare. |
+| L'obiettivo (≤1% sugli accettati, astensione motivata) è rispettato? | Astensione motivata: sì (ogni astensione ha il motivo). Bench sintetico: 0 errori silenziosi. Testo reale: stima 1–3% dalla mia lettura, **non ancora ≤1% e non certificabile senza gold set**. |
+
+### 15.2 Le due decisioni approvate
+- **"Anca" / "hip" senza "osso"** è la regione o l'articolazione (UBERON:0001464 *hip* è una regione). La classe TotalSegmentator *hip* è l'osso coxale. Il link va alla classe più vicina con `relation = approx` (tabella parti); "osso dell'anca", "osso iliaco" e "os coxae" restano `equal`. Effetto: le 4 righe "anca" di dev_it passano da `equal` ad `approx`, e "left hip" di MultiCaRe diventa `approx`.
+- **Regola generale (non per parola): un nome senza la sua parola-testa non è quel nome.** Il lessico non riconosce più una chiave che esiste solo perché un nome scritto ha perso la testa ("osso", "bone", "muscoli", "gland"…), a meno che l'inventario dei sensi abbia letto la forma nella frase. Nel lessico erano 18 chiavi: le 8 di "anca"/"hip"/"coxale"/"innominate", le 8 dei paravertebrali, 2 "suprarenal".
+- **`NOT_ANATOMY`** per la struttura nominata solo come modificatore di una misura: approvata il 7 ottobre come regola del progetto (protocollo aggiornato). I radiologi la applicano dalla sessione di allineamento.
+
+### 15.3 Idee dalle fonti e che cosa ne è stato fatto
+
+| Fonte (anno) | Idea | Che cosa è diventata |
+|---|---|---|
+| Fillmore, semantica dei frame; SNOMED CT, modello dei concetti osservabili (*inherent location*, *finding site*, *procedure site*) | La stessa parola ha **ruoli** diversi nella scena: sede di un reperto, sede di una procedura, struttura di cui si misura una proprietà | Campo `role`: `procedure_site` ("liver biopsy", "biopsia del fegato", "resezione epatica"); `inherent_location` per le misure ("heart rate", "funzione del fegato"): il link si astiene come prima, ma `about` conserva la struttura misurata. **Nessuna informazione persa.** Sui 600: 52 misure con la struttura conservata, 9 sedi di procedura (tutte giuste alla lettura). |
+| Sintassi testa–modificatore (linguistica generale) | La posizione della testa dipende dalla lingua | Teste inglesi a destra, italiane a sinistra, con preposizione in entrambe ("function of the liver", "toni del cuore"). |
+| LOINC/RSNA Radiology Playbook (*Region Imaged*, *Imaging Focus*, *Laterality*); Campbell, AJR 2005 (la TC torace copre in media ~7 cm sotto le basi) | L'**area** dell'esame è un attributo standard della procedura | `exam_area`: area letta dal nome dell'esame (titolo, tecnica, prima frase, o la frase stessa: "RM pelvi:", "brain MRI", "CT of the chest, abdomen and pelvis"), mai dalla storia clinica. Struttura dell'area: sostegno. Area vicina: neutra. Area lontana: **errore di previsione** registrato. |
+| Codifica predittiva (Nour Eddine *et al.*, Cognition 2024): l'errore di previsione è il segnale per guardare meglio; De Neys, BBS 2023: la deliberazione parte quando le intuizioni sono in conflitto | **Sistema 2 sul conflitto** | Una forma ambigua lontana dall'area va ai modelli anche senza `--verify`; senza modelli ci si astiene (`ambiguous_form_outside_the_exam_area`). Un nome non ambiguo lontano dall'area resta accettato con il conflitto registrato: un reperto incidentale o un dato anamnestico fuori campo è normale radiologia. |
+| Fleming, Annual Review of Psychology 2024 (confidenza come lettura di secondo ordine); Ernst & Banks; architettura §3.5 | Separare la decisione dalla **misura di quanto è sostenuta** | `LinkResult.support` / `conflicts` / `convergence`. I meccanismi sono name, sense, frame, area e models (i due modelli contano **uno**). Sui 600: 159 link solo con il nome, 134 con due o più meccanismi. Per ora non decide nulla: è il punteggio da calibrare. |
+| Learn-then-Test (Angelopoulos *et al.*, arXiv 2110.01052; MAPIE, controllo della precisione con fixed-sequence testing); Mondrian conformal; Kahneman & Klein 2009 (l'intuizione vale solo dove è stata validata) | Scegliere la soglia di accettazione con una **garanzia** sull'errore tra gli accettati, per strato | `evaluation/selective_calibration.py`: test a sequenza fissa delle soglie di convergenza, dalla più severa, per strato (lingua \| stadio). `gold_set.py evaluate` lo riporta. Con 0 errori servono **299** link per strato per certificare l'1% al 95%. È lo strumento di T4, pronto per il gold set. |
+| Chain-of-Verification (Dhuliawala *et al.*, ACL 2024); MedAbstain (EACL 2026: l'opzione esplicita di astensione aumenta l'astensione sicura); Kim *et al.*, ICML 2025 (errori correlati tra LLM) | Domande non suggestive e opzione "non si può dire" | `verify_style=choice`: cinque opzioni bilanciate. Solo l'opzione 1 conferma; "5. the sentence does not settle it" vale incerto. Si confronta con `yes_no` lanciando il `verify-probe` con `style`. Diventa predefinito solo se misura meglio. |
+| Mohri & Hashimoto, ICML 2024 (ripiego verso un'affermazione meno specifica); MedPath 2025 | Ripiegare sul padre invece di sbagliare | Già presente come proposta (`fallback`); da certificare con LTT come gli altri link (T4). |
+
+**Idee valutate e non adottate (per ora).** L'entropia semantica (Farquhar *et al.*, Nature 2024) costa più chiamate per link; nel nostro caso il raggruppamento è esatto (stesso ID), quindi è facile da aggiungere dopo il gold set, se la convergenza non basta. Il dibattito tra più agenti non crea indipendenza (errori correlati). Le "sonde" sugli stati nascosti richiedono modelli a pesi aperti in casa.
+
+### 15.4 Misure
+- **Bench sintetico** (dev_it, held-out IT/EN): nessuna decisione cambiata, 0 errori silenziosi. Cambia solo la relazione di 4 righe ("anca" → `approx`).
+- **MultiCaRe 600:** accettati 293 (invariato rispetto al bundle precedente); area nota per 65 accettati (61 attesa, 4 vicina, 0 lontana: i case report raramente nominano l'esame nella frase); 52 misure con la struttura conservata; 9 sedi di procedura.
+- **Suite:** 509 test passati nei file del linker; nel resto, solo i fallimenti di ambiente noti (FalkorDB, pydicom, lab_phenotypes).
+
+### 15.5 Limiti
+- La convergenza non decide ancora: senza gold set i pesi e la soglia sarebbero scelte mie. La regola "almeno due meccanismi" della §3.5 escluderebbe oggi il 54% dei link giusti del solo nome. Va decisa con LTT sul gold set, per strato.
+- L'area si legge solo dove l'esame è nominato. Nei case report è spesso sconosciuta; nei referti radiologici italiani (titolo "RM PELVI", "TC TORACE") dovrebbe esserci quasi sempre. Va misurato sui referti veri.
+- Le parole di regione, le adiacenze e le teste di procedura sono scelte da me su fonti standard; un radiologo deve rivederle.
+- Il quadro resta per frase (una sezione "Laboratorio" su più frasi non è ancora letta come sezione).

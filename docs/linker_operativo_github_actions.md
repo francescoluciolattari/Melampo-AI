@@ -1,6 +1,6 @@
 # Linker anatomico: come si lanciano i workflow (GitHub Actions)
 
-Guida operativa per `public-reports` (referti pubblici e fogli ciechi) e `linking-bench` (misura del linker con i due modelli). Vale dal commit del ramo `feat/linker-streams` in poi.
+Guida operativa per `public-reports` (referti pubblici e fogli ciechi) e `linking-bench` (misura del linker con i due modelli). Vale dal commit del ramo `feat/linker-streams` in poi; il ramo `feat/linker-t3` (bundle del 7 ottobre, notte) aggiunge il campo `style` a `verify-probe`.
 
 ## Regola generale
 
@@ -42,8 +42,9 @@ Serve a misurare la verifica con i due modelli su frasi vere, non sintetiche. Si
 | run_id | il numero nell'indirizzo del run di `public-reports` (…/actions/runs/**NUMERO**) |
 | source | `multicare` (il nome del corpus di quel run) |
 | scope | `all` (ogni link dal solo nome) oppure `flagged` (solo le forme marcate) |
+| style | `yes_no` (domanda "è questa struttura?") oppure `choice` (cinque opzioni bilanciate con "non si può dire"). Per confrontarle si lanciano due run identici che differiscono solo per `style`. |
 
-Risultato: l'artifact `verify-probe-<source>-<scope>` con `verify_probe.md` (link fermati da leggere e un campione dei confermati) e `verify_probe.json`. Se in cima c'è "WARNING … lost a model answer", il limite di frequenza ha fatto perdere righe e la misura non vale.
+Risultato: l'artifact `verify-probe-<source>-<scope>-<style>` con `verify_probe.md` (link fermati da leggere e un campione dei confermati) e `verify_probe.json`. Se in cima c'è "WARNING … lost a model answer", il limite di frequenza ha fatto perdere righe e la misura non vale.
 
 ## Il limite di frequenza (HTTP 429)
 
@@ -66,9 +67,10 @@ I modelli di OpenRouter rispondono 429 quando ricevono troppe richieste insieme.
 cd ~/github/Melampo-AI
 git status -sb | head -3          # se c'è un rebase in corso: git rebase --abort
 git switch main
-git fetch ~/<nome-del-bundle>.bundle +feat/linker-streams:refs/heads/feat/linker-streams
-git push -f origin feat/linker-streams
-git log --oneline -3 feat/linker-streams
+git pull origin main
+git fetch ~/<nome-del-bundle>.bundle +<ramo>:refs/heads/<ramo>
+git push -f origin <ramo>
+git log --oneline -3 <ramo>
 ```
 
-Il bundle richiede il commit di base `c9cf2be` (merge di `feat/public-reports`). Il merge in `main` si fa poi dalla pagina del ramo su GitHub.
+Ogni bundle dice il proprio ramo e il commit di base che richiede. `feat/linker-streams` richiedeva `c9cf2be`; `feat/linker-t3` richiede `1394a67`, l'ultimo commit di `feat/linker-streams`, già nel repository dopo il merge. Il merge in `main` si fa poi dalla pagina del ramo su GitHub (Compare & pull request → Merge).
