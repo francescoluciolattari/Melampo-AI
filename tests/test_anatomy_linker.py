@@ -896,9 +896,9 @@ def test_a_retriever_that_does_not_answer_is_an_abstention_too(lexicon):
 def test_a_structure_that_only_modifies_a_measurement_is_not_linked(lexicon):
     linker = al.AnatomyLinker(lexicon, [], {})
     for mention, sentence in [
-        ("heart", "Her heart rate was 144 beats per minute."),
-        ("liver", "Liver function tests were normal."),
-        ("thyroid", "Normal thyroid-stimulating hormone and free T4."),
+        ("heart", "Her heart rate was high."),
+        ("liver", "Liver function was abnormal."),
+        ("thyroid", "Thyroid-stimulating hormone was normal."),
     ]:
         result = linker.link(mention, sentence)
         assert result.status == al.ABSTAINED

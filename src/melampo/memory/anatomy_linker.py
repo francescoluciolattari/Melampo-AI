@@ -89,7 +89,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from melampo.memory.report_state import CLINICAL, TECHNIQUE, ReportState
+from melampo.memory.exam_frame import ExamFrames
+from melampo.memory.report_state import (
+    CLINICAL,
+    CONCLUSIONS,
+    FINDINGS,
+    TECHNIQUE,
+    ReportState,
+)
 from melampo.memory.word_senses import SenseInventory, detect_language
 
 SIDE_RIGHT = "<dx>"
@@ -1008,6 +1015,14 @@ def _parse(answer: str, n: int) -> int | None:
     return value if 0 <= value <= n else None
 
 
+def _findings_of_an_imaging_report(report: ReportState | None, at: int | None) -> bool:
+    """The sentence sits in the findings of a report whose header names an imaging exam: what it
+    says is about the images, whatever words of laboratory or vital signs it carries."""
+    if report is None or at is None or not report.modalities:
+        return False
+    return report.section_at(at) in (FINDINGS, CONCLUSIONS)
+
+
 @dataclass
 class AnatomyLinker:
     lexicon: Lexicon
@@ -1023,6 +1038,9 @@ class AnatomyLinker:
     # Which meaning of an ambiguous written form is meant (GB, LM, ponte...). Loaded from
     # data/linking/word_senses.json; pass SenseInventory.empty() only to measure without it.
     senses: SenseInventory = field(default_factory=SenseInventory.load)
+    # The frame a sentence is written in (exam_frame): laboratory results and vital signs name a
+    # structure only as the modifier of a measurement. ExamFrames.empty() measures without it.
+    frames: ExamFrames = field(default_factory=ExamFrames.load)
     # UBERON is-a/part-of anchored to the classes (anatomy_graph.AnatomyGraph): the neighbour check
     # on the models' choice and the fallback to the parent. None keeps the linker as it was.
     graph: Any = None
@@ -1320,6 +1338,11 @@ class AnatomyLinker:
             for t in normalise(mention, keep_noise=True, map_words=False)
             if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)
         ]
+        frame = self.frames.of(sentence)
+        if frame.measurement and not _findings_of_an_imaging_report(report, at):
+            evidence.append(
+                Evidence("frame", VETO, None, f"frame_is_a_measurement:{frame.frame}")
+            )
         head = self.senses.attribute_head(mention, sentence)
         if head:
             evidence.append(
@@ -1388,7 +1411,7 @@ class AnatomyLinker:
         by_stream: dict[str, list[Evidence]] = defaultdict(list)
         for item in trace:
             by_stream[item.stream].append(item)
-        for name in ("senses", "integration"):
+        for name in ("senses", "frame", "integration"):
             for item in by_stream.get(name, ()):
                 if item.verdict == VETO:
                     return LinkResult(ABSTAINED, None, name, item.reason)

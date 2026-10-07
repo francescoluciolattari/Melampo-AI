@@ -10,7 +10,7 @@ Stato: ✔ fatto, ◐ parziale, ○ da fare.
 
 | # | Stadio | Stato |
 |---|---|---|
-| 1 | Stato del referto (modalità, regione, lato, **lingua**) | ◐ sezioni, titolo, intestazione, lingua, modalità e "referto sul rachide" sì (7 ott, `report_state.py`); la previsione agisce solo sui codici di livello; altre regioni, lato dell'intestazione e strutture già collegate no |
+| 1 | Stato del referto (modalità, regione, lato, **lingua**, **quadro**) | ◐ quadro della frase (immagini, laboratorio, segni vitali) sì (7 ott notte, `exam_frame.py`); sezioni, titolo, intestazione, lingua, modalità e "referto sul rachide" sì (7 ott, `report_state.py`); la previsione agisce solo sui codici di livello; altre regioni, lato dell'intestazione e strutture già collegate no |
 | 2 | Lessico esatto bilingue + tabella parti (una forma ambigua non si accetta dal solo nome) | ✔ |
 | 3 | Candidati morfologici e recupero denso (solo proposta) | ◐ encoder valutati, morfologia no |
 | 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ◐ inventario dei sensi su 7 forme; le altre forme a rischio si trovano dai dati (`form_ambiguity`, 113 chiavi su 732), la lingua della sigla vale per tutte, la verifica con i due modelli è pronta ma non misurata; punteggio continuo no |
@@ -72,6 +72,8 @@ Questo risolve il compromesso che Frank ha rifiutato: non si perde "GB" inglese 
 Da fare anche: rendere l'integrazione un punteggio per soglia (accetta / ripiega / astieni), non solo un sì/no.
 
 **Aggiornamento 7 ottobre (notte): il vicino a destra e a sinistra.** Una parola anatomica seguita da un nome di misura o di esame ("heart rate", "liver function", "thyroid hormone", "anti-thyroid") non nomina la struttura: il linker si astiene con `attribute_head_names_a_measurement:<parola>`. È una proprietà del vicino, valida per tutte le strutture (dati in `word_senses.json`, chiave `attribute_heads`). Su 600 menzioni di case report ha corretto 48 link, tutti verificati a mano; "axis" (seconda vertebra o asse geometrico) è ora un profilo dei sensi. Dettagli e limiti in `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 12.
+
+**Il contesto è il tipo, il quadro e l'area dell'esame (7 ottobre, notte).** Tipo: titolo, sezioni e modalità dell'intestazione (ACR, RSNA). Quadro: la frase è scritta nei reperti di immagini, nei risultati di laboratorio o nei segni vitali (LOINC/HL7, SecTag): in un quadro di misura una struttura nominata è il modificatore di una misura e il linker si astiene (`frame_is_a_measurement`), tranne nei reperti di un referto di immagini. Area: oggi solo il rachide. Il vicino immediato ("heart rate") è un indizio dello stesso quadro. Dettagli, misure e fonti: `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 13.
 
 ## 5. Controllo dei vicini
 Umano: l'illusione di Mosè: la sostituzione di una parola simile passa inosservata (5–60% dei casi). È l'errore "struttura sorella" o "lato opposto".
