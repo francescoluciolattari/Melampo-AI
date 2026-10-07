@@ -74,14 +74,19 @@ jobs:
 
       - name: Summarise results
         if: always()
+        env:
+          MODE: ${{ inputs.mode }}
+          USE_GRAPH: ${{ inputs.graph }}
+          VERIFY: ${{ inputs.verify }}
         run: |
+          echo "**Run:** ref \`$GITHUB_REF_NAME\`, commit \`${GITHUB_SHA::7}\`, mode \`$MODE\`, graph \`$USE_GRAPH\`, verify \`$VERIFY\`" >> "$GITHUB_STEP_SUMMARY"
           if [ -f linking_summary.md ]; then cat linking_summary.md >> "$GITHUB_STEP_SUMMARY"; fi
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: linking-bench-results
+          name: linking-bench-results-graph-${{ inputs.graph }}-verify-${{ inputs.verify }}
           path: |
             linking_results.json
             linking_summary.md

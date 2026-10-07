@@ -36,6 +36,14 @@ This index links the current documentation set for Project Melampo's enterprise-
 - `src/melampo/evaluation/prospective_validation.py` - prospective validation primitives.
 - `src/melampo/evaluation/calibration.py` - confidence calibration primitives.
 
+## Anatomy linker (radiology mentions → TotalSegmentator / UBERON)
+
+- [`gold_set_protocollo.md`](gold_set_protocollo.md) - gold-set protocol for the certified error bound on accepted links.
+- [`linker_operativo_github_actions.md`](linker_operativo_github_actions.md) - how to run the `public-reports`, `linking-bench` and `verify-probe` workflows (n, cap, graph, verify, run_id) and what HTTP 429 does.
+- [`linker/architettura_parallela_predittiva_linker_2026-10-06.md`](linker/architettura_parallela_predittiva_linker_2026-10-06.md) - parallel, predictive linker architecture, sources, stage plan and status.
+- [`linker/nove_stadi_dettaglio_2026-10-06.md`](linker/nove_stadi_dettaglio_2026-10-06.md) - the nine stages in detail, with current status.
+- [`linker/disambiguazione_contesto_lingua_2026-10-06.md`](linker/disambiguazione_contesto_lingua_2026-10-06.md) - disambiguation by context and language.
+
 ## Safety statement
 
 Melampo is a research scaffold. It is not a validated medical device and must not be used for autonomous clinical diagnosis or patient-care decisions without formal validation, regulatory review and human specialist oversight.

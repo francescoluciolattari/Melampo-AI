@@ -1,0 +1,79 @@
+name: Verify probe (the context check on real sentences)
+
+# Manual trigger only: it makes real, billed OpenRouter calls (two chat calls per link made from the
+# name alone). It reads the sheets a `public-reports` run drew, so no text leaves the repository's
+# own runs. It changes nothing and certifies nothing: it lists the links the two models stop (to
+# read) and a sample of those they keep (to look for misses).
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run number id of the public-reports run to read (the number in its URL: .../actions/runs/<id>)"
+        required: true
+      source:
+        description: "The corpus that run used (its artifact is public-reports-<source>)"
+        required: true
+        default: multicare
+      scope:
+        description: "flagged = only the forms the data marks as ambiguous; all = every link made from the name alone"
+        type: choice
+        options: [all, flagged]
+        default: all
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  probe:
+    name: Verify probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Download UBERON (pinned)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+
+      - name: Download the sheets of the public-reports run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+          SOURCE: ${{ inputs.source }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          RUN_ID="${RUN_ID//[[:space:]]/}"
+          if ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then echo "::error::run_id is the number in the run's URL"; exit 2; fi
+          if ! [[ "$SOURCE" =~ ^[a-z0-9-]+$ ]]; then echo "::error::source is a corpus name such as multicare"; exit 2; fi
+          gh run download "$RUN_ID" --name "public-reports-$SOURCE" --dir sheets
+          ls -la sheets sheets/gold_study
+
+      - name: Run the probe
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SCOPE: ${{ inputs.scope }}
+        run: |
+          uv run python scripts/verify_probe.py \
+            --items sheets/gold_study/items.jsonl --reports sheets/reports.jsonl \
+            --scope "$SCOPE" --out verify_probe.json --markdown verify_probe.md
+
+      - name: Summarise
+        if: always()
+        run: |
+          if [ -f verify_probe.md ]; then cat verify_probe.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-probe-${{ inputs.source }}-${{ inputs.scope }}
+          path: |
+            verify_probe.json
+            verify_probe.md

@@ -152,7 +152,7 @@ def test_one_dissent_or_doubt_is_an_abstention_with_the_reason(
     lexicon, flags, first, second, reason
 ):
     result = _linker(lexicon, flags, Counter(first), Counter(second)).link(
-        "thyroid", "Her thyroid function test was normal."
+        "thyroid", "Thyroid, parathyroid and vitamin D were normal."
     )
     assert result.status == al.ABSTAINED and result.reason == reason
     assert result.stage == "verify"
@@ -168,7 +168,7 @@ def test_a_form_the_data_does_not_flag_is_not_asked(lexicon, flags):
 def test_verification_is_off_unless_asked_for(lexicon, flags):
     a, b = Counter("NO"), Counter("NO")
     result = _linker(lexicon, flags, a, b, verify=False).link(
-        "thyroid", "Her thyroid function test was normal."
+        "thyroid", "Thyroid, parathyroid and vitamin D were normal."
     )
     assert result.status == al.ACCEPTED
     assert (a.calls, b.calls) == (0, 0)
@@ -189,3 +189,19 @@ def test_an_english_abbreviation_in_an_italian_sentence_is_tolerated(linker):
         "CCA sn", "Angio-TC: il calibro e l'opacizzazione di CCA sn sono conservati."
     )
     assert (result.status, result.cid) == (al.ACCEPTED, "common_carotid_artery_left")
+
+
+# --- a model that does not answer is an abstention, never a vote ----------------------------------
+
+
+def _down(prompt):
+    raise RuntimeError("HTTP 429 from model-a")
+
+
+def test_a_model_that_does_not_answer_makes_the_verify_check_abstain(lexicon, flags):
+    result = _linker(lexicon, flags, _down, Counter("YES")).link(
+        "thyroid", "Ultrasound of the thyroid shows a nodule."
+    )
+    assert result.status == al.ABSTAINED and result.reason == "model_unavailable"
+    assert result.stage == "verify"
+    assert "429" in result.votes["error"]

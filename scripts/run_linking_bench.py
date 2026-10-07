@@ -48,6 +48,16 @@ CHAT_MODELS = {
 }
 
 
+# The chat models answer HTTP 429 when several rows ask at once (the 2026-10-07 run lost every
+# model answer after 7 seconds of retries): wait as long as the server says, up to a minute,
+# and keep at least half a second between two requests of the same model.
+CHAT_PACING = {"retries": 8, "min_interval": 0.5, "max_wait": 60.0}
+
+
+def _chat(slug: str, key: str) -> lb.OpenRouterChat:
+    return lb.OpenRouterChat(slug, key, **CHAT_PACING)
+
+
 def _embedder(name: str, key: str) -> OpenRouterEmbedder:
     return OpenRouterEmbedder(
         ENCODERS[name], key, **({"retries": 6} | PACING.get(name, {}))
@@ -121,7 +131,7 @@ def _run_linker(args, gold, cases, key: str):
     if not key:
         return det, {}
 
-    chats = {name: lb.OpenRouterChat(slug, key) for name, slug in CHAT_MODELS.items()}
+    chats = {name: _chat(slug, key) for name, slug in CHAT_MODELS.items()}
     retriever = lb.EmbeddingRetriever(
         _embedder(args.deepel_encoder, key), pool, describe=chats["nemotron-3-super"]
     )
@@ -254,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         for name in _names(args.chat_models, CHAT_MODELS, tuple(CHAT_MODELS)):
             try:
                 result = lb.evaluate_deepel_style(
-                    lb.OpenRouterChat(CHAT_MODELS[name], key),
+                    _chat(CHAT_MODELS[name], key),
                     embedder,
                     gold,
                     cases,
@@ -277,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
         for name in _names(args.chat_models, CHAT_MODELS, tuple(CHAT_MODELS)):
             try:
                 result = lb.evaluate_chain(
-                    lb.OpenRouterChat(CHAT_MODELS[name], key),
+                    _chat(CHAT_MODELS[name], key),
                     embedder,
                     gold,
                     cases,

@@ -20,7 +20,7 @@ Link accettati necessari per certificare ≤1% al 95% (esatto, Clopper-Pearson):
 ## Passi
 
 1. **Preparare `reports.jsonl`**, una riga per referto: `{"report_id": "...", "text": "<testo pseudonimizzato>", "language": "it|en" (facoltativo), "site": "..."}`.
-2. **Campionare**: `python scripts/gold_set.py sample reports.jsonl --out gold_study --n 2300`. Produce `annotator_A.csv`, `annotator_B.csv` (stesso contenuto, ordine diverso), `valid_structures.txt`, `items.jsonl`. Le schede non contengono nulla del sistema.
+2. **Campionare**: `python scripts/gold_set.py sample reports.jsonl --out gold_study --n 2300`. Produce `annotator_A.csv`, `annotator_B.csv` (stesso contenuto, ordine diverso), `valid_structures.txt`, `items.jsonl`. Le schede non contengono nulla del sistema. Con il workflow `public-reports` i valori `n` e `cap` si scrivono come numeri nudi (vedi `linker_operativo_github_actions.md`).
 3. **Etichettare** (ogni radiologo da solo, senza vedere l'altro né il sistema), vedi le regole sotto.
 4. **Controllare le schede**: `python scripts/gold_set.py check annotator_A.csv`.
 5. **Accordo e coda**: `python scripts/gold_set.py agree annotator_A.csv annotator_B.csv --out adjudication.csv`. Stampa accordo e kappa e scrive i casi in disaccordo. Il terzo revisore compila `structure` e `relation` in `adjudication.csv`.
@@ -43,6 +43,7 @@ Regole:
 - Si etichetta la struttura *nominata*, non la patologia né la presenza: "assenza del rene destro" → rene destro (l'assenza è polarità, un attributo a parte).
 - Un lume o uno spazio non è l'organo: "loggia renale", "lume esofageo", "ilo epatico" → `NONE_IN_CLASSES` (o `NOT_ANATOMY` se non è una struttura).
 - Parete, parenchima, corpo di un organo → l'organo con `part_of`.
+- Una struttura nominata solo come modificatore di una misura o di un esame ("frequenza cardiaca", "heart rate", "funzione epatica", "liver function tests", "ormone tiroideo", "thyroid-stimulating hormone") → `NOT_ANATOMY`. (Regola proposta il 7 ottobre dopo la lettura di 600 menzioni di case report; da confermare con i due radiologi prima di congelare le schede.) "Biopsia epatica", "insufficienza cardiaca", "RM encefalo" nominano la struttura.
 - Lato non scritto in una struttura pari → `AMBIGUOUS`, anche se il resto del referto lo lascia intuire.
 - Se non si è sicuri, `AMBIGUOUS`: l'astensione del sistema su questi casi è corretta e va misurata come tale.
 

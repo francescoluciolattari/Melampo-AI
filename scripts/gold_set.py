@@ -42,6 +42,20 @@ def _jsonl(path):
     ]
 
 
+def _count(text: str) -> int:
+    """A whole number; "600", " 600 " and the pasted "n=600" all mean 600 (the form field is the name)."""
+    value = text.strip().split("=")[-1].strip()
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected a whole number such as 600, got {text!r}"
+        ) from None
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"expected a positive number, got {text!r}")
+    return number
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -50,11 +64,11 @@ def main(argv=None) -> int:
     s = sub.add_parser("sample")
     s.add_argument("reports")
     s.add_argument("--out", default="gold_study")
-    s.add_argument("--n", type=int, default=None)
+    s.add_argument("--n", type=_count, default=None)
     s.add_argument("--seed", type=int, default=20261006)
     s.add_argument(
         "--cap-per-mention",
-        type=int,
+        type=_count,
         default=None,
         help="at most this many items per written mention (not population-weighted)",
     )

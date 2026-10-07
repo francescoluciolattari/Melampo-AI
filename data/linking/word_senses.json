@@ -587,6 +587,98 @@
           "sede"
         ]
       }
+    },
+    "axis": {
+      "vertebra": {
+        "anatomical": true,
+        "classes": [
+          "vertebrae_C2"
+        ],
+        "languages": [
+          "en"
+        ],
+        "strong": [
+          "c1",
+          "c2",
+          "atlas",
+          "dens",
+          "odontoid",
+          "atlantoaxial",
+          "atlanto-axial",
+          "atlantoaxis",
+          "cervical",
+          "vertebra",
+          "vertebrae",
+          "spondylolisthesis",
+          "hangman",
+          "c1-c2",
+          "c2-c3"
+        ],
+        "weak": [
+          "fracture",
+          "spine",
+          "spinal",
+          "cranio",
+          "stabilization",
+          "fusion",
+          "pedicle",
+          "lateral",
+          "mass"
+        ]
+      },
+      "geometry": {
+        "anatomical": false,
+        "strong": [
+          "view",
+          "views",
+          "short",
+          "long",
+          "qrs",
+          "ecg",
+          "ekg",
+          "electrical",
+          "deviation",
+          "degrees",
+          "cyl",
+          "dcyl",
+          "refractive",
+          "astigmatism",
+          "parasternal",
+          "apical",
+          "clock",
+          "o'clock",
+          "plane",
+          "rotation",
+          "orientation",
+          "cylinder",
+          "sphere",
+          "diopter",
+          "eye",
+          "hertz"
+        ],
+        "weak": [
+          "angle",
+          "normal",
+          "mm",
+          "cm",
+          "image",
+          "images",
+          "echocardiography",
+          "echocardiogram",
+          "breast",
+          "mass",
+          "lesion",
+          "measured",
+          "greatest",
+          "longest"
+        ],
+        "patterns": [
+          "\\baxis\\s+\\d{1,3}\\b",
+          "\\b\\d{1,2}:\\d{2}\\s+axis\\b",
+          "\\b(?:short|long)[- ]axis\\b",
+          "\\baxis\\s+(?:deviation|view)\\b"
+        ]
+      }
     }
   },
   "aliases": {
@@ -594,5 +686,62 @@
     "paravertebral": "paraspinal",
     "paravertebrale": "paraspinal",
     "paravertebrali": "paraspinal"
+  },
+  "attribute_heads": {
+    "note": "Parole che, subito dopo (o subito prima) il nome di una struttura, fanno della struttura solo il modificatore di una misura o di un esame: 'heart rate', 'liver function', 'thyroid hormone', 'anti-thyroid'. Valgono per qualsiasi struttura, non per una parola: se la parola vicina e una di queste, la menzione non nomina la struttura e il linker si astiene (attribute_head_names_a_measurement). Forme esatte, senza accenti, al singolare e al plurale. Non vi stanno parole che indicano malattia o procedura sulla struttura (failure, cancer, biopsy, injury, MRI): 'liver biopsy' nomina il fegato.",
+    "after": [
+      "function",
+      "functions",
+      "functional",
+      "rate",
+      "rates",
+      "sound",
+      "sounds",
+      "tone",
+      "tones",
+      "enzyme",
+      "enzymes",
+      "profile",
+      "profiles",
+      "panel",
+      "panels",
+      "hormone",
+      "hormones",
+      "antibody",
+      "antibodies",
+      "stimulating",
+      "transcription",
+      "assay",
+      "assays",
+      "marker",
+      "markers",
+      "funzione",
+      "funzioni",
+      "funzionalita",
+      "frequenza",
+      "frequenze",
+      "toni",
+      "enzimi",
+      "profilo",
+      "profili",
+      "ormone",
+      "ormoni",
+      "anticorpo",
+      "anticorpi",
+      "marcatori",
+      "dosaggio",
+      "dosaggi",
+      "phase",
+      "phases",
+      "contrast",
+      "lymph",
+      "fase",
+      "fasi",
+      "linfonodo",
+      "linfonodi"
+    ],
+    "before": [
+      "anti"
+    ]
   }
 }

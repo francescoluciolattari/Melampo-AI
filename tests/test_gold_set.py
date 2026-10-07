@@ -1,5 +1,6 @@
 """Tests of the gold-set instrument. The reports below are SYNTHETIC fixtures for the code, not a gold set."""
 
+import argparse
 import csv
 import importlib.util
 import json
@@ -381,3 +382,18 @@ def test_with_a_target_size_the_walk_stops_early_and_stays_repeatable(lexicon, p
     # it did not need all 500 reports
     seen = {i["report_id"] for i in first}
     assert len(seen) == 10
+
+
+def test_counts_accept_the_pasted_field_name():
+    spec = importlib.util.spec_from_file_location(
+        "gold_cli_count", ROOT / "scripts" / "gold_set.py"
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    assert cli._count("600") == 600
+    assert cli._count(" 600 ") == 600
+    assert cli._count("n=600") == 600
+    assert cli._count("cap=30") == 30
+    for bad in ("", "abc", "n=", "0", "-5", "n=six"):
+        with pytest.raises(argparse.ArgumentTypeError):
+            cli._count(bad)
