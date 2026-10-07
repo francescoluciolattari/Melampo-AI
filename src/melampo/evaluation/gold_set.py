@@ -69,6 +69,22 @@ def language_of(text: str) -> str:
     return "it" if it > en else "en" if en > it else "unknown"
 
 
+_STOP = re.compile(r"[.;:!?]")
+
+
+def _breaks(text: str, spans: list[tuple[int, int, str]], k: int) -> bool:
+    """A sentence ends between token k and token k+1 ("... lobe. Bilateral", "T12. Right", "2. Lumbar").
+
+    A full stop before a lower-case word is an abbreviation ("lobo sup. dx") and does not end
+    anything; a mention never crosses a boundary, nor takes a side word from the next sentence.
+    """
+    if k < 0 or k + 1 >= len(spans):
+        return False
+    gap = text[spans[k][1] : spans[k + 1][0]]
+    word = spans[k + 1][2]
+    return bool(_STOP.search(gap)) and (word[0].isupper() or word[0].isdigit())
+
+
 def propose_mentions(
     text: str, lexicon: al.Lexicon, parts: Any = None, max_words: int = 6
 ) -> list[dict[str, Any]]:
@@ -78,7 +94,9 @@ def propose_mentions(
     found: list[dict[str, Any]] = []
     for size in range(max_words, 0, -1):
         for i in range(len(spans) - size + 1):
-            if any(taken[i : i + size]):
+            if any(taken[i : i + size]) or any(
+                _breaks(text, spans, k) for k in range(i, i + size - 1)
+            ):
                 continue
             start, end = spans[i][0], spans[i + size - 1][1]
             piece = text[start:end]
@@ -104,12 +122,18 @@ def propose_mentions(
                 j0 += 1
             while j1 > j0 and trims(text[spans[j0][0] : spans[j1 - 1][1]]):
                 j1 -= 1
-            if j0 > 0 and not taken[j0 - 1] and spans[j0 - 1][2].lower() in _SIDE:
+            if (
+                j0 > 0
+                and not taken[j0 - 1]
+                and spans[j0 - 1][2].lower() in _SIDE
+                and not _breaks(text, spans, j0 - 1)
+            ):
                 j0 -= 1
             if (
                 j1 + 1 < len(spans)
                 and not taken[j1 + 1]
                 and spans[j1 + 1][2].lower() in _SIDE
+                and not _breaks(text, spans, j1)
             ):
                 j1 += 1
             for k in range(j0, j1 + 1):

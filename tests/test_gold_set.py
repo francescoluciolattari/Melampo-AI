@@ -68,6 +68,24 @@ def test_part_names_of_the_table_are_proposed(lexicon, parts):
     ] == ["sigma"]
 
 
+def test_a_mention_never_crosses_a_sentence_boundary(lexicon, parts):
+    # "... rene destro. Bilaterale" / "sinistra. Milza": the side word of the next sentence is
+    # not taken, and a name is not built across the full stop.
+    text = "Cisti del rene destro. Sinistra. Milza regolare."
+    found = [m["mention"] for m in gs.propose_mentions(text, lexicon, parts)]
+    assert "Cisti del rene destro" in found
+    assert "Milza" in found
+    assert all(". " not in m for m in found)
+    assert all(not m.endswith(("Sinistra", "sinistra")) for m in found)
+
+
+def test_an_abbreviation_full_stop_before_a_lower_case_word_does_not_break():
+    spans = [(0, 4, "lobo"), (5, 9, "sup"), (11, 13, "dx")]
+    text = "lobo sup. dx"
+    assert not gs._breaks(text, spans, 1)
+    assert gs._breaks("lobo. Dx", [(0, 4, "lobo"), (6, 8, "Dx")], 0)
+
+
 def test_a_report_without_known_names_gives_nothing(lexicon, parts):
     assert gs.propose_mentions(REPORTS[2]["text"], lexicon, parts) == []
 
