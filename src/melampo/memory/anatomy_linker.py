@@ -680,6 +680,10 @@ class Lexicon:
     noisy: frozenset[tuple[str, ...]] = frozenset()
     # Which language list(s) of the lexicon ("it", "en") each key comes from.
     languages: dict[tuple[str, ...], frozenset[str]] = field(default_factory=dict)
+    # Keys written as names with no tissue word at all ("tiroide", "femore"). A key that exists
+    # only because a name lost its head noun ("osso dell'anca" -> "anca", "left innominate bone"
+    # -> "left innominate") is not a name: the head noun is what the name refers to.
+    headed: frozenset[tuple[str, ...]] = frozenset()
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Lexicon":
@@ -707,6 +711,12 @@ class Lexicon:
             normalise(name, keep_noise=True)
             for entry in data["classes"].values()
             for name in entry["it"] + entry["en"]
+        )
+        lexicon.headed = frozenset(
+            normalise(name)
+            for entry in data["classes"].values()
+            for name in entry["it"] + entry["en"]
+            if normalise(name, keep_noise=True) == normalise(name)
         )
         return lexicon
 
@@ -740,8 +750,14 @@ class Lexicon:
         accepted = {language} | _TOLERATED_LANGUAGES.get(language, frozenset())
         return bool(written) and not (written & accepted)
 
-    def recognise(self, mention: str, sentence: str) -> tuple[list[str], str]:
-        """Classes the mention names, after context; and how they were found."""
+    def recognise(
+        self, mention: str, sentence: str, headless_ok: bool = False
+    ) -> tuple[list[str], str]:
+        """Classes the mention names, after context; and how they were found.
+
+        ``headless_ok``: the sense inventory has read the form in its sentence (it has a sense
+        profile, and the sentence chose the anatomical sense), so the context supplies the head
+        noun the mention lacks ("atrophy of the left paraspinal" is the muscle)."""
         hits = self.index.get(normalise(mention), [])
         if not hits:
             return [], "unknown_name"
@@ -750,6 +766,16 @@ class Lexicon:
             # "lume esofageo", "parete aortica", "muscolo sternale": a tissue or a space of the
             # organ, not the organ. Dropping the word would report a part as the whole.
             return [], "unknown_name"
+        if (
+            not headless_ok
+            and with_tissue == normalise(mention)
+            and normalise(mention) not in self.headed
+        ):
+            # The mention is a written name without its head noun: "anca" is the hip (a region,
+            # UBERON:0001464), "osso dell'anca" the hip bone; "left innominate" is the vein or the
+            # artery as often as the bone; "paravertebrale" is a region. The head of a noun phrase
+            # says what it refers to, so the shortened form is left to the other streams.
+            return [], "name_without_its_head_noun"
         kept = sorted(
             {
                 cid
@@ -1390,7 +1416,9 @@ class AnatomyLinker:
             from .anatomy_parts import strip_wrapper
 
             mention = strip_wrapper(mention)
-        recognised, how = self.lexicon.recognise(mention, sentence)
+        recognised, how = self.lexicon.recognise(
+            mention, sentence, headless_ok=bool(verdict.form and verdict.accepted)
+        )
         if (
             how == "recognised"
             and not verdict.form  # a form with a sense profile has language among its evidence
