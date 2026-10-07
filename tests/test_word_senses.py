@@ -256,6 +256,13 @@ def test_aliases_share_the_senses_of_their_form_and_must_name_a_known_one():
         ("fegato", "Funzione del fegato nella norma.", ""),
         ("fegato", "Enzimi del fegato nella norma.", ""),
         ("fegato", "Fegato enzimi aumentati.", "enzimi"),
+        ("heart", "RAISE score by heart teams would help.", "teams"),
+        ("liver", "Renal and liver parameters were normal.", "parameters"),
+        (
+            "pancreas",
+            "Soluble liver antigen/liver pancreas antigen were negative.",
+            "antigen",
+        ),
         ("liver", "The liver biopsy showed steatosis.", ""),
         ("heart", "She has heart failure.", ""),
         ("thyroid", "Thyroid, parathyroid and vitamin D were normal.", ""),

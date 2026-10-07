@@ -738,7 +738,21 @@
       "fase",
       "fasi",
       "linfonodo",
-      "linfonodi"
+      "linfonodi",
+      "team",
+      "teams",
+      "score",
+      "scores",
+      "parameter",
+      "parameters",
+      "antigen",
+      "antigens",
+      "parametro",
+      "parametri",
+      "antigene",
+      "antigeni",
+      "punteggio",
+      "punteggi"
     ],
     "before": [
       "anti"

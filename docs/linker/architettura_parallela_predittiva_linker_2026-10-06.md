@@ -287,3 +287,24 @@ Errori silenziosi: 0 in entrambi. La verifica ha fermato 6 link, **tutti corrett
 **Limiti.** (a) Le parole e gli schemi del quadro sono scelti da me e provati sui tre corpora; non sono un gold set. (b) Il quadro è per frase: una frase che mescola immagini e laboratorio non è vetata (prudente per la copertura, non per la precisione); un'intestazione di laboratorio su più frasi non è ancora letta come sezione. (c) Il distretto dell'esame fuori dal rachide non è ancora stato costruito. (d) "Fonti ACR": ho letto le sezioni della Practice Parameter dalla pagina pubblica; non ho potuto leggere il testo completo di ogni sezione.
 
 Fonti: ACR Practice Parameter for Communication of Diagnostic Imaging Findings (https://gravitas.acr.org/PPTS/GetDocumentView?docId=74); RSNA RadReport (https://reportingwiki.rsna.org/images/c/ce/ReportingChairOrientationSR.pdf); HL7 FHIR valueset doc-section-codes (https://www.hl7.org/fhir/valueset-doc-section-codes.html); SecTag (https://www.vumc.org/cpm/sectag-tagging-clinical-note-section-headers); UBERON basic v2025-05-28.
+
+## 14. `verify-probe` sui 600 MultiCaRe reali (7 ottobre 2026, notte)
+
+Run con `scope=all`, branch con il quadro dell'esame: 600 elementi, 297 link accettati dal solo nome, 297 chiesti ai due modelli, **0 righe perse** (nessun 429). Esito: 285 confermati, 12 fermati (9 con un NO, 3 "incerti"). Ho letto a mano tutti i 12 e 95 dei 285 confermati (nessun gold set: sono le mie letture).
+
+**I 12 stop.**
+- *Giusti e chiari (4):* "heart teams" (squadre), "Cranio"-facial e "cranio"-caudally (forme di composizione, non il cranio), "liver pancreas antigen [SLA/LP]" (un antigene, non il pancreas).
+- *Difendibili (4):* "L1-level paraparesis" (livello neurologico, non la vertebra), "bladder reflex of the uterus peritoneum" (riflessione peritoneale), "bladder irritation symptoms", "right iliac bone" → osso dell'anca (in inglese l'iliaco è l'ileo, in italiano è l'osso coxale).
+- *Sbagliati (4):* "aortic valve" e "aorta" (Gemma ha risposto vuoto e "WORD"), "sigma resection" (Nemotron NO) e "RML" nel "ritorno della vena polmonare" (Nemotron NO). Tre degli stop su 12 vengono da risposte malformate di Gemma, non da un giudizio.
+
+**Dei 95 confermati letti:** 1 errore chiaro rimasto ("renal and liver parameters", misura di laboratorio) e 2 dubbi ("left hip pain", "portal venous hypertension"). Stima ruvida dell'errore residuo sui confermati: 1–3%, da 95 casi letti da me; non è una misura certificabile.
+
+**Quanto vale la verifica.** Sui 600 ha evitato 4 errori chiari (1,3% dei link chiesti) al prezzo di 2–4 link giusti persi (0,7–1,3%). Nessuno dei 4 era già preso dalle regole di contesto. Il tasso d'errore sul testo reale è sceso da circa 16% (356 link accettati con ~57 non-strutture) a circa 1–3%, ma il merito va soprattutto alle regole di contesto (vicino, quadro, sensi di "axis"), non ai modelli. Il costo della verifica sul bench sintetico (3% di copertura, nessun errore evitato) resta.
+
+**Correzioni fatte dopo il probe (stesso bundle).**
+1. *Lettore delle risposte.* Il verdetto era la prima parola della risposta: "Word: YES" diventava "WORD" e valeva incerto. Ora è la parola YES/NO/UNSURE che la risposta usa; nessuna o due diverse = incerto. Una risposta vuota è una chiamata fallita: il client ritenta (2 volte) invece di contarla come voto.
+2. *Forma di composizione.* Una parola unita alla successiva da un trattino ("cranio-facial", "cranio-caudale", "ileo-cecale") è una forma di composizione, non la struttura: il linker si astiene (`mention_is_the_first_part_of_a_compound`). I codici di livello (C5-6) non sono parole. Effetto: sui 600 toglie "Cranio" e "cranio"; su PARROT toglie 4 link accettati (125 invece di 129) e le 9 menzioni toccate erano tutte composti (acromion-claveare e sacro-iliaco sono le articolazioni, non l'osso; ileo-cecale è la valvola; colon-sigmoidea; corpo-coda; sacro-ileite): nessuna era la struttura. Ripasso della mia lettura precedente di PARROT: ne avevo segnalato uno solo (colon-sigmoidea).
+3. *Vicini.* Si aggiungono team, score, parameter, antigen (e le forme italiane): "heart teams" e "liver parameters" si astengono.
+Bench sintetico identico (0 errori silenziosi); IU X-ray invariato.
+
+**Ancora aperti.** (a) L'accordo dei due modelli è un controllo severo (Nemotron dice NO più spesso di Gemma: 8 stop su 12 sono NO di Nemotron contro SÌ di Gemma). (b) "left hip" come osso e "hip pain" (regione/articolazione): serve la decisione sulla relazione `approx`. (c) Elenchi di esami senza parole del quadro. (d) Un gold set vero: queste sono 600 menzioni inglesi di case report, non referti di radiologia italiani.
