@@ -17,6 +17,7 @@ use that goes beyond internal evaluation (PARROT and E3C may be non-commercial).
 """
 
 import argparse
+import ast
 from collections import Counter
 import csv
 import gzip
@@ -254,13 +255,47 @@ def _parquet_rows(raw: bytes) -> list[dict]:
     return pq.read_table(io.BytesIO(raw)).to_pylist()
 
 
+def _cases_of(value: object) -> list[tuple[str | None, str]]:
+    """(case id, text) of each case in one table cell.
+
+    MultiCaRe's ``cases`` column holds, per PMC article, a list of cases
+    ``{case_id, case_text, age, gender}`` (Parquet list of structs; CSV: its JSON or Python
+    text). Older or simpler tables hold the text itself.
+    """
+    if isinstance(value, str) and value.lstrip().startswith(("[", "{")):
+        for parse in (json.loads, ast.literal_eval):
+            try:
+                value = parse(value)
+                break
+            except (ValueError, SyntaxError):
+                continue
+    if isinstance(value, dict):
+        value = [value]
+    if isinstance(value, (list, tuple)):
+        out = []
+        for item in value:
+            if isinstance(item, dict):
+                text_key = _column(item, ("case_text", "text", "case"))
+                id_key = _column(item, ("case_id", "id"))
+                if text_key:
+                    out.append(
+                        (
+                            str(item[id_key]) if id_key and item.get(id_key) else None,
+                            str(item[text_key]),
+                        )
+                    )
+            else:
+                out.append((None, str(item)))
+        return out
+    return [(None, str(value))] if value is not None else []
+
+
 def multicare_reports(rows: list[dict]) -> list[dict]:
     """English case reports whose text mentions imaging; other cases carry no anatomy to link.
 
-    The real table (cases.parquet, 76,137 rows) has the columns ``cases`` (the text) and
-    ``article_id`` (the PMC article, shared by every case of that article). An id that
-    repeats gets the case's position within its article, so report ids stay unique and
-    do not change when the imaging filter changes.
+    The real table (cases.parquet, 76,137 rows, about 98,000 cases) has the columns ``cases`` (a
+    list of cases per article) and ``article_id`` (the PMC article). One report per case, with the
+    case's own id when it has one, else the article id and the case's position in it.
     """
     if not rows:
         return []
@@ -268,22 +303,22 @@ def multicare_reports(rows: list[dict]) -> list[dict]:
     id_key = _column(rows[0], ("case_id", "id", "article_id"))
     if text_key is None:
         raise ValueError(f"cannot find the case text column among {list(rows[0])}")
-    ids = [
-        str(row[id_key]).strip() if id_key and row.get(id_key) else str(index)
-        for index, row in enumerate(rows)
-    ]
-    repeated = {i for i, n in Counter(ids).items() if n > 1}
-    seen: Counter = Counter()
     out = []
-    for row, rid in zip(rows, ids):
-        seen[rid] += 1
-        text = " ".join(str(row.get(text_key, "")).split())
-        if text and _IMAGING.search(text):
+    seen: Counter = Counter()
+    for index, row in enumerate(rows):
+        article = str(row[id_key]).strip() if id_key and row.get(id_key) else str(index)
+        cases = _cases_of(row.get(text_key))
+        for number, (case_id, raw) in enumerate(cases, start=1):
+            text = " ".join(raw.split())
+            if not text or not _IMAGING.search(text):
+                continue
+            rid = case_id or (article if len(cases) == 1 else f"{article}-{number}")
+            seen[rid] += 1
+            if seen[rid] > 1:  # the same id twice across rows: keep both, distinctly
+                rid = f"{rid}-{seen[rid]}"
             out.append(
                 {
-                    "report_id": f"multicare-{rid}-{seen[rid]}"
-                    if rid in repeated
-                    else f"multicare-{rid}",
+                    "report_id": f"multicare-{rid}",
                     "text": text,
                     "language": "en",
                     "site": "multicare",

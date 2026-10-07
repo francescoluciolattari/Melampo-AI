@@ -90,7 +90,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from melampo.memory.report_state import CLINICAL, TECHNIQUE, ReportState
-from melampo.memory.word_senses import SenseInventory
+from melampo.memory.word_senses import SenseInventory, detect_language
 
 SIDE_RIGHT = "<dx>"
 SIDE_LEFT = "<sn>"
@@ -106,6 +106,8 @@ _SIDE_WORDS = {
     **dict.fromkeys(("sinistro", "sinistra", "sinistri", "sinistre", "sn", "sx", "left", "lt"), SIDE_LEFT),
     **dict.fromkeys(("bilaterale", "bilaterali", "bilateral", "entrambi", "entrambe", "ambedue", "both"), SIDE_BOTH),
 }
+# Languages whose abbreviations a sentence of the key language accepts as its own.
+_TOLERATED_LANGUAGES = {"it": frozenset({"en"})}
 _POSITION_WORDS = {
     **dict.fromkeys(("superiore", "superiori", "superior", "upper"), POS_UP),
     **dict.fromkeys(("medio", "media", "middle", "mid"), POS_MID),
@@ -669,6 +671,8 @@ class Lexicon:
     classes: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Names with their tissue and container words kept: "lume esofageo" is not a name of the esophagus.
     noisy: frozenset[tuple[str, ...]] = frozenset()
+    # Which language list(s) of the lexicon ("it", "en") each key comes from.
+    languages: dict[tuple[str, ...], frozenset[str]] = field(default_factory=dict)
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Lexicon":
@@ -684,6 +688,12 @@ class Lexicon:
                     index[key].append((cid, region))
                 if region is None:
                     strict[normalise(name, keep_noise=True, map_words=False)].add(cid)
+        written: dict[tuple[str, ...], set[str]] = defaultdict(set)
+        for entry in data["classes"].values():
+            for language in ("it", "en"):
+                for name in entry[language]:
+                    written[normalise(name)].add(language)
+        lexicon.languages = {k: frozenset(v) for k, v in written.items()}
         lexicon.index = dict(index)
         lexicon.strict = dict(strict)
         lexicon.noisy = frozenset(
@@ -692,6 +702,36 @@ class Lexicon:
             for name in entry["it"] + entry["en"]
         )
         return lexicon
+
+    def abbreviation_clash(self, mention: str, language: str | None) -> bool:
+        """A short form written in the lexicon for the other language only, in a sentence that is
+        plainly in this one: "lid" (LID, lobo inferiore destro) in "the lid fissure".
+
+        Abbreviations collide with ordinary words of the other language far more than full names
+        do, and the language of the surrounding text is what tells them apart. Only short forms
+        (three letters or fewer, or capitals of two to four letters) are held to it, and only when
+        the language of the sentence is known: a name spelled the same in both languages, or a
+        sentence the language of which is not clear, never clashes. The rule is not symmetric:
+        Italian reports use English abbreviations as a matter of course (CCA, SVC, IVC), English
+        reports do not use Italian ones, so an English-only name in an Italian sentence is
+        tolerated (``_TOLERATED_LANGUAGES``), an Italian-only name in an English sentence is not.
+        """
+        if language is None:
+            return False
+        words = [w for w in re.findall(r"[A-Za-zÀ-ÿ]+", mention)]
+        content = [
+            w
+            for w in words
+            if _fold(w) not in _SIDE_WORDS and _fold(w) not in _POSITION_WORDS
+        ]
+        if len(content) != 1:
+            return False
+        word = content[0]
+        if not (len(word) <= 3 or (word.isupper() and len(word) <= 4)):
+            return False
+        written = self.languages.get(normalise(mention), frozenset())
+        accepted = {language} | _TOLERATED_LANGUAGES.get(language, frozenset())
+        return bool(written) and not (written & accepted)
 
     def recognise(self, mention: str, sentence: str) -> tuple[list[str], str]:
         """Classes the mention names, after context; and how they were found."""
@@ -982,6 +1022,11 @@ class AnatomyLinker:
     # UBERON is-a/part-of anchored to the classes (anatomy_graph.AnatomyGraph): the neighbour check
     # on the models' choice and the fallback to the parent. None keeps the linker as it was.
     graph: Any = None
+    # Keys of the forms that can mean more than one thing (``form_ambiguity.audit``). With
+    # ``verify`` and at least one model, a link made from the name alone to one of these is read
+    # in its sentence by every model and kept only if all of them say it is that structure.
+    ambiguous: frozenset[tuple[str, ...]] = frozenset()
+    verify: bool = False
     # Whether the graph's parent becomes the link (True) or only a proposal (False, the default).
     # Three blind reviews of 100 random lifts each found 3%, 1% and 5% of them wrong before the
     # rules they suggested; the rate after them is not measured on fresh data. Until the gold set
@@ -1119,6 +1164,16 @@ class AnatomyLinker:
                 tuple(result.options),
             )
         ]
+        if (
+            self.verify
+            and self.chats
+            and result.status == ACCEPTED
+            and result.stage in ("lexicon", "parts")
+            and normalise(mention) in self.ambiguous
+            and not senses.options  # a form with a sense profile has been read in context already
+        ):
+            result, check = self._verify_in_context(result, mention, sentence)
+            trace.append(check)
         if self.graph is not None and result.status == ACCEPTED:
             result, graph_evidence = self._converge_on_graph(result, mention)
             trace.append(graph_evidence)
@@ -1266,6 +1321,17 @@ class AnatomyLinker:
 
             mention = strip_wrapper(mention)
         recognised, how = self.lexicon.recognise(mention, sentence)
+        if (
+            how == "recognised"
+            and not verdict.form  # a form with a sense profile has language among its evidence
+            and self.lexicon.abbreviation_clash(
+                mention,
+                detect_language(sentence) or (report.language if report else None),
+            )
+        ):
+            evidence.append(
+                Evidence("integration", VETO, None, "abbreviation_of_another_language")
+            )
         if how == "recognised":
             evidence.append(Evidence("lexicon", SUPPORT, recognised[0], how))
         elif how in ("ambiguous_name", "context_does_not_support_the_name"):
@@ -1356,6 +1422,52 @@ class AnatomyLinker:
                 return translated
         return outcome or LinkResult(
             ABSTAINED, None, "integration", "no_candidate_survives_the_checks"
+        )
+
+    def _verify_in_context(
+        self, result: LinkResult, mention: str, sentence: str
+    ) -> tuple[LinkResult, Evidence]:
+        """Every model reads the sentence and says whether the marked text is the linked structure.
+
+        The check for the forms that can mean more than one thing and have no sense profile
+        (``ambiguous``): a form that is a structure name in one sentence is an abbreviation, a
+        region, a test or a symptom in another, and the sentence is what says which. All models
+        must say YES; NO or UNSURE from any of them is an abstention with the answer in the reason.
+        """
+        entry = self.lexicon.classes.get(result.cid or "", {})
+        label = (
+            f"{entry['it'][0]} / {entry['en'][0]}"
+            if entry.get("it") and entry.get("en")
+            else str(result.cid)
+        )
+        what = {
+            "part_of": f"a part of the {label}",
+            "contour_of": f"the outline or silhouette of the {label}",
+            "approx": f"approximately the {label}",
+        }.get(result.relation, f"the {label} itself")
+        prompt = (
+            "You check one automatic link in a radiology or clinical text.\n"
+            f"Text: {_mark(sentence, mention)}\n"
+            f"The text between <tgt> tags was linked to: {what}.\n"
+            "Does the marked text, in this sentence, refer to that? Answer YES only if it names "
+            "that anatomical structure here. Answer NO if it means something else (another "
+            "structure, a region beside it, a test or a function, an abbreviation of another "
+            "word, a word that is not anatomy). Answer UNSURE if the sentence does not settle it.\n"
+            "Reply with one word: YES, NO or UNSURE."
+        )
+        answers = {
+            name: (reply.strip().split() or ["UNSURE"])[0].strip(".,:;!").upper()
+            for name, reply in self._ask(prompt).items()
+        }
+        verdicts = {a if a in ("YES", "NO") else "UNSURE" for a in answers.values()}
+        if verdicts == {"YES"}:
+            return result, Evidence(
+                "verify", SUPPORT, result.cid, "context_confirmed_by_every_model"
+            )
+        reason = "context_check_failed:" + ("no" if "NO" in verdicts else "unsure")
+        return (
+            LinkResult(ABSTAINED, None, "verify", reason, votes=dict(answers)),
+            Evidence("verify", VETO, None, reason),
         )
 
     def _ask(self, prompt: str) -> dict[str, str]:

@@ -367,3 +367,17 @@ def test_cap_per_mention_limits_one_dominant_name(lexicon, parts):
     assert sum(i["mention"].lower() == "heart" for i in full) == 10
     assert sum(i["mention"].lower() == "heart" for i in capped) == 3
     assert any(i["mention"].lower() == "spleen" for i in capped)
+
+
+def test_with_a_target_size_the_walk_stops_early_and_stays_repeatable(lexicon, parts):
+    reports = [
+        {"report_id": f"R{i}", "text": "Il fegato è regolare. La milza è regolare."}
+        for i in range(500)
+    ]
+    first = gs.sample_items(reports, lexicon, parts, n=10, seed=7)
+    again = gs.sample_items(reports, lexicon, parts, n=10, seed=7)
+    assert len(first) == 10
+    assert first == again
+    # it did not need all 500 reports
+    seen = {i["report_id"] for i in first}
+    assert len(seen) == 10

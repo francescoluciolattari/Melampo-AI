@@ -25,6 +25,14 @@ on:
         description: "Encoder for the DeepEL-style and chain stages"
         required: false
         default: "voyage-4-large"
+      graph:
+        description: "Use the UBERON graph (neighbour check, parent proposal); untick to compare"
+        type: boolean
+        default: true
+      verify:
+        description: "Both models read the sentence for every name-only link of a form that can mean more than one thing"
+        type: boolean
+        default: false
 
 jobs:
   linking:
@@ -54,10 +62,14 @@ jobs:
           MODE: ${{ inputs.mode }}
           ENCODERS: ${{ inputs.encoders }}
           DEEPEL_ENCODER: ${{ inputs.deepel_encoder }}
+          USE_GRAPH: ${{ inputs.graph }}
+          VERIFY: ${{ inputs.verify }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
           args=(--mode "$MODE" --deepel-encoder "$DEEPEL_ENCODER" --out linking_results.json --markdown linking_summary.md)
           if [ -n "$ENCODERS" ]; then args+=(--encoders "$ENCODERS"); fi
+          if [ "$USE_GRAPH" = "false" ]; then args+=(--no-graph); fi
+          if [ "$VERIFY" = "true" ]; then args+=(--verify); fi
           uv run python scripts/run_linking_bench.py "${args[@]}"
 
       - name: Summarise results

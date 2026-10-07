@@ -206,7 +206,16 @@ def sample_items(
     """
     rng = random.Random(seed)
     pool: list[dict[str, Any]] = []
+    # With a target size the reports are visited in random order and the walk stops once there
+    # are enough proposals to draw from (a corpus of 60,000 case reports takes two hours to scan
+    # whole, and the sample only needs a few hundred). Without `n`, every report is read.
+    wanted = n * (5 if cap_per_mention else 3) if n is not None else None
+    if wanted is not None:
+        reports = list(reports)
+        rng.shuffle(reports)
     for report in reports:
+        if wanted is not None and len(pool) >= wanted:
+            break
         text = report["text"]
         mentions = propose_mentions(text, lexicon, parts)
         if not mentions:
