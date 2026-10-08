@@ -8,7 +8,7 @@ Stato misurato (commit fissati, verify spento, regola del progetto `by_project_r
 
 | Strumento | A che cosa serve | Limite |
 |---|---|---|
-| Controllo esterno (`external_check.py`) con regola del progetto | conta accordi ed errori, riga per riga, su etichette di altri | l'oro di MedMentions etichetta il concetto UMLS più lungo, non la sede anatomica: una parte degli "errori" è convenzione |
+| Controllo esterno (`external_check.py`) con regola del progetto | conta accordi ed errori, riga per riga, su etichette di altri | l'oro di MedMentions etichetta il concetto UMLS più specifico del sintagma, senza sovrapposizioni, non la sede anatomica: una parte degli "errori" è convenzione |
 | Confronto per riga prima/dopo (insieme di accettati per chiave corpus-documento-menzione-frase) | dice quali errori una regola ferma e quali link giusti perde | richiede commit fissati |
 | Segnali con AUC e punti di lavoro (`head_probe`) | misura se un segnale (testa sintattica, attenzione, dominio) separa errori da link giusti | solo ordine relativo, non certifica |
 | `verify` con due modelli, prompt generico | prova se un modello vede l'errore leggendo la frase | vedi §3 |
@@ -18,7 +18,7 @@ Stato misurato (commit fissati, verify spento, regola del progetto `by_project_r
 
 ## 2. Dove il flusso fallisce: gli errori hanno lo stesso profilo dei link giusti
 
-Il profilo dei flussi è identico: 15 errori su 22 hanno esattamente il supporto `('name', 'blind', 'discourse')`, lo stesso dei link giusti; nessun errore ha conflitti. Il nome dice "heart", la lettura cieca dice "cuore", il discorso (altre strutture nel documento) sostiene. **Non c'è un flusso di evidenza che "si accorge" dell'errore**, perché tutti i flussi leggono la parola e non il sintagma intero. È la stessa cosa che si vede nei segnali sintattici (AUC 0,48–0,58): il fallimento sta prima, nel modo di costruire la menzione, non nella fiducia.
+Il profilo dei flussi è identico: 15 errori su 22 hanno esattamente il supporto `(`name`, `blind`, `discourse`)`, lo stesso dei link giusti; nessun errore ha conflitti. Il nome dice "heart", la lettura cieca dice "cuore", il discorso (altre strutture nel documento) sostiene. **Non c'è un flusso di evidenza che "si accorge" dell'errore**, perché tutti i flussi leggono la parola e non il sintagma intero. È la stessa cosa che si vede nei segnali sintattici (AUC 0,48–0,58): il fallimento sta prima, nel modo di costruire la menzione, non nella fiducia.
 
 Gli errori rimasti per causa e per stadio che dovrebbe fermarli:
 
@@ -64,25 +64,48 @@ Misura: MedMentions 25 → 22 errori (prostate symptom score ×2, Liver Fatty Ac
 
 **Protein Ontology.** Dalla sessione non si scarica: il file va costruito dal workflow `longer-names` su GitHub (indirizzo di default non verificato). Il builder la usa già (`--pr`), ma `longer_names.json` attuale contiene solo NCIt + UBERON.
 
-## 5. Dove il cervello umano fa la differenza
+## 5. Dove il cervello umano fa la differenza (rivisto dopo le domande di Frank)
 
-1. **Legge il sintagma come un concetto intero.** Davanti a "inferior vena cava filter placement" un radiologo vede un'unica procedura; il linker vede quattro parole e una struttura. L'oro di MedMentions fa lo stesso: etichetta il concetto UMLS più lungo.
-2. **Conosce le entità con nome e i loro tipi** (proteina, test, dispositivo). Noi lo sostituiamo con le ontologie: funziona dove l'ontologia copre (NCIt per proteine, test), non dove manca (dispositivi, procedure rare, microbioma).
-3. **Legge l'argomento del documento** ("Maroilles", "rind", "LAB agar" → latteria). Noi non lo facciamo e il prodotto clinico non ne ha bisogno: il tipo di documento si decide a monte.
-4. **Usa la sintassi e i verbi** ("how the brain controls" = verbo). Con le regole di adiacenza non lo facciamo; serve un parser, e il parser da solo non separa i casi (AUC ~0,55).
-5. **Corregge i refusi** ("interlukine").
-6. **Conosce lo scopo dell'etichetta.** Un annotatore di MedMentions etichetta il processo, uno di CRAFT l'organo. Il cervello umano sa quale scopo serve; la macchina deve essere istruita (qui lo scopo è la sede anatomica del reperto, e vince la scelta fatta in F6).
+**1. Legge il sintagma intero come un concetto.** È il compito di F1, e non è una facoltà fuori portata: è riconoscimento di concetti con tipo (§6 elenca i modelli che lo fanno). Quello che mancava al linker è un flusso che legga il sintagma e dica che tipo di cosa è.
 
-## 6. Che cosa significa per l'obiettivo del 99% su MedMentions
+**2. Entità con nome, tema del documento, verbi: è contesto.** Frank ha ragione, e il linker ha già un flusso "discorso", ma oggi legge solo le *altre strutture anatomiche* del documento. Non legge che "Maroilles", "rind", "MRS agar", "MALDI-TOF" sono entità di un altro tipo (formaggio, terreno di coltura, tecnica di laboratorio). Il contesto ha tre parti diverse: (a) il tipo delle altre entità nella frase e nel documento, (b) il tema del documento, (c) la struttura della frase (verbi e relazioni: "how the brain *controls*"). Il profilo lessicale del documento (F5) ha fallito sul formaggio perché misurava adulto/pediatrico, non il tema; il contesto tipizzato da entità è un'altra misura e non è ancora provata. Nella NCIt "Cheese" esiste come classe (C178207), quindi i tipi delle parole vicine si possono leggere da un'ontologia.
+
+**3. I refusi: sì, un modello li corregge** (un LLM o un modello di linguaggio mascherato; esiste lavoro pubblicato sulla correzione dei refusi nei testi medici con modelli mascherati, BMC Bioinformatics 2022: ho letto solo il titolo, l'articolo non era raggiungibile). Due precisazioni: (i) nel caso concreto la correzione non basterebbe: scritto bene, "heart interleukin-6" resta un caso in cui l'oro etichetta tutto il sintagma come misura di laboratorio (tipo T059); il refuso non è la causa dell'errore; (ii) in un dispositivo medico una correzione silenziosa è un'inferenza: va registrata come ipotesi con il testo originale accanto. Il modo più verificabile è la distanza di edit dal vocabolario ("interlukine" dista poche modifiche da "interleukin"), con un modello solo per scegliere tra più candidati.
+
+**4. Lo scopo dell'etichetta, spiegato.** Ogni corpus risponde a una domanda diversa, e la stessa frase riceve etichette diverse.
+- *MedMentions* serve a riconoscere concetti UMLS in un abstract. Le istruzioni agli annotatori (Mohan e Li) sono: "annotate the most specific concept for each mention, without any overlaps". In "heart interleukin-6 levels" il concetto più specifico è la misura; "heart" non riceve etichetta propria. In "heart development" l'etichetta va al processo.
+- *CRAFT* (parte anatomica) serve a trovare ogni menzione di struttura anatomica in UBERON, anche annidata: la guida dice che si annota il termine incluso quando la sua parola centrale è diversa da quella del sintagma che lo contiene ([Gold-standard ontology-based anatomical annotation in the CRAFT Corpus](https://pmc.ncbi.nlm.nih.gov/articles/PMC7243923)). In "heart development" la parola centrale è "development", quindi "heart" riceve l'etichetta dell'organo.
+- *Il nostro scopo* è dire in quale struttura sta un reperto di un referto. Una parola anatomica che qualifica un processo, una misura, un dispositivo o una proteina non dice dove sta il reperto; dice di cosa si parla. Per questo F6 non fa il link e registra la struttura con un ruolo (`inherent_location`); il progetto ha anche il ruolo `procedure site`.
+
+Conseguenza che finora non avevo detto: **una parte dei composti "ancora aperti" non è un errore per il prodotto se il ruolo è registrato**: "inferior vena cava filter placement" o "Liver Donation" hanno la struttura come sede della procedura. L'errore c'è solo se quel link entra in un campo "sede del reperto". Il controllo esterno oggi conta il link come errore perché l'oro etichetta la procedura; per il prodotto la misura giusta è "il ruolo registrato è giusto?", e questo non l'ho ancora misurato (§8, punto 1). Il cervello umano fa la differenza qui perché conosce lo scopo; la macchina lo riceve solo se è scritto nei dati e nel gold set dei radiologi.
+
+## 6. Modelli che leggono il sintagma intero: che cosa esiste e che cosa vale
+
+Premessa: i modelli di *entity linking* (SapBERT, KRISSBERT, arboEL) ricevono la menzione già delimitata e scelgono il concetto; su MedMentions con menzioni d'oro arboEL ha richiamo@1 0,69 e SciSpacy 0,58 ([BELB](https://arxiv.org/pdf/2308.11537)); KRISSBERT dichiara circa 58,3% di accuratezza top-1 ([scheda del modello](https://huggingface.co/microsoft/BiomedNLP-KRISSBERT-PubMed-UMLS-EL), licenza MIT). Non decidono il confine del sintagma e sono lontani dal 99%: non sono la risposta a F1. Servono modelli che *delimitano e tipizzano* il sintagma:
+
+| Famiglia | Modello | Come legge il sintagma | Limiti |
+|---|---|---|---|
+| A. Riconoscitore di intervalli con tipo, zero-shot | GLiNER-BioMed ([Ihor/gliner-biomed-bi-small-v1.0](https://huggingface.co/Ihor/gliner-biomed-bi-small-v1.0), Apache-2.0, [articolo](https://arxiv.org/abs/2504.00676)) | i tipi si danno in linguaggio naturale ("anatomical structure", "medical device", "procedure", "protein", "assessment scale", "food"); restituisce l'intervallo con tipo e punteggio | solo inglese; F1 medio 56,9 su 8 corpora (scheda): è un segnale, non un giudice; l'articolo non dice nulla sugli intervalli annidati |
+| B. Recupero del sintagma contro le ontologie | codificatore tipo SapBERT/KRISSBERT sui gruppi di parole che contengono la menzione, contro NCIt + UBERON | generalizza `longer_names` alle forme non elencate ("spleen cells transfusion" ≈ trasfusione di cellule) | rischio di falsi veti su "liver biopsy"; serve una soglia calibrata |
+| C. LLM come segmentatore | un modello a cui si chiede di dividere la frase in concetti, ciascuno con un tipo di un elenco chiuso, e di dire quale contiene la parola | è l'operazione che fa l'umano | mai provato in questa forma: il `verify` provato chiedeva "il link è giusto?", non "segmenta" |
+| D. Tipo della testa da ontologia | ultime parole dei nomi NCIt per classe (procedura, dispositivo…), come per `process_heads` da GO | deterministico e verificabile | copre solo teste frequenti; il confine con i casi veri (liver biopsy) è il ruolo (§5.4) |
+
+PubTator 3.0 ([articolo](https://arxiv.org/pdf/2401.11048)) copre gene, malattia, sostanza chimica, variante, specie e linea cellulare (tipi da verificare sull'articolo, che non ho letto per intero): serve per proteine e sostanze, già coperte da NCIt e Protein Ontology; non per dispositivi e procedure.
+
+**Esperimento proposto: `phrase-probe`** (come `head-probe`, lo lancia Frank da GitHub, perché Hugging Face non è raggiungibile dalla mia sessione): sui 22 errori e sui link giusti di MedMentions e CRAFT misura A, B, C e D come AUC e punti di lavoro (errori fermati per link giusti persi), tenendo fuori dal calcolo i composti con ruolo registrato. Aspettative oneste: nessuno di questi modelli, preso da solo, arriva al 99%; la strada del progetto resta flussi indipendenti che si confrontano, con astensione al conflitto. Con 22 errori l'intervallo di confidenza è largo: il risultato va ricontrollato su una parte tenuta ferma (split di test congelato).
+
+## 7. Che cosa significa per l'obiettivo del 99% su MedMentions
 
 - Il tetto realistico senza aggiudicazione indipendente è circa il 98%: restano 7 composti aperti, ma 11 casi su 22 sono gold-side o fuori dominio (formaggio, mappatura UMLS, rumore, granularità).
 - **Un 99% su un campione non è un 99% certificato**: con 735 link e 7 errori il limite superiore al 95% è circa 1,9%.
 - Il numero che conta per il prodotto è il gold set dei radiologi (due letture cieche + aggiudicatore); con il metodo attuale servono almeno 299 link senza errori per una certificazione al 99% a livello 95%.
 - Per non sovradattare, **congelare lo split ufficiale test di MedMentions** (trng 456 errori/17, dev 153/2, test 126/6) e sviluppare solo su trng+dev.
 
-## 7. Prossimi passi
+## 8. Prossimi passi
 
-1. Lanciare `longer-names` su GitHub per aggiungere Protein Ontology e sostituire `data/linking/longer_names.json` con l'artefatto.
-2. Aggiungere un vocabolario di dispositivi e procedure da ontologia (da NCIt, dove le classi di dispositivo e procedura esistono, oppure da una fonte con licenza che Frank indichi; non ancora verificato).
-3. Decisione dei radiologi su "developing brain" e granularità (F7).
-4. Congelare lo split di test di MedMentions.
+1. Misurare MedMentions anche con la regola del ruolo (il ruolo registrato è giusto?), non solo con l'etichetta di link.
+2. Costruire e lanciare `phrase-probe` (§6): GLiNER-BioMed, recupero del sintagma, LLM segmentatore, tipo della testa.
+3. Lanciare `longer-names` su GitHub per aggiungere Protein Ontology e sostituire `data/linking/longer_names.json` con l'artefatto.
+4. Aggiungere un vocabolario di dispositivi e procedure da ontologia (da NCIt, dove le classi di dispositivo e procedura esistono, oppure da una fonte con licenza che Frank indichi; non ancora verificato).
+5. Decisione dei radiologi su "developing brain" e granularità (F7).
+6. Congelare lo split di test di MedMentions.
