@@ -130,3 +130,39 @@ def test_a_cypher_relationship_round_trips_through_a_real_lite_connection():
         assert result.result_set == [
             ["Sindrome di Marfan", "Aneurisma della radice aortica"]
         ]
+
+
+# --------------------------------------------------------------------------
+# Environment override: the same tests against a real server (CI job falkordb-service)
+# --------------------------------------------------------------------------
+
+
+def test_the_service_override_points_any_config_at_the_named_server():
+    from melampo.memory.falkordb_connection import (
+        MODE_SERVICE,
+        FalkorDBConfig,
+        service_override,
+    )
+
+    lite = FalkorDBConfig()
+    changed = service_override(
+        lite, {"MELAMPO_FALKORDB_SERVICE": "db.example.org:6380", "MELAMPO_FALKORDB_PASSWORD": "pw"}
+    )
+    assert (changed.mode, changed.service_host, changed.service_port) == (
+        MODE_SERVICE,
+        "db.example.org",
+        6380,
+    )
+    assert changed.service_password == "pw"
+    assert service_override(lite, {}) is lite
+    assert service_override(lite, {"MELAMPO_FALKORDB_SERVICE": "  "}) is lite
+
+
+def test_a_malformed_service_override_raises_instead_of_falling_back_to_lite():
+    import pytest
+
+    from melampo.memory.falkordb_connection import FalkorDBConfig, service_override
+
+    for bad in ("localhost", ":6379", "localhost:port"):
+        with pytest.raises(ValueError):
+            service_override(FalkorDBConfig(), {"MELAMPO_FALKORDB_SERVICE": bad})

@@ -69,6 +69,19 @@ Clona CRAFT v5.1.0 e MedMentions a una versione fissata. L'artifact `external-ch
 
 Nessuna chiamata a pagamento: scarica spaCy (inglese e italiano) e l'encoder da Hugging Face e gira sulla CPU del runner, circa un'ora. L'artifact `head-probe` contiene `head_probe.md`, da leggere per primo: per ogni segnale l'AUC e quanti errori ferma per quanti link giusti perde (a 0, 5, 20, 50 persi), i link giusti che una testa "non sede" fermerebbe, e gli errori con le teste trovate dai tre metodi. Non cambia il linker.
 
+## `longer-names` (nomi lunghi tipizzati: NCIt e Protein Ontology)
+
+| Campo | Cosa scrivere |
+|---|---|
+| Use workflow from | un ramo che contiene `longer-names.yml` |
+| pr_url | lasciare il predefinito (`https://proconsortium.org/download/current/pro_nonreasoned.obo`, indirizzo non verificato); se il download non riesce, il passo è saltato e si costruisce solo da NCIt |
+
+Scarica UBERON e l'ultima release di NCIt, prova Protein Ontology, costruisce `longer_names.json`. L'artifact `longer-names` contiene il file e il riepilogo (conteggi per tipo, hash e versioni). Si scarica, si sostituisce `data/linking/longer_names.json`, si rilancia `external-check`.
+
+## Job `falkordb-service` (automatico in CI)
+
+Parte a ogni push: un server FalkorDB come service container, test di grafo su TCP. Non richiede azioni.
+
 ## Il lettore cieco (passo 7, senza modelli)
 
 `python scripts/blind_reader_check.py --uberon data/linking/uberon-basic.obo --out blind_check.json` misura il lettore sulle menzioni etichettate (nessuna chiave, nessuna rete). Il lettore è attivo in `run_linking_bench.py`, `verify_probe.py` e `gold_set.py evaluate` solo come traccia; `run_linking_bench.py --blind-veto` lo lascia fermare un link che contraddice con sicurezza.
