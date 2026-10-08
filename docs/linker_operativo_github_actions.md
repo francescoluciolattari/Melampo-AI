@@ -1,6 +1,6 @@
 # Linker anatomico: come si lanciano i workflow (GitHub Actions)
 
-Guida operativa per `public-reports` (referti pubblici e fogli ciechi) e `linking-bench` (misura del linker con i due modelli). Vale dal commit del ramo `feat/linker-streams` in poi; il ramo `feat/linker-t3` (bundle del 7 ottobre, notte) aggiunge il campo `style` a `verify-probe`.
+Guida operativa per `public-reports` (referti pubblici e fogli ciechi) e `linking-bench` (misura del linker con i due modelli). Vale dal commit del ramo `feat/linker-streams` in poi; il ramo `feat/linker-t3` (bundle del 7 ottobre, notte) aggiunge il campo `style` a `verify-probe`; il ramo `feat/linker-nine` (8 ottobre) aggiunge il workflow `external-check`.
 
 ## Regola generale
 
@@ -45,6 +45,17 @@ Serve a misurare la verifica con i due modelli su frasi vere, non sintetiche. Si
 | style | `yes_no` (domanda "è questa struttura?") oppure `choice` (cinque opzioni bilanciate con "non si può dire"). Per confrontarle si lanciano due run identici che differiscono solo per `style`. |
 
 Risultato: l'artifact `verify-probe-<source>-<scope>-<style>` con `verify_probe.md` (link fermati da leggere e un campione dei confermati) e `verify_probe.json`. Se in cima c'è "WARNING … lost a model answer", il limite di frequenza ha fatto perdere righe e la misura non vale.
+
+## `external-check` (controllo su etichette di altri: CRAFT e MedMentions)
+
+| Campo | Cosa scrivere |
+|---|---|
+| Use workflow from | un ramo che contiene `external-check.yml` (`main` dopo il merge, o `feat/linker-nine`) |
+| corpus | `both` (o `medmentions`, `craft`) |
+| verify | spenta: nessuna chiamata ai modelli (circa 10 minuti). Accesa: i due modelli leggono la frase per ogni link fatto dal solo nome (circa 3.200 link, chiamate a pagamento, 1–2 ore) |
+| limit | vuoto = tutto; un numero (per esempio `50`) per una prova veloce |
+
+Clona CRAFT v5.1.0 e MedMentions a una versione fissata. L'artifact `external-check-<corpus>-verify-<true|false>` contiene `external_check.md`, che si legge per primo, e i file JSON. Nel riepilogo, `by_project_rule` conta gli errori secondo le nostre regole di etichettatura. `verify` dice quanti errori i modelli fermano, quanti ne lasciano passare e quanti link giusti fermano. Se `lost_model_answers` non è 0, il limite di frequenza ha fatto perdere risposte.
 
 ## Il lettore cieco (passo 7, senza modelli)
 

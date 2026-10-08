@@ -1,0 +1,97 @@
+name: External check (CRAFT, MedMentions)
+
+# Manual trigger only. The linker is measured on two free corpora labelled by people who are not
+# us: CRAFT v5.1.0 (UBERON, CC BY 3.0) and MedMentions (UMLS, CC0), both cloned at a pinned version.
+# Without `verify` it makes no model call. With `verify` it makes real, billed OpenRouter calls:
+# two per link made from the name alone (about 3,200 links on both corpora), to measure what the
+# models' reading of the sentence adds. It certifies nothing: the texts are research articles and
+# abstracts, not radiology reports.
+on:
+  workflow_dispatch:
+    inputs:
+      corpus:
+        description: "Which corpus to read"
+        type: choice
+        options: [both, medmentions, craft]
+        default: both
+      verify:
+        description: "Also ask the two models about every link made from the name (billed calls)"
+        type: boolean
+        default: false
+      limit:
+        description: "Documents per corpus (empty = all; a number for a quick run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: External check
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Download UBERON (pinned)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+
+      - name: Clone the corpora (pinned)
+        env:
+          CORPUS: ${{ inputs.corpus }}
+        run: |
+          mkdir -p ext
+          if [ "$CORPUS" != "medmentions" ]; then
+            git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          fi
+          if [ "$CORPUS" != "craft" ]; then
+            git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+            git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+          fi
+
+      - name: Run the check
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CORPUS: ${{ inputs.corpus }}
+          VERIFY: ${{ inputs.verify }}
+          LIMIT: ${{ inputs.limit }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          LIMIT="${LIMIT//[[:space:]]/}"
+          LIMIT="${LIMIT#limit=}"
+          set -- --out external_check.json --markdown external_check.md --workers 6
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          if [ "$CORPUS" != "medmentions" ]; then set -- "$@" --craft ext/craft; fi
+          if [ "$CORPUS" != "craft" ]; then set -- "$@" --medmentions ext/mm; fi
+          if [ "$VERIFY" = "true" ]; then set -- "$@" --verify; fi
+          uv run python scripts/external_check.py "$@"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`, corpus \`${{ inputs.corpus }}\`, verify \`${{ inputs.verify }}\`"
+            echo
+            if [ -f external_check.md ]; then head -c 60000 external_check.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-check-${{ inputs.corpus }}-verify-${{ inputs.verify }}
+          path: |
+            external_check.json
+            external_check.rows.json
+            external_check.md
