@@ -1,0 +1,120 @@
+name: Phrase probe (reading the whole phrase)
+
+# Manual trigger only. It measures, on the links the external check judged (CRAFT, MedMentions),
+# independent ways of reading the whole phrase a mention stands in and saying what kind of thing it
+# names: NCIt-typed head, "X of <object>" with one sense per discourse, document theme, typo
+# hypothesis, dependency parser, a typed span recogniser (GLiNER-BioMed), name retrieval over NCIt
+# (SapBERT) and, only if asked, two chat models that segment the sentence (billed OpenRouter calls).
+# It decides nothing and changes nothing in the linker. See scripts/phrase_probe.py.
+on:
+  workflow_dispatch:
+    inputs:
+      gliner:
+        description: "GLiNER model (empty = arm off)"
+        required: false
+        default: "Ihor/gliner-biomed-bi-small-v1.0"
+      encoder:
+        description: "Name encoder for retrieval over NCIt (empty = arm off)"
+        required: false
+        default: "cambridgeltl/SapBERT-from-PubMedBERT-fulltext"
+      llm:
+        description: "Chat models segment the sentence: none, sample (all errors + llm_sample right links) or all. Billed."
+        type: choice
+        options: [none, sample, all]
+        default: none
+      llm_sample:
+        description: "Right links asked with llm = sample"
+        required: false
+        default: "300"
+      limit:
+        description: "Documents per corpus (empty = all; a number for a quick run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Phrase probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Install the models (CPU)
+        run: |
+          uv pip install \
+            "spacy==3.8.2" \
+            "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" \
+            gliner "transformers>=4.44,<5" "huggingface_hub" \
+            torch --extra-index-url https://download.pytorch.org/whl/cpu
+          uv pip freeze | grep -iE "^(gliner|transformers|torch|spacy)==" || true
+
+      - name: Download UBERON (pinned) and NCIt (latest release)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+          curl -sSL --fail -o ncit.obo \
+            https://github.com/NCI-Thesaurus/thesaurus-obo-edition/releases/latest/download/ncit.obo
+          head -3 ncit.obo
+          sha256sum ncit.obo
+
+      - name: Clone the corpora (pinned)
+        run: |
+          mkdir -p ext
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+
+      - name: Run the probe
+        env:
+          GLINER: ${{ inputs.gliner }}
+          ENCODER: ${{ inputs.encoder }}
+          LLM: ${{ inputs.llm }}
+          LLM_SAMPLE: ${{ inputs.llm_sample }}
+          LIMIT: ${{ inputs.limit }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          LIMIT="${LIMIT//[[:space:]]/}"
+          set -- --craft ext/craft --medmentions ext/mm --ncit ncit.obo --spacy en_core_web_sm \
+            --out phrase_probe.json --markdown phrase_probe.md --workers 4 --llm "$LLM"
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          if ! [[ "$LLM_SAMPLE" =~ ^[0-9]+$ ]]; then echo "::error::llm_sample takes a whole number"; exit 2; fi
+          set -- "$@" --llm-sample "$LLM_SAMPLE"
+          for pair in "gliner:$GLINER" "encoder:$ENCODER"; do
+            flag="${pair%%:*}"; value="${pair#*:}"
+            if [ -n "$value" ]; then
+              if ! [[ "$value" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then echo "::error::$flag takes an id like org/name"; exit 2; fi
+              set -- "$@" "--$flag" "$value"
+            fi
+          done
+          uv run --no-sync python scripts/phrase_probe.py "$@"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"
+            echo
+            if [ -f phrase_probe.md ]; then head -c 60000 phrase_probe.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phrase-probe
+          path: |
+            phrase_probe.json
+            phrase_probe.md

@@ -109,3 +109,48 @@ PubTator 3.0 ([articolo](https://arxiv.org/pdf/2401.11048)) copre gene, malattia
 4. Aggiungere un vocabolario di dispositivi e procedure da ontologia (da NCIt, dove le classi di dispositivo e procedura esistono, oppure da una fonte con licenza che Frank indichi; non ancora verificato).
 5. Decisione dei radiologi su "developing brain" e granularità (F7).
 6. Congelare lo split di test di MedMentions.
+
+## 9. Più flussi per leggere il sintagma, quando si usano, e come si risolvono le obiezioni (9 ottobre 2026)
+
+### 9.1 Perché più flussi
+
+Ogni flusso risponde alla stessa domanda, *il sintagma che contiene la parola nomina un'altra cosa, e di che tipo?*, con un meccanismo diverso e con errori diversi: l'elenco dei nomi (NCIt, Protein Ontology) manca le forme non elencate; il riconoscitore di intervalli (GLiNER) sbaglia i confini; il recupero per somiglianza (SapBERT) confonde nomi vicini; un LLM può inventare. Se sbagliano in modi indipendenti, quando sono d'accordo l'accordo vale qualcosa; quando non lo sono il linker si astiene. È lo stesso principio del resto dell'architettura.
+
+### 9.2 Solo quando c'è incertezza? No, e la misura lo dice
+
+Misurato sui 2.058 link giudicati (CRAFT e MedMentions, 33 errori): un cancello "solo se c'è conflitto o convergenza sotto 3" si apre su **10 errori su 33** (e su 457 link giusti). Gli altri 23 errori non sembrano incerti: per questo un flusso del sintagma acceso solo nell'incertezza non li vedrebbe mai. Quindi:
+
+| Livello | Flussi | Quando | Costo |
+|---|---|---|---|
+| 1 | nomi lunghi tipizzati, teste di processo, "X of <oggetto>", senso del discorso, ipotesi di refuso | sempre, su ogni link | consultazione di dizionari, millisecondi |
+| 2 | GLiNER-BioMed, recupero del sintagma su NCIt | quando la menzione sta dentro un sintagma più lungo (17 errori su 33, 810 link giusti su 2.025 nella letteratura; nei referti da misurare) | CPU, decine di millisecondi |
+| 3 | LLM che segmenta la frase | solo quando i flussi dei livelli 1–2 non sono d'accordo tra loro sul tipo del sintagma | chiamata a pagamento |
+
+L'incertezza che apre il livello 3 è quella *della lettura del sintagma*, non quella del link. Nessun flusso del sintagma aggiunge link: può solo fermarli o dare il ruolo alla struttura.
+
+### 9.3 Prima misura dei flussi deterministici (sessione, senza modelli)
+
+`scripts/phrase_probe.py` sui link giudicati, NCIt release 2024-05-07, spaCy `en_core_web_sm` 3.8:
+
+| Segnale | Errori fermati / link giusti persi (al minimo di persi) | AUC |
+|---|---|---|
+| "X of <cibo o oggetto>" + un senso per discorso | 3 / 0 (i tre "heart" del formaggio) | 0,55 |
+| ipotesi di refuso che cambia il tipo della testa | 1 / 0 ("interlukine" → interleukin, proteina) | 0,52 |
+| tipo della testa dall'ultima parola dei nomi NCIt | nessuna soglia utile (472 link giusti segnalati: "sections", "weight", "cells") | 0,57 |
+| tema del documento (quota di parole cibo/oggetto) | 7 / 41 a 50 persi | 0,57 |
+| parser: testa del gruppo nominale, "X of" sotto un processo, soggetto di un verbo | nessuna soglia utile | 0,51–0,53 |
+
+Lettura onesta: due regole generali funzionano su questi dati (oggetto + discorso, refuso), ma sono state scritte *dopo* aver visto gli errori, quindi la misura è ottimistica e va rifatta sullo split di test congelato e sui referti reali. Il tipo della testa letto parola per parola e il parser non servono: confermano che la parola vicina non basta e che serve leggere il sintagma con un modello (GLiNER, recupero, LLM), che gira solo su GitHub.
+
+### 9.4 Come si risolvono le tre obiezioni
+
+1. **Contesto (entità con nome, tema, verbi).**
+   - *Oggetto e discorso:* un veto di senso `part_of_an_object:<testa>` quando la struttura è seguita da "of/del" e da un sintagma che NCIt tipizza come cibo o oggetto fabbricato; il senso si conserva nel documento (un senso per discorso, Gale, Church e Yarowsky 1992), salvo prova contraria nella frase. Da implementare dopo la conferma sullo split di test e sui referti; l'italiano richiede i tipi in italiano (NCIt è inglese): limite dichiarato.
+   - *Tema:* non si implementa (AUC 0,57); nel prodotto il tipo di documento si decide a monte.
+   - *Verbi:* il parser da solo non separa; il candidato è il segmentatore LLM (livello 3).
+2. **Refusi.** Correttore deterministico (distanza di edit ≤1 per parole di 5–6 lettere, ≤2 da 7; vocabolario NCIt + UBERON + parole che il corpus scrive almeno tre volte); la correzione è un'ipotesi registrata nella traccia (`spelling_hypothesis: scritto → letto`) e serve solo a tipizzare la testa del sintagma: non crea link e non cambia la struttura. Un LLM serve solo a scegliere tra più correzioni.
+3. **Scopo dell'etichetta.** Il linker dà già i ruoli `procedure_site` e `inherent_location`; si aggiungono `device_site`, `inside_a_name`, `not_a_body_site`. Il controllo esterno confronta il ruolo con il tipo semantico dell'oro (procedura → sede della procedura, dispositivo → sede del dispositivo, processo e proprietà → sede intrinseca); il protocollo del gold set chiede ai radiologi struttura **e** ruolo. Prima misura: il tipo della testa dà il ruolo dell'oro in 2 errori su 6, l'oggetto in 1 su 1; i modelli si misurano con `phrase-probe`.
+
+### 9.5 L'esperimento `phrase-probe`
+
+Workflow manuale `phrase-probe.yml`: scarica UBERON (fissato), NCIt (ultima release), CRAFT e MedMentions (fissati), spaCy, GLiNER-BioMed (`Ihor/gliner-biomed-bi-small-v1.0`) e SapBERT (`cambridgeltl/SapBERT-from-PubMedBERT-fulltext`). L'LLM è spento per default; con `llm = sample` chiede ai due modelli del `verify` tutti gli errori più 300 link giusti (circa 670 chiamate). Un braccio che non si carica è scritto nel rapporto, non ferma la corsa. Rapporto: AUC e punti di lavoro di ogni segnale, voti dei flussi economici, cancello, ruoli, ogni errore letto da ogni braccio, i link giusti che due voti fermerebbero.
