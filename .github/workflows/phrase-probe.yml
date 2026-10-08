@@ -51,6 +51,7 @@ jobs:
           uv pip install \
             "spacy==3.8.2" \
             "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" \
+            click typer \
             gliner "transformers>=4.44,<5" "huggingface_hub" \
             torch --extra-index-url https://download.pytorch.org/whl/cpu
           uv pip freeze | grep -iE "^(gliner|transformers|torch|spacy)==" || true

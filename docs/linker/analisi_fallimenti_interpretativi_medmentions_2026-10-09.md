@@ -128,7 +128,7 @@ Misurato sui 2.058 link giudicati (CRAFT e MedMentions, 33 errori): un cancello 
 
 L'incertezza che apre il livello 3 è quella *della lettura del sintagma*, non quella del link. Nessun flusso del sintagma aggiunge link: può solo fermarli o dare il ruolo alla struttura.
 
-### 9.3 Prima misura dei flussi deterministici (sessione, senza modelli)
+### 9.3 Prima misura dei flussi deterministici (sessione, senza modelli; la misura reale con i modelli è nel §9.6)
 
 `scripts/phrase_probe.py` sui link giudicati, NCIt release 2024-05-07, spaCy `en_core_web_sm` 3.8:
 
@@ -154,3 +154,17 @@ Lettura onesta: due regole generali funzionano su questi dati (oggetto + discors
 ### 9.5 L'esperimento `phrase-probe`
 
 Workflow manuale `phrase-probe.yml`: scarica UBERON (fissato), NCIt (ultima release), CRAFT e MedMentions (fissati), spaCy, GLiNER-BioMed (`Ihor/gliner-biomed-bi-small-v1.0`) e SapBERT (`cambridgeltl/SapBERT-from-PubMedBERT-fulltext`). L'LLM è spento per default; con `llm = sample` chiede ai due modelli del `verify` tutti gli errori più 300 link giusti (circa 670 chiamate). Un braccio che non si carica è scritto nel rapporto, non ferma la corsa. Rapporto: AUC e punti di lavoro di ogni segnale, voti dei flussi economici, cancello, ruoli, ogni errore letto da ogni braccio, i link giusti che due voti fermerebbero.
+
+### 9.6 Risultato reale del run su GitHub (zip di Frank, 2.058 link giudicati)
+
+Rapporto `phrase-probe` con GLiNER-BioMed e SapBERT su NCIt, LLM spento, braccio del parser caduto (`click` mancante, ora nel workflow). Questi numeri sostituiscono la "prima misura" del §9.3 per GLiNER e recupero.
+
+- **Nessun segnale separa gli errori**: AUC da 0,50 a 0,60 (voti economici 0,60; in CRAFT 0,36).
+- **GLiNER tipizza la parola anatomica stessa "anatomia" in 26 errori su 33**: legge la parola, non il sintagma.
+- **Unione economica** (oggetto, discorso, refuso, GLiNER ≥ 0,5): 9 errori MedMentions su 22 fermati, 65 link giusti su 710 segnalati (quasi tutti `brain`, `liver`, `heart`, `prostate`: convenzioni da registrare con un ruolo). Oggetto+discorso+refuso: 4 errori a costo zero.
+- **Cancello "solo se incerto"**: 10 errori su 33.
+- **Ruolo**: il tipo di GLiNER dà il ruolo dell'oro in 1 errore su 11 tipizzati; il recupero in 3 su 12; la testa in 2 su 6.
+- **Natura degli errori MedMentions**: 9 non sono isolamento di sintagma (span dell'oro = menzione); 13 hanno span dell'oro più lungo, e **NCIt non ne contiene nessuno come nome**.
+- Lessico di teste dalle ultime parole dei nomi NCIt con tratto anatomico: 2/22 errori, 48/710 link giusti segnalati: inutilizzabile senza cura.
+
+Conclusione: i lettori zero-shot non bastano; la metrica del prodotto è il ruolo corretto, e per i 13 casi a span lungo serve composizione o una memoria più grande (vedi `lettura_del_sintagma_cervello_e_modelli`, §7).
