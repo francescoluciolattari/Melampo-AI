@@ -447,3 +447,55 @@ MedMentions etichetta il concetto più lungo. Per le nostre regole molte sue eti
 - CRAFT e MedMentions sono letteratura in inglese, non referti in italiano.
 - La classificazione "convenzione" contro "errore" su MedMentions segue le nostre regole, che i radiologi non hanno ancora confermato.
 - Le liste di parole (teste, nomi propri, radici) sono dati scelti da me su questi corpora: vanno riviste con il gold set, che dirà anche cosa costano in copertura sui referti.
+
+## 19. Gli errori del controllo esterno, uno per uno, e le correzioni (8 ottobre 2026, sera)
+
+Richiesta di Frank: analizzare nel dettaglio gli errori rimasti (CRAFT 13, MedMentions 51) e correggerli con regole generali, senza casi particolari. L'elenco completo dei 64 casi, con causa, è in `docs/linker/analisi_errori_controllo_esterno_2026-10-08.md`.
+
+### 19.1 Che cosa erano
+
+- **CRAFT (13).** 10 sono differenze di granularità dell'oro (7 "right middle lobe" contro "anatomical lobe", 3 "bladder" contro "bladder organ"): il linker è più specifico del testo. 3 sono "aortic arch" in testi di sviluppo, dove UBERON usa lo stesso nome per l'arco embrionale e per quello adulto.
+- **MedMentions (51).** 16 nomi composti (molecole, scale, assi, abbreviazioni), 16 processi o funzioni dell'organo ("heart development"), 4 materiale d'innesto, 3 formaggio, 4 granularità, 4 rumore dell'oro, 2 mappatura UMLS→UBERON dell'oro, 2 misure o campi.
+
+### 19.2 Che cosa è stato aggiunto
+
+| Meccanismo | Che cosa legge | Veto |
+|---|---|---|
+| Trattino (`compounds.hyphen_compound`) | la menzione è unita da un trattino a un'altra parola, e il sintagma che segue ha per testa una cosa che non è una sede ("gut-brain **axis**", "pro-brain natriuretic **peptide**") | `mention_is_joined_by_a_hyphen_to:<parola>:<testa>` |
+| Sigla definita (`compounds.defined_abbreviation`) | il testo scrive "forma lunga (SIGLA)" (algoritmo di Schwartz e Hearst 2003) e la menzione è parte della forma lunga, che ha per testa una cosa che non è una sede ("liver fatty acid binding **protein** (L-FABP)") | `mention_is_a_word_of_the_name_defined_as:<SIGLA>` |
+| La menzione è la sigla (`defined_short_form`) | "(DENS) **scale**": la sigla ha il significato che il testo le dà | `abbreviation_defined_in_the_text_as:<forma lunga>` |
+| Materiale d'innesto (`word_senses.material_qualifier`) | un qualificatore d'origine subito prima ("autologous", "homologous", "allogeneic", "donor-specific") e la menzione chiude il sintagma ("autologous costal cartilage as graft") | `tissue_taken_as_graft_material:<qualificatore>` |
+| Sinonimi di UBERON come nomi più lunghi | "aortic arch artery" è un nome della *pharyngeal arch artery*: la menzione è dentro un'altra struttura. Il nome è letto come sequenza ordinata di parole, con una testa propria diversa da quella della menzione ("embryonic brain" resta un cervello) e non è solo un luogo ("heart region") | `mention_is_inside_a_longer_name:<nome>` |
+| Cornice di sviluppo (`development`) | un nome condiviso fra una struttura in sviluppo e una adulta (66 nomi, letti dall'ontologia: "aortic arch", "phallus", "mesenteron") in un testo con parole di stadio (embryo, E12.5, fetal). **È una prova registrata, non un veto.** | conflitto `name_shared_with_a_developing_structure_in_a_developmental_text` nel profilo |
+
+La **testa del sintagma** è la regola comune: `word_senses.noun_phrase_after` prende le parole a destra della menzione fino a una parola di arresto (preposizione, congiunzione, verbo della classe chiusa, punteggiatura) e la testa è l'ultima, tolte le nominalizzazioni ("expression", "levels"). Le teste che non sono una sede sono le teste già note (`attribute_heads.after`) più `phrase_final` in `data/linking/word_senses.json`.
+
+### 19.3 Una prima versione sbagliata, e perché
+
+La prima versione non guardava la testa: si fermava a ogni trattino, a ogni sigla definita e a ogni sinonimo. Misurata riga per riga contro la base, fermava 15 errori ma anche **49 link giusti** e cambiava 106 casi non giudicati: "congenital heart disease (CHD)", "Mouse Brain Library (MBL)", "neck–liver", "fetal-liver-derived macrophages", "embryonic brain". La causa era una sola: il trattino o la sigla da soli non dicono se il sintagma nomina una sede. Lo dice la testa ("axis", "protein", "scale" sì; "disease", "library", "macrophages" no). Con la testa le perdite sono scese da 49 a **1** link giusto ("islet-to-pancreas volume ratios", una misura) e 1 non giudicato ("hypothalamus-pituitary-gonadal-liver axis").
+
+### 19.4 Misura prima e dopo (stessi corpora, stessi commit fissati)
+
+| | CRAFT | MedMentions |
+|---|---|---|
+| Errori prima → dopo | 13 → 11 | 51 → 38 |
+| Giudicati | 1.352 → 1.349 | 768 → 755 |
+| Precisione (regola del progetto) | 99,04% → 99,18% | 93,36% → 94,97% |
+| Link giusti persi | 1 | 0 (1 non giudicato) |
+
+Bench sintetico: identico (108 valori su 108). Test del linker: 628 passano.
+
+### 19.5 Che cosa non ha funzionato (e va detto)
+
+- **Dominio del documento come veto.** Nei documenti di sviluppo di CRAFT gli annotatori hanno collegato "aortic arch" all'arco aortico adulto 25 volte su 28 ("the definitive aortic arch", "left-sided aortic arch" di un embrione). Un veto sulla cornice avrebbe perso 25 link giusti per evitarne 3 sbagliati. Per questo la cornice è una prova registrata. Ciò che distingue i 3 errori è locale ("fourth aortic arch artery", "aortic arch arteries") e lo legge il sinonimo di UBERON.
+- **Firma del senso dalle definizioni dell'ontologia** (confronto probabilistico e sovrapposizione di parole distintive): su 385 link accettati con un nome rivale dava come "insetto" molti testi di cardiologia umana. I rivali reali nei due corpora sono 5 coppie di nomi, 3 di specie irrilevanti (cuore dorsale di insetto, faringe di nematode). `uberon-basic` non porta il taxon. Scartato.
+- **Il solo parser non basta**: la menzione non è testa del suo sintagma nel 56% degli errori e nel 36% dei link giusti. La testa che compare più spesso fra i link giusti è "development" (26 volte in CRAFT, dove l'annotatore etichetta l'organo in "heart development"); in MedMentions la stessa costruzione è un errore. La convenzione cambia da un oro all'altro (§19.7).
+
+### 19.6 Esperimento F1: la testa del sintagma con parser e attention
+
+`scripts/head_probe.py` e il workflow `head-probe` misurano tre modi di trovare la testa (scansione a parole di arresto, parser a dipendenze spaCy, attention di un encoder biomedico) e tre segnali di che cosa sia (lista, spostamento di significato della menzione fra sola e in frase, somiglianza della testa a prototipi di sede o non-sede). Riporta per ogni segnale l'AUC (errore contro giusto) e quanti errori ferma per quanti link giusti perde. Include i set di controllo inglese e italiano del progetto. Non decide nulla. Si lancia a mano (§ guida operativa).
+
+### 19.7 Aperto: F6 e F7
+
+- **F6, processo o funzione dell'organo.** CRAFT e MedMentions hanno convenzioni opposte. Opzioni: astenersi; collegare con una relazione `subject_of_process` che a valle non conta come sede. Da decidere con i radiologi; il pacchetto di certificazione contiene la domanda.
+- **F7, granularità.** "brain parenchyma" e "hepatic parenchyma" portano all'organo per convenzione del progetto; "bladder" è la vescica urinaria e "right middle lobe" il lobo del polmone destro nei referti. "large bowel" porta a `colon` per scelta del lessico: va confermata o marcata come approssimata. Nessuna modifica al codice.

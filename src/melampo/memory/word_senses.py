@@ -277,6 +277,57 @@ def _head(
     return ""
 
 
+# Where an English noun phrase to the right of the structure ends: a preposition, a conjunction, a
+# verb of the closed class, a determiner, a relative, an adverb that opens a clause, or any
+# punctuation. English compounds are right-headed: the last word of the phrase is its head.
+_PHRASE_STOP = frozenset(
+    """of in on at to for from by with without within during after before between among under over
+    via per as into onto upon about against through across than and or but nor while whereas
+    although because since if when whether which that who whom whose where is are was were be been
+    being has have had do does did can could may might will would shall should must the a an this
+    these those its their our his her also then not only however thus therefore here there
+    di del della dello dei degli delle dell nel nella nei nelle sul sulla con senza per tra fra
+    e ed o ma che il lo la le gli un una""".split()
+)
+_TAIL = frozenset(
+    """expression level levels concentration concentrations activity deficiency production
+    secretion release measurement measurements value values change changes increase decrease
+    content status""".split()
+)
+def phrase_head(words: list[str], heads: frozenset[str]) -> str:
+    """The head of the phrase if it is one of ``heads``, else "". The head is the last word, once
+    the nominalisations that only say what is measured of the thing are dropped ("... binding
+    protein expression", "... peptide levels")."""
+    words = list(words)
+    while words and words[-1] in _TAIL:
+        words.pop()
+    return words[-1] if words and words[-1] in heads else ""
+
+
+_PHRASE_TOKEN = re.compile(r"[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9'’\-]*|\S")
+
+
+def noun_phrase_after(sentence: str, end: int, limit: int = 8) -> list[str]:
+    """The words of the noun phrase that continues to the right of ``end`` (folded, as written
+    with their inner hyphens), up to the first stop word or punctuation. Empty when the mention
+    ends its phrase. A hyphen that opens the first word ("-derived") is part of it."""
+    rest = sentence[end:]
+    words: list[str] = []
+    for token in _PHRASE_TOKEN.finditer(rest):
+        text = token.group(0)
+        if not text[0].isalnum():
+            if text in "-\u2010\u2011" and not words and token.start() == 0:
+                continue
+            break
+        word = _fold(text.strip("-"))
+        if word in _PHRASE_STOP:
+            break
+        words.append(word)
+        if len(words) >= limit:
+            break
+    return words
+
+
 _PREFIXES = frozenset(("anti",))
 _NOT_ENZYMES = frozenset(
     "disease diseases release releases increase increases decrease decreases case cases base "
@@ -379,6 +430,15 @@ class SenseInventory:
     # Heads that stop the link without making the structure the site of a measurement
     # ("para-aortic lymph nodes", "heart team", "portal phase").
     heads_not_measured: frozenset[str] = frozenset()
+    # Qualifiers of origin that make the tissue a material of a graft, not a site ("autologous
+    # costal cartilage", "donor-specific spleen cells"). Folded, hyphens read as spaces.
+    material_before: frozenset[str] = frozenset()
+    # What may follow the material itself ("autologous costal cartilage graft", "donor-specific
+    # spleen cell transfusion"); the phrase must end in one of them or in nothing.
+    material_heads: frozenset[str] = frozenset()
+    # Words that, ending a noun phrase to the right of the structure, make it name another thing
+    # (a molecule, a scale, a pathway, a device): the adjacent heads and ``phrase_final``.
+    non_site_heads: frozenset[str] = frozenset()
 
     @classmethod
     def empty(cls) -> "SenseInventory":
@@ -423,6 +483,15 @@ class SenseInventory:
             frozenset(_fold(w) for w in procedures.get("after", ())),
             frozenset(_fold(w) for w in procedures.get("before", ())),
             frozenset(_fold(w) for w in heads.get("not_a_measurement", ())),
+            frozenset(
+                " ".join(_fold(w).replace("-", " ").split())
+                for w in data.get("material_qualifiers", {}).get("before", ())
+            ),
+            frozenset(
+                _fold(w) for w in data.get("material_qualifiers", {}).get("heads", ())
+            ),
+            frozenset(_fold(w) for w in heads.get("after", ()))
+            | frozenset(_fold(w) for w in heads.get("phrase_final", ())),
         )
 
     @classmethod
@@ -455,6 +524,34 @@ class SenseInventory:
         named. Read from the writing: a run of capitalised words (joined by short function words)
         that contains the mention and a word that heads such names."""
         return _proper_name(mention, sentence, start)
+
+    def material_qualifier(
+        self, mention: str, sentence: str, start: int | None = None
+    ) -> str:
+        """The qualifier of origin right before the mention that makes the tissue the material of
+        a graft ("autologous costal cartilage", "homologous bone"), else ""."""
+        match = locate(mention, sentence, start)
+        if not match or not self.material_before:
+            return ""
+        left = " ".join(_fold(sentence[: match.start()]).replace("-", " ").split())
+        for qualifier in self.material_before:
+            if left == qualifier or left.endswith(" " + qualifier):
+                # the tissue itself, not a part of a bigger noun phrase: "homologous brain
+                # regions" is not a graft
+                phrase = noun_phrase_after(sentence, match.end())
+                if not phrase or phrase[-1] in self.material_heads:
+                    return qualifier
+        return ""
+
+    def non_site_head(
+        self, mention: str, sentence: str, start: int | None = None
+    ) -> str:
+        """The head of the noun phrase to the right of the mention when it names another thing
+        ("liver fatty acid binding **protein**", "gut-brain **axis**"), else ""."""
+        match = locate(mention, sentence, start)
+        if not match:
+            return ""
+        return phrase_head(noun_phrase_after(sentence, match.end()), self.non_site_heads)
 
     def procedure_head(
         self, mention: str, sentence: str, start: int | None = None
