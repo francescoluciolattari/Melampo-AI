@@ -2,7 +2,7 @@
 
 Domanda di Frank: il linker deve leggere il sintagma intero, in modo il più possibile univoco come nel pensiero umano. Come lo isola il cervello? Con un modello parallelo a grafo, a strati paralleli? Leggere i lavori più recenti di neurobiologia, neurofisiologia e filosofia della mente e della comprensione, e cercare o modificare modelli di IA innovativi.
 
-Convenzione di questo documento: **[letto]** = ho letto il testo della fonte; **[abstract]** = ho letto solo il riassunto; **[inferenza]** = trasposizione mia al linker, da misurare. Le fonti PMC dello studio di Ding e di Nelson non erano raggiungibili da PMC: i numeri vengono dalle copie del gruppo di ricerca.
+Convenzione di questo documento: **[letto]** = ho letto il testo della fonte; **[abstract]** = ho letto solo il riassunto; **[inferenza]** = trasposizione mia al linker, da misurare. Le fonti PMC dello studio di Nelson non erano raggiungibili da PMC: i numeri vengono dalle copie del gruppo di ricerca.
 
 ## 1. Che cosa ho detto nella tabella a tre livelli, e che cosa vale
 
@@ -84,15 +84,48 @@ Tutti si calcolano con un modello già pubblico sulla CPU di GitHub:
 | D | Segmentatore appreso su `trng` di MedMentions (§4.1) | Su `dev`; `test` aperto una volta sola, a decisione presa | GitHub (GPU o CPU piccola) |
 | E | Ruoli nel controllo esterno e nel protocollo dei radiologi | Percentuale di link con ruolo corretto, non solo etichetta | Qui + radiologi |
 
-Prima di B conviene aspettare il rapporto di `phrase-probe` che Frank sta lanciando: dice quali bracci portano informazione e quali no (finora i segnali "parola vicina" non separano: AUC 0,51–0,57).
+Il rapporto di `phrase-probe` è arrivato (§7.1): i segnali "parola vicina" non separano (AUC 0,50–0,60) e la memoria di NCIt non copre i 13 errori a span lungo; B va fatto con una memoria più grande e con la metrica del ruolo.
 
-## 6. Limiti onesti
+## 6. Limiti onesti (rivisti dopo la ricerca del §7)
 
-- Le prove neurofisiologiche vengono da frasi di lingua comune (cinese, inglese) e da pazienti con epilessia; la trasposizione ai sintagmi nominali di un referto è **inferenza**.
+- **Prove neurofisiologiche.** Ding 2016 è MEG su volontari sani (ascoltatori di cinese e di inglese); solo Nelson 2017 usa elettrodi intracranici in pazienti con epilessia. In entrambi i casi sono frasi di lingua comune, non sintagmi nominali di un referto: la trasposizione resta **inferenza**. Una ricerca mirata (§7.4) non ha trovato nessuno studio sulla lettura di sintagmi di referto; esistono prove su esperti (memoria di lavoro a lungo termine, conoscenza incapsulata, percezione olistica del radiologo) che sostengono i blocchi di dominio ma non sono sul testo.
 - DORA e l'asincronia sono un modello di rappresentazione, non un parser; H-Net è stato provato su byte fino a 1,3 miliardi di parametri; EM-LLM e il chunking per previsione reciproca non sono nati per sintagmi nominali biomedici.
-- Non esiste (che io abbia trovato) un modello pronto che isoli i blocchi *e* li tipizzi in modo univoco con precisione certificabile; il reticolo tiene aperte più segmentazioni proprio per astenersi quando due sono vicine.
-- Il parallelismo "a grafo" qui è un parallelismo di **segmentazioni candidate**; la letteratura che ho letto (Christiansen e Chater) è esplicita nel non ammettere parallelismo di interpretazioni complete.
-- Nessuno dei numeri di questo documento è nuovo per il linker: il reticolo non è ancora implementato e non ha misure.
+- **Nessun modello pronto isola e tipizza con precisione certificabile.** Soffitti trovati: riconoscimento di UBERON in CRAFT circa F1 0,82; MedMentions, baseline TaggerOne F1 0,453; GLiNER-BioMed F1 56,9 su 8 insiemi; RadGraph F1 di entità 0,94/0,905 ma in-dominio (inglese, accesso con credenziali). La precisione certificabile non può venire da un modello quasi perfetto: viene dall'accettazione selettiva con insiemi calibrati (§7.3).
+- **Millière e Buckner** ora letti per esteso (§7.5): sonde e attenzione non sono spiegazioni; per attribuire una struttura interna servono interventi causali; l'evidenza solo comportamentale non basta. Per noi: certificazione comportamentale più prove a coppie minime, non "feature" di attenzione.
+- Il parallelismo "a grafo" qui è un parallelismo di **segmentazioni candidate**; Christiansen e Chater sono espliciti nel non ammettere parallelismo di interpretazioni complete.
+- Il reticolo non è ancora implementato e non ha misure.
+
+## 7. Risultati reali di `phrase-probe` e ricerca per superare i tre limiti
+
+### 7.1 Che cosa ha misurato il run di Frank (2.058 link giudicati: 22 errori MedMentions su 732, 11 CRAFT su 1.326)
+
+Nessun lettore zero-shot separa gli errori dai link giusti (AUC 0,50–0,60; il migliore, i voti economici, 0,60 e in CRAFT sotto 0,5). Il braccio del parser è caduto per un modulo mancante (`click`): corretto nel workflow, da rilanciare.
+
+- **GLiNER-BioMed tipizza la parola anatomica stessa come "anatomia" in 26 errori su 33**: legge la parola, non il sintagma che la contiene (inferior vena cava *filter placement*).
+- **L'unione economica** (oggetto "X of <oggetto>", un senso per discorso, refuso, GLiNER ≥ 0,5) ferma **9 errori MedMentions su 22 al prezzo di 65 link giusti su 710**; oggetto+discorso+refuso fermano 4 errori a costo zero. I 65 sono quasi tutti `brain` (31), `liver` (13), `heart`, `prostate`: casi di convenzione (attivazione cerebrale, peso del cervello) che andrebbero **registrati con un ruolo**, non persi. Perciò la misura del prodotto è la **correttezza del ruolo**, non il punto di lavoro link/veto.
+- **Il cancello "solo quando incerto"** si apre su 10 errori su 33 (conflitto o convergenza < 3): gli errori non sembrano incerti.
+- Dei 22 errori MedMentions, **9 non sono un problema di isolamento** (lo span dell'annotatore coincide con la menzione: mappatura, convenzione o tipo) e **13 hanno uno span dell'annotatore più lungo**. **NCIt non contiene nessuno di questi 13 come nome**: la memoria di NCIt da sola non li ripara; servono composizione o una memoria più grande.
+- Un lessico di teste derivato dai nomi NCIt che contengono un tratto anatomico (ultima parola, ≥ 5 nomi, ≥ 90 % non-sito) è troppo rumoroso: 2/22 errori fermati con 48/710 link giusti segnalati. Va curato, come si è fatto con i GO per `process_heads`.
+
+### 7.2 Convenzione bersaglio: RadGraph, non MedMentions né CRAFT
+
+Lo scopo del prodotto è dire in quale struttura sta il reperto. La convenzione più vicina è RadGraph: entità Anatomia e Osservazione con relazioni Located_At, Modify, Suggestive_Of. Dal punto di vista del linker: lo span utile è la struttura con il suo modificatore e la relazione che la lega al reperto. RadGraph/RadGraph-XL sono in-dominio (referti radiologici in inglese) ma l'accesso è con credenziali PhysioNet e non è in italiano: serve come **banco di prova della convenzione**, non come modello da accendere. Per i ruoli, la post-coordinazione di SNOMED CT offre un vocabolario già normato (sito, procedura, morfologia) a cui mappare `inherent_location` e `procedure_site`.
+
+### 7.3 Come ottenere precisione certificabile senza un modello perfetto
+
+Si certifica la **procedura di accettazione**, non il modello. Previsione conforme per NER (arXiv 2601.16999) e Learn-then-Test: si fissa la soglia su un insieme di calibrazione in modo che il tasso di errore tra i link *accettati* sia ≤ 1 % con confidenza 95 % (Clopper-Pearson: servono almeno 299 link accettati senza errori). Applicato al reticolo: l'insieme conforme è l'insieme di segmentazioni vicine al costo minimo; se contiene più di un tipo/ruolo, il sistema si astiene o registra un ruolo. Il gold dei radiologi (due lettori ciechi più aggiudicatore) deve quindi contenere **span e ruolo**, non solo il link.
+
+### 7.4 Il ponte cervello → referto
+
+Per gli esperti, le fonti sostengono blocchi di dominio: memoria di lavoro a lungo termine (Ericsson e Kintsch), conoscenza biomedica incapsulata (Boshuizen e Schmidt), percezione olistica del radiologo in circa 200 ms. Nessuno studio diretto sulla lettura dei sintagmi nominali di un referto: la trasposizione si **misura** con il protocollo dei radiologi, aggiungendo il compito span+ruolo.
+
+### 7.5 Che cosa cambia in pratica
+
+1. Metrica: correttezza del ruolo e dello span, con link giusto solo se lo span è giusto.
+2. Tappa A (bracci sorpresa/coesione/salto fra stati) resta utile, ma gli esiti del run dicono di non aspettarsi molto dai segnali "parola vicina".
+3. Tappa B (reticolo deterministico) richiede una memoria più grande di NCIt per i 13 casi a span lungo: candidati da valutare (licenza e copertura da verificare), non assunti.
+4. Prove a coppie minime (metamorphic) nel banco di verifica: cambiare l'oggetto del sintagma deve cambiare il ruolo e non il resto.
+5. Lessico di teste: curato prima di entrare in un flusso.
 
 ## Fonti
 
@@ -106,7 +139,8 @@ Prima di B conviene aspettare il rapporto di `phrase-probe` che Frank sta lancia
 - Christiansen MH, Chater N. The Now-or-Never bottleneck. Behav Brain Sci 2016. https://csl-lab.psych.cornell.edu/files/2021/02/2016-cc-BBS.pdf
 - Caucheteux C, Gramfort A, King J-R. Evidence of a predictive coding hierarchy in the human brain listening to speech. Nat Hum Behav 2023. https://arxiv.org/abs/2111.14232
 - Stanford Encyclopedia of Philosophy: Compositionality (https://plato.stanford.edu/entries/compositionality/); Hermeneutics (https://plato.stanford.edu/entries/hermeneutics/)
-- Millière R, Buckner C. A philosophical introduction to language models. arXiv 2401.03910.
+- Millière R, Buckner C. A philosophical introduction to language models, parts I e II. arXiv 2401.03910 e 2405.03207.
+- Conformal NER, arXiv 2601.16999; Learn-then-Test (Angelopoulos et al.); RadGraph (Jain et al. 2021) e RadGraph-XL; SNOMED CT Compositional Grammar.
 - Hwang S, Wang B, Gu A. Dynamic chunking for end-to-end hierarchical sequence modeling (H-Net). arXiv 2507.07955.
 - Fountas Z, et al. Human-inspired episodic memory for infinite context LLMs (EM-LLM). ICLR 2025. https://arxiv.org/abs/2407.09450
 - Asabuki T, Hiratani N, Fukai T. Chunking sequence information by mutually predicting recurrent neural networks. PLOS Comput Biol 2018 (preprint https://www.biorxiv.org/content/10.1101/215392v1)
