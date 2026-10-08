@@ -194,6 +194,8 @@ def sample_items(
     n: int | None = None,
     seed: int = 20261006,
     cap_per_mention: int | None = None,
+    exclude: Iterable[str] = (),
+    split: float | None = None,
 ) -> list[dict[str, Any]]:
     """One (or `per_report`) random mention per report; stratified draw by language when `n` is set.
 
@@ -204,8 +206,18 @@ def sample_items(
 
     One mention per report keeps items independent: two mentions of the same report share the
     author's habits and the same dictation errors, and would inflate the sample size.
+
+    `exclude`: report ids already seen during development (any earlier sample, any report someone
+    read to tune a rule). A certification sample must not contain them: an error found and fixed on
+    a report cannot be counted again as a success on the same report.
+
+    `split`: the share of items marked ``calibration`` (the rest ``test``), drawn by report with the
+    same seed. Weights, thresholds and the conflict policy are chosen on the calibration items; the
+    test items are frozen and only used once, for the certificate.
     """
     rng = random.Random(seed)
+    excluded = frozenset(exclude)
+    reports = (r for r in reports if r["report_id"] not in excluded)
     pool: list[dict[str, Any]] = []
     # With a target size the reports are visited in random order and the walk stops once there
     # are enough proposals to draw from (a corpus of 60,000 case reports takes two hours to scan
@@ -257,6 +269,14 @@ def sample_items(
         pool = chosen[:n]
     for index, item in enumerate(pool, start=1):
         item["item_id"] = f"G{index:05d}"
+    if split is not None:
+        reports_seen = sorted({i["report_id"] for i in pool})
+        random.Random(seed + 1).shuffle(reports_seen)
+        calibration = set(reports_seen[: round(len(reports_seen) * split)])
+        for item in pool:
+            item["split"] = (
+                "calibration" if item["report_id"] in calibration else "test"
+            )
     return pool
 
 

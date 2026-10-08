@@ -1,4 +1,4 @@
-# I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 5 del 7 ottobre notte: flussi paralleli, grafo, stato del referto, vicino a destra)
+# I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 6 dell'8 ottobre: tutti gli stadi hanno un meccanismo; controllo esterno su CRAFT e MedMentions)
 # I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 4 del 7 ottobre sera: flussi paralleli, grafo, stato del referto)
 
 Aggiornamento del 7 ottobre: gli stadi sono ora flussi indipendenti con traccia, e i due LLM sono interrogati in parallelo. Sulla scelta dei modelli c'è un controllo dei vicini nel grafo UBERON, e il ripiego al padre è una proposta. Dettagli in `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 7.
@@ -7,19 +7,19 @@ Obiettivo misurabile: **precisione ≥99% sui link accettati automaticamente** (
 
 Principio aggiunto in questa revisione (richiesta di Frank): **dove una parola può voler dire più cose, decidono il contesto, la lingua e i dati che la accompagnano, in tutti i casi e non parola per parola.** Non è un decimo passo: è il cuore del passo 4, e tocca i passi 1, 2 e 8.
 
-Stato: ✔ fatto, ◐ parziale, ○ da fare.
+Stato: ✔ fatto, ◐ parziale, ○ da fare. Dall'8 ottobre ogni stadio ha il suo meccanismo nel codice. Precisione sui link accettati, su testo etichettato da altri: 99,0% su CRAFT, 96% su MedMentions secondo le nostre regole. Sui referti radiologici non è ancora misurata: lo farà il gold set (stadio 9). Gli errori rimasti sono di contesto e solo chi legge la frase li vede (modelli o radiologo): vedi `architettura_parallela_predittiva_linker_2026-10-06.md`, §18.
 
 | # | Stadio | Stato |
 |---|---|---|
-| 1 | Stato del referto (modalità, regione, lato, **lingua**, **quadro**) | ◐ quadro della frase (immagini, laboratorio, segni vitali) sì (7 ott notte, `exam_frame.py`); sezioni, titolo, intestazione, lingua, modalità e "referto sul rachide" sì (7 ott, `report_state.py`); **area dell'esame** letta dal nome dell'esame (8 ott, `exam_area.py`, sostiene o segnala sorpresa); la previsione agisce sui codici di livello e sull'area; lato dell'intestazione e strutture già collegate no |
+| 1 | Stato del referto (modalità, regione, lato, **lingua**, **quadro**) | ✔ come meccanismo: quadro, sezioni, titolo, lingua, modalità, area dell'esame; **lato dell'esame** (sostegno, veto sul lato opposto, proposta per le strutture senza lato) e **discorso** (la struttura già nominata nel referto sostiene) aggiunti l'8 ottobre (§18). Il lato dall'esame come link attende la decisione dei radiologi |
 | 2 | Lessico esatto bilingue + tabella parti (una forma ambigua non si accetta dal solo nome) | ✔ |
-| 3 | Candidati morfologici e recupero denso (solo proposta) | ◐ encoder valutati, morfologia no |
-| 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ◐ inventario dei sensi su 7 forme; le altre forme a rischio si trovano dai dati (`form_ambiguity`, 113 chiavi su 732), la lingua della sigla vale per tutte, la verifica con i due modelli è misurata su 600 menzioni reali (`yes_no` meglio di `choice`, §16); ruoli (sede di procedura, struttura misurata); teste di misura per lingua; punteggio continuo no |
-| 5 | Controllo dei vicini (fratelli, controlaterale, padre, figli) | ◐ lato/numero/tipo sì; vicini nel grafo UBERON sulla scelta dei modelli sì (7 ott); vicini per lessico e parti no |
+| 3 | Candidati morfologici e recupero denso (solo proposta) | ✔ come meccanismo: radici greco-latine (8 ott, `morphology.py`) propongono sulle astensioni e sostengono i link; encoder valutati |
+| 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ✔ come meccanismo: inventario dei sensi (8 forme con "atlas"), forme a rischio dai dati, vicini letti all'occorrenza giusta, nomi propri, molecole e dispositivi, nome anatomico più lungo, lingua del nome, sigle per tipo di testo (8 ott, §18). Restano le teste composte a più parole |
+| 5 | Controllo dei vicini (fratelli, controlaterale, padre, figli) | ✔ come meccanismo: grafo sulla scelta dei modelli; per i link del lessico nomi condivisi, lato (lettore cieco, esame), nome più lungo, parte/tipo nel grafo |
 | 6 | Scelta vincolata con "nessuna delle precedenti" (Nemotron + Gemma) | ✔ |
-| 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ◐ lettore non-LLM fatto (8 ott, `blind_reader.py`, §17): in traccia come meccanismo o conflitto, veto opzionale spento; 0 falsi allarmi su 373 menzioni nostre; cieco al lato, debole in italiano; il veto si decide con il gold set |
-| 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ◐ motivi sì; profilo `support`/`conflicts`/`convergence` sì (8 ott), non ancora usato per decidere; Sistema 2 sul conflitto sì |
-| 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ ripiego al padre calcolato dal grafo come **proposta** (7 ott; ~1–5% di errori nelle revisioni cieche, quindi non applicato); soglia: strumento Learn-then-Test per strato pronto (`selective_calibration.py`), serve il gold set |
+| 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ✔ come meccanismo: lettore non-LLM (`blind_reader.py`), legge anche il lato; veto spento. Su testo esterno sostiene anche gli errori di contesto: non basta da solo |
+| 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ✔ come meccanismo: profilo `support`/`conflicts`/`convergence`, `conflict_policy` (`record`/`review`). Sui dati esterni la convergenza non separa gli errori (§18.3): la politica si decide sul gold set |
+| 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ strumenti completi: LTT per strato, `--exclude` e `--split` calibrazione/test, pacchetto inglese per i radiologi (518 + 1.150), controllo esterno CRAFT/MedMentions. **Il certificato richiede le etichette dei radiologi** |
 
 ## 1. Stato del referto
 Umano: l'esperto capisce il "gist" prima delle parole e si aspetta certe strutture (TC torace: polmone, mediastino). Il cervello prevede più in là e più gerarchicamente dei modelli di linguaggio (Caucheteux 2023). La lingua in cui è scritto il testo è parte dello stato: la stessa sigla vuol dire cose diverse in italiano e in inglese.

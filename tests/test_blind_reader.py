@@ -163,3 +163,20 @@ def test_the_real_reader_does_not_stop_what_the_lexicon_links(world):
         ("left kidney", "The left kidney is normal."),
     ]:
         assert linker.link(mention, sentence).status == al.ACCEPTED
+
+
+@pytest.mark.parametrize(
+    "mention,linked",
+    [
+        ("rene sinistro", "kidney_right"),
+        ("12th rib left", "rib_right_12"),
+        ("right lung", "lung_upper_lobe_left"),
+    ],
+)
+def test_it_reads_the_side_again_from_the_words(world, mention, linked):
+    reading = world.reader.read(mention, linked)
+    assert reading.verdict == AGAINST and reading.reason.startswith("side_word_says:")
+
+
+def test_a_reading_that_adds_a_head_word_is_not_a_disagreement(world):
+    assert world.reader.read("Thoracic aortic", "aorta").verdict != AGAINST

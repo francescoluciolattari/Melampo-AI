@@ -931,5 +931,28 @@
     "polo"
    ]
   }
- ]
+ ],
+ "italian_only": {
+  "note": "Nomi della tabella scritti solo in italiano e fatti di una parola: in una frase chiaramente inglese non sono la struttura (sigma = lettera greca o fattore sigma, ceco = Czech, anca/pube/ischio non sono parole inglesi). Le frasi italiane accettano i nomi inglesi, non il contrario (stessa asimmetria delle sigle). Trovato sul corpus CRAFT l'8 ottobre 2026: 85 link 'sigma' -> colon su 85 erano il fattore sigma.",
+  "names": [
+   "piloro",
+   "cardias",
+   "ceco",
+   "sigma",
+   "sigmoide",
+   "miocardio",
+   "carena",
+   "manubrio",
+   "xifoide",
+   "cervelletto",
+   "mesencefalo",
+   "emibacino",
+   "emipelvi",
+   "anca",
+   "acetabolo",
+   "ischio",
+   "pube",
+   "glena"
+  ]
+ }
 }

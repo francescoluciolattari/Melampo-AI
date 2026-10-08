@@ -166,6 +166,7 @@ class ReportState:
     labelled: bool = False
     labels: tuple[tuple[str, int, int], ...] = field(default=(), compare=False)
     areas: frozenset[str] = frozenset()
+    exam_sides: frozenset[str] = frozenset()
 
     @classmethod
     def parse(cls, text: str) -> "ReportState":
@@ -206,6 +207,8 @@ class ReportState:
         if sentences:
             named.append(text[sentences[0].start : sentences[0].end])
         areas = frozenset().union(*(_areas().of(chunk) for chunk in named))
+        # The side the exam name states ("RM ginocchio destro"), read the same way as the area.
+        exam_sides = frozenset().union(*(_areas().sides_of(chunk) for chunk in named))
         return cls(
             text=text,
             sentences=tuple(sentences),
@@ -215,6 +218,7 @@ class ReportState:
             labelled=bool(labels),
             labels=labels,
             areas=areas,
+            exam_sides=exam_sides,
         )
 
     def span_at(self, position: int) -> Span | None:

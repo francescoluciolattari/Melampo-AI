@@ -398,3 +398,52 @@ Bench sintetico: con e senza veto i risultati sono identici (nessun falso allarm
 
 **Set liberi in inglese come controllo esterno.** Esistono etichette umane gratuite, ma di popolazioni diverse dai referti: CRAFT (ID UBERON, manuali, CC BY 3.0, articoli completi di genetica del topo), MedMentions (UMLS, abstract PubMed), AnatEM (anatomia, abstract), RadGraph (referti radiologici annotati da radiologi, accesso PhysioNet con credenziali). Servono per controllare lessico e lettore cieco su etichette non mie (precisione dei link, falsi allarmi del lettore), non per certificare: la certificazione richiede un campione nuovo, non visto, etichettato da radiologi sulla popolazione d'uso.
 
+
+## 18. I nove stadi completati come meccanismi, e il primo controllo su etichette non nostre (8 ottobre 2026)
+
+Richiesta di Frank: completare i nove stadi per arrivare oltre il 99%. Ora ogni stadio ha il suo meccanismo nel codice e la sua misura. Il 99% resta **non dimostrato** sui referti: lo dimostra solo il gold set dei radiologi (stadio 9). Su testo etichettato da altri, il linker è al 99,0% su CRAFT e al 96% su MedMentions secondo le nostre regole (dettagli sotto).
+
+### 18.1 Che cosa è stato aggiunto, stadio per stadio
+
+| Stadio | Aggiunto oggi | Effetto misurato |
+|---|---|---|
+| 1. Stato del referto | **Lato dell'esame** ("RM ginocchio destro"), letto come l'area. Stesso lato: sostegno. Lato opposto senza parole di confronto: astensione (`side_contradicts_the_exam`). Struttura pari senza lato: il lato dell'esame è solo una **proposta** (`inherit_exam_side` spento finché i radiologi non decidono). **Discorso**: la struttura nominata in un'altra frase dello stesso referto sostiene il link. | Bench sintetico identico. Testo reale: discorso a favore di 124 link su 291 (MultiCaRe), 40 su 471 (IU X-ray). Il lato dell'esame scatta di rado: nei corpora pubblici l'esame raramente dichiara il lato. |
+| 3. Candidati morfologici | Radici greco-latine (`morphology_roots.json`, 22 radici di una sola struttura; escluse le ambigue come cist- e col-). Su un link accettato contano come meccanismo; su un'astensione vanno tra le proposte. Non accettano mai. | Proposte su 125 astensioni di MultiCaRe e 73 di IU X-ray; sostegno a 29 e 55 link. |
+| 4. Significati e integrazione | Nome proprio (istituzioni, studi, scale); nome di un'altra cosa fatto con l'organo (molecola, canale, dispositivo, modello, enzima in "-asi", "anti-"); parola dentro un nome anatomico più lungo ("blood-brain barrier"); nome solo italiano in frase inglese ("sigma"); sigla fuori da un testo radiologico (`document_type`); la lingua da sola non decide un senso; "atlas" con i suoi sensi; misura condivisa da due organi coordinati ("liver and renal function"). **Correzione generale:** i vicini si leggono all'occorrenza giusta e a parola intera ("thyroid" non dentro "Hypothyroidism"). | Bench sintetico identico; 1.695 menzioni reali di 4 corpora: 2 decisioni cambiate, entrambe giuste ("brain arteries", "sigma resection"). |
+| 5. Vicini | Per i link del lessico i vicini sono coperti da quattro controlli: nomi condivisi da più classi, lato (lettore cieco ed esame), nome più lungo nel grafo, parte o tipo nel grafo. | Nessun errore di struttura sorella o di lato nei link accettati su CRAFT e MedMentions. |
+| 7. Lettore cieco | Legge anche il lato dalle parole della menzione. Non sostiene una lettura che aggiunge una parola. | Su testo esterno non dissente mai e sostiene anche gli errori: legge solo il nome (§18.3). |
+| 8. Monitor di conflitto | `conflict_policy`: `record` (predefinito) scrive il conflitto, `review` manda in coda i link con un flusso contrario e pochi sostegni. | Su testo esterno e reale i conflitti sono quasi assenti: oggi la politica non cambierebbe nulla. |
+| 9. Certificazione | `sample --exclude` (referti mai visti) e `--split` (calibrazione/test); `evaluate --split test`. Pacchetto inglese per i radiologi (518 + 1.150 menzioni). Workflow `external-check`. | Vedi `docs/gold_set_protocollo.md`: il test del pacchetto certifica l'inglese solo con 0 errori. |
+
+### 18.2 Controllo esterno: CRAFT e MedMentions
+
+Due corpora liberi con etichette umane, scritti per altri progetti: **CRAFT v5.1.0** (97 articoli di genetica del topo, concetti UBERON annotati a mano, CC BY 3.0) e **MedMentions** (4.392 abstract PubMed, concetti UMLS, CC0). Le menzioni si propongono come per le schede del gold set e il linker è quello deterministico (`document_type="literature"`). Si confronta ogni link accettato con l'etichetta che lo copre.
+
+| | CRAFT | MedMentions |
+|---|---|---|
+| Menzioni proposte / link accettati | 2.715 / 1.354 | 4.138 / 1.884 |
+| Giudicati | 1.352 | 768 (regole del progetto) |
+| Errori | 13 (10 "right middle lobe" del topo, 3 granularità) | 51 secondo lo script, **30 alla mia lettura** |
+| Precisione | **99,0%** (limite superiore dell'errore al 95%: 1,5%) | **96,1%** alla lettura (93,4% secondo lo script) |
+
+MedMentions etichetta il concetto più lungo. Per le nostre regole molte sue etichette non sono errori: 877 link stanno dentro una malattia o una procedura ("prostate cancer", che per noi nomina la prostata). Ci sono poi 27 cellule dell'organo ("liver cells"), 13 misure di immagine ("brain volume"), 11 sedi di dispositivo ("IVC filter") e 18 soggetti di malattia. Lo script li conta a parte e li elenca, così chi non è d'accordo con la regola può ricontarli.
+
+**Errori trovati e corretti con regole generali** (contati dallo script: su MedMentions da 221 a 51 nel corso della giornata, su CRAFT da 23 a 13): nomi propri, molecole e dispositivi, vicini letti all'occorrenza sbagliata o dentro un'altra parola, misure coordinate, "atlas" e "axis" fuori dalla colonna, la lingua che da sola faceva un senso.
+
+**Errori rimasti (30), da leggere in `external_check.md`:**
+- teste composte a due o tre parole ("prostate symptom score", "liver fatty acid binding protein", "spinal cord K(+) channel");
+- processi dell'organo ("heart development", "brain connectivity"): convenzione da decidere con i radiologi;
+- "heart" del formaggio;
+- "DENS" come sigla di una scala.
+
+### 18.3 Che cosa dicono questi numeri per gli stadi 8 e 9
+
+- Gli errori rimasti hanno **lo stesso profilo di convergenza** dei link giusti. Su CRAFT gli errori sono a 2 e a 4 meccanismi, i giusti soprattutto a 3. Il lettore cieco sostiene 50 dei 51 errori di MedMentions e nessun conflitto scatta. Una soglia sulla convergenza non li separa: il test Learn-then-Test non certifica nessuna soglia.
+- Sono errori di **contesto** (a che cosa si riferisce la parola nella frase), non di nome. Li vede solo chi legge la frase: i due modelli (`verify`) o il radiologo. La prossima misura è quindi `external-check` con `verify` acceso. Dirà quanti di questi errori i modelli fermano, e a che prezzo in link giusti.
+- Per i referti radiologici il dato che conta resta il gold set: articoli e abstract hanno molte più molecole, istituzioni e processi dei referti.
+
+### 18.4 Limiti
+
+- CRAFT e MedMentions sono letteratura in inglese, non referti in italiano.
+- La classificazione "convenzione" contro "errore" su MedMentions segue le nostre regole, che i radiologi non hanno ancora confermato.
+- Le liste di parole (teste, nomi propri, radici) sono dati scelti da me su questi corpora: vanno riviste con il gold set, che dirà anche cosa costano in copertura sui referti.

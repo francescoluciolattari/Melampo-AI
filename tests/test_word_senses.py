@@ -54,8 +54,11 @@ def test_language_is_a_discriminant_that_strong_evidence_can_outweigh():
     assert not inv.judge("xyz", "Il xyz mostra biopsy nella sede.").accepted
     # ...but strong evidence together with a second cue outweighs it.
     assert inv.judge("xyz", "Il xyz mostra biopsy e tissue nella sede.").accepted
-    # In English the same weak cue plus the language is enough.
-    assert inv.judge("xyz", "The xyz shows tissue.").accepted
+    # In English the language tips a choice but does not make one: one weak cue plus the language
+    # is not enough (8 October 2026: "medio-lateral axis of the hand" read as a vertebra), the
+    # words of the text must reach the threshold by themselves.
+    assert not inv.judge("xyz", "The xyz shows tissue.").accepted
+    assert inv.judge("xyz", "The xyz shows biopsy.").accepted
 
 
 def test_wider_context_counts_for_half():
