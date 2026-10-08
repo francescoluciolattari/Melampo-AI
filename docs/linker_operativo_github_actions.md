@@ -82,6 +82,19 @@ Scarica UBERON e l'ultima release di NCIt, prova Protein Ontology, costruisce `l
 
 Parte a ogni push: un server FalkorDB come service container, test di grafo su TCP. Non richiede azioni.
 
+## `phrase-probe` (leggere il sintagma intero)
+
+| Campo | Cosa scrivere |
+|---|---|
+| Use workflow from | un ramo che contiene `phrase-probe.yml` |
+| gliner | lasciare `Ihor/gliner-biomed-bi-small-v1.0`; vuoto = braccio spento |
+| encoder | lasciare `cambridgeltl/SapBERT-from-PubMedBERT-fulltext`; vuoto = braccio spento |
+| llm | `none` (gratis); `sample` = tutti gli errori + `llm_sample` link giusti, circa 670 chiamate a pagamento; `all` = ogni link giudicato |
+| llm_sample | `300` |
+| limit | vuoto = tutto; `20` per una prova veloce |
+
+Stima: 1–2 ore sulla CPU del runner (l'indice di SapBERT sui nomi NCIt è la parte lunga). L'artifact `phrase-probe` contiene `phrase_probe.md`, da leggere per primo. Se un braccio non si carica (versione di `gliner`, modello non trovato) la riga "Arms that failed" lo dice e gli altri bracci girano lo stesso. Non cambia il linker.
+
 ## Il lettore cieco (passo 7, senza modelli)
 
 `python scripts/blind_reader_check.py --uberon data/linking/uberon-basic.obo --out blind_check.json` misura il lettore sulle menzioni etichettate (nessuna chiave, nessuna rete). Il lettore è attivo in `run_linking_bench.py`, `verify_probe.py` e `gold_set.py evaluate` solo come traccia; `run_linking_bench.py --blind-veto` lo lascia fermare un link che contraddice con sicurezza.
