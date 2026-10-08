@@ -1,0 +1,115 @@
+name: Head probe (F1 experiment)
+
+# Manual trigger only. Free of billed calls: it downloads two small language models (spaCy
+# English and Italian, and a public biomedical encoder from Hugging Face) and runs them on the
+# CPU of the runner. Nothing is sent to a paid API.
+#
+# It measures how to find the head of the noun phrase a mention stands in and whether the head
+# names another thing than a site (a molecule, a scale, a pathway): a phrase scan with stop words,
+# a dependency parser, and the attention of an encoder. The cases are the links the external check
+# judged (CRAFT, MedMentions) and the project's held-out sets as controls. It decides nothing; the
+# report gives, for each signal, how many errors it catches for how many right links it loses.
+# See scripts/head_probe.py.
+on:
+  workflow_dispatch:
+    inputs:
+      encoder:
+        description: "Hugging Face encoder (empty = parser and phrase scan only)"
+        required: false
+        default: "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"
+      revision:
+        description: "Encoder revision (branch, tag or commit); the report records the commit used"
+        required: false
+        default: "main"
+      attention_layers:
+        description: "Layers whose attention is averaged (0-based, comma-separated)"
+        required: false
+        default: "5,6,7,8"
+      limit:
+        description: "Documents per corpus (empty = all; a number for a quick run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Head probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Install the models (CPU)
+        run: |
+          # spaCy 3.8 with its small English and Italian pipelines (GitHub releases of
+          # explosion/spacy-models), and the CPU build of torch for the encoder.
+          uv pip install \
+            "spacy==3.8.2" \
+            "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" \
+            "it_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/it_core_news_sm-3.8.0/it_core_news_sm-3.8.0-py3-none-any.whl" \
+            "transformers>=4.44,<5" "huggingface_hub" \
+            torch --extra-index-url https://download.pytorch.org/whl/cpu
+
+      - name: Download UBERON (pinned)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+
+      - name: Clone the corpora (pinned)
+        run: |
+          mkdir -p ext
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+
+      - name: Run the probe
+        env:
+          ENCODER: ${{ inputs.encoder }}
+          REVISION: ${{ inputs.revision }}
+          LAYERS: ${{ inputs.attention_layers }}
+          LIMIT: ${{ inputs.limit }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          LIMIT="${LIMIT//[[:space:]]/}"
+          LIMIT="${LIMIT#limit=}"
+          set -- --craft ext/craft --medmentions ext/mm --spacy en_core_web_sm --spacy-it it_core_news_sm \
+            --out head_probe.json --markdown head_probe.md --workers 4
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          if [ -n "$ENCODER" ]; then
+            if ! [[ "$ENCODER" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then echo "::error::encoder takes an id like org/name"; exit 2; fi
+            if ! [[ "$REVISION" =~ ^[A-Za-z0-9._/-]+$ ]]; then echo "::error::bad revision"; exit 2; fi
+            if ! [[ "$LAYERS" =~ ^[0-9]+(,[0-9]+)*$ ]]; then echo "::error::layers take numbers like 5,6,7,8"; exit 2; fi
+            set -- "$@" --encoder "$ENCODER" --revision "$REVISION" --attention-layers "$LAYERS"
+          fi
+          uv run --no-sync python scripts/head_probe.py "$@"
+
+      - name: Summarise
+        if: always()
+        env:
+          ENCODER: ${{ inputs.encoder }}
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`, encoder \`${ENCODER}\`"
+            echo
+            if [ -f head_probe.md ]; then head -c 60000 head_probe.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: head-probe
+          path: |
+            head_probe.json
+            head_probe.md

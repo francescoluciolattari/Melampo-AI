@@ -98,6 +98,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from melampo.memory.compounds import (
+    defined_abbreviation,
+    defined_short_form,
+    hyphen_compound,
+)
+from melampo.memory.development import DevelopmentalFrame
 from melampo.memory.morphology import Morphology
 from melampo.memory.exam_area import ADJACENT, EXPECTED, OUTSIDE, ExamAreas
 from melampo.memory.exam_frame import IMAGING, ExamFrames
@@ -280,6 +286,24 @@ def _prepare(text: str) -> str:
     if _RIB_WORDS.search(text):
         return text  # "L 5 rib" is the left fifth rib, not L5
     return _SPACED_LEVEL.sub(lambda m: m.group(0)[0].upper() + m.group(1), text)
+
+
+# Nouns that only say "the area of": "heart region", "aortic part". A longer name that adds one of
+# them is the same structure, not another.
+_PLACE_NOUNS = frozenset(
+    "region regions area areas part parts portion portions zone zones site sites section".split()
+)
+
+
+def _ordered(text: str) -> tuple[str, ...]:
+    """The words of a text, each normalised on its own, in the order written (``normalise`` makes a
+    bag). A word that normalises to nothing (a function word: "of", "and") stays as written, so
+    "heart and stomach" is not "heart of stomach"."""
+    out = []
+    for word in _RAW_WORD.findall(text):
+        tokens = normalise(word, keep_noise=True)
+        out.append(tokens[0] if tokens else word.lower())
+    return tuple(out)
 
 
 def _raw_tokens(text: str) -> list[str]:
@@ -1226,6 +1250,8 @@ def _profile(
         conflicts.append("blind_reader_disagrees")
     if ("exam_side", AGAINST) in by:
         conflicts.append("side_differs_from_the_exam")
+    if ("development", AGAINST) in by:
+        conflicts.append("name_shared_with_a_developing_structure_in_a_developmental_text")
     if flagged and ("verify", SUPPORT) not in by:
         conflicts.append("ambiguous_form_not_checked")
     return tuple(support), tuple(conflicts)
@@ -1259,6 +1285,9 @@ class AnatomyLinker:
     blind: Any = None
     blind_veto: bool = False
     morphology: Any = field(default_factory=Morphology.load)
+    # Does the text talk about a developing organism, and does the name also name a developing
+    # structure of the ontology? Recorded as evidence (a conflict in the profile), never a veto.
+    development: DevelopmentalFrame = field(default_factory=DevelopmentalFrame.load)
     # Stage 8: what a conflict between independent readings does to an accepted link. "record"
     # keeps the link and writes the conflict in the profile; "review" sends the link to the review
     # queue when an independent stream read against it (blind reader, exam area, exam side) and no
@@ -1320,6 +1349,33 @@ class AnatomyLinker:
             for key in (normalise(name), normalise(name, keep_noise=True)):
                 if len(key) >= 2:
                     self._longer[tuple(key)].add(node)
+        # Their other written names too (EXACT and RELATED synonyms): "aortic arch artery" is a
+        # name of the pharyngeal arch artery, not of the aorta. Read as an ordered run of words
+        # with a head of its own: "embryonic brain" (a brain) and "adult heart" (a heart) are
+        # the structure with a qualifier, "aortic arch artery" is another structure.
+        self._longer_syn: dict[tuple[str, ...], set[str]] = defaultdict(set)
+        for node, names in (getattr(self.graph, "synonyms", None) or {}).items():
+            for name in names:
+                key = _ordered(name)
+                if len(key) >= 2:
+                    self._longer_syn[key].add(node)
+        # Names shared by a developing structure and an adult one ("aortic arch": the pharyngeal
+        # arch artery of the embryo, the arch of the aorta).
+        self._developing_names: dict[tuple[str, ...], str] = {}
+        if self.graph is not None and getattr(self.graph, "names", None):
+            developing = self.graph.developing()
+            young: dict[tuple[str, ...], str] = {}
+            adult: set[tuple[str, ...]] = set()
+            for node, name in self.graph.names.items():
+                for text in (name, *(self.graph.synonyms or {}).get(node, ())):
+                    key = tuple(normalise(text))
+                    if not key:
+                        continue
+                    if node in developing:
+                        young.setdefault(key, name)
+                    else:
+                        adult.add(key)
+            self._developing_names = {k: v for k, v in young.items() if k in adult}
         self._sided = sided_bases(self.pool)
         # Words that are by themselves the name of a class ("rene", "femore",
         # "kidney"). A mention containing one names that structure or a part of it.
@@ -1531,6 +1587,19 @@ class AnatomyLinker:
         if self.graph is not None and result.status == ACCEPTED:
             result, graph_evidence = self._converge_on_graph(result, mention)
             trace.append(graph_evidence)
+        if by_name and result.status == ACCEPTED:
+            young = self._developing_names.get(tuple(normalise(mention)))
+            if young:
+                document = report.text if report is not None else context
+                developmental, said = self.development.developmental(sentence, document)
+                trace.append(
+                    Evidence(
+                        "development",
+                        AGAINST if developmental else SILENT,
+                        None,
+                        f"name_shared_with_the_developing:{young}:{said}",
+                    )
+                )
         if self.blind is not None and result.status == ACCEPTED and result.cid:
             reading = self.blind.read(mention, result.cid)
             verdict = {"support": SUPPORT, "against": AGAINST}.get(
@@ -1641,6 +1710,18 @@ class AnatomyLinker:
                     for term in self._longer.get(tuple(key), ()):
                         if not self._part_or_kind_of(term, result.cid):
                             name = self._longer_names.get(term, term)
+                            return LinkResult(
+                                ABSTAINED,
+                                None,
+                                "integration",
+                                f"mention_is_inside_a_longer_name:{name}",
+                                options=[term],
+                            )
+                ordered = _ordered(window)
+                if ordered and ordered[-1] not in own and ordered[-1] not in _PLACE_NOUNS:
+                    for term in self._longer_syn.get(ordered, ()):
+                        if not self._part_or_kind_of(term, result.cid):
+                            name = (self.graph.names or {}).get(term, term)
                             return LinkResult(
                                 ABSTAINED,
                                 None,
@@ -2007,6 +2088,50 @@ class AnatomyLinker:
                     VETO,
                     None,
                     f"mention_is_a_word_of_a_proper_name:{name}",
+                )
+            )
+        joined = hyphen_compound(mention, sentence, where)
+        another = self.senses.non_site_head(mention, sentence, where) if joined else ""
+        if joined and another:
+            # "gut-brain axis", "pro-brain natriuretic peptide": a piece of a compound whose head
+            # is another thing. "neck-liver", "fetal-liver-derived macrophages" keep the link.
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"mention_is_joined_by_a_hyphen_to:{joined}:{another}",
+                )
+            )
+        heads = self.senses.non_site_heads
+        defined = defined_abbreviation(mention, sentence, where, heads)
+        if defined:
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"mention_is_a_word_of_the_name_defined_as:{defined}",
+                )
+            )
+        meaning = defined_short_form(mention, sentence, where, heads)
+        if meaning:
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"abbreviation_defined_in_the_text_as:{meaning}",
+                )
+            )
+        material = self.senses.material_qualifier(mention, sentence, where)
+        if material:
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"tissue_taken_as_graft_material:{material}",
                 )
             )
         if raw and all(t in _ADJECTIVES for t in raw) and content:

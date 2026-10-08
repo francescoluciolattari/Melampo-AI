@@ -1,0 +1,12 @@
+{
+  "note": "Parole di stadio dello sviluppo: classe chiusa e uguale per ogni struttura, come le unita e le parole di lato. Servono a dire che un testo parla di embrioni o feti. Non decidono: un testo di sviluppo usa 'aortic arch' per l'arco adulto 25 volte su 28 (CRAFT, 8 ottobre 2026), quindi la prova e registrata come evidenza e non e un veto.",
+  "patterns": [
+    "embryo\\w*", "embrion\\w*", "fet(?:us|uses|al|i|ale|ali)", "foet\\w*", "feto", "in utero",
+    "gestation\\w*", "gestazion\\w*", "prenatal\\w*", "perinatal\\w*", "neonat\\w*",
+    "organogenesis", "morphogenesis", "somites?", "primordi\\w*", "blastocyst\\w*",
+    "gastrula\\w*", "theiler", "E\\d{1,2}(?:\\.\\d)?", "embryonic day", "post-?natal day",
+    "pharyngeal arch\\w*", "neural crest"
+  ],
+  "document_terms": 3,
+  "sentence_terms": 1
+}

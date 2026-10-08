@@ -43,6 +43,7 @@ two-classes rule), and each new sample still found errors. A rate of a few perce
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -56,6 +57,8 @@ DEFAULT_ANCHORS = (
     / "anatomy_graph_anchors.json"
 )
 _EDGE_KINDS = ("is_a", "part_of")
+_DEVELOPING_ROOTS = frozenset(("UBERON:0005423", "UBERON:0002050"))
+_SYNONYM = re.compile(r'synonym: "(.*?)" (?:EXACT|RELATED)\b')
 # A parent with more children than this is a category ("organ", "bone element"), not a place:
 # two structures that only share it are not neighbours.
 _MAX_SIBLING_FANOUT = 40
@@ -123,6 +126,10 @@ class AnatomyGraph:
     # UBERON id -> why this term never climbs to a class (curated, in the anchors file)
     refused: dict[str, str] = field(default_factory=dict)
     children: dict[str, set[str]] = field(default_factory=dict)
+    # UBERON id -> its EXACT and RELATED synonyms of two words or more ("aortic arch artery" is a
+    # synonym of "pharyngeal arch artery"): other written names of the same structure, so a
+    # mention inside one of them is a word of that name.
+    synonyms: dict[str, list[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.children:
@@ -143,6 +150,7 @@ class AnatomyGraph:
         if anchors is None:
             anchors = json.loads(DEFAULT_ANCHORS.read_text("utf-8"))
         names: dict[str, str] = {}
+        synonyms: dict[str, list[str]] = defaultdict(list)
         parents: dict[str, list[tuple[str, str]]] = defaultdict(list)
         disjoint: dict[str, set[str]] = defaultdict(set)
         current: str | None = None
@@ -160,6 +168,10 @@ class AnatomyGraph:
                 continue
             elif line.startswith("name: "):
                 names[current] = line[6:].strip()
+            elif line.startswith("synonym: "):
+                said = _SYNONYM.match(line)
+                if said:
+                    synonyms[current].append(said.group(1))
             elif line.startswith("is_a: "):
                 parents[current].append((line[6:].split()[0], "is_a"))
             elif line.startswith("relationship: "):
@@ -174,6 +186,7 @@ class AnatomyGraph:
         for node in obsolete:
             parents.pop(node, None)
             names.pop(node, None)
+            synonyms.pop(node, None)
         direct: dict[str, str] = {}
         family: dict[str, set[str]] = defaultdict(set)
         for cid, entry in anchors["anchors"].items():
@@ -192,6 +205,7 @@ class AnatomyGraph:
             anchors=direct,
             families={k: frozenset(v) for k, v in family.items()},
             refused=dict(anchors.get("refused", {})),
+            synonyms=dict(synonyms),
         )
 
     def _classes_at(self, node: str, sides: frozenset[str]) -> tuple[set[str], str]:
@@ -316,6 +330,28 @@ class AnatomyGraph:
             if not frontier:
                 break
         return None
+
+    def developing(self) -> frozenset[str]:
+        """The nodes below "developing anatomical structure" or "embryonic structure"."""
+        if getattr(self, "_developing", None) is None:
+            memo: dict[str, bool] = {}
+
+            def below(node: str, trail: frozenset[str] = frozenset()) -> bool:
+                if node in memo:
+                    return memo[node]
+                if node in _DEVELOPING_ROOTS:
+                    return True
+                if node in trail:
+                    return False
+                found = any(
+                    below(parent, trail | {node})
+                    for parent, _ in self.parents.get(node, ())
+                )
+                memo[node] = found
+                return found
+
+            self._developing = frozenset(n for n in self.names if below(n))
+        return self._developing
 
     def nodes_of(self, cid_or_node: str) -> set[str]:
         """The UBERON nodes a class stands for (its anchors), or the node itself."""
