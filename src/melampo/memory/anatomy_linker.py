@@ -1031,7 +1031,11 @@ class LinkResult:
         return len(self.support) - len(self.conflicts)
 
 
-_MEASUREMENT_VETOES = ("frame_is_a_measurement", "attribute_head_names_a_measurement")
+_MEASUREMENT_VETOES = (
+    "frame_is_a_measurement",
+    "attribute_head_names_a_measurement",
+    "process_head_names_a_process",
+)
 _MODEL_STAGES = frozenset(("deliberation", "translation"))
 
 _NO_OPTION_REASONS = frozenset(
@@ -2078,6 +2082,18 @@ class AnatomyLinker:
                     VETO,
                     None,
                     f"attribute_head_names_a_measurement:{head}",
+                )
+            )
+        process = self.senses.process_head(mention, sentence, where)
+        if process:
+            # The structure is the bearer of the process (SNOMED CT "inheres in", GO "has
+            # participant"), not the process: the link is not made, the structure is recorded.
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"process_head_names_a_process:{process}",
                 )
             )
         name = self.senses.proper_name(mention, sentence, where)

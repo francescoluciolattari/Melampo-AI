@@ -290,6 +290,14 @@ def run_corpus(
                 row["outcome"] = outcome(
                     name, result.cid, over, graph, umls, item["start"], item["end"]
                 )
+            elif getattr(result, "role", "") == "inherent_location" and result.about:
+                # Not linked, and not lost: the structure whose measure, function or process the
+                # text names (SNOMED CT "inherent location"). The label is compared with it.
+                row["role"] = result.role
+                row["about"] = result.about
+                row["about_outcome"] = outcome(
+                    name, result.about, over, graph, umls, item["start"], item["end"]
+                )
             if row["outcome"]:
                 row["by_project_rule"] = by_project_rule(row)
             if (
@@ -313,6 +321,29 @@ def run_corpus(
         with ThreadPoolExecutor(max_workers=workers) as pool:
             list(pool.map(ask, to_ask))
     return rows
+
+
+def recorded_summary(rows):
+    """The links the linker did not make but recorded as the inherent location of a measure, a
+    function or a process ("heart development", "liver function"): how the corpus label compares
+    with the recorded structure. ``structure_agrees``: the label is that structure (or finer);
+    ``label_is_the_process``: MedMentions labels the process or the disease, no anatomy to
+    compare; ``other``: another structure."""
+    recorded = [r for r in rows if r.get("about_outcome")]
+    if not recorded:
+        return None
+    process_labels = ("not_anatomy", "other_concept", "inside_a_disease_or_procedure")
+    counts = Counter(
+        "structure_agrees"
+        if r["about_outcome"] in GOOD
+        else "label_is_the_process"
+        if r["about_outcome"] in process_labels
+        else "unlabelled"
+        if r["about_outcome"] == "unlabelled"
+        else "other"
+        for r in recorded
+    )
+    return {"recorded": len(recorded), **dict(counts)}
 
 
 def verify_summary(rows):
@@ -638,6 +669,9 @@ def main(argv=None) -> int:
     }
     for name in report:
         report[name]["by_project_rule"] = project_summary(
+            [r for r in rows if r["corpus"] == name]
+        )
+        report[name]["recorded_as_inherent_location"] = recorded_summary(
             [r for r in rows if r["corpus"] == name]
         )
         report[name]["verify"] = verify_summary(

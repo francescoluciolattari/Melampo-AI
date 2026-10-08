@@ -497,5 +497,23 @@ Bench sintetico: identico (108 valori su 108). Test del linker: 628 passano.
 
 ### 19.7 Aperto: F6 e F7
 
-- **F6, processo o funzione dell'organo.** CRAFT e MedMentions hanno convenzioni opposte. Opzioni: astenersi; collegare con una relazione `subject_of_process` che a valle non conta come sede. Da decidere con i radiologi; il pacchetto di certificazione contiene la domanda.
+- **F6, processo o funzione dell'organo.** Risolto il 9 ottobre 2026 (§20).
 - **F7, granularità.** "brain parenchyma" e "hepatic parenchyma" portano all'organo per convenzione del progetto; "bladder" è la vescica urinaria e "right middle lobe" il lobo del polmone destro nei referti. "large bowel" porta a `colon` per scelta del lessico: va confermata o marcata come approssimata. Nessuna modifica al codice.
+
+## 20. F6: processo e funzione della struttura (9 ottobre 2026)
+
+**Domanda di Frank:** scegliere dalla documentazione clinica o con una soluzione generale tra astenersi e collegare con `subject_of_process`.
+
+**Risposta.** Né l'una né l'altra come erano state poste. Il progetto aveva già il meccanismo giusto per le misure: il link non si fa e la struttura è registrata come sede intrinseca (`role = inherent_location`, `about`). Lo stesso vale per un processo o una capacità: la struttura è il portatore (SNOMED CT *Inherent location* 718497002 e *Inheres in* 704319004; BFO/GO: il processo è un occurrent con partecipante la struttura), non è il processo. Un'etichetta nuova (`subject_of_process`) sarebbe stata un secondo canale con lo stesso significato.
+
+**Come funziona** (`SenseInventory.process_head`, dati in `process_heads` di `word_senses.json`, stesso codice per ogni struttura e per le due lingue):
+1. il nome di processo è l'intero sintagma a destra, al massimo due parole, tolte le nominalizzazioni (`_TAIL`: level, expression, pattern(s), process(es), placement…): "heart development", "brain state dynamics", "brain connectivity patterns". Una parola estranea in mezzo ("brain tumour growth") non decide: il processo è del tumore;
+2. oppure il nome sta a sinistra con una preposizione e la struttura chiude il sintagma: "development of the pancreas", "sviluppo del cuore". "development of left lower lobe airspace disease" non è fermato: lo sviluppo è della malattia.
+
+Veto `process_head_names_a_process:<testa>`, registrato come sede intrinseca. Le teste vengono da Gene Ontology (15, frequenza dei nomi di processo che cominciano con un nome anatomico) più 18 scelte dall'autore (funzione e sistema funzionale: circuits, connectivity, dynamics, arousal, state, plasticity, interaction, research, regulation, control, contractility, motility…); 18 teste italiane. La provenienza di ogni gruppo è in chiaro nel file. Escluse le parole che in un referto sono reperti o procedure (remodeling, repair, enhancement, uptake, "formazione", "controllo", "ricerca").
+
+**Misura.** CRAFT 11 errori su 1.326 (99,17%), nessun errore in meno e 23 link giusti non fatti, tutti registrati con la struttura giusta (91 registrati, 87 uguali all'etichetta, 4 senza etichetta, 0 sbagliati). MedMentions 38 → 25 errori (94,97% → 96,60%), 13 errori fermati, 7 link giusti non fatti. Bench interno identico. Sui 3.969 casi dei referti pubblici (iu-xray, iu-xray 2, e3c-it) nessuna decisione cambia. **Limite:** le 18 teste aggiunte dall'autore sono scelte guardando MedMentions, quindi quella misura è ottimistica; il confronto non truccato è CRAFT (teste solo da GO) e i referti.
+
+**Nuova misura nel controllo esterno.** `external_check.py` aggiunge `recorded_as_inherent_location`: per ogni link non fatto ma registrato confronta l'etichetta del corpus con la struttura registrata.
+
+**`verify`** (due modelli per frase) sui due corpora: CRAFT 0 errori fermati su 11 (7 giusti fermati), MedMentions 2 su 38 (2 giusti fermati). Gli errori rimasti li vede solo un lettore con il contesto di tutta la frase e della convenzione dell'oro, o un radiologo.
