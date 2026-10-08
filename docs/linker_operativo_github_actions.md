@@ -46,6 +46,10 @@ Serve a misurare la verifica con i due modelli su frasi vere, non sintetiche. Si
 
 Risultato: l'artifact `verify-probe-<source>-<scope>-<style>` con `verify_probe.md` (link fermati da leggere e un campione dei confermati) e `verify_probe.json`. Se in cima c'è "WARNING … lost a model answer", il limite di frequenza ha fatto perdere righe e la misura non vale.
 
+## Il lettore cieco (passo 7, senza modelli)
+
+`python scripts/blind_reader_check.py --uberon data/linking/uberon-basic.obo --out blind_check.json` misura il lettore sulle menzioni etichettate (nessuna chiave, nessuna rete). Il lettore è attivo in `run_linking_bench.py`, `verify_probe.py` e `gold_set.py evaluate` solo come traccia; `run_linking_bench.py --blind-veto` lo lascia fermare un link che contraddice con sicurezza.
+
 ## Il limite di frequenza (HTTP 429)
 
 I modelli di OpenRouter rispondono 429 quando ricevono troppe richieste insieme. Dal commit di questa versione il client aspetta quanto dice il server (fino a 60 s), tiene almeno 0,5 s fra due richieste dello stesso modello e ritenta 8 volte. Una riga che non ottiene risposta si astiene con `model_unavailable` e il riepilogo lo scrive in grassetto; prima il run intero si fermava a 0 righe (come il 7 ottobre).

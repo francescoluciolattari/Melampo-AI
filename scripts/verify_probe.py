@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from melampo.memory import anatomy_linker as al  # noqa: E402
 from melampo.memory import anatomy_parts as ap  # noqa: E402
 from melampo.memory import form_ambiguity as fa  # noqa: E402
+from melampo.memory.blind_reader import BlindReader  # noqa: E402
 from melampo.memory.anatomy_graph import AnatomyGraph  # noqa: E402
 from melampo.memory.report_state import ReportState  # noqa: E402
 
@@ -68,7 +69,14 @@ def build_linkers(uberon: Path, chats: dict | None, scope: str, style: str = "ye
         lexicon,
         [(n, e["whole"]) for e in parts_json["direct"] for n in e["names"]],
     )
-    common = {"parts": parts, "graph": graph, "ambiguous": fa.keys(flags)}
+    common = {
+        "parts": parts,
+        "graph": graph,
+        "ambiguous": fa.keys(flags),
+        "blind": BlindReader.from_sources(
+            lexicon, terms, equivalent, graph, parts_json
+        ),
+    }
     plain = al.AnatomyLinker(lexicon, pool, equivalent, **common)
     asking = (
         al.AnatomyLinker(

@@ -1146,11 +1146,15 @@ def _profile(
         support.append("frame")
     if ("area", SUPPORT) in by:
         support.append("area")
+    if ("blind", SUPPORT) in by:
+        support.append("blind")
     if result.stage in _MODEL_STAGES or ("verify", SUPPORT) in by:
         support.append("models")
     conflicts: list[str] = []
     if ("area", AGAINST) in by:
         conflicts.append("outside_the_exam_area")
+    if ("blind", AGAINST) in by:
+        conflicts.append("blind_reader_disagrees")
     if flagged and ("verify", SUPPORT) not in by:
         conflicts.append("ambiguous_form_not_checked")
     return tuple(support), tuple(conflicts)
@@ -1177,6 +1181,12 @@ class AnatomyLinker:
     # The area of the exam (exam_area): the region the exam studies, read from the exam's name in
     # the sentence or in the report header. An expectation, never a veto on its own.
     areas: ExamAreas = field(default_factory=ExamAreas.load)
+    # Stage 7, the blind reader (blind_reader.BlindReader): derives a concept from the mention alone,
+    # by character n-gram similarity over every name of the ontology, without an LLM and without
+    # seeing the answer, and is compared with the link afterwards. Its disagreement is a conflict;
+    # with ``blind_veto`` it is an abstention (off until the gold set says what it costs).
+    blind: Any = None
+    blind_veto: bool = False
     # UBERON is-a/part-of anchored to the classes (anatomy_graph.AnatomyGraph): the neighbour check
     # on the models' choice and the fallback to the parent. None keeps the linker as it was.
     graph: Any = None
@@ -1364,6 +1374,16 @@ class AnatomyLinker:
         if self.graph is not None and result.status == ACCEPTED:
             result, graph_evidence = self._converge_on_graph(result, mention)
             trace.append(graph_evidence)
+        if self.blind is not None and result.status == ACCEPTED and result.cid:
+            reading = self.blind.read(mention, result.cid)
+            verdict = {"support": SUPPORT, "against": AGAINST}.get(
+                reading.verdict, SILENT
+            )
+            trace.append(Evidence("blind", verdict, reading.best, reading.reason))
+            if verdict == AGAINST and self.blind_veto:
+                result = LinkResult(
+                    ABSTAINED, None, "blind", f"blind_reader_disagrees:{reading.label}"
+                )
         if result.status == ACCEPTED:
             result.support, result.conflicts = _profile(trace, result, flagged)
             if self.senses.procedure_head(mention, sentence):
