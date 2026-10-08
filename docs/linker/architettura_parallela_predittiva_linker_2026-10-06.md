@@ -517,3 +517,11 @@ Veto `process_head_names_a_process:<testa>`, registrato come sede intrinseca. Le
 **Nuova misura nel controllo esterno.** `external_check.py` aggiunge `recorded_as_inherent_location`: per ogni link non fatto ma registrato confronta l'etichetta del corpus con la struttura registrata.
 
 **`verify`** (due modelli per frase) sui due corpora: CRAFT 0 errori fermati su 11 (7 giusti fermati), MedMentions 2 su 38 (2 giusti fermati). Gli errori rimasti li vede solo un lettore con il contesto di tutta la frase e della convenzione dell'oro, o un radiologo.
+
+## 21. F1: nomi lunghi tipizzati da ontologia, e fallimento dei flussi su MedMentions (9 ottobre 2026)
+
+**Nome lungo.** `LongerNames` (dati in `data/linking/longer_names.json`, costruiti da `scripts/build_longer_names.py` da NCIt e, se fornita, Protein Ontology) elenca nomi di 2–9 parole con il loro tipo (assessment_tool, chemical, protein, gene). Il linker pone il veto `mention_is_inside_the_name_of_another_thing:<tipo>:<nome>` quando la menzione è in una finestra che coincide con un nome elencato; vince il nome più lungo. I tipi vengono dall'ontologia (antenati di classe), non da elenchi di parole. Esclusi domande e risposte di questionario, codici CDISC e nomi dove la parola anatomica è solo un qualificatore.
+
+**Perché i flussi non vedono l'errore.** Su MedMentions gli errori hanno lo stesso profilo dei link giusti (15 su 22: nome, cieco, discorso; nessun conflitto): ogni flusso legge la parola, nessuno il sintagma. Per questo il rimedio è un nuovo flusso che legge il sintagma contro un'ontologia, non una soglia diversa. Dettagli, strumenti usati e limiti: `analisi_fallimenti_interpretativi_medmentions_2026-10-09.md`.
+
+**CI.** Il job `falkordb-service` di `ci.yml` avvia un server FalkorDB (`falkordb/falkordb-server:v4.20.7`) come service container e lancia i test di grafo su TCP reale (`MELAMPO_FALKORDB_SERVICE=localhost:6379`).

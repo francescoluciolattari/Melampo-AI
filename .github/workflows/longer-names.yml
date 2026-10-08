@@ -1,0 +1,84 @@
+name: Longer names (NCIt, Protein Ontology)
+
+# Manual trigger only. Rebuilds data/linking/longer_names.json: names of proteins, genes, substances
+# and assessment tools that contain a structure's name ("liver fatty acid binding protein",
+# "International Prostate Symptom Score"). Downloads open ontologies, builds the file with
+# scripts/build_longer_names.py and uploads it as an artifact; nothing is committed by the workflow.
+# To adopt it: download the artifact, replace data/linking/longer_names.json, run the tests and
+# external-check, and commit. See docs/linker/analisi_errori_controllo_esterno_2026-10-08.md.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: "Protein Ontology OBO file (https URL; empty = NCIt only)"
+        required: false
+        default: "https://proconsortium.org/download/current/pro_nonreasoned.obo"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the longer-names file
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download UBERON (pinned)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+
+      - name: Download NCI Thesaurus (OBO edition)
+        run: |
+          curl -sSL --fail -o ncit.obo \
+            https://github.com/NCI-Thesaurus/thesaurus-obo-edition/releases/latest/download/ncit.obo
+          head -3 ncit.obo
+          sha256sum ncit.obo
+
+      - name: Download the Protein Ontology
+        env:
+          PR_URL: ${{ inputs.pr_url }}
+        run: |
+          if [ -z "$PR_URL" ]; then echo "No Protein Ontology requested"; exit 0; fi
+          if ! [[ "$PR_URL" =~ ^https://[A-Za-z0-9./_-]+\.obo$ ]]; then echo "::error::pr_url must be an https URL to an .obo file"; exit 2; fi
+          if curl -sSL --fail -o pr.obo "$PR_URL"; then
+            ls -l pr.obo; head -3 pr.obo
+          else
+            echo "::warning::Protein Ontology download failed; building from NCIt only"
+            rm -f pr.obo
+          fi
+
+      - name: Build
+        run: |
+          set -- --ncit ncit.obo --out longer_names.json
+          if [ -f pr.obo ]; then set -- "$@" --pr pr.obo; fi
+          python scripts/build_longer_names.py "$@"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"
+            echo
+            if [ -f longer_names.json ]; then
+              python - <<'PY'
+          import json
+          d = json.load(open("longer_names.json"))
+          print("Sources:", json.dumps(d["sources"]))
+          print()
+          print("Names by source and kind:", json.dumps(d["counts"]))
+          print()
+          print("Total:", len(d["names"]))
+          PY
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longer-names
+          path: longer_names.json

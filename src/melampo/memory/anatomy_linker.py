@@ -104,6 +104,7 @@ from melampo.memory.compounds import (
     hyphen_compound,
 )
 from melampo.memory.development import DevelopmentalFrame
+from melampo.memory.longer_names import LongerNames
 from melampo.memory.morphology import Morphology
 from melampo.memory.exam_area import ADJACENT, EXPECTED, OUTSIDE, ExamAreas
 from melampo.memory.exam_frame import IMAGING, ExamFrames
@@ -1292,6 +1293,9 @@ class AnatomyLinker:
     # Does the text talk about a developing organism, and does the name also name a developing
     # structure of the ontology? Recorded as evidence (a conflict in the profile), never a veto.
     development: DevelopmentalFrame = field(default_factory=DevelopmentalFrame.load)
+    # Known names of other kinds of things (a scale, a protein, a gene, a substance) that contain
+    # the mention: data/linking/longer_names.json, kind taken from the ontology that lists the name.
+    longer_names: LongerNames = field(default_factory=LongerNames.load)
     # Stage 8: what a conflict between independent readings does to an accepted link. "record"
     # keeps the link and writes the conflict in the profile; "review" sends the link to the review
     # queue when an independent stream read against it (blind reader, exam area, exam side) and no
@@ -2138,6 +2142,16 @@ class AnatomyLinker:
                     VETO,
                     None,
                     f"abbreviation_defined_in_the_text_as:{meaning}",
+                )
+            )
+        longer_name, longer_kind = self.longer_names.containing(mention, sentence, where)
+        if longer_name:
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"mention_is_inside_the_name_of_another_thing:{longer_kind}:{longer_name}",
                 )
             )
         material = self.senses.material_qualifier(mention, sentence, where)

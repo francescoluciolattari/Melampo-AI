@@ -78,3 +78,53 @@ jobs:
           uv run melampo-weaviate-schema > /tmp/melampo_weaviate_schema.json
           uv run python -m json.tool /tmp/melampo_decision_record.json > /dev/null
           uv run python -m json.tool /tmp/melampo_weaviate_schema.json > /dev/null
+
+  falkordb-service:
+    name: FalkorDB server (service container)
+    # The suite above runs the graph tests on FalkorDBLite, the embedded engine. This job runs the
+    # same graph and traversal tests against a real FalkorDB server over TCP, the way the
+    # "service" mode of data/falkordb_config.toml connects to FalkorDB Cloud or a self-hosted
+    # server. MELAMPO_FALKORDB_SERVICE redirects every connection to the container.
+    runs-on: ubuntu-latest
+    services:
+      falkordb:
+        # Server only (no browser UI), tag pinned: v4.20.7 is the latest stable release.
+        image: falkordb/falkordb-server:v4.20.7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      MELAMPO_FALKORDB_SERVICE: localhost:6379
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Create the locked environment
+        run: uv sync --locked --extra dev
+
+      - name: Check that the server answers
+        run: |
+          uv run python - <<'PY'
+          from melampo.memory.falkordb_connection import FalkorDBConfig, connect
+          connection = connect(FalkorDBConfig())
+          graph = connection.select_graph("ci_ping")
+          graph.query("CREATE (:Ping {ok: 1})")
+          rows = graph.query("MATCH (n:Ping) RETURN n.ok").result_set
+          assert rows == [[1]], rows
+          graph.delete()
+          print("FalkorDB server reachable through the service mode")
+          PY
+
+      - name: Graph and traversal tests against the server
+        # test_falkordb_connection.py is left out on purpose: it tests the embedded engine and its
+        # files, which the override replaces.
+        run: uv run pytest -q tests/test_falkordb_graph.py tests/test_falkordb_native_traversal.py

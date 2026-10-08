@@ -30,8 +30,9 @@ them (containers, CI), but the file is what changing modes actually means
 for a person running this locally.
 """
 
+import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,13 @@ MODE_LITE = "lite"
 MODE_SERVICE = "service"
 
 DEFAULT_CONFIG_PATH = Path("data/falkordb_config.toml")
+
+# Environment override for containers and CI: "host:port" of a FalkorDB server (and, optionally,
+# its password in MELAMPO_FALKORDB_PASSWORD). When set, every connection goes to that server
+# whatever the configuration file says, so the same tests that run against the embedded engine run
+# against a real server (the CI job `falkordb-service`). Unset in normal use.
+ENV_SERVICE = "MELAMPO_FALKORDB_SERVICE"
+ENV_PASSWORD = "MELAMPO_FALKORDB_PASSWORD"
 DEFAULT_LITE_DB_PATH = "data/falkordb_lite.db"
 
 _DEFAULT_CONFIG_TOML = f'''\
@@ -115,6 +123,30 @@ class FalkorDBConfig:
         )
 
 
+def service_override(
+    config: FalkorDBConfig, environ: dict[str, str] | None = None
+) -> FalkorDBConfig:
+    """``config`` pointed at the server named by ``MELAMPO_FALKORDB_SERVICE`` ("host:port"), or
+    unchanged when the variable is not set. A malformed value is an error, not a silent fallback to
+    the embedded engine: a CI job that meant to test a server must not pass against the wrong one."""
+    environ = os.environ if environ is None else environ
+    value = (environ.get(ENV_SERVICE) or "").strip()
+    if not value:
+        return config
+    host, separator, port = value.rpartition(":")
+    if not separator or not host or not port.isdigit():
+        raise ValueError(
+            f"{ENV_SERVICE} must be 'host:port', got {value!r}"
+        )
+    return replace(
+        config,
+        mode=MODE_SERVICE,
+        service_host=host,
+        service_port=int(port),
+        service_password=environ.get(ENV_PASSWORD) or config.service_password,
+    )
+
+
 def connect(config: FalkorDBConfig | None = None) -> Any:
     """One FalkorDB connection, embedded or remote, decided entirely by `config`.
 
@@ -124,7 +156,7 @@ def connect(config: FalkorDBConfig | None = None) -> Any:
     against a real embedded instance) before this module was written
     around it.
     """
-    config = config or FalkorDBConfig.from_file()
+    config = service_override(config or FalkorDBConfig.from_file())
     if config.mode == MODE_LITE:
         from redislite.falkordb_client import (
             FalkorDB,
