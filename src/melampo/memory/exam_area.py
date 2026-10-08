@@ -32,6 +32,10 @@ DEFAULT_PATH = (
 WHOLE_BODY = "whole_body"
 EXPECTED, ADJACENT, OUTSIDE, UNKNOWN = "expected", "adjacent", "outside", "unknown"
 
+_RIGHT = frozenset("destro destra destri destre dx right rt".split())
+_LEFT = frozenset("sinistro sinistra sinistri sinistre sn sx sin left lt".split())
+_BOTH = frozenset("bilaterale bilaterali bilateral entrambi entrambe both".split())
+RIGHT, LEFT, BOTH = "right", "left", "both"
 _TOKEN = re.compile(r"[A-Za-zÀ-ÿ0-9]+")
 _STOP = re.compile(r"[.;:!?\n()\[\]]")
 
@@ -76,28 +80,62 @@ class ExamAreas:
 
     def of(self, text: str) -> frozenset[str]:
         """The areas named by the exam names in ``text`` (empty when no exam is named)."""
+        return self._read(text)[0]
+
+    def sides_of(self, text: str) -> frozenset[str]:
+        """The sides the exam names say ("RM ginocchio destro", "MRI of the left knee", "Rx spalle
+        bilaterale"): ``right``, ``left``, ``both``; empty when no exam name states a side."""
+        return self._read(text)[1]
+
+    def without_exam_names(self, text: str) -> str:
+        """``text`` with every exam name ("RM ginocchio destro") blanked out, so that what is left
+        is what the sentence says besides naming the exam."""
         if self.modality is None or not text:
-            return frozenset()
+            return text
+        chars = list(text)
+        for match in self.modality.finditer(text):
+            regions_f, _, end = self._walk(text, match.end(), True)
+            regions_b, _, start = self._walk(text, match.start(), False)
+            if not (regions_f or regions_b):
+                continue
+            lo = start if regions_b else match.start()
+            hi = end if regions_f else match.end()
+            for i in range(lo, hi):
+                chars[i] = " "
+        return "".join(chars)
+
+    def _read(self, text: str) -> tuple[frozenset[str], frozenset[str]]:
+        if self.modality is None or not text:
+            return frozenset(), frozenset()
         found: set[str] = set()
+        sides: set[str] = set()
         for match in self.modality.finditer(text):
             if self.whole_body is not None and self.whole_body.search(
                 text, match.start(), min(len(text), match.end() + 30)
             ):
                 found.add(WHOLE_BODY)
-            found |= self._walk(text, match.end(), forward=True)
-            found |= self._walk(text, match.start(), forward=False)
+            for at, forward in ((match.end(), True), (match.start(), False)):
+                regions, said, _ = self._walk(text, at, forward)
+                found |= regions
+                if regions:
+                    sides |= said
         if self.whole_body is not None and self.whole_body.search(text):
             found.add(WHOLE_BODY)
-        return frozenset(found)
+        return frozenset(found), frozenset(sides)
 
-    def _walk(self, text: str, at: int, forward: bool) -> set[str]:
-        """Region words next to the modality word, through connecting words only."""
+    def _walk(
+        self, text: str, at: int, forward: bool
+    ) -> tuple[set[str], set[str], int]:
+        """Region words next to the modality word, through connecting words only, the sides said
+        among them, and where the exam name ends (or starts, reading backwards)."""
         stretch = text[at:] if forward else text[:at]
         tokens = list(_TOKEN.finditer(stretch))
         if not forward:
             tokens.reverse()
         found: set[str] = set()
+        sides: set[str] = set()
         previous = 0 if forward else len(stretch)
+        edge = previous
         for count, token in enumerate(tokens):
             gap = (
                 stretch[previous : token.start()]
@@ -107,13 +145,22 @@ class ExamAreas:
             if _STOP.search(gap) or count >= 8:
                 break
             word = token.group(0)
+            lower = word.lower()
+            if lower in _RIGHT:
+                sides.add(RIGHT)
+            elif lower in _LEFT:
+                sides.add(LEFT)
+            elif lower in _BOTH:
+                sides.add(BOTH)
             regions = self._regions_of(word)
             if regions:
                 found |= regions
             elif word.lower() not in self.connectors and not word.isdigit():
                 break
             previous = token.end() if forward else token.start()
-        return found
+            if regions or lower in _RIGHT | _LEFT | _BOTH:
+                edge = previous
+        return found, sides, (at + edge if forward else edge)
 
     def relation(self, region: str | None, areas: frozenset[str]) -> str:
         """How a structure of ``region`` stands to the exam's ``areas``."""

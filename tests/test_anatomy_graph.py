@@ -304,9 +304,7 @@ def test_by_default_the_parent_is_a_proposal_not_a_link(lexicon, graph):
         "U:sigmoid",
         "colon",
     )
-    assert (
-        result.trace[-1].stream == "graph" and result.trace[-1].options[-1] == "U:colon"
-    )
+    assert _graph_evidence(result).options[-1] == "U:colon"
 
 
 def test_when_enabled_the_finer_term_becomes_the_class_with_the_relation(
@@ -344,7 +342,7 @@ def test_a_refused_lift_keeps_the_link_as_it_was_and_says_why(lexicon, graph):
     )
     result = linker.link("frontal sinus", "Mucosal thickening in the frontal sinus.")
     assert result.cid == "U:sinus"
-    assert result.trace[-1].reason == "anatomical_space_is_not_inside_the_class"
+    assert _graph_evidence(result).reason == "anatomical_space_is_not_inside_the_class"
 
 
 def test_a_choice_with_a_neighbour_among_the_options_is_not_trusted(lexicon, graph):
@@ -396,3 +394,7 @@ def test_the_two_models_are_asked_at_the_same_time(lexicon):
         translate=False,
     )
     assert linker.link("sigmoid colon", "Sigmoid colon diverticula.").cid == "U:sigmoid"
+
+
+def _graph_evidence(result):
+    return next(e for e in reversed(result.trace) if e.stream == "graph")

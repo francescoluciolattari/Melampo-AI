@@ -73,6 +73,18 @@ def main(argv=None) -> int:
         default=None,
         help="at most this many items per written mention (not population-weighted)",
     )
+    s.add_argument(
+        "--exclude",
+        nargs="*",
+        default=(),
+        help="items.jsonl or reports.jsonl files whose report ids were already seen in development",
+    )
+    s.add_argument(
+        "--split",
+        type=float,
+        default=None,
+        help="share of items marked calibration (the rest test, frozen for the certificate)",
+    )
     c = sub.add_parser("check")
     c.add_argument("sheet")
     a = sub.add_parser("agree")
@@ -92,6 +104,17 @@ def main(argv=None) -> int:
         default=None,
         help="reports.jsonl the items were sampled from: the linker then also gets the state of the report",
     )
+    e.add_argument(
+        "--items",
+        default=None,
+        help="items.jsonl of the sample: with --split, only the items of that split are evaluated",
+    )
+    e.add_argument(
+        "--split",
+        choices=("calibration", "test"),
+        default=None,
+        help="calibration: to choose weights and policy; test: frozen, once, for the certificate",
+    )
     e.add_argument("--out", default="gold_report.json")
     z = sub.add_parser("size")
     z.add_argument("--target", type=float, default=0.01)
@@ -107,6 +130,13 @@ def main(argv=None) -> int:
             n=args.n,
             seed=args.seed,
             cap_per_mention=args.cap_per_mention,
+            exclude={
+                json.loads(line)["report_id"]
+                for path in args.exclude
+                for line in Path(path).read_text("utf-8").splitlines()
+                if line.strip()
+            },
+            split=args.split,
         )
         out = Path(args.out)
         gs.write_sheets(items, out, class_ids=sorted(lexicon.classes))
@@ -174,7 +204,18 @@ def main(argv=None) -> int:
             if args.reports
             else None
         )
-        report = gs.evaluate(linker, _jsonl(args.gold), reports=reports)
+        gold = list(_jsonl(args.gold))
+        if args.split:
+            if not args.items:
+                raise SystemExit(
+                    "--split needs --items (the items.jsonl of the sample)"
+                )
+            wanted = {
+                i["item_id"] for i in _jsonl(args.items) if i.get("split") == args.split
+            }
+            gold = [g for g in gold if g["item_id"] in wanted]
+            print(f"{len(gold)} gold items in the {args.split} split")
+        report = gs.evaluate(linker, gold, reports=reports)
         Path(args.out).write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
         )

@@ -63,6 +63,8 @@ class PartTable:
     )
     parts: dict[str, tuple[frozenset[str], str]] = field(default_factory=dict)
     never: dict[frozenset[str], str] = field(default_factory=dict)
+    # One-word names written only in Italian ("sigma", "anca"): not names in an English sentence.
+    italian_only: frozenset[frozenset[str]] = frozenset()
     _whole_names: dict[tuple[str, ...], set[str]] = field(default_factory=dict)
 
     @classmethod
@@ -81,6 +83,10 @@ class PartTable:
                 table.never[frozenset(normalise(name, keep_noise=True))] = entry[
                     "reason"
                 ]
+        table.italian_only = frozenset(
+            frozenset(normalise(name, keep_noise=True))
+            for name in data.get("italian_only", {}).get("names", ())
+        )
         for entry in data["parts"]:
             for word in entry["words"]:
                 for token in normalise(word):

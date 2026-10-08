@@ -140,6 +140,12 @@ class Sense:
                 seen.append(f"not-{'|'.join(sorted(self.languages))}:{language}")
         return score, seen
 
+    def language_part(self, language: str | None) -> float:
+        """What the language of the sentence alone adds to this sense's score."""
+        if not language or not self.languages:
+            return 0.0
+        return LANGUAGE_MATCH if language in self.languages else LANGUAGE_MISMATCH
+
 
 @dataclass(frozen=True)
 class SenseVerdict:
@@ -166,8 +172,46 @@ _WORD_BEFORE_OF = re.compile(
 )
 
 
+_LETTERS = "A-Za-zÀ-ÿ"
+
+
+def locate(
+    mention: str, sentence: str, start: int | None = None
+) -> re.Match[str] | None:
+    """Where the mention stands in the sentence, as a whole word: "thyroid" is not the "thyroid" of
+    "Hypothyroidism". With ``start`` (the mention's offset in the sentence, when the caller knows
+    it), the occurrence there, not the first one: "Brain volume correlates with intrinsic brain
+    activity" has two. Without a whole-word occurrence, the first occurrence anywhere."""
+    text = mention.strip()
+    if not text:
+        return None
+    pattern = re.compile(
+        rf"(?<![{_LETTERS}]){re.escape(text)}(?![{_LETTERS}])", re.IGNORECASE
+    )
+    found = list(pattern.finditer(sentence))
+    if not found:
+        return re.search(re.escape(text), sentence, flags=re.IGNORECASE)
+    if start is not None:
+        return min(found, key=lambda m: abs(m.start() - start))
+    return found[0]
+
+
+# One coordinated word between the structure and the head ("liver and renal function tests",
+# "bladder and bowel function"), or a one- or two-character name ("Liver X receptor").
+_COORDINATED = re.compile(
+    r"^\s+(?:and|or|e|o|ed|/)\s+[A-Za-zÀ-ÿ]+(?:-[A-Za-zÀ-ÿ]+)?(?=[\s-])|^\s+[A-Z0-9]{1,2}(?=\s)"
+)
+
+
 def _head(
-    mention: str, sentence: str, after: frozenset[str], before: frozenset[str]
+    mention: str,
+    sentence: str,
+    after: frozenset[str],
+    before: frozenset[str],
+    start: int | None = None,
+    not_coordinated: frozenset[str] = frozenset(),
+    depth: int = 0,
+    molecules: bool = False,
 ) -> str:
     """The head word next to the mention: where the head stands follows the syntax of the language.
 
@@ -178,16 +222,55 @@ def _head(
     """
     if not (after or before):
         return ""
-    match = re.search(re.escape(mention.strip()), sentence, flags=re.IGNORECASE)
+    match = locate(mention, sentence, start)
     if not match:
         return ""
-    found = _WORD_AFTER.match(sentence[match.end() :])
+    rest = sentence[match.end() :]
+    found = _WORD_AFTER.match(rest)
+    next_word = found.group(1) if found else ""
     if found and _fold(found.group(1)) in after:
         return _fold(found.group(1))
+    joined = _COORDINATED.match(rest)
+    if joined:
+        found = _WORD_AFTER.match(rest[joined.end() :])
+        if (
+            found
+            and _fold(found.group(1)) in after
+            and (
+                _fold(found.group(1)) not in not_coordinated
+                or not joined.group(0).split()[0].isalpha()
+                or joined.group(0).strip().isupper()
+            )
+        ):
+            # only a measurement shared by both ("liver and renal function"): "thyroid lobe and
+            # central lymph node" names two structures
+            return _fold(found.group(1))
     left = sentence[: match.start()]
     found = _WORD_BEFORE.search(left)
     if found and _fold(found.group(1)) in before:
         return _fold(found.group(1))
+    if molecules and found and _fold(found.group(1)).startswith("anti"):
+        # an antibody against the organ's antigen ("antisoluble liver", "antinuclear")
+        return "anti"
+    if molecules and next_word and _enzyme(next_word):
+        # an enzyme named after the organ ("thyroid peroxidase", "liver esterase")
+        return _fold(next_word)
+    slashed = re.search(r"([A-Za-zÀ-ÿ]+)/$", left)
+    if slashed and depth == 0:
+        # "anti-SLA/LP (antisoluble liver/liver pancreas)": a word joined by a slash shares the
+        # construction of the word before it
+        shared = _head(
+            slashed.group(1),
+            sentence,
+            after,
+            before,
+            slashed.start(1),
+            not_coordinated,
+            depth=1,
+            molecules=molecules,
+        )
+        if shared:
+            return shared
     found = _WORD_BEFORE_OF.search(left)
     if found and _fold(found.group(1)) in (after | before) - _PREFIXES:
         return _fold(found.group(1))
@@ -195,6 +278,90 @@ def _head(
 
 
 _PREFIXES = frozenset(("anti",))
+_NOT_ENZYMES = frozenset(
+    "disease diseases release releases increase increases decrease decreases case cases base "
+    "bases phase phases purchase showcase".split()
+)
+
+
+def _enzyme(word: str) -> bool:
+    folded = _fold(word)
+    return (
+        len(folded) > 5
+        and folded.endswith(("ase", "ases"))
+        and folded not in _NOT_ENZYMES
+    )
+
+
+# Words that head the name of an institution, a study, a data set or an instrument (English and
+# Italian), and the short words that may join the capitalised words of such a name.
+_NAME_HEADS = frozenset(
+    """association associations society foundation college institute institutes institution
+    university hospital clinic centre center consortium council federation committee group network
+    organization organisation academy study registry register workshop congress conference journal
+    trial initiative program programme project atlas index system questionnaire inventory
+    exchange guidelines guideline survey database bank cohort
+    associazione societa fondazione istituto universita ospedale clinica centro consorzio
+    federazione comitato gruppo rete studio registro congresso indice questionario""".split()
+)
+_NAME_JOINERS = frozenset(
+    "of for and the on in de del della di per e degli delle dei".split()
+)
+_CAPITALISED = re.compile(r"[A-ZÀ-Ý][a-zà-ÿ]+(?:-[A-Za-zà-ÿ]+)*$")
+_NAME_TOKEN = re.compile(r"[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]*|[^\sA-Za-zÀ-ÿ]")
+
+
+def _proper_name(mention: str, sentence: str, start: int | None = None) -> str:
+    match = locate(mention, sentence, start)
+    if not match or not _CAPITALISED.match(
+        sentence[match.start() : match.end()].split()[0]
+    ):
+        return ""
+    tokens = [(m.group(0), m.start(), m.end()) for m in _NAME_TOKEN.finditer(sentence)]
+    inside = [
+        i
+        for i, (_, a, b) in enumerate(tokens)
+        if a >= match.start() and b <= match.end()
+    ]
+    if not inside:
+        return ""
+
+    def part(i: int) -> bool:
+        word = tokens[i][0]
+        return bool(_CAPITALISED.match(word)) or word.isupper() and len(word) > 1
+
+    def joined(i: int, step: int) -> int:
+        """How many tokens to move from ``i`` to reach the next capitalised word, through at most
+        two joining words ("Association for the Study of the Liver"); 0 if none."""
+        for gap in (1, 2, 3):
+            j = i + step * gap
+            if not 0 <= j < len(tokens):
+                return 0
+            if part(j):
+                return gap
+            if tokens[j][0].lower() not in _NAME_JOINERS:
+                return 0
+        return 0
+
+    lo, hi = inside[0], inside[-1]
+    while gap := joined(lo, -1):
+        lo -= gap
+    while gap := joined(hi, 1):
+        hi += gap
+    words = [t[0] for t in tokens[lo : hi + 1]]
+    if sentence[tokens[hi][2] :].lstrip().startswith(":"):
+        # a heading ("Liver Study: normal"), not a name
+        return ""
+    capitalised = [w for w in words if _CAPITALISED.match(w)]
+    if len(capitalised) < 2:
+        return ""
+    if any(
+        _fold(w) in _NAME_HEADS
+        for w in capitalised
+        if w.lower() not in mention.lower().split()
+    ):
+        return " ".join(words)
+    return ""
 
 
 @dataclass
@@ -262,19 +429,41 @@ class SenseInventory:
     def load(cls, path: Path = DEFAULT_PATH) -> "SenseInventory":
         return cls.from_json(json.loads(path.read_text("utf-8")))
 
-    def attribute_head(self, mention: str, sentence: str) -> str:
+    def attribute_head(
+        self, mention: str, sentence: str, start: int | None = None
+    ) -> str:
         """The neighbouring word that makes the mention the modifier of a measurement, else "".
 
         "heart rate", "liver function tests", "thyroid-stimulating hormone", "anti-thyroid
         antibodies": the structure is named but not meant. Only the word right after (or right
         before) the mention counts; a comma or a full stop ends the construction.
         """
-        return _head(mention, sentence, self.heads_after, self.heads_before)
+        return _head(
+            mention,
+            sentence,
+            self.heads_after,
+            self.heads_before,
+            start,
+            self.heads_not_measured,
+            molecules=True,
+        )
 
-    def procedure_head(self, mention: str, sentence: str) -> str:
+    def proper_name(self, mention: str, sentence: str, start: int | None = None) -> str:
+        """The name of an institution, a study, a registry or an instrument the mention is a word
+        of ("American Heart Association", "The Cancer Genome Atlas", "Prostate Imaging Reporting and
+        Data System", "Dallas Heart Study"), else "". The structure is part of a proper name, not
+        named. Read from the writing: a run of capitalised words (joined by short function words)
+        that contains the mention and a word that heads such names."""
+        return _proper_name(mention, sentence, start)
+
+    def procedure_head(
+        self, mention: str, sentence: str, start: int | None = None
+    ) -> str:
         """The neighbouring word of a procedure done on the structure ("liver biopsy", "biopsia del
         fegato", "resezione epatica"), else "". Same positions as ``attribute_head``."""
-        return _head(mention, sentence, self.procedures_after, self.procedures_before)
+        return _head(
+            mention, sentence, self.procedures_after, self.procedures_before, start
+        )
 
     def forms_in(self, mention: str) -> list[str]:
         """The listed forms the mention is written with."""
@@ -307,13 +496,17 @@ class SenseInventory:
                     (s for s in anatomical if s is not best), key=lambda s: scores[s.id]
                 ).id
             top = scores[best.id]
+            # The language of the sentence can tip a choice, not make one: without it, the words of
+            # the text must reach the threshold ("medio-lateral axis of the hand": one weak cue,
+            # "lateral", plus English was a vertebra; MedMentions, 8 October 2026).
+            from_text = top - best.language_part(language)
             common = {
                 "form": form,
                 "scores": scores,
                 "cues": cues,
                 "language": language,
             }
-            if top < ACCEPT:
+            if top < ACCEPT or from_text < ACCEPT:
                 # Nothing in the sentence supports the anatomical reading; say who else could be meant.
                 reason = (
                     f"sense_conflict:{rival_id}"

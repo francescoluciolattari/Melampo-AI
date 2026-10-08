@@ -1,0 +1,134 @@
+{
+  "note": "Radici greco-latine dei nomi anatomici (stadio 3, candidati morfologici). Una parola che comincia con una radice propone la struttura: 'epatico', 'hepatic', 'epatomegalia' propongono il fegato; 'nefrolitiasi' il rene. NON accetta mai un link: e' una proposta (per la coda di revisione e per i modelli) e un secondo meccanismo che sostiene un link gia' fatto da altri flussi, perche' arriva alla struttura per una via diversa dal nome curato. Si scelgono solo radici che in medicina indicano una struttura sola; restano fuori le radici ambigue (cist- = vescica o cisti, col- = colon o bile, cor- = cuore o corteccia, oste- = tutte le ossa, angi- = tutti i vasi, mi-/my- = muscolo o midollo). Le parole elencate in 'not' cominciano con la radice ma non indicano la struttura ('cardinale', 'gastrocnemio', 'pancreatina' resta). Fonti: terminologia medica di base (Terminologia Anatomica FIPAT 2019 per i nomi latini; Chabner, The Language of Medicine, 12a ed., tavole delle radici), riviste a mano.",
+  "min_extra_letters": 2,
+  "roots": {
+    "liver": [
+      "epat",
+      "hepat"
+    ],
+    "kidney": [
+      "nefr",
+      "nephr",
+      "renal",
+      "renale",
+      "renali",
+      "reni"
+    ],
+    "spleen": [
+      "splen",
+      "splen"
+    ],
+    "pancreas": [
+      "pancrea"
+    ],
+    "gallbladder": [
+      "colecist",
+      "cholecyst",
+      "colecisti"
+    ],
+    "stomach": [
+      "gastr"
+    ],
+    "heart": [
+      "cardi",
+      "cardio"
+    ],
+    "lung": [
+      "pneumo",
+      "pulmon",
+      "polmon"
+    ],
+    "brain": [
+      "encefal",
+      "enceph",
+      "cerebr"
+    ],
+    "thyroid_gland": [
+      "tiroid",
+      "thyro",
+      "thyroid"
+    ],
+    "adrenal_gland": [
+      "surrenal",
+      "adrenal"
+    ],
+    "esophagus": [
+      "esofag",
+      "oesophag",
+      "esophag"
+    ],
+    "duodenum": [
+      "duoden"
+    ],
+    "prostate": [
+      "prostat"
+    ],
+    "aorta": [
+      "aort"
+    ],
+    "trachea": [
+      "trache"
+    ],
+    "sacrum": [
+      "sacral",
+      "sacrale",
+      "sacrali"
+    ],
+    "femur": [
+      "femor"
+    ],
+    "humerus": [
+      "omeral",
+      "humeral"
+    ],
+    "sternum": [
+      "stern"
+    ],
+    "urinary_bladder": [
+      "vescical",
+      "vescic"
+    ],
+    "spinal_cord": [
+      "midollar",
+      "mielo",
+      "myelo"
+    ]
+  },
+  "not": [
+    "cardinal",
+    "cardinale",
+    "cardinali",
+    "cardigan",
+    "gastrocnem",
+    "gastrocnemio",
+    "gastrocnemius",
+    "sternutazion",
+    "sternocleidomastoid",
+    "sternocleidomastoideo",
+    "mielogen",
+    "myelogen",
+    "mieloid",
+    "myeloid",
+    "mieloma",
+    "myeloma",
+    "mielodisplas",
+    "myelodysplas",
+    "tirocin",
+    "pneumococc",
+    "aortite",
+    "cardias"
+  ],
+  "prefixes": {
+    "lung": [
+      "lung_"
+    ],
+    "kidney": [
+      "kidney_left",
+      "kidney_right"
+    ],
+    "liver": [
+      "liver",
+      "liver_segment_"
+    ]
+  }
+}

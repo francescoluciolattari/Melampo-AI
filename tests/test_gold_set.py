@@ -403,3 +403,28 @@ def test_counts_accept_the_pasted_field_name():
     for bad in ("", "abc", "n=", "0", "-5", "n=six"):
         with pytest.raises(argparse.ArgumentTypeError):
             cli._count(bad)
+
+
+def test_a_certification_sample_excludes_reports_seen_and_splits_by_report():
+    lexicon = al.Lexicon.from_json(
+        json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "data/linking/anatomy_lexicon.json"
+            ).read_text("utf-8")
+        )
+    )
+    reports = [
+        {"report_id": f"r{i}", "text": "Il fegato è nei limiti. La milza è regolare."}
+        for i in range(40)
+    ]
+    items = gs.sample_items(
+        reports, lexicon, exclude={"r0", "r1", "r2"}, split=0.5, seed=7
+    )
+    ids = {i["report_id"] for i in items}
+    assert not ids & {"r0", "r1", "r2"} and len(ids) == 37
+    splits = {i["split"] for i in items}
+    assert splits == {"calibration", "test"}
+    by_report = {}
+    for i in items:
+        assert by_report.setdefault(i["report_id"], i["split"]) == i["split"]

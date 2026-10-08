@@ -98,6 +98,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from melampo.memory.morphology import Morphology
 from melampo.memory.exam_area import ADJACENT, EXPECTED, OUTSIDE, ExamAreas
 from melampo.memory.exam_frame import IMAGING, ExamFrames
 from melampo.memory.report_state import (
@@ -107,7 +108,7 @@ from melampo.memory.report_state import (
     TECHNIQUE,
     ReportState,
 )
-from melampo.memory.word_senses import SenseInventory, detect_language
+from melampo.memory.word_senses import SenseInventory, detect_language, locate
 
 SIDE_RIGHT = "<dx>"
 SIDE_LEFT = "<sn>"
@@ -760,6 +761,18 @@ class Lexicon:
         accepted = {language} | _TOLERATED_LANGUAGES.get(language, frozenset())
         return bool(written) and not (written & accepted)
 
+    def name_clash(self, mention: str, language: str | None) -> bool:
+        """A full name written in the lexicon for the other language only, in a sentence plainly of
+        a language that does not borrow it: "sigma" (sigma, the sigmoid colon in Italian) in an
+        English sentence is the Greek letter, a sigma factor or a standard deviation (85 of 85 such
+        links in the CRAFT corpus, 8 October 2026). The same asymmetry as for short forms: English
+        names in Italian reports are tolerated."""
+        if language is None:
+            return False
+        written = self.languages.get(normalise(mention), frozenset())
+        accepted = {language} | _TOLERATED_LANGUAGES.get(language, frozenset())
+        return bool(written) and not (written & accepted)
+
     def recognise(
         self, mention: str, sentence: str, headless_ok: bool = False
     ) -> tuple[list[str], str]:
@@ -985,6 +998,9 @@ class LinkResult:
     # fegato"; the link abstains, ``about`` says which structure was measured), "" otherwise.
     role: str = ""
     about: str | None = None
+    # Structures the Greek and Latin roots of the mention point to (stage 3): a proposal for the
+    # review queue on an abstention, never a link.
+    proposals: tuple[str, ...] = ()
 
     @property
     def convergence(self) -> int:
@@ -1099,14 +1115,38 @@ def _parse(answer: str, n: int) -> int | None:
 _COMPOUND_AFTER = re.compile(r"-[A-Za-zÀ-ÿ]")
 
 
-def _first_part_of_a_compound(mention: str, sentence: str) -> bool:
+def _first_part_of_a_compound(
+    mention: str, sentence: str, start: int | None = None
+) -> bool:
     """A single word joined to the next by a hyphen ("cranio-facial", "cranio-caudally",
     "ileo-psoas") is a combining form, not the structure. Level codes (C5-6, L4-L5) are not words."""
     text = mention.strip()
     if " " in text or any(c.isdigit() for c in text) or not text.isalpha():
         return False
-    match = re.search(rf"(?<![\w-]){re.escape(text)}", sentence, flags=re.IGNORECASE)
+    match = locate(text, sentence, start)
+    if match and match.start() > 0 and sentence[match.start() - 1] in "-_":
+        return False
     return bool(match and _COMPOUND_AFTER.match(sentence[match.end() :]))
+
+
+def mention_offset(
+    mention: str, sentence: str, report: ReportState | None, at: int | None
+) -> int | None:
+    """Where the mention starts in ``sentence``, from its offset ``at`` in the report text, so that
+    the words next to *this* occurrence are read when the sentence names the structure twice. None
+    when the caller gave no position, or the sentence is not a stretch of the report text."""
+    if report is None or at is None or not sentence:
+        return None
+    begin = report.text.rfind(sentence, 0, at + len(sentence))
+    if begin < 0 or at - begin > len(sentence):
+        return None
+    local = at - begin
+    if (
+        sentence[local : local + len(mention.strip())].lower()
+        != mention.strip().lower()
+    ):
+        return None
+    return local
 
 
 def _findings_of_an_imaging_report(report: ReportState | None, at: int | None) -> bool:
@@ -1125,6 +1165,29 @@ def _a_written_name(mention: str) -> bool:
         return False
     words = re.findall(r"[A-Za-zÀ-ÿ]+", mention)
     return any(len(w) >= 4 and not w.isupper() for w in words)
+
+
+# Conflicts that come from a stream reading the mention against the link (not from a check that was
+# not run): the ones the conflict monitor may act on.
+_READ_AGAINST = frozenset(
+    ("blind_reader_disagrees", "outside_the_exam_area", "side_differs_from_the_exam")
+)
+# A short form: two to four capitals, possibly with a digit ("SVC", "IVC", "LAA", "RML"); level
+# codes (L4, C5-6) are read by their own stream.
+_ABBREVIATION = re.compile(r"(?=[A-Z0-9]*[A-Z][A-Z0-9]*[A-Z])[A-Z][A-Z0-9]{1,3}")
+_SIDE_TOKENS = frozenset((SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH))
+_RAW_WORD = re.compile(r"[A-Za-zÀ-ÿ0-9]+")
+_STRONG_BREAK = re.compile(r"[.;:!?()\[\]]")
+_SIDE_IN_CLASS = re.compile(r"_(left|right)(?:_|$)")
+_ANY_SIDE_WORD = re.compile(
+    r"\b(?:destr[oaie]|sinistr[oaie]|dx|sx|sn|right|left|bilateral\w*|entramb\w*|both)\b",
+    re.IGNORECASE,
+)
+_OTHER_SIDE_WORDS = re.compile(
+    r"\b(?:controlateral\w*|contralateral\w*|bilateral\w*|entramb\w*|both|confronto|"
+    r"rispetto|compared?|comparison|simmetric\w*|symmetric\w*)\b",
+    re.IGNORECASE,
+)
 
 
 def _profile(
@@ -1148,6 +1211,12 @@ def _profile(
         support.append("area")
     if ("blind", SUPPORT) in by:
         support.append("blind")
+    if ("exam_side", SUPPORT) in by:
+        support.append("exam_side")
+    if ("discourse", SUPPORT) in by:
+        support.append("discourse")
+    if ("morphology", SUPPORT) in by:
+        support.append("morphology")
     if result.stage in _MODEL_STAGES or ("verify", SUPPORT) in by:
         support.append("models")
     conflicts: list[str] = []
@@ -1155,6 +1224,8 @@ def _profile(
         conflicts.append("outside_the_exam_area")
     if ("blind", AGAINST) in by:
         conflicts.append("blind_reader_disagrees")
+    if ("exam_side", AGAINST) in by:
+        conflicts.append("side_differs_from_the_exam")
     if flagged and ("verify", SUPPORT) not in by:
         conflicts.append("ambiguous_form_not_checked")
     return tuple(support), tuple(conflicts)
@@ -1187,6 +1258,22 @@ class AnatomyLinker:
     # with ``blind_veto`` it is an abstention (off until the gold set says what it costs).
     blind: Any = None
     blind_veto: bool = False
+    morphology: Any = field(default_factory=Morphology.load)
+    # Stage 8: what a conflict between independent readings does to an accepted link. "record"
+    # keeps the link and writes the conflict in the profile; "review" sends the link to the review
+    # queue when an independent stream read against it (blind reader, exam area, exam side) and no
+    # more than ``review_below`` mechanisms support it.
+    # What kind of text the linker reads: "radiology_report" (the default, the deployment), or
+    # another kind ("case_report", "literature", "clinical_note"). The kind decides what an
+    # abbreviation may mean: in a radiology report SVC is the superior vena cava; elsewhere it is
+    # accepted by name only with signs of imaging or anatomy in the text.
+    document_type: str = "radiology_report"
+    # Stage 1: a paired structure named without a side takes the side of the exam name ("RM
+    # ginocchio destro: ... femore"). Off until the labelling protocol says the same; off, the
+    # side of the exam is written as a proposal on the abstention.
+    inherit_exam_side: bool = False
+    conflict_policy: str = "record"
+    review_below: int = 2
     # UBERON is-a/part-of anchored to the classes (anatomy_graph.AnatomyGraph): the neighbour check
     # on the models' choice and the fallback to the parent. None keeps the linker as it was.
     graph: Any = None
@@ -1213,6 +1300,26 @@ class AnatomyLinker:
 
     def __post_init__(self) -> None:
         self._by_id = {c.cid: c for c in self.pool}
+        # Ontology names of two words or more ("secondary heart field", "blood brain barrier"),
+        # to see whether a mention is only a word inside a longer anatomical name.
+        self._longer: dict[tuple[str, ...], set[str]] = defaultdict(set)
+        self._longer_names: dict[str, str] = {}
+        for candidate in self.pool:
+            if candidate.is_target_class:
+                continue
+            self._longer_names[candidate.cid] = candidate.label
+            for name in {*candidate.names, *candidate.strict_names}:
+                if len(name) >= 2:
+                    self._longer[tuple(name)].add(candidate.cid)
+        # Every UBERON name, also of terms outside the human pool (embryonic and developmental
+        # structures: "secondary heart field", "blood brain barrier", "pharyngeal arch artery").
+        for node, name in (getattr(self.graph, "names", None) or {}).items():
+            if len(name.split()) < 2:
+                continue
+            self._longer_names.setdefault(node, name)
+            for key in (normalise(name), normalise(name, keep_noise=True)):
+                if len(key) >= 2:
+                    self._longer[tuple(key)].add(node)
         self._sided = sided_bases(self.pool)
         # Words that are by themselves the name of a class ("rene", "femore",
         # "kidney"). A mention containing one names that structure or a part of it.
@@ -1274,7 +1381,12 @@ class AnatomyLinker:
         if vertebra in self.lexicon.classes:
             if level_evidence(mention, sentence):
                 readings.append(vertebra)
-            elif level_from_report(code, sentence, report, at):
+            elif self.document_type == "radiology_report" and level_from_report(
+                code, sentence, report, at
+            ):
+                # the spine as the subject of the text is a property of a report; an article
+                # that speaks of lumbar ganglia is not a spine report ("Figure S1", "plasmid
+                # L3" in CRAFT, 8 October 2026)
                 readings.append(vertebra)
                 from_report = True
         segment = f"liver_segment_{number}"
@@ -1320,6 +1432,7 @@ class AnatomyLinker:
         if report is not None and not context:
             context = report.header()
         trace = self.read(mention, sentence, context, report, at)
+        where = mention_offset(mention, sentence, report, at)
         result = self._decide(trace, mention, sentence)
         senses = next(e for e in trace if e.stream == "senses")
         if (
@@ -1331,6 +1444,24 @@ class AnatomyLinker:
             result = LinkResult(
                 ABSTAINED, None, "senses", f"sense_{senses.cid}_names_another_class"
             )
+        longer = self._inside_a_longer_name(result, mention, sentence, where)
+        if longer is not None:
+            result = longer
+        inherited = self._side_from_the_exam(result, mention, sentence, context, report)
+        if inherited is not None and self.inherit_exam_side:
+            result = inherited
+        elif inherited is not None:
+            # Until the radiologists agree that the side of the exam name is the side of the text
+            # (the protocol says today: the side is read from the sentence), it is a proposal.
+            result = LinkResult(
+                ABSTAINED,
+                result.cid,
+                result.stage,
+                result.reason,
+                options=[inherited.cid],
+            )
+            result.cid = None
+            result.proposals = (inherited.cid,)
         trace = trace + [
             Evidence(
                 result.stage,
@@ -1344,10 +1475,36 @@ class AnatomyLinker:
         ]
         expectation = self._expectation(result, sentence, report)
         trace.append(expectation)
+        side_check = self._exam_side(result, sentence, report)
+        trace.append(side_check)
+        trace.append(self._discourse(result, report, at))
+        if side_check.verdict == AGAINST and side_check.reason.startswith("veto:"):
+            # The mention says one side, the exam is of the other: a laterality error is the
+            # critical error of radiology; two readings of the side disagree, so a person decides.
+            result = LinkResult(
+                ABSTAINED, None, "exam_side", side_check.reason.split(":", 1)[1]
+            )
         by_name = result.status == ACCEPTED and result.stage in ("lexicon", "parts")
         flagged = normalise(mention) in self.ambiguous and not senses.options
         surprise = by_name and flagged and expectation.verdict == AGAINST
-        if surprise and not self.chats:
+        # An abbreviation means what its domain makes it mean: SVC is the superior vena cava in a
+        # radiology report and stromal vascular cells in a cell-biology abstract (MedMentions,
+        # 8 October 2026). Outside a radiology report (``document_type``), an abbreviation is
+        # accepted by name only with signs of imaging or anatomy in the text; otherwise the models
+        # read it, or the linker abstains.
+        if (
+            by_name
+            and not senses.options
+            and _ABBREVIATION.fullmatch(mention.strip())
+            and not self._imaging_context(trace, sentence, report, at)
+        ):
+            surprise = True
+            flagged = True
+        if surprise and not self.chats and expectation.verdict != AGAINST:
+            result = LinkResult(
+                ABSTAINED, None, "domain", "abbreviation_outside_an_imaging_context"
+            )
+        elif surprise and not self.chats:
             # A form that can mean several things, far from the area of the exam: the prediction
             # error is what a reader would stop at, and there is no one to ask.
             result = LinkResult(
@@ -1384,12 +1541,279 @@ class AnatomyLinker:
                 result = LinkResult(
                     ABSTAINED, None, "blind", f"blind_reader_disagrees:{reading.label}"
                 )
+        roots = self.morphology.proposes(mention) if self.morphology else ()
+        if result.status == ACCEPTED and result.cid:
+            same = [r for r in roots if self.morphology.names(r, result.cid)]
+            trace.append(
+                Evidence(
+                    "morphology",
+                    SUPPORT if same else SILENT,
+                    result.cid,
+                    f"roots_point_to:{','.join(roots)}" if roots else "",
+                )
+            )
+        elif roots:
+            result.proposals = tuple(dict.fromkeys((*result.proposals, *roots)))
+            trace.append(
+                Evidence(
+                    "morphology",
+                    SILENT,
+                    None,
+                    f"proposes:{','.join(roots)}",
+                    options=tuple(roots),
+                )
+            )
         if result.status == ACCEPTED:
             result.support, result.conflicts = _profile(trace, result, flagged)
-            if self.senses.procedure_head(mention, sentence):
+            read_against = [c for c in result.conflicts if c in _READ_AGAINST]
+            if (
+                self.conflict_policy == "review"
+                and read_against
+                and len(result.support) <= self.review_below
+            ):
+                held = result
+                result = LinkResult(
+                    ABSTAINED,
+                    None,
+                    "conflict",
+                    f"streams_disagree:{','.join(read_against)}",
+                    options=[held.cid],
+                )
+                result.support, result.conflicts = held.support, held.conflicts
+            if self.senses.procedure_head(mention, sentence, where):
                 result.role = "procedure_site"
         result.trace = trace
         return result
+
+    def _inside_a_longer_name(
+        self,
+        result: LinkResult,
+        mention: str,
+        sentence: str,
+        where: int | None = None,
+    ) -> LinkResult | None:
+        """The mention is a word inside a longer anatomical name that is not a part or a kind of the
+        linked class: "heart" in "secondary heart field" (an embryonic field), "brain" in
+        "blood-brain barrier", "hip" in "hip joint". Annotators of anatomy corpora label the longest
+        name (CRAFT, MedMentions); a reader does the same. A longer name that is a part of the class
+        ("liver parenchyma", "apex of the lung") keeps the link."""
+        if (
+            result.status != ACCEPTED
+            or not result.cid
+            or result.stage not in ("lexicon", "parts")
+            or not self._longer
+        ):
+            return None
+        # Words as written (normalised names are bags, not sequences): windows of the sentence
+        # that contain the mention, one to three words wider on either side.
+        spans = [m.span() for m in _RAW_WORD.finditer(sentence)]
+        found = locate(mention, sentence, where)
+        if not found or not spans:
+            return None
+        inside = [
+            k
+            for k, (a, b) in enumerate(spans)
+            if a >= found.start() and b <= found.end()
+        ]
+        if not inside:
+            return None
+        first, last = inside[0], inside[-1]
+        own = tuple(
+            t for t in normalise(mention, keep_noise=True) if t not in _SIDE_TOKENS
+        )
+        for before in range(0, 4):
+            for after in range(0, 4):
+                if not before and not after:
+                    continue
+                lo, hi = first - before, last + after
+                if lo < 0 or hi >= len(spans):
+                    continue
+                window = sentence[spans[lo][0] : spans[hi][1]]
+                if _STRONG_BREAK.search(window):
+                    continue
+                keys = {
+                    tuple(t for t in key if t not in _SIDE_TOKENS)
+                    for key in (normalise(window), normalise(window, keep_noise=True))
+                }
+                # the wider window must add a word of content to what the mention says
+                keys = {k for k in keys if len(k) > len(own) and not set(k) <= set(own)}
+                for key in keys:
+                    for term in self._longer.get(tuple(key), ()):
+                        if not self._part_or_kind_of(term, result.cid):
+                            name = self._longer_names.get(term, term)
+                            return LinkResult(
+                                ABSTAINED,
+                                None,
+                                "integration",
+                                f"mention_is_inside_a_longer_name:{name}",
+                                options=[term],
+                            )
+        return None
+
+    def _part_or_kind_of(self, term: str, cid: str) -> bool:
+        """``term`` (an UBERON id) is the class, or a part or a kind of it, in the graph."""
+        if self.equivalent.get(term) == cid or term == cid:
+            return True
+        if self.graph is None:
+            return False
+        nodes = self.graph.nodes_of(cid)
+        if term in nodes:
+            return True
+        frontier, seen = {term}, {term}
+        for _ in range(8):
+            frontier = {
+                parent
+                for node in frontier
+                for parent, _ in self.graph.parents.get(node, ())
+                if parent not in seen
+            }
+            if frontier & nodes:
+                return True
+            seen |= frontier
+            if not frontier:
+                break
+        return False
+
+    def _imaging_context(
+        self,
+        trace: Sequence[Evidence],
+        sentence: str,
+        report: ReportState | None,
+        at: int | None = None,
+    ) -> bool:
+        if self.document_type == "radiology_report":
+            # the caller says the text is a radiology report: the abbreviations are radiology's
+            return True
+        if report is None:
+            return False
+        if report.modalities or report.labelled:
+            # a report that names a modality or has the sections of a report (findings,
+            # impression, referto, conclusioni)
+            return True
+        if self.frames.of(report.text).frame == IMAGING:
+            # a text that speaks of images somewhere
+            return True
+        if at is not None and len(self._named_elsewhere(report, at)) >= 2:
+            # a text about anatomy: two other structures named by curated names elsewhere in it
+            # (a findings-only chest X-ray report: "heart", "lungs", "mediastinum")
+            return True
+        if any(e.stream == "frame" and e.verdict == SUPPORT for e in trace):
+            return True
+        return bool(self.areas.of(sentence))
+
+    def _discourse(
+        self, result: LinkResult, report: ReportState | None, at: int | None
+    ) -> Evidence:
+        """The structure is named, by an unambiguous curated name, in another sentence of the same
+        report (stage 1, what the reader already knows from the report). It supports; its absence
+        says nothing (most structures are named once)."""
+        if result.status != ACCEPTED or not result.cid or report is None or at is None:
+            return Evidence("discourse", SILENT)
+        named = self._named_elsewhere(report, at)
+        cid = self.equivalent.get(result.cid, result.cid)
+        if cid in named or result.cid in named:
+            return Evidence(
+                "discourse",
+                SUPPORT,
+                result.cid,
+                "named_in_another_sentence_of_the_report",
+            )
+        return Evidence("discourse", SILENT, result.cid)
+
+    def _named_elsewhere(self, report: ReportState, at: int) -> frozenset[str]:
+        key = (id(report), report.text[:64], at)
+        cache = self.__dict__.setdefault("_discourse_cache", {})
+        if key in cache:
+            return cache[key]
+        if len(cache) > 4096:
+            cache.clear()
+        found: set[str] = set()
+        for span in report.sentences:
+            if span.start <= at < span.end:
+                continue
+            tokens = normalise(report.text[span.start : span.end])
+            for size in range(1, 7):
+                for i in range(len(tokens) - size + 1):
+                    entries = self.lexicon.index.get(tuple(tokens[i : i + size]))
+                    if entries and len({c for c, _ in entries}) == 1:
+                        found.add(entries[0][0])
+        cache[key] = frozenset(found)
+        return cache[key]
+
+    def _exam_sides(self, sentence: str, report: ReportState | None) -> frozenset[str]:
+        return self.areas.sides_of(sentence) or (
+            report.exam_sides if report is not None else frozenset()
+        )
+
+    def _exam_side(
+        self, result: LinkResult, sentence: str, report: ReportState | None
+    ) -> Evidence:
+        """The side of the linked class against the side the exam name states (stage 1).
+
+        Same side: support. The other side: a conflict; it stops the link (``veto:``) unless the
+        sentence itself speaks of the other side or of a comparison ("controlaterale", "rispetto al
+        sinistro"), where the other side is expected."""
+        if result.status != ACCEPTED or not result.cid:
+            return Evidence("exam_side", SILENT)
+        found = _SIDE_IN_CLASS.search(result.cid)
+        sides = self._exam_sides(sentence, report)
+        if not found or len(sides) != 1 or "both" in sides:
+            return Evidence("exam_side", SILENT, result.cid)
+        side = next(iter(sides))
+        if result.reason.startswith("side_from_the_exam"):
+            # the side came from the exam: it cannot also confirm itself
+            return Evidence("exam_side", SILENT, result.cid, "side_taken_from_the_exam")
+        if found.group(1) == side:
+            return Evidence(
+                "exam_side", SUPPORT, result.cid, f"exam_of_the_{side}_side"
+            )
+        if _OTHER_SIDE_WORDS.search(self.areas.without_exam_names(sentence)):
+            return Evidence(
+                "exam_side", AGAINST, result.cid, f"other_side_named_in_a_{side}_exam"
+            )
+        return Evidence(
+            "exam_side",
+            AGAINST,
+            result.cid,
+            f"veto:side_contradicts_the_exam:{side}",
+        )
+
+    def _side_from_the_exam(
+        self,
+        result: LinkResult,
+        mention: str,
+        sentence: str,
+        context: str,
+        report: ReportState | None,
+    ) -> LinkResult | None:
+        """A paired structure named without a side, in an exam of one side ("RM ginocchio destro:
+        menisco mediale ...", "femore"): the reader takes the side of the exam. Only when the
+        mention and the sentence say no side and speak of no comparison, and only for a link that the
+        curated names make once the side is added; the result says where the side came from."""
+        if result.status == ACCEPTED or report is None:
+            return None
+        sides = self._exam_sides(sentence, report)
+        if len(sides) != 1 or "both" in sides:
+            return None
+        rest = self.areas.without_exam_names(sentence)
+        if _ANY_SIDE_WORD.search(rest) or _OTHER_SIDE_WORDS.search(rest):
+            # the sentence names a side, or a comparison, besides the exam name
+            return None
+        side = next(iter(sides))
+        word = {"right": "right", "left": "left"}[side]
+        inner = self.link(f"{mention} {word}", sentence, context)
+        if (
+            inner.status != ACCEPTED
+            or inner.stage not in ("lexicon", "parts")
+            or not inner.cid
+        ):
+            return None
+        found = _SIDE_IN_CLASS.search(inner.cid)
+        if not found or found.group(1) != side:
+            return None
+        inner.reason = f"side_from_the_exam:{side}"
+        inner.trace = []
+        return inner
 
     def _expectation(
         self, result: LinkResult, sentence: str, report: ReportState | None
@@ -1504,6 +1928,7 @@ class AnatomyLinker:
     ) -> list[Evidence]:
         """Every cheap stream's reading of the mention. Pure: no stream depends on another."""
         evidence: list[Evidence] = []
+        where = mention_offset(mention, sentence, report, at)
         verdict = self.senses.judge(mention, sentence, context)
         evidence.append(
             Evidence(
@@ -1558,13 +1983,13 @@ class AnatomyLinker:
             )
         elif frame.frame == IMAGING or _findings_of_an_imaging_report(report, at):
             evidence.append(Evidence("frame", SUPPORT, None, "frame_is_imaging"))
-        if _first_part_of_a_compound(mention, sentence):
+        if _first_part_of_a_compound(mention, sentence, where):
             evidence.append(
                 Evidence(
                     "integration", VETO, None, "mention_is_the_first_part_of_a_compound"
                 )
             )
-        head = self.senses.attribute_head(mention, sentence)
+        head = self.senses.attribute_head(mention, sentence, where)
         if head:
             evidence.append(
                 Evidence(
@@ -1572,6 +1997,16 @@ class AnatomyLinker:
                     VETO,
                     None,
                     f"attribute_head_names_a_measurement:{head}",
+                )
+            )
+        name = self.senses.proper_name(mention, sentence, where)
+        if name:
+            evidence.append(
+                Evidence(
+                    "integration",
+                    VETO,
+                    None,
+                    f"mention_is_a_word_of_a_proper_name:{name}",
                 )
             )
         if raw and all(t in _ADJECTIVES for t in raw) and content:
@@ -1585,16 +2020,22 @@ class AnatomyLinker:
         recognised, how = self.lexicon.recognise(
             mention, sentence, headless_ok=bool(verdict.form and verdict.accepted)
         )
+        language = detect_language(sentence) or (report.language if report else None)
         if (
             how == "recognised"
             and not verdict.form  # a form with a sense profile has language among its evidence
-            and self.lexicon.abbreviation_clash(
-                mention,
-                detect_language(sentence) or (report.language if report else None),
-            )
+            and self.lexicon.abbreviation_clash(mention, language)
         ):
             evidence.append(
                 Evidence("integration", VETO, None, "abbreviation_of_another_language")
+            )
+        elif (
+            how == "recognised"
+            and not verdict.form
+            and self.lexicon.name_clash(mention, language)
+        ):
+            evidence.append(
+                Evidence("integration", VETO, None, "name_of_another_language")
             )
         if how == "recognised":
             evidence.append(Evidence("lexicon", SUPPORT, recognised[0], how))
@@ -1608,6 +2049,20 @@ class AnatomyLinker:
             from .anatomy_parts import PartLink
 
             known = self.parts.resolve(mention, sentence)
+            bare = frozenset(
+                t
+                for t in normalise(mention, keep_noise=True)
+                if t not in (SIDE_RIGHT, SIDE_LEFT, SIDE_BOTH)
+            )
+            if (
+                isinstance(known, PartLink)
+                and bare in self.parts.italian_only
+                and language is not None
+                and language != "it"
+            ):
+                evidence.append(
+                    Evidence("integration", VETO, None, "name_of_another_language")
+                )
             if isinstance(known, PartLink):
                 evidence.append(
                     Evidence(

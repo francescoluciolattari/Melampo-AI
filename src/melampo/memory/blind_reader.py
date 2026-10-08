@@ -24,6 +24,8 @@ What it says. For a mention and the class the linker chose it returns one of:
 * ``against``: it is confident (its best concept scores at least ``min_score``, and clearly above
   anything the linked structure scores) and that concept is a different structure that is not a
   parent or child of the linked one;
+* ``against`` also when the mention says one side only ("left", "sinistro", "sn") and the class is
+  of the other side: the side is read again from the words, not from the first reader's answer;
 * ``silent``: it cannot tell (a short form, a code, a word it does not know, or a score too low).
 
 It decides nothing alone. The linker records its reading, counts it as one more independent
@@ -53,12 +55,15 @@ _SIDES = frozenset(
     "right left bilateral destro destra destri destre sinistro sinistra sinistri sinistre "
     "bilaterale dx sx sn rt lt".split()
 )
+_RIGHT = frozenset("right destro destra destri destre dx rt".split())
+_LEFT = frozenset("left sinistro sinistra sinistri sinistre sx sn lt".split())
 _STOP = frozenset(
     "the of and or in on at to a an with without di del dello della dei degli delle dell "
     "da e ed il lo la le i gli un una al alla alle allo nel nella nei nelle sul sulla".split()
 )
 _WORD = re.compile(r"[a-z0-9]+")
 _NGRAMS = (3, 4, 5)
+_SIDE_IN_ID = re.compile(r"_(left|right)(?:_|$)")
 _SIDE_SUFFIX = re.compile(r"_(left|right)$")
 _RIB = re.compile(r"^rib_(left|right)_(\d+)$")
 _CODE = re.compile(r"[A-Za-z]\d{1,2}(?:[-/][A-Za-z]?\d{1,2})?")
@@ -263,6 +268,20 @@ class BlindReader:
         The reader takes every concept that scores within ``tie`` of its best one. If any of them is
         the linked structure (or an UBERON node of it, or a part of it that climbs to it) it cannot
         tell them apart and supports; it disagrees only when none is."""
+        # The side is read from the side words of the mention, on its own: a mention that says one
+        # side only and a class of the other side is a disagreement whatever the names score.
+        said = frozenset(_WORD.findall(_fold(mention)))
+        told = (
+            "right"
+            if said & _RIGHT and not said & _LEFT
+            else "left"
+            if said & _LEFT and not said & _RIGHT
+            else None
+        )
+        found = _SIDE_IN_ID.search(linked)
+        linked_side = found.group(1) if found else None
+        if told and linked_side and told != linked_side:
+            return Reading(AGAINST, f"side_word_says:{told}", None, told, 1.0, 1.0)
         letters = sum(c.isalpha() for c in mention)
         if (
             letters < self.min_letters
@@ -308,6 +327,16 @@ class BlindReader:
                 best_cid,
                 label,
                 best_score,
+            )
+        # A reading that adds a head word the mention lacks ("thoracic aortic" read as "thoracic
+        # aortic plexus") guesses what the mention is about; it cannot stand behind a disagreement.
+        if not any(
+            len(w) <= len(mention_words)
+            for w in self._words_of.get(best_cid, ())
+            if mention_words <= w
+        ):
+            return Reading(
+                SILENT, "the_reading_adds_a_word", best_cid, label, best_score
             )
         if len({self._structure(c) for c in leaders}) > self.max_leaders:
             return Reading(
