@@ -21,6 +21,7 @@ from melampo.memory import anatomy_linker as al  # noqa: E402
 from melampo.memory import anatomy_parts as ap  # noqa: E402
 from melampo.memory import form_ambiguity as fa  # noqa: E402
 from melampo.memory.anatomy_graph import AnatomyGraph  # noqa: E402
+from melampo.memory.blind_reader import BlindReader  # noqa: E402
 from melampo.evaluation.encoder_bench import (  # noqa: E402
     DEFAULT_DATA_DIR,
     EncoderError,
@@ -118,8 +119,18 @@ def _run_linker(args, gold, cases, key: str):
         lexicon,
     )
 
+    parts_json = json.loads(
+        (data_dir.parent / "linking" / "anatomy_parts.json").read_text("utf-8")
+    )
+    blind = BlindReader.from_sources(lexicon, terms, equivalent, graph, parts_json)
     deterministic = al.AnatomyLinker(
-        lexicon, pool, equivalent, parts=parts, graph=graph
+        lexicon,
+        pool,
+        equivalent,
+        parts=parts,
+        graph=graph,
+        blind=blind,
+        blind_veto=args.blind_veto,
     )
     det = {
         name: lb.evaluate_anatomy_linker(deterministic, rows)
@@ -155,6 +166,8 @@ def _run_linker(args, gold, cases, key: str):
         graph=graph,
         ambiguous=fa.keys(flags),
         verify=args.verify,
+        blind=blind,
+        blind_veto=args.blind_veto,
     )
     try:
         report = {
@@ -222,6 +235,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="both models read the sentence for every link made from the name alone to a form the "
         "data flags as able to mean more than one thing (form_ambiguity); extra calls",
+    )
+    parser.add_argument(
+        "--blind-veto",
+        action="store_true",
+        help="the blind reader (no models) may stop an accepted link it confidently contradicts; "
+        "without it the reader only writes its verdict in the trace",
     )
     parser.add_argument("--chat-models", help="comma-separated; default both")
     parser.add_argument(

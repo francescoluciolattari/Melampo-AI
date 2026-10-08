@@ -370,3 +370,31 @@ Stessi 600 MultiCaRe, `scope=all`, 293 link chiesti ai due modelli, ramo con la 
 - **`choice`**, 15 stop in più rispetto a `yes_no`: tutti link a mio avviso giusti ("liver edge", "liver ultrasound", "transverse colon", "right distal femur", "spinal cord") e, soprattutto, **sette livelli vertebrali** ("C1/C2 root", "C5-6 level", "L2/3 level"…), per cui Gemma sceglie un'opzione diversa da 1 mentre Nemotron conferma. Le opzioni 2–4 non sono neutre: "una regione accanto alla struttura" attira i livelli e le sedi.
 - **Esito:** `choice` costa circa 4% di copertura in più e non cattura nessun errore che `yes_no` non cattura. Resta `yes_no` come predefinito; `choice` rimane come opzione ma non va usata così com'è. Se si riprova, le opzioni vanno riscritte e rimisurate (non basta cambiare formato).
 - **Limite:** nessuno dei due è un giudizio sul confermato: non ho riletto un campione dei 287 confermati in questo run.
+
+## 17. Passo 7: il lettore cieco senza modelli (8 ottobre 2026)
+
+**Perché non un LLM.** Gli errori dei modelli sono correlati: ~60% delle volte due LLM sbagliano nello stesso modo (Kim et al., ICML 2025); nove giudici valgono circa due voti indipendenti (Kohli); il consenso non è verifica (Denisov-Blanch). Due LLM che dicono sì contano come un meccanismo solo. Il lettore cieco ha un meccanismo diverso: nessun modello, nessuna rete, nessuna vista sulla prima risposta.
+
+**Come legge** (`src/melampo/memory/blind_reader.py`). Coseno TF-IDF su n-grammi di caratteri (3–5) tra la menzione grezza e tutti i nomi grezzi: nomi del lessico (esclusi i `requires_context`), nome e sinonimi UBERON, nomi della tabella delle parti. Poi:
+- **support**: tra i concetti entro 0,03 dal migliore ce n'è uno che è la struttura scelta, un suo nodo UBERON o una sua parte (risalita nel grafo, fino a 6 passi);
+- **against**: solo se il migliore ha punteggio ≥ 0,80, nessuno dei vicini è la struttura scelta, tutte le parole della menzione sono spiegate e al vertice ci sono al massimo due strutture;
+- **silent**: meno di 4 lettere, codici di livello, qualsiasi cifra, nessun nome abbastanza vicino. Il silenzio non è un voto.
+
+**Nel linker.** `AnatomyLinker(blind=..., blind_veto=False)`: il verdetto va nella traccia (`Evidence("blind", ...)`); `support` conta come meccanismo (`blind`), `against` come conflitto registrato (`blind_reader_disagrees`). Con `blind_veto=True` un `against` fa astenere con motivo `blind_reader_disagrees:<nome letto>`. Il predefinito è **senza veto**: finché non c'è il gold set non so quanti buoni link fermerebbe.
+
+**Misure** (`scripts/blind_reader_check.py`, nostre menzioni, nessun gold set):
+| Prova | support | silent | against |
+|---|---|---|---|
+| contro la classe giusta (373 menzioni) | 268 | 105 | **0** |
+| contro un'altra classe a caso | 0 | 129 | 244 |
+| contro l'altro lato | 113 | 36 | 0 |
+| 600 MultiCaRe, 293 link accettati | 257 | 36 | 0 |
+Bench sintetico: con e senza veto i risultati sono identici (nessun falso allarme sui link del lessico).
+
+**Limiti.**
+- Il lato non lo vede: sull'altro lato dà support (113 su 149), perché cerca la struttura, non il lato. Lato, livello e area restano ad altri meccanismi.
+- È debole sull'italiano (UBERON è inglese): circa metà silenzio. Non è una prova di correttezza, solo un secondo parere indipendente quando parla.
+- I numeri sono su menzioni scritte da noi: dicono che il meccanismo funziona, non quanti errori veri cattura. Serve il gold set.
+
+**Set liberi in inglese come controllo esterno.** Esistono etichette umane gratuite, ma di popolazioni diverse dai referti: CRAFT (ID UBERON, manuali, CC BY 3.0, articoli completi di genetica del topo), MedMentions (UMLS, abstract PubMed), AnatEM (anatomia, abstract), RadGraph (referti radiologici annotati da radiologi, accesso PhysioNet con credenziali). Servono per controllare lessico e lettore cieco su etichette non mie (precisione dei link, falsi allarmi del lettore), non per certificare: la certificazione richiede un campione nuovo, non visto, etichettato da radiologi sulla popolazione d'uso.
+

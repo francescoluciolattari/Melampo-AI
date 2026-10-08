@@ -17,7 +17,7 @@ Stato: ✔ fatto, ◐ parziale, ○ da fare.
 | 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ◐ inventario dei sensi su 7 forme; le altre forme a rischio si trovano dai dati (`form_ambiguity`, 113 chiavi su 732), la lingua della sigla vale per tutte, la verifica con i due modelli è misurata su 600 menzioni reali (`yes_no` meglio di `choice`, §16); ruoli (sede di procedura, struttura misurata); teste di misura per lingua; punteggio continuo no |
 | 5 | Controllo dei vicini (fratelli, controlaterale, padre, figli) | ◐ lato/numero/tipo sì; vicini nel grafo UBERON sulla scelta dei modelli sì (7 ott); vicini per lessico e parti no |
 | 6 | Scelta vincolata con "nessuna delle precedenti" (Nemotron + Gemma) | ✔ |
-| 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ◐ la traduzione IT→EN ci somiglia, manca il lettore indipendente |
+| 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ◐ lettore non-LLM fatto (8 ott, `blind_reader.py`, §17): in traccia come meccanismo o conflitto, veto opzionale spento; 0 falsi allarmi su 373 menzioni nostre; cieco al lato, debole in italiano; il veto si decide con il gold set |
 | 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ◐ motivi sì; profilo `support`/`conflicts`/`convergence` sì (8 ott), non ancora usato per decidere; Sistema 2 sul conflitto sì |
 | 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ ripiego al padre calcolato dal grafo come **proposta** (7 ott; ~1–5% di errori nelle revisioni cieche, quindi non applicato); soglia: strumento Learn-then-Test per strato pronto (`selective_calibration.py`), serve il gold set |
 
@@ -99,7 +99,8 @@ Stato: fatto. Limite: due LLM che sbagliano scelgono la stessa risposta ~60% del
 ## 7. Ri-derivazione cieca
 Umano: la metacomprensione migliora (r da 0,14 a 0,41) solo se si ricostruisce il significato dopo un intervallo; spiegare la propria risposta non aiuta (Prinz 2020).
 Cosa fa: un secondo lettore *di meccanismo diverso* (encoder + regole, oppure un LLM che non vede la prima risposta) deriva il concetto dalla sola menzione. Il disaccordo è un'astensione.
-Da fare: lettore indipendente non-LLM; misurare l'errore congiunto dei due LLM sul gold set per sapere quanto l'accordo vale davvero.
+**Fatto in parte (8 ottobre):** lettore non-LLM (`blind_reader.py`, n-grammi di caratteri su nomi grezzi, nessun modello); in traccia come meccanismo `blind` (support) o conflitto `blind_reader_disagrees` (against); veto opzionale (`blind_veto`, spento di default). 0 falsi allarmi su 373 menzioni, contro classi a caso: 244 disaccordi, 0 conferme sbagliate, 129 silenzi (vedi §17); debole sull'italiano e cieco al lato.
+Da fare: misurare l'errore congiunto dei due LLM sul gold set per sapere quanto l'accordo vale davvero; decidere il veto con il gold set.
 
 ## 8. Monitor di conflitto
 Umano: il segnale di errore del cingolato anteriore compare ~50 ms dopo l'errore, anche senza consapevolezza. Nei lettori, un buon rilevamento del conflitto predice quanti errori di significato vengono notati. Il controllo semantico (corteccia frontale inferiore sinistra) interviene quando più significati competono.

@@ -22,6 +22,7 @@ from melampo.evaluation import gold_set as gs  # noqa: E402
 from melampo.memory import anatomy_linker as al  # noqa: E402
 from melampo.memory import anatomy_parts as ap  # noqa: E402
 from melampo.memory.anatomy_graph import AnatomyGraph  # noqa: E402
+from melampo.memory.blind_reader import BlindReader  # noqa: E402
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "linking"
 
@@ -163,7 +164,11 @@ def main(argv=None) -> int:
             with open(args.uberon, encoding="utf-8") as handle:
                 graph = AnatomyGraph.from_obo(handle)
         pool, equivalent = al.build_pool(lexicon, terms)
-        linker = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts, graph=graph)
+        parts_json = json.loads((DATA / "anatomy_parts.json").read_text("utf-8"))
+        blind = BlindReader.from_sources(lexicon, terms, equivalent, graph, parts_json)
+        linker = al.AnatomyLinker(
+            lexicon, pool, equivalent, parts=parts, graph=graph, blind=blind
+        )
         reports = (
             {r["report_id"]: r["text"] for r in _jsonl(args.reports)}
             if args.reports
