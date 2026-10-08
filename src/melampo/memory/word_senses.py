@@ -292,7 +292,8 @@ _PHRASE_STOP = frozenset(
 _TAIL = frozenset(
     """expression level levels concentration concentrations activity deficiency production
     secretion release measurement measurements value values change changes increase decrease
-    content status""".split()
+    content status pattern patterns process processes placement insertion implantation removal
+    retrieval deployment""".split()
 )
 def phrase_head(words: list[str], heads: frozenset[str]) -> str:
     """The head of the phrase if it is one of ``heads``, else "". The head is the last word, once
@@ -439,6 +440,12 @@ class SenseInventory:
     # Words that, ending a noun phrase to the right of the structure, make it name another thing
     # (a molecule, a scale, a pathway, a device): the adjacent heads and ``phrase_final``.
     non_site_heads: frozenset[str] = frozenset()
+    # Nouns that name a process or a capacity of the structure, not the structure ("heart
+    # development", "brain arousal", "development of the pancreas"). English heads stand to the
+    # right of the mention; Italian ones stand to the left with a preposition. Both languages use
+    # either list after a preposition.
+    process_after: frozenset[str] = frozenset()
+    process_before: frozenset[str] = frozenset()
 
     @classmethod
     def empty(cls) -> "SenseInventory":
@@ -492,6 +499,8 @@ class SenseInventory:
             ),
             frozenset(_fold(w) for w in heads.get("after", ()))
             | frozenset(_fold(w) for w in heads.get("phrase_final", ())),
+            frozenset(_fold(w) for w in data.get("process_heads", {}).get("after", ())),
+            frozenset(_fold(w) for w in data.get("process_heads", {}).get("before", ())),
         )
 
     @classmethod
@@ -552,6 +561,40 @@ class SenseInventory:
         if not match:
             return ""
         return phrase_head(noun_phrase_after(sentence, match.end()), self.non_site_heads)
+
+    def process_head(
+        self, mention: str, sentence: str, start: int | None = None
+    ) -> str:
+        """The noun that makes the mention the bearer of a process or capacity, else "".
+
+        Two constructions, the same for every structure:
+
+        * the process noun is the whole phrase to the right ("heart **development**", "brain
+          **arousal**", "brain state **dynamics**", "brain connectivity **patterns**"): the words
+          that only say what is measured of it (``_TAIL``) are dropped, and every word left must
+          be a process noun. Anything else between the structure and the noun ("brain tumour
+          growth") makes the noun the process of that other thing, and nothing is decided;
+        * the process noun stands before the structure with a preposition ("**development** of
+          the pancreas", "**sviluppo** del cuore"), and the structure ends its phrase: in
+          "development of left lower lobe airspace disease" the process is the disease's.
+        """
+        if not (self.process_after or self.process_before):
+            return ""
+        match = locate(mention, sentence, start)
+        if not match:
+            return ""
+        phrase = noun_phrase_after(sentence, match.end())
+        while phrase and phrase[-1] in _TAIL:
+            phrase.pop()
+        if phrase and all(w in self.process_after for w in phrase) and len(phrase) <= 2:
+            return phrase[-1]
+        if not noun_phrase_after(sentence, match.end()):
+            found = _WORD_BEFORE_OF.search(sentence[: match.start()])
+            if found:
+                word = _fold(found.group(1))
+                if word in self.process_after | self.process_before:
+                    return word
+        return ""
 
     def procedure_head(
         self, mention: str, sentence: str, start: int | None = None

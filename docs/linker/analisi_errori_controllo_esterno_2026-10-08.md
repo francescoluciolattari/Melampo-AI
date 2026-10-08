@@ -136,7 +136,7 @@ Implementati F2, F3, F4, F5 (come profilo di dominio del documento: **evidenza, 
 | Test | – | 628 passati |
 
 Cosa fa ciascuna regola, uguale per ogni struttura:
-- **Testa del sintagma (F1 parziale)**: la testa è l'ultima parola del sintagma a destra della menzione (composti inglesi con testa a destra), tolte le nominalizzazioni (expression, level, concentration…). Il veto scatta solo se la testa è un nome "non sede" (molecola, scala, via, dispositivo, risposta…); "brain natriuretic peptide", "prostate acid phosphatase", "prostate symptom score" si fermano, "liver gene expression" no.
+- **Testa del sintagma (parte di F1)**: la testa è l'ultima parola del sintagma a destra della menzione (composti inglesi con testa a destra), tolte le nominalizzazioni (expression, level, concentration…). Il veto scatta solo se la testa è un nome "non sede" (molecola, scala, via, dispositivo, risposta…) **e c'è un segnale di composto: un trattino ("gut-brain axis") o una sigla definita nel testo ("liver fatty acid binding protein (L-FABP)")**. Un composto semplice senza trattino né sigla ("prostate symptom score", "inferior vena cava filter placement") **non è ancora fermato**: è il lavoro dell'esperimento F1. Correzione del 9 ottobre: la prima stesura di questa riga diceva il contrario.
 - **F2 trattino**: parola unita a un'altra da trattino ("gut-brain axis"); contano solo se esiste una testa non-sede. Prefissi di posizione/lato ("intra-hepatic", "right-sided") non contano.
 - **F3 sigle definite**: algoritmo di Schwartz e Hearst (2003) per "forma lunga (SIGLA)" e "SIGLA (forma lunga)"; se la menzione è una parte della forma lunga e la testa è non-sede, astensione. "congenital heart disease (CHD)" e "spinal cord injury (SCI) model" restano collegati.
 - **F4 materiale d'innesto**: qualificatore (autologous, homologous, donor-specific…) subito prima della menzione e sintagma che finisce con graft/transplant/cell/transfusion…
@@ -146,3 +146,36 @@ Cosa fa ciascuna regola, uguale per ogni struttura:
 Errori rimasti (49: 11 CRAFT, 38 MedMentions): in gran parte processo/funzione (F6, dipende dalla convenzione: CRAFT etichetta l'organo in "heart development", MedMentions il processo), granularità, rumore dell'oro, dominio non medico (formaggio), e pochi composti ("inferior vena cava filter placement").
 
 F7 (relazione `part_of`/`broader`): nessun cambio. `parenchyma` è già collegato all'organo per convenzione di progetto; `bladder` e `right middle lobe` sono più specifici dell'oro, non sbagliati; "large bowel" → `colon` è una scelta di lessico da confermare o segnare come approssimata.
+
+## 7. F6 risolto: processo e funzione (9 ottobre 2026)
+
+**Decisione.** Un nome di processo o di capacità subito dopo la struttura ("heart development", "brain arousal") o prima con una preposizione e la struttura che chiude il sintagma ("development of the pancreas", "sviluppo del cuore") non è il nome della struttura. Il linker **non collega e registra la struttura come sede intrinseca** (`role = inherent_location`, `about = <struttura>`), come già fa per le misure ("heart rate", "liver function"). Non è né astensione secca né collegamento con una relazione nuova: la struttura resta nota a chi legge i risultati e non viene mai usata come sede di un reperto.
+
+**Perché, dalla documentazione.**
+- SNOMED CT tiene in gerarchie separate la struttura (*Body structure*), la proprietà osservabile (*Observable entity*), il reperto (*Clinical finding*) e la procedura. Per le proprietà usa gli attributi *Inherent location* (718497002: "a body site or other location of the independent continuant in which the property exists") e *Inheres in* (704319004). La struttura è il portatore, non è la proprietà ([SNOMED CT Editorial Guide, Observable Entity Defining Attributes](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-editorial-guide/readme/authoring/domain-specific-modeling/observable-entity/observable-entity-defining-attributes)).
+- Gene Ontology separa il processo ("heart development") dalla struttura che ne è partecipante; lo schema è quello di BFO (processo = occurrent, struttura = continuant). Nelle 23.858 voci di processo biologico di `go-edit.obo` (8 ottobre 2026) i nomi che cominciano con un nome anatomico hanno per testa, in ordine di frequenza: development (98), morphogenesis (58), formation (24), maturation, segmentation, regeneration, growth, contraction, migration, differentiation, homeostasis, secretion.
+- RadGraph (schema di annotazione dei referti radiologici) distingue *Anatomy* da *Observation* e documenta che una parola anatomica che qualifica un'altra cosa ("pleural tube") non indica una sede ([Jain et al., RadGraph](https://arxiv.org/abs/2106.14463)).
+- Nei referti reali il problema non si pone: in 3.927 referti iu-xray la struttura è seguita da "size" (1.574), "vascularity" (404), "volumes" (339), "silhouette" (188), "contours"…; "heart development" e simili sono 0. Sul totale di 3.969 menzioni dei tre set di referti (iu-xray, iu-xray 2, e3c-it) la nuova regola non cambia **nessuna** decisione.
+
+**Dati.** `data/linking/word_senses.json`, chiave `process_heads`: 15 teste dedotte da GO (`go_derived`), 18 aggiunte dall'autore guardando gli errori MedMentions (`added`, quindi la misura su MedMentions è ottimistica), 18 teste italiane. Parole escluse perché in un referto sono reperti o procedure: remodeling, repair, enhancement, uptake, process ("xiphoid process"), "formazione" ("formazione espansiva" = massa), "controllo" ("esame di controllo"), "ricerca". Una parola estranea in mezzo ("brain tumour growth") non decide.
+
+**Misura** (stessi corpora e commit fissati, verify spento, base = commit 2f92d9a):
+
+| | CRAFT | MedMentions |
+|---|---|---|
+| Errori | 11 → 11 | 38 → 25 |
+| Giudicati | 1.349 → 1.326 | 755 → 735 |
+| Precisione (regola del progetto) | 99,18% → 99,17% | 94,97% → 96,60% |
+| Errori fermati | 0 | 13 |
+| Link giusti non più fatti | 23 | 7 |
+| Link non fatti ma registrati come sede intrinseca | 91 (87 con la struttura uguale all'etichetta, 4 senza etichetta, 0 sbagliati) | 289 (44 uguali, 233 dove l'oro etichetta il processo o la malattia, 11 altro) |
+
+Lettura onesta: su CRAFT, dove l'annotatore etichetta l'organo in "heart development", i 23 link giusti non fatti sono **tutti** registrati con la struttura giusta: non si perde l'informazione, si perde l'etichetta di link. Su MedMentions, dove l'annotatore etichetta il processo, si ferma 13 errori. Bench interno identico. Nessun link giusto di nessun altro tipo è cambiato (confronto per riga, base contro nuovo).
+
+**`verify` (due modelli, corsa con verify acceso):** CRAFT 0 errori fermati su 11, 7 link giusti fermati; MedMentions 2 errori fermati su 38, 2 giusti fermati. Il risultato è lo stesso previsto: gli errori di contesto non li vedono nemmeno i due modelli letti per frase. Non cambia la strada.
+
+**Errori rimasti** (CRAFT 11, MedMentions 25):
+- CRAFT 11: 7 "right middle lobe", 3 "bladder" (granularità dell'oro), 1 "aortic arch" (embrione).
+- MedMentions 25: 10 composti semplici senza trattino né sigla che aspettano l'esperimento F1 (prostate symptom score ×2, inferior vena cava filter placement ×2, donor-specific spleen cells transfusion, Liver Donation, Liver Fatty Acid Binding Protein Deficiency, simulated colon microbiome, heart interlukine-6, brain phantoms); 3 formaggio; 2 mappatura UMLS→UBERON ("aortic arch"); 4 granularità (large bowel, white matter property, parenchyma, "brain retained inside the cranium"); 2 rumore dell'oro (colon); 2 "developing brain"; 2 processo non preso ("brain controls" è un verbo, "development of pancreas helps" ha un verbo dopo la struttura).
+
+**Formaggio ("heart of Maroilles cheese").** Nessuna regola generale: un profilo lessicale del documento non distingue un abstract di cardiologia da uno di caseificio (§19.5). Nel prodotto i documenti sono clinici e il tipo di documento si decide a monte; sono 3 casi su 735 e restano elencati come fuori dominio.
