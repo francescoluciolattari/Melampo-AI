@@ -355,3 +355,18 @@ Domanda di Frank: il ragionamento umano simulato e il rigore dell'IA lavorano da
 - L'area si legge solo dove l'esame è nominato. Nei case report è spesso sconosciuta; nei referti radiologici italiani (titolo "RM PELVI", "TC TORACE") dovrebbe esserci quasi sempre. Va misurato sui referti veri.
 - Le parole di regione, le adiacenze e le teste di procedura sono scelte da me su fonti standard; un radiologo deve rivederle.
 - Il quadro resta per frase (una sezione "Laboratorio" su più frasi non è ancora letta come sezione).
+
+## 16. `verify-probe` a confronto: `yes_no` contro `choice` (8 ottobre 2026)
+
+Stessi 600 MultiCaRe, `scope=all`, 293 link chiesti ai due modelli, ramo con la correzione del lettore delle risposte. Letture mie, senza gold set.
+
+| | `yes_no` | `choice` (cinque opzioni) |
+|---|---|---|
+| Confermati | 287 | 275 |
+| Fermati | 6 | 18 |
+| Stop in comune | 3 (pancreas/autoanticorpi, "right iliac bone", "RML") | 3 |
+
+- **`yes_no`**, 6 stop: "bladder reflex of the uterus peritoneum" (riflessione peritoneale) e "NOSAs … pancreas" (autoanticorpi) sono catture giuste; "right iliac bone" è difendibile (iliaco inglese = ileo); "bladder irritation symptoms" è difendibile; "sigma resection" (sede di procedura, il link al colon è giusto) e "RML" (lobo medio) sono stop probabilmente sbagliati. Con il lettore corretto gli stop passano da 12 a 6 e spariscono quelli dovuti a risposte malformate.
+- **`choice`**, 15 stop in più rispetto a `yes_no`: tutti link a mio avviso giusti ("liver edge", "liver ultrasound", "transverse colon", "right distal femur", "spinal cord") e, soprattutto, **sette livelli vertebrali** ("C1/C2 root", "C5-6 level", "L2/3 level"…), per cui Gemma sceglie un'opzione diversa da 1 mentre Nemotron conferma. Le opzioni 2–4 non sono neutre: "una regione accanto alla struttura" attira i livelli e le sedi.
+- **Esito:** `choice` costa circa 4% di copertura in più e non cattura nessun errore che `yes_no` non cattura. Resta `yes_no` come predefinito; `choice` rimane come opzione ma non va usata così com'è. Se si riprova, le opzioni vanno riscritte e rimisurate (non basta cambiare formato).
+- **Limite:** nessuno dei due è un giudizio sul confermato: non ho riletto un campione dei 287 confermati in questo run.
