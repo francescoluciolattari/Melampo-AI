@@ -10,15 +10,15 @@ Stato: ✔ fatto, ◐ parziale, ○ da fare.
 
 | # | Stadio | Stato |
 |---|---|---|
-| 1 | Stato del referto (modalità, regione, lato, **lingua**, **quadro**) | ◐ quadro della frase (immagini, laboratorio, segni vitali) sì (7 ott notte, `exam_frame.py`); sezioni, titolo, intestazione, lingua, modalità e "referto sul rachide" sì (7 ott, `report_state.py`); la previsione agisce solo sui codici di livello; altre regioni, lato dell'intestazione e strutture già collegate no |
+| 1 | Stato del referto (modalità, regione, lato, **lingua**, **quadro**) | ◐ quadro della frase (immagini, laboratorio, segni vitali) sì (7 ott notte, `exam_frame.py`); sezioni, titolo, intestazione, lingua, modalità e "referto sul rachide" sì (7 ott, `report_state.py`); **area dell'esame** letta dal nome dell'esame (8 ott, `exam_area.py`, sostiene o segnala sorpresa); la previsione agisce sui codici di livello e sull'area; lato dell'intestazione e strutture già collegate no |
 | 2 | Lessico esatto bilingue + tabella parti (una forma ambigua non si accetta dal solo nome) | ✔ |
 | 3 | Candidati morfologici e recupero denso (solo proposta) | ◐ encoder valutati, morfologia no |
-| 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ◐ inventario dei sensi su 7 forme; le altre forme a rischio si trovano dai dati (`form_ambiguity`, 113 chiavi su 732), la lingua della sigla vale per tutte, la verifica con i due modelli è pronta ma non misurata; punteggio continuo no |
+| 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ◐ inventario dei sensi su 7 forme; le altre forme a rischio si trovano dai dati (`form_ambiguity`, 113 chiavi su 732), la lingua della sigla vale per tutte, la verifica con i due modelli è misurata su 600 menzioni reali (`yes_no` meglio di `choice`, §16); ruoli (sede di procedura, struttura misurata); teste di misura per lingua; punteggio continuo no |
 | 5 | Controllo dei vicini (fratelli, controlaterale, padre, figli) | ◐ lato/numero/tipo sì; vicini nel grafo UBERON sulla scelta dei modelli sì (7 ott); vicini per lessico e parti no |
 | 6 | Scelta vincolata con "nessuna delle precedenti" (Nemotron + Gemma) | ✔ |
 | 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ◐ la traduzione IT→EN ci somiglia, manca il lettore indipendente |
-| 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ◐ motivi sì, punteggio unico no |
-| 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ ripiego al padre calcolato dal grafo come **proposta** (7 ott; ~1–5% di errori nelle revisioni cieche, quindi non applicato); soglia: serve il gold set |
+| 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ◐ motivi sì; profilo `support`/`conflicts`/`convergence` sì (8 ott), non ancora usato per decidere; Sistema 2 sul conflitto sì |
+| 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ ripiego al padre calcolato dal grafo come **proposta** (7 ott; ~1–5% di errori nelle revisioni cieche, quindi non applicato); soglia: strumento Learn-then-Test per strato pronto (`selective_calibration.py`), serve il gold set |
 
 ## 1. Stato del referto
 Umano: l'esperto capisce il "gist" prima delle parole e si aspetta certe strutture (TC torace: polmone, mediastino). Il cervello prevede più in là e più gerarchicamente dei modelli di linguaggio (Caucheteux 2023). La lingua in cui è scritto il testo è parte dello stato: la stessa sigla vuol dire cose diverse in italiano e in inglese.
