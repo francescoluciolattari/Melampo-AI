@@ -179,3 +179,7 @@ Stessi 2.058 link, nessun braccio caduto. Il parser non separa: AUC 0,525 (sogge
 
 331 casi (33 errori + 300 link giusti). Il segmentatore LLM legge come "sintagma più lungo" 10 errori MedMentions su 22 e 0 su 11 in CRAFT, ma anche 29 % dei link giusti campionati (83 su 298); ruolo giusto 3 su 12; AUC 0,53. Trova gli span lunghi che NCIt non ha (filtro della vena cava, donazione di fegato, microbioma del colon simulato, interleuchina-6 del cuore) e manca gli errori di sola convenzione dell'etichetta. Non soddisfa i criteri posti prima (almeno 12 errori su 22 con al più 3 % di link giusti persi). Dettaglio e conclusione: `lettura_del_sintagma_cervello_e_modelli_2026-10-09.md` §8.5.
 
+### 9.9 Correzione e nuovi esperimenti (sera del 9 ottobre)
+
+Le prove marcavano la prima occorrenza della parola (278 frasi su 2.058 con la parola ripetuta); ora usano la posizione salvata dal controllo esterno. Rileggendo le etichette e le mappature UBERON, gli errori di lettura sono 13 su 33 (9 nomi composti di un'altra cosa, 4 sensi diversi dal contesto); 16 sono granularità o mappatura dell'etichetta, 4 etichette dubbie. Il conteggio per concetto (E1, senza UMLS) porta CRAFT a 1 errore su 1.316 e MedMentions a 21 su 731. Realizzati E1 (`concept_check.py`), E2 (lettore LLM informato) ed E4a (braccio di memoria UMLS), con i criteri fissati prima dei run. Dettaglio e fonti (Kintsch, Ericsson e Kintsch): `perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md`.
+

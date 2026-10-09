@@ -173,3 +173,116 @@ def test_report_has_gate_and_role_and_renders(kinds):
     assert report["features"]["discourse"]["auc"] == 1.0
     text = pp.markdown(report)
     assert "Gate: only when uncertain?" in text and "heart" in text
+
+
+# -- E2 (informed reader), E4a (memory arm), occurrence, criteria --------------------------------
+
+import phrase_knowledge as pk  # noqa: E402
+
+
+class FakeLookup:
+    available = True
+
+    def __init__(self, names):
+        self.names = names  # folded phrase -> [{"cui", "name", "types"}]
+        self.asked = self.lost = 0
+
+    def exact(self, phrase):
+        self.asked += 1
+        return self.names.get(" ".join(phrase.lower().split()), [])
+
+    def definition(self, cui):
+        return f"definition of {cui}"
+
+
+def test_the_marked_occurrence_is_the_judged_one_not_the_first():
+    s = "Canine brain phantoms were made from agarose brain parenchyma."
+    c = case("brain", s)
+    c["at"] = s.rindex("brain")
+    assert pp.marked_sentence(c).endswith("agarose [[brain]] parenchyma.")
+    c.pop("at")
+    assert pp.marked_sentence(c).startswith("Canine [[brain]] phantoms")
+
+
+def test_word_groups_skip_function_words_at_the_edges():
+    groups = pk.word_groups(case("heart", "Samples from the heart of Maroilles cheese were used"))
+    assert "heart of Maroilles cheese" in groups
+    assert not any(g.split()[0] in ("the", "from") or g.split()[-1] == "of" for g in groups)
+
+
+def test_types_of_umls_semantic_types():
+    assert pk.type_of_tuis({"T061"}) == "procedure"
+    assert pk.type_of_tuis({"T023", "T061"}) == "anatomical structure"
+    assert pk.type_of_tuis({"T168"}) == "food"
+    assert pk.type_of_tuis({"T999"}) == "other"
+
+
+def test_memory_arm_reads_the_longest_known_name():
+    lookup = FakeLookup({
+        "inferior vena cava filter placement": [{"cui": "C0750159", "name": "IVC filter placement", "types": ["T061"]}],
+        "inferior vena cava filter": [{"cui": "C1", "name": "IVC filter", "types": ["T074"]}],
+        "brain parenchyma": [{"cui": "C0933845", "name": "Brain parenchyma", "types": ["T023"]}],
+    })
+    c = case("inferior vena cava", "Office-based inferior vena cava filter placement is safe", 1)
+    pk.umls_arm(c, lookup)
+    assert c["umls_other"] == 1.0 and c["umls_kind"] == "procedure" and c["umls_phrase"].endswith("placement")
+    d = case("brain", "agarose brain parenchyma was used")
+    pk.umls_arm(d, lookup)
+    assert d["umls_other"] == 0.0 and d["umls_longer_anatomy"] == 1.0
+    lost = case("liver", "liver donation")
+
+    class Lost(FakeLookup):
+        def exact(self, phrase):
+            return None
+
+    pk.umls_arm(lost, Lost({}))
+    assert lost["umls_lost"] == 1.0 and lost["umls_other"] == 0.0
+    candidates = pk.compound_candidates([c, d])
+    assert candidates == [{"name": "IVC filter placement", "kind": "procedure", "count": 1, "errors": 1,
+                           "examples": [c["sentence"][:200]]}]
+
+
+def test_examples_come_from_other_training_documents_and_are_marked():
+    texts = {
+        ("medmentions", "t1"): "The heart of the cheese was soft. Nothing else.",
+        ("medmentions", "t2"): "Heart failure was frequent in the cohort.",
+        ("medmentions", "d9"): "The heart of the cheese was hard.",
+        ("medmentions", "c1"): "The heart of Maroilles cheese.",
+    }
+    labels = {
+        "t1": [(4, 9, ("C1", frozenset({"T082"})))],
+        "t2": [(0, 13, ("C2", frozenset({"T047"})))],
+        "d9": [(4, 9, ("C1", frozenset({"T082"})))],  # dev split: never an example
+        "c1": [(4, 9, ("C1", frozenset({"T082"})))],  # the case's own document: never an example
+    }
+    splits = {"t1": "trng", "t2": "trng", "d9": "dev", "c1": "trng"}
+    ex = pk.Examples(texts, labels, splits, k=5)
+    shown = ex(case("heart", "The heart of Maroilles cheese.", doc="c1"))
+    assert [e["phrase"] for e in shown] == ["heart", "Heart failure"]  # most similar sentence first
+    assert shown[0]["sentence"].startswith("The [[heart]] of the cheese")
+    assert shown[1]["type"] == "disease or finding"
+
+
+def test_informed_prompt_carries_rules_knowledge_examples_and_the_marked_sentence(kinds):
+    lookup = FakeLookup({"heart of maroilles cheese": [{"cui": "C9", "name": "Maroilles cheese heart", "types": ["T168"]}],
+                         "heart": [{"cui": "C0018787", "name": "Heart", "types": ["T023"]}]})
+    definitions = pk.Definitions(None, kinds, lookup)
+    c = case("heart", "Samples from rind and heart of Maroilles cheese were used.", 1)
+    prompt = pp.informed_prompt(c, definitions, lambda _c: [{"sentence": "The [[heart]] of a loaf.", "phrase": "heart", "type": "food"}])
+    assert "longest phrase that names one concept" in prompt
+    assert "Maroilles cheese heart (UMLS, food)" in prompt and "Heart (UMLS, anatomical structure)" in prompt
+    assert "The [[heart]] of a loaf." in prompt
+    assert "rind and [[heart]] of Maroilles" in prompt
+    assert c["llm_knowledge"] and c["llm_examples"]
+
+
+def test_criteria_are_the_ones_fixed_before_the_run():
+    cases = [case("x", "x", 1) | {"llm_other": 1.0, "llm_kind": "procedure", "labels": ["C|T061"]} for _ in range(12)]
+    cases += [case("x", "x", 1) | {"llm_other": 0.0} for _ in range(10)]
+    cases += [case("x", "x", 0) | {"llm_other": 0.0} for _ in range(97)]
+    cases += [case("x", "x", 0) | {"llm_other": 1.0} for _ in range(3)]
+    out = pp.criteria(cases)["llm_other"]
+    assert out["medmentions"]["errors_flagged"] == 12 and out["medmentions"]["right_flagged_share"] == 0.03
+    assert out["passes"] == {"errors_at_3_percent": True, "role_70_percent": True}
+    cases.append(case("x", "x", 0) | {"llm_other": 1.0})
+    assert pp.criteria(cases)["llm_other"]["passes"]["errors_at_3_percent"] is False

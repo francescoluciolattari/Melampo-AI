@@ -70,7 +70,7 @@ def agrees(predicted: str, gold: str) -> bool:
 def read_all(lattice, rows):
     out = []
     for row in rows:
-        reading = lattice.read(row["mention"], row["sentence"])
+        reading = lattice.read(row["mention"], row["sentence"], row.get("at"))
         out.append((row, reading))
     return out
 

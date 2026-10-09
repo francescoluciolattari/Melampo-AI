@@ -87,12 +87,20 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9(])|\n+")
 
 
 def sentence_around(text: str, start: int, end: int) -> str:
+    return sentence_and_offset(text, start, end)[0]
+
+
+def sentence_and_offset(text: str, start: int, end: int) -> tuple[str, int]:
+    """The sentence around ``start:end`` and the mention's offset inside it (so that a reader that
+    marks the mention marks this occurrence, not the first one with the same letters)."""
     left = 0
     for match in _SENTENCE_END.finditer(text, 0, start):
         left = match.end()
     match = _SENTENCE_END.search(text, end)
     right = match.start() if match else len(text)
-    return text[left:right].strip()
+    raw = text[left:right]
+    lead = len(raw) - len(raw.lstrip())
+    return raw.strip(), start - left - lead
 
 
 # -- corpora ---------------------------------------------------------------------------------------
@@ -262,7 +270,7 @@ def run_corpus(
             break
         state = ReportState.parse(text)
         for item in gs.propose_mentions(text, lexicon, parts):
-            sentence = sentence_around(text, item["start"], item["end"])
+            sentence, at = sentence_and_offset(text, item["start"], item["end"])
             result = linker.link(
                 item["mention"], sentence, report=state, at=item["start"]
             )
@@ -273,6 +281,7 @@ def run_corpus(
                 "doc": doc,
                 "mention": item["mention"],
                 "sentence": sentence[:400],
+                "at": at,
                 "status": result.status,
                 "cid": result.cid,
                 "stage": result.stage,
@@ -622,6 +631,13 @@ def main(argv=None) -> int:
     )
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument(
+        "--concept-level",
+        action="store_true",
+        help="E1: also recount the judged links by concept (scripts/concept_check.py; UMLS_API_KEY "
+        "adds the FMA/NCI crosswalk)",
+    )
+    parser.add_argument("--umls-cache", default="umls_cache.json")
+    parser.add_argument(
         "--blocks",
         action="store_true",
         help="write the chunk lattice's reading of each phrase in the rows (decides nothing)",
@@ -695,7 +711,19 @@ def main(argv=None) -> int:
         json.dumps({"summary": report, "rows": rows}, ensure_ascii=False, indent=1),
         encoding="utf-8",
     )
-    Path(args.markdown).write_text(markdown(report, rows), encoding="utf-8")
+    text = markdown(report, rows)
+    if args.concept_level:
+        import concept_check as cc
+        from umls_lookup import UmlsLookup
+
+        lookup = UmlsLookup(cache_path=Path(args.umls_cache))
+        concept = cc.recount(rows, graph, cc.xref_index(obo), lookup)
+        lookup.save()
+        Path(args.out).with_suffix(".concept.json").write_text(
+            json.dumps(concept, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+        text = cc.markdown(concept) + "\n" + text
+    Path(args.markdown).write_text(text, encoding="utf-8")
     print(json.dumps(report, indent=1)[:4000])
     return 0
 

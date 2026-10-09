@@ -5,6 +5,9 @@ name: Phrase probe (reading the whole phrase)
 # names: NCIt-typed head, "X of <object>" with one sense per discourse, document theme, typo
 # hypothesis, dependency parser, a typed span recogniser (GLiNER-BioMed), name retrieval over NCIt
 # (SapBERT) and, only if asked, two chat models that segment the sentence (billed OpenRouter calls).
+# E2: llm_mode = informed gives the models the annotation rules, what NCIt and UMLS say about the
+# words around the mention, and annotated sentences of other documents (MedMentions training split).
+# E4a: umls = true reads the longest word group UMLS names exactly (UMLS_API_KEY secret, no model).
 # It decides nothing and changes nothing in the linker. See scripts/phrase_probe.py.
 on:
   workflow_dispatch:
@@ -26,6 +29,23 @@ on:
         description: "Right links asked with llm = sample"
         required: false
         default: "300"
+      llm_mode:
+        description: "plain (the sentence only) or informed (E2: rules, NCIt/UMLS knowledge, annotated examples)"
+        type: choice
+        options: [plain, informed]
+        default: informed
+      llm_models:
+        description: "OpenRouter model ids, comma-separated (empty = nemotron-3-super + gemma-3-27b)"
+        required: false
+        default: ""
+      examples:
+        description: "Annotated examples per case with llm_mode = informed"
+        required: false
+        default: "5"
+      umls:
+        description: "E4a memory arm: longest word group UMLS names exactly (UMLS_API_KEY secret)"
+        type: boolean
+        default: true
       limit:
         description: "Documents per corpus (empty = all; a number for a quick run)"
         required: false
@@ -73,8 +93,20 @@ jobs:
           git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
           git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
 
+      - name: Restore the UMLS lookups already made
+        uses: actions/cache@v4
+        with:
+          path: umls_cache.json
+          key: umls-cache-${{ github.run_id }}
+          restore-keys: umls-cache-
+
       - name: Run the probe
         env:
+          LLM_MODE: ${{ inputs.llm_mode }}
+          LLM_MODELS: ${{ inputs.llm_models }}
+          EXAMPLES: ${{ inputs.examples }}
+          UMLS: ${{ inputs.umls }}
+          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
           GLINER: ${{ inputs.gliner }}
           ENCODER: ${{ inputs.encoder }}
           LLM: ${{ inputs.llm }}
@@ -92,7 +124,20 @@ jobs:
             set -- "$@" --limit "$LIMIT"
           fi
           if ! [[ "$LLM_SAMPLE" =~ ^[0-9]+$ ]]; then echo "::error::llm_sample takes a whole number"; exit 2; fi
-          set -- "$@" --llm-sample "$LLM_SAMPLE"
+          set -- "$@" --llm-sample "$LLM_SAMPLE" --llm-mode "$LLM_MODE" --umls-cache umls_cache.json
+          if ! [[ "$EXAMPLES" =~ ^[0-9]+$ ]]; then echo "::error::examples takes a whole number"; exit 2; fi
+          set -- "$@" --examples "$EXAMPLES"
+          LLM_MODELS="${LLM_MODELS//[[:space:]]/}"
+          if [ -n "$LLM_MODELS" ]; then
+            if ! [[ "$LLM_MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
+              echo "::error::llm_models takes ids like org/name, comma-separated"; exit 2
+            fi
+            set -- "$@" --llm-models "$LLM_MODELS"
+          fi
+          if [ "$UMLS" = "true" ]; then
+            if [ -z "$UMLS_API_KEY" ]; then echo "::warning::UMLS_API_KEY secret not set: the umls arm is off"; fi
+            set -- "$@" --umls --umls-candidates umls_compound_candidates.json
+          fi
           for pair in "gliner:$GLINER" "encoder:$ENCODER"; do
             flag="${pair%%:*}"; value="${pair#*:}"
             if [ -n "$value" ]; then
@@ -119,3 +164,4 @@ jobs:
           path: |
             phrase_probe.json
             phrase_probe.md
+            umls_compound_candidates.json

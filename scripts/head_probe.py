@@ -102,6 +102,7 @@ def collect_cases(args) -> list[dict]:
             "lang": "en",
             "mention": r["mention"],
             "sentence": r["sentence"],
+            "at": r.get("at"),
             "label": 1 if r["by_project_rule"] == "error" else 0,
         }
         for r in rows
@@ -187,7 +188,7 @@ class Syntax:
         if nlp is None:
             return {}
         doc = nlp(case["sentence"])
-        found = locate(case["mention"], case["sentence"])
+        found = locate(case["mention"], case["sentence"], case.get("at"))
         if not found:
             return {}
         ids = {
