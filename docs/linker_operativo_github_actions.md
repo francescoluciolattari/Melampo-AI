@@ -110,9 +110,13 @@ Parte a ogni push: un server FalkorDB come service container, test di grafo su T
 
 Per E2 ed E4a insieme: `llm = sample`, `llm_mode = informed`, `umls` acceso, il resto come da default. Il riepilogo comincia con la tabella "Criteria fixed before the run": per `llm_other` (E2) e `umls_other` (E4a) dice errori trovati, link giusti segnalati e se il criterio è passato. Le chiamate a UMLS sono circa 7.000 la prima volta (circa 10-15 minuti), poi la cache le evita.
 
-Per E2 ed E4a **lasciare vuoti `gliner` ed `encoder`**: quei due bracci sono già misurati e non servono a E2/E4a; l'indice di SapBERT sui nomi NCIt (CPU) da solo prende 1–2 ore. Stima senza di loro: 20–40 minuti (UMLS circa 10–15, poi la cache; LLM circa 670 chiamate x 2 modelli). Il log `phrase_probe.log` (nell'artifact) scrive i tempi di ogni fase, per vedere dove va il tempo. La cache UMLS viene salvata anche se il run è interrotto o scade, e ogni 200 richieste: il run successivo riparte da lì.
+Per E2 ed E4a **lasciare vuoti `gliner` ed `encoder`**: quei due bracci sono già misurati e non servono a E2/E4a; l'indice di SapBERT sui nomi NCIt (CPU) da solo prende 1–2 ore. Misurato il 10 ottobre con tutti i bracci accesi: 37 minuti (encoder 26, UMLS 8, LLM 8). Stima senza gliner ed encoder: circa 15–20 minuti (da questa misura, non ancora misurata) (UMLS circa 10–15, poi la cache; LLM circa 670 chiamate x 2 modelli). Il log `phrase_probe.log` (nell'artifact) scrive i tempi di ogni fase, per vedere dove va il tempo. La cache UMLS viene salvata anche se il run è interrotto o scade, e ogni 200 richieste: il run successivo riparte da lì.
 
 Stima con tutti i bracci: 1–2 ore sulla CPU del runner (l'indice di SapBERT sui nomi NCIt è la parte lunga). L'artifact `phrase-probe` contiene `phrase_probe.md`, da leggere per primo. Se un braccio non si carica (versione di `gliner`, modello non trovato) la riga "Arms that failed" lo dice e gli altri bracci girano lo stesso. Non cambia il linker.
+
+## Il lettore a costruzione-integrazione (`ci-probe`, senza modelli e senza chiavi)
+
+Workflow manuale `CI probe (construction-integration reader)`. Un solo campo, `limit` (vuoto = tutto). Gira il controllo esterno su CRAFT e MedMentions, poi legge ogni link giudicato con `src/melampo/memory/ci_reader.py` (spazio semantico dai testi dei corpora e dalle definizioni NCIt, tracce e gist dai documenti di addestramento di MedMentions) e confronta diverse configurazioni: tutta la prova, togliendo una famiglia di evidenze alla volta, con tre forze di inibizione, senza memoria. Stima: circa 10 minuti. L'artifact `ci-probe` contiene `ci_probe.md` (da leggere per primo), `ci_probe.json`, `ci_probe.log`. Non cambia il linker.
 
 ## Il lettore cieco (passo 7, senza modelli)
 

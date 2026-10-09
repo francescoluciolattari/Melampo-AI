@@ -1,0 +1,87 @@
+name: CI probe (construction-integration reader)
+
+# Manual trigger only. Runs the external check on CRAFT and MedMentions (no model call), then reads
+# every judged link with the construction-integration reader (src/melampo/memory/ci_reader.py): all
+# readings of the mention built, evidence integrated by spreading activation (Kintsch), semantic
+# space built from the corpora and the NCIt definitions, traces and gist written from MedMentions
+# training documents only. It decides nothing and changes nothing. No secret is needed.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Documents per corpus (empty = all; a number for a quick run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: CI probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+          uv pip install scipy
+
+      - name: Download UBERON (pinned) and NCIt (latest release)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+          curl -sSL --fail -o ncit.obo \
+            https://github.com/NCI-Thesaurus/thesaurus-obo-edition/releases/latest/download/ncit.obo
+          head -3 ncit.obo
+          sha256sum ncit.obo
+
+      - name: Clone the corpora (pinned)
+        run: |
+          mkdir -p ext
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+
+      - name: Run the external check (the rows to read)
+        env:
+          LIMIT: ${{ inputs.limit }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          LIMIT="${LIMIT//[[:space:]]/}"
+          set -- --craft ext/craft --medmentions ext/mm --out external_check.json \
+            --markdown external_check.md --workers 6
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          uv run --no-sync python scripts/external_check.py "$@"
+
+      - name: Read the rows with the reader
+        run: |
+          uv run --no-sync python -u scripts/ci_probe.py --rows external_check.rows.json \
+            --craft ext/craft --medmentions ext/mm --ncit ncit.obo --space ci_space.npz \
+            --out ci_probe.json --markdown ci_probe.md 2> >(tee ci_probe.log >&2)
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"
+            echo
+            if [ -f ci_probe.md ]; then head -c 60000 ci_probe.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-probe
+          path: |
+            ci_probe.json
+            ci_probe.md
+            ci_probe.log
+            external_check.md

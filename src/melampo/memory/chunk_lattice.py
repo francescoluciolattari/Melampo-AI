@@ -259,13 +259,17 @@ class ChunkLattice:
 
     # -- reading -------------------------------------------------------------------------------
 
-    def read(self, mention: str, sentence: str, start: int | None = None) -> Reading:
+    def candidates(
+        self, mention: str, sentence: str, start: int | None = None
+    ) -> tuple[list[tuple[str, int, int]], int, int, list[tuple[float, Block]], re.Match[str]] | None:
+        """Every block that holds the mention with the best cost of covering the rest (the whole
+        construction, cheapest first), the window and the mention's word range. ``None`` if unread."""
         found = locate(mention, sentence, start)
         if not found:
-            return UNREAD
+            return None
         window, mi, mj = _words(sentence, found)
         if not window:
-            return UNREAD
+            return None
         words = [w for w, _, _ in window]
         blocks = self._blocks(words, mi, mj)
         n = len(words)
@@ -285,7 +289,6 @@ class ChunkLattice:
             right[k] = min(
                 (right[b.end] + b.cost for b in by_start.get(k, ())), default=inf
             )
-        # Readings: the block that holds the mention, with the best cost of covering the rest.
         readings = []
         for b in blocks:
             if b.start <= mi and b.end >= mj:
@@ -293,8 +296,16 @@ class ChunkLattice:
                 if total < inf:
                     readings.append((total, b))
         if not readings:
-            return UNREAD
+            return None
         readings.sort(key=lambda r: (r[0], -(r[1].end - r[1].start)))
+        return window, mi, mj, readings, found
+
+    def read(self, mention: str, sentence: str, start: int | None = None) -> Reading:
+        got = self.candidates(mention, sentence, start)
+        if got is None:
+            return UNREAD
+        window, mi, mj, readings, found = got
+        words = [w for w, _, _ in window]
         best_cost, best = readings[0]
         best_class = CLASS_OF_KIND.get(best.kind, "")
         alt = next(
