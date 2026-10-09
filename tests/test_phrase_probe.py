@@ -286,3 +286,28 @@ def test_criteria_are_the_ones_fixed_before_the_run():
     assert out["passes"] == {"errors_at_3_percent": True, "role_70_percent": True}
     cases.append(case("x", "x", 0) | {"llm_other": 1.0})
     assert pp.criteria(cases)["llm_other"]["passes"]["errors_at_3_percent"] is False
+
+
+def test_budget_stops_new_work_and_counts_it():
+    b = pp.Budget(minutes=0.0)
+    assert not b.spent()
+    b.deadline = b.started - 1  # already spent
+    out = pp.tracked(b, "umls", [1, 2, 3], lambda x: x * 2, workers=2)
+    assert out == [None, None, None] and b.skipped == {"umls": 3}
+    free = pp.Budget(0.0)
+    assert pp.tracked(free, "llm", [1, 2], lambda x: x + 1, workers=2) == [2, 3] and not free.skipped
+
+
+def test_umls_cache_is_saved_while_the_run_goes_on(tmp_path):
+    import sys as _s
+
+    from umls_lookup import UmlsLookup
+
+    path = tmp_path / "c.json"
+    lookup = UmlsLookup(api_key="k", cache_path=path, min_interval=0.0, sleep=lambda s: None,
+                        transport=lambda url, params: {"result": {"name": "x", "semanticTypes": []}})
+    lookup.autosave_every = 3
+    for i in range(3):
+        lookup.concept(f"C{i}")
+    assert path.exists() and len(__import__("json").loads(path.read_text("utf-8"))) == 3
+    assert lookup.seconds >= 0 and _s is not None
