@@ -67,14 +67,25 @@ class UmlsLookup:
         self.sleep = sleep
         self.lost = 0
         self.asked = 0
+        self.seconds = 0.0  # time spent waiting for UTS, summed over the calls
+        self.autosave_every = 200
+        self._unsaved = 0
         self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
         self._last = 0.0
 
     # -- plumbing --------------------------------------------------------------------------------
 
     def save(self) -> None:
         if self.cache_path:
-            self.cache_path.write_text(json.dumps(self.cache, ensure_ascii=False, sort_keys=True), "utf-8")
+            with self._save_lock:
+                self._write()
+
+    def _write(self) -> None:
+        if self.cache_path:
+            tmp = self.cache_path.with_name(self.cache_path.name + ".tmp")
+            tmp.write_text(json.dumps(dict(self.cache), ensure_ascii=False, sort_keys=True), "utf-8")
+            tmp.replace(self.cache_path)
 
     def _call(self, url: str, params: dict[str, str]) -> dict | None:
         """One GET with pacing and retries; ``{}`` for 404 (nothing there), ``None`` if lost."""
@@ -84,6 +95,7 @@ class UmlsLookup:
                 if wait > 0:
                     self.sleep(wait)
                 self._last = time.monotonic()
+            started = time.monotonic()
             try:
                 self.asked += 1
                 return self.connector._fetch(url, params)
@@ -94,6 +106,8 @@ class UmlsLookup:
                     break
             except (URLError, TimeoutError, OSError, ValueError):
                 pass
+            finally:
+                self.seconds += time.monotonic() - started
             self.sleep(min(30.0, 1.5 * 2**attempt))
         self.lost += 1
         return None
@@ -106,6 +120,13 @@ class UmlsLookup:
         value = compute()
         if value is not None:
             self.cache[key] = value
+            with self._lock:
+                self._unsaved += 1
+                due = self._unsaved >= self.autosave_every
+                if due:
+                    self._unsaved = 0
+            if due:  # a run that is stopped keeps what it has asked (the cache is the expensive part)
+                self.save()
         return value
 
     # -- questions -------------------------------------------------------------------------------

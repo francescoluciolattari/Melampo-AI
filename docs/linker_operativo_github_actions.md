@@ -105,11 +105,14 @@ Parte a ogni push: un server FalkorDB come service container, test di grafo su T
 | llm_models | vuoto = Nemotron 3 Super + Gemma 3 27B; altrimenti id OpenRouter separati da virgola (per esempio `org/modello-a,org/modello-b`) per provare i modelli più recenti |
 | examples | `5` |
 | umls | acceso (E4a): il braccio di memoria UMLS (nessun modello, serve il secret `UMLS_API_KEY`); produce anche `umls_compound_candidates.json`, la lista dei nomi composti da far rivedere ai radiologi (E4b) |
+| max_minutes | `150`: tempo massimo delle fasi lente (UMLS, LLM). Scaduto, smettono di chiedere, il riepilogo scrive "time budget spent; not done: ..." e il report esce lo stesso. `0` = nessun limite |
 | limit | vuoto = tutto; `20` per una prova veloce |
 
 Per E2 ed E4a insieme: `llm = sample`, `llm_mode = informed`, `umls` acceso, il resto come da default. Il riepilogo comincia con la tabella "Criteria fixed before the run": per `llm_other` (E2) e `umls_other` (E4a) dice errori trovati, link giusti segnalati e se il criterio è passato. Le chiamate a UMLS sono circa 7.000 la prima volta (circa 10-15 minuti), poi la cache le evita.
 
-Stima: 1–2 ore sulla CPU del runner (l'indice di SapBERT sui nomi NCIt è la parte lunga). L'artifact `phrase-probe` contiene `phrase_probe.md`, da leggere per primo. Se un braccio non si carica (versione di `gliner`, modello non trovato) la riga "Arms that failed" lo dice e gli altri bracci girano lo stesso. Non cambia il linker.
+Per E2 ed E4a **lasciare vuoti `gliner` ed `encoder`**: quei due bracci sono già misurati e non servono a E2/E4a; l'indice di SapBERT sui nomi NCIt (CPU) da solo prende 1–2 ore. Stima senza di loro: 20–40 minuti (UMLS circa 10–15, poi la cache; LLM circa 670 chiamate x 2 modelli). Il log `phrase_probe.log` (nell'artifact) scrive i tempi di ogni fase, per vedere dove va il tempo. La cache UMLS viene salvata anche se il run è interrotto o scade, e ogni 200 richieste: il run successivo riparte da lì.
+
+Stima con tutti i bracci: 1–2 ore sulla CPU del runner (l'indice di SapBERT sui nomi NCIt è la parte lunga). L'artifact `phrase-probe` contiene `phrase_probe.md`, da leggere per primo. Se un braccio non si carica (versione di `gliner`, modello non trovato) la riga "Arms that failed" lo dice e gli altri bracci girano lo stesso. Non cambia il linker.
 
 ## Il lettore cieco (passo 7, senza modelli)
 
@@ -127,6 +130,7 @@ I modelli di OpenRouter rispondono 429 quando ricevono troppe richieste insieme.
 | `invalid int value: 'n=600'` | scritto il nome del campo insieme al valore | scrivere `600` (con il workflow aggiornato non succede più) |
 | `n and cap take a whole number` | valore non numerico | scrivere solo cifre |
 | il run `public-reports` per MultiCaRe dura ore | ramo senza il campionamento con arresto anticipato | usare un ramo con il bundle |
+| `phrase-probe` interrotto dopo 5 ore, nessun risultato (run #4 del 9 ottobre) | il limite del job (300 min) ha ucciso il processo prima che scrivesse il report; la cache UMLS veniva salvata solo a fine run con successo | con il bundle del 9 ottobre sera: `max_minutes`, cache salvata sempre, log per fase; lasciare vuoti `gliner` ed `encoder` |
 | il run con `verify` non chiama i modelli | manca `OPENROUTER_API_KEY` | aggiungere il secret |
 | "UMLS_API_KEY secret not set: the umls arm is off" | manca il secret | Settings → Secrets and variables → Actions → `UMLS_API_KEY` (lo stesso nome usato da `symptom-coverage`) |
 | il braccio `umls` non trova quasi nessun nome (`umls_other` sempre 0, `umls_compound_candidates.json` quasi vuoto) | la ricerca `exact` di UTS non si comporta come previsto (le richieste mandano la frase in minuscolo, nell'ipotesi che UTS non distingua maiuscole e minuscole) | dirmelo con il riepilogo: si cambia il tipo di ricerca (`normalizedString`) e si rilancia |

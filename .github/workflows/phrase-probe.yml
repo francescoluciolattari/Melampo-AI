@@ -46,6 +46,10 @@ on:
         description: "E4a memory arm: longest word group UMLS names exactly (UMLS_API_KEY secret)"
         type: boolean
         default: true
+      max_minutes:
+        description: "Time budget of the slow phases (UMLS, LLM): when spent they stop and the report is still written (0 = none)"
+        required: false
+        default: "150"
       limit:
         description: "Documents per corpus (empty = all; a number for a quick run)"
         required: false
@@ -94,7 +98,8 @@ jobs:
           git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
 
       - name: Restore the UMLS lookups already made
-        uses: actions/cache@v4
+        id: umls-cache
+        uses: actions/cache/restore@v4
         with:
           path: umls_cache.json
           key: umls-cache-${{ github.run_id }}
@@ -112,6 +117,7 @@ jobs:
           LLM: ${{ inputs.llm }}
           LLM_SAMPLE: ${{ inputs.llm_sample }}
           LIMIT: ${{ inputs.limit }}
+          MAX_MINUTES: ${{ inputs.max_minutes }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
@@ -127,6 +133,9 @@ jobs:
           set -- "$@" --llm-sample "$LLM_SAMPLE" --llm-mode "$LLM_MODE" --umls-cache umls_cache.json
           if ! [[ "$EXAMPLES" =~ ^[0-9]+$ ]]; then echo "::error::examples takes a whole number"; exit 2; fi
           set -- "$@" --examples "$EXAMPLES"
+          MAX_MINUTES="${MAX_MINUTES//[[:space:]]/}"
+          if ! [[ "${MAX_MINUTES:-0}" =~ ^[0-9]+$ ]]; then echo "::error::max_minutes takes a whole number"; exit 2; fi
+          set -- "$@" --max-minutes "${MAX_MINUTES:-0}"
           LLM_MODELS="${LLM_MODELS//[[:space:]]/}"
           if [ -n "$LLM_MODELS" ]; then
             if ! [[ "$LLM_MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
@@ -145,7 +154,15 @@ jobs:
               set -- "$@" "--$flag" "$value"
             fi
           done
-          uv run --no-sync python scripts/phrase_probe.py "$@"
+          # stderr carries the progress lines; the log is kept with the results
+          uv run --no-sync python -u scripts/phrase_probe.py "$@" 2> >(tee phrase_probe.log >&2)
+
+      - name: Keep the UMLS lookups (also when the run fails or is stopped)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: umls_cache.json
+          key: umls-cache-${{ github.run_id }}
 
       - name: Summarise
         if: always()
@@ -164,4 +181,5 @@ jobs:
           path: |
             phrase_probe.json
             phrase_probe.md
+            phrase_probe.log
             umls_compound_candidates.json

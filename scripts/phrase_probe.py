@@ -63,6 +63,8 @@ import os
 import random
 import re
 import sys
+import threading
+import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -534,10 +536,60 @@ def gold_role(case) -> str | None:
     return sorted(roles)[0] if roles else None
 
 
+class Budget:
+    """A wall-clock budget for the slow phases. When it is spent a phase stops asking, counts what it
+    left out and the run still writes its report (a run killed by the platform writes nothing)."""
+
+    def __init__(self, minutes: float = 0.0):
+        self.started = time.monotonic()
+        self.deadline = self.started + minutes * 60 if minutes and minutes > 0 else None
+        self.skipped: dict[str, int] = {}
+
+    def spent(self) -> bool:
+        return self.deadline is not None and time.monotonic() > self.deadline
+
+    def skip(self, phase: str) -> None:
+        self.skipped[phase] = self.skipped.get(phase, 0) + 1
+
+    def elapsed(self) -> float:
+        return round(time.monotonic() - self.started, 1)
+
+
+def say(budget: Budget | None, text: str) -> None:
+    """Progress line with the time since the start (stderr, flushed, so the Actions log shows it live)."""
+    stamp = f"[{budget.elapsed():8.1f}s] " if budget else ""
+    print(stamp + text, file=sys.stderr, flush=True)
+
+
+def tracked(budget: Budget, phase: str, items: list, work, workers: int, every: int = 100):
+    """``work(item)`` for every item on a pool, logging progress, and not starting new items once
+    the budget is spent (those come back as ``None`` and are counted as skipped for the phase)."""
+    done = [0]
+    lock = threading.Lock()
+
+    def one(item):
+        if budget.spent():
+            budget.skip(phase)
+            return None
+        try:
+            return work(item)
+        finally:
+            with lock:
+                done[0] += 1
+                if done[0] % every == 0 or done[0] == len(items):
+                    say(budget, f"{phase}: {done[0]}/{len(items)}")
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(one, items))
+
+
 def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner=None,
         retrieval=None, chats=None, lookup=None, corpus=None) -> dict:
+    budget = Budget(getattr(args, "max_minutes", 0.0))
+    say(budget, "start")
     if cases is None:
         rows, texts, cases, corpus = collect(args)
+        say(budget, f"collect: {len(cases)} cases")
     kinds = kinds or Kinds.from_obo(Path(args.ncit))
     failures = {}
     # Words the corpus itself writes three times or more are words, not typos ("underwent").
@@ -549,18 +601,24 @@ def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner
         arm_typo(c, kinds, speller)
     arm_discourse(cases, rows, kinds)
     arm_theme(cases, texts, kinds)
+    say(budget, "cheap arms done")
     for tag, model in (("parser", parser), ("gliner", gliner), ("retrieval", retrieval)):
         if model is None:
             continue
-        for c in cases:
+        for i, c in enumerate(cases):
+            if budget.spent():
+                failures[tag] = f"budget spent after {i} of {len(cases)} cases"
+                break
             try:
                 model(c)
             except Exception as error:  # noqa: BLE001 - an arm that fails is reported, not fatal
                 failures[tag] = f"{type(error).__name__}: {str(error)[:200]}"
                 break
+        say(budget, f"{tag} done")
     if lookup is not None and lookup.available and getattr(args, "umls", False):
-        with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            list(pool.map(lambda c: pk.umls_arm(c, lookup), cases))
+        tracked(budget, "umls", cases, lambda c: pk.umls_arm(c, lookup), args.workers, every=250)
+        lookup.save()
+        say(budget, f"umls arm done: {lookup.asked} calls, {lookup.seconds:.0f}s in UTS, {lookup.lost} lost")
     mode = getattr(args, "llm_mode", "plain")
     definitions = examples = None
     if chats and mode == "informed":
@@ -568,18 +626,27 @@ def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner
         if corpus and corpus.get("labels"):
             examples = pk.Examples(texts or {}, corpus["labels"], corpus["splits"],
                                    k=getattr(args, "examples", 5), lookup=lookup)
+        say(budget, "knowledge ready")
     if chats:
         chosen = llm_cases(cases, args.llm, args.llm_sample)
-
-        def ask(c):
-            return ask_llm(chats, c, mode, definitions, examples)
-
-        with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            for c, answers in zip(chosen, pool.map(ask, chosen), strict=True):
-                apply_llm(c, answers)
+        say(budget, f"llm: {len(chosen)} cases x {len(chats)} models")
+        answers = tracked(budget, "llm", chosen, lambda c: ask_llm(chats, c, mode, definitions, examples),
+                          args.workers, every=20)
+        for c, got in zip(chosen, answers, strict=True):
+            if got is not None:
+                apply_llm(c, got)
+        if lookup is not None:
+            lookup.save()
     report = summarise(cases, failures, args)
     if lookup is not None:
-        report["umls_lookups"] = {"asked": lookup.asked, "lost": lookup.lost, "available": lookup.available}
+        report["umls_lookups"] = {"asked": lookup.asked, "lost": lookup.lost, "available": lookup.available,
+                                  "seconds": round(lookup.seconds, 1)}
+    report["timing"] = {"seconds": budget.elapsed(), "max_minutes": getattr(args, "max_minutes", 0.0),
+                        "skipped": budget.skipped}
+    if budget.skipped:
+        failures["budget"] = f"time budget spent; not done: {budget.skipped}"
+        report["failures"] = {**report["failures"], **failures}
+    say(budget, "report ready")
     return report
 
 
@@ -730,6 +797,7 @@ def markdown(report: dict) -> str:
         f"{report['n']} judged links, {report['errors']} errors ({json.dumps(report['by_corpus'])}).",
         f"LLM scope: {report['llm_scope']}, mode {report.get('llm_mode')}, models {report.get('llm_models')}. "
         f"Arms that failed: {json.dumps(report['failures']) or 'none'}. UMLS lookups: {json.dumps(report.get('umls_lookups'))}.",
+        f"Time: {json.dumps(report.get('timing'))}.",
         "",
         "## Criteria fixed before the run (E2, E4a)",
         "",
@@ -798,6 +866,8 @@ def main(argv=None) -> int:
                     help="informed (E2): rules, vocabulary knowledge and annotated examples in the prompt")
     ap.add_argument("--llm-models", default="", help="comma-separated OpenRouter ids (default: the two of verify_probe)")
     ap.add_argument("--examples", type=int, default=5, help="annotated examples per case with --llm-mode informed")
+    ap.add_argument("--max-minutes", type=float, default=0.0,
+                    help="time budget: slow phases stop asking when it is spent and the report is still written (0 = none)")
     ap.add_argument("--umls", action="store_true", help="E4a memory arm and UMLS knowledge (UMLS_API_KEY)")
     ap.add_argument("--umls-cache", default="umls_cache.json")
     ap.add_argument("--umls-candidates", default="umls_compound_candidates.json",
@@ -808,12 +878,17 @@ def main(argv=None) -> int:
     kinds = Kinds.from_obo(Path(args.ncit))
     failures_at_load = {}
 
+    t0 = Budget()
+
     def load(tag, factory):
+        say(t0, f"loading {tag}")
         try:
             return factory()
         except Exception as error:  # noqa: BLE001
             failures_at_load[tag] = f"{type(error).__name__}: {str(error)[:200]}"
             return None
+        finally:
+            say(t0, f"{tag} loaded")  # the NCIt index of the encoder is the slow one on a CPU runner
 
     parser = load("parser", lambda: Parser(args.spacy, kinds)) if args.spacy else None
     gliner = load("gliner", lambda: Gliner(args.gliner)) if args.gliner else None
