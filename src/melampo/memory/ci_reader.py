@@ -26,7 +26,13 @@ the semantic space) and what this module does with it, one to one:
    trace counts as much as its cue is specific (the encoding-specificity principle of retrieval
    structures; a person with domain knowledge retrieves in about 300-400 ms what a novice computes).
    The document being read is **never** in the memory it is read with (leave-one-document-out).
-5. **A semantic space.** Latent semantic analysis (log-entropy weighting, truncated SVD) over text of
+5. **The ambito (scope of use).** The context is one signal for the sentence and one for the document:
+   what kind of text this is, from the kinds (NCIt) of the other things it names (food, organism,
+   procedure, device...). What readings were given to a structure word in texts of that ambito is
+   recalled like any trace. This replaces the bag of context words (one vote per word in the semantic
+   space), which measured as noise at this size of space (E5, v3): a scope is a coarse, stable
+   signal; a word association is a fine one that needs a much larger space.
+6. **A semantic space.** Latent semantic analysis (log-entropy weighting, truncated SVD) over text of
    the domain and over the definitions of the vocabulary (NCIt). Prototypes of a reading are the
    centroids of the definitions of the classes of its kind.
 
@@ -94,6 +100,11 @@ LEVELS = (
     ("anatomy+next-kind", 0.3), ("anatomy+head-kind", 0.25), ("anatomy+previous-kind", 0.2),
     ("word", 0.15),
 )
+# The ambito (scope of use): what kind of text this is, as the kinds of the other things it names
+# (food, organism, procedure, ...). One signal per sentence and one per document, not one vote per word.
+DOMAIN_LEVELS = (("word+domain", 0.5), ("anatomy+domain", 0.4), ("anatomy+doc-domain", 0.3))
+CATCH_ALL = "conceptual"  # the NCIt kind of words that belong to no domain in particular
+DOMAIN_SHARE = 0.25  # a kind is part of the ambito when it makes this share of the kinds named
 MIN_KIND_SHARE = 0.6  # a neighbour has a kind when the names ending with it agree this much
 TRACE_SUPPORT = 2.0  # a cue seen n times counts n / (n + TRACE_SUPPORT)
 NAME_WEIGHT = 0.5  # the string is a known name of a structure
@@ -280,6 +291,9 @@ class Cues:
     head_kind: str = ""
     previous_kind: str = ""
     anatomy: bool = True
+    domain_key: str = "none"
+    domain_top: str = "none"
+    doc_key: str = ""
 
     def keys(self) -> list[tuple[str, tuple[str, ...]]]:
         out = []
@@ -295,8 +309,46 @@ class Cues:
                                  ("anatomy+previous-kind", self.previous_kind)):
                 if value:
                     out.append((level, ("*", value)))
+        if self.domain_top != "none":
+            out.append(("word+domain", (self.word, self.domain_top)))
+        if self.anatomy:
+            if self.domain_key != "none":
+                out.append(("anatomy+domain", ("*", self.domain_key)))
+            if self.doc_key and self.doc_key != "none":
+                out.append(("anatomy+doc-domain", ("*", self.doc_key)))
         out.append(("word", (self.word,)))
         return out
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\[])")
+
+
+def sentence_around(text: str, start: int, end: int) -> str:
+    """The sentence of ``text[start:end]`` (a text that is one sentence comes back whole)."""
+    left = 0
+    for m in _SENTENCE_END.finditer(text, 0, start):
+        left = m.end()
+    m = _SENTENCE_END.search(text, end)
+    return text[left : m.start() if m else len(text)]
+
+
+def ambito(memory: BlockMemory, text: str) -> tuple[str, str]:
+    """The scope of use of a text: ``(key, top)``. The kinds (NCIt, from the block memory) of the words
+    that are not structure names and not of the catch-all kind (``conceptual`` says nothing about the
+    domain); ``key`` joins the kinds that make at least ``DOMAIN_SHARE`` of them (two at most; when the
+    kinds are spread so that none reaches the share, the two commonest, ties in alphabetical order),
+    ``top`` is the commonest. ``("none", "none")`` when the text names no other kind."""
+    counts: Counter[str] = Counter()
+    for w in content_words(text, minimum=3):
+        k = kind_of_word(memory, w)
+        if k and k not in ("anatomy", CATCH_ALL):
+            counts[k] += 1
+    total = sum(counts.values())
+    if not total:
+        return "none", "none"
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    big = sorted(k for k, n in ranked if n / total >= DOMAIN_SHARE) or sorted(k for k, _ in ranked[:2])
+    return "+".join(big[:2]), ranked[0][0]
 
 
 def kind_of_word(memory: BlockMemory, word: str) -> str:
@@ -304,7 +356,7 @@ def kind_of_word(memory: BlockMemory, word: str) -> str:
     return head[0] if head and head[1] >= MIN_KIND_SHARE else ""
 
 
-def make_cues(lattice: ChunkLattice, text: str, start: int, end: int) -> Cues | None:
+def make_cues(lattice: ChunkLattice, text: str, start: int, end: int, doc_key: str = "") -> Cues | None:
     """The cues of the word at ``text[start:end]``: next and previous word (inside the noun phrase),
     the head of the phrase to its right, and the kind of each. Same function for the memory (written
     from annotated documents) and for the reading, so a cue means the same on both sides."""
@@ -328,6 +380,8 @@ def make_cues(lattice: ChunkLattice, text: str, start: int, end: int) -> Cues | 
             cues.head_kind = kind if kind and share >= MIN_KIND_SHARE else kind_of_word(memory, cues.head)
     cues.nxt_kind = kind_of_word(memory, cues.nxt)
     cues.previous_kind = kind_of_word(memory, cues.previous)
+    cues.domain_key, cues.domain_top = ambito(memory, sentence_around(text, start, end))
+    cues.doc_key = doc_key
     return cues
 
 
@@ -347,15 +401,20 @@ class TraceMemory:
         self.gist_sum: dict[str, np.ndarray] = {}
         self.gist_doc: dict[tuple[str, str], np.ndarray] = {}
         self.docs: dict[str, np.ndarray] = {}
+        self.prior: Counter[str] = Counter()  # roles of all the structure words written, whatever the cues
+        self.prior_doc: dict[str, Counter[str]] = defaultdict(Counter)
         self.size = 0
 
-    def add(self, doc: str, text: str, start: int, end: int, role: str, lattice: ChunkLattice, doc_vector=None) -> None:
+    def add(self, doc: str, text: str, start: int, end: int, role: str, lattice: ChunkLattice, doc_vector=None,
+            doc_key: str = "") -> None:
         """One annotated phrase ``text[start:end]`` with its role: every word of the phrase that is a
         structure name leaves a trace with the cues it had in the text around it."""
         for m in _WORD.finditer(text, start, end):
-            cues = make_cues(lattice, text, m.start(), m.end())
+            cues = make_cues(lattice, text, m.start(), m.end(), doc_key)
             if cues is None or not cues.anatomy:
                 continue
+            self.prior[role] += 1
+            self.prior_doc[doc][role] += 1
             for key in cues.keys():
                 self.total[key][role] += 1
                 self.by_doc[(doc, key)][role] += 1
@@ -367,7 +426,7 @@ class TraceMemory:
     def recall(self, cues: Cues, doc: str | None) -> list[tuple[str, float, Counter[str]]]:
         """(level, weight, role counts) for every cue that finds traces outside ``doc``."""
         out = []
-        weight = dict(LEVELS)
+        weight = dict(LEVELS + DOMAIN_LEVELS)
         for level, key in cues.keys():
             counts = Counter(self.total.get((level, key), ()))
             for role, n in self.by_doc.get((doc, (level, key)), {}).items():
@@ -376,6 +435,15 @@ class TraceMemory:
             if counts:
                 out.append((level, weight[level], counts))
         return out
+
+    def base_rate(self, doc: str | None) -> dict[str, float]:
+        """How often each role is given to a structure word, outside ``doc``, whatever the cues."""
+        counts = Counter(self.prior)
+        for role, n in self.prior_doc.get(doc, {}).items():
+            counts[role] -= n
+        counts = +counts
+        total = sum(counts.values())
+        return {r: n / total for r, n in counts.items()} if total else {}
 
     def gist(self, doc: str | None, vector: np.ndarray | None) -> dict[str, float]:
         """How close the document's topic is to the documents in which each role was seen
@@ -425,7 +493,7 @@ class CIReader:
         self.traces = traces
         self.inhibition = inhibition
         # which families of evidence are in the network (for the ablations of the probe)
-        self.use = use or frozenset({"blocks", "head", "predication", "context", "traces", "gist"})
+        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist"})
         self.scale = self._calibrate()
 
     def _calibrate(self) -> float:
@@ -441,7 +509,8 @@ class CIReader:
 
     # -- construction -------------------------------------------------------------------------
 
-    def construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None):
+    def construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None,
+                  doc_key: str = ""):
         """The evidence nodes: ``(label, activation, {reading: link weight})``."""
         nodes: list[tuple[str, float, dict[str, float]]] = []
         if "name" in self.use:
@@ -451,7 +520,7 @@ class CIReader:
         if got is not None:
             window, mi, mj, blocks, found = got
             words = [w for w, _, _ in window]
-            cues = make_cues(self.lattice, sentence, found.start(), found.end()) or cues
+            cues = make_cues(self.lattice, sentence, found.start(), found.end(), doc_key) or cues
             if "blocks" in self.use:
                 best = blocks[0][0]
                 seen: set[str] = set()
@@ -498,11 +567,22 @@ class CIReader:
                     v = space.vec(w)
                     if v is not None:
                         nodes.append((f"context:{w}", share, contrast(v)))
-        if self.traces is not None and "traces" in self.use:
+        if self.traces is not None:
             for level, weight, counts in self.traces.recall(cues, doc):
+                family = "domain" if "domain" in level else "traces"
+                if family not in self.use:
+                    continue
                 n = sum(counts.values())
                 act = weight * n / (n + TRACE_SUPPORT)
-                nodes.append((f"trace:{level}", act, {r: c / n for r, c in counts.items() if r in READINGS}))
+                links = {r: c / n for r, c in counts.items() if r in READINGS}
+                if family == "domain":
+                    # the ambito says what a text of this kind changes, not what is usual everywhere:
+                    # only the excess over the base rate of each role counts (as the gist is centred)
+                    base = self.traces.base_rate(doc)
+                    links = {r: max(0.0, p - base.get(r, 0.0)) for r, p in links.items()}
+                    if not any(links.values()):
+                        continue
+                nodes.append((f"{family}:{level}", act, links))
         if self.traces is not None and "gist" in self.use and doc_vector is not None:
             gist = self.traces.gist(doc, doc_vector)
             if gist:
@@ -545,8 +625,8 @@ class CIReader:
         return reading_act, cycles
 
     def read(self, mention: str, sentence: str, start: int | None = None, doc: str | None = None,
-             doc_vector=None) -> CIReading:
-        nodes = self.construct(mention, sentence, start, doc, doc_vector)
+             doc_vector=None, doc_key: str = "") -> CIReading:
+        nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key)
         act, cycles = self.integrate(nodes)
         total = sum(act.values())
         shares = {r: (v / total if total > 0 else 0.0) for r, v in act.items()}

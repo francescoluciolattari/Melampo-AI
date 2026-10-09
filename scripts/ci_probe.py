@@ -46,7 +46,7 @@ from melampo.memory import chunk_lattice as cl  # noqa: E402
 from melampo.memory import ci_reader as ci  # noqa: E402
 from melampo.memory.longer_names import LongerNames  # noqa: E402
 
-FAMILIES = ("blocks", "head", "predication", "context", "traces", "gist")
+FAMILIES = ("blocks", "head", "predication", "traces", "domain", "gist")
 
 
 def say(start: float, text: str) -> None:
@@ -76,15 +76,21 @@ def build_resources(args, start: float):
     return mm_docs, craft_docs, splits, space, protos
 
 
-def write_traces(mm_docs, splits, space, lattice) -> ci.TraceMemory:
+def doc_keys(docs, corpus, lattice) -> dict:
+    """The ambito of each whole document."""
+    return {(corpus, d): ci.ambito(lattice.memory, t)[0] for d, t, _ in docs}
+
+
+def write_traces(mm_docs, splits, space, lattice, keys=None) -> ci.TraceMemory:
     memory = ci.TraceMemory(space)
     for doc, text, labels in mm_docs:
         if splits.get(doc) != "trng":
             continue
         vector = space.vector(ci.content_words(text))
+        key = (keys or {}).get(("medmentions", doc), "")
         for s, e, (cui, types) in labels:
             role = ci.role_to_reading(gold_role({"labels": [f"{cui}|{','.join(sorted(types))}"]}))
-            memory.add(doc, text, s, e, role, lattice, vector)
+            memory.add(doc, text, s, e, role, lattice, vector, key)
     return memory
 
 
@@ -92,7 +98,7 @@ def predicted(reading: ci.CIReading) -> str:
     return reading.decision
 
 
-def summarise(rows, readings, lattice_outcomes) -> dict:
+def summarise(rows, readings, lattice_outcomes, splits=None) -> dict:
     """Numbers per corpus for one configuration of the reader."""
     report: dict = {}
     for corpus in ("craft", "medmentions"):
@@ -116,6 +122,14 @@ def summarise(rows, readings, lattice_outcomes) -> dict:
             "lattice_right": int((lat & (label == 0)).sum()),
         }
         if corpus == "medmentions":
+            # false alarms by split: dev and test documents were never in the memory, whatever the leave-out
+            by_split: dict = defaultdict(Counter)
+            for i in idx:
+                if rows[i]["by_project_rule"] == "agrees":
+                    by_split[(splits or {}).get(rows[i].get("doc"), "?")]["right"] += 1
+                    by_split[(splits or {}).get(rows[i].get("doc"), "?")]["changed"] += int(
+                        readings[i].decision != ci.STRUCTURE)
+            item["right_changed_by_split"] = {k: dict(v) for k, v in sorted(by_split.items())}
             table: dict = defaultdict(Counter)
             for i in idx:
                 gold = ci.role_to_reading(gold_role(rows[i]))
@@ -131,11 +145,12 @@ def summarise(rows, readings, lattice_outcomes) -> dict:
     return report
 
 
-def run_all(reader, rows, texts_vector) -> list[ci.CIReading]:
+def run_all(reader, rows, texts_vector, keys) -> list[ci.CIReading]:
     out = []
     for r in rows:
+        k = (r["corpus"], r.get("doc"))
         out.append(reader.read(r["mention"], r["sentence"], r.get("at"), r.get("doc"),
-                               texts_vector.get((r["corpus"], r.get("doc")))))
+                               texts_vector.get(k), keys.get(k, "")))
     return out
 
 
@@ -153,7 +168,8 @@ def markdown(report: dict) -> str:
                 f"| {v['lattice_errors']} / {v['lattice_right']} | {v['auc'] if v['auc'] is None else round(v['auc'], 3)} |")
         mm = block.get("medmentions")
         if mm and name == "all evidence":
-            lines += ["", "Roles against the label (MedMentions): gold class -> same reading / n", ""]
+            lines += ["", f"False alarms by split of MedMentions (right links changed / right): {mm['right_changed_by_split']}",
+                      "", "Roles against the label (MedMentions): gold class -> same reading / n", ""]
             for g, v in mm["role_agreement"].items():
                 lines.append(f"- {g}: {v['same']} / {v['n']}  (readings: {mm['by_gold'][g]})")
             lines.append(f"- errors whose reading is the gold role: {mm['errors_role_same']} of {mm['errors']}")
@@ -182,7 +198,8 @@ def main(argv=None) -> int:
             if r.get("status") == "accepted" and r.get("by_project_rule") in ("agrees", "error")]
     mm_docs, craft_docs, splits, space, protos = build_resources(args, start)
     lattice = cl.ChunkLattice(cl.BlockMemory.load(args.memory, LongerNames.load().names))
-    traces = write_traces(mm_docs, splits, space, lattice)
+    keys = {**doc_keys(mm_docs, "medmentions", lattice), **doc_keys(craft_docs, "craft", lattice)}
+    traces = write_traces(mm_docs, splits, space, lattice, keys)
     say(start, f"traces: {traces.size}")
     vectors = {("medmentions", d): space.vector(ci.content_words(t)) for d, t, _ in mm_docs}
     vectors.update({("craft", d): space.vector(ci.content_words(t)) for d, t, _ in craft_docs})
@@ -196,15 +213,17 @@ def main(argv=None) -> int:
             lattice, space, protos, traces, use=frozenset(FAMILIES) - {family})
     for inh in (0.25, 1.0):
         configs[f"inhibition {inh}"] = ci.CIReader(lattice, space, protos, traces, inhibition=inh)
-    configs["without memory (no traces, no gist)"] = ci.CIReader(
-        lattice, space, protos, None, use=frozenset(FAMILIES) - {"traces", "gist"})
+    configs["without memory (no traces, no domain, no gist)"] = ci.CIReader(
+        lattice, space, protos, None, use=frozenset(FAMILIES) - {"traces", "domain", "gist"})
+    configs["with the bag of context words (v3 context)"] = ci.CIReader(
+        lattice, space, protos, traces, use=frozenset(FAMILIES) | {"context"})
     report = {"n": len(rows), "errors": sum(r["by_project_rule"] == "error" for r in rows),
               "space": f"{len(space.words)} words x {space.vectors.shape[1]}", "traces": traces.size,
               "configurations": {}, "error_readings": []}
     first = None
     for name, reader in configs.items():
-        readings = run_all(reader, rows, vectors)
-        report["configurations"][name] = summarise(rows, readings, outcomes)
+        readings = run_all(reader, rows, vectors, keys)
+        report["configurations"][name] = summarise(rows, readings, outcomes, splits)
         if first is None:
             first = readings
         say(start, f"{name} done")
