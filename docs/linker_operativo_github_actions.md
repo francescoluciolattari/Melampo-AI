@@ -114,6 +114,10 @@ Per E2 ed E4a **lasciare vuoti `gliner` ed `encoder`**: quei due bracci sono gi�
 
 Stima con tutti i bracci: 1–2 ore sulla CPU del runner (l'indice di SapBERT sui nomi NCIt è la parte lunga). L'artifact `phrase-probe` contiene `phrase_probe.md`, da leggere per primo. Se un braccio non si carica (versione di `gliner`, modello non trovato) la riga "Arms that failed" lo dice e gli altri bracci girano lo stesso. Non cambia il linker.
 
+## Il lettore a costruzione-integrazione (`ci-probe`, senza modelli e senza chiavi)
+
+Workflow manuale `CI probe (construction-integration reader)`. Un solo campo, `limit` (vuoto = tutto). Gira il controllo esterno su CRAFT e MedMentions, poi legge ogni link giudicato con `src/melampo/memory/ci_reader.py` (spazio semantico dai testi dei corpora e dalle definizioni NCIt, tracce e gist dai documenti di addestramento di MedMentions) e confronta diverse configurazioni: tutta la prova, togliendo una famiglia di evidenze alla volta, con tre forze di inibizione, senza memoria. Stima: circa 10 minuti. L'artifact `ci-probe` contiene `ci_probe.md` (da leggere per primo), `ci_probe.json`, `ci_probe.log`. Non cambia il linker.
+
 ## Il lettore cieco (passo 7, senza modelli)
 
 `python scripts/blind_reader_check.py --uberon data/linking/uberon-basic.obo --out blind_check.json` misura il lettore sulle menzioni etichettate (nessuna chiave, nessuna rete). Il lettore è attivo in `run_linking_bench.py`, `verify_probe.py` e `gold_set.py evaluate` solo come traccia; `run_linking_bench.py --blind-veto` lo lascia fermare un link che contraddice con sicurezza.
