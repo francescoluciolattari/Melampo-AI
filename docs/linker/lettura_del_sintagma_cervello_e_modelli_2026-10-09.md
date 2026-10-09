@@ -181,6 +181,25 @@ Convenzioni del progetto: misura per immagini ("brain volume") 13 su 13 `inheren
 - **Italiano:** non ancora. In italiano la testa viene prima ("filtro della vena cava inferiore") e i tipi dei nomi sono in italiano: serve un lessico di teste italiano e una regola di direzione per lingua.
 - Un senso per discorso resta nel braccio `discourse` di `phrase-probe` (serve il documento intero); i due "heart" del formaggio che il reticolo non vede si fermano con quello.
 
+### 8.5 Il segmentatore LLM misurato (`phrase-probe`, `llm=sample`, zip di Frank del 9 ottobre 2026)
+
+Prova: Nemotron 3 Super 120B e Gemma 3 27B ricevono la frase, la dividono in concetti e dicono quale contiene la menzione, di che tipo è e se è una parte del corpo. Campione: tutti i 33 errori + 300 link giusti a caso (331 casi letti; 22 errori MedMentions, 11 CRAFT, 114 e 184 link giusti). Criteri fissati prima di guardare: almeno 12 errori MedMentions su 22 trovati perdendo al più il 3 % dei link giusti, oppure ruolo giusto almeno nel 70 % dei casi.
+
+| misura | risultato |
+|---|---|
+| errori MedMentions letti come "sintagma più lungo che non è la struttura" | 10 su 22 (9 se i due modelli concordano) |
+| errori CRAFT letti | 0 su 11 |
+| link giusti segnalati | 33 su 114 MedMentions (29 %), 50 su 184 CRAFT (27 %); al punto di lavoro del rapporto: 9 errori contro 35 link giusti persi |
+| AUC del segnale | 0,53 (MedMentions 0,61; CRAFT 0,36) |
+| ruolo uguale a quello dell'etichetta | 3 su 12 (25 %) |
+| i due modelli danno lo stesso tipo | 263 su 331 (79 %) |
+| unione con il reticolo, errori MedMentions | 13 su 22 (LLM da solo 3, reticolo da solo 3, entrambi 7); ma 45 link giusti su 114 cambiano lettura (39 %) |
+| intersezione con il reticolo, errori MedMentions | 7 su 22, 12 link giusti su 114 (10,5 %) |
+
+Nessuno dei due criteri è raggiunto. **Dove funziona:** trova lo span lungo che NCIt non ha ("inferior vena cava filter placement", "Living-Related Liver Donation", "simulated colon microbiome", "heart interleukin-6", "Canine brain phantoms", "development of pancreas", "heart of Maroilles cheese"): lì fa quello per cui è stato provato, e sa dire "alimento", "organismo", "procedura". **Dove non funziona:** (1) non vede gli errori in cui il sintagma è solo anatomia ("aortic arch", "colon", "developing brain", "brain parenchyma", "large bowel", 2 "heart" su 3): sono errori di convenzione dell'etichetta, non di lettura; (2) segnala come "altra cosa" i link che il corpus considera giusti per convenzione (22 dei 83 segnalati sono "brain weight/volume", "prostate mass", "spleen sterol contents": misura o origine della struttura, che il progetto registra con un ruolo e non perde; gli altri sono processi e procedure in cui la struttura è il luogo, "the role of ERK5 in the heart"); (3) il tipo è instabile nei casi in cui la parola è anche altro (il liver in "Mouse liver microsomes" è "proteina" per un modello e "organo" per l'altro).
+
+**Conclusione.** Il segmentatore LLM non è un decisore e non è un filtro: segnala, non decide. Il suo uso ammissibile è **solo come proposta di blocco** nei casi già incerti per le altre vie (reticolo non letto, o reticolo e LLM d'accordo sullo stesso ruolo), con la ripetizione sul gold set dei radiologi prima di qualunque effetto. Resta la tappa D (segmentatore appreso su MedMentions) e il lessico di teste curato. Limiti della misura: 33 errori, articoli e non referti, due modelli non certificabili e non deterministici, un solo campione casuale (seme 11). Millière e Buckner indicano la strada: certificazione di comportamento con coppie minime (stessa frase con la struttura come sede / come misura / come origine), non lettura dei modelli.
+
 ## Fonti
 
 - Ding N, Melloni L, Zhang H, Tian X, Poeppel D. Cortical tracking of hierarchical linguistic structures in connected speech. Nat Neurosci 2016. https://doi.org/10.1038/nn.4186
