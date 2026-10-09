@@ -199,7 +199,14 @@ def compare_uberon(graph: AnatomyGraph, cid: str, label: str) -> str:
 # -- the run ---------------------------------------------------------------------------------------
 
 
-def build_linker(obo: Path, chats=None):
+def _lattice():
+    from melampo.memory.chunk_lattice import BlockMemory, ChunkLattice
+    from melampo.memory.longer_names import LongerNames
+
+    return ChunkLattice(BlockMemory.load(longer_names=LongerNames.load().names))
+
+
+def build_linker(obo: Path, chats=None, blocks: bool = False):
     lexicon = al.Lexicon.from_json(
         json.loads((DATA / "anatomy_lexicon.json").read_text("utf-8"))
     )
@@ -221,6 +228,7 @@ def build_linker(obo: Path, chats=None):
         graph=graph,
         blind=blind,
         document_type="literature",
+        chunk_lattice=_lattice() if blocks else None,
     )
     if chats:
         # The same linker with the two models reading the sentence for every link made from the
@@ -274,6 +282,7 @@ def run_corpus(
                 "conflicts": list(getattr(result, "conflicts", ()) or ()),
                 "convergence": getattr(result, "convergence", None),
                 "blind": blind.verdict if blind else None,
+                "block": getattr(result, "block", ""),
                 "labels": [],
                 "outcome": None,
             }
@@ -612,6 +621,11 @@ def main(argv=None) -> int:
         help="also ask the two models (OPENROUTER_API_KEY) about every link made from the name",
     )
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument(
+        "--blocks",
+        action="store_true",
+        help="write the chunk lattice's reading of each phrase in the rows (decides nothing)",
+    )
     args = parser.parse_args(argv)
 
     chats = None
@@ -633,7 +647,7 @@ def main(argv=None) -> int:
             for n, s in models.items()
         }
     obo = Path(args.uberon)
-    lexicon, parts, graph, linker = build_linker(obo, chats)
+    lexicon, parts, graph, linker = build_linker(obo, chats, args.blocks)
     umls = umls_of_nodes(obo)
     rows = []
     if args.craft:

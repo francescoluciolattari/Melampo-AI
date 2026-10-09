@@ -104,6 +104,7 @@ from melampo.memory.compounds import (
     hyphen_compound,
 )
 from melampo.memory.development import DevelopmentalFrame
+from melampo.memory.chunk_lattice import ChunkLattice
 from melampo.memory.longer_names import LongerNames
 from melampo.memory.morphology import Morphology
 from melampo.memory.exam_area import ADJACENT, EXPECTED, OUTSIDE, ExamAreas
@@ -1023,6 +1024,8 @@ class LinkResult:
     # fegato"; the link abstains, ``about`` says which structure was measured), "" otherwise.
     role: str = ""
     about: str | None = None
+    # How the chunk lattice read the phrase ("role:inherent_location:heart size"), when it is on.
+    block: str = ""
     # Structures the Greek and Latin roots of the mention point to (stage 3): a proposal for the
     # review queue on an abstention, never a link.
     proposals: tuple[str, ...] = ()
@@ -1296,6 +1299,11 @@ class AnatomyLinker:
     # Known names of other kinds of things (a scale, a protein, a gene, a substance) that contain
     # the mention: data/linking/longer_names.json, kind taken from the ontology that lists the name.
     longer_names: LongerNames = field(default_factory=LongerNames.load)
+    # The phrase around the mention read as blocks (chunk_lattice.py). Off by default: when given, the
+    # reading is written in the trace (stream "blocks") and in ``LinkResult.block``; it decides nothing
+    # until its roles have been checked on the radiologists' gold set (roles right in 60-80% of a
+    # reading of real reports, docs/linker/lettura_del_sintagma_cervello_e_modelli_2026-10-09.md §8).
+    chunk_lattice: ChunkLattice | None = None
     # Stage 8: what a conflict between independent readings does to an accepted link. "record"
     # keeps the link and writes the conflict in the profile; "review" sends the link to the review
     # queue when an independent stream read against it (blind reader, exam area, exam side) and no
@@ -1660,6 +1668,7 @@ class AnatomyLinker:
             if self.senses.procedure_head(mention, sentence, where):
                 result.role = "procedure_site"
         result.trace = trace
+        result.block = next((e.reason for e in trace if e.stream == "blocks"), "")
         return result
 
     def _inside_a_longer_name(
@@ -2152,6 +2161,16 @@ class AnatomyLinker:
                     VETO,
                     None,
                     f"mention_is_inside_the_name_of_another_thing:{longer_kind}:{longer_name}",
+                )
+            )
+        if self.chunk_lattice is not None:
+            reading = self.chunk_lattice.read(mention, sentence, where)
+            evidence.append(
+                Evidence(
+                    "blocks",
+                    SILENT,
+                    None,
+                    f"{reading.outcome}:{reading.role or '-'}:{reading.block or '-'}",
                 )
             )
         material = self.senses.material_qualifier(mention, sentence, where)

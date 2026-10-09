@@ -79,7 +79,7 @@ Tutti si calcolano con un modello già pubblico sulla CPU di GitHub:
 | Tappa | Che cosa | Misura | Dove gira |
 |---|---|---|---|
 | A | Aggiungere a `phrase-probe` i bracci 4.2: sorpresa, coesione, salto fra stati | AUC e punti di lavoro come per gli altri segnali; quanti dei 33 errori separano senza perdere link giusti | GitHub (Hugging Face) |
-| B | Reticolo di blocchi **deterministico**: nodi dalla memoria (NCIt, UBERON, Protein Ontology, lessico) e dalla composizione per tipo, cammino minimo; nessun modello | Errori fermati e link giusti persi sui link giudicati, sulle held-out, sui referti reali (3.969 casi) | Qui |
+| B (fatta, §8) | Reticolo di blocchi **deterministico**: nodi dalla memoria (NCIt, UBERON, Protein Ontology, lessico) e dalla composizione per tipo, cammino minimo; nessun modello | Errori fermati e link giusti persi sui link giudicati, sulle held-out, sui referti reali (3.969 casi) | Qui |
 | C | Aggiungere i punteggi dei modelli (GLiNER, SapBERT, A) come pesi dei nodi; l'LLM solo come tie-break tra segmentazioni vicine | Come B, con ablazione per braccio | GitHub, poi qui |
 | D | Segmentatore appreso su `trng` di MedMentions (§4.1) | Su `dev`; `test` aperto una volta sola, a decisione presa | GitHub (GPU o CPU piccola) |
 | E | Ruoli nel controllo esterno e nel protocollo dei radiologi | Percentuale di link con ruolo corretto, non solo etichetta | Qui + radiologi |
@@ -93,7 +93,7 @@ Il rapporto di `phrase-probe` è arrivato (§7.1): i segnali "parola vicina" non
 - **Nessun modello pronto isola e tipizza con precisione certificabile.** Soffitti trovati: riconoscimento di UBERON in CRAFT circa F1 0,82; MedMentions, baseline TaggerOne F1 0,453; GLiNER-BioMed F1 56,9 su 8 insiemi; RadGraph F1 di entità 0,94/0,905 ma in-dominio (inglese, accesso con credenziali). La precisione certificabile non può venire da un modello quasi perfetto: viene dall'accettazione selettiva con insiemi calibrati (§7.3).
 - **Millière e Buckner** ora letti per esteso (§7.5): sonde e attenzione non sono spiegazioni; per attribuire una struttura interna servono interventi causali; l'evidenza solo comportamentale non basta. Per noi: certificazione comportamentale più prove a coppie minime, non "feature" di attenzione.
 - Il parallelismo "a grafo" qui è un parallelismo di **segmentazioni candidate**; Christiansen e Chater sono espliciti nel non ammettere parallelismo di interpretazioni complete.
-- Il reticolo non è ancora implementato e non ha misure.
+- Il reticolo (tappa B) è implementato e misurato nel §8; le sue letture non decidono nulla finché i ruoli non sono confrontati con il gold set dei radiologi.
 
 ## 7. Risultati reali di `phrase-probe` e ricerca per superare i tre limiti
 
@@ -126,6 +126,60 @@ Per gli esperti, le fonti sostengono blocchi di dominio: memoria di lavoro a lun
 3. Tappa B (reticolo deterministico) richiede una memoria più grande di NCIt per i 13 casi a span lungo: candidati da valutare (licenza e copertura da verificare), non assunti.
 4. Prove a coppie minime (metamorphic) nel banco di verifica: cambiare l'oggetto del sintagma deve cambiare il ruolo e non il resto.
 5. Lessico di teste: curato prima di entrare in un flusso.
+
+## 8. Il reticolo di blocchi, realizzato e misurato (tappa B)
+
+### 8.1 Che cosa c'è
+
+- `src/melampo/memory/chunk_lattice.py`: il lettore. Nessun modello, nessuna rete, deterministico e ispezionabile.
+- `data/linking/block_memory.json`: la memoria, costruita da NCIt con `scripts/build_block_memory.py` (tipo preso dalla classe dell'ontologia, mai da elenchi di parole): 10.433 parole-testa con il tipo dominante dei nomi che finiscono con quella parola (quota e numero) e 8.771 nomi NCIt di altro tipo che contengono una struttura (procedura, dispositivo, processo, proprietà, malattia…), quelli non già dati dall'ultima parola. Le proteine e i geni sono in `longer_names.json` (6.705 nomi). Non si contano item di questionari e righe di standard (CDISC), e una parola il cui tipo coincide con un simbolo di gene o con una sostanza ("scar", "air") non prende il tipo da lì.
+- `scripts/lattice_probe.py` e il workflow manuale `lattice-probe`: rileggono con il reticolo ogni link giudicato del controllo esterno.
+- `AnatomyLinker(chunk_lattice=...)`, spento di default: scrive la lettura nella traccia (flusso `blocks`, silenzioso) e in `LinkResult.block`; non decide nulla. `external_check.py --blocks` la mette nelle righe.
+
+### 8.2 Come legge (le cinque idee del §3, nell'ordine)
+
+1. **Finestra.** Il sintagma nominale attorno alla menzione: a sinistra fino a 5 parole, a destra fino a 7 (la finestra di integrazione di 5–7 parole di Mollica); la chiudono punteggiatura, parole funzionali, un elenco chiuso di verbi da referto ("appears", "measuring") e i numeri.
+2. **Nodi.** La menzione è un blocco di memoria (una struttura); un nome noto è un blocco di memoria con il suo tipo; modificatori + testa è un blocco composto (le composizioni inglesi hanno la testa a destra: il tipo è quello dell'ultima parola); una parola sola è l'ultima risorsa.
+3. **Costi (per principio, non adattati ai dati):** memoria 0,6; composto 1,0 + 0,1 per parola + 1,0 × (1 − quota del tipo della testa); parola sola 1,2. **Nodo aperto:** una testa di tipo non anatomico dentro il blocco, che avrebbe potuto chiuderlo, costa 2,0 (Nelson et al.: un nodo resta aperto finché le parole non si fondono): "brain weight strains" è [brain weight] + strains, non un blocco con testa "strains". Una testa anatomica ("cell", "tissue") non chiude: "spleen cells transfusion" arriva a "transfusion".
+4. **Cammino di costo minimo** (programmazione dinamica) sulla finestra, con il blocco che contiene la menzione. **Minimo impegno:** se la migliore lettura alternativa che mette la menzione in una classe di decisione diversa (collegamento, ruolo, non-sito) è entro 0,15, il sintagma resta *sottospecificato* e non si decide.
+5. **Poi la decisione**, solo a blocco fissato: struttura/malattia → collegamento; procedura, dispositivo, processo, misura → la struttura si tiene con un ruolo; molecola composta ("liver extracts") → ruolo `source_of` (nuovo, da registrare, mai un veto); nome noto di una molecola o oggetto ("heart of Maroilles cheese", "Liver Fatty Acid Binding Protein") → non è un sito. Un secondo livello unisce blocchi con "of": "removal of the gallbladder" → `procedure_site`.
+
+Tipi che agiscono solo tramite memoria o "of", mai per composizione: cibo, organismo, concettuale. NCIt mette sotto "cibo" i nutrienti ("sterol", "glutamate") e sotto "organismo" ogni "Whole …": una parola-testa è un segnale troppo grezzo per dire "non è un sito". Costo pagato: "colon microbiome" non si legge più.
+
+### 8.3 Misure (CRAFT e MedMentions; 2.058 link giudicati, 1.836 link MedMentions con tipo semantico dell'etichetta, 4.841 menzioni di referti reali iu-xray)
+
+**Link giudicati** (le regole sono state scritte dopo aver letto i 33 errori del primo controllo: questa parte è ottimistica):
+
+| corpus | errori | letti come ruolo / non-sito | link giusti: con ruolo / persi | tasso d'errore dei link semplici |
+|---|---|---|---|---|
+| CRAFT | 11 | 1 / 0 | 227 / 0 | 0,83 % → 0,91 % |
+| MedMentions | 22 | 9 / 1 | 160 / 1 | 3,01 % → 2,14 % |
+
+In CRAFT gli errori sono quasi tutti di mappatura ("right middle lobe", "bladder"): il reticolo non li tocca, come ci si aspetta. In MedMentions il ruolo coincide con quello dell'etichetta per 3 dei 10 errori letti; negli altri c'è un ruolo diverso, ma comunque il link non è più "semplice".
+
+**Ruoli contro il tipo semantico dell'etichetta** (link che il reticolo non ha visto quando si scrivevano le regole):
+
+| etichetta | n | stesso ruolo |
+|---|---|---|
+| procedura (`procedure_site`) | 180 | 123 (68 %) |
+| misura, processo (`inherent_location`) | 18 | 15 (83 %) |
+| dispositivo | 11 | 3 |
+| non è un sito | 18 | 1 |
+| struttura / malattia: nessun ruolo aggiunto | 851 / 755 | 650 / 636 (76 % / 84 %) |
+
+Convenzioni del progetto: misura per immagini ("brain volume") 13 su 13 `inherent_location`; origine di cellule 7 su 27 con ruolo; sito di un dispositivo 5 su 11 con ruolo (3 `device_site`).
+
+**Stabilità.** Con il costo del nodo aperto ≥ 2 il risultato non dipende dagli altri parametri: 11 errori letti e da 1 a 6 link giusti persi su 2.025. Con costo 1 il blocco ingloba le teste dopo la prima e si perdono da 38 a 53 link giusti. Il costo 2 è quindi una condizione, non una taratura fine.
+
+**Referti reali** (iu-xray, 4.841 menzioni proposte): 61 % collegamento semplice; 37,5 % misura (`inherent_location`, quasi sempre "heart size", "cardiac size"); procedure 0,8 %; dispositivi 0,7 %. Ho letto a mano 42 letture non banali: 26 plausibili (62 %). Misure 9 su 14, procedure 6 su 14, dispositivi 11 su 14. Gli errori hanno una causa comune: **la parola-testa non è un nome o il suo tipo NCIt è idiosincratico** — aggettivi ("focal", "vascular"), nomi con senso diverso ("appearance", "presence", "base", "junction" tipizzati come procedura o dispositivo), verbi non in elenco ("suggesting").
+
+### 8.4 Che cosa dice questo sul progetto
+
+- Il reticolo fa quello che doveva fare **come lettore**: costruisce l'unità prima, poi decide; la scelta del ruolo dipende dal blocco, non dalla parola vicina. Dove l'etichetta ha un ruolo di misura o procedura il ruolo è giusto 70–80 % delle volte, con regole che non ho adattato su quei link.
+- **Non è ancora un decisore.** Un ruolo giusto nel 60–80 % dei casi non basta per essere scritto in un referto: resta nella traccia, spento di default, e va confrontato con il gold set dei radiologi (con il compito span + ruolo del §7.4).
+- **Il limite è la memoria, non l'algoritmo.** I 13 errori a span lungo non sono in NCIt come nomi, e una testa derivata da NCIt sbaglia sui nomi comuni. Ci sono tre strade, da misurare nell'ordine: (1) lessico di teste curato (una lista breve di nomi di procedura, dispositivo e misura approvata dai radiologi, che sostituisce quella derivata per i tipi che agiscono); (2) un'etichettatura grammaticale per escludere aggettivi e verbi dalle teste; (3) il segmentatore appreso del §4.1, che porta la conoscenza dei sintagmi che NCIt non ha. Nessuna delle tre è in questa consegna.
+- **Italiano:** non ancora. In italiano la testa viene prima ("filtro della vena cava inferiore") e i tipi dei nomi sono in italiano: serve un lessico di teste italiano e una regola di direzione per lingua.
+- Un senso per discorso resta nel braccio `discourse` di `phrase-probe` (serve il documento intero); i due "heart" del formaggio che il reticolo non vede si fermano con quello.
 
 ## Fonti
 

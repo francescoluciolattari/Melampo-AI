@@ -78,6 +78,15 @@ Nessuna chiamata a pagamento: scarica spaCy (inglese e italiano) e l'encoder da 
 
 Scarica UBERON e l'ultima release di NCIt, prova Protein Ontology, costruisce `longer_names.json`. L'artifact `longer-names` contiene il file e il riepilogo (conteggi per tipo, hash e versioni). Si scarica, si sostituisce `data/linking/longer_names.json`, si rilancia `external-check`. Esito del 9 ottobre: 6.705 nomi (NCIt 2.436 + Protein Ontology 4.269), adottati; il controllo esterno non cambia (22/732 e 11/1.326).
 
+## `lattice-probe` (il sintagma letto come blocchi)
+
+| Campo | Cosa scrivere |
+|---|---|
+| Use workflow from | un ramo che contiene `lattice-probe.yml` |
+| limit | vuoto = tutti i documenti; un numero per una prova veloce |
+
+Esegue il controllo esterno su CRAFT e MedMentions con `--blocks` (nessuna chiamata a modelli) e poi `scripts/lattice_probe.py` sulle righe. L'artifact `lattice-probe` contiene `lattice_probe.md` (da leggere per primo: link giudicati, ruoli contro il tipo semantico dell'etichetta, convenzioni del progetto, stabilità sui costi, ogni errore e ogni link giusto che cambierebbe), `lattice_probe.json` e `external_check.md`. Non cambia il linker. La memoria (`data/linking/block_memory.json`) si ricostruisce da NCIt con `python scripts/build_block_memory.py --ncit ncit.obo` (anche in locale: non serve rete oltre al file).
+
 ## Job `falkordb-service` (automatico in CI)
 
 Parte a ogni push: un server FalkorDB come service container, test di grafo su TCP. Non richiede azioni.

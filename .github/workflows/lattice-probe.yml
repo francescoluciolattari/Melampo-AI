@@ -1,0 +1,80 @@
+name: Lattice probe (the phrase read as blocks)
+
+# Manual trigger only. Runs the external check on CRAFT and MedMentions (no model call), then reads
+# every judged link with the chunk lattice (src/melampo/memory/chunk_lattice.py, memory in
+# data/linking/block_memory.json): errors it reads as a procedure, a device, a measurement or a
+# non-site; right links it would change; roles against the corpus label types; the project
+# conventions; stability over the lattice's costs. It decides nothing and changes nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Documents per corpus (empty = all; a number for a quick run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Lattice probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Download UBERON (pinned)
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+
+      - name: Clone the corpora (pinned)
+        run: |
+          mkdir -p ext
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+
+      - name: Run the external check (rows with the lattice's reading)
+        env:
+          LIMIT: ${{ inputs.limit }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          LIMIT="${LIMIT//[[:space:]]/}"
+          set -- --craft ext/craft --medmentions ext/mm --out external_check.json \
+            --markdown external_check.md --workers 6 --blocks
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          uv run python scripts/external_check.py "$@"
+
+      - name: Read the rows with the lattice
+        run: |
+          uv run python scripts/lattice_probe.py --rows external_check.rows.json \
+            --out lattice_probe.json --markdown lattice_probe.md
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"
+            echo
+            if [ -f lattice_probe.md ]; then head -c 60000 lattice_probe.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lattice-probe
+          path: |
+            lattice_probe.json
+            lattice_probe.md
+            external_check.md
