@@ -546,3 +546,7 @@ I lettori zero-shot (GLiNER-BioMed, SapBERT su NCIt) non separano gli errori dai
 
 `phrase-probe` con `llm=sample` (Nemotron 3 Super e Gemma 3 27B; 33 errori + 300 link giusti) legge 10 errori MedMentions su 22, 0 su 11 in CRAFT, segnala 29 % dei link giusti, dà il ruolo giusto 3 volte su 12. Non raggiunge i criteri fissati prima. Decisione di architettura: nessun LLM nel percorso che decide. L'LLM resta un possibile **proponente di blocco** nei casi già incerti, con effetto solo dopo il gold set dei radiologi (span + ruolo) e con prove a coppie minime. Dettaglio: `lettura_del_sintagma_cervello_e_modelli_2026-10-09.md` §8.5.
 
+## 27. Perché l'esperto legge e noi sbagliamo (9 ottobre 2026)
+
+Classificati a mano i 33 errori del controllo esterno: 12 nomi composti presenti in UMLS e non nella nostra memoria, 13 differenze di vocabolario o granularità con l'etichetta, 3 memoria troppo grossolana (arco aortico), 2 che chiedono il documento intero, 3 etichette anomale. La lettura vera pesa per il 42 %. Risposta: prima la memoria (nomi composti curati), poi la traduzione fra vocabolari, poi una lettura a due direzioni con revisione; un LLM diverso da solo non cambia l'esito, un LLM con definizioni curate ed esempi di convenzione, controllato da un arbitro deterministico, va provato (E2, criteri fissati prima). Dettaglio: `perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md`.
+
