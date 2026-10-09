@@ -174,3 +174,8 @@ Conclusione: i lettori zero-shot non bastano; la metrica del prodotto è il ruol
 ### 9.7 Secondo run di `phrase-probe` (con il parser)
 
 Stessi 2.058 link, nessun braccio caduto. Il parser non separa: AUC 0,525 (soggetto di un verbo), 0,517 ("X of" sotto un processo), 0,509 (testa del gruppo nominale); tipizza 3 errori MedMentions e ne dà il ruolo giusto per 1. Tutti gli altri numeri del §9.6 sono invariati, tranne l'AUC dei voti economici (0,601; MedMentions 0,668; CRAFT 0,427). Conferma che la sintassi superficiale non basta: il sintagma va letto con la conoscenza del tipo di cosa che nomina (memoria o composizione), non con un parser.
+
+### 9.8 Terzo run di `phrase-probe` (segmentatore LLM, `llm=sample`)
+
+331 casi (33 errori + 300 link giusti). Il segmentatore LLM legge come "sintagma più lungo" 10 errori MedMentions su 22 e 0 su 11 in CRAFT, ma anche 29 % dei link giusti campionati (83 su 298); ruolo giusto 3 su 12; AUC 0,53. Trova gli span lunghi che NCIt non ha (filtro della vena cava, donazione di fegato, microbioma del colon simulato, interleuchina-6 del cuore) e manca gli errori di sola convenzione dell'etichetta. Non soddisfa i criteri posti prima (almeno 12 errori su 22 con al più 3 % di link giusti persi). Dettaglio e conclusione: `lettura_del_sintagma_cervello_e_modelli_2026-10-09.md` §8.5.
+
