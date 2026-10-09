@@ -29,9 +29,20 @@ Arms (the deterministic ones need only ``--ncit``; the others are switched on by
 * ``retrieval`` (``--encoder``) the word groups containing the mention, embedded and searched among NCIt
              preferred names (all kinds) with a biomedical name encoder (SapBERT): best non-anatomical
              match minus best anatomical match.
-* ``llm``    (``--llm``, needs OPENROUTER_API_KEY) two models are asked to split the sentence into
-             concepts and say which concept contains the word, its type, and whether the word names
-             where something is in a body. This is a segmentation question, not "is the link right?".
+* ``llm``    (``--llm``, needs OPENROUTER_API_KEY) two models (``--llm-models`` to choose others)
+             are asked to split the sentence into concepts and say which concept contains the word,
+             its type, and whether the word names where something is in a body. This is a
+             segmentation question, not "is the link right?". ``--llm-mode informed`` (E2) gives the
+             models what an expert reader has in memory: the annotation rules, what NCIt and UMLS
+             say about the word groups around the mention (every reading, the anatomical one too),
+             and ``--examples`` annotated sentences of other documents with the same word
+             (MedMentions training split). See ``scripts/phrase_knowledge.py``.
+* ``umls``   (``--umls``, needs UMLS_API_KEY) E4a, deterministic: the longest word group around the
+             mention that UMLS names exactly; if its semantic types are not anatomy or disease, the
+             phrase names another kind of thing. It answers "is it memory?" without a model.
+
+The mention is marked where the external check found it (``at``), not at the first occurrence of the
+same letters in the sentence.
 
 The report gives, for each signal, AUC (error against right link) and operating points (errors
 caught for 0, 5, 20, 50 right links lost); the *gate* analysis (would a gate on conflict or low
@@ -68,6 +79,7 @@ from ncit_kinds import (  # noqa: E402,F401
 )
 
 from melampo.memory.word_senses import _TAIL, _fold, locate, noun_phrase_after  # noqa: E402
+import phrase_knowledge as pk  # noqa: E402
 
 DATA = ROOT / "data" / "linking"
 
@@ -122,7 +134,7 @@ def collect(args):
     obo = Path(args.uberon)
     lexicon, parts, graph, linker = ec.build_linker(obo)
     umls = ec.umls_of_nodes(obo)
-    rows, texts = [], {}
+    rows, texts, labels = [], {}, {}
     for name, root, reader in (
         ("craft", args.craft, ec.craft_documents),
         ("medmentions", args.medmentions, ec.medmentions_documents),
@@ -130,18 +142,21 @@ def collect(args):
         if not root:
             continue
         documents = []
-        for count, (doc, text, labels) in enumerate(reader(Path(root))):
+        for count, (doc, text, doc_labels) in enumerate(reader(Path(root))):
             if args.limit and count >= args.limit:
                 break
             texts[(name, doc)] = text
-            documents.append((doc, text, labels))
+            documents.append((doc, text, doc_labels))
+            if name == "medmentions":
+                labels[doc] = doc_labels
         rows += ec.run_corpus(name, documents, lexicon, parts, graph, linker, umls, None, args.workers)
+    splits = pk.medmentions_splits(Path(args.medmentions)) if args.medmentions else {}
     cases = [
-        dict(r, label=1 if r["by_project_rule"] == "error" else 0)
+        dict(r, label=1 if r["by_project_rule"] == "error" else 0, split=splits.get(r["doc"]))
         for r in rows
         if r["status"] == "accepted" and r.get("by_project_rule") in ("agrees", "error")
     ]
-    return rows, texts, cases
+    return rows, texts, cases, {"labels": labels, "splits": splits}
 
 
 # -- deterministic arms -------------------------------------------------------------------------
@@ -150,7 +165,7 @@ _OF = re.compile(r"^\s+of\s+(?:the\s+|a\s+|an\s+|this\s+|these\s+)?")
 
 
 def phrase_words(case) -> tuple[list[str], re.Match | None]:
-    found = locate(case["mention"], case["sentence"])
+    found = pk.where(case)
     return (noun_phrase_after(case["sentence"], found.end()) if found else []), found
 
 
@@ -190,7 +205,7 @@ def arm_discourse(cases, rows, kinds: Kinds):
     """One sense per discourse: a word read as the inside of an object anywhere in the document."""
     object_sense = set()
     for r in rows:
-        found = locate(r["mention"], r["sentence"])
+        found = locate(r["mention"], r["sentence"], r.get("at"))
         if found and object_of(r["sentence"], found.end(), kinds)[1] in OBJECT_KINDS:
             object_sense.add((r["corpus"], r["doc"], _fold(r["mention"])))
     for c in cases:
@@ -277,7 +292,7 @@ class Parser:
         self.kinds = kinds
 
     def __call__(self, case):
-        found = locate(case["mention"], case["sentence"])
+        found = pk.where(case)
         if not found:
             return
         doc = self.nlp(case["sentence"])
@@ -309,7 +324,7 @@ class Gliner:
         self.threshold = threshold
 
     def __call__(self, case):
-        found = locate(case["mention"], case["sentence"])
+        found = pk.where(case)
         if not found:
             return
         entities = self.model.predict_entities(
@@ -387,7 +402,7 @@ class Retrieval:
 
 def word_groups(case, left: int = 3, right: int = 4) -> list[str]:
     """Word groups that contain the mention and are longer than it, inside its clause."""
-    found = locate(case["mention"], case["sentence"])
+    found = pk.where(case)
     if not found:
         return []
     before = re.split(r"[,;:()\[\]]", case["sentence"][: found.start()])[-1].split()[-left:]
@@ -411,13 +426,65 @@ Answer with JSON only, no other text:
 {{"phrase": "<the phrase of that concept>", "type": "<one of: {types}>", "body_site": "<yes if «{mention}» there names a place in a body where something is, else no>"}}"""
 
 
-def ask_llm(chats: dict, case) -> dict:
-    found = locate(case["mention"], case["sentence"])
+PROMPT_INFORMED = """You read sentences of biomedical texts the way an expert annotator does.
+
+Rules of the annotation:
+1. A concept is named by the longest phrase that names one concept of a medical vocabulary (UMLS).
+2. A body structure written inside a longer name of another kind of thing (a procedure, a device, a
+   measurement, a function or process, a protein or gene, a chemical, an organism, a food) is part
+   of that name; the longer name is the concept.
+3. The word names a body site only if, in this sentence, it names a place in a body where something
+   is or happens (a lesion in the liver, a filter in the vena cava): then answer body_site "yes" even
+   if the concept is longer.
+
+What the vocabularies know about the words around «{mention}» (every reading they have, the
+anatomical one included; this is knowledge, not a hint about the answer):
+{knowledge}
+
+Sentences of other documents annotated with these rules ([[ ]] marks the annotated concept):
+{examples}
+
+Now the sentence. Split it into the concepts it names and answer about the concept whose phrase
+contains «{mention}» (the occurrence marked [[ ]]).
+
+Sentence: {marked}
+
+Answer with JSON only, no other text:
+{{"phrase": "<the phrase of that concept>", "type": "<one of: {types}>", "body_site": "<yes or no>"}}"""
+
+
+def marked_sentence(case) -> str | None:
+    found = pk.where(case)
     if not found:
-        return {}
+        return None
     s = case["sentence"]
-    marked = f"{s[: found.start()]}[[{s[found.start() : found.end()]}]]{s[found.end() :]}"
-    prompt = PROMPT.format(mention=case["mention"], marked=marked, types=", ".join(LLM_TYPES))
+    return f"{s[: found.start()]}[[{s[found.start() : found.end()]}]]{s[found.end() :]}"
+
+
+def informed_prompt(case, definitions=None, examples=None) -> str:
+    knowledge = definitions(case) if definitions else []
+    shown = examples(case) if examples else []
+    case["llm_knowledge"] = knowledge
+    case["llm_examples"] = shown
+    k_lines = [
+        f"- «{k['phrase']}»: {k['name']} ({k['source']}, {k['type']})" + (f": {k['definition']}" if k.get("definition") else "")
+        for k in knowledge
+    ] or ["- (nothing found)"]
+    e_lines = [f"{i}. {e['sentence']} -> concept «{e['phrase']}», type {e['type']}" for i, e in enumerate(shown, 1)] or ["(none)"]
+    return PROMPT_INFORMED.format(
+        mention=case["mention"], knowledge="\n".join(k_lines), examples="\n".join(e_lines),
+        marked=marked_sentence(case), types=", ".join(LLM_TYPES),
+    )
+
+
+def ask_llm(chats: dict, case, mode: str = "plain", definitions=None, examples=None) -> dict:
+    marked = marked_sentence(case)
+    if marked is None:
+        return {}
+    if mode == "informed":
+        prompt = informed_prompt(case, definitions, examples)
+    else:
+        prompt = PROMPT.format(mention=case["mention"], marked=marked, types=", ".join(LLM_TYPES))
     answers = {}
     for name, chat in chats.items():
         try:
@@ -454,8 +521,9 @@ def apply_llm(case, answers: dict):
 SIGNALS = (
     "head_other", "object", "discourse", "theme", "typo", "parser_other", "parser_of_process",
     "parser_subject", "gliner_other", "gliner_none", "retrieval_margin", "llm_other", "llm_not_site",
+    "umls_other", "umls_longer_anatomy",
 )
-KIND_FIELDS = ("head_kind", "object_kind", "parser_kind", "gliner_kind", "retrieval_kind", "llm_kind")
+KIND_FIELDS = ("head_kind", "object_kind", "parser_kind", "gliner_kind", "retrieval_kind", "llm_kind", "umls_kind")
 
 
 def gold_role(case) -> str | None:
@@ -467,9 +535,9 @@ def gold_role(case) -> str | None:
 
 
 def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner=None,
-        retrieval=None, chats=None) -> dict:
+        retrieval=None, chats=None, lookup=None, corpus=None) -> dict:
     if cases is None:
-        rows, texts, cases = collect(args)
+        rows, texts, cases, corpus = collect(args)
     kinds = kinds or Kinds.from_obo(Path(args.ncit))
     failures = {}
     # Words the corpus itself writes three times or more are words, not typos ("underwent").
@@ -490,12 +558,29 @@ def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner
             except Exception as error:  # noqa: BLE001 - an arm that fails is reported, not fatal
                 failures[tag] = f"{type(error).__name__}: {str(error)[:200]}"
                 break
+    if lookup is not None and lookup.available and getattr(args, "umls", False):
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            list(pool.map(lambda c: pk.umls_arm(c, lookup), cases))
+    mode = getattr(args, "llm_mode", "plain")
+    definitions = examples = None
+    if chats and mode == "informed":
+        definitions = pk.Definitions(Path(args.ncit), kinds, lookup)
+        if corpus and corpus.get("labels"):
+            examples = pk.Examples(texts or {}, corpus["labels"], corpus["splits"],
+                                   k=getattr(args, "examples", 5), lookup=lookup)
     if chats:
         chosen = llm_cases(cases, args.llm, args.llm_sample)
+
+        def ask(c):
+            return ask_llm(chats, c, mode, definitions, examples)
+
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            for c, answers in zip(chosen, pool.map(lambda c: ask_llm(chats, c), chosen), strict=True):
+            for c, answers in zip(chosen, pool.map(ask, chosen), strict=True):
                 apply_llm(c, answers)
-    return summarise(cases, failures, args)
+    report = summarise(cases, failures, args)
+    if lookup is not None:
+        report["umls_lookups"] = {"asked": lookup.asked, "lost": lookup.lost, "available": lookup.available}
+    return report
 
 
 def llm_cases(cases, scope: str, sample: int):
@@ -574,7 +659,8 @@ def summarise(cases, failures, args) -> dict:
     report["roles"] = roles
     keep = ("corpus", "mention", "sentence", "labels", "label", "support", "convergence",
             *SIGNALS, *KIND_FIELDS, "head_word", "object_head", "gliner_span", "retrieval_group",
-            "retrieval_name", "typo_hypothesis", "llm_answers", "votes_cheap")
+            "retrieval_name", "typo_hypothesis", "llm_answers", "votes_cheap", "split", "at",
+            "umls_phrase", "umls_name", "llm_knowledge", "llm_examples")
     report["errors_read"] = [{k: c.get(k) for k in keep if k in c} | {"gold_role": gold_role(c)}
                              for c in cases if c["label"]]
     report["right_flagged"] = [
@@ -583,7 +669,49 @@ def summarise(cases, failures, args) -> dict:
         if not c["label"] and c["votes_cheap"] >= 2
     ][:100]
     report["cases"] = [{k: c.get(k) for k in keep if k in c} for c in cases]
+    report["llm_mode"] = getattr(args, "llm_mode", "plain")
+    report["llm_models"] = getattr(args, "llm_models_used", None)
+    report["criteria"] = criteria(cases)
     return report
+
+
+# Fixed before the runs (docs/linker/perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md, section 6):
+# a reader passes if it finds at least 12 of the 22 MedMentions errors while flagging at most 3 % of
+# the right links it read, or if the kind it reads gives the gold label's role in at least 70 % of
+# the MedMentions errors it types.
+CRITERION_ERRORS, CRITERION_RIGHT, CRITERION_ROLE = 12, 0.03, 0.70
+
+
+def criteria(cases) -> dict:
+    out = {}
+    for signal, kind_field in (("llm_other", "llm_kind"), ("umls_other", "umls_kind")):
+        read = [c for c in cases if isinstance(c.get(signal), float)]
+        if not read:
+            continue
+        row = {}
+        for corpus in ("medmentions", "craft"):
+            sub = [c for c in read if c["corpus"] == corpus]
+            errors = [c for c in sub if c["label"]]
+            right = [c for c in sub if not c["label"]]
+            row[corpus] = {
+                "errors_read": len(errors),
+                "errors_flagged": sum(c[signal] > 0 for c in errors),
+                "right_read": len(right),
+                "right_flagged": sum(c[signal] > 0 for c in right),
+                "right_flagged_share": round(sum(c[signal] > 0 for c in right) / len(right), 4) if right else None,
+            }
+            by_split = Counter((c.get("split"), c["label"], c[signal] > 0) for c in sub)
+            row[corpus]["by_split"] = {f"{s}:{'error' if lab else 'right'}:{'flagged' if f else 'not'}": n for (s, lab, f), n in sorted(by_split.items(), key=str)}
+        typed = [c for c in read if c["corpus"] == "medmentions" and c["label"] and c.get(kind_field) and gold_role(c)]
+        same = sum(ROLE_OF_KIND.get(c[kind_field]) == gold_role(c) for c in typed)
+        mm = row.get("medmentions", {})
+        passes_errors = (mm.get("errors_flagged", 0) >= CRITERION_ERRORS
+                         and (mm.get("right_flagged_share") or 0) <= CRITERION_RIGHT)
+        passes_role = bool(typed) and same / len(typed) >= CRITERION_ROLE
+        row["role"] = {"typed": len(typed), "same_role": same}
+        row["passes"] = {"errors_at_3_percent": passes_errors, "role_70_percent": passes_role}
+        out[signal] = row
+    return out
 
 
 def _split(have, name, corpus):
@@ -600,7 +728,24 @@ def markdown(report: dict) -> str:
         "# Experiment phrase-probe: reading the whole phrase",
         "",
         f"{report['n']} judged links, {report['errors']} errors ({json.dumps(report['by_corpus'])}).",
-        f"LLM scope: {report['llm_scope']}. Arms that failed: {json.dumps(report['failures']) or 'none'}.",
+        f"LLM scope: {report['llm_scope']}, mode {report.get('llm_mode')}, models {report.get('llm_models')}. "
+        f"Arms that failed: {json.dumps(report['failures']) or 'none'}. UMLS lookups: {json.dumps(report.get('umls_lookups'))}.",
+        "",
+        "## Criteria fixed before the run (E2, E4a)",
+        "",
+        "Pass: at least 12 of 22 MedMentions errors flagged with at most 3 % of the right links read flagged, "
+        "or the role of the gold label in at least 70 % of the MedMentions errors typed.",
+        "",
+        "| signal | MedMentions errors flagged | MedMentions right flagged | CRAFT errors flagged | CRAFT right flagged | role | passes (errors / role) |",
+        "|---|---|---|---|---|---|---|",
+        *[
+            f"| {name} | {v.get('medmentions', {}).get('errors_flagged')}/{v.get('medmentions', {}).get('errors_read')} "
+            f"| {v.get('medmentions', {}).get('right_flagged')}/{v.get('medmentions', {}).get('right_read')} "
+            f"| {v.get('craft', {}).get('errors_flagged')}/{v.get('craft', {}).get('errors_read')} "
+            f"| {v.get('craft', {}).get('right_flagged')}/{v.get('craft', {}).get('right_read')} "
+            f"| {v['role']['same_role']}/{v['role']['typed']} | {v['passes']['errors_at_3_percent']} / {v['passes']['role_70_percent']} |"
+            for name, v in report.get("criteria", {}).items()
+        ],
         "",
         "## Signals",
         "",
@@ -649,6 +794,14 @@ def main(argv=None) -> int:
     ap.add_argument("--encoder", help="name encoder id for retrieval (SapBERT)")
     ap.add_argument("--llm", choices=("none", "sample", "all"), default="none")
     ap.add_argument("--llm-sample", type=int, default=300, help="right links asked with --llm sample")
+    ap.add_argument("--llm-mode", choices=("plain", "informed"), default="plain",
+                    help="informed (E2): rules, vocabulary knowledge and annotated examples in the prompt")
+    ap.add_argument("--llm-models", default="", help="comma-separated OpenRouter ids (default: the two of verify_probe)")
+    ap.add_argument("--examples", type=int, default=5, help="annotated examples per case with --llm-mode informed")
+    ap.add_argument("--umls", action="store_true", help="E4a memory arm and UMLS knowledge (UMLS_API_KEY)")
+    ap.add_argument("--umls-cache", default="umls_cache.json")
+    ap.add_argument("--umls-candidates", default="umls_compound_candidates.json",
+                    help="E4: non-anatomical UMLS names found around anatomical mentions, for curation")
     ap.add_argument("--out", default="phrase_probe.json")
     ap.add_argument("--markdown", default="phrase_probe.md")
     args = ap.parse_args(argv)
@@ -672,10 +825,28 @@ def main(argv=None) -> int:
             from melampo.evaluation import linking_bench as lb
             from verify_probe import CHAT_MODELS, CHAT_PACING
 
-            chats = {n: lb.OpenRouterChat(s, key, max_tokens=300, **CHAT_PACING) for n, s in CHAT_MODELS.items()}
+            models = CHAT_MODELS
+            if args.llm_models.strip():
+                ids = [m.strip() for m in args.llm_models.split(",") if m.strip()]
+                models = {m.rsplit("/", 1)[-1]: m for m in ids}
+            args.llm_models_used = list(models.values())
+            chats = {n: lb.OpenRouterChat(s, key, max_tokens=800, **CHAT_PACING) for n, s in models.items()}
         else:
             failures_at_load["llm"] = "OPENROUTER_API_KEY not set"
-    report = run(args, kinds=kinds, parser=parser, gliner=gliner, retrieval=retrieval, chats=chats)
+    lookup = None
+    if args.umls or args.llm_mode == "informed":
+        from umls_lookup import UmlsLookup
+
+        lookup = UmlsLookup(cache_path=Path(args.umls_cache))
+        if args.umls and not lookup.available:
+            failures_at_load["umls"] = "UMLS_API_KEY not set"
+    report = run(args, kinds=kinds, parser=parser, gliner=gliner, retrieval=retrieval, chats=chats,
+                 lookup=lookup)
+    if lookup is not None:
+        lookup.save()
+    if args.umls and lookup is not None and lookup.available:
+        Path(args.umls_candidates).write_text(
+            json.dumps(pk.compound_candidates(report["cases"]), ensure_ascii=False, indent=1), "utf-8")
     report["failures"] = {**failures_at_load, **report["failures"]}
     Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1, default=str), "utf-8")
     Path(args.markdown).write_text(markdown(report), "utf-8")

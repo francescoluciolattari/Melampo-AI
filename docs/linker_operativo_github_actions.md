@@ -54,8 +54,9 @@ Risultato: l'artifact `verify-probe-<source>-<scope>-<style>` con `verify_probe.
 | corpus | `both` (o `medmentions`, `craft`) |
 | verify | spenta: nessuna chiamata ai modelli (circa 10 minuti). Accesa: i due modelli leggono la frase per ogni link fatto dal solo nome (circa 3.200 link, chiamate a pagamento, 1–2 ore) |
 | limit | vuoto = tutto; un numero (per esempio `50`) per una prova veloce |
+| concept_level | acceso (E1): riconta i link giudicati per concetto. Con il secret `UMLS_API_KEY` aggiunge la mappatura dei CUI attraverso i codici FMA e NCIt di UMLS e stampa i nomi UMLS delle etichette degli errori; senza la chiave fa solo il conteggio per granularità |
 
-Clona CRAFT v5.1.0 e MedMentions a una versione fissata. L'artifact `external-check-<corpus>-verify-<true|false>` contiene `external_check.md`, che si legge per primo, e i file JSON. Nel riepilogo, `by_project_rule` conta gli errori secondo le nostre regole di etichettatura. `verify` dice quanti errori i modelli fermano, quanti ne lasciano passare e quanti link giusti fermano. Se `lost_model_answers` non è 0, il limite di frequenza ha fatto perdere risposte.
+Clona CRAFT v5.1.0 e MedMentions a una versione fissata. L'artifact `external-check-<corpus>-verify-<true|false>` contiene `external_check.md`, che si legge per primo, e i file JSON. Nel riepilogo, `by_project_rule` conta gli errori secondo le nostre regole di etichettatura. `verify` dice quanti errori i modelli fermano, quanti ne lasciano passare e quanti link giusti fermano. Se `lost_model_answers` non è 0, il limite di frequenza ha fatto perdere risposte. Con `concept_level` il file `external_check.md` comincia con la tabella "E1: errors by identifier and by concept" (righe spostate elencate una per una) e l'artifact contiene anche `external_check.concept.json`. Le risposte di UMLS sono tenute in cache fra un run e l'altro (`umls_cache.json`, con `actions/cache`).
 
 ## `head-probe` (esperimento F1: la testa del sintagma)
 
@@ -100,7 +101,13 @@ Parte a ogni push: un server FalkorDB come service container, test di grafo su T
 | encoder | lasciare `cambridgeltl/SapBERT-from-PubMedBERT-fulltext`; vuoto = braccio spento |
 | llm | `none` (gratis); `sample` = tutti gli errori + `llm_sample` link giusti, circa 670 chiamate a pagamento; `all` = ogni link giudicato |
 | llm_sample | `300` |
+| llm_mode | `informed` (E2): regole di annotazione, ciò che NCIt e UMLS sanno delle parole attorno alla menzione, esempi annotati di altri documenti; `plain` = la sola frase, come il run del 9 ottobre |
+| llm_models | vuoto = Nemotron 3 Super + Gemma 3 27B; altrimenti id OpenRouter separati da virgola (per esempio `org/modello-a,org/modello-b`) per provare i modelli più recenti |
+| examples | `5` |
+| umls | acceso (E4a): il braccio di memoria UMLS (nessun modello, serve il secret `UMLS_API_KEY`); produce anche `umls_compound_candidates.json`, la lista dei nomi composti da far rivedere ai radiologi (E4b) |
 | limit | vuoto = tutto; `20` per una prova veloce |
+
+Per E2 ed E4a insieme: `llm = sample`, `llm_mode = informed`, `umls` acceso, il resto come da default. Il riepilogo comincia con la tabella "Criteria fixed before the run": per `llm_other` (E2) e `umls_other` (E4a) dice errori trovati, link giusti segnalati e se il criterio è passato. Le chiamate a UMLS sono circa 7.000 la prima volta (circa 10-15 minuti), poi la cache le evita.
 
 Stima: 1–2 ore sulla CPU del runner (l'indice di SapBERT sui nomi NCIt è la parte lunga). L'artifact `phrase-probe` contiene `phrase_probe.md`, da leggere per primo. Se un braccio non si carica (versione di `gliner`, modello non trovato) la riga "Arms that failed" lo dice e gli altri bracci girano lo stesso. Non cambia il linker.
 
@@ -121,6 +128,9 @@ I modelli di OpenRouter rispondono 429 quando ricevono troppe richieste insieme.
 | `n and cap take a whole number` | valore non numerico | scrivere solo cifre |
 | il run `public-reports` per MultiCaRe dura ore | ramo senza il campionamento con arresto anticipato | usare un ramo con il bundle |
 | il run con `verify` non chiama i modelli | manca `OPENROUTER_API_KEY` | aggiungere il secret |
+| "UMLS_API_KEY secret not set: the umls arm is off" | manca il secret | Settings → Secrets and variables → Actions → `UMLS_API_KEY` (lo stesso nome usato da `symptom-coverage`) |
+| il braccio `umls` non trova quasi nessun nome (`umls_other` sempre 0, `umls_compound_candidates.json` quasi vuoto) | la ricerca `exact` di UTS non si comporta come previsto (le richieste mandano la frase in minuscolo, nell'ipotesi che UTS non distingua maiuscole e minuscole) | dirmelo con il riepilogo: si cambia il tipo di ricerca (`normalizedString`) e si rilancia |
+| `umls_lookups` con `lost` diverso da 0 | UTS non ha risposto dopo i tentativi | rilanciare: la cache tiene le risposte già avute e chiede solo le mancanti |
 | i due run `linking-bench` sono identici e la sezione con i modelli ha n=0 con "HTTP 429" | limite di frequenza, client senza attesa | usare la versione con l'attesa (questo bundle) |
 
 ## Applicare un bundle (Termux)

@@ -22,6 +22,10 @@ on:
         description: "Documents per corpus (empty = all; a number for a quick run)"
         required: false
         default: ""
+      concept_level:
+        description: "E1: also recount the judged links by concept (UMLS FMA/NCI crosswalk with the UMLS_API_KEY secret)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -57,9 +61,18 @@ jobs:
             git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
           fi
 
+      - name: Restore the UMLS lookups already made
+        uses: actions/cache@v4
+        with:
+          path: umls_cache.json
+          key: umls-cache-${{ github.run_id }}
+          restore-keys: umls-cache-
+
       - name: Run the check
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
+          CONCEPT_LEVEL: ${{ inputs.concept_level }}
           CORPUS: ${{ inputs.corpus }}
           VERIFY: ${{ inputs.verify }}
           LIMIT: ${{ inputs.limit }}
@@ -75,6 +88,7 @@ jobs:
           if [ "$CORPUS" != "medmentions" ]; then set -- "$@" --craft ext/craft; fi
           if [ "$CORPUS" != "craft" ]; then set -- "$@" --medmentions ext/mm; fi
           if [ "$VERIFY" = "true" ]; then set -- "$@" --verify; fi
+          if [ "$CONCEPT_LEVEL" = "true" ]; then set -- "$@" --concept-level --umls-cache umls_cache.json; fi
           uv run python scripts/external_check.py "$@"
 
       - name: Summarise
@@ -94,4 +108,5 @@ jobs:
           path: |
             external_check.json
             external_check.rows.json
+            external_check.concept.json
             external_check.md
