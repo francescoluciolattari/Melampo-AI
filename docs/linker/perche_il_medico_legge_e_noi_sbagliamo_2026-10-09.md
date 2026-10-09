@@ -93,6 +93,21 @@ Conclusioni:
 
 **Run #4 di `phrase-probe` (9 ottobre): interrotta a 5 ore, nessun report.** Dal solo zip dell'external-check non si vede la fase lenta (non ho il log del run). Cause plausibili, tutte nel flusso: l'indice SapBERT sui nomi NCIt su CPU (1–2 ore da solo, già nelle stime), le circa 6.700 ricerche UMLS e le chiamate LLM con modelli a ragionamento (timeout di 90 s x 4 tentativi per chiamata). Il difetto vero è un altro: il report e la cache UMLS si scrivevano solo a fine run, quindi il limite di 300 minuti ha cancellato tutto. Rimedio nel bundle: `max_minutes`, cache salvata ogni 200 richieste e anche a run fallito, log a tempi per fase in `phrase_probe.log`.
 
+**Risultato di E2 ed E4a (run `phrase-probe` del 10 ottobre, con `gliner` ed `encoder` accesi; 37 minuti in tutto, 0 ricerche UMLS perse, 7.135 richieste).** I criteri fissati prima **non passano**.
+
+| segnale | errori MedMentions segnalati | link giusti MedMentions segnalati | errori CRAFT segnalati | link giusti CRAFT segnalati | ruolo tipizzato | esito |
+|---|---|---|---|---|---|---|
+| E2 `llm_other` (2 modelli, prompt informato) | 6/22 | 16/114 (14 %) | 0/11 | 14/184 (7,6 %) | 1 su 12 | non passa |
+| E4a `umls_other` | 2/22 | 9/710 (1,3 %) | 0/11 | 49/1.315 (3,7 %) | 1 su 1 | non passa (vedi sotto) |
+
+* **Il "True" del ruolo di E4a è un artefatto.** Il braccio ha tipizzato un solo errore su 22 (1 su 1 = 100 %). Il criterio non fissava un minimo di errori tipizzati; la lettura corretta è che **non passa**. Il codice va corretto con una copertura minima (almeno metà dei 22).
+* **E2 informato legge peggio nel recupero e meglio nella precisione rispetto al run semplice** (semplice: 10/22 errori con il 29 % dei link giusti segnalati; informato: 6/22 con il 14 %). Nessuno dei due arriva al 3 %. L'AUC di `llm_other` è 0,538, vicina al caso.
+* **E4a trova un nome UMLS più lungo per 3 errori su 22.** Il motivo: il nome in UMLS è quasi sempre diverso dalla stringa annotata ("donor-specific spleen cells transfusion" ha come concetto *Transfusion - action*); la ricerca esatta per stringa non lo vede. L'ipotesi "UMLS conosce il nome composto" è **respinta per i nomi esatti**; resta possibile con una ricerca per termine normalizzato o per parti, da provare solo se serve.
+* **Falsi allarmi di E4a su CRAFT: 39 dei 49 sono "brain" in "brain weight/volume" (tipo *property*).** Gli annotatori di CRAFT segnano l'organo dentro la misura; quelli di MedMentions segnano l'intera frase ("brain white matter property" è un errore del nostro link). La convenzione cambia da un corpus all'altro, quindi **una regola lessicale universale "se il sintagma nomina una misura, il link è sbagliato" è falsa**. Va registrato il ruolo (la misura *di* quell'organo), non un astenersi.
+* **Tutti i segnali separano gli errori dai link giusti poco più che a caso** (AUC fra 0,50 e 0,60 su 2.058 link). Con E1 (13 dei 33 sono errori di lettura veri, il resto convenzione dell'etichetta) il quadro è coerente: non c'è un segnale di lettura che isoli quei 33 casi.
+* Secondo la regola decisa prima: **nessuno dei due passa, quindi servono il gold set dei radiologi (span e ruolo) e un modello addestrato**; E5 (integratore a vincoli) non è giustificato dai numeri di questi due esperimenti.
+* Tempi misurati: caricamento di `gliner` 34 s, indice `encoder` 1.543 s (26 minuti), raccolta dei casi 272 s, braccio UMLS 8 minuti (1.871 s in UTS), fase LLM 456 s per 333 casi x 2 modelli. La run #4 interrotta a 5 ore non è spiegata da questi tempi: non so dire perché lì l'indice non finisse.
+
 Che cosa decide che cosa: se E4a passa, la risposta è la memoria e si va a E4b ed E5. Se E4a non passa ma E2 sì, il guadagno viene dall'integrazione che fa il modello, e va resa deterministica (E5). Se nessuno dei due passa, servono il gold set dei radiologi e un modello addestrato.
 
 ## 7. Il modello che i testi indicano: un integratore a vincoli (E5, progetto)
