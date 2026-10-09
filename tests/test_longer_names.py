@@ -234,3 +234,26 @@ def test_the_linker_keeps_the_link_for_names_of_anatomy_and_disease(
 ):
     result = linker.link(mention, sentence)
     assert (result.status, result.cid) == (al.ACCEPTED, cid)
+
+
+def test_a_name_is_written_in_one_run_not_across_a_list():
+    names = LongerNames(
+        {"brain protein 3": "protein", "liver fatty acid binding protein": "protein"}
+    )
+    listing = "Tissues: 1, heart; 2, brain; 3, spleen; 4, lung."
+    assert names.containing("brain", listing, listing.index("brain"))[1] == ""
+    text = "Brain protein 3 was lower."
+    assert names.containing("Brain", text, 0)[1] == "protein"
+    listed = "1, brain; protein 3 was lower."
+    assert names.containing("brain", listed, 3)[1] == ""
+    sentence = "Liver fatty acid-binding protein was measured."
+    assert names.containing("Liver", sentence, 0)[1] == "protein"
+    broken = "Liver fatty acid, binding protein was measured."
+    assert names.containing("Liver", broken, 0)[1] == ""
+
+
+def test_a_name_that_is_a_structure_and_a_number_is_not_enough():
+    names = LongerNames({"rib 1": "protein", "brain gst": "protein"})
+    sentence = "Fracture of rib 1 on the right."
+    assert names.containing("rib", sentence, sentence.index("rib"))[1] == ""
+    assert names.containing("brain", "brain GST was measured", 0)[1] == "protein"
