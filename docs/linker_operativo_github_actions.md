@@ -76,7 +76,7 @@ Nessuna chiamata a pagamento: scarica spaCy (inglese e italiano) e l'encoder da 
 | Use workflow from | un ramo che contiene `longer-names.yml` |
 | pr_url | lasciare il predefinito (`https://proconsortium.org/download/current/pro_nonreasoned.obo`, indirizzo non verificato); se il download non riesce, il passo è saltato e si costruisce solo da NCIt |
 
-Scarica UBERON e l'ultima release di NCIt, prova Protein Ontology, costruisce `longer_names.json`. L'artifact `longer-names` contiene il file e il riepilogo (conteggi per tipo, hash e versioni). Si scarica, si sostituisce `data/linking/longer_names.json`, si rilancia `external-check`.
+Scarica UBERON e l'ultima release di NCIt, prova Protein Ontology, costruisce `longer_names.json`. L'artifact `longer-names` contiene il file e il riepilogo (conteggi per tipo, hash e versioni). Si scarica, si sostituisce `data/linking/longer_names.json`, si rilancia `external-check`. Esito del 9 ottobre: 6.705 nomi (NCIt 2.436 + Protein Ontology 4.269), adottati; il controllo esterno non cambia (22/732 e 11/1.326).
 
 ## Job `falkordb-service` (automatico in CI)
 

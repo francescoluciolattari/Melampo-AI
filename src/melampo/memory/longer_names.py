@@ -9,7 +9,12 @@ protein, gene, chemical, assessment_tool. Names of anatomy, diseases, organisms,
 are not in the file, so "liver cancer", "mouse brain" and "liver biopsy" keep the structure.
 
 The check is exact: the words of a listed name must stand in the sentence in the same order, with
-the mention among them. Nothing is guessed from a part of a name.
+the mention among them, and written in one run: a semicolon, a colon, a line break, or a comma or a
+full stop followed by a space between two words ends the run ("2, brain; 3, spleen" is a list of
+tissues, not the protein "brain 3"). The words of the name outside the mention must include a real
+word (three letters or more, not a number): "rib 1", "face 2" are the first rib and a face number
+as much as a protein, so they are not enough to say the mention is not a structure. Nothing is
+guessed from a part of a name.
 """
 
 from __future__ import annotations
@@ -24,6 +29,8 @@ from .word_senses import locate
 
 DEFAULT_PATH = Path(__file__).resolve().parents[3] / "data" / "linking" / "longer_names.json"
 _WORD = re.compile(r"[A-Za-z0-9]+")
+# Between two words of one name: spaces, hyphens, slashes, brackets, "%", "+", apostrophes; never these.
+_BREAK = re.compile(r"[;:\n\r]|[,.](?=\s)")
 MAX_WORDS = 9
 
 
@@ -64,10 +71,20 @@ class LongerNames:
         if not inside:
             return "", ""
         first, last = inside[0], inside[-1] + 1
+        # run[i] = True when a break stands between word i-1 and word i
+        run = [False] + [
+            bool(_BREAK.search(sentence[words[i - 1][2] : words[i][1]]))
+            for i in range(1, len(words))
+        ]
         best = ("", "")
         for a in range(max(0, last - MAX_WORDS), first + 1):
             for b in range(last, min(len(words), a + MAX_WORDS) + 1):
                 if (a, b) == (first, last):
+                    continue
+                if any(run[a + 1 : b]):
+                    continue
+                outside = [w for w, _, _ in words[a:first] + words[last:b]]
+                if not any(len(w) >= 3 and not w.isdigit() for w in outside):
                     continue
                 key = " ".join(w for w, _, _ in words[a:b])
                 kind = self.names.get(key)

@@ -62,7 +62,9 @@ Totale: circa 7 composti ancora aperti, 3 formaggio, 2 mappatura, 2+ rumore dell
 
 Misura: MedMentions 25 → 22 errori (prostate symptom score ×2, Liver Fatty Acid Binding Protein Deficiency), 0 link giusti persi; CRAFT invariato; referti reali invariati; bench identico.
 
-**Protein Ontology.** Dalla sessione non si scarica: il file va costruito dal workflow `longer-names` su GitHub (indirizzo di default non verificato). Il builder la usa già (`--pr`), ma `longer_names.json` attuale contiene solo NCIt + UBERON.
+**Protein Ontology.** Dalla sessione non si scarica; l'ha costruita il workflow `longer-names` su GitHub (release 73.1): `longer_names.json` ora ha 6.705 nomi (NCIt: 449 strumenti di valutazione, 489 sostanze, 927 proteine, 571 geni; Protein Ontology: 4.269 proteine). Effetto sul controllo esterno: **nessuno** (6.853 righe, 0 stati cambiati: MedMentions 22/732, CRAFT 11/1.326). La lista serve ai testi ricchi di proteine, che questi due corpora hanno poco; il guadagno è da misurare sui referti reali e sul gold set.
+
+Due difetti trovati misurando, entrambi corretti in modo generale: (1) la finestra dei nomi ignorava la punteggiatura, quindi "2, brain; 3, spleen" (un elenco di tessuti) leggeva la proteina "brain 3" e fermava un link giusto: ora un nome deve essere scritto in continuo (`;`, `:`, a capo, virgola o punto seguiti da spazio lo interrompono); (2) Protein Ontology ha nomi come "rib 1", "face 2", "brain 4", che in radiologia sono anatomia (la prima costa): ora le parole del nome fuori dalla menzione devono comprendere una parola vera (tre lettere o più, non un numero).
 
 ## 5. Dove il cervello umano fa la differenza (rivisto dopo le domande di Frank)
 
@@ -105,7 +107,7 @@ PubTator 3.0 ([articolo](https://arxiv.org/pdf/2401.11048)) copre gene, malattia
 
 1. Misurare MedMentions anche con la regola del ruolo (il ruolo registrato è giusto?), non solo con l'etichetta di link.
 2. Costruire e lanciare `phrase-probe` (§6): GLiNER-BioMed, recupero del sintagma, LLM segmentatore, tipo della testa.
-3. Lanciare `longer-names` su GitHub per aggiungere Protein Ontology e sostituire `data/linking/longer_names.json` con l'artefatto.
+3. ~~Lanciare `longer-names`~~ fatto il 9 ottobre (6.705 nomi, §4); da misurare sui referti reali.
 4. Aggiungere un vocabolario di dispositivi e procedure da ontologia (da NCIt, dove le classi di dispositivo e procedura esistono, oppure da una fonte con licenza che Frank indichi; non ancora verificato).
 5. Decisione dei radiologi su "developing brain" e granularità (F7).
 6. Congelare lo split di test di MedMentions.
@@ -168,3 +170,7 @@ Rapporto `phrase-probe` con GLiNER-BioMed e SapBERT su NCIt, LLM spento, braccio
 - Lessico di teste dalle ultime parole dei nomi NCIt con tratto anatomico: 2/22 errori, 48/710 link giusti segnalati: inutilizzabile senza cura.
 
 Conclusione: i lettori zero-shot non bastano; la metrica del prodotto è il ruolo corretto, e per i 13 casi a span lungo serve composizione o una memoria più grande (vedi `lettura_del_sintagma_cervello_e_modelli`, §7).
+
+### 9.7 Secondo run di `phrase-probe` (con il parser)
+
+Stessi 2.058 link, nessun braccio caduto. Il parser non separa: AUC 0,525 (soggetto di un verbo), 0,517 ("X of" sotto un processo), 0,509 (testa del gruppo nominale); tipizza 3 errori MedMentions e ne dà il ruolo giusto per 1. Tutti gli altri numeri del §9.6 sono invariati, tranne l'AUC dei voti economici (0,601; MedMentions 0,668; CRAFT 0,427). Conferma che la sintassi superficiale non basta: il sintagma va letto con la conoscenza del tipo di cosa che nomina (memoria o composizione), non con un parser.
