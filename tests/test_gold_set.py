@@ -295,6 +295,7 @@ def test_command_line_runs_the_whole_study(tmp_path, monkeypatch, lexicon):
         rows = list(csv.DictReader(path.open(encoding="utf-8-sig")))
         for row in rows:
             row["structure"], row["relation"] = answers[row["mention"]]
+            row["role"] = "structure"
             if disagree and row["mention"] == disagree:
                 row["structure"] = "spleen"
         with path.open("w", newline="", encoding="utf-8-sig") as handle:
@@ -316,6 +317,7 @@ def test_command_line_runs_the_whole_study(tmp_path, monkeypatch, lexicon):
     )
     assert [r["mention"] for r in adjudication] == ["sigma"]
     adjudication[0]["structure"], adjudication[0]["relation"] = "colon", "part_of"
+    adjudication[0]["role"] = "structure"
     with (tmp_path / "adj.csv").open("w", newline="", encoding="utf-8-sig") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(adjudication[0]))
         writer.writeheader()
@@ -428,3 +430,66 @@ def test_a_certification_sample_excludes_reports_seen_and_splits_by_report():
     by_report = {}
     for i in items:
         assert by_report.setdefault(i["report_id"], i["split"]) == i["split"]
+
+
+def _rrow(**kw):
+    base = {"item_id": "X", "mention": "heart", "structure": "liver", "relation": "equal", "role": "structure",
+            "span_text": ""}
+    return {**base, **kw}
+
+
+def test_roles_depend_on_the_structure_label():
+    ok = {"1": _rrow(), "2": _rrow(structure="NOT_ANATOMY", role="inherent_location", relation=""),
+          "3": _rrow(structure="AMBIGUOUS", role="", relation="")}
+    assert gs.validate_sheet(ok, ["liver"]) == []
+    bad = {"1": _rrow(role="inherent_location"), "2": _rrow(structure="NOT_ANATOMY", role="structure"),
+           "3": _rrow(structure="AMBIGUOUS", role="structure"), "4": _rrow(role="")}
+    problems = gs.validate_sheet(bad, ["liver"])
+    assert len(problems) == 4
+    # a sheet from before the roles has no role column and asks nothing
+    old = {"1": {"item_id": "1", "mention": "heart", "structure": "liver", "relation": "equal"}}
+    assert gs.validate_sheet(old, ["liver"]) == []
+
+
+def test_the_span_has_to_contain_the_mention():
+    assert gs.validate_sheet({"1": _rrow(span_text="Dallas Heart Study", structure="NOT_ANATOMY",
+                                        role="inside_a_name", relation="")}, ["liver"]) == []
+    wrong = gs.validate_sheet({"1": _rrow(span_text="Dallas Study")}, ["liver"])
+    assert wrong and "does not contain the mention" in wrong[0]
+
+
+def test_agreement_queue_and_merge_carry_role_and_span():
+    a = {"1": _rrow(item_id="1"), "2": _rrow(item_id="2", mention="heart", span_text="Dallas Heart Study",
+                                          structure="NOT_ANATOMY", role="inside_a_name", relation=""),
+         "3": _rrow(item_id="3")}
+    b = {"1": _rrow(item_id="1"), "2": _rrow(item_id="2", mention="heart", span_text="Heart Study",
+                                          structure="NOT_ANATOMY", role="not_a_body_site", relation=""),
+         "3": _rrow(item_id="3", role="procedure_site")}
+    for rows in (a, b):
+        for r in rows.values():
+            r.update({"report_id": "r", "sentence": "s"})
+    agree = gs.agreement(a, b)
+    assert agree["role_items"] == 3 and abs(agree["role_agreement"] - 1 / 3) < 1e-9
+    assert agree["span_agreement"] == 2 / 3
+    assert agree["role_confusions"]["inside_a_name|not_a_body_site"] == 1
+    queue = gs.adjudication_queue(a, b)
+    assert [q["item_id"] for q in queue] == ["2", "3"]
+    assert queue[0]["role_A"] == "inside_a_name" and queue[0]["span_B"] == "Heart Study"
+    decided = {"2": {"structure": "NOT_ANATOMY", "relation": "", "role": "inside_a_name",
+                     "span_text": "Dallas Heart Study"},
+               "3": {"structure": "liver", "relation": "equal", "role": "procedure_site", "span_text": ""}}
+    gold = {g["item_id"]: g for g in gs.merge_gold(a, b, decided)}
+    assert gold["1"]["agreed"] and gold["1"]["role"] == "structure"
+    assert gold["2"]["role"] == "inside_a_name" and gold["2"]["span_text"] == "Dallas Heart Study"
+    assert not gold["3"]["agreed"] and gold["3"]["role"] == "procedure_site"
+
+
+def test_alignment_items_keep_the_hard_cases_and_hide_the_frozen_ones():
+    rows = ([{"corpus": "medmentions", "doc": str(i), "mention": f"m{i}", "sentence": f"sentence {i} about m{i}",
+              "at": 3, "by_project_rule": "error"} for i in range(6)]
+            + [{"corpus": "craft", "doc": str(i), "mention": f"c{i}", "sentence": f"craft {i} sentence c{i}",
+                "at": 0, "by_project_rule": "agrees"} for i in range(30)])
+    items = gs.alignment_items(rows, n=12, seed=1)
+    assert len(items) == 12 and len({i["item_id"] for i in items}) == 12
+    assert sum(i["reference"] == "error" for i in items) == 6  # every error is in
+    assert all(i["end"] - i["start"] == len(i["mention"]) for i in items)

@@ -1026,6 +1026,8 @@ class LinkResult:
     about: str | None = None
     # How the chunk lattice read the phrase ("role:inherent_location:heart size"), when it is on.
     block: str = ""
+    # How the construction-integration reader read it ("decision:top reading:margin"), when it is on.
+    reading: str = ""
     # Structures the Greek and Latin roots of the mention point to (stage 3): a proposal for the
     # review queue on an abstention, never a link.
     proposals: tuple[str, ...] = ()
@@ -1304,6 +1306,13 @@ class AnatomyLinker:
     # until its roles have been checked on the radiologists' gold set (roles right in 60-80% of a
     # reading of real reports, docs/linker/lettura_del_sintagma_cervello_e_modelli_2026-10-09.md §8).
     chunk_lattice: ChunkLattice | None = None
+    # The construction-integration reader (ci_reader.CIReader, a Kintsch-style integrator over the
+    # readings of the mention). Off by default and, when given, trace only: its reading goes to the
+    # stream "reader" and to ``LinkResult.reading``, silent, and decides nothing. It did not meet the
+    # pre-registered criteria on the external check (docs/linker/perche_il_medico_legge_e_noi_sbagliamo_
+    # 2026-10-09.md §6.1); it is here so the radiologists' gold set can measure it on real reports.
+    ci_reader: Any = None
+    _ci_documents: dict = field(default_factory=dict, repr=False, compare=False)
     # Stage 8: what a conflict between independent readings does to an accepted link. "record"
     # keeps the link and writes the conflict in the profile; "review" sends the link to the review
     # queue when an independent stream read against it (blind reader, exam area, exam side) and no
@@ -1669,6 +1678,7 @@ class AnatomyLinker:
                 result.role = "procedure_site"
         result.trace = trace
         result.block = next((e.reason for e in trace if e.stream == "blocks"), "")
+        result.reading = next((e.reason for e in trace if e.stream == "reader"), "")
         return result
 
     def _inside_a_longer_name(
@@ -2171,6 +2181,23 @@ class AnatomyLinker:
                     SILENT,
                     None,
                     f"{reading.outcome}:{reading.role or '-'}:{reading.block or '-'}",
+                )
+            )
+        if self.ci_reader is not None:
+            vector, key = (None, "")
+            if report is not None and report.text:
+                if report.text not in self._ci_documents:
+                    if len(self._ci_documents) >= 8:
+                        self._ci_documents.pop(next(iter(self._ci_documents)))
+                    self._ci_documents[report.text] = self.ci_reader.document(report.text)
+                vector, key = self._ci_documents[report.text]
+            got = self.ci_reader.read(mention, sentence, where, None, vector, key)
+            evidence.append(
+                Evidence(
+                    "reader",
+                    SILENT,
+                    None,
+                    f"{got.decision}:{got.top}:{got.margin:.2f}",
                 )
             )
         material = self.senses.material_qualifier(mention, sentence, where)

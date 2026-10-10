@@ -436,6 +436,26 @@ class TraceMemory:
                 out.append((level, weight[level], counts))
         return out
 
+    def to_json(self) -> dict:
+        """The memory without the per-document table: a deployment document is never in it, so there is
+        nothing to leave out. Gist centroids are kept as sums."""
+        return {
+            "size": self.size,
+            "prior": dict(self.prior),
+            "total": [[level, list(key), dict(roles)] for (level, key), roles in self.total.items()],
+            "gist_sum": {role: [float(x) for x in np.asarray(v)] for role, v in self.gist_sum.items()},
+        }
+
+    @classmethod
+    def from_json(cls, data: dict, space: SemanticSpace | None = None) -> TraceMemory:
+        memory = cls(space)
+        memory.size = int(data.get("size", 0))
+        memory.prior = Counter(data.get("prior", {}))
+        for level, key, roles in data.get("total", []):
+            memory.total[(level, tuple(key))] = Counter(roles)
+        memory.gist_sum = {role: np.asarray(v, dtype=np.float32) for role, v in data.get("gist_sum", {}).items()}
+        return memory
+
     def base_rate(self, doc: str | None) -> dict[str, float]:
         """How often each role is given to a structure word, outside ``doc``, whatever the cues."""
         counts = Counter(self.prior)
@@ -506,6 +526,11 @@ class CIReader:
         sims = self.space.vectors[:: max(1, len(self.space.words) // 2000)] @ matrix.T
         above = sims - sims.mean(axis=1, keepdims=True)
         return float(max(np.percentile(above[above > 0], 95), 1e-6))
+
+    def document(self, text: str) -> tuple[np.ndarray | None, str]:
+        """The document-level signals of a text: its vector in the semantic space (the gist) and its ambito."""
+        vector = self.space.vector(content_words(text)) if self.space is not None else None
+        return vector, ambito(self.lattice.memory, text)[0]
 
     # -- construction -------------------------------------------------------------------------
 
@@ -637,6 +662,32 @@ class CIReader:
         return CIReading(decision, top, margin, shares, cycles, [f"{n[0]}={n[1]:.2f}" for n in nodes])
 
 
+def save_resources(directory: Path, space: SemanticSpace, protos: dict[str, np.ndarray], traces: TraceMemory) -> None:
+    """Write what a reader needs to read without the corpora: ``space.npz``, ``protos.npz``, ``traces.json.gz``."""
+    import gzip
+    import json
+
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    space.save(directory / "space.npz")
+    np.savez_compressed(directory / "protos.npz", **protos)
+    with gzip.open(directory / "traces.json.gz", "wt", encoding="utf-8") as fh:
+        json.dump(traces.to_json(), fh)
+
+
+def load_reader(directory: Path, lattice: ChunkLattice, **kwargs) -> CIReader:
+    """A reader from a directory written by ``save_resources``."""
+    import gzip
+    import json
+
+    directory = Path(directory)
+    space = SemanticSpace.load(directory / "space.npz")
+    protos = {k: v for k, v in np.load(directory / "protos.npz", allow_pickle=False).items()}
+    with gzip.open(directory / "traces.json.gz", "rt", encoding="utf-8") as fh:
+        traces = TraceMemory.from_json(json.load(fh), space)
+    return CIReader(lattice, space, protos, traces, **kwargs)
+
+
 def role_to_reading(role: str) -> str:
     """The reading a gold role stands for ("structure" and "disease" are one: the link is kept)."""
     return STRUCTURE if role in ("structure", "disease", "", None) else role
@@ -652,7 +703,9 @@ __all__ = [
     "SemanticSpace",
     "TraceMemory",
     "content_words",
+    "load_reader",
     "prototypes",
     "reading_of_kind",
     "role_to_reading",
+    "save_resources",
 ]

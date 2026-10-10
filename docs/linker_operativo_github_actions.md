@@ -116,7 +116,7 @@ Stima con tutti i bracci: 1–2 ore sulla CPU del runner (l'indice di SapBERT su
 
 ## Il lettore a costruzione-integrazione (`ci-probe`, senza modelli e senza chiavi)
 
-Workflow manuale `CI probe (construction-integration reader)`. Un solo campo, `limit` (vuoto = tutto). Gira il controllo esterno su CRAFT e MedMentions, poi legge ogni link giudicato con `src/melampo/memory/ci_reader.py` (spazio semantico dai testi dei corpora e dalle definizioni NCIt, tracce e gist dai documenti di addestramento di MedMentions) e confronta diverse configurazioni: tutta la prova, togliendo una famiglia di evidenze alla volta, con tre forze di inibizione, senza memoria, e con le parole di contesto al posto dell'ambito. L'**ambito** (un segnale per frase e uno per documento: il tipo NCIt delle altre cose nominate) è l'unico contesto del lettore; i falsi allarmi sono riportati anche per tipo di documento (sviluppo, test, addestramento). Stima: circa 10 minuti. L'artifact `ci-probe` contiene `ci_probe.md` (da leggere per primo), `ci_probe.json`, `ci_probe.log`. Non cambia il linker.
+Workflow manuale `CI probe (construction-integration reader)`. Un solo campo, `limit` (vuoto = tutto). Gira il controllo esterno su CRAFT e MedMentions, poi legge ogni link giudicato con `src/melampo/memory/ci_reader.py` (spazio semantico dai testi dei corpora e dalle definizioni NCIt, tracce e gist dai documenti di addestramento di MedMentions) e confronta diverse configurazioni: tutta la prova, togliendo una famiglia di evidenze alla volta, con tre forze di inibizione, senza memoria, e con le parole di contesto al posto dell'ambito. L'**ambito** (un segnale per frase e uno per documento: il tipo NCIt delle altre cose nominate) è l'unico contesto del lettore; i falsi allarmi sono riportati anche per tipo di documento (sviluppo, test, addestramento). Due interruttori nuovi: `umls` (tipizza da UMLS le teste che la memoria NCIt non conosce; serve il segreto `UMLS_API_KEY`, qualche minuto la prima volta, poi in cache; confronta reticolo da solo e lettore con memoria sola, con filtro grammaticale, con filtro e testa UMLS) e `final` (**lasciarlo spento**: tiene i documenti congelati del test; è l'unica esecuzione che scrive il certificato). Senza `final` le righe dei documenti congelati restano fuori e il rapporto lo scrive. Stima: circa 10 minuti. L'artifact `ci-probe` contiene `ci_probe.md` (da leggere per primo), `ci_probe.json`, `ci_probe.log`. Non cambia il linker.
 
 ## Il lettore cieco (passo 7, senza modelli)
 
@@ -154,3 +154,12 @@ git log --oneline -3 <ramo>
 ```
 
 Ogni bundle dice il proprio ramo e il commit di base che richiede. `feat/linker-streams` richiedeva `c9cf2be`; `feat/linker-t3` richiede `1394a67`, l'ultimo commit di `feat/linker-streams`, già nel repository dopo il merge. Il merge in `main` si fa poi dalla pagina del ramo su GitHub (Compare & pull request → Merge).
+
+
+## Split di test congelato (10 ottobre 2026)
+
+`data/linking/frozen_test_split.json` registra i 879 documenti del test ufficiale di MedMentions con la loro impronta SHA-256. `ci-probe` e `phrase-probe` ne tengono fuori le righe a meno di `--final`; lo spazio semantico e le tracce non li contengono; `python scripts/freeze_split.py verify` controlla l'impronta. Non si riscrive mai (`create` rifiuta di sovrascrivere). Era già stato visto in parte (347 link giudicati): lo dice il manifesto.
+
+## Pacchetto dei radiologi
+
+`python scripts/gold_set.py alignment external_check.rows.json --out alignment_session --n 40` scrive le schede in cieco della sessione di allineamento; `gold_set_guida_radiologi.md` è la guida. Le schede del gold set vero hanno anche `role` e `span_text`.

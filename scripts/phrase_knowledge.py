@@ -41,20 +41,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from ncit_kinds import WORD, read_obo  # noqa: E402
 
+from melampo.memory.head_typing import (  # noqa: E402,F401
+    ANATOMY, CHEMICAL, DEVICE, DISEASE, FOOD, ORGANISM, PROCEDURE, PROCESS, PROPERTY, PROTEIN,
+)
 from melampo.memory.word_senses import _fold, locate  # noqa: E402
 
 # -- UMLS semantic types -> the reader's types (the LLM_TYPES of phrase_probe) -------------------
 
-ANATOMY = frozenset("T017 T018 T021 T022 T023 T024 T029 T030 T031 T025 T026".split())
-DISEASE = frozenset("T047 T191 T046 T048 T019 T020 T033 T184 T037 T049 T190 T050".split())
-PROCEDURE = frozenset("T058 T059 T060 T061 T063 T062".split())
-DEVICE = frozenset("T073 T074 T075 T203".split())
-PROCESS = frozenset("T038 T039 T040 T041 T042 T043 T044 T045 T067 T068 T069 T070 T169 T032".split())
-PROPERTY = frozenset("T201 T081 T080 T034".split())
-PROTEIN = frozenset("T116 T126 T028 T087 T114 T192 T129 T085 T086".split())
-CHEMICAL = frozenset("T109 T121 T197 T196 T131 T125 T127 T195 T200 T104 T120 T130 T122 T123".split())
-ORGANISM = frozenset("T001 T002 T004 T005 T007 T008 T010 T011 T012 T013 T014 T015 T016 T194 T204".split())
-FOOD = frozenset({"T168"})
 _ORDER = (
     ("anatomical structure", ANATOMY),
     ("disease or finding", DISEASE),
@@ -142,7 +135,8 @@ def medmentions_splits(root: Path) -> dict[str, str]:
 class Examples:
     """Annotated MedMentions training sentences whose annotation covers the same word."""
 
-    def __init__(self, texts: dict, labels: dict, splits: dict, k: int = 5, cap: int = 3000, lookup=None):
+    def __init__(self, texts: dict, labels: dict, splits: dict, k: int = 5, cap: int = 3000, lookup=None,
+                 frozen=None):
         from external_check import sentence_and_offset
 
         self.k, self.cap, self.lookup = k, cap, lookup
@@ -152,6 +146,8 @@ class Examples:
         for doc, labs in labels.items():
             if splits.get(doc) != "trng":
                 continue
+            if frozen is not None:
+                frozen.refuse([doc], "worked examples", "medmentions")
             text = texts.get(("medmentions", doc), "")
             for start, end, (cui, types) in labs:
                 for w in {_fold(w) for w in WORD.findall(text[start:end]) if len(w) >= 3}:

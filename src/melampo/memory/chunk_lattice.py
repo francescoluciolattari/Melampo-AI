@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .grammar import Grammar
 from .word_senses import _PHRASE_STOP, _fold, locate
 
 DEFAULT_PATH = (
@@ -172,7 +173,7 @@ UNREAD = Reading("unread")
 
 
 def _words(
-    sentence: str, found: re.Match[str]
+    sentence: str, found: re.Match[str], ends=None
 ) -> tuple[list[tuple[str, int, int]], int, int]:
     """The window of words around the mention (folded, with offsets) and the mention's word range."""
     toks = [(m.group(0), m.start(), m.end()) for m in _TOKEN.finditer(sentence)]
@@ -185,8 +186,10 @@ def _words(
     lo = mi
     while lo > 0 and mi - lo < LEFT:
         prev = toks[lo - 1]
-        if _fold(prev[0]) in _PHRASE_STOP or _BREAK.search(
-            sentence[prev[2] : toks[lo][1]]
+        if (
+            _fold(prev[0]) in _PHRASE_STOP
+            or (ends is not None and ends(_fold(prev[0])))
+            or _BREAK.search(sentence[prev[2] : toks[lo][1]])
         ):
             break
         lo -= 1
@@ -198,6 +201,7 @@ def _words(
             word in _PHRASE_STOP
             or word in _REPORT_VERBS
             or word.isdigit()
+            or (ends is not None and ends(word))
             or _BREAK.search(sentence[toks[hi - 1][2] : nxt[1]])
         ):
             break
@@ -207,8 +211,42 @@ def _words(
 
 
 class ChunkLattice:
-    def __init__(self, memory: BlockMemory):
+    """The phrase around a mention read as blocks.
+
+    ``grammar`` (optional) says where the head of a phrase is (right for English, left for Italian) and
+    which words cannot be inside a noun phrase (verb forms, adverbs) *when the memory does not know them
+    as a word of some kind*; without it the lattice reads English as before. ``typer`` (optional) is asked
+    for the kind of a head word the memory does not know: ``typer(word) -> (kind, share) | None``
+    (``head_typing.UmlsHeadTyper``). Both are off by default."""
+
+    def __init__(self, memory: BlockMemory, grammar: Grammar | None = None, typer=None):
         self.memory = memory
+        self.grammar = grammar
+        self.typer = typer
+        self._left = grammar is not None and grammar.head_side == "left"
+
+    def _head(self, word: str) -> tuple[str, float] | None:
+        """The kind of a head word and how sure: the block memory first, then UMLS for the unknown."""
+        got = self.memory.head(word)
+        if got or self.typer is None:
+            return got
+        if self.grammar is not None and not self.grammar.could_head(word):
+            return None
+        typed = self.typer(word)
+        # the same bar the memory keeps: a head of uncertain kind is not acted on
+        return typed if typed and typed[0] != "conceptual" and typed[1] >= MIN_SHARE else None
+
+    def _ends(self, word: str) -> bool:
+        """A word that closes the noun phrase: closed class or verb form, unless the memory knows it."""
+        return self.grammar is not None and self.grammar.ends_phrase(word) and not self.memory.head(word)
+
+    def _of_after(self, sentence_after_block: str):
+        rx = self.grammar.of_after if self.grammar else _OF
+        return rx.match(sentence_after_block)
+
+    def _of_before(self, sentence_before_block: str):
+        rx = self.grammar.of_before if self.grammar else _OF_BEFORE
+        return rx.search(sentence_before_block)
 
     # -- nodes ---------------------------------------------------------------------------------
 
@@ -224,7 +262,7 @@ class ChunkLattice:
                 if length == 1:
                     if mi <= i < mj:
                         continue
-                    head = memory.head(words[i])
+                    head = self._head(words[i])
                     blocks.append(
                         Block(
                             i,
@@ -243,15 +281,26 @@ class ChunkLattice:
                     blocks.append(Block(i, j, known, "memory", C_MEMORY))
                 # Composed: the kind of the last word, or a structure when the block ends with the mention.
                 bonus = C_COMPOSED + C_PER_WORD * (length - 1)
-                if j == mj and i <= mi:
+                if j == mj and i <= mi and not (self._left and i < mi):
                     blocks.append(Block(i, j, "anatomy", "composed", bonus))
-                elif j > mj or j <= mi:
-                    head = memory.head(words[j - 1])
+                elif self._left and (i < mi or i >= mj):
+                    # left-headed (Italian): the first word types the block, the mention modifies it
+                    head = self._head(words[i])
+                    if head:
+                        inner = sum(
+                            1
+                            for w in words[i + 1 : mi if i < mi else j]
+                            if (h := self._head(w)) and h[0] != "anatomy"
+                        )
+                        cost = bonus + C_SHARE * (1.0 - head[1]) + C_OPEN * inner
+                        blocks.append(Block(i, j, head[0], "composed", cost, head[1]))
+                elif not self._left and (j > mj or j <= mi):
+                    head = self._head(words[j - 1])
                     if head:
                         inner = sum(
                             1
                             for w in words[max(mj, i) : j - 1]
-                            if (h := memory.head(w)) and h[0] != "anatomy"
+                            if (h := self._head(w)) and h[0] != "anatomy"
                         )
                         cost = bonus + C_SHARE * (1.0 - head[1]) + C_OPEN * inner
                         blocks.append(Block(i, j, head[0], "composed", cost, head[1]))
@@ -267,7 +316,7 @@ class ChunkLattice:
         found = locate(mention, sentence, start)
         if not found:
             return None
-        window, mi, mj = _words(sentence, found)
+        window, mi, mj = _words(sentence, found, self._ends if self.grammar else None)
         if not window:
             return None
         words = [w for w, _, _ in window]
@@ -395,8 +444,10 @@ class ChunkLattice:
         words: list[str] = []
         prev_end = end
         for m in _TOKEN.finditer(sentence, end):
-            if _fold(m.group(0)) in _PHRASE_STOP or _BREAK.search(
-                sentence[prev_end : m.start()]
+            if (
+                _fold(m.group(0)) in _PHRASE_STOP
+                or self._ends(_fold(m.group(0)))
+                or _BREAK.search(sentence[prev_end : m.start()])
             ):
                 break
             words.append(_fold(m.group(0)))
@@ -409,8 +460,9 @@ class ChunkLattice:
         known = self.memory.names.get(phrase)
         if known:
             return phrase, known, 1.0
-        head = self.memory.head(words[-1])
-        return (words[-1], head[0], head[1]) if head else (words[-1], "", 0.0)
+        word = words[0] if self._left else words[-1]
+        head = self._head(word)
+        return (word, head[0], head[1]) if head else (word, "", 0.0)
 
     def _with_of(
         self, best, text, margin, alternative, sentence, window, found
@@ -425,7 +477,7 @@ class ChunkLattice:
         )
         # the mention's block ends at the end of the window; "of <phrase>" may follow it
         block_end = window[best.end - 1][2]
-        after = _OF.match(sentence[block_end:])
+        after = self._of_after(sentence[block_end:])
         if after:
             head, kind, share = self._phrase_head(sentence, block_end + after.end())
             if kind in OBJECT_KINDS and share >= MIN_SHARE:
@@ -440,7 +492,7 @@ class ChunkLattice:
                     alternative,
                 )
         block_start = window[best.start][1]
-        before = _OF_BEFORE.search(sentence[:block_start])
+        before = self._of_before(sentence[:block_start])
         if before:
             head, kind, share = self._phrase_head_before(sentence, before.start())
             if kind in OF_ROLE_KINDS and share >= MIN_SHARE:
@@ -484,5 +536,7 @@ class ChunkLattice:
             known = self.memory.names.get(" ".join(words[i:]))
             if known:
                 return " ".join(words[i:]), known, 1.0
-        head = self.memory.head(word)
+        if self._left:
+            word = words[0]
+        head = self._head(word)
         return (word, head[0], head[1]) if head else (word, "", 0.0)

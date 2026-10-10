@@ -153,3 +153,36 @@ def test_the_ambito_node_counts_only_the_excess_over_the_base_rate():
     for _, _, links in dom:
         assert links.get("structure", 0.0) == 0.0  # the usual reading adds nothing
         assert links.get("not_a_body_site", 0.0) > 0.0  # what the ambito changes does
+
+
+def test_resources_roundtrip_and_the_linker_reads_in_trace_only(space, tmp_path):
+    from melampo.memory import anatomy_linker as al
+
+    lat = lattice()
+    traces = ci.TraceMemory(space)
+    text = "the heart rate was measured"
+    i = text.index("heart")
+    for n in range(3):
+        traces.add(f"d{n}", text, i, i + 10, "inherent_location", lat)
+    protos = {"structure": space.vec("heart"), "inherent_location": space.vec("rate")}
+    ci.save_resources(tmp_path, space, protos, traces)
+    reader = ci.load_reader(tmp_path, lat)
+    assert reader.traces.size == 3 and set(reader.protos) == set(protos)
+    again = reader.read("heart", text, i, None)
+    first = ci.CIReader(lat, space, protos, traces).read("heart", text, i, None)
+    assert again.decision == first.decision
+
+    # the linker keeps its decision whatever the reader says; the reading is only written down
+    import json
+    from pathlib import Path
+
+    from melampo.memory import anatomy_parts as ap
+
+    data = Path(__file__).resolve().parents[1] / "data" / "linking"
+    lexicon = al.Lexicon.from_json(json.loads((data / "anatomy_lexicon.json").read_text("utf-8")))
+    parts = ap.PartTable.from_json(json.loads((data / "anatomy_parts.json").read_text("utf-8")), lexicon)
+    sentence = "The heart rate was normal."
+    plain = al.AnatomyLinker(lexicon, [], {}, parts=parts).link("heart", sentence)
+    with_reader = al.AnatomyLinker(lexicon, [], {}, parts=parts, ci_reader=reader).link("heart", sentence)
+    assert (plain.status, plain.cid, plain.reason) == (with_reader.status, with_reader.cid, with_reader.reason)
+    assert plain.reading == "" and with_reader.reading.count(":") == 2

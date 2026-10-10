@@ -42,8 +42,12 @@ from head_probe import auc  # noqa: E402
 from lattice_probe import gold_role  # noqa: E402
 from ncit_kinds import Kinds  # noqa: E402
 
+from melampo.evaluation.frozen_split import DEFAULT_PATH as FROZEN_PATH  # noqa: E402
+from melampo.evaluation.frozen_split import FrozenSplit, development_rows  # noqa: E402
 from melampo.memory import chunk_lattice as cl  # noqa: E402
 from melampo.memory import ci_reader as ci  # noqa: E402
+from melampo.memory.grammar import Grammar  # noqa: E402
+from melampo.memory.head_typing import UmlsHeadTyper  # noqa: E402
 from melampo.memory.longer_names import LongerNames  # noqa: E402
 
 FAMILIES = ("blocks", "head", "predication", "traces", "domain", "gist")
@@ -53,8 +57,12 @@ def say(start: float, text: str) -> None:
     print(f"[{time.monotonic() - start:7.1f}s] {text}", file=sys.stderr, flush=True)
 
 
-def build_resources(args, start: float):
-    """Texts, space, prototypes, traces."""
+def load_frozen() -> FrozenSplit | None:
+    return FrozenSplit.load(FROZEN_PATH) if FROZEN_PATH.exists() else None
+
+
+def build_resources(args, start: float, frozen: FrozenSplit | None = None):
+    """Texts, space, prototypes, traces. The frozen test documents are not in the semantic space."""
     mm_docs = list(ec.medmentions_documents(Path(args.medmentions))) if args.medmentions else []
     craft_docs = list(ec.craft_documents(Path(args.craft))) if args.craft else []
     splits = pk.medmentions_splits(Path(args.medmentions)) if args.medmentions else {}
@@ -66,7 +74,8 @@ def build_resources(args, start: float):
     if args.space and Path(args.space).exists():
         space = ci.SemanticSpace.load(Path(args.space))
     else:
-        texts = [t for _, t, _ in mm_docs] + [t for _, t, _ in craft_docs] + [d for _, d in kind_defs]
+        open_mm = [t for d, t, _ in mm_docs if not (frozen and frozen.is_frozen(d, "medmentions"))]
+        texts = open_mm + [t for _, t, _ in craft_docs] + [d for _, d in kind_defs]
         space = ci.SemanticSpace.build(texts, dim=args.dim)
         if args.space:
             space.save(Path(args.space))
@@ -81,17 +90,32 @@ def doc_keys(docs, corpus, lattice) -> dict:
     return {(corpus, d): ci.ambito(lattice.memory, t)[0] for d, t, _ in docs}
 
 
-def write_traces(mm_docs, splits, space, lattice, keys=None) -> ci.TraceMemory:
+def write_traces(mm_docs, splits, space, lattice, keys=None, frozen: FrozenSplit | None = None) -> ci.TraceMemory:
     memory = ci.TraceMemory(space)
     for doc, text, labels in mm_docs:
         if splits.get(doc) != "trng":
             continue
+        if frozen is not None:
+            frozen.refuse([doc], "the trace memory", "medmentions")
         vector = space.vector(ci.content_words(text))
         key = (keys or {}).get(("medmentions", doc), "")
         for s, e, (cui, types) in labels:
             role = ci.role_to_reading(gold_role({"labels": [f"{cui}|{','.join(sorted(types))}"]}))
             memory.add(doc, text, s, e, role, lattice, vector, key)
     return memory
+
+
+def lattice_variant(rows, outcomes) -> dict:
+    """Per corpus: errors the lattice acts on, right links it acts on (role, not a site, underspecified)."""
+    out = {}
+    for corpus in ("craft", "medmentions"):
+        idx = [i for i, r in enumerate(rows) if r["corpus"] == corpus]
+        acts = [outcomes[i] not in ("link", "unread") for i in idx]
+        err = [rows[i]["by_project_rule"] == "error" for i in idx]
+        out[corpus] = {"errors": sum(err), "errors_acted_on": sum(a and e for a, e in zip(acts, err, strict=True)),
+                       "right": len(idx) - sum(err),
+                       "right_acted_on": sum(a and not e for a, e in zip(acts, err, strict=True))}
+    return out
 
 
 def predicted(reading: ci.CIReading) -> str:
@@ -157,7 +181,9 @@ def run_all(reader, rows, texts_vector, keys) -> list[ci.CIReading]:
 def markdown(report: dict) -> str:
     lines = ["# E5: the construction-integration reader on the external check", "",
              f"{report['n']} judged links ({report['errors']} errors). Space: {report['space']}. "
-             f"Traces: {report['traces']} annotations of MedMentions training documents.", ""]
+             f"Traces: {report['traces']} annotations of MedMentions training documents. "
+             + ("FINAL run: frozen test documents included." if report.get("final") else
+                f"{report.get('held_back_frozen', 0)} judged links of frozen test documents held back."), ""]
     for name, block in report["configurations"].items():
         lines += [f"## {name}", "", "| corpus | errors | not structure (errors) | not structure (right) | role or non-site (errors) | role or non-site (right) | lattice (errors / right) | AUC |",
                   "|---|---|---|---|---|---|---|---|"]
@@ -174,7 +200,15 @@ def markdown(report: dict) -> str:
                 lines.append(f"- {g}: {v['same']} / {v['n']}  (readings: {mm['by_gold'][g]})")
             lines.append(f"- errors whose reading is the gold role: {mm['errors_role_same']} of {mm['errors']}")
         lines.append("")
-    lines += ["## Errors as the reader reads them (all evidence)", ""]
+    lines += ["## The chunk lattice alone, by variant (acted on = role, not a site, or underspecified)", ""]
+    for name, v in report.get("lattice_variants", {}).items():
+        if name == "umls_lookups":
+            lines.append(f"- UMLS lookups for heads: {v}")
+            continue
+        for corpus, c in v.items():
+            lines.append(f"- {name} / {corpus}: errors acted on {c['errors_acted_on']} of {c['errors']}; "
+                         f"right links acted on {c['right_acted_on']} of {c['right']}")
+    lines += ["", "## Errors as the reader reads them (all evidence)", ""]
     for e in report["error_readings"]:
         lines.append(f"- {e['corpus']} `{e['mention']}` gold {e['gold']}; reader {e['decision']} "
                      f"(structure {e['structure']:.2f}, margin {e['margin']:.2f}); {e['sentence'][:110]}")
@@ -192,22 +226,55 @@ def main(argv=None) -> int:
     ap.add_argument("--memory", type=Path, default=cl.DEFAULT_PATH)
     ap.add_argument("--out", default="ci_probe.json")
     ap.add_argument("--markdown", default="ci_probe.md")
+    ap.add_argument("--umls", action="store_true", help="type the head words the memory does not know from UMLS (UMLS_API_KEY)")
+    ap.add_argument("--umls-cache", default="umls_cache.json")
+    ap.add_argument("--final", action="store_true",
+                    help="the one run that writes the certificate: keeps the frozen test documents")
     args = ap.parse_args(argv)
     start = time.monotonic()
+    frozen = load_frozen()
     rows = [r for r in json.loads(Path(args.rows).read_text("utf-8"))
             if r.get("status") == "accepted" and r.get("by_project_rule") in ("agrees", "error")]
-    mm_docs, craft_docs, splits, space, protos = build_resources(args, start)
+    rows, held = development_rows(rows, frozen, args.final)
+    say(start, f"{held} judged links of frozen test documents held back" if held else "no frozen test links held back")
+    mm_docs, craft_docs, splits, space, protos = build_resources(args, start, frozen)
     lattice = cl.ChunkLattice(cl.BlockMemory.load(args.memory, LongerNames.load().names))
     keys = {**doc_keys(mm_docs, "medmentions", lattice), **doc_keys(craft_docs, "craft", lattice)}
-    traces = write_traces(mm_docs, splits, space, lattice, keys)
+    traces = write_traces(mm_docs, splits, space, lattice, keys, frozen)
     say(start, f"traces: {traces.size}")
     vectors = {("medmentions", d): space.vector(ci.content_words(t)) for d, t, _ in mm_docs}
     vectors.update({("craft", d): space.vector(ci.content_words(t)) for d, t, _ in craft_docs})
     outcomes = [lattice.read(r["mention"], r["sentence"], r.get("at")).outcome for r in rows]
     say(start, "lattice read")
+    # the lattice with the grammatical filter, and with the heads the memory does not know typed from UMLS
+    memory = lattice.memory
+    lattices = {"memory only": lattice,
+                "grammar filter": cl.ChunkLattice(memory, grammar=Grammar.for_language("en"))}
+    typer = None
+    if args.umls:
+        from umls_lookup import UmlsLookup  # noqa: E402
+
+        lookup = UmlsLookup(cache_path=Path(args.umls_cache))
+        if lookup.available:
+            typer = UmlsHeadTyper(lookup.exact)
+            lattices["grammar filter + UMLS-typed head"] = cl.ChunkLattice(
+                memory, grammar=Grammar.for_language("en"), typer=typer)
+        else:
+            say(start, "UMLS_API_KEY not set: the UMLS-typed head arm is off")
+    variants = {}
+    for name, lat in lattices.items():
+        outs = outcomes if lat is lattice else [lat.read(r["mention"], r["sentence"], r.get("at")).outcome for r in rows]
+        variants[name] = lattice_variant(rows, outs)
+        say(start, f"lattice variant {name}: {variants[name]}")
+    if typer is not None:
+        variants["umls_lookups"] = {"asked": typer.asked, "lost": typer.lost}
+        lookup.save()
     configs: dict[str, ci.CIReader] = {
         "all evidence": ci.CIReader(lattice, space, protos, traces),
     }
+    for name, lat in lattices.items():
+        if lat is not lattice:
+            configs[f"all evidence, lattice: {name}"] = ci.CIReader(lat, space, protos, traces)
     for family in FAMILIES:
         configs[f"without {family}"] = ci.CIReader(
             lattice, space, protos, traces, use=frozenset(FAMILIES) - {family})
@@ -217,7 +284,7 @@ def main(argv=None) -> int:
         lattice, space, protos, None, use=frozenset(FAMILIES) - {"traces", "domain", "gist"})
     configs["with the bag of context words (v3 context)"] = ci.CIReader(
         lattice, space, protos, traces, use=frozenset(FAMILIES) | {"context"})
-    report = {"n": len(rows), "errors": sum(r["by_project_rule"] == "error" for r in rows),
+    report = {"lattice_variants": variants, "held_back_frozen": held, "final": args.final, "n": len(rows), "errors": sum(r["by_project_rule"] == "error" for r in rows),
               "space": f"{len(space.words)} words x {space.vectors.shape[1]}", "traces": traces.size,
               "configurations": {}, "error_readings": []}
     first = None
