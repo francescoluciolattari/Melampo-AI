@@ -32,7 +32,14 @@ the semantic space) and what this module does with it, one to one:
    recalled like any trace. This replaces the bag of context words (one vote per word in the semantic
    space), which measured as noise at this size of space (E5, v3): a scope is a coarse, stable
    signal; a word association is a fine one that needs a much larger space.
-6. **A semantic space.** Latent semantic analysis (log-entropy weighting, truncated SVD) over text of
+6. **Rules are nodes; the sense is kept through the discourse** (10 October, evening). The lattice's rule
+   that changes the sense of a word ("heart of Maroilles cheese": a part of an object) enters the network
+   as a node that inhibits the default reading (Kintsch 1998, the problem of Linda: formal knowledge is not a
+   filter after the fact). A sense so settled holds for the other occurrences of the word in the same text
+   (``Discourse``; Gale, Church & Yarowsky 1992: 98%), only for food owners (the device heads of the lexicon
+   are too noisy). A bracketed abbreviation does not break the name ("inferior vena cava (IVC) filter
+   placement").
+7. **A semantic space.** Latent semantic analysis (log-entropy weighting, truncated SVD) over text of
    the domain and over the definitions of the vocabulary (NCIt). Prototypes of a reading are the
    centroids of the definitions of the classes of its kind.
 
@@ -42,11 +49,11 @@ of the retrieval levels (the more specific the cue, the more weight), the equal 
 predication and of the bag of context words, and the stopping rule. A run over a grid of them is part
 of the probe, so that a result that depends on one setting says so.
 
-Limits: English only (the heads and the definitions are English). The space is only as good as the
+Limits: English only (the heads and the definitions are English); one sense per discourse is one document in the development data. The space is only as good as the
 text it is built from; with a few thousand abstracts it is small (Landauer used 4.6 million words).
 The traces carry the convention of the annotators they come from (MedMentions marks the whole
 phrase, CRAFT the organ inside it): a reader trained on one corpus applies that corpus's convention
-to the other; that is measured, not hidden. This module decides nothing in the linker.
+to the other; that is measured, not hidden. In the linker it speaks only where no other method decides and never changes a link (``AnatomyLinker.ci_reader_mode``).
 """
 
 from __future__ import annotations
@@ -64,6 +71,7 @@ from .chunk_lattice import (
     ROLE_OF_KIND,
     BlockMemory,
     ChunkLattice,
+    see_through_abbreviations,
 )
 from .word_senses import _PHRASE_STOP, _fold
 
@@ -108,6 +116,13 @@ DOMAIN_SHARE = 0.25  # a kind is part of the ambito when it makes this share of 
 MIN_KIND_SHARE = 0.6  # a neighbour has a kind when the names ending with it agree this much
 TRACE_SUPPORT = 2.0  # a cue seen n times counts n / (n + TRACE_SUPPORT)
 NAME_WEIGHT = 0.5  # the string is a known name of a structure
+# One sense per discourse (Gale, Church & Yarowsky 1992): a word keeps its sense through a text 98% of the time.
+ONE_SENSE_PER_DISCOURSE = 0.98
+# Owners whose parts a text may settle for all its occurrences of a word. Only food: the parts of a food
+# are named like the organs ("heart", "rind", "neck", "breast"). The device heads of the lexicon are too
+# noisy to settle a sense for a whole text ("development", "bulb" and "form" are device heads in it: five of
+# the six senses settled over 373 development documents came from them, and were wrong).
+DISCOURSE_OWNER_KINDS = frozenset({"food"})
 
 _WORD = re.compile(r"[A-Za-z][A-Za-z\-]+")
 _FUNCTION = frozenset(
@@ -332,22 +347,28 @@ def sentence_around(text: str, start: int, end: int) -> str:
     return text[left : m.start() if m else len(text)]
 
 
-def ambito(memory: BlockMemory, text: str) -> tuple[str, str]:
-    """The scope of use of a text: ``(key, top)``. The kinds (NCIt, from the block memory) of the words
-    that are not structure names and not of the catch-all kind (``conceptual`` says nothing about the
-    domain); ``key`` joins the kinds that make at least ``DOMAIN_SHARE`` of them (two at most; when the
-    kinds are spread so that none reaches the share, the two commonest, ties in alphabetical order),
-    ``top`` is the commonest. ``("none", "none")`` when the text names no other kind."""
+def kind_shares(memory: BlockMemory, text: str) -> dict[str, float]:
+    """The share of each kind (NCIt, from the block memory) among the words of a text that are not
+    structure names and not of the catch-all kind (``conceptual`` says nothing about the domain)."""
     counts: Counter[str] = Counter()
     for w in content_words(text, minimum=3):
         k = kind_of_word(memory, w)
         if k and k not in ("anatomy", CATCH_ALL):
             counts[k] += 1
     total = sum(counts.values())
-    if not total:
+    return {k: n / total for k, n in counts.items()} if total else {}
+
+
+def ambito(memory: BlockMemory, text: str) -> tuple[str, str]:
+    """The scope of use of a text: ``(key, top)``. The kinds of the words that are not structure names and
+    not of the catch-all kind; ``key`` joins the kinds that make at least ``DOMAIN_SHARE`` of them (two at
+    most; when the kinds are spread so that none reaches the share, the two commonest, ties in alphabetical
+    order), ``top`` is the commonest. ``("none", "none")`` when the text names no other kind."""
+    shares = kind_shares(memory, text)
+    if not shares:
         return "none", "none"
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    big = sorted(k for k, n in ranked if n / total >= DOMAIN_SHARE) or sorted(k for k, _ in ranked[:2])
+    ranked = sorted(shares.items(), key=lambda kv: (-kv[1], kv[0]))
+    big = sorted(k for k, n in ranked if n >= DOMAIN_SHARE) or sorted(k for k, _ in ranked[:2])
     return "+".join(big[:2]), ranked[0][0]
 
 
@@ -483,6 +504,38 @@ class TraceMemory:
 # -- the reading ----------------------------------------------------------------------------------
 
 
+class Discourse:
+    """What a document has already settled about its words (one sense per discourse).
+
+    Only a *cue-based change of the sense of the word itself* counts as an observation: the lattice
+    read it as a part of an object ("heart of Maroilles cheese"). A role the word takes in a compound
+    ("liver donation", "brain weight") is local to that phrase and does not carry over to the other
+    occurrences. The default reading, a structure, is not an observation: nothing in the text said
+    so, it is what the word means when nothing says otherwise. The reader's own decisions are not
+    observations either (it would read its own words back). An observation holds a position in the
+    document so that the occurrence being read does not support itself."""
+
+    def __init__(self) -> None:
+        self.seen: dict[str, list[tuple[int, str]]] = defaultdict(list)
+
+    def observe(self, word: str, position: int, reading: str) -> None:
+        self.seen[word].append((position, reading))
+
+    def node(self, word: str, position: int | None = None) -> dict[str, float] | None:
+        """``{reading: weight}`` of the other occurrences of the word, or ``None``."""
+        others = [r for p, r in self.seen.get(word, ()) if position is None or p != position]
+        if not others:
+            return None
+        counts = Counter(others)
+        links = {r: ONE_SENSE_PER_DISCOURSE * n / len(others) for r, n in counts.items() if r in READINGS}
+        # a sense fixed in the discourse excludes the sense it replaces (the default one, a structure)
+        links[STRUCTURE] = links.get(STRUCTURE, 0.0) - sum(v for r, v in links.items() if r != STRUCTURE)
+        return links
+
+    def __len__(self) -> int:
+        return sum(len(v) for v in self.seen.values())
+
+
 @dataclass
 class CIReading:
     decision: str  # a reading id, or "underspecified"
@@ -513,7 +566,7 @@ class CIReader:
         self.traces = traces
         self.inhibition = inhibition
         # which families of evidence are in the network (for the ablations of the probe)
-        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist"})
+        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse"})
         self.scale = self._calibrate()
 
     def _calibrate(self) -> float:
@@ -532,14 +585,58 @@ class CIReader:
         vector = self.space.vector(content_words(text)) if self.space is not None else None
         return vector, ambito(self.lattice.memory, text)[0]
 
+    def discourse(self, text: str) -> Discourse:
+        """What the rules settle in a text about its words: every single-word structure name that the
+        lattice reads, by the "of" rule, as a part of an object ("heart of Maroilles cheese"). The default
+        reading, a structure, settles nothing; a role in a compound is local and settles nothing."""
+        found = Discourse()
+        memory = self.lattice.memory
+        for m in _WORD.finditer(text):
+            word = _singular(_fold(m.group(0)))
+            if kind_of_word(memory, word) != "anatomy":
+                continue
+            sentence_start = 0
+            for s in _SENTENCE_END.finditer(text, 0, m.start()):
+                sentence_start = s.end()
+            end = _SENTENCE_END.search(text, m.end())
+            sentence = text[sentence_start : end.start() if end else len(text)]
+            seen = self.lattice.read(m.group(0), sentence, m.start() - sentence_start)
+            if (
+                seen.outcome == "not_a_site"
+                and seen.source == "of"
+                and seen.role in READINGS
+                and seen.kind in DISCOURSE_OWNER_KINDS
+            ):
+                found.observe(word, m.start(), seen.role)
+        return found
+
     # -- construction -------------------------------------------------------------------------
 
     def construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None,
-                  doc_key: str = ""):
-        """The evidence nodes: ``(label, activation, {reading: link weight})``."""
+                  doc_key: str = "", discourse: Discourse | None = None, doc_at: int | None = None):
+        """The evidence nodes: ``(label, activation, {reading: link weight})``. ``discourse`` is what the
+        document has settled about its words and ``doc_at`` the offset of the mention in the document
+        (so that it does not support itself)."""
         nodes: list[tuple[str, float, dict[str, float]]] = []
         if "name" in self.use:
             nodes.append(("name", 1.0, {STRUCTURE: NAME_WEIGHT}))
+        sentence, start = see_through_abbreviations(sentence, start, mention)
+        if "rules" in self.use:
+            # Formal knowledge enters the network as a node, not as a filter afterwards (Kintsch 1998, the
+            # problem of Linda). Only the rule that changes the *sense* of the word and that no block stands
+            # for: "heart of Maroilles cheese", a part of an object. A role the structure takes ("appearance
+            # of the small intestine") leaves the word a structure and is not a reading of the word.
+            seen = self.lattice.read(mention, sentence, start)
+            if seen.outcome == "not_a_site" and seen.source == "of" and seen.role in READINGS:
+                # a rule that changes the sense overrules the sense it replaces: it also inhibits the structure
+                nodes.append((f"rule:{seen.why}", 1.0, {seen.role: 1.0, STRUCTURE: -1.0}))
+        words = list(_WORD.finditer(mention))
+        if "discourse" in self.use and discourse is not None and words:
+            key = _singular(_fold(words[-1].group(0)))
+            where = None if doc_at is None else doc_at + words[-1].start()
+            links = discourse.node(key, where)
+            if links:
+                nodes.append((f"discourse:{key}", 1.0, links))
         got = self.lattice.candidates(mention, sentence, start)
         cues = Cues(_singular(_fold(mention.split()[-1])) if mention.split() else "")
         if got is not None:
@@ -632,7 +729,7 @@ class CIReader:
             row = n_read + k
             a[row] = act
             for reading, weight in links.items():
-                if reading in READINGS and weight > 0:
+                if reading in READINGS and weight != 0:
                     i = READINGS.index(reading)
                     w[i, row] = w[row, i] = weight
         cycles = 0
@@ -650,8 +747,9 @@ class CIReader:
         return reading_act, cycles
 
     def read(self, mention: str, sentence: str, start: int | None = None, doc: str | None = None,
-             doc_vector=None, doc_key: str = "") -> CIReading:
-        nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key)
+             doc_vector=None, doc_key: str = "", discourse: Discourse | None = None,
+             doc_at: int | None = None) -> CIReading:
+        nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at)
         act, cycles = self.integrate(nodes)
         total = sum(act.values())
         shares = {r: (v / total if total > 0 else 0.0) for r, v in act.items()}
@@ -700,6 +798,7 @@ __all__ = [
     "CIReader",
     "CIReading",
     "Cues",
+    "Discourse",
     "SemanticSpace",
     "TraceMemory",
     "content_words",
