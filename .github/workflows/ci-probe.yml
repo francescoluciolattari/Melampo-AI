@@ -12,6 +12,14 @@ on:
         description: "Documents per corpus (empty = all; a number for a quick run)"
         required: false
         default: ""
+      umls:
+        description: "Type head words the NCIt memory does not know from UMLS (UMLS_API_KEY secret; a few minutes the first time, cached after)"
+        type: boolean
+        default: false
+      final:
+        description: "FINAL run: keeps the frozen MedMentions test documents. Leave off for every development run"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -60,11 +68,34 @@ jobs:
           fi
           uv run --no-sync python scripts/external_check.py "$@"
 
+      - name: Restore the UMLS lookups already made
+        uses: actions/cache/restore@v4
+        with:
+          path: umls_cache.json
+          key: umls-cache-${{ github.run_id }}
+          restore-keys: umls-cache-
+
       - name: Read the rows with the reader
+        env:
+          UMLS: ${{ inputs.umls }}
+          FINAL: ${{ inputs.final }}
+          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
         run: |
-          uv run --no-sync python -u scripts/ci_probe.py --rows external_check.rows.json \
-            --craft ext/craft --medmentions ext/mm --ncit ncit.obo --space ci_space.npz \
-            --out ci_probe.json --markdown ci_probe.md 2> >(tee ci_probe.log >&2)
+          set -- --rows external_check.rows.json --craft ext/craft --medmentions ext/mm \
+            --ncit ncit.obo --space ci_space.npz --out ci_probe.json --markdown ci_probe.md
+          if [ "$UMLS" = "true" ]; then
+            if [ -z "$UMLS_API_KEY" ]; then echo "::warning::UMLS_API_KEY secret not set: the UMLS-typed head arm is off"; fi
+            set -- "$@" --umls --umls-cache umls_cache.json
+          fi
+          if [ "$FINAL" = "true" ]; then set -- "$@" --final; fi
+          uv run --no-sync python -u scripts/ci_probe.py "$@" 2> >(tee ci_probe.log >&2)
+
+      - name: Keep the UMLS lookups (also when the run fails or is stopped)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: umls_cache.json
+          key: umls-cache-${{ github.run_id }}
 
       - name: Summarise
         if: always()

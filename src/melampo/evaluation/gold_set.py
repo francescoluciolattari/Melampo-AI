@@ -22,6 +22,7 @@ import csv
 import math
 import random
 import re
+import unicodedata
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -41,9 +42,20 @@ NOT_ANATOMY = (
 AMBIGUOUS = "AMBIGUOUS"  # the text does not say which structure
 SPECIAL = (NONE_IN_CLASSES, NOT_ANATOMY, AMBIGUOUS)
 RELATIONS = ("equal", "part_of", "contour_of", "approx")
+# The role of the mention in its phrase (10 Oct 2026), what the linker records beside the link
+# (``LinkResult.role``). Asked together with the structure, it depends on it:
+#  * a structure is named (a class, or a real structure outside the classes): the structure itself,
+#    the site of a procedure ("biopsia epatica"), of a device ("stent coronarico"), or the place a
+#    substance or cells come from ("liver extract", "brain cDNA");
+#  * NOT_ANATOMY: what the structure's word is doing instead: the thing a measure or function is about
+#    ("frequenza cardiaca"), a piece of the name of something else ("American Heart Association",
+#    "thyroid peroxidase"), or part of a thing that is not a body site ("heart of the cheese"), or other.
+ROLES_ON_STRUCTURE = ("structure", "procedure_site", "device_site", "source_of")
+ROLES_ON_NOT_ANATOMY = ("inherent_location", "inside_a_name", "not_a_body_site", "other")
+ROLES = ROLES_ON_STRUCTURE + ROLES_ON_NOT_ANATOMY
 SHEET_FIELDS = (
     "item_id", "report_id", "language", "sentence", "mention", "start", "end",
-    "structure", "relation", "side_in_text", "note",
+    "structure", "relation", "role", "span_text", "side_in_text", "note",
 )  # fmt: skip
 _TOKEN = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
 _SIDE = {
@@ -309,10 +321,17 @@ def read_sheet(path: Path) -> dict[str, dict[str, str]]:
         return {row["item_id"]: row for row in csv.DictReader(handle)}
 
 
+def _fold(text: str) -> str:
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()).strip()
+
+
 def validate_sheet(
-    rows: dict[str, dict[str, str]], class_ids: Iterable[str]
+    rows: dict[str, dict[str, str]], class_ids: Iterable[str], require_role: bool | None = None
 ) -> list[str]:
+    """Empty or invalid cells. ``require_role`` None = asked when the sheet has a ``role`` column."""
     valid = set(class_ids) | set(SPECIAL)
+    if require_role is None:
+        require_role = any("role" in row for row in rows.values())
     problems = []
     for item_id, row in rows.items():
         structure = row.get("structure", "").strip()
@@ -325,6 +344,20 @@ def validate_sheet(
             problems.append(
                 f"{item_id}: relation {relation!r} is not one of {RELATIONS}"
             )
+        if require_role and structure in valid:
+            role = row.get("role", "").strip()
+            allowed = (
+                ROLES_ON_NOT_ANATOMY if structure == NOT_ANATOMY
+                else () if structure == AMBIGUOUS
+                else ROLES_ON_STRUCTURE
+            )
+            if allowed and role not in allowed:
+                problems.append(f"{item_id}: role {role!r} is not one of {allowed} for {structure}")
+            elif not allowed and role:
+                problems.append(f"{item_id}: an AMBIGUOUS item takes no role (found {role!r})")
+        span = row.get("span_text", "").strip()
+        if span and _fold(row.get("mention", "")) not in _fold(span):
+            problems.append(f"{item_id}: span_text {span!r} does not contain the mention {row.get('mention', '')!r}")
     return problems
 
 
@@ -338,6 +371,11 @@ def cohen_kappa(a: Sequence[str], b: Sequence[str]) -> float:
     return 1.0 if expected == 1 else (observed - expected) / (1 - expected)
 
 
+def _span(row: dict[str, str]) -> str:
+    """The span an annotator gave, normalised; a blank span is the mention itself."""
+    return _fold(row.get("span_text", "") or row.get("mention", ""))
+
+
 def agreement(
     first: dict[str, dict[str, str]], second: dict[str, dict[str, str]]
 ) -> dict[str, Any]:
@@ -347,7 +385,7 @@ def agreement(
     r1 = [first[i].get("relation", "").strip() for i in ids]
     r2 = [second[i].get("relation", "").strip() for i in ids]
     both = [i for i in range(len(ids)) if s1[i] == s2[i] and s1[i] not in SPECIAL]
-    return {
+    out = {
         "items": len(ids),
         "structure_agreement": sum(x == y for x, y in zip(s1, s2, strict=True))
         / len(ids)
@@ -358,20 +396,40 @@ def agreement(
             sum(r1[i] == r2[i] for i in both) / len(both) if both else 0.0
         ),
     }
+    rolled = [i for i in ids if first[i].get("role", "").strip() or second[i].get("role", "").strip()]
+    if rolled:
+        ro1 = [first[i].get("role", "").strip() for i in rolled]
+        ro2 = [second[i].get("role", "").strip() for i in rolled]
+        out["role_items"] = len(rolled)
+        out["role_agreement"] = sum(x == y for x, y in zip(ro1, ro2, strict=True)) / len(rolled)
+        out["role_kappa"] = cohen_kappa(ro1, ro2)
+        out["role_confusions"] = dict(
+            Counter(f"{x}|{y}" for x, y in zip(ro1, ro2, strict=True) if x != y).most_common(10)
+        )
+    if ids:
+        out["span_agreement"] = sum(_span(first[i]) == _span(second[i]) for i in ids) / len(ids)
+    return out
+
+
+def _differ(a: dict[str, str], b: dict[str, str]) -> bool:
+    """The two annotators disagree on the structure, the relation, the role or the span."""
+    if a["structure"].strip() != b["structure"].strip():
+        return True
+    if a["structure"].strip() not in SPECIAL and a.get("relation", "").strip() != b.get("relation", "").strip():
+        return True
+    if a.get("role", "").strip() != b.get("role", "").strip():
+        return True
+    return _span(a) != _span(b)
 
 
 def adjudication_queue(
     first: dict[str, dict[str, str]], second: dict[str, dict[str, str]]
 ) -> list[dict[str, str]]:
-    """Items where the two annotators differ in structure or relation. A third reviewer decides."""
+    """Items where the two annotators differ in structure, relation, role or span. A third reviewer decides."""
     queue = []
     for item_id in sorted(set(first) & set(second)):
         a, b = first[item_id], second[item_id]
-        differ = a["structure"].strip() != b["structure"].strip() or (
-            a["structure"].strip() not in SPECIAL
-            and a.get("relation", "").strip() != b.get("relation", "").strip()
-        )
-        if differ:
+        if _differ(a, b):
             queue.append(
                 {
                     **{
@@ -380,10 +438,16 @@ def adjudication_queue(
                     },
                     "structure_A": a["structure"].strip(),
                     "relation_A": a.get("relation", "").strip(),
+                    "role_A": a.get("role", "").strip(),
+                    "span_A": a.get("span_text", "").strip(),
                     "structure_B": b["structure"].strip(),
                     "relation_B": b.get("relation", "").strip(),
+                    "role_B": b.get("role", "").strip(),
+                    "span_B": b.get("span_text", "").strip(),
                     "structure": "",
                     "relation": "",
+                    "role": "",
+                    "span_text": "",
                     "note": "",
                 }
             )
@@ -400,10 +464,7 @@ def merge_gold(
     gold = []
     for item_id in sorted(set(first) & set(second)):
         a, b = first[item_id], second[item_id]
-        agreed = a["structure"].strip() == b["structure"].strip() and (
-            a["structure"].strip() in SPECIAL
-            or a.get("relation", "").strip() == b.get("relation", "").strip()
-        )
+        agreed = not _differ(a, b)
         source = a if agreed else adjudicated.get(item_id)
         if not source or not source.get("structure", "").strip():
             continue
@@ -418,6 +479,8 @@ def merge_gold(
                 "end": a.get("end", ""),
                 "structure": source["structure"].strip(),
                 "relation": source.get("relation", "").strip() or "equal",
+                "role": source.get("role", "").strip(),
+                "span_text": source.get("span_text", "").strip(),
                 "agreed": agreed,
             }
         )
@@ -441,6 +504,7 @@ def evaluate(
     by_language: dict[str, Counter[str]] = defaultdict(Counter)
     errors: list[dict[str, Any]] = []
     scored: list[tuple[str, float, bool]] = []
+    role_confusion: dict[str, Counter[str]] = defaultdict(Counter)
     for row in gold:
         text = (reports or {}).get(row.get("report_id", ""))
         if text is not None and str(row.get("start", "")).strip().isdigit():
@@ -451,6 +515,10 @@ def evaluate(
         else:
             result = linker.link(row["mention"], row["sentence"])
         label = row["structure"]
+        if row.get("role"):
+            # what the linker records beside the link: its role, or "structure" when it links with none
+            said = getattr(result, "role", "") or ("structure" if result.status == al.ACCEPTED else "none")
+            role_confusion[row["role"]][said] += 1
         if result.status != al.ACCEPTED:
             outcome = "abstained"
             reasons[result.reason] += 1
@@ -500,6 +568,7 @@ def evaluate(
         "coverage": round(accepted / len(gold), 4) if gold else None,
         "abstention_reasons": dict(reasons),
         "by_language": {k: dict(v) for k, v in by_language.items()},
+        "role_confusion": {k: dict(v) for k, v in role_confusion.items()},
         "errors": errors,
         "verdict": verdict(accepted, wrong, confidence),
         # Which convergence threshold keeps the error <= 1% with probability >= 1 - (1 - confidence),
@@ -540,6 +609,62 @@ def verdict(
         f"at {confidence:.0%}; certifying <= {target:.0%} with this many errors needs {needed} accepted links."
         + conditions
     )
+
+
+def alignment_items(rows: Sequence[dict[str, Any]], n: int = 40, seed: int = 20261010) -> list[dict[str, Any]]:
+    """Items for the alignment session of the two radiologists, from the external check on the public
+    corpora (``rows`` of ``external_check.rows.json``, frozen test documents already held back).
+
+    These are not part of the study: they are the practice round before it, in which the two readers
+    label alone, then talk about every disagreement and about every place where they differ from the
+    corpus annotators, so that the rules in the protocol mean the same thing to both. Drawn so that the
+    hard cases are there: every judged error and convention case, then right links, up to ``n``."""
+    judged = [r for r in rows if r.get("by_project_rule") and r.get("mention") and r.get("sentence")]
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for r in judged:
+        if r["by_project_rule"] not in ("unlabelled", "anatomy_cui_unmapped"):
+            groups[r["by_project_rule"]].append(r)
+    rng = random.Random(seed)
+    for g in groups.values():
+        rng.shuffle(g)
+    chosen: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def take(r: dict[str, Any]) -> bool:
+        key = (r["mention"].lower(), r["sentence"][:60])
+        if key in seen:
+            return False
+        seen.add(key)
+        chosen.append(r)
+        return True
+
+    # a quarter are right links; the rest go round the kinds of difficulty, the smallest group first,
+    # so that no frequent convention fills the session and every rare one is in
+    easy = groups.pop("agrees", [])
+    quota = n - n // 4
+    hard_order = sorted(groups, key=lambda k: (len(groups[k]), k))
+    cursor = {k: 0 for k in hard_order}
+    while len(chosen) < quota and any(cursor[k] < len(groups[k]) for k in hard_order):
+        for k in hard_order:
+            while cursor[k] < len(groups[k]) and len(chosen) < quota:
+                cursor[k] += 1
+                if take(groups[k][cursor[k] - 1]):
+                    break
+    for r in easy:
+        if len(chosen) >= n:
+            break
+        take(r)
+    rng.shuffle(chosen)
+    items = []
+    for i, r in enumerate(chosen, 1):
+        at = r.get("at")
+        items.append({
+            "item_id": f"AL-{i:03d}", "report_id": f"{r['corpus']}:{r.get('doc', '')}", "language": "en",
+            "sentence": r["sentence"], "mention": r["mention"],
+            "start": at if isinstance(at, int) else "", "end": at + len(r["mention"]) if isinstance(at, int) else "",
+            "reference": r["by_project_rule"],
+        })
+    return items
 
 
 def cases_needed(target: float, confidence: float, errors: int = 0) -> int:

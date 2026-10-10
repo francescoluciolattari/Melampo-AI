@@ -153,6 +153,22 @@ Le costanti sono fissate per principio e scritte nel codice; il documento in let
 
 Che cosa decide che cosa: se E4a passa, la risposta è la memoria e si va a E4b ed E5. Se E4a non passa ma E2 sì, il guadagno viene dall'integrazione che fa il modello, e va resa deterministica (E5). Se nessuno dei due passa, servono il gold set dei radiologi e un modello addestrato.
 
+### 6.2 Dopo la v4: split congelato, testa tipizzata, filtro grammaticale, lettore nel linker (10 ottobre 2026)
+
+**Split di test congelato.** I 879 documenti del test ufficiale di MedMentions sono registrati con la loro impronta SHA-256 (`data/linking/frozen_test_split.json`). Da ora nessuna misura di sviluppo ne legge le righe (a meno di `--final`, l'unica esecuzione che scrive il certificato), lo spazio semantico non li contiene e un test fissa l'impronta. **Non era un test vergine**: di quei documenti erano stati giudicati 347 link (3 errori, 120 corretti) e letti prima. Lo dice il manifesto. Conseguenza sui numeri: le misure di sviluppo ora sono su 1.935 link (30 errori; MedMentions 19 errori e 590 link giusti), non più 2.058 (33; 22 e 710). I criteri dei 12 errori su 22 vanno riformulati prima del giro finale: il massimo che una lettura può correggere è ora 10 su 19 (le due frasi congelate di "spleen cells" e "colon microbiome" erano nomi composti). Una proposta, da decidere: *almeno l'80 % degli errori correggibili da una lettura (8 su 10) con al più il 3 % dei link giusti cambiati*. Con i numeri attuali nessuna configurazione passa né il criterio vecchio né questo.
+
+**Numeri attuali del lettore (sviluppo, MedMentions 19 errori / 590 link giusti, ambito centrato).** Tutte le prove: 2 errori trovati, 36 link giusti cambiati (6,1 %), AUC 0,60; con il filtro grammaticale nel reticolo 2 errori e 35 link giusti (5,9 %); il reticolo da solo agisce su 8 errori e 121 link giusti, con il filtro su 8 e 117. Il filtro toglie quindi 4 falsi allarmi su 590 senza perdere errori: un guadagno piccolo e reale, ma sullo stesso insieme su cui l'ho visto.
+
+**Testa tipizzata da UMLS.** `UmlsHeadTyper` (`src/melampo/memory/head_typing.py`) chiede a UMLS i concetti che si chiamano esattamente come la parola-testa, ne mappa i tipi semantici sui tipi del reticolo e dà (tipo, quota): sotto la stessa quota minima della memoria (0,75) non agisce; se UMLS non risponde non indovina (conta le perdite). Entra solo per le parole che la memoria NCIt non conosce (`ChunkLattice(memory, typer=...)`). Il confronto con e senza UMLS **non è stato misurato**: serve la chiave UMLS e non è raggiungibile da qui. Si misura con il workflow `ci-probe` (`umls = true`): scrive nel rapporto il reticolo da solo per variante (memoria sola, con filtro grammaticale, con filtro e testa UMLS) e il lettore su ciascuno. Le tracce restano scritte con i tipi NCIt; sul lato lettura UMLS riempie i tipi mancanti.
+
+**Filtro grammaticale.** `src/melampo/memory/grammar.py`: parole chiuse, avverbi, participi regolari e irregolari inglesi, con la lista dei nomi che somigliano a un participio (bed, hundred, family) e la regola che una parola nota alla memoria non viene mai filtrata. **Non è un analizzatore grammaticale**: dove serve un vero tagger ("-ing" nomi o verbi) c'è un punto solo dove collegarlo (`Grammar.verbal`).
+
+**Lettore nel linker, solo traccia.** `AnatomyLinker(ci_reader=...)` scrive la lettura in `LinkResult.reading` ("decisione:lettura:margine") e nel flusso silenzioso `reader`; non cambia nessuna decisione (un test lo verifica sullo stesso caso con e senza lettore). `scripts/build_ci_resources.py` scrive le risorse (`space.npz`, `protos.npz`, `traces.json.gz`) e `ci_reader.load_reader` le rilegge. Resta spento perché non ha passato i criteri: serve a misurarlo sui referti veri quando c'è il gold set.
+
+**Italiano.** Vedi `supporto_italiano_piano_2026-10-10.md`: il meccanismo a testa sinistra c'è e ha i test; manca tutto il dato (memoria di blocchi, nomi lunghi, tracce, gold set italiano).
+
+**Gold set.** Le schede chiedono anche ruolo e span; sessione di allineamento di 40 frasi dai corpora pubblici (`gold_set.py alignment`) e guida per i radiologi (`gold_set_guida_radiologi.md`).
+
 ## 7. Il modello che i testi indicano: un integratore a vincoli (E5, progetto)
 
 Una rete per ogni menzione, costruita in modo esaustivo e risolta per soddisfacimento di vincoli (Kintsch 1998, cap. 4):

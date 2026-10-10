@@ -80,6 +80,8 @@ from ncit_kinds import (  # noqa: E402,F401
     KIND_ROOTS, RETIRED, ROLE_OF_TYPE, WORD, Kinds, read_obo, singular,
 )
 
+from melampo.evaluation.frozen_split import DEFAULT_PATH as FROZEN_PATH  # noqa: E402
+from melampo.evaluation.frozen_split import FrozenSplit, development_rows  # noqa: E402
 from melampo.memory.word_senses import _TAIL, _fold, locate, noun_phrase_after  # noqa: E402
 import phrase_knowledge as pk  # noqa: E402
 
@@ -590,6 +592,9 @@ def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner
     if cases is None:
         rows, texts, cases, corpus = collect(args)
         say(budget, f"collect: {len(cases)} cases")
+        frozen = FrozenSplit.load(FROZEN_PATH) if FROZEN_PATH.exists() else None
+        cases, held = development_rows(cases, frozen, getattr(args, "final", False))
+        say(budget, f"{held} cases of frozen test documents held back" if held else "no frozen test case held back")
     kinds = kinds or Kinds.from_obo(Path(args.ncit))
     failures = {}
     # Words the corpus itself writes three times or more are words, not typos ("underwent").
@@ -625,7 +630,8 @@ def run(args, rows=None, texts=None, cases=None, kinds=None, parser=None, gliner
         definitions = pk.Definitions(Path(args.ncit), kinds, lookup)
         if corpus and corpus.get("labels"):
             examples = pk.Examples(texts or {}, corpus["labels"], corpus["splits"],
-                                   k=getattr(args, "examples", 5), lookup=lookup)
+                                   k=getattr(args, "examples", 5), lookup=lookup,
+                                   frozen=FrozenSplit.load(FROZEN_PATH) if FROZEN_PATH.exists() else None)
         say(budget, "knowledge ready")
     if chats:
         chosen = llm_cases(cases, args.llm, args.llm_sample)
@@ -873,6 +879,8 @@ def main(argv=None) -> int:
     ap.add_argument("--umls-cache", default="umls_cache.json")
     ap.add_argument("--umls-candidates", default="umls_compound_candidates.json",
                     help="E4: non-anatomical UMLS names found around anatomical mentions, for curation")
+    ap.add_argument("--final", action="store_true",
+                    help="the one run that writes the certificate: keeps the frozen test documents")
     ap.add_argument("--out", default="phrase_probe.json")
     ap.add_argument("--markdown", default="phrase_probe.md")
     args = ap.parse_args(argv)

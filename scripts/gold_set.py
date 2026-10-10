@@ -6,6 +6,7 @@
   merge     A.csv B.csv [adjudication.csv]       -> gold.jsonl (final labels)
   evaluate  gold.jsonl                           -> error bound on accepted links, coverage, verdict
   size                                           -> how many accepted links certify a target error
+  alignment rows.json                            -> the practice round of the two readers (public corpora)
 
 reports.jsonl: one JSON per line, {"report_id", "text", optional "language", "site"}. The text must be
 pseudonymised at the source (names, dates of birth, identifiers). No raw report leaves the hospital.
@@ -116,6 +117,11 @@ def main(argv=None) -> int:
         help="calibration: to choose weights and policy; test: frozen, once, for the certificate",
     )
     e.add_argument("--out", default="gold_report.json")
+    al_ = sub.add_parser("alignment")
+    al_.add_argument("rows", help="external_check.rows.json")
+    al_.add_argument("--out", default="alignment_session")
+    al_.add_argument("--n", type=_count, default=40)
+    al_.add_argument("--seed", type=int, default=20261010)
     z = sub.add_parser("size")
     z.add_argument("--target", type=float, default=0.01)
     z.add_argument("--confidence", type=float, default=0.95)
@@ -147,6 +153,25 @@ def main(argv=None) -> int:
         print(
             f"{len(items)} items from {len({i['report_id'] for i in items})} reports -> {out}/"
         )
+        return 0
+    if args.cmd == "alignment":
+        from melampo.evaluation.frozen_split import DEFAULT_PATH, FrozenSplit, development_rows
+
+        rows = json.loads(Path(args.rows).read_text("utf-8"))
+        frozen = FrozenSplit.load(DEFAULT_PATH) if DEFAULT_PATH.exists() else None
+        rows, held = development_rows(rows, frozen)  # frozen test documents are never shown to the readers
+        items = gs.alignment_items(rows, args.n, args.seed)
+        out = Path(args.out)
+        gs.write_sheets(items, out, class_ids=sorted(lexicon.classes))
+        (out / "items.jsonl").write_text(
+            "\n".join(json.dumps(i, ensure_ascii=False) for i in items) + "\n", encoding="utf-8")
+        import csv
+
+        with (out / "reference_for_the_discussion.csv").open("w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["item_id", "mention", "how_the_public_corpus_annotators_read_it"])
+            writer.writerows([[i["item_id"], i["mention"], i["reference"]] for i in items])
+        print(f"{len(items)} alignment items ({held} rows of frozen test documents held back) -> {out}/")
         return 0
     if args.cmd == "check":
         problems = gs.validate_sheet(gs.read_sheet(Path(args.sheet)), lexicon.classes)
