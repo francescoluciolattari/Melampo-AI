@@ -116,7 +116,7 @@ Stima con tutti i bracci: 1–2 ore sulla CPU del runner (l'indice di SapBERT su
 
 ## Il lettore a costruzione-integrazione (`ci-probe`, senza modelli e senza chiavi)
 
-Workflow manuale `CI probe (construction-integration reader)`. Un solo campo, `limit` (vuoto = tutto). Gira il controllo esterno su CRAFT e MedMentions, poi legge ogni link giudicato con `src/melampo/memory/ci_reader.py` (spazio semantico dai testi dei corpora e dalle definizioni NCIt, tracce e gist dai documenti di addestramento di MedMentions) e confronta diverse configurazioni: tutta la prova, togliendo una famiglia di evidenze alla volta, con tre forze di inibizione, senza memoria. Stima: circa 10 minuti. L'artifact `ci-probe` contiene `ci_probe.md` (da leggere per primo), `ci_probe.json`, `ci_probe.log`. Non cambia il linker.
+Workflow manuale `CI probe (construction-integration reader)`. Un solo campo, `limit` (vuoto = tutto). Gira il controllo esterno su CRAFT e MedMentions, poi legge ogni link giudicato con `src/melampo/memory/ci_reader.py` (spazio semantico dai testi dei corpora e dalle definizioni NCIt, tracce e gist dai documenti di addestramento di MedMentions) e confronta diverse configurazioni: tutta la prova, togliendo una famiglia di evidenze alla volta, con tre forze di inibizione, senza memoria, e con le parole di contesto al posto dell'ambito. L'**ambito** (un segnale per frase e uno per documento: il tipo NCIt delle altre cose nominate) è l'unico contesto del lettore; i falsi allarmi sono riportati anche per tipo di documento (sviluppo, test, addestramento). Stima: circa 10 minuti. L'artifact `ci-probe` contiene `ci_probe.md` (da leggere per primo), `ci_probe.json`, `ci_probe.log`. Non cambia il linker.
 
 ## Il lettore cieco (passo 7, senza modelli)
 

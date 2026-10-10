@@ -747,6 +747,7 @@ def summarise(cases, failures, args) -> dict:
 # the right links it read, or if the kind it reads gives the gold label's role in at least 70 % of
 # the MedMentions errors it types.
 CRITERION_ERRORS, CRITERION_RIGHT, CRITERION_ROLE = 12, 0.03, 0.70
+CRITERION_MIN_TYPED = 8  # the role criterion needs this many typed errors, or a few cases decide it
 
 
 def criteria(cases) -> dict:
@@ -774,7 +775,7 @@ def criteria(cases) -> dict:
         mm = row.get("medmentions", {})
         passes_errors = (mm.get("errors_flagged", 0) >= CRITERION_ERRORS
                          and (mm.get("right_flagged_share") or 0) <= CRITERION_RIGHT)
-        passes_role = bool(typed) and same / len(typed) >= CRITERION_ROLE
+        passes_role = len(typed) >= CRITERION_MIN_TYPED and same / len(typed) >= CRITERION_ROLE
         row["role"] = {"typed": len(typed), "same_role": same}
         row["passes"] = {"errors_at_3_percent": passes_errors, "role_70_percent": passes_role}
         out[signal] = row

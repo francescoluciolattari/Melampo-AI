@@ -106,3 +106,50 @@ def test_the_whole_reader_reads_a_measure_and_a_plain_structure(space):
     assert plain.top == ci.STRUCTURE
     assert measure.shares[ci.STRUCTURE] < plain.shares[ci.STRUCTURE]
     assert measure.nodes and sum(measure.shares.values()) == pytest.approx(1.0)
+
+
+def test_sentence_around_returns_the_sentence_of_the_mention():
+    text = "The scan was clear. The heart of the cheese was sampled. Nothing else was seen."
+    i = text.index("heart")
+    assert ci.sentence_around(text, i, i + 5) == "The heart of the cheese was sampled."
+    assert ci.sentence_around("one sentence only", 4, 12) == "one sentence only"
+
+
+def test_ambito_is_the_kind_of_the_other_things_named():
+    memory = lattice().memory
+    assert ci.ambito(memory, "the cheese and the cheese rind")[0] == "food"
+    assert ci.ambito(memory, "the heart and the liver") == ("none", "none")  # structures are not the ambito
+
+
+def test_ambito_of_a_spread_sentence_is_not_an_arbitrary_kind():
+    memory = cl.BlockMemory.from_json({
+        "heads": {"rate": ["property", 0.9], "cheese": ["food", 0.9], "donation": ["procedure", 0.9],
+                  "sample": ["conceptual", 0.9], "agar": ["chemical", 0.9]},
+        "names": {},
+    })
+    # five kinds, one each: none reaches the share, the answer is the two first in alphabetical order,
+    # and the catch-all kind is never part of it
+    key, top = ci.ambito(memory, "sample cheese agar donation rate")
+    assert key == "chemical+food" and "conceptual" not in key
+    assert ci.ambito(memory, "sample sample") == ("none", "none")
+
+
+def test_the_ambito_node_counts_only_the_excess_over_the_base_rate():
+    lat = lattice()
+    traces = ci.TraceMemory()
+    def add(doc, text, role):
+        i = text.index("heart")
+        traces.add(doc, text, i, i + 5, role, lat)
+    for n in range(8):
+        add(f"d{n}", "the heart of the cheese was sampled", "not_a_body_site" if n < 2 else "structure")
+    for n in range(8, 40):
+        add(f"d{n}", "the heart rate was measured", "structure")
+    base = traces.base_rate(None)
+    assert abs(sum(base.values()) - 1.0) < 1e-9 and base["structure"] > 0.9
+    reader = ci.CIReader(lat, None, None, traces)
+    nodes = reader.construct("heart", "the heart of the cheese was sampled", 4, doc="other")
+    dom = [n for n in nodes if n[0].startswith("domain:")]
+    assert dom, "the ambito recalls traces"
+    for _, _, links in dom:
+        assert links.get("structure", 0.0) == 0.0  # the usual reading adds nothing
+        assert links.get("not_a_body_site", 0.0) > 0.0  # what the ambito changes does
