@@ -32,6 +32,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Iterable
 from typing import Any
 
 from .grammar import Grammar
@@ -40,6 +41,12 @@ from .word_senses import _PHRASE_STOP, _fold, locate
 DEFAULT_PATH = (
     Path(__file__).resolve().parents[3] / "data" / "linking" / "block_memory.json"
 )
+ANATOMY_NAMES_PATH = DEFAULT_PATH.with_name("anatomy_names.json")
+
+
+def load_anatomy_names(path: Path = ANATOMY_NAMES_PATH) -> list[str]:
+    """The multi-word names of structures (``scripts/build_anatomy_names.py``); empty if the file is absent."""
+    return json.loads(path.read_text("utf-8"))["names"] if path.exists() else []
 
 LEFT, RIGHT = 5, 7
 MARGIN = 0.15
@@ -49,6 +56,9 @@ C_WORD_KNOWN, C_WORD_UNKNOWN = 1.2, 1.5
 # A head inside a block that could have closed it (Nelson et al. 2017: a node stays open until words
 # can be fused): "brain weight strains" is "[brain weight] strains", not one block headed by "strains".
 C_OPEN = 2.0
+# A composed block whose weakest pair has npmi above this is a familiar sequence (fitted on MedMentions
+# training documents only, scripts/collocation_probe.py, 10 October 2026).
+COLLOC_THRESHOLD = 0.3
 # The file keeps a head only if it is at least this sure of its kind (the builder's threshold); the
 # "of" constructions ask the same.
 MIN_SHARE = 0.75
@@ -162,20 +172,29 @@ class BlockMemory:
 
     @classmethod
     def load(
-        cls, path: Path = DEFAULT_PATH, longer_names: dict[str, str] | None = None
+        cls,
+        path: Path = DEFAULT_PATH,
+        longer_names: dict[str, str] | None = None,
+        anatomy_names: Iterable[str] | None = None,
     ) -> BlockMemory:
         data: dict[str, Any] = {}
         if path.exists():
             data = json.loads(path.read_text("utf-8"))
-        return cls.from_json(data, longer_names)
+        return cls.from_json(data, longer_names, anatomy_names)
 
     @classmethod
     def from_json(
-        cls, data: dict[str, Any], longer_names: dict[str, str] | None = None
+        cls,
+        data: dict[str, Any],
+        longer_names: dict[str, str] | None = None,
+        anatomy_names: Iterable[str] | None = None,
     ) -> BlockMemory:
         heads = {w: (v[0], float(v[1])) for w, v in data.get("heads", {}).items()}
         names = dict(data.get("names", {}))
         names.update(longer_names or {})
+        # the names of the structures themselves (point 1): a remembered name of another kind wins
+        for name in anatomy_names or ():
+            names.setdefault(name, "anatomy")
         return cls(heads, names)
 
     def head(self, word: str) -> tuple[str, float] | None:
@@ -254,10 +273,17 @@ class ChunkLattice:
     for the kind of a head word the memory does not know: ``typer(word) -> (kind, share) | None``
     (``head_typing.UmlsHeadTyper``). Both are off by default."""
 
-    def __init__(self, memory: BlockMemory, grammar: Grammar | None = None, typer=None):
+    def __init__(self, memory: BlockMemory, grammar: Grammar | None = None, typer=None, collocations=None,
+                 colloc_threshold: float = COLLOC_THRESHOLD, frames=None):
         self.memory = memory
         self.grammar = grammar
         self.typer = typer
+        # ``collocations.Collocations`` (optional): a composed block whose words go together in the text read
+        # costs less, down to a remembered name when its weakest pair is a perfect collocation
+        self.collocations = collocations
+        self.colloc_threshold = colloc_threshold
+        # ``frames.ProcedureFrames`` (optional): the slots of a procedure head (point 2)
+        self.frames = frames
         self._left = grammar is not None and grammar.head_side == "left"
 
     def _head(self, word: str) -> tuple[str, float] | None:
@@ -270,6 +296,17 @@ class ChunkLattice:
         typed = self.typer(word)
         # the same bar the memory keeps: a head of uncertain kind is not acted on
         return typed if typed and typed[0] != "conceptual" and typed[1] >= MIN_SHARE else None
+
+    def _familiar(self, words: list[str]) -> float:
+        """How much cheaper a composed block is because its words go together in the text read: nothing at or
+        below the threshold (fitted on training documents, ``collocation_probe``), up to the gap between a
+        composed block and a remembered name when the weakest pair is a perfect collocation (npmi 1)."""
+        if self.collocations is None:
+            return 0.0
+        c = self.collocations.cohesion(words)
+        if c is None or c <= self.colloc_threshold:
+            return 0.0
+        return (C_COMPOSED - C_MEMORY) * (c - self.colloc_threshold) / (1.0 - self.colloc_threshold)
 
     def _ends(self, word: str) -> bool:
         """A word that closes the noun phrase: closed class or verb form, unless the memory knows it."""
@@ -315,7 +352,7 @@ class ChunkLattice:
                 if known:
                     blocks.append(Block(i, j, known, "memory", C_MEMORY))
                 # Composed: the kind of the last word, or a structure when the block ends with the mention.
-                bonus = C_COMPOSED + C_PER_WORD * (length - 1)
+                bonus = C_COMPOSED + C_PER_WORD * (length - 1) - self._familiar(words[i:j])
                 if j == mj and i <= mi and not (self._left and i < mi):
                     blocks.append(Block(i, j, "anatomy", "composed", bonus))
                 elif self._left and (i < mi or i >= mj):
@@ -393,6 +430,10 @@ class ChunkLattice:
             return UNREAD
         window, mi, mj, readings, found = got
         words = [w for w, _, _ in window]
+        if self.frames is not None:
+            framed = self._framed(words, mi, mj, readings)
+            if framed is not None:
+                return framed
         best_cost, best = readings[0]
         best_class = CLASS_OF_KIND.get(best.kind, "")
         alt = next(
@@ -409,6 +450,42 @@ class ChunkLattice:
             best, best_class, margin, alt, text, sentence, window, found
         )
         return reading
+
+    def _framed(self, words, mi, mj, readings) -> Reading | None:
+        """A procedure head to the right of the mention whose frame has a site slot, with every word in
+        between filling a slot (a device for the device slot, a structure for the site): the structure is
+        the site of that procedure, whatever smaller block the costs prefer ("[[IVC filter] placement]")."""
+        for cost, b in readings:
+            if b.end <= mj or b.kind != "procedure" or b.start > mi:
+                continue
+            head = singular(words[b.end - 1])
+            slots = self.frames.slots(head)
+            if "site" not in slots:
+                continue
+            fillers = []
+            for w in words[mj : b.end - 1]:
+                kind = (self._head(w) or ("", 0.0))[0]
+                if kind == "device" and "device" in slots:
+                    fillers.append(f"device={w}")
+                elif kind == "anatomy":
+                    fillers.append(f"site={w}")
+                else:
+                    fillers = None
+                    break
+            if fillers is None:
+                continue
+            best_cost = readings[0][0]
+            return Reading(
+                "role",
+                "procedure_site",
+                "procedure",
+                "frame",
+                " ".join(words[b.start : b.end]),
+                round(cost - best_cost, 3),
+                f"frame:{head}" + (":" + ",".join(fillers) if fillers else ""),
+                "",
+            )
+        return None
 
     def _decide(
         self, best, best_class, margin, alt, text, sentence, window, found

@@ -1,0 +1,8861 @@
+{
+"note": "Cornici delle teste di procedura (sito, dispositivo): evidenze per fonte, nessuna scritta a mano. Generato da scripts/build_procedure_frames.py; non si modifica a mano.",
+"built": "2026-10-10",
+"sources": {
+"ncit": {
+"file": "ncit.obo",
+"sha256": "e90ebb7e55f49cf2c43f14bbf9edc8969f0c327897547086187ed877998d5d1a"
+},
+"text": [
+{
+"medmentions_training_abstracts": 2635
+},
+{
+"ncit_definitions": 153737
+}
+]
+},
+"frames": {
+"ablation": {
+"text": {
+"n": 85,
+"site": 23,
+"device": 10
+}
+},
+"absorptiometry": {
+"text": {
+"n": 8
+}
+},
+"accidentally": {
+"text": {
+"n": 18
+}
+},
+"acetaldehyde": {
+"text": {
+"n": 10
+}
+},
+"acetone": {
+"text": {
+"n": 6
+}
+},
+"acetylcholine": {
+"text": {
+"n": 154,
+"device": 10,
+"site": 21
+}
+},
+"aching": {
+"text": {
+"n": 19
+}
+},
+"acinetobacter": {
+"text": {
+"n": 17,
+"device": 1
+}
+},
+"acrylonitrile": {
+"text": {
+"n": 2
+}
+},
+"acs": {
+"text": {
+"n": 8
+}
+},
+"act": {
+"text": {
+"n": 814,
+"site": 120,
+"device": 34
+}
+},
+"acupuncture": {
+"text": {
+"n": 7,
+"device": 1,
+"site": 1
+}
+},
+"addition": {
+"text": {
+"n": 1680,
+"site": 82,
+"device": 6
+}
+},
+"adenoidectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"adequately": {
+"text": {
+"n": 35,
+"site": 1,
+"device": 1
+}
+},
+"adiponectin": {
+"text": {
+"n": 8,
+"site": 1
+}
+},
+"adl": {
+"text": {
+"n": 451
+}
+},
+"adrenalectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"adsd": {
+"text": {
+"n": 1
+}
+},
+"adt": {
+"text": {
+"n": 1
+}
+},
+"aeromona": {
+"text": {
+"n": 4,
+"device": 1
+}
+},
+"afb": {
+"text": {
+"n": 7
+}
+},
+"afo": {
+"text": {
+"n": 1
+}
+},
+"afraid": {
+"text": {
+"n": 43,
+"device": 1,
+"site": 1
+}
+},
+"again": {
+"text": {
+"n": 52,
+"device": 2,
+"site": 2
+}
+},
+"agglutination": {
+"text": {
+"n": 9,
+"site": 4,
+"device": 1
+}
+},
+"agility": {
+"text": {
+"n": 5,
+"site": 5
+}
+},
+"ajcc": {
+"text": {
+"n": 5190,
+"site": 1
+}
+},
+"ala": {
+"text": {
+"n": 15,
+"site": 4
+}
+},
+"alanine": {
+"text": {
+"n": 148,
+"site": 21,
+"device": 2
+}
+},
+"alert": {
+"text": {
+"n": 23,
+"device": 3,
+"site": 2
+}
+},
+"alfentanil": {
+"text": {
+"n": 2
+}
+},
+"alignment": {
+"text": {
+"n": 130,
+"site": 39,
+"device": 1
+}
+},
+"allograft": {
+"text": {
+"n": 33,
+"site": 16,
+"device": 4
+}
+},
+"alone": {
+"text": {
+"n": 268,
+"site": 24,
+"device": 4
+}
+},
+"alphaprodine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"alt": {
+"text": {
+"n": 22,
+"site": 2
+}
+},
+"aluminum": {
+"text": {
+"n": 47,
+"site": 4,
+"device": 1
+}
+},
+"aminonaphthalene": {
+"text": {
+"n": 2
+}
+},
+"amitriptyline": {
+"text": {
+"n": 4
+}
+},
+"ammonia": {
+"text": {
+"n": 65,
+"site": 24,
+"device": 3
+}
+},
+"amobarbital": {
+"text": {
+"n": 1
+}
+},
+"amputation": {
+"text": {
+"n": 41,
+"site": 15,
+"device": 1
+}
+},
+"analgesia": {
+"text": {
+"n": 38,
+"device": 1,
+"site": 2
+}
+},
+"anaplasma": {
+"text": {
+"n": 4
+}
+},
+"anastomosis": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 51,
+"site": 18,
+"device": 1
+}
+},
+"androstenediol": {
+"text": {
+"n": 3
+}
+},
+"androsterone": {
+"text": {
+"n": 4,
+"site": 1,
+"device": 1
+}
+},
+"anesthesia": {
+"text": {
+"n": 81,
+"site": 7
+}
+},
+"anger": {
+"text": {
+"n": 23
+}
+},
+"angiography": {
+"text": {
+"n": 70,
+"site": 19,
+"device": 2
+}
+},
+"angioplasty": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 13,
+"site": 1,
+"device": 1
+}
+},
+"angry": {
+"text": {
+"n": 14
+}
+},
+"anileridine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"ansd": {
+"text": {
+"n": 1
+}
+},
+"antileukoproteinase": {
+"text": {
+"n": 1
+}
+},
+"antrectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"antrostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"anus": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"anxiety": {
+"text": {
+"n": 261,
+"device": 10,
+"site": 3
+}
+},
+"anxious": {
+"text": {
+"n": 49
+}
+},
+"anybody": {
+"text": {
+"n": 6
+}
+},
+"apheresis": {
+"text": {
+"n": 30,
+"site": 21
+}
+},
+"apicectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"apoa": {
+"text": {
+"n": 5
+}
+},
+"apoc": {
+"text": {
+"n": 4
+}
+},
+"appear": {
+"text": {
+"n": 650,
+"site": 178,
+"device": 35
+}
+},
+"appearance": {
+"text": {
+"n": 292,
+"site": 103,
+"device": 11
+}
+},
+"appendectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 4
+}
+},
+"appetite": {
+"text": {
+"n": 219,
+"site": 6
+}
+},
+"appliance": {
+"text": {
+"n": 41,
+"site": 1,
+"device": 1
+}
+},
+"apply": {
+"text": {
+"n": 362,
+"device": 12,
+"site": 80
+}
+},
+"appreciated": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"aprobarbital": {
+"text": {
+"n": 1
+}
+},
+"arab": {
+"text": {
+"n": 6
+}
+},
+"arc": {
+"text": {
+"n": 27,
+"device": 6,
+"site": 2
+}
+},
+"arginine": {
+"text": {
+"n": 353,
+"site": 17,
+"device": 5
+}
+},
+"argument": {
+"text": {
+"n": 15,
+"site": 3
+}
+},
+"aripiprazole": {
+"text": {
+"n": 12,
+"device": 1
+}
+},
+"arising": {
+"text": {
+"n": 1490,
+"device": 18,
+"site": 1135
+}
+},
+"around": {
+"text": {
+"n": 404,
+"site": 115,
+"device": 30
+}
+},
+"aroused": {
+"text": {
+"n": 5
+}
+},
+"arrested": {
+"text": {
+"n": 17,
+"site": 9
+}
+},
+"arsenic": {
+"text": {
+"n": 30,
+"device": 1
+}
+},
+"artery": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"arthroplasty": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 23,
+"site": 5,
+"device": 2
+}
+},
+"arthroscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"asc": {
+"text": {
+"n": 21,
+"site": 7
+}
+},
+"asenapine": {
+"text": {
+"n": 16
+}
+},
+"asex": {
+"text": {
+"n": 2
+}
+},
+"asl": {
+"text": {
+"n": 7,
+"device": 1
+}
+},
+"asleep": {
+"text": {
+"n": 65,
+"site": 4
+}
+},
+"aspergillus": {
+"text": {
+"n": 36
+}
+},
+"aspiration": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 43,
+"device": 22,
+"site": 5
+}
+},
+"assaulted": {
+"text": {
+"n": 2
+}
+},
+"assemble": {
+"text": {
+"n": 28,
+"device": 2,
+"site": 9
+}
+},
+"assessment": {
+"text": {
+"n": 4205,
+"site": 761,
+"device": 121
+}
+},
+"atla": {
+"text": {
+"n": 42,
+"device": 12,
+"site": 3
+}
+},
+"atp": {
+"text": {
+"n": 382,
+"site": 32,
+"device": 15
+}
+},
+"attempt": {
+"text": {
+"n": 277,
+"site": 17,
+"device": 5
+}
+},
+"attention": {
+"text": {
+"n": 159,
+"device": 12,
+"site": 3
+}
+},
+"attractive": {
+"text": {
+"n": 37,
+"device": 1,
+"site": 2
+}
+},
+"audiometry": {
+"text": {
+"n": 6,
+"site": 1
+}
+},
+"audit": {
+"text": {
+"n": 11
+}
+},
+"auscultation": {
+"text": {
+"n": 22,
+"site": 16
+}
+},
+"autograft": {
+"text": {
+"n": 20,
+"site": 10
+}
+},
+"autopsy": {
+"text": {
+"n": 35,
+"site": 4,
+"device": 2
+}
+},
+"autoradiography": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"avl": {
+"text": {
+"n": 5
+}
+},
+"awake": {
+"text": {
+"n": 22,
+"site": 1
+}
+},
+"axl": {
+"text": {
+"n": 65,
+"site": 4
+}
+},
+"bacilli": {
+"text": {
+"n": 36
+}
+},
+"bai": {
+"text": {
+"n": 4
+}
+},
+"banding": {
+"text": {
+"n": 9,
+"site": 4
+}
+},
+"banking": {
+"text": {
+"n": 6,
+"site": 2
+}
+},
+"barbital": {
+"text": {
+"n": 1
+}
+},
+"bathing": {
+"text": {
+"n": 19,
+"site": 1
+}
+},
+"bathroom": {
+"text": {
+"n": 27
+}
+},
+"bcr": {
+"text": {
+"n": 186,
+"site": 19,
+"device": 7
+}
+},
+"bdi": {
+"text": {
+"n": 1
+}
+},
+"bebq": {
+"text": {
+"n": 2
+}
+},
+"behav": {
+"text": {
+"n": 1
+}
+},
+"being": {
+"text": {
+"n": 1422,
+"site": 72,
+"device": 51
+}
+},
+"belonging": {
+"text": {
+"n": 340,
+"device": 5,
+"site": 40
+}
+},
+"betacellulin": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"bicycling": {
+"text": {
+"n": 14
+}
+},
+"bill": {
+"text": {
+"n": 17
+}
+},
+"biochemical": {
+"text": {
+"n": 198,
+"device": 5,
+"site": 20
+}
+},
+"biofeedback": {
+"text": {
+"n": 4
+}
+},
+"biomicroscopy": {
+"text": {
+"n": 3
+}
+},
+"biopsy": {
+"ncit": {
+"n": 31,
+"site": 31
+},
+"text": {
+"n": 378,
+"site": 172,
+"device": 46
+}
+},
+"bis": {
+"text": {
+"n": 28,
+"site": 1,
+"device": 1
+}
+},
+"bladder": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"blm": {
+"text": {
+"n": 10,
+"site": 3
+}
+},
+"bloated": {
+"text": {
+"n": 8,
+"site": 1
+}
+},
+"blockade": {
+"text": {
+"n": 94,
+"site": 22,
+"device": 3
+}
+},
+"blotting": {
+"text": {
+"n": 15,
+"site": 9
+}
+},
+"blurry": {
+"text": {
+"n": 7
+}
+},
+"blym": {
+"text": {
+"n": 1
+}
+},
+"bmd": {
+"text": {
+"n": 16,
+"site": 4,
+"device": 1
+}
+},
+"bmt": {
+"text": {
+"n": 6,
+"site": 1
+}
+},
+"bode": {
+"text": {
+"n": 1
+}
+},
+"bolasterone": {
+"text": {
+"n": 1
+}
+},
+"bone": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"boost": {
+"text": {
+"n": 46,
+"site": 7,
+"device": 1
+}
+},
+"bored": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"bowel": {
+"text": {
+"n": 453,
+"site": 37,
+"device": 4
+}
+},
+"bpi": {
+"text": {
+"n": 15
+}
+},
+"bpm": {
+"text": {
+"n": 15,
+"site": 5
+}
+},
+"bpr": {
+"text": {
+"n": 2
+}
+},
+"brachytherapy": {
+"text": {
+"n": 24,
+"device": 3,
+"site": 4
+}
+},
+"brain": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"brca": {
+"text": {
+"n": 16
+}
+},
+"breast": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"breathe": {
+"text": {
+"n": 27
+}
+},
+"breathing": {
+"text": {
+"n": 180,
+"device": 7,
+"site": 24
+}
+},
+"breathless": {
+"text": {
+"n": 16,
+"site": 1
+}
+},
+"brief": {
+"text": {
+"n": 75,
+"device": 9,
+"site": 1
+}
+},
+"brivaracetam": {
+"text": {
+"n": 2
+}
+},
+"bromazepam": {
+"text": {
+"n": 1
+}
+},
+"bronchoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 14
+}
+},
+"brs": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"btc": {
+"text": {
+"n": 8,
+"site": 1
+}
+},
+"btk": {
+"text": {
+"n": 184,
+"site": 95,
+"device": 5
+}
+},
+"burkholderia": {
+"text": {
+"n": 23
+}
+},
+"burning": {
+"text": {
+"n": 44,
+"site": 3
+}
+},
+"butorphanol": {
+"text": {
+"n": 1
+}
+},
+"button": {
+"text": {
+"n": 14
+}
+},
+"bwc": {
+"text": {
+"n": 1
+}
+},
+"bx": {
+"text": {
+"n": 1
+}
+},
+"bypass": {
+"text": {
+"n": 276,
+"site": 113,
+"device": 1
+}
+},
+"calbindin": {
+"text": {
+"n": 1
+}
+},
+"calcifediol": {
+"text": {
+"n": 7,
+"device": 4
+}
+},
+"calcitriol": {
+"text": {
+"n": 11,
+"device": 6,
+"site": 1
+}
+},
+"camp": {
+"text": {
+"n": 129,
+"site": 7,
+"device": 1
+}
+},
+"campylobacter": {
+"text": {
+"n": 20
+}
+},
+"candida": {
+"text": {
+"n": 53,
+"site": 2,
+"device": 1
+}
+},
+"capping": {
+"text": {
+"n": 7,
+"site": 4
+}
+},
+"capsulotomy": {
+"text": {
+"n": 1
+}
+},
+"carbamazepine": {
+"text": {
+"n": 2
+}
+},
+"cardioversion": {
+"text": {
+"n": 8
+}
+},
+"carefully": {
+"text": {
+"n": 60,
+"site": 1
+}
+},
+"carisoprodol": {
+"text": {
+"n": 1
+}
+},
+"carnitine": {
+"text": {
+"n": 27,
+"site": 8,
+"device": 2
+}
+},
+"carotene": {
+"text": {
+"n": 14,
+"device": 1
+}
+},
+"carrying": {
+"text": {
+"n": 120,
+"site": 26,
+"device": 7
+}
+},
+"casein": {
+"text": {
+"n": 34,
+"site": 2
+}
+},
+"cast": {
+"text": {
+"n": 30,
+"device": 2,
+"site": 8
+}
+},
+"castration": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 31,
+"site": 6,
+"device": 1
+}
+},
+"catheterization": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 22,
+"site": 14
+}
+},
+"cbs": {
+"text": {
+"n": 3
+}
+},
+"cci": {
+"text": {
+"n": 2
+}
+},
+"ccl": {
+"text": {
+"n": 1
+}
+},
+"ccq": {
+"text": {
+"n": 2
+}
+},
+"cdai": {
+"text": {
+"n": 1
+}
+},
+"cdr": {
+"text": {
+"n": 8,
+"device": 1
+}
+},
+"cdt": {
+"text": {
+"n": 1
+}
+},
+"cecostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"cellular": {
+"text": {
+"n": 2460,
+"site": 225,
+"device": 37
+}
+},
+"cellularity": {
+"text": {
+"n": 58,
+"site": 28
+}
+},
+"ceruloplasmin": {
+"text": {
+"n": 3
+}
+},
+"cetp": {
+"text": {
+"n": 15,
+"device": 2
+}
+},
+"cga": {
+"text": {
+"n": 6
+}
+},
+"cgh": {
+"text": {
+"n": 1
+}
+},
+"ch": {
+"text": {
+"n": 11,
+"site": 1
+}
+},
+"chart": {
+"text": {
+"n": 80,
+"site": 14,
+"device": 2
+}
+},
+"checkbook": {
+"text": {
+"n": 2
+}
+},
+"cheerful": {
+"text": {
+"n": 5
+}
+},
+"cheilectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"chemo": {
+"text": {
+"n": 79,
+"device": 1,
+"site": 18
+}
+},
+"chemoembolization": {
+"text": {
+"n": 13,
+"site": 5
+}
+},
+"chemoprevention": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"chemoradiotherapy": {
+"text": {
+"n": 21,
+"site": 4,
+"device": 1
+}
+},
+"chemotherapy": {
+"text": {
+"n": 568,
+"site": 64,
+"device": 11
+}
+},
+"chip": {
+"text": {
+"n": 42,
+"device": 2,
+"site": 1
+}
+},
+"chlamydia": {
+"text": {
+"n": 26,
+"site": 1
+}
+},
+"chlorphentermine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"chlorpromazine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"choice": {
+"text": {
+"n": 151,
+"device": 5,
+"site": 4
+}
+},
+"cholangiography": {
+"text": {
+"n": 3,
+"site": 2
+}
+},
+"cholangiopancreatography": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 6,
+"site": 2
+}
+},
+"cholecystectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 8,
+"device": 1
+}
+},
+"cholesterol": {
+"text": {
+"n": 465,
+"site": 100,
+"device": 2
+}
+},
+"choline": {
+"text": {
+"n": 57,
+"site": 4,
+"device": 1
+}
+},
+"chore": {
+"text": {
+"n": 35
+}
+},
+"chymotrypsin": {
+"text": {
+"n": 7,
+"site": 1
+}
+},
+"cic": {
+"text": {
+"n": 26,
+"site": 5
+}
+},
+"circumcision": {
+"text": {
+"n": 16
+}
+},
+"cit": {
+"text": {
+"n": 4
+}
+},
+"citalopram": {
+"text": {
+"n": 4
+}
+},
+"citrulline": {
+"text": {
+"n": 26
+}
+},
+"ckb": {
+"text": {
+"n": 4
+}
+},
+"clavicle": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"clear": {
+"text": {
+"n": 284,
+"site": 85,
+"device": 5
+}
+},
+"clearly": {
+"text": {
+"n": 76,
+"site": 4,
+"device": 2
+}
+},
+"climbing": {
+"text": {
+"n": 40,
+"site": 4
+}
+},
+"clip": {
+"text": {
+"n": 12,
+"device": 2,
+"site": 2
+}
+},
+"clobazam": {
+"text": {
+"n": 1
+}
+},
+"clonazepam": {
+"text": {
+"n": 3
+}
+},
+"closet": {
+"text": {
+"n": 4
+}
+},
+"clostebol": {
+"text": {
+"n": 1
+}
+},
+"clothe": {
+"text": {
+"n": 35,
+"device": 2,
+"site": 3
+}
+},
+"clump": {
+"text": {
+"n": 9,
+"site": 6
+}
+},
+"cms": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"cocaine": {
+"text": {
+"n": 95,
+"site": 2,
+"device": 1
+}
+},
+"coding": {
+"text": {
+"n": 1139,
+"site": 22,
+"device": 9
+}
+},
+"coin": {
+"text": {
+"n": 1
+}
+},
+"col": {
+"text": {
+"n": 3
+}
+},
+"colectomy": {
+"ncit": {
+"n": 6,
+"site": 6
+},
+"text": {
+"n": 1
+}
+},
+"colon": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"colonoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 37,
+"site": 3,
+"device": 2
+}
+},
+"colostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 2
+}
+},
+"colposcopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"comfortably": {
+"text": {
+"n": 5
+}
+},
+"comm": {
+"text": {
+"n": 1
+}
+},
+"comp": {
+"text": {
+"n": 3
+}
+},
+"complaint": {
+"text": {
+"n": 107,
+"site": 4,
+"device": 3
+}
+},
+"concentrating": {
+"text": {
+"n": 36,
+"site": 4
+}
+},
+"concentration": {
+"text": {
+"n": 2242,
+"site": 502,
+"device": 21
+}
+},
+"conditioning": {
+"text": {
+"n": 32,
+"site": 3,
+"device": 1
+}
+},
+"confidence": {
+"text": {
+"n": 72,
+"device": 1,
+"site": 2
+}
+},
+"conformal": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"confused": {
+"text": {
+"n": 13
+}
+},
+"congested": {
+"text": {
+"n": 2,
+"site": 1
+}
+},
+"conization": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"conjunctiva": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"constipated": {
+"text": {
+"n": 4
+}
+},
+"constipation": {
+"text": {
+"n": 82,
+"site": 5,
+"device": 1
+}
+},
+"continuous": {
+"text": {
+"n": 185,
+"site": 35,
+"device": 12
+}
+},
+"contraception": {
+"text": {
+"n": 7,
+"device": 1
+}
+},
+"contrast": {
+"text": {
+"n": 459,
+"site": 43,
+"device": 7
+}
+},
+"conversation": {
+"text": {
+"n": 25
+}
+},
+"coordinated": {
+"text": {
+"n": 49,
+"site": 2,
+"device": 1
+}
+},
+"copper": {
+"text": {
+"n": 133,
+"site": 6,
+"device": 2
+}
+},
+"coq": {
+"text": {
+"n": 1
+}
+},
+"cough": {
+"text": {
+"n": 112,
+"site": 11,
+"device": 6
+}
+},
+"coughed": {
+"text": {
+"n": 7
+}
+},
+"coughing": {
+"text": {
+"n": 39,
+"site": 4
+}
+},
+"counseling": {
+"text": {
+"n": 51,
+"device": 1
+}
+},
+"count": {
+"text": {
+"n": 254,
+"site": 174,
+"device": 8
+}
+},
+"covi": {
+"text": {
+"n": 3
+}
+},
+"cow": {
+"text": {
+"n": 26,
+"site": 4
+}
+},
+"cowat": {
+"text": {
+"n": 1
+}
+},
+"cpb": {
+"text": {
+"n": 11,
+"site": 3
+}
+},
+"cps": {
+"text": {
+"n": 10,
+"site": 3
+}
+},
+"craniectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"craniotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 4
+}
+},
+"creat": {
+"text": {
+"n": 9
+}
+},
+"creatine": {
+"text": {
+"n": 82,
+"site": 10,
+"device": 2
+}
+},
+"crossmatch": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"crq": {
+"text": {
+"n": 1
+}
+},
+"crutche": {
+"text": {
+"n": 3
+}
+},
+"crying": {
+"text": {
+"n": 13,
+"site": 1
+}
+},
+"cryopreservation": {
+"text": {
+"n": 8,
+"site": 5
+}
+},
+"cryosurgery": {
+"text": {
+"n": 2
+}
+},
+"cryotherapy": {
+"text": {
+"n": 2
+}
+},
+"crystal": {
+"text": {
+"n": 119,
+"site": 33,
+"device": 8
+}
+},
+"csf": {
+"text": {
+"n": 202,
+"site": 47,
+"device": 5
+}
+},
+"css": {
+"text": {
+"n": 1,
+"device": 1
+}
+},
+"cu": {
+"text": {
+"n": 108,
+"device": 2,
+"site": 2
+}
+},
+"curettage": {
+"text": {
+"n": 10
+}
+},
+"custom": {
+"text": {
+"n": 23,
+"device": 1
+}
+},
+"cxcr": {
+"text": {
+"n": 5,
+"device": 1,
+"site": 1
+}
+},
+"cystectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+},
+"text": {
+"n": 15,
+"site": 3
+}
+},
+"cysteine": {
+"text": {
+"n": 270,
+"site": 34,
+"device": 12
+}
+},
+"cystine": {
+"text": {
+"n": 23,
+"site": 9,
+"device": 1
+}
+},
+"cystoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 1
+}
+},
+"cystostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"cytology": {
+"text": {
+"n": 37,
+"site": 24,
+"device": 2
+}
+},
+"cytometry": {
+"text": {
+"n": 44,
+"site": 7,
+"device": 1
+}
+},
+"cytotoxic": {
+"text": {
+"n": 1997,
+"site": 515,
+"device": 27
+}
+},
+"dad": {
+"text": {
+"n": 2
+}
+},
+"danger": {
+"text": {
+"n": 14,
+"site": 1
+}
+},
+"dark": {
+"text": {
+"n": 84,
+"site": 23,
+"device": 1
+}
+},
+"daytime": {
+"text": {
+"n": 23
+}
+},
+"dct": {
+"text": {
+"n": 2
+}
+},
+"dds": {
+"text": {
+"n": 9
+}
+},
+"debulking": {
+"text": {
+"n": 1
+}
+},
+"decompression": {
+"text": {
+"n": 13,
+"device": 2,
+"site": 3
+}
+},
+"demand": {
+"text": {
+"n": 49,
+"device": 3,
+"site": 10
+}
+},
+"denture": {
+"text": {
+"n": 13,
+"site": 2,
+"device": 1
+}
+},
+"deoxycorticosterone": {
+"text": {
+"n": 5,
+"site": 2
+}
+},
+"deoxycortisol": {
+"text": {
+"n": 6
+}
+},
+"depression": {
+"text": {
+"n": 423,
+"site": 33,
+"device": 6
+}
+},
+"derealization": {
+"text": {
+"n": 1
+}
+},
+"derivation": {
+"text": {
+"n": 23,
+"site": 3
+}
+},
+"describe": {
+"text": {
+"n": 455,
+"device": 21,
+"site": 11
+}
+},
+"desensitization": {
+"text": {
+"n": 26,
+"site": 3
+}
+},
+"desipramine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"desire": {
+"text": {
+"n": 52,
+"site": 4
+}
+},
+"desomorphine": {
+"text": {
+"n": 1
+}
+},
+"destroyed": {
+"text": {
+"n": 25,
+"site": 14
+}
+},
+"desvenlafaxine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"detection": {
+"text": {
+"n": 504,
+"device": 26,
+"site": 99
+}
+},
+"dextroamphetamine": {
+"text": {
+"n": 3
+}
+},
+"diagnosed": {
+"text": {
+"n": 251,
+"device": 13,
+"site": 14
+}
+},
+"diagnosis": {
+"text": {
+"n": 897,
+"site": 97,
+"device": 64
+}
+},
+"diagnostic": {
+"text": {
+"n": 659,
+"device": 177,
+"site": 30
+}
+},
+"dial": {
+"text": {
+"n": 4
+}
+},
+"diarrhea": {
+"text": {
+"n": 131,
+"site": 9,
+"device": 2
+}
+},
+"did": {
+"text": {
+"n": 1023,
+"site": 112,
+"device": 11
+}
+},
+"diet": {
+"text": {
+"n": 196,
+"site": 26,
+"device": 4
+}
+},
+"diethylpropion": {
+"text": {
+"n": 1
+}
+},
+"different": {
+"text": {
+"n": 1185,
+"device": 34,
+"site": 125
+}
+},
+"dignity": {
+"text": {
+"n": 15,
+"device": 1
+}
+},
+"dihydrocodeine": {
+"text": {
+"n": 1
+}
+},
+"diphenoxylate": {
+"text": {
+"n": 6,
+"device": 2
+}
+},
+"dipipanone": {
+"text": {
+"n": 1
+}
+},
+"discectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"discouraged": {
+"text": {
+"n": 13
+}
+},
+"disgust": {
+"text": {
+"n": 15
+}
+},
+"dish": {
+"text": {
+"n": 6,
+"device": 1,
+"site": 1
+}
+},
+"dishe": {
+"text": {
+"n": 17,
+"site": 1
+}
+},
+"dislike": {
+"text": {
+"n": 11
+}
+},
+"disorientation": {
+"text": {
+"n": 8
+}
+},
+"dispensing": {
+"text": {
+"n": 27,
+"device": 3,
+"site": 1
+}
+},
+"dissection": {
+"ncit": {
+"n": 4,
+"site": 4
+},
+"text": {
+"n": 88,
+"site": 57
+}
+},
+"distress": {
+"text": {
+"n": 340,
+"site": 17,
+"device": 12
+}
+},
+"distressed": {
+"text": {
+"n": 7
+}
+},
+"disturbed": {
+"text": {
+"n": 11,
+"site": 1
+}
+},
+"diversion": {
+"text": {
+"n": 15,
+"site": 5
+}
+},
+"dizziness": {
+"text": {
+"n": 27,
+"site": 1,
+"device": 1
+}
+},
+"dizzy": {
+"text": {
+"n": 10
+}
+},
+"dlqi": {
+"text": {
+"n": 1
+}
+},
+"dmg": {
+"text": {
+"n": 66,
+"device": 6
+}
+},
+"door": {
+"text": {
+"n": 15,
+"device": 2
+}
+},
+"douche": {
+"text": {
+"n": 1
+}
+},
+"down": {
+"text": {
+"n": 319,
+"site": 77,
+"device": 12
+}
+},
+"doxepin": {
+"text": {
+"n": 7
+}
+},
+"dozing": {
+"text": {
+"n": 3
+}
+},
+"drainage": {
+"text": {
+"n": 82,
+"site": 56,
+"device": 1
+}
+},
+"dressed": {
+"text": {
+"n": 12
+}
+},
+"dressing": {
+"text": {
+"n": 77,
+"site": 9,
+"device": 13
+}
+},
+"drinking": {
+"text": {
+"n": 86,
+"device": 2
+}
+},
+"drive": {
+"text": {
+"n": 84,
+"site": 12,
+"device": 3
+}
+},
+"driving": {
+"text": {
+"n": 55,
+"site": 2
+}
+},
+"drowsy": {
+"text": {
+"n": 8
+}
+},
+"drs": {
+"text": {
+"n": 5
+}
+},
+"dryness": {
+"text": {
+"n": 64,
+"site": 29
+}
+},
+"ds": {
+"text": {
+"n": 21
+}
+},
+"duct": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"duloxetine": {
+"text": {
+"n": 2
+}
+},
+"duodenectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"duodenum": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"duty": {
+"text": {
+"n": 47
+}
+},
+"dying": {
+"text": {
+"n": 39,
+"site": 2
+}
+},
+"ease": {
+"text": {
+"n": 28,
+"device": 3,
+"site": 1
+}
+},
+"easily": {
+"text": {
+"n": 148,
+"device": 5,
+"site": 15
+}
+},
+"eat": {
+"text": {
+"n": 107
+}
+},
+"eating": {
+"text": {
+"n": 141,
+"site": 4,
+"device": 1
+}
+},
+"echocardiography": {
+"text": {
+"n": 25,
+"device": 1,
+"site": 2
+}
+},
+"ecmo": {
+"text": {
+"n": 1
+}
+},
+"ecog": {
+"text": {
+"n": 10
+}
+},
+"ect": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"ed": {
+"text": {
+"n": 5086,
+"device": 1,
+"site": 1
+}
+},
+"edition": {
+"text": {
+"n": 85,
+"site": 7,
+"device": 2
+}
+},
+"edss": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"eeg": {
+"text": {
+"n": 33,
+"site": 3,
+"device": 2
+}
+},
+"ef": {
+"text": {
+"n": 28,
+"device": 1,
+"site": 2
+}
+},
+"effort": {
+"text": {
+"n": 258,
+"site": 16,
+"device": 31
+}
+},
+"egfr": {
+"text": {
+"n": 835,
+"site": 267,
+"device": 43
+}
+},
+"elastography": {
+"text": {
+"n": 9,
+"site": 3
+}
+},
+"electrocardiography": {
+"text": {
+"n": 4
+}
+},
+"electroencephalography": {
+"text": {
+"n": 3
+}
+},
+"electromyography": {
+"text": {
+"n": 3,
+"site": 2
+}
+},
+"electroporation": {
+"text": {
+"n": 33,
+"site": 1
+}
+},
+"elisa": {
+"text": {
+"n": 23,
+"site": 3,
+"device": 2
+}
+},
+"embarrassment": {
+"text": {
+"n": 9,
+"site": 1
+}
+},
+"embolectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"embolization": {
+"text": {
+"n": 34,
+"site": 8,
+"device": 5
+}
+},
+"emergency": {
+"text": {
+"n": 108,
+"site": 5,
+"device": 3
+}
+},
+"emotional": {
+"text": {
+"n": 256,
+"site": 3,
+"device": 2
+}
+},
+"employed": {
+"text": {
+"n": 94,
+"site": 4,
+"device": 1
+}
+},
+"empty": {
+"text": {
+"n": 42,
+"site": 26,
+"device": 1
+}
+},
+"emr": {
+"text": {
+"n": 6
+}
+},
+"endarterectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"endomicroscopy": {
+"text": {
+"n": 1
+}
+},
+"endoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 24,
+"device": 2,
+"site": 4
+}
+},
+"endostatin": {
+"text": {
+"n": 5
+}
+},
+"enema": {
+"text": {
+"n": 7
+}
+},
+"enemy": {
+"text": {
+"n": 14,
+"site": 1
+}
+},
+"energy": {
+"text": {
+"n": 675,
+"site": 61,
+"device": 25
+}
+},
+"enjoy": {
+"text": {
+"n": 65
+}
+},
+"enjoyment": {
+"text": {
+"n": 150,
+"device": 1
+}
+},
+"enlarge": {
+"text": {
+"n": 11,
+"site": 2,
+"device": 5
+}
+},
+"enough": {
+"text": {
+"n": 97,
+"site": 15,
+"device": 5
+}
+},
+"enriched": {
+"text": {
+"n": 107,
+"site": 44
+}
+},
+"enrichment": {
+"text": {
+"n": 39,
+"site": 6
+}
+},
+"enterobacter": {
+"text": {
+"n": 7
+}
+},
+"enterostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"entertainment": {
+"text": {
+"n": 6
+}
+},
+"enucleation": {
+"text": {
+"n": 13,
+"site": 1
+}
+},
+"epd": {
+"text": {
+"n": 2,
+"site": 1,
+"device": 1
+}
+},
+"epic": {
+"text": {
+"n": 3
+}
+},
+"epididymectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"epitope": {
+"text": {
+"n": 443,
+"site": 114,
+"device": 5
+}
+},
+"erbb": {
+"text": {
+"n": 104,
+"site": 1
+}
+},
+"erection": {
+"text": {
+"n": 54,
+"device": 2,
+"site": 4
+}
+},
+"ert": {
+"text": {
+"n": 1
+}
+},
+"esophagectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 3
+}
+},
+"esophagogastrectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"esophagogastroduodenoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"esophagogastroscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"esophagography": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"esophagojejunostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"esophagoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"esr": {
+"text": {
+"n": 1
+}
+},
+"ess": {
+"text": {
+"n": 8
+}
+},
+"estazolam": {
+"text": {
+"n": 1
+}
+},
+"estimated": {
+"text": {
+"n": 112,
+"site": 12,
+"device": 1
+}
+},
+"estriol": {
+"text": {
+"n": 7
+}
+},
+"ethchlorvynol": {
+"text": {
+"n": 1
+}
+},
+"ethinamate": {
+"text": {
+"n": 1
+}
+},
+"ethmoidectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ethylestrenol": {
+"text": {
+"n": 1
+}
+},
+"ethylmorphine": {
+"text": {
+"n": 1
+}
+},
+"ets": {
+"text": {
+"n": 38,
+"site": 11
+}
+},
+"evc": {
+"text": {
+"n": 5
+}
+},
+"exact": {
+"text": {
+"n": 45,
+"site": 7,
+"device": 2
+}
+},
+"exam": {
+"text": {
+"n": 83,
+"site": 8,
+"device": 12
+}
+},
+"examination": {
+"text": {
+"n": 825,
+"device": 123,
+"site": 259
+}
+},
+"excellent": {
+"text": {
+"n": 66,
+"device": 2,
+"site": 2
+}
+},
+"excision": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 263,
+"site": 112,
+"device": 2
+}
+},
+"excitement": {
+"text": {
+"n": 15
+}
+},
+"exenteration": {
+"text": {
+"n": 1
+}
+},
+"exhausted": {
+"text": {
+"n": 7,
+"site": 2
+}
+},
+"explored": {
+"text": {
+"n": 46,
+"site": 6,
+"device": 1
+}
+},
+"extended": {
+"text": {
+"n": 159,
+"site": 11,
+"device": 9
+}
+},
+"extubation": {
+"text": {
+"n": 3
+}
+},
+"eyesight": {
+"text": {
+"n": 67
+}
+},
+"ezogabine": {
+"text": {
+"n": 1
+}
+},
+"fa": {
+"text": {
+"n": 8,
+"site": 1
+}
+},
+"fabp": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"fac": {
+"text": {
+"n": 1
+}
+},
+"falling": {
+"text": {
+"n": 64
+}
+},
+"fam": {
+"text": {
+"n": 1
+}
+},
+"faq": {
+"text": {
+"n": 2
+}
+},
+"far": {
+"text": {
+"n": 66,
+"device": 4,
+"site": 6
+}
+},
+"fatiguability": {
+"text": {
+"n": 2
+}
+},
+"fatigued": {
+"text": {
+"n": 18
+}
+},
+"fdg": {
+"text": {
+"n": 26,
+"site": 1,
+"device": 1
+}
+},
+"fear": {
+"text": {
+"n": 112,
+"site": 1
+}
+},
+"fearful": {
+"text": {
+"n": 1
+}
+},
+"feeding": {
+"text": {
+"n": 161,
+"device": 2,
+"site": 9
+}
+},
+"feeling": {
+"text": {
+"n": 435,
+"site": 19,
+"device": 1
+}
+},
+"feet": {
+"text": {
+"n": 135,
+"site": 42
+}
+},
+"fef": {
+"text": {
+"n": 3
+}
+},
+"felt": {
+"text": {
+"n": 424,
+"site": 12,
+"device": 1
+}
+},
+"fencamfamin": {
+"text": {
+"n": 1
+}
+},
+"fenfluramine": {
+"text": {
+"n": 2
+}
+},
+"fenproporex": {
+"text": {
+"n": 1
+}
+},
+"fentanyl": {
+"text": {
+"n": 17,
+"device": 4,
+"site": 2
+}
+},
+"fev": {
+"text": {
+"n": 13,
+"site": 2
+}
+},
+"ffpe": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"fi": {
+"text": {
+"n": 1
+}
+},
+"fibula": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"fidgety": {
+"text": {
+"n": 7
+}
+},
+"fight": {
+"text": {
+"n": 38,
+"site": 6
+}
+},
+"finance": {
+"text": {
+"n": 17,
+"device": 1
+}
+},
+"fingerprinting": {
+"text": {
+"n": 1
+}
+},
+"fiqr": {
+"text": {
+"n": 2
+}
+},
+"fit": {
+"text": {
+"n": 75,
+"device": 6,
+"site": 4
+}
+},
+"fiv": {
+"text": {
+"n": 4,
+"site": 1
+}
+},
+"fixation": {
+"text": {
+"n": 118,
+"site": 21,
+"device": 3
+}
+},
+"fli": {
+"text": {
+"n": 9,
+"device": 2
+}
+},
+"flight": {
+"text": {
+"n": 79,
+"site": 2
+}
+},
+"floor": {
+"text": {
+"n": 132,
+"site": 72,
+"device": 9
+}
+},
+"flt": {
+"text": {
+"n": 10
+}
+},
+"fluency": {
+"text": {
+"n": 20,
+"device": 1
+}
+},
+"flunitrazepam": {
+"text": {
+"n": 3
+}
+},
+"fluoride": {
+"text": {
+"n": 45,
+"site": 4,
+"device": 1
+}
+},
+"fluoroscopy": {
+"text": {
+"n": 15,
+"device": 1,
+"site": 4
+}
+},
+"fluoxetine": {
+"text": {
+"n": 7,
+"device": 1
+}
+},
+"fluoxymesterone": {
+"text": {
+"n": 3
+}
+},
+"fluphenazine": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"fluvoxamine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"fmri": {
+"text": {
+"n": 14,
+"site": 1
+}
+},
+"forgetful": {
+"text": {
+"n": 4
+}
+},
+"fractalkine": {
+"text": {
+"n": 2
+}
+},
+"fractionation": {
+"text": {
+"n": 12
+}
+},
+"frail": {
+"text": {
+"n": 6
+}
+},
+"frc": {
+"text": {
+"n": 6
+}
+},
+"frequency": {
+"text": {
+"n": 558,
+"site": 50,
+"device": 8
+}
+},
+"frequently": {
+"text": {
+"n": 430,
+"site": 75,
+"device": 2
+}
+},
+"friend": {
+"text": {
+"n": 206,
+"site": 4,
+"device": 2
+}
+},
+"friendship": {
+"text": {
+"n": 7
+}
+},
+"fructose": {
+"text": {
+"n": 46,
+"site": 1,
+"device": 1
+}
+},
+"frustrated": {
+"text": {
+"n": 17,
+"site": 4
+}
+},
+"fss": {
+"text": {
+"n": 1
+}
+},
+"fulfilling": {
+"text": {
+"n": 14
+}
+},
+"fun": {
+"text": {
+"n": 25
+}
+},
+"functioning": {
+"text": {
+"n": 436,
+"site": 79,
+"device": 15
+}
+},
+"fundoplication": {
+"text": {
+"n": 1
+}
+},
+"furazabol": {
+"text": {
+"n": 1
+}
+},
+"future": {
+"text": {
+"n": 167,
+"device": 6,
+"site": 5
+}
+},
+"fvc": {
+"text": {
+"n": 7
+}
+},
+"gad": {
+"text": {
+"n": 11
+}
+},
+"game": {
+"text": {
+"n": 60,
+"device": 4
+}
+},
+"garbage": {
+"text": {
+"n": 4
+}
+},
+"gardening": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"gastrectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 9,
+"site": 1
+}
+},
+"gastrin": {
+"text": {
+"n": 42,
+"site": 9
+}
+},
+"gastrojejunostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"gastroscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"gastrostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"gathering": {
+"text": {
+"n": 22
+}
+},
+"gcgi": {
+"text": {
+"n": 1
+}
+},
+"gcp": {
+"text": {
+"n": 2
+}
+},
+"gcs": {
+"text": {
+"n": 6,
+"site": 1
+}
+},
+"gds": {
+"text": {
+"n": 2
+}
+},
+"gec": {
+"text": {
+"n": 7
+}
+},
+"genotyping": {
+"text": {
+"n": 21,
+"site": 4
+}
+},
+"ghrelin": {
+"text": {
+"n": 23,
+"site": 5
+}
+},
+"gland": {
+"ncit": {
+"n": 3,
+"site": 3
+}
+},
+"gln": {
+"text": {
+"n": 2,
+"site": 2
+}
+},
+"glossectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"glucose": {
+"text": {
+"n": 650,
+"site": 191,
+"device": 13
+}
+},
+"glutamine": {
+"text": {
+"n": 147,
+"site": 17
+}
+},
+"glutethimide": {
+"text": {
+"n": 2
+}
+},
+"glycerol": {
+"text": {
+"n": 43,
+"site": 5,
+"device": 1
+}
+},
+"glycine": {
+"text": {
+"n": 231,
+"site": 19,
+"device": 2
+}
+},
+"gmss": {
+"text": {
+"n": 1
+}
+},
+"goal": {
+"text": {
+"n": 193,
+"site": 14,
+"device": 10
+}
+},
+"golf": {
+"text": {
+"n": 20
+}
+},
+"gose": {
+"text": {
+"n": 1
+}
+},
+"grafting": {
+"text": {
+"n": 21,
+"site": 11
+}
+},
+"grandiosity": {
+"text": {
+"n": 2
+}
+},
+"granulin": {
+"text": {
+"n": 1
+}
+},
+"grip": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"gritty": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"grocery": {
+"text": {
+"n": 40
+}
+},
+"grooming": {
+"text": {
+"n": 25,
+"site": 1
+}
+},
+"ground": {
+"text": {
+"n": 109,
+"device": 3,
+"site": 13
+}
+},
+"gss": {
+"text": {
+"n": 3
+}
+},
+"guard": {
+"text": {
+"n": 7,
+"site": 1
+}
+},
+"guidance": {
+"text": {
+"n": 93,
+"site": 14,
+"device": 11
+}
+},
+"guilt": {
+"text": {
+"n": 15,
+"site": 1
+}
+},
+"habit": {
+"text": {
+"n": 61,
+"site": 4
+}
+},
+"had": {
+"text": {
+"n": 1885,
+"site": 60,
+"device": 20
+}
+},
+"haemophilus": {
+"text": {
+"n": 31
+}
+},
+"hair": {
+"text": {
+"n": 366,
+"site": 75,
+"device": 23
+}
+},
+"halazepam": {
+"text": {
+"n": 1
+}
+},
+"hama": {
+"text": {
+"n": 1
+}
+},
+"hamd": {
+"text": {
+"n": 3
+}
+},
+"handicapped": {
+"text": {
+"n": 3
+}
+},
+"handwriting": {
+"text": {
+"n": 2
+}
+},
+"happen": {
+"text": {
+"n": 72,
+"device": 2,
+"site": 1
+}
+},
+"happened": {
+"text": {
+"n": 72,
+"site": 1,
+"device": 2
+}
+},
+"happening": {
+"text": {
+"n": 17
+}
+},
+"happiness": {
+"text": {
+"n": 23
+}
+},
+"haq": {
+"text": {
+"n": 2
+}
+},
+"hct": {
+"text": {
+"n": 6,
+"site": 1
+}
+},
+"hdl": {
+"text": {
+"n": 45,
+"site": 10
+}
+},
+"hearing": {
+"text": {
+"n": 232,
+"device": 8,
+"site": 15
+}
+},
+"heart": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"heartburn": {
+"text": {
+"n": 11
+}
+},
+"heaviness": {
+"text": {
+"n": 10,
+"site": 4,
+"device": 1
+}
+},
+"helper": {
+"text": {
+"n": 425,
+"site": 243,
+"device": 3
+}
+},
+"helpless": {
+"text": {
+"n": 4,
+"device": 1
+}
+},
+"hematocrit": {
+"text": {
+"n": 15,
+"site": 2
+}
+},
+"hemicolectomy": {
+"text": {
+"n": 1
+}
+},
+"hemihepatectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"hemilaryngectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"hemipelvectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"hemodialysis": {
+"text": {
+"n": 42,
+"site": 10
+}
+},
+"hemofiltration": {
+"text": {
+"n": 2
+}
+},
+"heparin": {
+"text": {
+"n": 137,
+"device": 12,
+"site": 9
+}
+},
+"hepatectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+}
+},
+"hepsin": {
+"text": {
+"n": 3
+}
+},
+"her": {
+"text": {
+"n": 411,
+"site": 30,
+"device": 3
+}
+},
+"hexa": {
+"text": {
+"n": 4
+}
+},
+"histidine": {
+"text": {
+"n": 96,
+"site": 16
+}
+},
+"histopathology": {
+"text": {
+"n": 24,
+"site": 3,
+"device": 2
+}
+},
+"hobby": {
+"text": {
+"n": 15,
+"device": 1
+}
+},
+"hopeless": {
+"text": {
+"n": 7
+}
+},
+"horizontal": {
+"text": {
+"n": 72,
+"site": 13,
+"device": 2
+}
+},
+"hospice": {
+"text": {
+"n": 17,
+"device": 2
+}
+},
+"hostility": {
+"text": {
+"n": 6
+}
+},
+"house": {
+"text": {
+"n": 77,
+"device": 2,
+"site": 3
+}
+},
+"housework": {
+"text": {
+"n": 17
+}
+},
+"hra": {
+"text": {
+"n": 26,
+"site": 7
+}
+},
+"hsct": {
+"text": {
+"n": 7,
+"site": 2
+}
+},
+"hurt": {
+"text": {
+"n": 53,
+"site": 23
+}
+},
+"hybridization": {
+"text": {
+"n": 289,
+"site": 5
+}
+},
+"hydrogen": {
+"text": {
+"n": 215,
+"device": 5,
+"site": 15
+}
+},
+"hydroxycholesterol": {
+"text": {
+"n": 9
+}
+},
+"hydroxymidazolam": {
+"text": {
+"n": 2
+}
+},
+"hydroxyprogesterone": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"hydroxyrisperidone": {
+"text": {
+"n": 2
+}
+},
+"hygiene": {
+"text": {
+"n": 31,
+"site": 7,
+"device": 1
+}
+},
+"hyperthermia": {
+"text": {
+"n": 9
+}
+},
+"hypochondriasis": {
+"text": {
+"n": 2
+}
+},
+"hypophysectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"hysterectomy": {
+"ncit": {
+"n": 5,
+"site": 5
+},
+"text": {
+"n": 12,
+"site": 1
+}
+},
+"ibdq": {
+"text": {
+"n": 1
+}
+},
+"ic": {
+"text": {
+"n": 11
+}
+},
+"icam": {
+"text": {
+"n": 16,
+"site": 4
+}
+},
+"icg": {
+"text": {
+"n": 2,
+"site": 1
+}
+},
+"ie": {
+"text": {
+"n": 5,
+"site": 1
+}
+},
+"ifna": {
+"text": {
+"n": 1
+}
+},
+"igfbp": {
+"text": {
+"n": 4,
+"site": 1
+}
+},
+"igg": {
+"text": {
+"n": 287,
+"site": 26,
+"device": 5
+}
+},
+"ighg": {
+"text": {
+"n": 3
+}
+},
+"iief": {
+"text": {
+"n": 1
+}
+},
+"ileectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ileocolectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ileostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 3
+}
+},
+"ill": {
+"text": {
+"n": 64,
+"device": 2,
+"site": 1
+}
+},
+"illness": {
+"text": {
+"n": 1418,
+"device": 6,
+"site": 5
+}
+},
+"illumination": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"iloperidone": {
+"text": {
+"n": 1
+}
+},
+"imaging": {
+"text": {
+"n": 1437,
+"site": 223,
+"device": 69
+}
+},
+"imipramine": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"immediate": {
+"text": {
+"n": 90,
+"site": 4,
+"device": 9
+}
+},
+"immunization": {
+"text": {
+"n": 161,
+"device": 2,
+"site": 4
+}
+},
+"immunoassay": {
+"text": {
+"n": 80,
+"site": 11
+}
+},
+"immunofluorescence": {
+"text": {
+"n": 18,
+"site": 3
+}
+},
+"immunoprecipitation": {
+"text": {
+"n": 20,
+"site": 11
+}
+},
+"immunotherapy": {
+"text": {
+"n": 125,
+"site": 14,
+"device": 11
+}
+},
+"impatient": {
+"text": {
+"n": 9
+}
+},
+"implantation": {
+"text": {
+"n": 114,
+"site": 44,
+"device": 25
+}
+},
+"importance": {
+"text": {
+"n": 148,
+"site": 23,
+"device": 7
+}
+},
+"improving": {
+"text": {
+"n": 123,
+"site": 13,
+"device": 5
+}
+},
+"impt": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"incision": {
+"text": {
+"n": 95,
+"site": 26,
+"device": 5
+}
+},
+"included": {
+"text": {
+"n": 492,
+"device": 23,
+"site": 38
+}
+},
+"inconvenient": {
+"text": {
+"n": 12,
+"site": 4
+}
+},
+"independently": {
+"text": {
+"n": 90,
+"site": 7,
+"device": 5
+}
+},
+"indigestion": {
+"text": {
+"n": 13
+}
+},
+"induration": {
+"text": {
+"n": 37,
+"site": 5,
+"device": 1
+}
+},
+"inr": {
+"text": {
+"n": 1
+}
+},
+"inside": {
+"text": {
+"n": 161,
+"site": 46,
+"device": 11
+}
+},
+"insight": {
+"text": {
+"n": 109,
+"site": 11,
+"device": 7
+}
+},
+"insomnia": {
+"text": {
+"n": 27,
+"device": 1,
+"site": 1
+}
+},
+"instruct": {
+"text": {
+"n": 5,
+"site": 1
+}
+},
+"intensification": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"interfered": {
+"text": {
+"n": 122,
+"site": 16
+}
+},
+"interference": {
+"text": {
+"n": 169,
+"device": 2,
+"site": 30
+}
+},
+"intermed": {
+"text": {
+"n": 1
+}
+},
+"interrupted": {
+"text": {
+"n": 46,
+"site": 3
+}
+},
+"intervention": {
+"text": {
+"n": 1265,
+"device": 35,
+"site": 76
+}
+},
+"interview": {
+"text": {
+"n": 208,
+"device": 31
+}
+},
+"intestine": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"intimacy": {
+"text": {
+"n": 4
+}
+},
+"introduced": {
+"text": {
+"n": 106,
+"site": 35,
+"device": 11
+}
+},
+"intrusion": {
+"text": {
+"n": 25,
+"device": 1,
+"site": 2
+}
+},
+"intubation": {
+"text": {
+"n": 27,
+"site": 1
+}
+},
+"inulin": {
+"text": {
+"n": 11
+}
+},
+"inventory": {
+"text": {
+"n": 707,
+"site": 2,
+"device": 2
+}
+},
+"iohexol": {
+"text": {
+"n": 4
+}
+},
+"ipa": {
+"text": {
+"n": 5
+}
+},
+"ips": {
+"text": {
+"n": 5
+}
+},
+"irf": {
+"text": {
+"n": 3
+}
+},
+"irradiated": {
+"text": {
+"n": 85,
+"device": 2,
+"site": 31
+}
+},
+"irradiation": {
+"text": {
+"n": 115,
+"site": 36,
+"device": 2
+}
+},
+"irrigation": {
+"text": {
+"n": 24,
+"site": 12,
+"device": 3
+}
+},
+"irritable": {
+"text": {
+"n": 48
+}
+},
+"irritation": {
+"text": {
+"n": 108,
+"device": 3,
+"site": 61
+}
+},
+"isoleucine": {
+"text": {
+"n": 62,
+"site": 4
+}
+},
+"isoprene": {
+"text": {
+"n": 4
+}
+},
+"isthmectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"itching": {
+"text": {
+"n": 55,
+"site": 12
+}
+},
+"itchy": {
+"text": {
+"n": 26,
+"site": 2
+}
+},
+"item": {
+"text": {
+"n": 1959,
+"device": 22,
+"site": 28
+}
+},
+"ivc": {
+"text": {
+"n": 6,
+"device": 1
+}
+},
+"ivis": {
+"text": {
+"n": 1
+}
+},
+"jejunostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"jejunum": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"job": {
+"text": {
+"n": 116,
+"device": 1
+}
+},
+"jogging": {
+"text": {
+"n": 2
+}
+},
+"jwh": {
+"text": {
+"n": 7
+}
+},
+"karyotype": {
+"text": {
+"n": 57,
+"site": 16,
+"device": 2
+}
+},
+"karyotyping": {
+"text": {
+"n": 2
+}
+},
+"ketamine": {
+"text": {
+"n": 9
+}
+},
+"ketobemidone": {
+"text": {
+"n": 1
+}
+},
+"kfss": {
+"text": {
+"n": 1
+}
+},
+"ki": {
+"text": {
+"n": 9,
+"site": 1
+}
+},
+"kl": {
+"text": {
+"n": 9,
+"site": 1
+}
+},
+"klebsiella": {
+"text": {
+"n": 15
+}
+},
+"klk": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"klotho": {
+"text": {
+"n": 6
+}
+},
+"knee": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"kneeling": {
+"text": {
+"n": 16
+}
+},
+"knowledgeable": {
+"text": {
+"n": 3
+}
+},
+"kyphoplasty": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"lacosamide": {
+"text": {
+"n": 1
+}
+},
+"lactoferrin": {
+"text": {
+"n": 13
+}
+},
+"lactose": {
+"text": {
+"n": 51,
+"site": 2,
+"device": 3
+}
+},
+"lactulose": {
+"text": {
+"n": 2
+}
+},
+"laminectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"lamp": {
+"text": {
+"n": 22,
+"device": 2,
+"site": 3
+}
+},
+"laparoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 21
+}
+},
+"laparotomy": {
+"text": {
+"n": 5,
+"site": 1
+}
+},
+"laryngectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+},
+"text": {
+"n": 4
+}
+},
+"laryngopharyngectomy": {
+"text": {
+"n": 1
+}
+},
+"laryngoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 5
+}
+},
+"larynx": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"laser": {
+"text": {
+"n": 132,
+"site": 14,
+"device": 2
+}
+},
+"lateralization": {
+"text": {
+"n": 2
+}
+},
+"laugh": {
+"text": {
+"n": 6
+}
+},
+"laundry": {
+"text": {
+"n": 6
+}
+},
+"lavage": {
+"text": {
+"n": 18,
+"site": 5
+}
+},
+"lbs": {
+"text": {
+"n": 39
+}
+},
+"ldh": {
+"text": {
+"n": 43,
+"site": 6
+}
+},
+"learned": {
+"text": {
+"n": 18
+}
+},
+"lec": {
+"text": {
+"n": 1
+}
+},
+"len": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"leucine": {
+"text": {
+"n": 222,
+"device": 5,
+"site": 30
+}
+},
+"leukapheresis": {
+"text": {
+"n": 7,
+"site": 3
+}
+},
+"leukocyte": {
+"text": {
+"n": 579,
+"site": 213,
+"device": 4
+}
+},
+"levetiracetam": {
+"text": {
+"n": 6
+}
+},
+"levorphanol": {
+"text": {
+"n": 6,
+"device": 1
+}
+},
+"lfa": {
+"text": {
+"n": 25,
+"site": 2
+}
+},
+"lif": {
+"text": {
+"n": 7
+}
+},
+"lifetime": {
+"text": {
+"n": 270
+}
+},
+"lift": {
+"text": {
+"n": 26,
+"site": 4,
+"device": 1
+}
+},
+"ligation": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 51,
+"site": 12,
+"device": 2
+}
+},
+"lip": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"lipase": {
+"text": {
+"n": 69,
+"site": 11
+}
+},
+"listless": {
+"text": {
+"n": 3
+}
+},
+"liver": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"lle": {
+"text": {
+"n": 2
+}
+},
+"lobectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"localization": {
+"text": {
+"n": 310,
+"site": 82,
+"device": 6
+}
+},
+"lonely": {
+"text": {
+"n": 3
+}
+},
+"long": {
+"text": {
+"n": 1094,
+"site": 164,
+"device": 25
+}
+},
+"look": {
+"text": {
+"n": 74,
+"site": 23,
+"device": 2
+}
+},
+"loprazolam": {
+"text": {
+"n": 1
+}
+},
+"lormetazepam": {
+"text": {
+"n": 1
+}
+},
+"loxapine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"ltb": {
+"text": {
+"n": 3
+}
+},
+"lue": {
+"text": {
+"n": 2
+}
+},
+"lumpectomy": {
+"text": {
+"n": 4
+}
+},
+"lung": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"lurasidone": {
+"text": {
+"n": 1
+}
+},
+"lym": {
+"text": {
+"n": 12
+}
+},
+"lymphadenectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+},
+"text": {
+"n": 17,
+"site": 3,
+"device": 1
+}
+},
+"lysine": {
+"text": {
+"n": 387,
+"site": 13,
+"device": 14
+}
+},
+"lysozyme": {
+"text": {
+"n": 10,
+"site": 3
+}
+},
+"making": {
+"text": {
+"n": 189,
+"site": 18,
+"device": 10
+}
+},
+"malondialdehyde": {
+"text": {
+"n": 9
+}
+},
+"mammography": {
+"text": {
+"n": 15,
+"device": 1
+}
+},
+"mammoplasty": {
+"ncit": {
+"n": 5,
+"site": 5
+}
+},
+"mandibulectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"mandibulotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"maneuver": {
+"text": {
+"n": 24,
+"site": 8,
+"device": 1
+}
+},
+"mannitol": {
+"text": {
+"n": 32
+}
+},
+"massage": {
+"text": {
+"n": 8,
+"site": 3
+}
+},
+"mastectomy": {
+"ncit": {
+"n": 9,
+"site": 9
+},
+"text": {
+"n": 15,
+"site": 1
+}
+},
+"mastoidectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"mat": {
+"text": {
+"n": 7,
+"device": 1
+}
+},
+"matrice": {
+"text": {
+"n": 16,
+"site": 3
+}
+},
+"maxillectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+}
+},
+"mazindol": {
+"text": {
+"n": 1
+}
+},
+"mdsc": {
+"text": {
+"n": 11,
+"site": 2
+}
+},
+"meal": {
+"text": {
+"n": 183,
+"site": 6
+}
+},
+"measured": {
+"text": {
+"n": 483,
+"site": 116,
+"device": 21
+}
+},
+"measurement": {
+"text": {
+"n": 1403,
+"site": 365,
+"device": 51
+}
+},
+"meconium": {
+"text": {
+"n": 14,
+"site": 2
+}
+},
+"medazepam": {
+"text": {
+"n": 1
+}
+},
+"mediastinoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"mediastinotomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"meditation": {
+"text": {
+"n": 6
+}
+},
+"mefenorex": {
+"text": {
+"n": 1
+}
+},
+"meg": {
+"text": {
+"n": 4
+}
+},
+"meld": {
+"text": {
+"n": 6,
+"site": 1
+}
+},
+"mem": {
+"text": {
+"n": 11,
+"site": 1
+}
+},
+"mep": {
+"text": {
+"n": 4
+}
+},
+"meperidine": {
+"text": {
+"n": 1
+}
+},
+"meprobamate": {
+"text": {
+"n": 2
+}
+},
+"mercury": {
+"text": {
+"n": 32,
+"device": 1
+}
+},
+"mesoridazine": {
+"text": {
+"n": 1
+}
+},
+"mesterolone": {
+"text": {
+"n": 1
+}
+},
+"met": {
+"text": {
+"n": 403,
+"device": 2,
+"site": 73
+}
+},
+"metamyelocyte": {
+"text": {
+"n": 7,
+"site": 3
+}
+},
+"methane": {
+"text": {
+"n": 16
+}
+},
+"methanol": {
+"text": {
+"n": 26,
+"site": 1
+}
+},
+"methionine": {
+"text": {
+"n": 125,
+"device": 1,
+"site": 5
+}
+},
+"methohexital": {
+"text": {
+"n": 2
+}
+},
+"methylphenidate": {
+"text": {
+"n": 5
+}
+},
+"methyprylon": {
+"text": {
+"n": 1
+}
+},
+"mfis": {
+"text": {
+"n": 1
+}
+},
+"mhis": {
+"text": {
+"n": 1
+}
+},
+"microarray": {
+"text": {
+"n": 66,
+"device": 3,
+"site": 13
+}
+},
+"microdissection": {
+"text": {
+"n": 4,
+"site": 2
+}
+},
+"microscopy": {
+"text": {
+"n": 152,
+"site": 17,
+"device": 13
+}
+},
+"mild": {
+"text": {
+"n": 402,
+"site": 32,
+"device": 11
+}
+},
+"milnacipran": {
+"text": {
+"n": 1
+}
+},
+"mind": {
+"text": {
+"n": 55,
+"site": 8,
+"device": 1
+}
+},
+"mlana": {
+"text": {
+"n": 3
+}
+},
+"mnsi": {
+"text": {
+"n": 1
+}
+},
+"mobility": {
+"text": {
+"n": 178,
+"site": 31,
+"device": 3
+}
+},
+"modafinil": {
+"text": {
+"n": 3
+}
+},
+"moisture": {
+"text": {
+"n": 45,
+"site": 12,
+"device": 5
+}
+},
+"molindone": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"moment": {
+"text": {
+"n": 62,
+"site": 7
+}
+},
+"money": {
+"text": {
+"n": 44,
+"site": 1
+}
+},
+"mono": {
+"text": {
+"n": 49,
+"site": 2,
+"device": 1
+}
+},
+"monofilament": {
+"text": {
+"n": 3,
+"site": 2
+}
+},
+"monotherapy": {
+"text": {
+"n": 16,
+"site": 3
+}
+},
+"mood": {
+"text": {
+"n": 129,
+"site": 3,
+"device": 2
+}
+},
+"mopping": {
+"text": {
+"n": 9
+}
+},
+"morganella": {
+"text": {
+"n": 3
+}
+},
+"mos": {
+"text": {
+"n": 4
+}
+},
+"most": {
+"text": {
+"n": 1342,
+"site": 237,
+"device": 45
+}
+},
+"mouth": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"moved": {
+"text": {
+"n": 31,
+"site": 9,
+"device": 7
+}
+},
+"mpai": {
+"text": {
+"n": 1
+}
+},
+"mpn": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"mre": {
+"text": {
+"n": 1
+}
+},
+"mri": {
+"text": {
+"n": 220,
+"site": 42,
+"device": 7
+}
+},
+"mrs": {
+"text": {
+"n": 9,
+"site": 2,
+"device": 2
+}
+},
+"msh": {
+"text": {
+"n": 2
+}
+},
+"msi": {
+"text": {
+"n": 12
+}
+},
+"mtcp": {
+"text": {
+"n": 2
+}
+},
+"mucosa": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"multifocal": {
+"text": {
+"n": 55,
+"site": 9
+}
+},
+"murmur": {
+"text": {
+"n": 33,
+"site": 27
+}
+},
+"muscular": {
+"text": {
+"n": 169,
+"device": 8,
+"site": 43
+}
+},
+"mutagenesis": {
+"text": {
+"n": 16,
+"site": 4
+}
+},
+"mv": {
+"text": {
+"n": 29,
+"site": 1
+}
+},
+"mycobacterium": {
+"text": {
+"n": 127,
+"site": 7,
+"device": 2
+}
+},
+"mycoplasma": {
+"text": {
+"n": 18,
+"device": 1
+}
+},
+"myeloblast": {
+"text": {
+"n": 23,
+"site": 7
+}
+},
+"myelocyte": {
+"text": {
+"n": 14,
+"site": 3,
+"device": 1
+}
+},
+"myotomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"myringotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"myself": {
+"text": {
+"n": 55,
+"device": 1,
+"site": 2
+}
+},
+"naive": {
+"text": {
+"n": 84,
+"site": 23
+}
+},
+"narrowing": {
+"text": {
+"n": 123,
+"site": 68,
+"device": 5
+}
+},
+"nasopharyngoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"nasopharynx": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"nausea": {
+"text": {
+"n": 165,
+"site": 6,
+"device": 1
+}
+},
+"nauseated": {
+"text": {
+"n": 6
+}
+},
+"need": {
+"text": {
+"n": 569,
+"device": 32,
+"site": 34
+}
+},
+"nephrectomy": {
+"ncit": {
+"n": 4,
+"site": 4
+},
+"text": {
+"n": 19,
+"site": 2
+}
+},
+"nephrin": {
+"text": {
+"n": 2
+}
+},
+"nephroureterectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"nervous": {
+"text": {
+"n": 1153,
+"device": 29,
+"site": 151
+}
+},
+"neurofeedback": {
+"text": {
+"n": 3
+}
+},
+"neuroimaging": {
+"text": {
+"n": 158
+}
+},
+"neutral": {
+"text": {
+"n": 98,
+"site": 5,
+"device": 1
+}
+},
+"newspaper": {
+"text": {
+"n": 13
+}
+},
+"nhpt": {
+"text": {
+"n": 1
+}
+},
+"night": {
+"text": {
+"n": 117,
+"device": 11,
+"site": 5
+}
+},
+"nightmare": {
+"text": {
+"n": 6
+}
+},
+"nitrazepam": {
+"text": {
+"n": 3
+}
+},
+"no": {
+"text": {
+"n": 1621,
+"site": 484,
+"device": 31
+}
+},
+"nonstop": {
+"text": {
+"n": 25
+}
+},
+"norclostebol": {
+"text": {
+"n": 1
+}
+},
+"nordazepam": {
+"text": {
+"n": 1
+}
+},
+"norethandrolone": {
+"text": {
+"n": 1
+}
+},
+"normoblast": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"nornicotine": {
+"text": {
+"n": 1
+}
+},
+"nortriptyline": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"nose": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"nosebleed": {
+"text": {
+"n": 3
+}
+},
+"not": {
+"text": {
+"n": 7350,
+"site": 1323,
+"device": 185
+}
+},
+"now": {
+"text": {
+"n": 239,
+"site": 16,
+"device": 1
+}
+},
+"nps": {
+"text": {
+"n": 20,
+"site": 1
+}
+},
+"nsa": {
+"text": {
+"n": 2
+}
+},
+"nsaa": {
+"text": {
+"n": 1
+}
+},
+"nsclc": {
+"text": {
+"n": 54,
+"site": 17,
+"device": 1
+}
+},
+"nuisance": {
+"text": {
+"n": 3
+}
+},
+"numa": {
+"text": {
+"n": 1
+}
+},
+"oas": {
+"text": {
+"n": 4,
+"site": 1
+}
+},
+"odi": {
+"text": {
+"n": 2,
+"site": 1
+}
+},
+"omentectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"oophorectomy": {
+"ncit": {
+"n": 10,
+"site": 10
+},
+"text": {
+"n": 7
+}
+},
+"open": {
+"text": {
+"n": 239,
+"device": 19,
+"site": 42
+}
+},
+"operation": {
+"text": {
+"n": 198,
+"device": 32,
+"site": 8
+}
+},
+"ophthalmoscopy": {
+"text": {
+"n": 1
+}
+},
+"orchiectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 4,
+"device": 1
+}
+},
+"orientation": {
+"text": {
+"n": 93,
+"site": 21,
+"device": 5
+}
+},
+"ornithine": {
+"text": {
+"n": 43,
+"device": 2
+}
+},
+"orthose": {
+"text": {
+"n": 6,
+"site": 2
+}
+},
+"osmolality": {
+"text": {
+"n": 7,
+"site": 5
+}
+},
+"osteopontin": {
+"text": {
+"n": 5,
+"site": 1
+}
+},
+"osteotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ot": {
+"text": {
+"n": 1
+}
+},
+"outburst": {
+"text": {
+"n": 6
+}
+},
+"outreach": {
+"text": {
+"n": 14,
+"device": 1
+}
+},
+"outside": {
+"text": {
+"n": 343,
+"site": 140,
+"device": 11
+}
+},
+"oven": {
+"text": {
+"n": 5,
+"site": 1
+}
+},
+"overeating": {
+"text": {
+"n": 6
+}
+},
+"ovoid": {
+"text": {
+"n": 15,
+"site": 7
+}
+},
+"own": {
+"text": {
+"n": 135,
+"site": 7,
+"device": 2
+}
+},
+"oximetry": {
+"text": {
+"n": 3
+}
+},
+"oxygenation": {
+"text": {
+"n": 68,
+"site": 40,
+"device": 2
+}
+},
+"oxymesterone": {
+"text": {
+"n": 1
+}
+},
+"oxymorphone": {
+"text": {
+"n": 5,
+"device": 2
+}
+},
+"packing": {
+"text": {
+"n": 6,
+"site": 2
+}
+},
+"paf": {
+"text": {
+"n": 1
+}
+},
+"pain": {
+"text": {
+"n": 2313,
+"site": 556,
+"device": 77
+}
+},
+"painful": {
+"text": {
+"n": 91,
+"site": 6,
+"device": 2
+}
+},
+"palate": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"palatectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"palpation": {
+"text": {
+"n": 38,
+"site": 20,
+"device": 9
+}
+},
+"pancrea": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pancreatectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+}
+},
+"panniculectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"panss": {
+"text": {
+"n": 4
+}
+},
+"pappa": {
+"text": {
+"n": 2
+}
+},
+"parathyroidectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 2
+}
+},
+"parc": {
+"text": {
+"n": 1
+}
+},
+"parotidectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+}
+},
+"paroxetine": {
+"text": {
+"n": 3,
+"device": 2
+}
+},
+"pas": {
+"text": {
+"n": 16,
+"site": 2,
+"device": 1
+}
+},
+"pasat": {
+"text": {
+"n": 1
+}
+},
+"pasi": {
+"text": {
+"n": 4
+}
+},
+"past": {
+"text": {
+"n": 2193,
+"site": 87,
+"device": 4
+}
+},
+"pat": {
+"text": {
+"n": 9,
+"site": 1
+}
+},
+"patellectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pbp": {
+"text": {
+"n": 125
+}
+},
+"pci": {
+"text": {
+"n": 14,
+"site": 3,
+"device": 1
+}
+},
+"pcl": {
+"text": {
+"n": 2
+}
+},
+"pco": {
+"text": {
+"n": 6
+}
+},
+"pcr": {
+"text": {
+"n": 146,
+"site": 47
+}
+},
+"peaceful": {
+"text": {
+"n": 13
+}
+},
+"peer": {
+"text": {
+"n": 45,
+"device": 5,
+"site": 1
+}
+},
+"pef": {
+"text": {
+"n": 2
+}
+},
+"peg": {
+"text": {
+"n": 44,
+"device": 1,
+"site": 3
+}
+},
+"pemoline": {
+"text": {
+"n": 1
+}
+},
+"pencil": {
+"text": {
+"n": 12,
+"site": 1
+}
+},
+"penectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pentazocine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"people": {
+"text": {
+"n": 714,
+"device": 5,
+"site": 29
+}
+},
+"perampanel": {
+"text": {
+"n": 2
+}
+},
+"perform": {
+"text": {
+"n": 253,
+"device": 15,
+"site": 16
+}
+},
+"performance": {
+"text": {
+"n": 605,
+"site": 97,
+"device": 28
+}
+},
+"pericardiectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pericardium": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"peritoneoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"peritoneum": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"perphenazine": {
+"text": {
+"n": 1
+}
+},
+"pet": {
+"text": {
+"n": 268,
+"site": 65,
+"device": 7
+}
+},
+"pg": {
+"text": {
+"n": 22,
+"site": 1
+}
+},
+"pga": {
+"text": {
+"n": 5,
+"site": 1
+}
+},
+"pge": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"pgi": {
+"text": {
+"n": 1
+}
+},
+"pharmacotherapy": {
+"text": {
+"n": 18,
+"device": 1
+}
+},
+"pharyngectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"phenazocine": {
+"text": {
+"n": 1
+}
+},
+"phendimetrazine": {
+"text": {
+"n": 1
+}
+},
+"phenmetrazine": {
+"text": {
+"n": 2
+}
+},
+"phentermine": {
+"text": {
+"n": 4,
+"device": 1
+}
+},
+"phenylpropanolamine": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"phenytoin": {
+"text": {
+"n": 11,
+"device": 2,
+"site": 1
+}
+},
+"pheresis": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"phi": {
+"text": {
+"n": 7
+}
+},
+"phlebotomy": {
+"text": {
+"n": 4,
+"site": 1
+}
+},
+"phlegm": {
+"text": {
+"n": 4,
+"site": 2
+}
+},
+"pho": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"photochemotherapy": {
+"text": {
+"n": 1
+}
+},
+"photography": {
+"text": {
+"n": 15,
+"site": 5,
+"device": 1
+}
+},
+"photon": {
+"text": {
+"n": 82,
+"site": 5
+}
+},
+"photopheresis": {
+"text": {
+"n": 1
+}
+},
+"phototherapy": {
+"text": {
+"n": 2
+}
+},
+"phq": {
+"text": {
+"n": 4
+}
+},
+"physically": {
+"text": {
+"n": 48,
+"site": 3,
+"device": 1
+}
+},
+"pif": {
+"text": {
+"n": 2
+}
+},
+"pimozide": {
+"text": {
+"n": 1
+}
+},
+"pink": {
+"text": {
+"n": 52,
+"device": 2,
+"site": 12
+}
+},
+"pkm": {
+"text": {
+"n": 5
+}
+},
+"placed": {
+"text": {
+"n": 226,
+"device": 73,
+"site": 91
+}
+},
+"placement": {
+"text": {
+"n": 158,
+"device": 68,
+"site": 36
+}
+},
+"plasmablast": {
+"text": {
+"n": 28,
+"site": 9
+}
+},
+"plasmapheresis": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"plasminogen": {
+"text": {
+"n": 62,
+"site": 23
+}
+},
+"plasmodium": {
+"text": {
+"n": 31,
+"site": 2,
+"device": 3
+}
+},
+"play": {
+"text": {
+"n": 7610,
+"site": 487,
+"device": 17
+}
+},
+"pleurectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pleurodesis": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"plg": {
+"text": {
+"n": 3
+}
+},
+"plp": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"pmel": {
+"text": {
+"n": 8,
+"site": 5
+}
+},
+"pms": {
+"text": {
+"n": 2
+}
+},
+"pneumonectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"podci": {
+"text": {
+"n": 3
+}
+},
+"polypectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+},
+"text": {
+"n": 5
+}
+},
+"poor": {
+"text": {
+"n": 466,
+"site": 36,
+"device": 8
+}
+},
+"porphyrin": {
+"text": {
+"n": 23,
+"site": 3
+}
+},
+"posture": {
+"text": {
+"n": 20,
+"site": 3,
+"device": 1
+}
+},
+"posturing": {
+"text": {
+"n": 3
+}
+},
+"potatoe": {
+"text": {
+"n": 3
+}
+},
+"ppbp": {
+"text": {
+"n": 8
+}
+},
+"pra": {
+"text": {
+"n": 2
+}
+},
+"prazepam": {
+"text": {
+"n": 1
+}
+},
+"prealbumin": {
+"text": {
+"n": 1
+}
+},
+"pregabalin": {
+"text": {
+"n": 2
+}
+},
+"pregnenolone": {
+"text": {
+"n": 12
+}
+},
+"prepare": {
+"text": {
+"n": 48,
+"site": 2
+}
+},
+"presence": {
+"text": {
+"n": 4275,
+"site": 2333,
+"device": 118
+}
+},
+"preservation": {
+"text": {
+"n": 59,
+"site": 29,
+"device": 1
+}
+},
+"prevention": {
+"text": {
+"n": 365,
+"site": 37,
+"device": 6
+}
+},
+"prob": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"procalcitonin": {
+"text": {
+"n": 3
+}
+},
+"procedure": {
+"ncit": {
+"n": 16,
+"site": 16
+},
+"text": {
+"n": 1809,
+"site": 219,
+"device": 69
+}
+},
+"proctocolectomy": {
+"ncit": {
+"n": 2,
+"site": 2
+}
+},
+"proctoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"productive": {
+"text": {
+"n": 18,
+"site": 4
+}
+},
+"productivity": {
+"text": {
+"n": 67,
+"site": 3,
+"device": 1
+}
+},
+"profiling": {
+"text": {
+"n": 89,
+"site": 16,
+"device": 1
+}
+},
+"prolactin": {
+"text": {
+"n": 39,
+"site": 3,
+"device": 2
+}
+},
+"proline": {
+"text": {
+"n": 127,
+"site": 26,
+"device": 2
+}
+},
+"prophylactic": {
+"text": {
+"n": 24,
+"site": 1,
+"device": 1
+}
+},
+"prophylaxis": {
+"text": {
+"n": 39,
+"site": 4,
+"device": 1
+}
+},
+"prostate": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"prostatectomy": {
+"ncit": {
+"n": 6,
+"site": 6
+},
+"text": {
+"n": 39,
+"site": 7
+}
+},
+"prot": {
+"text": {
+"n": 18
+}
+},
+"protozoa": {
+"text": {
+"n": 32
+}
+},
+"protriptyline": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"pseudomona": {
+"text": {
+"n": 69,
+"site": 3,
+"device": 6
+}
+},
+"psf": {
+"text": {
+"n": 1
+}
+},
+"psg": {
+"text": {
+"n": 1
+}
+},
+"psychic": {
+"text": {
+"n": 4
+}
+},
+"psychotherapy": {
+"text": {
+"n": 15,
+"site": 3,
+"device": 1
+}
+},
+"pten": {
+"text": {
+"n": 78,
+"site": 13
+}
+},
+"pthrp": {
+"text": {
+"n": 3
+}
+},
+"ptt": {
+"text": {
+"n": 6,
+"site": 1
+}
+},
+"pul": {
+"text": {
+"n": 4
+}
+},
+"puncture": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pupillometry": {
+"text": {
+"n": 1
+}
+},
+"pyelography": {
+"text": {
+"n": 1
+}
+},
+"pyloroplasty": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pylorus": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"pyrovalerone": {
+"text": {
+"n": 1
+}
+},
+"quazepam": {
+"text": {
+"n": 1
+}
+},
+"question": {
+"text": {
+"n": 1167,
+"device": 287,
+"site": 25
+}
+},
+"questionnaire": {
+"text": {
+"n": 2562,
+"device": 75,
+"site": 122
+}
+},
+"quetiapine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"quickly": {
+"text": {
+"n": 57,
+"device": 4,
+"site": 5
+}
+},
+"racquetball": {
+"text": {
+"n": 4
+}
+},
+"radiation": {
+"text": {
+"n": 1111,
+"device": 38,
+"site": 195
+}
+},
+"radioembolization": {
+"text": {
+"n": 1
+}
+},
+"radiography": {
+"text": {
+"n": 22,
+"site": 7
+}
+},
+"radioimmunoassay": {
+"text": {
+"n": 3,
+"site": 1
+}
+},
+"radioimmunotherapy": {
+"text": {
+"n": 17
+}
+},
+"radiosensitization": {
+"text": {
+"n": 4
+}
+},
+"radiosurgery": {
+"text": {
+"n": 11,
+"device": 1,
+"site": 1
+}
+},
+"radiotherapy": {
+"text": {
+"n": 223,
+"device": 1,
+"site": 41
+}
+},
+"rashe": {
+"text": {
+"n": 27,
+"site": 4
+}
+},
+"rating": {
+"text": {
+"n": 1409,
+"device": 19,
+"site": 13
+}
+},
+"raw": {
+"text": {
+"n": 70,
+"site": 6,
+"device": 1
+}
+},
+"rdq": {
+"text": {
+"n": 2
+}
+},
+"read": {
+"text": {
+"n": 162,
+"site": 14,
+"device": 10
+}
+},
+"reading": {
+"text": {
+"n": 106,
+"device": 1,
+"site": 17
+}
+},
+"reconstruction": {
+"text": {
+"n": 149,
+"device": 4,
+"site": 60
+}
+},
+"rectosigmoidectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"rectum": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"redness": {
+"text": {
+"n": 35,
+"site": 18,
+"device": 1
+}
+},
+"reflexe": {
+"text": {
+"n": 17,
+"site": 8
+}
+},
+"regimen": {
+"text": {
+"n": 305,
+"site": 10
+}
+},
+"regularly": {
+"text": {
+"n": 58,
+"device": 1,
+"site": 4
+}
+},
+"rehabilitation": {
+"text": {
+"n": 64,
+"site": 4,
+"device": 3
+}
+},
+"reirradiation": {
+"text": {
+"n": 4
+}
+},
+"relaxation": {
+"text": {
+"n": 176,
+"site": 122,
+"device": 2
+}
+},
+"relaxed": {
+"text": {
+"n": 19,
+"site": 4,
+"device": 1
+}
+},
+"relaxing": {
+"text": {
+"n": 30,
+"site": 21
+}
+},
+"relief": {
+"text": {
+"n": 120,
+"site": 11,
+"device": 1
+}
+},
+"reminder": {
+"text": {
+"n": 22,
+"device": 1,
+"site": 1
+}
+},
+"removal": {
+"text": {
+"n": 625,
+"site": 342,
+"device": 37
+}
+},
+"repainting": {
+"text": {
+"n": 1
+}
+},
+"repair": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"replacement": {
+"ncit": {
+"n": 5,
+"site": 5
+}
+},
+"resection": {
+"ncit": {
+"n": 8,
+"site": 8
+},
+"text": {
+"n": 602,
+"site": 80,
+"device": 2
+}
+},
+"respond": {
+"text": {
+"n": 357,
+"site": 64,
+"device": 16
+}
+},
+"responsibility": {
+"text": {
+"n": 104,
+"device": 5,
+"site": 3
+}
+},
+"restaurant": {
+"text": {
+"n": 12
+}
+},
+"rested": {
+"text": {
+"n": 7,
+"site": 2
+}
+},
+"restless": {
+"text": {
+"n": 23
+}
+},
+"restoration": {
+"text": {
+"n": 98,
+"site": 30,
+"device": 2
+}
+},
+"restroom": {
+"text": {
+"n": 13
+}
+},
+"resurfacing": {
+"text": {
+"n": 2,
+"site": 1
+}
+},
+"resuscitation": {
+"text": {
+"n": 30,
+"site": 10
+}
+},
+"reticulocyte": {
+"text": {
+"n": 34,
+"site": 5
+}
+},
+"retrospective": {
+"text": {
+"n": 92
+}
+},
+"revascularization": {
+"text": {
+"n": 12,
+"site": 1
+}
+},
+"reversibility": {
+"text": {
+"n": 1
+}
+},
+"revised": {
+"text": {
+"n": 133,
+"site": 1,
+"device": 3
+}
+},
+"rf": {
+"text": {
+"n": 6
+}
+},
+"riboflavin": {
+"text": {
+"n": 19,
+"site": 2,
+"device": 1
+}
+},
+"risperidone": {
+"text": {
+"n": 9
+}
+},
+"rle": {
+"text": {
+"n": 2
+}
+},
+"rna": {
+"text": {
+"n": 2137,
+"site": 150,
+"device": 30
+}
+},
+"robotic": {
+"text": {
+"n": 33,
+"device": 2,
+"site": 2
+}
+},
+"rock": {
+"text": {
+"n": 19,
+"site": 1
+}
+},
+"rom": {
+"text": {
+"n": 23,
+"site": 4
+}
+},
+"rotavirus": {
+"text": {
+"n": 7
+}
+},
+"rpq": {
+"text": {
+"n": 1
+}
+},
+"rue": {
+"text": {
+"n": 2
+}
+},
+"running": {
+"text": {
+"n": 63,
+"site": 32,
+"device": 4
+}
+},
+"sad": {
+"text": {
+"n": 29
+}
+},
+"sadness": {
+"text": {
+"n": 23
+}
+},
+"safely": {
+"text": {
+"n": 25,
+"device": 2,
+"site": 2
+}
+},
+"sage": {
+"text": {
+"n": 8
+}
+},
+"salmonella": {
+"text": {
+"n": 70,
+"site": 7,
+"device": 1
+}
+},
+"salpingectomy": {
+"ncit": {
+"n": 7,
+"site": 7
+}
+},
+"salvage": {
+"text": {
+"n": 42,
+"site": 9,
+"device": 2
+}
+},
+"satisfaction": {
+"text": {
+"n": 278,
+"site": 2,
+"device": 3
+}
+},
+"satisfactory": {
+"text": {
+"n": 20,
+"device": 1
+}
+},
+"satisfying": {
+"text": {
+"n": 6
+}
+},
+"say": {
+"text": {
+"n": 66
+}
+},
+"sbrt": {
+"text": {
+"n": 5,
+"device": 1
+}
+},
+"scale": {
+"text": {
+"n": 4223,
+"device": 73,
+"site": 54
+}
+},
+"scaling": {
+"text": {
+"n": 29,
+"device": 1,
+"site": 2
+}
+},
+"scan": {
+"text": {
+"n": 193,
+"site": 39,
+"device": 9
+}
+},
+"scanning": {
+"text": {
+"n": 55,
+"device": 3,
+"site": 5
+}
+},
+"scared": {
+"text": {
+"n": 14,
+"device": 1
+}
+},
+"schoolwork": {
+"text": {
+"n": 12
+}
+},
+"scintigraphy": {
+"text": {
+"n": 38,
+"site": 13
+}
+},
+"scored": {
+"text": {
+"n": 58,
+"site": 7
+}
+},
+"screen": {
+"text": {
+"n": 64,
+"device": 10,
+"site": 2
+}
+},
+"screening": {
+"text": {
+"n": 672,
+"device": 11,
+"site": 23
+}
+},
+"sds": {
+"text": {
+"n": 7,
+"device": 1
+}
+},
+"season": {
+"text": {
+"n": 36,
+"device": 1,
+"site": 2
+}
+},
+"seat": {
+"text": {
+"n": 19,
+"device": 1
+}
+},
+"seated": {
+"text": {
+"n": 22,
+"site": 7
+}
+},
+"section": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 258,
+"site": 87,
+"device": 19
+}
+},
+"segmented": {
+"text": {
+"n": 24,
+"site": 4
+}
+},
+"selenium": {
+"text": {
+"n": 35,
+"site": 1,
+"device": 2
+}
+},
+"self": {
+"text": {
+"n": 1089,
+"device": 14,
+"site": 29
+}
+},
+"sentence": {
+"text": {
+"n": 54
+}
+},
+"seq": {
+"text": {
+"n": 14,
+"site": 2
+}
+},
+"sequencing": {
+"text": {
+"n": 357,
+"device": 9,
+"site": 33
+}
+},
+"sequential": {
+"text": {
+"n": 52,
+"device": 4,
+"site": 4
+}
+},
+"sequestrectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ser": {
+"text": {
+"n": 22
+}
+},
+"serine": {
+"text": {
+"n": 739,
+"device": 6,
+"site": 54
+}
+},
+"seroreactivity": {
+"text": {
+"n": 3
+}
+},
+"serratia": {
+"text": {
+"n": 15,
+"site": 1
+}
+},
+"sertraline": {
+"text": {
+"n": 2
+}
+},
+"ses": {
+"text": {
+"n": 5
+}
+},
+"severity": {
+"text": {
+"n": 1318,
+"site": 83,
+"device": 19
+}
+},
+"sexual": {
+"text": {
+"n": 399,
+"site": 13,
+"device": 14
+}
+},
+"sexually": {
+"text": {
+"n": 50,
+"device": 2,
+"site": 1
+}
+},
+"sf": {
+"text": {
+"n": 96,
+"site": 2
+}
+},
+"sgrq": {
+"text": {
+"n": 4
+}
+},
+"shaking": {
+"text": {
+"n": 11,
+"site": 4
+}
+},
+"sharp": {
+"text": {
+"n": 39,
+"device": 2,
+"site": 1
+}
+},
+"shigella": {
+"text": {
+"n": 10
+}
+},
+"shoelace": {
+"text": {
+"n": 2
+}
+},
+"shop": {
+"text": {
+"n": 5
+}
+},
+"shopping": {
+"text": {
+"n": 18,
+"site": 1
+}
+},
+"short": {
+"text": {
+"n": 1215,
+"site": 365,
+"device": 28
+}
+},
+"shower": {
+"text": {
+"n": 32
+}
+},
+"sialography": {
+"text": {
+"n": 1
+}
+},
+"sibutramine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"sideroblast": {
+"text": {
+"n": 12,
+"site": 3
+}
+},
+"sigmoidoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"simultaneous": {
+"text": {
+"n": 53,
+"site": 6,
+"device": 1
+}
+},
+"siq": {
+"text": {
+"n": 2
+}
+},
+"siqr": {
+"text": {
+"n": 1
+}
+},
+"sitting": {
+"text": {
+"n": 60,
+"site": 1
+}
+},
+"situation": {
+"text": {
+"n": 154,
+"device": 14,
+"site": 2
+}
+},
+"skill": {
+"text": {
+"n": 127,
+"site": 3,
+"device": 9
+}
+},
+"sle": {
+"text": {
+"n": 30,
+"device": 2,
+"site": 2
+}
+},
+"sleep": {
+"text": {
+"n": 347,
+"site": 15,
+"device": 5
+}
+},
+"sleepiness": {
+"text": {
+"n": 24
+}
+},
+"sleeping": {
+"text": {
+"n": 59,
+"site": 1
+}
+},
+"slow": {
+"text": {
+"n": 140,
+"device": 7,
+"site": 8
+}
+},
+"slowing": {
+"text": {
+"n": 15,
+"site": 4
+}
+},
+"slowly": {
+"text": {
+"n": 74,
+"site": 12,
+"device": 7
+}
+},
+"sluggish": {
+"text": {
+"n": 3
+}
+},
+"smart": {
+"text": {
+"n": 8,
+"site": 2,
+"device": 2
+}
+},
+"smdd": {
+"text": {
+"n": 1
+}
+},
+"smelling": {
+"text": {
+"n": 3
+}
+},
+"snack": {
+"text": {
+"n": 13
+}
+},
+"so": {
+"text": {
+"n": 303,
+"device": 10,
+"site": 42
+}
+},
+"social": {
+"text": {
+"n": 387,
+"site": 10,
+"device": 5
+}
+},
+"sofa": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"solid": {
+"text": {
+"n": 784,
+"site": 93,
+"device": 36
+}
+},
+"someone": {
+"text": {
+"n": 135,
+"site": 5,
+"device": 1
+}
+},
+"something": {
+"text": {
+"n": 725,
+"device": 23,
+"site": 18
+}
+},
+"soreness": {
+"text": {
+"n": 6,
+"site": 3
+}
+},
+"specify": {
+"text": {
+"n": 174,
+"site": 1,
+"device": 18
+}
+},
+"spectroscopy": {
+"text": {
+"n": 58,
+"site": 1,
+"device": 1
+}
+},
+"spirochaetale": {
+"text": {
+"n": 1
+}
+},
+"spirometry": {
+"text": {
+"n": 1
+}
+},
+"splenectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"sport": {
+"text": {
+"n": 88,
+"device": 2
+}
+},
+"spotting": {
+"text": {
+"n": 7
+}
+},
+"sppb": {
+"text": {
+"n": 1
+}
+},
+"srp": {
+"text": {
+"n": 1
+}
+},
+"ssa": {
+"text": {
+"n": 3
+}
+},
+"sstr": {
+"text": {
+"n": 59,
+"site": 16
+}
+},
+"stabilization": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"stain": {
+"text": {
+"n": 124,
+"site": 44,
+"device": 6
+}
+},
+"stair": {
+"text": {
+"n": 121,
+"site": 6
+}
+},
+"stand": {
+"text": {
+"n": 73,
+"device": 20,
+"site": 2
+}
+},
+"stanozolol": {
+"text": {
+"n": 1
+}
+},
+"startled": {
+"text": {
+"n": 3
+}
+},
+"stat": {
+"text": {
+"n": 43,
+"site": 3
+}
+},
+"stenting": {
+"text": {
+"n": 6,
+"site": 2
+}
+},
+"step": {
+"text": {
+"n": 433,
+"site": 35,
+"device": 13
+}
+},
+"sternotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"stiff": {
+"text": {
+"n": 24,
+"site": 19
+}
+},
+"still": {
+"text": {
+"n": 136,
+"site": 12,
+"device": 4
+}
+},
+"stimulation": {
+"text": {
+"n": 529,
+"site": 239,
+"device": 24
+}
+},
+"stinging": {
+"text": {
+"n": 7,
+"site": 3
+}
+},
+"stocking": {
+"text": {
+"n": 8,
+"device": 1
+}
+},
+"stooping": {
+"text": {
+"n": 10
+}
+},
+"stopping": {
+"text": {
+"n": 39
+}
+},
+"stream": {
+"text": {
+"n": 67,
+"site": 42,
+"device": 3
+}
+},
+"stressed": {
+"text": {
+"n": 15,
+"site": 1
+}
+},
+"stripping": {
+"text": {
+"n": 11,
+"site": 1
+}
+},
+"sub": {
+"text": {
+"n": 363,
+"site": 54,
+"device": 21
+}
+},
+"subjective": {
+"text": {
+"n": 99,
+"site": 4
+}
+},
+"subscale": {
+"text": {
+"n": 97,
+"site": 11
+}
+},
+"subscore": {
+"text": {
+"n": 49,
+"site": 9,
+"device": 6
+}
+},
+"substitution": {
+"text": {
+"n": 824,
+"site": 497,
+"device": 5
+}
+},
+"subtest": {
+"text": {
+"n": 68,
+"site": 2
+}
+},
+"subtotal": {
+"text": {
+"n": 7
+}
+},
+"sudden": {
+"text": {
+"n": 74,
+"device": 4,
+"site": 4
+}
+},
+"sufentanil": {
+"text": {
+"n": 4,
+"device": 1
+}
+},
+"suggestion": {
+"text": {
+"n": 10,
+"device": 2
+}
+},
+"sum": {
+"text": {
+"n": 223,
+"device": 1,
+"site": 20
+}
+},
+"supination": {
+"text": {
+"n": 9,
+"site": 2
+}
+},
+"supplementation": {
+"text": {
+"n": 37,
+"site": 6
+}
+},
+"surgery": {
+"ncit": {
+"n": 7,
+"site": 7
+},
+"text": {
+"n": 829,
+"site": 197,
+"device": 53
+}
+},
+"surgical": {
+"text": {
+"n": 918,
+"device": 25,
+"site": 74
+}
+},
+"surprise": {
+"text": {
+"n": 16
+}
+},
+"suspiciousness": {
+"text": {
+"n": 5
+}
+},
+"svc": {
+"text": {
+"n": 1
+}
+},
+"swe": {
+"text": {
+"n": 1
+}
+},
+"sweat": {
+"text": {
+"n": 97,
+"site": 16,
+"device": 2
+}
+},
+"swimming": {
+"text": {
+"n": 28,
+"site": 1
+}
+},
+"swl": {
+"text": {
+"n": 1
+}
+},
+"swollen": {
+"text": {
+"n": 26,
+"site": 4,
+"device": 1
+}
+},
+"systolic": {
+"text": {
+"n": 87,
+"site": 7,
+"device": 2
+}
+},
+"taf": {
+"text": {
+"n": 7,
+"site": 1
+}
+},
+"take": {
+"text": {
+"n": 375,
+"site": 41,
+"device": 11
+}
+},
+"talk": {
+"text": {
+"n": 61,
+"site": 3
+}
+},
+"tap": {
+"text": {
+"n": 15,
+"site": 6
+}
+},
+"tapentadol": {
+"text": {
+"n": 2
+}
+},
+"tapping": {
+"text": {
+"n": 53,
+"site": 8,
+"device": 1
+}
+},
+"task": {
+"text": {
+"n": 376,
+"site": 43,
+"device": 7
+}
+},
+"tat": {
+"text": {
+"n": 25,
+"site": 5
+}
+},
+"taurine": {
+"text": {
+"n": 8
+}
+},
+"taurocholate": {
+"text": {
+"n": 3
+}
+},
+"tbi": {
+"text": {
+"n": 23,
+"site": 4
+}
+},
+"tdi": {
+"text": {
+"n": 7
+}
+},
+"te": {
+"text": {
+"n": 10,
+"site": 2
+}
+},
+"teen": {
+"text": {
+"n": 181
+}
+},
+"television": {
+"text": {
+"n": 19,
+"device": 1
+}
+},
+"temper": {
+"text": {
+"n": 6
+}
+},
+"tender": {
+"text": {
+"n": 15,
+"site": 1
+}
+},
+"tenderness": {
+"text": {
+"n": 45,
+"site": 10
+}
+},
+"tennis": {
+"text": {
+"n": 11
+}
+},
+"tense": {
+"text": {
+"n": 15
+}
+},
+"tension": {
+"text": {
+"n": 76,
+"site": 24,
+"device": 2
+}
+},
+"testis": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"testolactone": {
+"text": {
+"n": 1
+}
+},
+"tfe": {
+"text": {
+"n": 3
+}
+},
+"tfr": {
+"text": {
+"n": 1,
+"site": 1
+}
+},
+"tgfb": {
+"text": {
+"n": 32,
+"site": 9
+}
+},
+"thebaine": {
+"text": {
+"n": 1
+}
+},
+"therapy": {
+"text": {
+"n": 3661,
+"site": 178,
+"device": 58
+}
+},
+"thermotherapy": {
+"text": {
+"n": 1
+}
+},
+"thiamine": {
+"text": {
+"n": 10,
+"device": 2,
+"site": 1
+}
+},
+"thiamylal": {
+"text": {
+"n": 1
+}
+},
+"thing": {
+"text": {
+"n": 488,
+"site": 9,
+"device": 1
+}
+},
+"thiopental": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"thioridazine": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"thiothixene": {
+"text": {
+"n": 2,
+"device": 1
+}
+},
+"thoracentesis": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 2
+}
+},
+"thoracoscopy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 8,
+"site": 1
+}
+},
+"thoracotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 3
+}
+},
+"thorough": {
+"text": {
+"n": 10
+}
+},
+"thought": {
+"text": {
+"n": 378,
+"site": 39,
+"device": 11
+}
+},
+"thr": {
+"text": {
+"n": 5
+}
+},
+"threonine": {
+"text": {
+"n": 901,
+"site": 30,
+"device": 3
+}
+},
+"thrombectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 4,
+"site": 1
+}
+},
+"thymectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"thyroglobulin": {
+"text": {
+"n": 23,
+"site": 6,
+"device": 4
+}
+},
+"thyroidectomy": {
+"ncit": {
+"n": 3,
+"site": 3
+},
+"text": {
+"n": 8
+}
+},
+"tightness": {
+"text": {
+"n": 23,
+"site": 17,
+"device": 1
+}
+},
+"tired": {
+"text": {
+"n": 117,
+"site": 2
+}
+},
+"tiredness": {
+"text": {
+"n": 40,
+"site": 1
+}
+},
+"tk": {
+"text": {
+"n": 33,
+"site": 9,
+"device": 1
+}
+},
+"tms": {
+"text": {
+"n": 1
+}
+},
+"tmt": {
+"text": {
+"n": 2
+}
+},
+"tnf": {
+"text": {
+"n": 141,
+"site": 14,
+"device": 3
+}
+},
+"toe": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"together": {
+"text": {
+"n": 290,
+"site": 66,
+"device": 25
+}
+},
+"toilet": {
+"text": {
+"n": 35,
+"site": 2
+}
+},
+"toileting": {
+"text": {
+"n": 4,
+"device": 2
+}
+},
+"tomography": {
+"text": {
+"n": 581,
+"site": 112,
+"device": 11
+}
+},
+"tongue": {
+"ncit": {
+"n": 3,
+"site": 3
+}
+},
+"tonometry": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"tonsil": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"tonsillectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+},
+"text": {
+"n": 4
+}
+},
+"total": {
+"text": {
+"n": 1407,
+"site": 359,
+"device": 27
+}
+},
+"touch": {
+"text": {
+"n": 49,
+"site": 6,
+"device": 2
+}
+},
+"trachea": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"tracheotomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"trail": {
+"text": {
+"n": 46,
+"site": 8,
+"device": 4
+}
+},
+"tramadol": {
+"text": {
+"n": 8,
+"site": 2
+}
+},
+"transfer": {
+"text": {
+"n": 461,
+"site": 112,
+"device": 20
+}
+},
+"transferrin": {
+"text": {
+"n": 44,
+"site": 5
+}
+},
+"transfusion": {
+"text": {
+"n": 103,
+"site": 60,
+"device": 1
+}
+},
+"transitional": {
+"text": {
+"n": 86,
+"site": 11,
+"device": 1
+}
+},
+"transplantation": {
+"ncit": {
+"n": 7,
+"site": 7
+},
+"text": {
+"n": 292,
+"site": 236,
+"device": 6
+}
+},
+"travel": {
+"text": {
+"n": 102,
+"device": 8,
+"site": 26
+}
+},
+"traveling": {
+"text": {
+"n": 24,
+"device": 3,
+"site": 3
+}
+},
+"trazodone": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"treat": {
+"text": {
+"n": 347,
+"device": 18,
+"site": 24
+}
+},
+"trenbolone": {
+"text": {
+"n": 1
+}
+},
+"triazolam": {
+"text": {
+"n": 1
+}
+},
+"tricycle": {
+"text": {
+"n": 3
+}
+},
+"trifluoperazine": {
+"text": {
+"n": 2
+}
+},
+"trimeperidine": {
+"text": {
+"n": 1
+}
+},
+"tryptophan": {
+"text": {
+"n": 87,
+"site": 6
+}
+},
+"tscc": {
+"text": {
+"n": 1
+}
+},
+"tscyc": {
+"text": {
+"n": 1
+}
+},
+"tslp": {
+"text": {
+"n": 2
+}
+},
+"tsqm": {
+"text": {
+"n": 1
+}
+},
+"tug": {
+"text": {
+"n": 2
+}
+},
+"turbinectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"tv": {
+"text": {
+"n": 23
+}
+},
+"tympanomastoidectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"type": {
+"text": {
+"n": 13651,
+"device": 322,
+"site": 2639
+}
+},
+"typing": {
+"text": {
+"n": 25,
+"site": 6
+}
+},
+"tyr": {
+"text": {
+"n": 13,
+"site": 1
+}
+},
+"tyrosine": {
+"text": {
+"n": 2057,
+"site": 205,
+"device": 16
+}
+},
+"uhdr": {
+"text": {
+"n": 3
+}
+},
+"ulceration": {
+"text": {
+"n": 223,
+"site": 110,
+"device": 4
+}
+},
+"ultrasonography": {
+"text": {
+"n": 39,
+"device": 2,
+"site": 8
+}
+},
+"ultrasound": {
+"text": {
+"n": 246,
+"site": 33,
+"device": 10
+}
+},
+"uncomfortable": {
+"text": {
+"n": 29,
+"site": 2
+}
+},
+"uncooperativeness": {
+"text": {
+"n": 2
+}
+},
+"understand": {
+"text": {
+"n": 127,
+"site": 4,
+"device": 1
+}
+},
+"unpredictable": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"unwell": {
+"text": {
+"n": 2
+}
+},
+"upd": {
+"text": {
+"n": 2
+}
+},
+"uphill": {
+"text": {
+"n": 5
+}
+},
+"ups": {
+"text": {
+"n": 12
+}
+},
+"upset": {
+"text": {
+"n": 53,
+"device": 1,
+"site": 2
+}
+},
+"upstair": {
+"text": {
+"n": 2,
+"site": 1
+}
+},
+"uptight": {
+"text": {
+"n": 3
+}
+},
+"ureterectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ureterostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"urethra": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"urethrostomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"urinate": {
+"text": {
+"n": 40,
+"device": 2
+}
+},
+"urinated": {
+"text": {
+"n": 3
+}
+},
+"urinating": {
+"text": {
+"n": 13,
+"site": 2
+}
+},
+"urination": {
+"text": {
+"n": 50,
+"site": 5
+}
+},
+"urostomy": {
+"text": {
+"n": 19,
+"site": 2
+}
+},
+"ursodeoxycholate": {
+"text": {
+"n": 2
+}
+},
+"useless": {
+"text": {
+"n": 3
+}
+},
+"usual": {
+"text": {
+"n": 329,
+"device": 1,
+"site": 23
+}
+},
+"utensil": {
+"text": {
+"n": 8
+}
+},
+"uvula": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"vaccination": {
+"text": {
+"n": 128,
+"site": 16,
+"device": 1
+}
+},
+"val": {
+"text": {
+"n": 9,
+"site": 3
+}
+},
+"valine": {
+"text": {
+"n": 193,
+"site": 27,
+"device": 1
+}
+},
+"valproate": {
+"text": {
+"n": 2
+}
+},
+"valvuloplasty": {
+"text": {
+"n": 1,
+"device": 1
+}
+},
+"vas": {
+"text": {
+"n": 118,
+"site": 5
+}
+},
+"vasectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"vegfr": {
+"text": {
+"n": 89,
+"site": 11,
+"device": 1
+}
+},
+"ventilation": {
+"text": {
+"n": 76,
+"site": 3,
+"device": 2
+}
+},
+"ventricle": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"ventriculography": {
+"text": {
+"n": 5
+}
+},
+"vertebroplasty": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"vertical": {
+"text": {
+"n": 48,
+"site": 5
+}
+},
+"videothoracoscopy": {
+"text": {
+"n": 1
+}
+},
+"vilazodone": {
+"text": {
+"n": 1
+}
+},
+"vinbarbital": {
+"text": {
+"n": 1
+}
+},
+"vitrectomy": {
+"ncit": {
+"n": 1,
+"site": 1
+}
+},
+"vitronectin": {
+"text": {
+"n": 3
+}
+},
+"vldl": {
+"text": {
+"n": 8
+}
+},
+"vn": {
+"text": {
+"n": 2
+}
+},
+"voice": {
+"text": {
+"n": 108,
+"device": 1,
+"site": 2
+}
+},
+"vomit": {
+"text": {
+"n": 11
+}
+},
+"vomited": {
+"text": {
+"n": 9
+}
+},
+"vomiting": {
+"text": {
+"n": 135,
+"site": 9
+}
+},
+"walk": {
+"text": {
+"n": 149,
+"site": 9,
+"device": 1
+}
+},
+"walker": {
+"text": {
+"n": 5
+}
+},
+"walking": {
+"text": {
+"n": 171,
+"site": 11,
+"device": 3
+}
+},
+"want": {
+"text": {
+"n": 94,
+"site": 2,
+"device": 1
+}
+},
+"wash": {
+"text": {
+"n": 22,
+"device": 2,
+"site": 1
+}
+},
+"washer": {
+"text": {
+"n": 1
+}
+},
+"washing": {
+"text": {
+"n": 75,
+"device": 1,
+"site": 43
+}
+},
+"weak": {
+"text": {
+"n": 114,
+"site": 8,
+"device": 1
+}
+},
+"well": {
+"text": {
+"n": 1708,
+"site": 294,
+"device": 41
+}
+},
+"wgs": {
+"text": {
+"n": 1,
+"device": 1
+}
+},
+"whitening": {
+"text": {
+"n": 3,
+"site": 3,
+"device": 1
+}
+},
+"withdrawal": {
+"text": {
+"n": 195,
+"site": 9,
+"device": 24
+}
+},
+"witnessed": {
+"text": {
+"n": 10,
+"site": 1
+}
+},
+"word": {
+"text": {
+"n": 297,
+"site": 11,
+"device": 3
+}
+},
+"work": {
+"text": {
+"n": 860,
+"site": 22,
+"device": 12
+}
+},
+"worked": {
+"text": {
+"n": 52
+}
+},
+"world": {
+"text": {
+"n": 188,
+"site": 5,
+"device": 6
+}
+},
+"worried": {
+"text": {
+"n": 69
+}
+},
+"worry": {
+"text": {
+"n": 137,
+"site": 6
+}
+},
+"worrying": {
+"text": {
+"n": 17
+}
+},
+"worst": {
+"text": {
+"n": 193,
+"site": 31,
+"device": 1
+}
+},
+"worthless": {
+"text": {
+"n": 3,
+"device": 1
+}
+},
+"wounded": {
+"text": {
+"n": 12
+}
+},
+"wpai": {
+"text": {
+"n": 2
+}
+},
+"writing": {
+"text": {
+"n": 34,
+"device": 3
+}
+},
+"wxs": {
+"text": {
+"n": 2
+}
+},
+"xylose": {
+"text": {
+"n": 27,
+"site": 1
+}
+},
+"yersinia": {
+"text": {
+"n": 6
+}
+},
+"you": {
+"text": {
+"n": 2459,
+"site": 150,
+"device": 70
+}
+},
+"yourself": {
+"text": {
+"n": 234,
+"site": 1
+}
+},
+"yr": {
+"text": {
+"n": 7
+}
+},
+"zaleplon": {
+"text": {
+"n": 2
+}
+},
+"zheng": {
+"text": {
+"n": 1
+}
+},
+"ziprasidone": {
+"text": {
+"n": 6,
+"device": 2
+}
+},
+"zolpidem": {
+"text": {
+"n": 1
+}
+},
+"zopiclone": {
+"text": {
+"n": 2
+}
+}
+}
+}

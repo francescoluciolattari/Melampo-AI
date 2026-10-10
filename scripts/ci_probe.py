@@ -271,6 +271,8 @@ def main(argv=None) -> int:
     ap.add_argument("--markdown", default="ci_probe.md")
     ap.add_argument("--umls", action="store_true", help="type the head words the memory does not know from UMLS (UMLS_API_KEY)")
     ap.add_argument("--umls-cache", default="umls_cache.json")
+    ap.add_argument("--collocations", help="collocation counts (json.gz, collocations.Collocations) for a lattice variant")
+    ap.add_argument("--frames", help="procedure frames (json, frames.ProcedureFrames) for a lattice variant")
     ap.add_argument("--final", action="store_true",
                     help="the one run that writes the certificate: keeps the frozen test documents")
     args = ap.parse_args(argv)
@@ -306,6 +308,23 @@ def main(argv=None) -> int:
                 memory, grammar=Grammar.for_language("en"), typer=typer)
         else:
             say(start, "UMLS_API_KEY not set: the UMLS-typed head arm is off")
+    with_names = cl.ChunkLattice(cl.BlockMemory.load(args.memory, LongerNames.load().names, cl.load_anatomy_names()))
+    lattices["anatomy names"] = with_names
+    lattices["grammar filter + anatomy names"] = cl.ChunkLattice(with_names.memory, grammar=Grammar.for_language("en"))
+    if args.collocations:
+        from melampo.memory.collocations import Collocations  # noqa: E402
+
+        colloc = Collocations.load(Path(args.collocations))
+        lattices["collocations"] = cl.ChunkLattice(memory, collocations=colloc)
+        lattices["grammar filter + collocations"] = cl.ChunkLattice(
+            memory, grammar=Grammar.for_language("en"), collocations=colloc)
+    if args.frames:
+        from melampo.memory.frames import ProcedureFrames  # noqa: E402
+
+        frames = ProcedureFrames.load(Path(args.frames))
+        lattices["frames"] = cl.ChunkLattice(memory, frames=frames)
+        lattices["anatomy names + frames" + (" + collocations" if args.collocations else "")] = cl.ChunkLattice(
+            with_names.memory, frames=frames, collocations=colloc if args.collocations else None)
     variants = {}
     for name, lat in lattices.items():
         outs = outcomes if lat is lattice else [lat.read(r["mention"], r["sentence"], r.get("at")).outcome for r in rows]

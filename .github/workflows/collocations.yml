@@ -1,0 +1,127 @@
+name: Collocations (PubMed counts and span probe)
+
+# Manual trigger only. Counts ordered word pairs over PubMed baseline files (titles and abstracts; the
+# MedMentions PMIDs are excluded so that no evaluation text is in the counts), then measures whether the
+# counts find the units that MedMentions annotators marked (scripts/collocation_probe.py), with and
+# without the PubMed counts. Decides nothing and changes nothing. No secret is needed.
+on:
+  workflow_dispatch:
+    inputs:
+      files:
+        description: "How many PubMed baseline files to count (about 30,000 abstracts each)"
+        required: false
+        default: "10"
+      first:
+        description: "Index of the first baseline file in the listing (1 = the oldest)"
+        required: false
+        default: "1"
+      final:
+        description: "FINAL run: evaluates on the frozen MedMentions test documents. Leave off for every development run"
+        type: boolean
+        default: false
+      lattice:
+        description: "Also run the external check and measure the lattice with anatomy names, frames and collocations (longer)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  collocations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+          uv pip install scipy
+
+      - name: NCIt (latest release) and the corpora (pinned)
+        run: |
+          curl -sSL --fail -o ncit.obo \
+            https://github.com/NCI-Thesaurus/thesaurus-obo-edition/releases/latest/download/ncit.obo
+          mkdir -p ext
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+
+      - name: List and download the PubMed baseline files
+        env:
+          FILES: ${{ inputs.files }}
+          FIRST: ${{ inputs.first }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          FILES="${FILES//[[:space:]]/}"; FIRST="${FIRST//[[:space:]]/}"
+          if ! [[ "$FILES" =~ ^[0-9]+$ && "$FIRST" =~ ^[0-9]+$ ]]; then echo "::error::files and first take whole numbers"; exit 2; fi
+          curl -sSL --fail https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/ \
+            | grep -o 'pubmed[0-9]*n[0-9]*\.xml\.gz' | sort -u > baseline.txt
+          wc -l baseline.txt
+          tail -n +"$FIRST" baseline.txt | head -n "$FILES" > chosen.txt
+          mkdir -p pubmed
+          while read -r f; do
+            curl -sSL --fail --retry 3 -o "pubmed/$f" "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/$f"
+          done < chosen.txt
+          ls -la pubmed | head
+
+      - name: Count
+        run: |
+          uv run --no-sync python -u scripts/build_collocations.py --files pubmed/*.xml.gz \
+            --exclude-pmids ext/mm/full/data/corpus_pubtator_pmids_*.txt --out pubmed_collocations.json.gz
+
+      - name: Probe (MedMentions spans)
+        env:
+          FINAL: ${{ inputs.final }}
+        run: |
+          set -- --medmentions ext/mm --craft ext/craft --ncit ncit.obo --extra pubmed_collocations.json.gz \
+            --out collocation_probe.json --markdown collocation_probe.md --save collocations_all.json.gz
+          if [ "$FINAL" = "true" ]; then set -- "$@" --final; fi
+          uv run --no-sync python -u scripts/collocation_probe.py "$@"
+
+      - name: Procedure frames from NCIt, MedMentions training abstracts and the PubMed files
+        run: |
+          uv run --no-sync python -u scripts/build_procedure_frames.py --ncit ncit.obo --ncit-definitions \
+            --medmentions ext/mm --pubmed pubmed/*.xml.gz \
+            --exclude-pmids ext/mm/full/data/corpus_pubtator_pmids_*.txt --out procedure_frames_pubmed.json
+
+      - name: Lattice variants on the external check (development rows)
+        if: ${{ inputs.lattice }}
+        env:
+          FINAL: ${{ inputs.final }}
+        run: |
+          curl -sSL -o data/linking/uberon-basic.obo \
+            https://github.com/obophenotype/uberon/releases/download/v2025-05-28/uberon-basic.obo
+          echo "67fa31d176195f27cc92454a58e2a5210e21f4e820a719b4f762911d1e379432  data/linking/uberon-basic.obo" | sha256sum -c -
+          uv run --no-sync python scripts/external_check.py --craft ext/craft --medmentions ext/mm \
+            --out external_check.json --markdown external_check.md --workers 6
+          set -- --rows external_check.rows.json --craft ext/craft --medmentions ext/mm --ncit ncit.obo \
+            --space ci_space.npz --collocations pubmed_collocations.json.gz --frames procedure_frames_pubmed.json \
+            --out ci_probe.json --markdown ci_probe.md
+          if [ "$FINAL" = "true" ]; then set -- "$@" --final; fi
+          uv run --no-sync python -u scripts/ci_probe.py "$@"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`; files: $(tr '\n' ' ' < chosen.txt 2>/dev/null)"
+            echo
+            if [ -f collocation_probe.md ]; then cat collocation_probe.md; fi
+            if [ -f ci_probe.md ]; then echo; sed -n '/chunk lattice alone/,/reader as a stream/p' ci_probe.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collocations
+          path: |
+            collocation_probe.json
+            collocation_probe.md
+            pubmed_collocations.json.gz
+            collocations_all.json.gz
+            procedure_frames_pubmed.json
+            ci_probe.md
+            ci_probe.json
