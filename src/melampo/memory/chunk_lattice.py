@@ -22,7 +22,7 @@ then the word is placed in it. This module does that, deterministically and with
 Limits, stated where they bind. English only (the heads come from NCIt): in Italian the head comes
 first and the type names are Italian, so this is not yet usable on Italian reports. The window is the
 noun phrase (stop words and punctuation end it), at most ``LEFT`` + ``RIGHT`` words (5-7 words is the
-span in which people combine words). One sense per discourse is not here (it needs the document).
+span in which people combine words). One sense per discourse is not here (it needs the document: ``ci_reader.Discourse``).
 The costs are fixed by principle (memory < composition < word), not fitted to any corpus.
 """
 
@@ -63,6 +63,41 @@ _REPORT_VERBS = frozenset(
     present persists persist measuring showing demonstrating appearing representing containing""".split()
 )
 _TOKEN = re.compile(r"[A-Za-zÀ-ÿ0-9]+")
+# "inferior vena cava (IVC) filter placement": a short abbreviation in brackets that defines the name
+# before it is not a break in the noun phrase; the reader goes through it (as one reads "X (ABBR) Y"
+# as one unit).
+_ABBREVIATION = re.compile(r"\s*\(\s*([\w\-]{2,10})\s*\)")
+
+
+def _is_abbreviation(token: str) -> bool:
+    capitals = sum(c.isupper() for c in token)
+    return capitals >= 2 or (capitals >= 1 and any(c.isdigit() or c == "-" for c in token))
+
+
+def see_through_abbreviations(
+    sentence: str, start: int | None = None, mention: str = ""
+) -> tuple[str, int | None]:
+    """The sentence without the abbreviations defined in brackets, and the mention's new offset.
+    An abbreviation that is the mention itself (or holds it) stays."""
+    kept: list[str] = []
+    pos = 0
+    shift = 0
+    length = len(mention.strip())
+    for m in _ABBREVIATION.finditer(sentence):
+        if not _is_abbreviation(m.group(1)) or m.start() == 0 or not sentence[m.start() - 1 : m.start()].strip():
+            continue
+        if m.group(1).lower() == mention.strip().lower():
+            continue
+        if start is not None and m.start() < start + length and m.end() > start:
+            continue
+        kept.append(sentence[pos : m.start()])
+        pos = m.end()
+        if start is not None and m.end() <= start:
+            shift += m.end() - m.start()
+    if not kept:
+        return sentence, start
+    kept.append(sentence[pos:])
+    return "".join(kept), (None if start is None else start - shift)
 # Between two words of one block: spaces, hyphens, apostrophes, slashes; anything else ends the run.
 _BREAK = re.compile(r"[^\s\-'’/]")
 _OF = re.compile(
@@ -312,7 +347,9 @@ class ChunkLattice:
         self, mention: str, sentence: str, start: int | None = None
     ) -> tuple[list[tuple[str, int, int]], int, int, list[tuple[float, Block]], re.Match[str]] | None:
         """Every block that holds the mention with the best cost of covering the rest (the whole
-        construction, cheapest first), the window and the mention's word range. ``None`` if unread."""
+        construction, cheapest first), the window and the mention's word range. ``None`` if unread.
+        Offsets (``found``, the window) are those of ``see_through_abbreviations(sentence, start, mention)``."""
+        sentence, start = see_through_abbreviations(sentence, start, mention)
         found = locate(mention, sentence, start)
         if not found:
             return None
@@ -350,6 +387,7 @@ class ChunkLattice:
         return window, mi, mj, readings, found
 
     def read(self, mention: str, sentence: str, start: int | None = None) -> Reading:
+        sentence, start = see_through_abbreviations(sentence, start, mention)
         got = self.candidates(mention, sentence, start)
         if got is None:
             return UNREAD

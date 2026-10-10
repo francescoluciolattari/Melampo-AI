@@ -50,7 +50,7 @@ from melampo.memory.grammar import Grammar  # noqa: E402
 from melampo.memory.head_typing import UmlsHeadTyper  # noqa: E402
 from melampo.memory.longer_names import LongerNames  # noqa: E402
 
-FAMILIES = ("blocks", "head", "predication", "traces", "domain", "gist")
+FAMILIES = ("blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse")
 
 
 def say(start: float, text: str) -> None:
@@ -166,6 +166,10 @@ def summarise(rows, readings, lattice_outcomes, splits=None) -> dict:
             "right_with_a_role_or_non_site": int((moved & (label == 0)).sum()),
             "lattice_errors": int((lat & (label == 1)).sum()),
             "lattice_right": int((lat & (label == 0)).sum()),
+            # what the reader adds: it moves a link that the lattice leaves alone (a role the lattice also
+            # records is not a false alarm of the reader, the product keeps the link and writes the role)
+            "errors_moved_reader_only": int((moved & ~lat & (label == 1)).sum()),
+            "right_moved_reader_only": int((moved & ~lat & (label == 0)).sum()),
         }
         if corpus == "medmentions":
             # false alarms by split: dev and test documents were never in the memory, whatever the leave-out
@@ -191,12 +195,23 @@ def summarise(rows, readings, lattice_outcomes, splits=None) -> dict:
     return report
 
 
-def run_all(reader, rows, texts_vector, keys) -> list[ci.CIReading]:
+def run_all(reader, rows, texts_vector, keys, texts=None) -> list[ci.CIReading]:
+    """Every judged link read with its document: the gist, the ambito and what the document has settled."""
     out = []
+    discourses: dict = {}
     for r in rows:
         k = (r["corpus"], r.get("doc"))
+        text = (texts or {}).get(k)
+        discourse, doc_at = None, None
+        if text is not None:
+            if k not in discourses:
+                discourses[k] = reader.discourse(text)
+            discourse = discourses[k]
+            found = text.find(r["sentence"])
+            if found >= 0 and r.get("at") is not None:
+                doc_at = found + r["at"]
         out.append(reader.read(r["mention"], r["sentence"], r.get("at"), r.get("doc"),
-                               texts_vector.get(k), keys.get(k, "")))
+                               texts_vector.get(k), keys.get(k, ""), discourse, doc_at))
     return out
 
 
@@ -207,13 +222,14 @@ def markdown(report: dict) -> str:
              + ("FINAL run: frozen test documents included." if report.get("final") else
                 f"{report.get('held_back_frozen', 0)} judged links of frozen test documents held back."), ""]
     for name, block in report["configurations"].items():
-        lines += [f"## {name}", "", "| corpus | errors | not structure (errors) | not structure (right) | role or non-site (errors) | role or non-site (right) | lattice (errors / right) | AUC |",
-                  "|---|---|---|---|---|---|---|---|"]
+        lines += [f"## {name}", "", "| corpus | errors | not structure (errors) | not structure (right) | role or non-site (errors) | role or non-site (right) | lattice (errors / right) | reader only (errors / right) | AUC |",
+                  "|---|---|---|---|---|---|---|---|---|"]
         for corpus, v in block.items():
             lines.append(
                 f"| {corpus} | {v['errors']} | {v['errors_not_structure']} | {v['right_not_structure']} / {v['right']} "
                 f"| {v['errors_with_a_role_or_non_site']} | {v['right_with_a_role_or_non_site']} "
-                f"| {v['lattice_errors']} / {v['lattice_right']} | {v['auc'] if v['auc'] is None else round(v['auc'], 3)} |")
+                f"| {v['lattice_errors']} / {v['lattice_right']} "
+                f"| {v['errors_moved_reader_only']} / {v['right_moved_reader_only']} | {v['auc'] if v['auc'] is None else round(v['auc'], 3)} |")
         mm = block.get("medmentions")
         if mm and name == "all evidence":
             lines += ["", f"False alarms by split of MedMentions (right links changed / right): {mm['right_changed_by_split']}",
@@ -271,6 +287,8 @@ def main(argv=None) -> int:
     say(start, f"traces: {traces.size}")
     vectors = {("medmentions", d): space.vector(ci.content_words(t)) for d, t, _ in mm_docs}
     vectors.update({("craft", d): space.vector(ci.content_words(t)) for d, t, _ in craft_docs})
+    texts = {("medmentions", d): t for d, t, _ in mm_docs}
+    texts.update({("craft", d): t for d, t, _ in craft_docs})
     outcomes = [lattice.read(r["mention"], r["sentence"], r.get("at")).outcome for r in rows]
     say(start, "lattice read")
     # the lattice with the grammatical filter, and with the heads the memory does not know typed from UMLS
@@ -307,6 +325,8 @@ def main(argv=None) -> int:
             lattice, space, protos, traces, use=frozenset(FAMILIES) - {family})
     for inh in (0.25, 1.0):
         configs[f"inhibition {inh}"] = ci.CIReader(lattice, space, protos, traces, inhibition=inh)
+    configs["as before (no rules, no discourse)"] = ci.CIReader(
+        lattice, space, protos, traces, use=frozenset(FAMILIES) - {"rules", "discourse"})
     configs["without memory (no traces, no domain, no gist)"] = ci.CIReader(
         lattice, space, protos, None, use=frozenset(FAMILIES) - {"traces", "domain", "gist"})
     configs["with the bag of context words (v3 context)"] = ci.CIReader(
@@ -316,7 +336,7 @@ def main(argv=None) -> int:
               "configurations": {}, "error_readings": []}
     first = None
     for name, reader in configs.items():
-        readings = run_all(reader, rows, vectors, keys)
+        readings = run_all(reader, rows, vectors, keys, texts)
         report["configurations"][name] = summarise(rows, readings, outcomes, splits)
         if first is None:
             first = readings

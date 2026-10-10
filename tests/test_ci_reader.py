@@ -197,7 +197,10 @@ class _StubReader:
     def document(self, text):
         return None, ""
 
-    def read(self, mention, sentence, start, doc, vector, key):
+    def discourse(self, text):
+        return None
+
+    def read(self, mention, sentence, start, doc, vector, key, discourse=None, doc_at=None):
         return ci.CIReading(self.decision, self.decision, 0.6, {self.decision: 0.8}, 3)
 
 
@@ -267,3 +270,83 @@ def test_the_reader_is_not_used_where_another_method_decides():
     # alone in a sentence nothing else speaks: the reader reads against
     got = linker.read("heart", SENTENCE)
     assert next(e for e in got if e.stream == "reader").verdict == "against"
+
+
+# -- what a person does that the reader did not (10 October 2026, after the diagnosis) ---------------------
+
+
+def _procedure_lattice():
+    memory = cl.BlockMemory.from_json({
+        "heads": {"placement": ["procedure", 0.95], "filter": ["device", 0.9], "heart": ["anatomy", 1.0],
+                  "cheese": ["food", 1.0], "bulb": ["device", 1.0], "layer": ["anatomy", 1.0],
+                  "rind": ["anatomy", 0.9]},
+        "names": {},
+    })
+    return cl.ChunkLattice(memory)
+
+
+def test_an_abbreviation_in_brackets_does_not_break_the_name():
+    lat = _procedure_lattice()
+    plain = lat.read("inferior vena cava", "evaluate inferior vena cava filter placement in the office")
+    through = lat.read("inferior vena cava", "evaluate inferior vena cava (IVC) filter placement in the office")
+    assert plain.outcome == "role"  # the name before the device and the procedure is not the structure
+    assert (through.outcome, through.role, through.block) == (plain.outcome, plain.role, plain.block)
+    # the offset of the mention is kept when a bracket before it is removed
+    again = lat.read("vena cava", "the IVC (inferior vena cava, IVC) filter (IVC) placement", 8)
+    assert again.outcome != "unread"
+
+
+def test_only_a_defined_abbreviation_is_seen_through():
+    from melampo.memory.chunk_lattice import see_through_abbreviations as see
+
+    assert see("the kidney (KD) lesion", 4, "kidney")[0] == "the kidney lesion"
+    assert see("the kidney (left) lesion", 4, "kidney")[0] == "the kidney (left) lesion"
+    assert see("the kidney (n=24) lesion", 4, "kidney")[0] == "the kidney (n=24) lesion"
+    assert see("the kidney (IL-6) lesion", 4, "kidney")[0] == "the kidney lesion"
+    # a bracket before the mention shifts its offset
+    text, start = see("the aorta (AO) and the kidney lesion", 23, "kidney")
+    assert text == "the aorta and the kidney lesion" and text[start : start + 6] == "kidney"
+    # the mention itself, written as an abbreviation, stays
+    assert see("the vena cava (IVC) filter", 18, "IVC")[0] == "the vena cava (IVC) filter"
+
+
+def test_a_rule_that_changes_the_sense_enters_the_network_and_overrules_the_default(space):
+    protos = ci.prototypes(space, [("anatomy", "heart liver organ"), ("food", "cheese rind dairy")])
+    reader = ci.CIReader(_procedure_lattice(), space, protos, None)
+    sentence = "Samples of the rind and heart of Maroilles cheese were used."
+    start = sentence.index("heart")
+    nodes = reader.construct("heart", sentence, start)
+    rule = [n for n in nodes if n[0].startswith("rule:")]
+    assert rule and rule[0][2]["not_a_body_site"] > 0 and rule[0][2][ci.STRUCTURE] < 0
+    assert reader.read("heart", sentence, start).decision == "not_a_body_site"
+    # a role the structure takes ("appearance of the heart") is not a sense of the word: no rule node
+    nodes = reader.construct("heart", "The size of the heart was normal.", 12)
+    assert not [n for n in nodes if n[0].startswith("rule:")]
+
+
+def test_a_sense_settled_in_the_text_is_kept_for_its_other_occurrences(space):
+    protos = ci.prototypes(space, [("anatomy", "heart liver organ"), ("food", "cheese rind dairy")])
+    reader = ci.CIReader(_procedure_lattice(), space, protos, None)
+    text = ("Samples of the rind and heart of Maroilles cheese were used. "
+            "Strains were found on the rind and in the heart.")
+    settled = reader.discourse(text)
+    assert len(settled) == 1 and "heart" in settled.seen
+    second = text.index("in the heart") + 7
+    sentence = "Strains were found on the rind and in the heart."
+    got = reader.read("heart", sentence, sentence.index("heart"), None, None, "", settled, second)
+    assert got.decision == "not_a_body_site" and any(n.startswith("discourse:heart") for n in got.nodes)
+    # without the text's memory the same sentence is a plain structure
+    alone = reader.read("heart", sentence, sentence.index("heart"))
+    assert alone.decision != "not_a_body_site"
+    # the occurrence that settled the sense does not support itself
+    first = text.index("heart")
+    assert settled.node("heart", first) is None and settled.node("heart", second)
+
+
+def test_a_text_settles_a_sense_only_through_food_and_never_through_a_role(space):
+    protos = ci.prototypes(space, [("anatomy", "heart liver organ"), ("food", "cheese rind dairy")])
+    reader = ci.CIReader(_procedure_lattice(), space, protos, None)
+    # a device head ("bulb") is too noisy a lexicon entry to settle a sense for the whole text
+    assert len(reader.discourse("The outer layer of the olfactory bulb was thin. The layer was stained.")) == 0
+    # a role in a compound is local to its phrase
+    assert len(reader.discourse("The heart donation was done. The heart was large.")) == 0

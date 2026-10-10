@@ -2226,14 +2226,18 @@ class AnatomyLinker:
                 )
             )
         if self.ci_reader is not None:
-            vector, key = (None, "")
+            vector, key, settled = (None, "", None)
             if report is not None and report.text:
                 if report.text not in self._ci_documents:
                     if len(self._ci_documents) >= 8:
                         self._ci_documents.pop(next(iter(self._ci_documents)))
-                    self._ci_documents[report.text] = self.ci_reader.document(report.text)
-                vector, key = self._ci_documents[report.text]
-            got = self.ci_reader.read(mention, sentence, where, None, vector, key)
+                    # the gist, the ambito and the senses the text has settled (one sense per discourse)
+                    self._ci_documents[report.text] = (
+                        *self.ci_reader.document(report.text),
+                        self.ci_reader.discourse(report.text),
+                    )
+                vector, key, settled = self._ci_documents[report.text]
+            got = self.ci_reader.read(mention, sentence, where, None, vector, key, settled, at)
             vote, note = SILENT, ""
             if got.decision in READER_NON_SITE and self.ci_reader_mode in ("record", "review"):
                 other = self._another_method_decides(mention, sentence, where, verdict)
