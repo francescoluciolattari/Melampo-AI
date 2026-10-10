@@ -4,11 +4,11 @@
 **Enterprise-grade research scaffold for multimodal, multimodel clinical intuition**
 
 ![Status](https://img.shields.io/badge/Status-Research_Scaffold-blue)
-![Focus](https://img.shields.io/badge/Focus-Medical_AI_%7C_RAG_%7C_Intuition-purple)
+![Focus](https://img.shields.io/badge/Focus-Medical_AI_%7C_RAG/RLM_%7C_Intuition-purple)
 
 Project Melampo is an experimental open-source research framework designed to evolve Computer-Aided Diagnosis (CAD) into **Computer-Aided Intuition (CAI)**.
 
-Melampo is **not** a single-model diagnostic assistant and **not** a simple RAG wrapper. It is a multimodal, multimodel, neuro-symbolic and neuro-inspired architecture where specialist models produce governed signals, simulated functional areas compare and integrate them, and a Melampo-owned orchestrator produces a structured research diagnostic result with abstention, escalation, provenance and audit trace.
+Melampo is **not** a single-model diagnostic assistant and **not** a simple RAG/RLM wrapper. It is a multimodal, multimodel, neuro-symbolic and neuro-inspired architecture where specialist models produce governed signals, simulated functional areas compare and integrate them, and a Melampo-owned orchestrator produces a structured research diagnostic result with abstention, escalation, provenance and audit trace.
 
 > **Clinical safety boundary:** Melampo is a research scaffold. It is not a validated medical device and must not be used for autonomous clinical diagnosis or patient-care decisions without formal clinical validation, regulatory review, monitoring and human specialist oversight.
 
@@ -18,10 +18,10 @@ The project now records these decisions in `docs/final_treatise_decision_record.
 
 - **Final diagnostic authority:** `MelampoDiagnosticOrchestrator`, not a single external LLM or imaging model.
 - **Primary radiology / volumetric imaging candidate:** Pillar-0, used as a signal provider for `visual_diagnostic_area`.
-- **Clinical text and agentic reasoning candidate:** Gemma 4, used for grounded language and workflow reasoning.
-- **External critique candidate:** Claude Healthcare / Life Sciences style capability, used as optional second-opinion and scientific/regulatory critic.
-- **Semantic memory / ontology RAG backend:** Weaviate, selected for object-property clinical memory and concept relationships.
-- **Document intelligence parser:** Docling, used for layout-aware ingestion of PDFs, DOCX, PPTX, tables, formulas and clinical literature.
+- **Clinical text and agentic rcandidate:** Nemotron/Gemma , used for document Reading grounded language and workflow.
+- **External critique candidate:** Claude and or OpenAI Healthcare / Life Sciences style capability, used as optional second-opinion and scientific/regulatory critic.
+- **Semantic memory / ontology backend:** FalkorDB, selected for object-property clinical memory and concept relationships.
+- **Document intelligence parser:**  for layout-aware ingestion of PDFs, DOCX, PPTX, tables, formulas and clinical literature.
 
 External models are specialist signal providers, critics, parsers, retrievers or explainers. They are not sole final diagnostic arbiters.
 
@@ -40,11 +40,11 @@ specialist models
 
 ### Functional areas
 
-- `visual_diagnostic_area`: imaging and radiology signals, future Pillar-0 / volumetric backend integration.
+- `visual_diagnostic_area`: imaging and radiology signals/ volumetric backend integration.
 - `language_listening_area`: reports, EHR text, symptoms and narrative reasoning, future Gemma 4 integration.
 - `case_context_area`: demographics, provenance and structured context.
 - `epidemiology_area`: exposures, prevalence and risk-factor context.
-- semantic memory: Weaviate object-property RAG for symptoms, pathologies, cases, imaging studies, documents and epidemiological factors.
+- semantic memory: FalkorDB object-property RAG/RLM inference for symptoms, pathologies, cases, imaging studies, documents and epidemiological factors.
 - dream / replay branch: counterfactual, rare-case and mismatch-resolution candidates under strict governance.
 
 ### Melampo intuition
@@ -58,12 +58,12 @@ The repository currently includes:
 - Python package scaffold under `src/melampo/`.
 - End-to-end `ClinicalInferencePipeline`.
 - `MelampoDiagnosticOrchestrator` final controller.
-- `ModelCapabilityRegistry` for Pillar-0, Gemma 4, Claude, Weaviate and Docling roles.
-- Weaviate schema and adapter contracts, including visual recognition imprint objects linked to semantic concepts.
-- Specialist adapter contracts for Pillar-0, Gemma 4 and Claude.
-- Docling-aware document processing contract with plain-text fallback.
+- `ModelCapabilityRegistry` for Pillar-0, Gemma, Claude/OpenAI, FalkorDB and Document processing roles.
+- FalkorDB schema and adapter contracts, including visual recognition imprint objects linked to semantic concepts.
+- Specialist adapter contracts 
+- Document processing contract with plain-text fallback.
 - Neuro-dynamic metrics, `pi_score`, convergence, mismatch, prediction error and belief-update signals.
-- Dream branch auto-evolution guardrails and candidate-only inferential visual imprint morphing over total or partial semantic concept overlap.
+- Branch auto-evolution guardrails and candidate-only inferential visual imprint morphing over total or partial semantic concept overlap.
 - Retrospective clinical benchmark primitives.
 - Prospective validation registry primitives.
 - Confidence calibration evaluator.
@@ -77,22 +77,15 @@ Melampo keeps the core scaffold lightweight and moves heavy research/enterprise 
 # Baseline development and CI profile
 python -m pip install -r requirements.txt
 
-# Research profile: dev + clinical metadata + Docling + Weaviate retrieval + visualization
+# Research profile: dev + clinical 
 python -m pip install -r requirements-research.txt
 
-# Full enterprise profile: all optional research, imaging, ML, API, quantum and visualization extras
+# Full enterprise profile: all optional research, imaging, ML, API, cognitive, intuitive and comprehension and visualization extras
 python -m pip install -r requirements-enterprise.txt
 ```
 
-Equivalent direct editable installs:
 
-```bash
-pip install -e .[dev]
-pip install -e .[dev,clinical,document,retrieval,viz]
-pip install -e .[enterprise]
-```
-
-The enterprise profile may require platform-specific CPU/GPU choices for PyTorch, imaging and scientific-computing wheels.
+The enterprise profile may require platform-specific CPU/GPU choices for Python, imaging and scientific-computing wheels.
 
 ## CLI commands
 
@@ -100,21 +93,20 @@ The enterprise profile may require platform-specific CPU/GPU choices for PyTorch
 pip install -r requirements.txt
 pytest -q
 
-melampo-prototype examples/prototype_case.json
-melampo-decision-record
-melampo-weaviate-schema
+melampo-prototype examples/
 ```
 
-## Documentation map
+## Documentation map start reference
 
 - `docs/final_treatise_decision_record.md` - canonical decisions for the final treatise.
-- `docs/enterprise_ai_rag_evolution.md` - enterprise AI/RAG evolution plan.
+- `docs/enterprise_ai_rag_evolution.md` - enterprise AI/RAG/RLM evolution plan.
 - `docs/architecture.md` - current architecture overview.
 - `docs/architecture_consistency_matrix.md` - theory/document/code alignment and enterprise constraints.
 - `docs/core_consolidation_map.md` - canonical core module map.
 - `docs/validation/clinical_benchmarking_and_prospective_validation.md` - benchmark, prospective validation and calibration plan.
 - `docs/model_cards/melampo_model_stack_card.md` - model stack card.
 - `docs/dataset_cards/clinical_memory_dataset_card.md` - clinical memory dataset card.
+
 
 ## Roadmap
 
@@ -135,7 +127,9 @@ melampo-weaviate-schema
 
 ## Contributing
 
-We welcome contributors in medical imaging, clinical NLP, RAG, ontologies, validation, computational neuroscience, safety engineering and research infrastructure. See `CONTRIBUTING.md`.
+We welcome contributors in medical imaging, clinical NLP, RAG/RLM, ontologies, validation, computational neuroscience, medical doctors, cognitive researcher, neuroscientists, safety engineering and research infrastructure, pedagogists, cognitive philosophy expert.
+
+See `CONTRIBUTING.md`.
 
 ## ⚖️ License and Terms of Use
 
@@ -155,7 +149,7 @@ As the Licensor of this software, the Author exercises the right to specify the 
    *"Based on MelampoAI by Francesco Lattari — Source: https://github.com/francescoluciolattari/Melampo-AI"*
 4. **Source Code Preservation:** All existing copyright notices, author credits, and license files within the source code must be preserved intact and unaltered in all copies or modifications.
 
-**Failure to comply with these specific attribution terms constitutes a material breach of the license agreement and an immediate infringement of copyright, resulting in the automatic termination of your rights to use, modify, or distribute this software.**
+**Failure to comply with these specific attribution terms constitutes a material breach of the license agreement and an immediate infringement of copyright.**
 
 **THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
