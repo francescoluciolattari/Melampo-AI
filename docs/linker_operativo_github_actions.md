@@ -163,3 +163,7 @@ Ogni bundle dice il proprio ramo e il commit di base che richiede. `feat/linker-
 ## Pacchetto dei radiologi
 
 `python scripts/gold_set.py alignment external_check.rows.json --out alignment_session --n 40` scrive le schede in cieco della sessione di allineamento; `gold_set_guida_radiologi.md` è la guida. Le schede del gold set vero hanno anche `role` e `span_text`.
+
+## Il lettore nel linker (10 ottobre 2026)
+
+`AnatomyLinker(ci_reader=reader, ci_reader_mode="review")` accende il lettore con perimetro (vedi `perche_il_medico_legge...` §6.2). Le risorse: `python scripts/build_ci_resources.py --medmentions ext/mm --craft ext/craft --ncit ncit.obo --out ci_resources`, poi `ci_reader.load_reader("ci_resources", lattice)`. Il rapporto di `ci-probe` ha la sezione "The reader as a stream of the linker": quanti link il lettore leggerebbe contro, quanti errori e quanti link giusti.

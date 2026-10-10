@@ -186,3 +186,84 @@ def test_resources_roundtrip_and_the_linker_reads_in_trace_only(space, tmp_path)
     with_reader = al.AnatomyLinker(lexicon, [], {}, parts=parts, ci_reader=reader).link("heart", sentence)
     assert (plain.status, plain.cid, plain.reason) == (with_reader.status, with_reader.cid, with_reader.reason)
     assert plain.reading == "" and with_reader.reading.count(":") == 2
+
+
+class _StubReader:
+    """A reader that says what it is told: the linker's use of the reader is what is tested."""
+
+    def __init__(self, decision, lattice=None):
+        self.decision, self.lattice = decision, lattice
+
+    def document(self, text):
+        return None, ""
+
+    def read(self, mention, sentence, start, doc, vector, key):
+        return ci.CIReading(self.decision, self.decision, 0.6, {self.decision: 0.8}, 3)
+
+
+def _linker(decision, mode, **extra):
+    import json
+    from pathlib import Path
+
+    from melampo.memory import anatomy_linker as al
+    from melampo.memory import anatomy_parts as ap
+
+    data = Path(__file__).resolve().parents[1] / "data" / "linking"
+    lexicon = al.Lexicon.from_json(json.loads((data / "anatomy_lexicon.json").read_text("utf-8")))
+    parts = ap.PartTable.from_json(json.loads((data / "anatomy_parts.json").read_text("utf-8")), lexicon)
+    return al.AnatomyLinker(lexicon, [], {}, parts=parts, ci_reader=_StubReader(decision, **extra),
+                            ci_reader_mode=mode)
+
+
+SENTENCE = "The heart is large."
+
+
+def test_the_reader_mode_is_checked():
+    import pytest
+
+    with pytest.raises(ValueError):
+        _linker("structure", "loud")
+
+
+def test_trace_mode_records_nothing_against_the_link():
+    r = _linker("not_a_body_site", "trace").link("heart", SENTENCE)
+    plain = _linker("structure", "trace").link("heart", SENTENCE)
+    assert (r.status, r.cid) == (plain.status, plain.cid)
+    assert "reader_reads_a_non_site" not in r.conflicts
+
+
+def test_record_mode_writes_the_conflict_and_keeps_the_link():
+    from melampo.memory import anatomy_linker as al
+
+    r = _linker("not_a_body_site", "record").link("heart", SENTENCE)
+    assert r.status == al.ACCEPTED and "reader_reads_a_non_site" in r.conflicts
+
+
+def test_review_mode_sends_a_weakly_supported_link_to_review_and_never_changes_one():
+    from melampo.memory import anatomy_linker as al
+
+    plain = _linker("structure", "review").link("heart", SENTENCE)
+    held = _linker("not_a_body_site", "review").link("heart", SENTENCE)
+    assert plain.status == al.ACCEPTED
+    assert held.status == al.ABSTAINED and held.reason == "streams_disagree:reader_reads_a_non_site"
+    assert held.options == [plain.cid]  # the link it would have made is offered to the reviewer, not changed
+    # a role reading is not the reader's to give: it never routes
+    assert _linker("procedure_site", "review").link("heart", SENTENCE).status == al.ACCEPTED
+
+
+def test_the_reader_is_not_used_where_another_method_decides():
+    from melampo.memory import chunk_lattice as cl
+
+    memory = cl.BlockMemory.from_json({"heads": {"donation": ["procedure", 1.0, 0]}, "names": {}})
+    lat = cl.ChunkLattice(memory)
+    linker = _linker("not_a_body_site", "review", lattice=lat)
+    # "liver donation": the lattice reads a procedure site -> its method, not the reader's
+    got = linker.read("liver", "Liver donation was done.")
+    reader = next(e for e in got if e.stream == "reader")
+    assert reader.verdict == "silent" and "other_method=lattice" in reader.reason
+    # a procedure neighbour is the role rule's
+    got = linker.read("liver", "Liver biopsy was done.")
+    assert next(e for e in got if e.stream == "reader").reason.endswith("other_method=role")
+    # alone in a sentence nothing else speaks: the reader reads against
+    got = linker.read("heart", SENTENCE)
+    assert next(e for e in got if e.stream == "reader").verdict == "against"

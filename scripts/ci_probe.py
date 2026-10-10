@@ -118,6 +118,28 @@ def lattice_variant(rows, outcomes) -> dict:
     return out
 
 
+def gated_stream(rows, readings, outcomes) -> dict:
+    """What the reader would do as a stream of the linker (``ci_reader_mode`` record/review): it speaks
+    against a link only if it reads the word as no body site at all and the chunk lattice has not already
+    acted on the phrase. The linker also leaves out procedure neighbours and ambiguous forms, which this
+    count does not know: so the right links here are an upper bound of those the linker would send to review."""
+    out = {}
+    for corpus in ("craft", "medmentions"):
+        idx = [i for i, r in enumerate(rows) if r["corpus"] == corpus]
+        spoke = [i for i in idx if readings[i].decision in ("not_a_body_site", "inside_a_name")
+                 and outcomes[i] in ("link", "unread")]
+        gated = [i for i in idx if readings[i].decision in ("not_a_body_site", "inside_a_name")
+                 and outcomes[i] not in ("link", "unread")]
+        err = lambda i: rows[i]["by_project_rule"] == "error"  # noqa: E731
+        out[corpus] = {
+            "errors": sum(err(i) for i in idx), "right": sum(not err(i) for i in idx),
+            "reads_against": len(spoke), "errors_among_them": sum(err(i) for i in spoke),
+            "right_among_them": sum(not err(i) for i in spoke),
+            "left_to_the_lattice": len(gated),
+        }
+    return out
+
+
 def predicted(reading: ci.CIReading) -> str:
     return reading.decision
 
@@ -208,6 +230,11 @@ def markdown(report: dict) -> str:
         for corpus, c in v.items():
             lines.append(f"- {name} / {corpus}: errors acted on {c['errors_acted_on']} of {c['errors']}; "
                          f"right links acted on {c['right_acted_on']} of {c['right']}")
+    lines += ["", "## The reader as a stream of the linker (record / review mode; upper bound, see `gated_stream`)", ""]
+    for corpus, g in (report.get("gated_stream") or {}).items():
+        lines.append(f"- {corpus}: reads a word as no body site where the lattice is silent in {g['reads_against']} links: "
+                     f"{g['errors_among_them']} of {g['errors']} errors, {g['right_among_them']} of {g['right']} right links "
+                     f"({g['left_to_the_lattice']} more left to the lattice)")
     lines += ["", "## Errors as the reader reads them (all evidence)", ""]
     for e in report["error_readings"]:
         lines.append(f"- {e['corpus']} `{e['mention']}` gold {e['gold']}; reader {e['decision']} "
@@ -284,7 +311,7 @@ def main(argv=None) -> int:
         lattice, space, protos, None, use=frozenset(FAMILIES) - {"traces", "domain", "gist"})
     configs["with the bag of context words (v3 context)"] = ci.CIReader(
         lattice, space, protos, traces, use=frozenset(FAMILIES) | {"context"})
-    report = {"lattice_variants": variants, "held_back_frozen": held, "final": args.final, "n": len(rows), "errors": sum(r["by_project_rule"] == "error" for r in rows),
+    report = {"gated_stream": None, "lattice_variants": variants, "held_back_frozen": held, "final": args.final, "n": len(rows), "errors": sum(r["by_project_rule"] == "error" for r in rows),
               "space": f"{len(space.words)} words x {space.vectors.shape[1]}", "traces": traces.size,
               "configurations": {}, "error_readings": []}
     first = None
@@ -294,6 +321,7 @@ def main(argv=None) -> int:
         if first is None:
             first = readings
         say(start, f"{name} done")
+    report["gated_stream"] = gated_stream(rows, first, outcomes)
     for r, rd in zip(rows, first, strict=True):
         if r["by_project_rule"] == "error":
             report["error_readings"].append({

@@ -1206,6 +1206,12 @@ def _a_written_name(mention: str) -> bool:
 _READ_AGAINST = frozenset(
     ("blind_reader_disagrees", "outside_the_exam_area", "side_differs_from_the_exam")
 )
+# The construction-integration reader reads the word as not being a body site at all ("heart of
+# Maroilles cheese", a piece of a proper name). Its own switch (``ci_reader_mode``) decides whether this
+# is only recorded or also sends the link to review; it is not in ``_READ_AGAINST`` on purpose.
+READER_CONFLICT = "reader_reads_a_non_site"
+READER_NON_SITE = frozenset(("not_a_body_site", "inside_a_name"))
+READER_MODES = ("trace", "record", "review")
 # A short form: two to four capitals, possibly with a digit ("SVC", "IVC", "LAA", "RML"); level
 # codes (L4, C5-6) are read by their own stream.
 _ABBREVIATION = re.compile(r"(?=[A-Z0-9]*[A-Z][A-Z0-9]*[A-Z])[A-Z][A-Z0-9]{1,3}")
@@ -1262,6 +1268,8 @@ def _profile(
         conflicts.append("side_differs_from_the_exam")
     if ("development", AGAINST) in by:
         conflicts.append("name_shared_with_a_developing_structure_in_a_developmental_text")
+    if ("reader", AGAINST) in by:
+        conflicts.append(READER_CONFLICT)
     if flagged and ("verify", SUPPORT) not in by:
         conflicts.append("ambiguous_form_not_checked")
     return tuple(support), tuple(conflicts)
@@ -1312,6 +1320,13 @@ class AnatomyLinker:
     # pre-registered criteria on the external check (docs/linker/perche_il_medico_legge_e_noi_sbagliamo_
     # 2026-10-09.md §6.1); it is here so the radiologists' gold set can measure it on real reports.
     ci_reader: Any = None
+    # What the reader may do, from the least to the most:
+    #   "trace"  its reading is written down (``LinkResult.reading``), silent, nothing else;
+    #   "record" it also reads *against* a link (a conflict in the profile, which the gold set calibrates);
+    #   "review" and, for a link with ``review_below`` supports or fewer, sends it to the review queue.
+    # It speaks only where no other method has: see ``_another_method_decides``. It can only keep a link
+    # from being accepted automatically, never create or change one, so it can lower coverage but not precision.
+    ci_reader_mode: str = "trace"
     _ci_documents: dict = field(default_factory=dict, repr=False, compare=False)
     # Stage 8: what a conflict between independent readings does to an accepted link. "record"
     # keeps the link and writes the conflict in the profile; "review" sends the link to the review
@@ -1353,6 +1368,8 @@ class AnatomyLinker:
     accept_parent_fallback: bool = False
 
     def __post_init__(self) -> None:
+        if self.ci_reader_mode not in READER_MODES:
+            raise ValueError(f"ci_reader_mode must be one of {READER_MODES}, not {self.ci_reader_mode!r}")
         self._by_id = {c.cid: c for c in self.pool}
         # Ontology names of two words or more ("secondary heart field", "blood brain barrier"),
         # to see whether a mention is only a word inside a longer anatomical name.
@@ -1659,9 +1676,18 @@ class AnatomyLinker:
             )
         if result.status == ACCEPTED:
             result.support, result.conflicts = _profile(trace, result, flagged)
-            read_against = [c for c in result.conflicts if c in _READ_AGAINST]
+            read_against = (
+                [c for c in result.conflicts if c in _READ_AGAINST]
+                if self.conflict_policy == "review"
+                else []
+            )
+            reader_routes = (
+                self.ci_reader_mode == "review" and READER_CONFLICT in result.conflicts
+            )
+            if reader_routes:
+                read_against = [*read_against, READER_CONFLICT]
             if (
-                self.conflict_policy == "review"
+                (self.conflict_policy == "review" or reader_routes)
                 and read_against
                 and len(result.support) <= self.review_below
             ):
@@ -2026,6 +2052,22 @@ class AnatomyLinker:
             "graph", UNDECIDED, result.cid, lifted or "no_class_near"
         )
 
+    def _another_method_decides(self, mention: str, sentence: str, where: int | None, sense) -> str:
+        """The method that already answers for this link, or "". The reader is not used there:
+        * ``lattice``: the chunk lattice reads the phrase as a role, a name of another thing, or two readings;
+        * ``role``: a procedure neighbour ("biopsia epatica") is recorded as a role by its own rule;
+        * ``sense_profile``: an ambiguous form is read in its sentence by the senses and, if asked, the models."""
+        if sense.form:
+            return "sense_profile"
+        if self.senses.procedure_head(mention, sentence, where):
+            return "role"
+        lattice = self.chunk_lattice or getattr(self.ci_reader, "lattice", None)
+        if lattice is not None and lattice.read(mention, sentence, where).outcome in (
+            "role", "not_a_site", "underspecified"
+        ):
+            return "lattice"
+        return ""
+
     def read(
         self,
         mention: str,
@@ -2192,12 +2234,19 @@ class AnatomyLinker:
                     self._ci_documents[report.text] = self.ci_reader.document(report.text)
                 vector, key = self._ci_documents[report.text]
             got = self.ci_reader.read(mention, sentence, where, None, vector, key)
+            vote, note = SILENT, ""
+            if got.decision in READER_NON_SITE and self.ci_reader_mode in ("record", "review"):
+                other = self._another_method_decides(mention, sentence, where, verdict)
+                if other:
+                    note = f":other_method={other}"
+                else:
+                    vote = AGAINST
             evidence.append(
                 Evidence(
                     "reader",
-                    SILENT,
+                    vote,
                     None,
-                    f"{got.decision}:{got.top}:{got.margin:.2f}",
+                    f"{got.decision}:{got.top}:{got.margin:.2f}{note}",
                 )
             )
         material = self.senses.material_qualifier(mention, sentence, where)
