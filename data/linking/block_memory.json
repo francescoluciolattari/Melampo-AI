@@ -1,6 +1,6 @@
 {
 "note": "Memoria del reticolo di blocchi: 'heads' = ultima parola dei nomi NCIt con il tipo dominante (quota, numero di nomi); 'names' = nomi NCIt di altro tipo che contengono una struttura. Generato da scripts/build_block_memory.py; non si modifica a mano.",
-"built": "2026-10-09",
+"built": "2026-10-12",
 "sources": {
 "ncit": {
 "data_version": "releases/2024-05-07",
@@ -12,15 +12,15 @@
 "min_share": 0.75
 },
 "counts": {
-"heads": 10433,
+"heads": 10227,
 "names:procedure": 1297,
-"names:disease": 6172,
+"names:disease": 6161,
 "names:conceptual": 482,
 "names:property": 440,
 "names:device": 211,
-"names:activity": 109,
-"names:process": 26,
+"names:activity": 97,
 "names:organism": 38,
+"names:process": 29,
 "names:food": 25
 },
 "heads": {
@@ -204,11 +204,6 @@
 1.0,
 9
 ],
-"absorption": [
-"activity",
-1.0,
-0
-],
 "abstract": [
 "property",
 1.0,
@@ -274,11 +269,6 @@
 0.8,
 5
 ],
-"acceleration": [
-"activity",
-1.0,
-0
-],
 "accelerator": [
 "device",
 0.933,
@@ -298,11 +288,6 @@
 "procedure",
 1.0,
 36
-],
-"accrual": [
-"activity",
-1.0,
-0
 ],
 "accumulation": [
 "disease",
@@ -504,11 +489,6 @@
 1.0,
 0
 ],
-"acquisition": [
-"activity",
-1.0,
-0
-],
 "acremonium": [
 "organism",
 1.0,
@@ -593,16 +573,6 @@
 "procedure",
 1.0,
 16
-],
-"activated": [
-"activity",
-1.0,
-0
-],
-"activation": [
-"activity",
-1.0,
-0
 ],
 "activator": [
 "protein",
@@ -894,16 +864,6 @@
 1.0,
 12
 ],
-"adjusted": [
-"activity",
-1.0,
-0
-],
-"adjustment": [
-"activity",
-0.769,
-26
-],
 "adjuvant": [
 "chemical",
 0.859,
@@ -928,11 +888,6 @@
 "conceptual",
 1.0,
 10
-],
-"admission": [
-"activity",
-1.0,
-0
 ],
 "adnexa": [
 "anatomy",
@@ -1634,11 +1589,6 @@
 1.0,
 0
 ],
-"aliquot": [
-"activity",
-1.0,
-0
-],
 "alisertib": [
 "chemical",
 1.0,
@@ -1688,11 +1638,6 @@
 "chemical",
 1.0,
 28
-],
-"allocation": [
-"activity",
-1.0,
-0
 ],
 "allogeneic": [
 "anatomy",
@@ -1833,11 +1778,6 @@
 "chemical",
 1.0,
 6
-],
-"alteration": [
-"activity",
-1.0,
-0
 ],
 "altered": [
 "disease",
@@ -2289,11 +2229,6 @@
 1.0,
 7
 ],
-"analysis": [
-"activity",
-1.0,
-0
-],
 "analyst": [
 "conceptual",
 1.0,
@@ -2462,7 +2397,7 @@
 "angiogenesis": [
 "process",
 1.0,
-11
+0
 ],
 "angiogram": [
 "conceptual",
@@ -3054,20 +2989,10 @@
 1.0,
 19
 ],
-"application": [
-"activity",
-1.0,
-0
-],
 "applicator": [
 "device",
 0.895,
 76
-],
-"applied": [
-"activity",
-1.0,
-0
 ],
 "apply": [
 "procedure",
@@ -3079,11 +3004,6 @@
 1.0,
 8
 ],
-"approach": [
-"activity",
-1.0,
-0
-],
 "approachanatomicsitecode": [
 "conceptual",
 1.0,
@@ -3093,11 +3013,6 @@
 "conceptual",
 1.0,
 8
-],
-"approval": [
-"activity",
-1.0,
-0
 ],
 "approved": [
 "property",
@@ -3378,11 +3293,6 @@
 "gene",
 0.8,
 5
-],
-"arrest": [
-"activity",
-1.0,
-0
 ],
 "arrested": [
 "procedure",
@@ -3679,17 +3589,7 @@
 0.8,
 5
 ],
-"assembly": [
-"activity",
-1.0,
-0
-],
 "assent": [
-"activity",
-1.0,
-0
-],
-"assessed": [
 "activity",
 1.0,
 0
@@ -3706,16 +3606,6 @@
 ],
 "assigned": [
 "property",
-1.0,
-0
-],
-"assignment": [
-"activity",
-1.0,
-0
-],
-"assistance": [
-"activity",
 1.0,
 0
 ],
@@ -3931,7 +3821,7 @@
 ],
 "atrophy": [
 "disease",
-0.863,
+0.96,
 124
 ],
 "atropine": [
@@ -3943,11 +3833,6 @@
 "chemical",
 1.0,
 9
-],
-"attachment": [
-"activity",
-1.0,
-0
 ],
 "attempt": [
 "procedure",
@@ -3991,11 +3876,6 @@
 ],
 "attenuated": [
 "property",
-1.0,
-0
-],
-"attenuation": [
-"activity",
 1.0,
 0
 ],
@@ -4559,11 +4439,6 @@
 1.0,
 6
 ],
-"bandwidth": [
-"activity",
-1.0,
-0
-],
 "bangladesh": [
 "conceptual",
 1.0,
@@ -4870,7 +4745,7 @@
 0
 ],
 "bedtime": [
-"activity",
+"action",
 1.0,
 10
 ],
@@ -4928,11 +4803,6 @@
 "conceptual",
 1.0,
 6
-],
-"belief": [
-"activity",
-1.0,
-0
 ],
 "belinostat": [
 "chemical",
@@ -5629,20 +5499,10 @@
 0.929,
 14
 ],
-"blocked": [
-"activity",
-1.0,
-0
-],
 "blocker": [
 "chemical",
 1.0,
 20
-],
-"blocking": [
-"activity",
-1.0,
-0
 ],
 "blood": [
 "anatomy",
@@ -6784,11 +6644,6 @@
 0.862,
 189
 ],
-"calculation": [
-"activity",
-1.0,
-0
-],
 "calculi": [
 "disease",
 0.818,
@@ -6818,11 +6673,6 @@
 "property",
 1.0,
 5
-],
-"calibration": [
-"activity",
-0.875,
-8
 ],
 "california": [
 "conceptual",
@@ -6916,7 +6766,7 @@
 ],
 "cancer": [
 "disease",
-0.911,
+0.912,
 3367
 ],
 "candf": [
@@ -7223,11 +7073,6 @@
 "device",
 0.909,
 11
-],
-"care": [
-"activity",
-1.0,
-0
 ],
 "carefully": [
 "procedure",
@@ -7829,11 +7674,6 @@
 1.0,
 13
 ],
-"certification": [
-"activity",
-1.0,
-0
-],
 "ceruloplasmin": [
 "procedure",
 1.0,
@@ -7860,7 +7700,7 @@
 7
 ],
 "cessation": [
-"activity",
+"action",
 0.778,
 9
 ],
@@ -7994,16 +7834,6 @@
 1.0,
 8
 ],
-"change": [
-"activity",
-1.0,
-0
-],
-"changed": [
-"activity",
-1.0,
-0
-],
 "channel": [
 "protein",
 0.789,
@@ -8024,11 +7854,6 @@
 1.0,
 0
 ],
-"characterization": [
-"activity",
-0.75,
-20
-],
 "charcoal": [
 "chemical",
 1.0,
@@ -8045,7 +7870,7 @@
 28
 ],
 "check": [
-"activity",
+"action",
 1.0,
 5
 ],
@@ -8153,11 +7978,6 @@
 "device",
 1.0,
 9
-],
-"chewing": [
-"activity",
-1.0,
-0
 ],
 "cheyenne": [
 "conceptual",
@@ -8438,11 +8258,6 @@
 "disease",
 1.0,
 140
-],
-"choose": [
-"activity",
-1.0,
-0
 ],
 "chop": [
 "gene",
@@ -8775,17 +8590,12 @@
 7
 ],
 "claim": [
-"activity",
+"action",
 0.75,
 8
 ],
-"clamping": [
-"activity",
-1.0,
-0
-],
 "clarification": [
-"activity",
+"action",
 1.0,
 7
 ],
@@ -8838,11 +8648,6 @@
 "protein",
 0.857,
 7
-],
-"clean": [
-"activity",
-1.0,
-0
 ],
 "cleanliness": [
 "device",
@@ -9324,11 +9129,6 @@
 0.976,
 83
 ],
-"collaboration": [
-"activity",
-1.0,
-0
-],
 "collagen": [
 "protein",
 0.854,
@@ -9346,11 +9146,6 @@
 ],
 "collected": [
 "property",
-1.0,
-0
-],
-"collection": [
-"activity",
 1.0,
 0
 ],
@@ -9499,11 +9294,6 @@
 0.8,
 10
 ],
-"commute": [
-"activity",
-1.0,
-0
-],
 "comorbidity": [
 "property",
 1.0,
@@ -9523,11 +9313,6 @@
 "conceptual",
 0.75,
 8
-],
-"comparison": [
-"activity",
-1.0,
-0
 ],
 "compensator": [
 "device",
@@ -9604,11 +9389,6 @@
 1.0,
 5
 ],
-"compression": [
-"activity",
-1.0,
-0
-],
 "computer": [
 "device",
 1.0,
@@ -9653,16 +9433,6 @@
 "procedure",
 0.76,
 25
-],
-"conduct": [
-"activity",
-1.0,
-0
-],
-"conduction": [
-"activity",
-1.0,
-0
 ],
 "conductivity": [
 "activity",
@@ -9869,11 +9639,6 @@
 0.778,
 9
 ],
-"consultation": [
-"activity",
-1.0,
-0
-],
 "consuming": [
 "process",
 1.0,
@@ -9881,11 +9646,6 @@
 ],
 "consumption": [
 "process",
-1.0,
-0
-],
-"contact": [
-"activity",
 1.0,
 0
 ],
@@ -9959,11 +9719,6 @@
 1.0,
 6
 ],
-"controlled": [
-"activity",
-1.0,
-0
-],
 "controlled-release": [
 "chemical",
 1.0,
@@ -9985,7 +9740,7 @@
 18
 ],
 "conversion": [
-"activity",
+"action",
 0.778,
 9
 ],
@@ -10009,11 +9764,6 @@
 0.833,
 6
 ],
-"cooling": [
-"activity",
-1.0,
-0
-],
 "coonhound": [
 "organism",
 1.0,
@@ -10028,11 +9778,6 @@
 "procedure",
 0.8,
 5
-],
-"coordination": [
-"activity",
-1.0,
-0
 ],
 "coordinator": [
 "conceptual",
@@ -10284,11 +10029,6 @@
 1.0,
 0
 ],
-"coverage": [
-"activity",
-1.0,
-0
-],
 "covi": [
 "procedure",
 1.0,
@@ -10326,11 +10066,6 @@
 ],
 "cpb": [
 "procedure",
-1.0,
-0
-],
-"cpe": [
-"process",
 1.0,
 0
 ],
@@ -10519,13 +10254,8 @@
 1.0,
 6
 ],
-"cross": [
-"activity",
-1.0,
-0
-],
 "crosslinking": [
-"process",
+"disease",
 0.857,
 7
 ],
@@ -11579,11 +11309,6 @@
 0.87,
 46
 ],
-"decay": [
-"activity",
-1.0,
-0
-],
 "deceleration": [
 "disease",
 1.0,
@@ -11628,11 +11353,6 @@
 "procedure",
 1.0,
 10
-],
-"decontamination": [
-"activity",
-1.0,
-0
 ],
 "decoy": [
 "chemical",
@@ -11741,7 +11461,7 @@
 ],
 "degeneration": [
 "disease",
-0.891,
+0.969,
 64
 ],
 "degeneration-": [
@@ -11774,11 +11494,6 @@
 1.0,
 12
 ],
-"dehydration": [
-"activity",
-1.0,
-0
-],
 "dehydrogenase": [
 "protein",
 0.899,
@@ -11801,11 +11516,6 @@
 ],
 "delayed": [
 "property",
-1.0,
-0
-],
-"deleted": [
-"activity",
 1.0,
 0
 ],
@@ -11863,11 +11573,6 @@
 "disease",
 1.0,
 6
-],
-"denial": [
-"activity",
-1.0,
-0
 ],
 "denitrifican": [
 "organism",
@@ -12029,16 +11734,6 @@
 0.75,
 12
 ],
-"deploy": [
-"activity",
-1.0,
-0
-],
-"deployment": [
-"activity",
-1.0,
-0
-],
 "depolymerization": [
 "process",
 0.857,
@@ -12169,11 +11864,6 @@
 1.0,
 6
 ],
-"descent": [
-"activity",
-1.0,
-0
-],
 "descr": [
 "procedure",
 0.894,
@@ -12191,11 +11881,6 @@
 ],
 "desensitization": [
 "procedure",
-1.0,
-0
-],
-"design": [
-"activity",
 1.0,
 0
 ],
@@ -12264,11 +11949,6 @@
 0.8,
 5
 ],
-"destruction": [
-"activity",
-1.0,
-0
-],
 "desvenlafaxine": [
 "procedure",
 1.0,
@@ -12301,11 +11981,6 @@
 ],
 "detector": [
 "device",
-1.0,
-0
-],
-"deterioration": [
-"process",
 1.0,
 0
 ],
@@ -12459,11 +12134,6 @@
 1.0,
 0
 ],
-"dialysis": [
-"activity",
-1.0,
-0
-],
 "diameter": [
 "property",
 1.0,
@@ -12580,7 +12250,7 @@
 7
 ],
 "die": [
-"activity",
+"action",
 0.833,
 6
 ],
@@ -12679,11 +12349,6 @@
 1.0,
 0
 ],
-"diffusion": [
-"activity",
-1.0,
-0
-],
 "diflunisal": [
 "chemical",
 1.0,
@@ -12764,16 +12429,6 @@
 1.0,
 10
 ],
-"dilatation": [
-"activity",
-1.0,
-0
-],
-"dilation": [
-"activity",
-1.0,
-0
-],
 "dilator": [
 "device",
 0.75,
@@ -12790,14 +12445,9 @@
 11
 ],
 "dilute": [
-"activity",
+"action",
 1.0,
 5
-],
-"dilution": [
-"activity",
-1.0,
-0
 ],
 "dim": [
 "property",
@@ -12910,7 +12560,7 @@
 6
 ],
 "dinner": [
-"activity",
+"action",
 0.833,
 6
 ],
@@ -13034,13 +12684,8 @@
 1.0,
 10
 ],
-"direct": [
-"activity",
-1.0,
-0
-],
 "directed": [
-"activity",
+"action",
 0.75,
 8
 ],
@@ -13094,11 +12739,6 @@
 1.0,
 6
 ],
-"disclosure": [
-"activity",
-1.0,
-0
-],
 "discoloration": [
 "disease",
 0.844,
@@ -13109,20 +12749,10 @@
 1.0,
 8
 ],
-"discontinuation": [
-"activity",
-1.0,
-0
-],
 "discouraged": [
 "procedure",
 1.0,
 8
-],
-"discovery": [
-"activity",
-1.0,
-0
 ],
 "discrimination": [
 "conceptual",
@@ -13131,7 +12761,7 @@
 ],
 "disease": [
 "disease",
-0.893,
+0.894,
 2177
 ],
 "disgust": [
@@ -13186,7 +12816,7 @@
 ],
 "disorder": [
 "disease",
-0.98,
+0.981,
 2084
 ],
 "disorientation": [
@@ -13200,7 +12830,7 @@
 11
 ],
 "dispense": [
-"activity",
+"action",
 1.0,
 5
 ],
@@ -13211,11 +12841,6 @@
 ],
 "dispensing": [
 "procedure",
-1.0,
-0
-],
-"display": [
-"activity",
 1.0,
 0
 ],
@@ -13269,11 +12894,6 @@
 1.0,
 0
 ],
-"distant": [
-"process",
-1.0,
-0
-],
 "distasonis": [
 "organism",
 1.0,
@@ -13285,19 +12905,14 @@
 9
 ],
 "distension": [
-"process",
+"disease",
 1.0,
-0
+13
 ],
 "distention": [
-"process",
-0.8,
-5
-],
-"distortion": [
-"activity",
+"disease",
 1.0,
-0
+5
 ],
 "distress": [
 "procedure",
@@ -13609,11 +13224,6 @@
 1.0,
 6
 ],
-"donation": [
-"activity",
-1.0,
-0
-],
 "done": [
 "property",
 1.0,
@@ -13788,11 +13398,6 @@
 "property",
 1.0,
 9
-],
-"draw": [
-"activity",
-1.0,
-0
 ],
 "dream": [
 "process",
@@ -14315,9 +13920,9 @@
 0
 ],
 "ectasia": [
-"process",
+"disease",
 1.0,
-0
+26
 ],
 "ectodysplasin-a": [
 "protein",
@@ -14363,11 +13968,6 @@
 "gene",
 0.75,
 8
-],
-"edc": [
-"activity",
-1.0,
-0
 ],
 "edema": [
 "disease",
@@ -14761,7 +14361,7 @@
 ],
 "embolism": [
 "disease",
-0.881,
+0.91,
 67
 ],
 "embolization": [
@@ -14892,11 +14492,6 @@
 "enb": [
 "chemical",
 0.8,
-5
-],
-"encapsulation": [
-"activity",
-1.0,
 5
 ],
 "encephalitis": [
@@ -15109,11 +14704,6 @@
 1.0,
 5
 ],
-"enhancement": [
-"activity",
-1.0,
-0
-],
 "enhancer": [
 "anatomy",
 1.0,
@@ -15138,11 +14728,6 @@
 "procedure",
 1.0,
 6
-],
-"enlargement": [
-"activity",
-1.0,
-0
 ],
 "enophthalmo": [
 "disease",
@@ -15719,10 +15304,10 @@
 1.0,
 5
 ],
-"escalation": [
-"activity",
+"escape": [
+"disease",
 1.0,
-0
+7
 ],
 "escitalopram": [
 "chemical",
@@ -15811,7 +15396,7 @@
 ],
 "estimate": [
 "activity",
-1.0,
+0.8,
 10
 ],
 "estimated": [
@@ -15821,7 +15406,7 @@
 ],
 "estimation": [
 "activity",
-1.0,
+0.95,
 20
 ],
 "estonia": [
@@ -16049,11 +15634,6 @@
 0.875,
 16
 ],
-"evaluation": [
-"activity",
-1.0,
-0
-],
 "evaluator": [
 "conceptual",
 1.0,
@@ -16189,11 +15769,6 @@
 1.0,
 73
 ],
-"excitation": [
-"activity",
-1.0,
-0
-],
 "excitement": [
 "procedure",
 0.857,
@@ -16208,11 +15783,6 @@
 "disease",
 0.909,
 11
-],
-"execution": [
-"activity",
-1.0,
-0
 ],
 "executive": [
 "conceptual",
@@ -16324,11 +15894,6 @@
 0.833,
 6
 ],
-"expansion": [
-"process",
-1.0,
-0
-],
 "expected": [
 "property",
 1.0,
@@ -16358,11 +15923,6 @@
 "property",
 1.0,
 5
-],
-"export": [
-"activity",
-1.0,
-0
 ],
 "exposure": [
 "property",
@@ -16404,11 +15964,6 @@
 0.8,
 5
 ],
-"extension": [
-"process",
-1.0,
-0
-],
 "extensive": [
 "property",
 0.889,
@@ -16429,11 +15984,6 @@
 0.951,
 347
 ],
-"extraction": [
-"activity",
-1.0,
-0
-],
 "extrahepatic": [
 "property",
 0.8,
@@ -16451,7 +16001,7 @@
 ],
 "extravasation": [
 "disease",
-0.8,
+1.0,
 20
 ],
 "extreme": [
@@ -16874,11 +16424,6 @@
 1.0,
 5
 ],
-"feed": [
-"activity",
-1.0,
-0
-],
 "feedback": [
 "property",
 0.821,
@@ -17210,9 +16755,9 @@
 15
 ],
 "fibroplasia": [
-"process",
+"disease",
 1.0,
-0
+8
 ],
 "fibrosarcoma": [
 "disease",
@@ -17324,16 +16869,6 @@
 1.0,
 5
 ],
-"fill": [
-"activity",
-1.0,
-0
-],
-"filled": [
-"activity",
-1.0,
-0
-],
 "filler": [
 "chemical",
 0.833,
@@ -17345,7 +16880,7 @@
 0
 ],
 "filtration": [
-"activity",
+"action",
 0.923,
 13
 ],
@@ -17664,11 +17199,6 @@
 1.0,
 6
 ],
-"fluctuation": [
-"activity",
-1.0,
-0
-],
 "flucytosine": [
 "chemical",
 1.0,
@@ -17966,7 +17496,7 @@
 ],
 "formation": [
 "disease",
-0.865,
+0.889,
 207
 ],
 "formcode": [
@@ -18145,7 +17675,7 @@
 6
 ],
 "freeze": [
-"activity",
+"action",
 1.0,
 5
 ],
@@ -18153,11 +17683,6 @@
 "device",
 1.0,
 24
-],
-"freezing": [
-"activity",
-1.0,
-0
 ],
 "french": [
 "property",
@@ -18924,11 +18449,6 @@
 0.997,
 31054
 ],
-"generation": [
-"activity",
-1.0,
-0
-],
 "generator": [
 "device",
 0.783,
@@ -19133,11 +18653,6 @@
 "disease",
 0.955,
 44
-],
-"given": [
-"activity",
-1.0,
-0
 ],
 "glabrata": [
 "organism",
@@ -19775,7 +19290,7 @@
 35
 ],
 "granulation": [
-"activity",
+"action",
 0.897,
 29
 ],
@@ -20380,7 +19895,7 @@
 7
 ],
 "handling": [
-"activity",
+"action",
 0.778,
 9
 ],
@@ -20649,11 +20164,6 @@
 1.0,
 5
 ],
-"help": [
-"activity",
-1.0,
-0
-],
 "helper": [
 "procedure",
 0.974,
@@ -20813,11 +20323,6 @@
 "procedure",
 1.0,
 0
-],
-"hemofiltration": [
-"procedure",
-1.0,
-6
 ],
 "hemoglobinopathy": [
 "disease",
@@ -21373,11 +20878,6 @@
 "chemical",
 1.0,
 5
-],
-"hold": [
-"activity",
-1.0,
-0
 ],
 "holder": [
 "conceptual",
@@ -22104,11 +21604,6 @@
 1.0,
 9
 ],
-"hyperemia": [
-"activity",
-1.0,
-0
-],
 "hypergammaglobulinemia": [
 "disease",
 1.0,
@@ -22356,7 +21851,7 @@
 ],
 "hypoplasia": [
 "disease",
-0.91,
+1.0,
 89
 ],
 "hypospadia": [
@@ -23154,11 +22649,6 @@
 1.0,
 0
 ],
-"import": [
-"activity",
-1.0,
-0
-],
 "importance": [
 "procedure",
 0.833,
@@ -23173,11 +22663,6 @@
 "property",
 1.0,
 6
-],
-"imprinting": [
-"process",
-1.0,
-5
 ],
 "improved": [
 "property",
@@ -23238,11 +22723,6 @@
 "chemical",
 0.879,
 33
-],
-"inactivation": [
-"activity",
-1.0,
-0
 ],
 "inactive": [
 "property",
@@ -23344,11 +22824,6 @@
 1.0,
 0
 ],
-"increase": [
-"activity",
-1.0,
-0
-],
 "increased": [
 "disease",
 0.875,
@@ -23444,11 +22919,6 @@
 1.0,
 5
 ],
-"induced": [
-"activity",
-1.0,
-0
-],
 "inducible": [
 "protein",
 0.8,
@@ -23456,7 +22926,7 @@
 ],
 "induction": [
 "process",
-0.901,
+0.844,
 141
 ],
 "induration": [
@@ -23486,17 +22956,17 @@
 ],
 "infarct": [
 "disease",
-0.824,
+1.0,
 17
 ],
 "infarction": [
 "disease",
-0.94,
+0.955,
 200
 ],
 "infection": [
 "disease",
-0.9,
+0.904,
 1185
 ],
 "infectious": [
@@ -23579,11 +23049,6 @@
 1.0,
 0
 ],
-"infusion": [
-"activity",
-1.0,
-0
-],
 "ing-": [
 "chemical",
 1.0,
@@ -23603,11 +23068,6 @@
 "device",
 1.0,
 10
-],
-"inhalation": [
-"activity",
-1.0,
-0
 ],
 "inhaler": [
 "device",
@@ -23714,11 +23174,6 @@
 0.833,
 6
 ],
-"insertion": [
-"activity",
-1.0,
-0
-],
 "inside": [
 "procedure",
 0.8,
@@ -23739,11 +23194,6 @@
 1.0,
 0
 ],
-"inspection": [
-"activity",
-1.0,
-0
-],
 "installation": [
 "property",
 1.0,
@@ -23753,11 +23203,6 @@
 "conceptual",
 0.8,
 20
-],
-"instillation": [
-"activity",
-1.0,
-0
 ],
 "institute": [
 "conceptual",
@@ -23804,20 +23249,10 @@
 1.0,
 0
 ],
-"intake": [
-"activity",
-1.0,
-0
-],
 "integer": [
 "property",
 1.0,
 8
-],
-"integral": [
-"activity",
-1.0,
-0
 ],
 "integration": [
 "process",
@@ -23858,11 +23293,6 @@
 "procedure",
 1.0,
 10
-],
-"interaction": [
-"activity",
-1.0,
-0
 ],
 "interactor": [
 "protein",
@@ -23970,7 +23400,7 @@
 6
 ],
 "interpretation": [
-"activity",
+"action",
 0.902,
 51
 ],
@@ -24065,7 +23495,7 @@
 6
 ],
 "intp": [
-"activity",
+"action",
 1.0,
 10
 ],
@@ -24285,9 +23715,9 @@
 0
 ],
 "invasion": [
-"process",
-1.0,
-0
+"disease",
+0.826,
+121
 ],
 "invasive": [
 "property",
@@ -24299,18 +23729,8 @@
 0.923,
 26
 ],
-"inversion": [
-"activity",
-1.0,
-0
-],
 "inverted": [
 "property",
-1.0,
-0
-],
-"investigation": [
-"activity",
 1.0,
 0
 ],
@@ -25104,16 +24524,6 @@
 1.0,
 10
 ],
-"judgement": [
-"activity",
-1.0,
-0
-],
-"judgment": [
-"activity",
-1.0,
-0
-],
 "jug": [
 "device",
 1.0,
@@ -25230,9 +24640,9 @@
 10
 ],
 "karyomegaly": [
-"process",
+"disease",
 1.0,
-0
+6
 ],
 "karyorrhexis": [
 "disease",
@@ -25858,11 +25268,6 @@
 "disease",
 1.0,
 5
-],
-"labor": [
-"activity",
-1.0,
-0
 ],
 "laboratory": [
 "conceptual",
@@ -27144,11 +26549,6 @@
 1.0,
 5
 ],
-"loading": [
-"activity",
-1.0,
-0
-],
 "lobaplatin": [
 "chemical",
 1.0,
@@ -27754,11 +27154,6 @@
 1.0,
 0
 ],
-"lysis": [
-"process",
-0.875,
-8
-],
 "lysosome": [
 "anatomy",
 1.0,
@@ -28016,7 +27411,7 @@
 ],
 "malignancy": [
 "disease",
-0.844,
+0.859,
 135
 ],
 "malignant": [
@@ -28163,11 +27558,6 @@
 "activity",
 1.0,
 7
-],
-"manufacture": [
-"activity",
-1.0,
-0
 ],
 "manus": [
 "anatomy",
@@ -28841,7 +28231,7 @@
 ],
 "melanoma": [
 "disease",
-0.954,
+0.955,
 764
 ],
 "melanomatosis": [
@@ -29225,9 +28615,9 @@
 17
 ],
 "metastasis": [
-"process",
-1.0,
-0
+"disease",
+0.785,
+107
 ],
 "metasulfobenzoate": [
 "chemical",
@@ -30051,7 +29441,7 @@
 ],
 "mismatch": [
 "disease",
-0.765,
+0.824,
 34
 ],
 "misoprostol": [
@@ -30170,7 +29560,7 @@
 9
 ],
 "mixing": [
-"activity",
+"action",
 1.0,
 27
 ],
@@ -30384,11 +29774,6 @@
 1.0,
 5
 ],
-"modulation": [
-"activity",
-1.0,
-0
-],
 "modulator": [
 "device",
 1.0,
@@ -30468,11 +29853,6 @@
 "conceptual",
 1.0,
 6
-],
-"monitoring": [
-"activity",
-1.0,
-0
 ],
 "monkey": [
 "organism",
@@ -30600,7 +29980,7 @@
 0
 ],
 "monthly": [
-"activity",
+"action",
 0.75,
 16
 ],
@@ -30714,11 +30094,6 @@
 1.0,
 0
 ],
-"motion": [
-"activity",
-1.0,
-0
-],
 "motor": [
 "property",
 1.0,
@@ -30743,11 +30118,6 @@
 "chemical",
 1.0,
 7
-],
-"move": [
-"activity",
-1.0,
-0
 ],
 "moved": [
 "procedure",
@@ -31649,11 +31019,6 @@
 1.0,
 6
 ],
-"nap": [
-"activity",
-1.0,
-0
-],
 "naphthol": [
 "chemical",
 1.0,
@@ -31758,11 +31123,6 @@
 "conceptual",
 1.0,
 9
-],
-"navigation": [
-"activity",
-0.818,
-11
 ],
 "navigator": [
 "conceptual",
@@ -31926,7 +31286,7 @@
 ],
 "necrosis": [
 "disease",
-0.918,
+0.941,
 353
 ],
 "nectin-": [
@@ -32030,7 +31390,7 @@
 5
 ],
 "neovascularization": [
-"process",
+"disease",
 1.0,
 5
 ],
@@ -32288,11 +31648,6 @@
 "procedure",
 0.8,
 40
-],
-"neutralization": [
-"activity",
-1.0,
-0
 ],
 "neutron": [
 "property",
@@ -32916,13 +32271,8 @@
 ],
 "normalization": [
 "activity",
-0.944,
+0.889,
 18
-],
-"normalized": [
-"activity",
-1.0,
-0
 ],
 "normally": [
 "property",
@@ -32998,11 +32348,6 @@
 "conceptual",
 0.923,
 13
-],
-"notification": [
-"activity",
-1.0,
-0
 ],
 "nov-": [
 "chemical",
@@ -33200,7 +32545,7 @@
 0
 ],
 "nullification": [
-"activity",
+"action",
 1.0,
 6
 ],
@@ -33444,11 +32789,6 @@
 1.0,
 6
 ],
-"obtained": [
-"activity",
-1.0,
-0
-],
 "obx-": [
 "chemical",
 1.0,
@@ -33488,11 +32828,6 @@
 "conceptual",
 0.847,
 98
-],
-"occurred": [
-"activity",
-1.0,
-0
 ],
 "occurrence": [
 "conceptual",
@@ -34074,11 +33409,6 @@
 1.0,
 5
 ],
-"optimization": [
-"activity",
-1.0,
-0
-],
 "optional": [
 "property",
 1.0,
@@ -34579,20 +33909,10 @@
 1.0,
 24
 ],
-"override": [
-"activity",
-1.0,
-0
-],
 "oversensing": [
 "property",
 1.0,
 7
-],
-"oversight": [
-"activity",
-1.0,
-0
 ],
 "overview": [
 "conceptual",
@@ -34666,7 +33986,7 @@
 ],
 "oxidation": [
 "process",
-1.0,
+0.833,
 6
 ],
 "oxide": [
@@ -35334,11 +34654,6 @@
 1.0,
 0
 ],
-"participation": [
-"activity",
-1.0,
-0
-],
 "party": [
 "conceptual",
 1.0,
@@ -35424,11 +34739,6 @@
 1.0,
 10
 ],
-"pathogenesis": [
-"process",
-1.0,
-0
-],
 "pathogenic": [
 "conceptual",
 0.833,
@@ -35438,6 +34748,11 @@
 "property",
 1.0,
 0
+],
+"pathologic": [
+"disease",
+0.786,
+14
 ],
 "pathological": [
 "disease",
@@ -37014,11 +36329,6 @@
 1.0,
 5
 ],
-"place": [
-"activity",
-1.0,
-0
-],
 "placebo": [
 "conceptual",
 1.0,
@@ -37063,11 +36373,6 @@
 "property",
 1.0,
 8
-],
-"planning": [
-"activity",
-0.808,
-26
 ],
 "plant": [
 "organism",
@@ -37619,16 +36924,6 @@
 1.0,
 9
 ],
-"pool": [
-"activity",
-1.0,
-0
-],
-"pooling": [
-"activity",
-1.0,
-0
-],
 "poor": [
 "procedure",
 1.0,
@@ -37945,7 +37240,7 @@
 0
 ],
 "precipitation": [
-"activity",
+"action",
 1.0,
 7
 ],
@@ -38088,11 +37383,6 @@
 "disease",
 1.0,
 10
-],
-"pretreatment": [
-"activity",
-1.0,
-0
 ],
 "prevalence": [
 "conceptual",
@@ -38275,19 +37565,14 @@
 631
 ],
 "process": [
-"process",
-0.786,
-477
+"activity",
+1.0,
+0
 ],
 "processed": [
 "property",
 0.8,
 5
-],
-"processing": [
-"activity",
-1.0,
-0
 ],
 "processor": [
 "device",
@@ -38314,11 +37599,6 @@
 1.0,
 5
 ],
-"procurement": [
-"activity",
-1.0,
-0
-],
 "prodrug": [
 "chemical",
 1.0,
@@ -38338,11 +37618,6 @@
 "property",
 1.0,
 6
-],
-"production": [
-"activity",
-1.0,
-0
 ],
 "productive": [
 "procedure",
@@ -38374,11 +37649,6 @@
 1.0,
 10
 ],
-"profile": [
-"activity",
-1.0,
-0
-],
 "profiling": [
 "procedure",
 0.885,
@@ -38403,11 +37673,6 @@
 "chemical",
 0.833,
 6
-],
-"progression": [
-"process",
-1.0,
-0
 ],
 "progressiva": [
 "disease",
@@ -38438,11 +37703,6 @@
 "disease",
 1.0,
 43
-],
-"proliferation": [
-"activity",
-1.0,
-0
 ],
 "prolifican": [
 "organism",
@@ -38486,11 +37746,6 @@
 ],
 "promoter": [
 "anatomy",
-1.0,
-0
-],
-"promotion": [
-"activity",
 1.0,
 0
 ],
@@ -38718,16 +37973,6 @@
 "conceptual",
 1.0,
 5
-],
-"provide": [
-"activity",
-1.0,
-5
-],
-"provided": [
-"activity",
-1.0,
-0
 ],
 "provider": [
 "conceptual",
@@ -39079,19 +38324,14 @@
 1.0,
 5
 ],
-"purchase": [
-"activity",
-1.0,
-0
-],
 "pure": [
 "property",
 1.0,
 0
 ],
 "purification": [
-"activity",
-0.962,
+"action",
+0.827,
 52
 ],
 "purine": [
@@ -39128,11 +38368,6 @@
 "organism",
 1.0,
 6
-],
-"push": [
-"activity",
-1.0,
-0
 ],
 "pustular": [
 "disease",
@@ -39379,11 +38614,6 @@
 1.0,
 5
 ],
-"qd": [
-"activity",
-1.0,
-0
-],
 "qh": [
 "chemical",
 0.818,
@@ -39484,11 +38714,6 @@
 1.0,
 7
 ],
-"qualification": [
-"activity",
-0.818,
-11
-],
 "qualifier": [
 "property",
 0.864,
@@ -39504,16 +38729,6 @@
 1.0,
 0
 ],
-"quantification": [
-"activity",
-1.0,
-0
-],
-"quantitation": [
-"activity",
-1.0,
-0
-],
 "quantitative": [
 "property",
 1.0,
@@ -39523,11 +38738,6 @@
 "property",
 0.851,
 94
-],
-"quarantine": [
-"activity",
-1.0,
-0
 ],
 "quart": [
 "property",
@@ -39613,11 +38823,6 @@
 "chemical",
 1.0,
 5
-],
-"quit": [
-"activity",
-1.0,
-0
 ],
 "quizartinib": [
 "chemical",
@@ -40025,9 +39230,9 @@
 0
 ],
 "reactivation": [
-"activity",
-1.0,
-0
+"disease",
+0.907,
+54
 ],
 "reactivity": [
 "property",
@@ -40099,18 +39304,8 @@
 1.0,
 6
 ],
-"received": [
-"activity",
-1.0,
-0
-],
 "receiver": [
 "property",
-1.0,
-0
-],
-"receiving": [
-"activity",
 1.0,
 0
 ],
@@ -40269,11 +39464,6 @@
 1.0,
 0
 ],
-"referral": [
-"activity",
-1.0,
-0
-],
 "reflex": [
 "disease",
 0.97,
@@ -40316,11 +39506,6 @@
 ],
 "regional": [
 "property",
-1.0,
-0
-],
-"registered": [
-"activity",
 1.0,
 0
 ],
@@ -40401,11 +39586,6 @@
 ],
 "rejected": [
 "property",
-1.0,
-0
-],
-"rejection": [
-"activity",
 1.0,
 0
 ],
@@ -40514,11 +39694,6 @@
 0.882,
 17
 ],
-"remove": [
-"activity",
-1.0,
-0
-],
 "removed": [
 "property",
 1.0,
@@ -40534,20 +39709,10 @@
 1.0,
 13
 ],
-"repair": [
-"activity",
-1.0,
-0
-],
 "repairer": [
 "conceptual",
 1.0,
 8
-],
-"repeat": [
-"activity",
-1.0,
-0
 ],
 "repeatduration": [
 "property",
@@ -40579,11 +39744,6 @@
 1.0,
 0
 ],
-"replicate": [
-"activity",
-1.0,
-0
-],
 "replication": [
 "process",
 1.0,
@@ -40599,20 +39759,10 @@
 0.848,
 282
 ],
-"reporting": [
-"activity",
-1.0,
-0
-],
 "repositioning": [
 "disease",
 0.889,
 9
-],
-"representative": [
-"activity",
-1.0,
-0
 ],
 "repression": [
 "process",
@@ -40643,11 +39793,6 @@
 "conceptual",
 0.952,
 42
-],
-"requested": [
-"activity",
-1.0,
-0
 ],
 "rerio": [
 "organism",
@@ -40700,11 +39845,6 @@
 6
 ],
 "resistance": [
-"process",
-1.0,
-0
-],
-"resolution": [
 "process",
 1.0,
 0
@@ -40884,11 +40024,6 @@
 1.0,
 5
 ],
-"retreatment": [
-"activity",
-1.0,
-0
-],
 "retrieval": [
 "activity",
 1.0,
@@ -40929,11 +40064,6 @@
 1.0,
 6
 ],
-"return": [
-"activity",
-1.0,
-0
-],
 "returned": [
 "property",
 1.0,
@@ -40946,7 +40076,7 @@
 ],
 "reuse": [
 "activity",
-1.0,
+0.75,
 8
 ],
 "revascularization": [
@@ -40963,11 +40093,6 @@
 "procedure",
 1.0,
 15
-],
-"review": [
-"activity",
-1.0,
-0
 ],
 "reviewed": [
 "property",
@@ -41459,11 +40584,6 @@
 1.0,
 6
 ],
-"routine": [
-"activity",
-1.0,
-0
-],
 "row": [
 "property",
 1.0,
@@ -41765,7 +40885,7 @@
 0
 ],
 "sacrifice": [
-"activity",
+"action",
 0.826,
 23
 ],
@@ -41950,8 +41070,8 @@
 175
 ],
 "sampling": [
-"activity",
-0.875,
+"action",
+0.852,
 88
 ],
 "sancycline": [
@@ -42089,11 +41209,6 @@
 1.0,
 0
 ],
-"saturation": [
-"activity",
-1.0,
-0
-],
 "say": [
 "procedure",
 1.0,
@@ -42198,11 +41313,6 @@
 "chemical",
 1.0,
 13
-],
-"schedule": [
-"activity",
-1.0,
-0
 ],
 "schema": [
 "activity",
@@ -42440,7 +41550,7 @@
 28
 ],
 "search": [
-"activity",
+"action",
 0.778,
 27
 ],
@@ -42499,11 +41609,6 @@
 1.0,
 9
 ],
-"seed": [
-"activity",
-1.0,
-0
-],
 "seeding": [
 "disease",
 0.8,
@@ -42544,11 +41649,6 @@
 1.0,
 0
 ],
-"selection": [
-"activity",
-1.0,
-0
-],
 "selenite": [
 "chemical",
 1.0,
@@ -42580,7 +41680,7 @@
 0
 ],
 "self-examination": [
-"activity",
+"action",
 1.0,
 5
 ],
@@ -42864,11 +41964,6 @@
 1.0,
 7
 ],
-"service": [
-"activity",
-1.0,
-0
-],
 "serving": [
 "property",
 1.0,
@@ -43064,11 +42159,6 @@
 0.913,
 23
 ],
-"shake": [
-"activity",
-1.0,
-0
-],
 "shaking": [
 "procedure",
 0.8,
@@ -43169,20 +42259,10 @@
 1.0,
 9
 ],
-"shipment": [
-"activity",
-1.0,
-0
-],
 "shipper": [
 "device",
 1.0,
 5
-],
-"shipping": [
-"activity",
-1.0,
-0
 ],
 "shock": [
 "disease",
@@ -43193,11 +42273,6 @@
 "procedure",
 1.0,
 5
-],
-"shoot": [
-"activity",
-1.0,
-0
 ],
 "shop": [
 "procedure",
@@ -43779,11 +42854,6 @@
 1.0,
 27
 ],
-"smear": [
-"activity",
-1.0,
-0
-],
 "smelling": [
 "procedure",
 1.0,
@@ -44030,7 +43100,7 @@
 0
 ],
 "sorting": [
-"activity",
+"action",
 0.8,
 15
 ],
@@ -44359,11 +43429,6 @@
 1.0,
 0
 ],
-"split": [
-"activity",
-1.0,
-0
-],
 "spoken": [
 "property",
 1.0,
@@ -44406,11 +43471,6 @@
 ],
 "spray": [
 "device",
-1.0,
-0
-],
-"spread": [
-"activity",
 1.0,
 0
 ],
@@ -44780,7 +43840,7 @@
 7
 ],
 "sterilization": [
-"activity",
+"action",
 0.932,
 44
 ],
@@ -44884,11 +43944,6 @@
 0.895,
 19
 ],
-"stop": [
-"activity",
-1.0,
-0
-],
 "stopped": [
 "property",
 1.0,
@@ -44898,11 +43953,6 @@
 "procedure",
 1.0,
 12
-],
-"storage": [
-"activity",
-1.0,
-0
 ],
 "store": [
 "activity",
@@ -44943,11 +43993,6 @@
 "organism",
 0.808,
 182
-],
-"straining": [
-"activity",
-1.0,
-0
 ],
 "stratification": [
 "activity",
@@ -45279,11 +44324,6 @@
 0.933,
 30
 ],
-"subtraction": [
-"activity",
-1.0,
-0
-],
 "subunit": [
 "protein",
 0.975,
@@ -45564,11 +44604,6 @@
 1.0,
 61
 ],
-"supply": [
-"activity",
-1.0,
-0
-],
 "supportive": [
 "property",
 1.0,
@@ -45711,16 +44746,6 @@
 ],
 "swab": [
 "device",
-1.0,
-0
-],
-"swallow": [
-"activity",
-1.0,
-0
-],
-"swallowing": [
-"activity",
 1.0,
 0
 ],
@@ -45909,20 +44934,10 @@
 0.938,
 192
 ],
-"synthesis": [
-"activity",
-1.0,
-0
-],
 "synthetase": [
 "protein",
 1.0,
 94
-],
-"synthetic": [
-"activity",
-1.0,
-0
 ],
 "syphilis": [
 "disease",
@@ -48071,7 +47086,7 @@
 ],
 "toxicity": [
 "disease",
-0.815,
+0.823,
 124
 ],
 "toxicology": [
@@ -48210,7 +47225,7 @@
 13
 ],
 "tracking": [
-"activity",
+"action",
 0.75,
 16
 ],
@@ -48269,11 +47284,6 @@
 1.0,
 5
 ],
-"transcription": [
-"activity",
-1.0,
-0
-],
 "transdermal": [
 "property",
 1.0,
@@ -48304,11 +47314,6 @@
 0.857,
 7
 ],
-"transformation": [
-"process",
-1.0,
-0
-],
 "transformed": [
 "property",
 0.8,
@@ -48323,11 +47328,6 @@
 "protein",
 1.0,
 8
-],
-"transition": [
-"activity",
-1.0,
-0
 ],
 "transitional": [
 "procedure",
@@ -48360,8 +47360,8 @@
 5
 ],
 "transmission": [
-"process",
-0.828,
+"disease",
+0.759,
 58
 ],
 "transpeptidase": [
@@ -48386,11 +47386,6 @@
 ],
 "transport": [
 "process",
-1.0,
-0
-],
-"transportation": [
-"activity",
 1.0,
 0
 ],
@@ -49351,7 +48346,7 @@
 ],
 "ulcer": [
 "disease",
-0.897,
+0.9,
 261
 ],
 "ulceran": [
@@ -49623,11 +48618,6 @@
 "procedure",
 0.976,
 85
-],
-"update": [
-"activity",
-1.0,
-0
 ],
 "uphill": [
 "procedure",
@@ -50395,8 +49385,8 @@
 6
 ],
 "verification": [
-"activity",
-0.944,
+"action",
+0.889,
 18
 ],
 "vermis": [
@@ -51014,11 +50004,6 @@
 1.0,
 11
 ],
-"waking": [
-"activity",
-1.0,
-0
-],
 "walk": [
 "procedure",
 0.812,
@@ -51170,7 +50155,7 @@
 0
 ],
 "weekly": [
-"activity",
+"action",
 0.758,
 33
 ],
@@ -51309,23 +50294,13 @@
 1.0,
 0
 ],
-"withdraw": [
-"activity",
-1.0,
-0
-],
 "withdrawal": [
 "procedure",
 1.0,
 0
 ],
-"withdrawn": [
-"activity",
-1.0,
-0
-],
 "witness": [
-"activity",
+"action",
 0.75,
 8
 ],
@@ -51503,11 +50478,6 @@
 "disease",
 0.944,
 143
-],
-"write": [
-"activity",
-1.0,
-0
 ],
 "writing": [
 "procedure",
@@ -51785,7 +50755,7 @@
 0
 ],
 "yearly": [
-"activity",
+"action",
 0.909,
 11
 ],
@@ -52488,7 +51458,6 @@
 "ajcc regional lymph nodes n": "procedure",
 "ajcc v regional lymph nodes n": "procedure",
 "ak chin": "conceptual",
-"alcoholic brain atrophy": "process",
 "alcoholic fatty liver": "disease",
 "alcoholic fibrosis and sclerosis of liver": "disease",
 "alcoholic liver disease unspecified": "disease",
@@ -52504,7 +51473,6 @@
 "aluminosis of lung": "disease",
 "american brain tumor association": "conceptual",
 "american lung association": "conceptual",
-"amnion epithelium necrosis": "process",
 "amnion nodosum": "disease",
 "amputation above knee": "procedure",
 "amputation of penis": "procedure",
@@ -53207,7 +52175,6 @@
 "bladder carcinoma by ajcc v stage": "disease",
 "bladder continence": "procedure",
 "bladder control": "procedure",
-"bladder distention": "disease",
 "bladder exstrophy": "disease",
 "bladder flat cis": "disease",
 "bladder incontinence": "disease",
@@ -53281,7 +52248,6 @@
 "blood pressure": "procedure",
 "blood pressure result": "disease",
 "blood product collection": "procedure",
-"blood product distribution": "activity",
 "blood product pathogen reduction": "procedure",
 "blood relation": "conceptual",
 "blood smear": "conceptual",
@@ -53298,7 +52264,6 @@
 "blood type b": "conceptual",
 "blood type determination": "procedure",
 "blood type o": "conceptual",
-"blood ultrafiltration": "activity",
 "blood venous": "conceptual",
 "blood vessel density": "procedure",
 "blood vessel tumor of skin": "disease",
@@ -53323,13 +52288,13 @@
 "bone marrow derived mononuclear cells": "conceptual",
 "bone marrow derived unselected mononuclear cell": "conceptual",
 "bone marrow discordant histology": "disease",
+"bone marrow donation": "activity",
 "bone marrow donor": "conceptual",
 "bone marrow donors worldwide": "conceptual",
 "bone marrow failure": "disease",
 "bone marrow failure syndrome digenic": "disease",
 "bone marrow liquid": "conceptual",
 "bone marrow malignant cells": "conceptual",
-"bone marrow metastasis": "disease",
 "bone marrow nos": "conceptual",
 "bone marrow purging": "procedure",
 "bone marrow smear": "conceptual",
@@ -53351,7 +52316,6 @@
 "brain mass": "disease",
 "brain metastases": "disease",
 "brain metastases adult": "disease",
-"brain metastasis": "disease",
 "brain metastasis velocity": "conceptual",
 "brain natriuretic peptide": "procedure",
 "brain neoplasms adult": "disease",
@@ -53445,7 +52409,6 @@
 "breast imaging reporting and data system": "conceptual",
 "breast imaging study": "procedure",
 "breast implant": "device",
-"breast intraductal papillary adenocarcinoma with invasion": "disease",
 "breast ln": "disease",
 "breast lump not palpable": "disease",
 "breast lump palpable": "disease",
@@ -53453,7 +52416,6 @@
 "breast mass": "disease",
 "breast measurement": "property",
 "breast metastases": "disease",
-"breast metastasis": "disease",
 "breast neuroendocrine tumor g": "disease",
 "breast operation laterality": "procedure",
 "breast ovarian cancer protein staining method": "procedure",
@@ -53461,13 +52423,10 @@
 "breast pma": "disease",
 "breast q": "procedure",
 "breast scattered fibroglandular densities": "disease",
-"breast self exam": "activity",
-"breast self examination": "activity",
 "breast shape": "procedure",
 "breast shape difference since cancer treatment": "procedure",
 "breast size": "procedure",
 "breast size difference since cancer treatment": "procedure",
-"breast solid papillary carcinoma with invasion": "disease",
 "breast squamous cell carcinoma acantholytic variant": "disease",
 "breast swelling": "disease",
 "breast tenderness enlargement": "procedure",
@@ -53828,6 +52787,7 @@
 "cell preparation tube": "device",
 "cell preparation tube with heparin": "device",
 "cell preparation tube with sodium citrate": "device",
+"cell surface extension": "process",
 "cell tissue histochemistry": "conceptual",
 "cell tissue immunohistochemistry": "procedure",
 "cells femur": "property",
@@ -53842,7 +52802,6 @@
 "central hemorrhagic necrosis of liver": "disease",
 "central lung": "disease",
 "central nervous system metastases": "disease",
-"central nervous system metastasis": "disease",
 "central nervous system myelomatosis": "disease",
 "central nervous system neuroblastoma foxr activated": "disease",
 "central nervous system signs and symptoms": "disease",
@@ -54186,7 +53145,6 @@
 "coronary artery aneurysm related to covid": "disease",
 "coronary artery bypass graft": "procedure",
 "coronary artery calcium scoring": "disease",
-"coronary artery ectasia": "disease",
 "coronary artery ectasia related to covid": "disease",
 "coronary artery thrombosis method ident": "procedure",
 "coronary artery thrombosis method of identification": "procedure",
@@ -54474,7 +53432,6 @@
 "decreased peak drug blood concentration": "disease",
 "decreased urine output": "disease",
 "deep inferior epigastric artery perforator flap": "procedure",
-"deep tissue invasion": "disease",
 "defined observation focal date range": "property",
 "definitive therapy date of completion": "procedure",
 "degenerated white blood cells": "procedure",
@@ -54554,6 +53511,8 @@
 "dilation and curettage of the uterus": "procedure",
 "dilute russell s viper venom time": "procedure",
 "dilute russell s viper venom time ratio": "procedure",
+"direct extension": "disease",
+"direct tumor extension": "disease",
 "disability rating scale clinical classification": "procedure",
 "discard tube": "device",
 "disconnected limb electrodes by ecg finding": "property",
@@ -54597,10 +53556,8 @@
 "dissection of unspecified artery": "disease",
 "dissection of unspecified site of aorta": "disease",
 "dissection of vertebral artery": "disease",
-"dissolve under tongue": "activity",
 "distal femur r": "disease",
 "distortion of the hair follicle": "disease",
-"distribution blood products": "activity",
 "division head": "conceptual",
 "division of heart and vascular diseases": "conceptual",
 "division of lung diseases": "conceptual",
@@ -54709,7 +53666,6 @@
 "embryonal rhabdomyosarcoma of the prostate": "disease",
 "embryonal sarcoma of the liver": "disease",
 "embryonal tumor of central nervous system": "disease",
-"encapsulated breast papillary carcinoma with invasion": "disease",
 "end date and time of procedure": "property",
 "end organ damage from diabetes": "disease",
 "end stage heart failure": "disease",
@@ -54719,6 +53675,7 @@
 "endocervix tumor": "conceptual",
 "endocrine system findings": "conceptual",
 "endocrine system findings domain": "conceptual",
+"endocrine system process": "process",
 "endocrine system signs and symptoms": "disease",
 "endometrioid adenocarcinoma of endometrium": "disease",
 "endometrioid adenocarcinoma of fallopian tube": "disease",
@@ -54914,7 +53871,6 @@
 "extra lumbar vertebra": "disease",
 "extracapsular extension": "conceptual",
 "extracapsular extension present": "conceptual",
-"extraction tissue protein": "activity",
 "extrahepatic bile duct adenocarcinoma biliary type": "disease",
 "extrahepatic bile duct adenocarcinoma intestinal type": "disease",
 "extrahepatic bile duct cancer stage": "disease",
@@ -55041,7 +53997,6 @@
 "fetal position above umbilicus": "disease",
 "fetal position below umbilicus": "disease",
 "fetal scalp electrode monitoring": "procedure",
-"fetal scalp ph measurement": "activity",
 "fetal thymic organ culture": "activity",
 "fetal tissue": "conceptual",
 "fever sweat and hot flashes": "disease",
@@ -55108,7 +54063,6 @@
 "fluid abdomen": "conceptual",
 "fluid blood leak": "property",
 "focal date range": "property",
-"focal mammary duct ectasia": "disease",
 "focal nodular hyperplasia of liver": "disease",
 "focal nodular hyperplasia of the liver": "disease",
 "follicular adenoma of the thyroid gland": "disease",
@@ -55810,6 +54764,7 @@
 "immune system disorders other": "disease",
 "immune system disorders other specify": "disease",
 "immune system findings domain": "conceptual",
+"immune system process": "process",
 "immunoassay fecal occult blood test": "procedure",
 "immunoblastic lymphoma of the thyroid gland": "disease",
 "immunoblastic lymphoma of thyroid gland": "disease",
@@ -55848,7 +54803,6 @@
 "independent for controlling bladder": "property",
 "indeterminate axis": "disease",
 "indeterminate extranodal tumor extension": "disease",
-"indeterminate lymph vascular invasion": "disease",
 "indeterminate qrs axis": "disease",
 "indian date tree": "organism",
 "indicate date radiation completed": "procedure",
@@ -55927,6 +54881,8 @@
 "intimal dissection of blood vessel": "disease",
 "intimal sarcoma of the pulmonary artery": "disease",
 "intra operative blood salvage autotransfusion": "procedure",
+"intracranial extension": "disease",
+"intracranial tumor extension": "disease",
 "intraductal carcinoma of the prostate": "disease",
 "intraductal papillary colloid carcinoma of pancreas": "disease",
 "intraductal papillary colloid carcinoma of the pancreas": "disease",
@@ -56299,7 +55255,7 @@
 "liver cancer secondary to alcohol use": "disease",
 "liver cancer secondary to hepatitis b": "disease",
 "liver cancer secondary to hepatitis c": "disease",
-"liver carcinogenesis": "process",
+"liver carcinogenesis": "disease",
 "liver cell cancer stage i": "disease",
 "liver cell cancer stage ii": "disease",
 "liver disease unspecified": "disease",
@@ -56315,7 +55271,6 @@
 "liver laceration s": "disease",
 "liver mass": "disease",
 "liver metastases": "disease",
-"liver metastasis": "disease",
 "liver mh": "disease",
 "liver neuroendocrine tumor g": "disease",
 "liver pain": "disease",
@@ -56398,7 +55353,6 @@
 "lung lymphangiomyomatosis": "disease",
 "lung mass": "disease",
 "lung metastases": "disease",
-"lung metastasis": "disease",
 "lung net g": "disease",
 "lung net grade": "disease",
 "lung neuroendocrine tumor g": "disease",
@@ -57088,7 +56042,6 @@
 "maltoma of the small bowel": "disease",
 "maltworker s lung": "disease",
 "mammary analogue secretory carcinoma of lung": "disease",
-"mammary duct ectasia": "disease",
 "mantle cell lymphoma international prognostic index": "procedure",
 "mantle cell lymphoma international prognostic index combined": "procedure",
 "mantle cell lymphoma intra abdominal lymph nodes": "disease",
@@ -57694,7 +56647,7 @@
 "neck squamous cell cup": "disease",
 "neck stiffness": "disease",
 "neck webbing": "disease",
-"necrosis of artery": "process",
+"necrosis of artery": "disease",
 "needle biopsy of kidney": "procedure",
 "needle biopsy of liver": "procedure",
 "needle biopsy of prostate": "procedure",
@@ -57994,6 +56947,8 @@
 "nerve growth factor alpha": "procedure",
 "nerve growth factor beta": "procedure",
 "nerve growth factor gamma": "procedure",
+"nerve impulse transmission": "process",
+"nerve transmission": "process",
 "nervous system development": "process",
 "nervous system disorders other": "disease",
 "nervous system disorders other specify": "disease",
@@ -58495,7 +57450,6 @@
 "pasi trunk t sum x area": "procedure",
 "passing of mucus plug": "disease",
 "patent urachus": "disease",
-"pathogenesis of hiv related organ tissue disorder": "process",
 "pathologic findings in non neoplastic kidney": "procedure",
 "pathologic findings in nonneoplastic kidney": "procedure",
 "patient date of birth": "property",
@@ -58842,8 +57796,6 @@
 "problem with teeth denture or mouth": "procedure",
 "problems of adjustment to life cycle transitions": "conceptual",
 "processing blood products red blood cell": "procedure",
-"processing decellularized tissue": "activity",
-"processing tissue": "activity",
 "product description appearance assessment": "activity",
 "product relationship effective date range": "property",
 "production blood products cyroprecipitate": "procedure",
@@ -58994,7 +57946,6 @@
 "pulsed wave tissue doppler mode": "conceptual",
 "pulsed wave tissue doppler ultrasound mode": "conceptual",
 "punctured blood vessel": "disease",
-"purification blood or viral antigen": "activity",
 "purple top tube": "device",
 "pyogenic granuloma of oral mucosa": "disease",
 "pyogenic granuloma of the oral mucosa": "disease",
@@ -59165,7 +58116,6 @@
 "refractory rhabdoid tumor of the kidney": "disease",
 "regenerative peripheral nerve interface": "procedure",
 "regional digestive system neuroendocrine tumor g": "disease",
-"regional lymph node metastasis": "disease",
 "regret having bone marrow transplant": "procedure",
 "regular milk": "food",
 "regulatory application sponsor effective date range": "property",
@@ -59286,6 +58236,7 @@
 "reproductive system findings domain": "conceptual",
 "reproductive system findings reason not done": "conceptual",
 "reproductive system or breast problem": "conceptual",
+"reproductive system process": "process",
 "research organization effective date range": "property",
 "research staff effective date range": "property",
 "resectable cancer of bile duct": "disease",
@@ -59625,7 +58576,6 @@
 "single umbilical artery": "disease",
 "sinoatrial node exit block": "disease",
 "sinus draining of liquid into throat": "procedure",
-"sinusoid invasion": "disease",
 "sinusoidal fetal heart rate pattern": "disease",
 "size of largest lymph node deposit": "property",
 "size of lymph node": "property",
@@ -60015,7 +58965,6 @@
 "stomach carcinoma stage ib": "disease",
 "stomach carcinoma stage iiia": "disease",
 "stomach carcinoma stage iiib": "disease",
-"stomach carcinoma stage iv without metastasis": "disease",
 "stomach contents": "conceptual",
 "stomach cramp": "disease",
 "stomach cramps": "disease",
@@ -60025,7 +58974,6 @@
 "stomach pain": "disease",
 "stomach ulceration": "disease",
 "stone of prostate": "conceptual",
-"storage blood products": "activity",
 "storage end date time at": "property",
 "storage start date time at": "property",
 "storage start date time ln storage": "property",
@@ -60195,6 +59143,7 @@
 "thyroid hormone iodination alteration": "disease",
 "thyroid hormone organification alteration": "disease",
 "thyroid hormone resistance": "disease",
+"thyroid hormone secretion process": "process",
 "thyroid hormone treatment": "procedure",
 "thyroid isthmectomy": "procedure",
 "thyroid nos": "property",
@@ -60224,8 +59173,8 @@
 "tissue culture": "activity",
 "tissue damage": "disease",
 "tissue decalcification": "procedure",
-"tissue decellularization": "activity",
 "tissue deposited in the repository": "procedure",
+"tissue development process": "process",
 "tissue differentiation uncertain": "disease",
 "tissue dissociation": "procedure",
 "tissue dissociation method": "procedure",
@@ -60242,6 +59191,7 @@
 "tissue in tube": "procedure",
 "tissue inhibitor of metalloproteinase creatinine": "procedure",
 "tissue invasive cmv": "disease",
+"tissue lysis": "disease",
 "tissue microarray": "device",
 "tissue microarray image": "conceptual",
 "tissue obtained from": "conceptual",
@@ -60325,7 +59275,7 @@
 "transitional cell carcinoma of the prostate": "disease",
 "transitional cell carcinoma of the urethra": "disease",
 "transitional cell carcinoma of urethra": "disease",
-"transmission blood recipient donor": "process",
+"transmission blood recipient donor": "disease",
 "transoral laser surgery glottis": "procedure",
 "transplantation and immune system": "conceptual",
 "transplantation of liver": "procedure",
@@ -60375,7 +59325,6 @@
 "tubulovillous adenoma of large bowel": "disease",
 "tubulovillous adenoma of the colon": "disease",
 "tubulovillous adenoma of the large bowel": "disease",
-"tumor capsule invasion": "disease",
 "tumor confined to organ of origin": "disease",
 "tumor invasion of the mucosa": "disease",
 "tumor invasion of the prostatic urethra": "disease",
@@ -60927,6 +59876,7 @@
 "well differentiated papillary tumor of mesothelium": "disease",
 "well differentiated papillary tumor of the mesothelium": "disease",
 "were genomics performed on obtained tissue": "procedure",
+"white blood cell lysis": "process",
 "white blood cell morphology": "procedure",
 "white blood cells stem cells leukopoiesis": "process",
 "white patterned snake s tongue herbs": "organism",

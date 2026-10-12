@@ -96,3 +96,50 @@ def test_the_role_is_read_from_the_last_json_object():
 
     assert lr.read_role('analysis {"x": 1} ... final {"role": "procedure_site"}') == "procedure_site"
     assert lr.read_role('{"role": "site"}') == "uncertain" and lr.read_role("nothing") == "uncertain"
+
+
+def test_quantization_is_a_hard_filter_on_openrouter_and_recorded_in_the_name():
+    q = rp.parse_quantization("openai/gpt-oss-120b=fp8")
+    assert q == {"openai/gpt-oss-120b": "fp8"}
+    with pytest.raises(SystemExit):
+        rp.parse_quantization("openai/gpt-oss-120b=fp7")
+    import os
+
+    os.environ.setdefault("OPENROUTER_API_KEY", "test")
+    chats = rp.make_chats(["openai/gpt-oss-120b", "mistralai/mistral-small-2603"],
+                          "https://openrouter.ai/api/v1/chat/completions", rp.Cache(None), 100, q)
+    assert set(chats) == {"openai/gpt-oss-120b@fp8", "mistralai/mistral-small-2603"}
+
+
+def test_the_chat_client_sends_the_provider_filter():
+    from melampo.evaluation import linking_bench as lb
+
+    sent = {}
+
+    class Response:
+        def __init__(self, body):
+            self.body = body
+
+        def read(self):
+            return self.body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(request, timeout=0):
+        sent.update(json.loads(request.data))
+        return Response(json.dumps({"choices": [{"message": {"content": "{}"}}]}).encode())
+
+    import urllib.request
+
+    chat = lb.OpenRouterChat("openai/gpt-oss-120b", "k", provider={"quantizations": ["fp8"], "allow_fallbacks": False})
+    original = urllib.request.urlopen
+    urllib.request.urlopen = fake_urlopen
+    try:
+        chat("q")
+    finally:
+        urllib.request.urlopen = original
+    assert sent["provider"] == {"quantizations": ["fp8"], "allow_fallbacks": False}

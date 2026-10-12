@@ -477,3 +477,33 @@ def test_a_name_without_its_head_noun_is_not_the_lexicon_name(
     recognised, how = lexicon.recognise(mention, sentence)
     assert (recognised, how) == ([], "name_without_its_head_noun")
     assert _linker(lexicon, table).link(mention, sentence).cid is None
+
+
+@pytest.mark.parametrize(
+    "mention, cid",
+    [
+        ("posterior right 9th rib", "rib_right_9"),
+        ("left 6th posterior rib", "rib_left_6"),
+        ("medial right middle lobe", "lung_middle_lobe_right"),
+        ("lateral left clavicle", "clavicula_left"),
+        ("lobo inferiore sinistro posteriore", "lung_lower_lobe_left"),
+    ],
+)
+def test_placing_words_are_read_through_and_the_link_is_part_of(lexicon, table, mention, cid):
+    sentence = f"Addensamento nel {mention}." if "lobo" in mention else f"Fracture of the {mention}."
+    got = _linker(lexicon, table).link(mention, sentence)
+    assert got.status == al.ACCEPTED and got.cid == cid and got.relation == "part_of"
+    assert any(e.stream == "placing_words" for e in got.trace)
+
+
+def test_placing_words_alone_or_in_another_name_are_not_read_through(lexicon, table):
+    linker = _linker(lexicon, table)
+    assert linker.link("medial meniscus", "Tear of the medial meniscus.").status == al.ABSTAINED
+    assert linker.link("lateral", "Lateral view.").status == al.ABSTAINED
+
+
+def test_a_phrase_that_is_itself_an_ontology_name_is_not_read_through(lexicon, table):
+    # "lateral ventricle" is a ventricle of the brain: an anatomical name of its own is never stripped
+    term = [{"id": "UBERON:9999999", "name": "lateral liver", "synonyms": []}]
+    assert _linker(lexicon, table).link("lateral liver", "Lesion of the lateral liver.").cid == "liver"
+    assert _linker(lexicon, table, pool=term).link("lateral liver", "Lesion of the lateral liver.").cid != "liver"

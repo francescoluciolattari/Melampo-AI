@@ -192,14 +192,52 @@ def check_endpoint(endpoint: str, public_data: bool) -> None:
         )
 
 
-def make_chats(models: list[str], endpoint: str, cache: Cache, max_tokens: int) -> dict:
+# Precision of the weights, per model: part of what is measured. gpt-oss-120b runs in FP8 (decided by
+# Frank, 12 October 2026); the official checkpoint is MXFP4, so FP8 means a provider that declares fp8
+# (OpenRouter) or a pinned FP8 checkpoint on the local server.
+DEFAULT_QUANTIZATION = "openai/gpt-oss-120b=fp8"
+QUANTIZATIONS = frozenset({"int4", "int8", "fp4", "fp6", "fp8", "fp16", "bf16", "fp32"})
+
+
+def parse_quantization(spec: str) -> dict[str, str]:
+    """``model=fp8,other=bf16`` -> {model: fp8, other: bf16}."""
+    out = {}
+    for part in (p for p in spec.split(",") if p.strip()):
+        model, _, q = part.strip().partition("=")
+        if q not in QUANTIZATIONS:
+            raise SystemExit(f"quantization {q!r} for {model}: one of {sorted(QUANTIZATIONS)}")
+        out[model] = q
+    return out
+
+
+def make_chats(models: list[str], endpoint: str, cache: Cache, max_tokens: int,
+               quantization: dict[str, str] | None = None) -> dict:
     from melampo.evaluation import linking_bench as lb
 
-    key = os.environ.get("OPENROUTER_API_KEY", "") if "openrouter.ai" in endpoint else os.environ.get("LLM_API_KEY", "local")
-    if "openrouter.ai" in endpoint and not key:
+    router = "openrouter.ai" in endpoint
+    key = os.environ.get("OPENROUTER_API_KEY", "") if router else os.environ.get("LLM_API_KEY", "local")
+    if router and not key:
         raise SystemExit("OPENROUTER_API_KEY is not set")
-    return {m: cache.wrap(m, lb.OpenRouterChat(m, key, endpoint=endpoint, max_tokens=max_tokens, timeout=180.0,
-                                               retries=4, min_interval=0.2)) for m in models}
+    chats = {}
+    for m in models:
+        q = (quantization or {}).get(m)
+        # On OpenRouter the precision is a hard filter (no fallback to another one); a local server serves
+        # the checkpoint it was started with, and the run records which one was asked for.
+        provider = {"quantizations": [q], "allow_fallbacks": False} if (router and q) else None
+        name = f"{m}@{q}" if q else m
+        chats[name] = cache.wrap(name, lb.OpenRouterChat(m, key, endpoint=endpoint, max_tokens=max_tokens, timeout=180.0,
+                                                         retries=4, min_interval=0.2, provider=provider))
+    return chats
+
+
+def probe_models(chats: dict) -> None:
+    """One short question per model before the run: a model no provider serves at the asked precision
+    stops the run here, instead of turning every answer into an invalid one."""
+    for name, chat in chats.items():
+        try:
+            chat('Answer with JSON only: {"ok": "yes"}')
+        except Exception as error:  # noqa: BLE001
+            raise SystemExit(f"{name}: not reachable as asked ({str(error)[:200]})") from error
 
 
 def examples_for(item: dict, pool: list[dict], k: int) -> list[dict]:
@@ -297,8 +335,8 @@ def markdown(report: dict) -> str:
 
 
 def run(args) -> dict:
-    gold = _jsonl(args.gold)
-    reports = {r["report_id"]: r["text"] for r in _jsonl(args.reports)} if args.reports else {}
+    gold = [g for path in args.gold for g in _jsonl(path)]
+    reports = {r["report_id"]: r["text"] for path in (args.reports or []) for r in _jsonl(path)}
     items = items_of(gold, reports)
     if args.limit:
         items = items[: args.limit]
@@ -326,7 +364,9 @@ def run(args) -> dict:
     raw: dict[str, dict] = {}
     if llm_arms and models:
         check_endpoint(args.endpoint, args.public_data)
-        chats = make_chats(models, args.endpoint, Cache(args.cache), args.max_tokens)
+        chats = make_chats(models, args.endpoint, Cache(args.cache), args.max_tokens,
+                           parse_quantization(args.quantization))
+        probe_models(chats)
         started = time.monotonic()
 
         def one(it):
@@ -356,6 +396,7 @@ def run(args) -> dict:
         "n": len(items), "gold_roles": dict(Counter(it["role"] for it in items).most_common()),
         "endpoint": urlparse(args.endpoint).hostname if llm_arms and models else None,
         "models": models, "examples": args.examples,
+        "quantization": parse_quantization(args.quantization),
         # Roles are compared where the gold says the mention is anatomy (a class or none of our classes);
         # NOT_ANATOMY mentions (lesions, fluids, cells: a convention of the gold set) are scored apart.
         "arms": {k: score([it for it in items if it["structure"] != "NOT_ANATOMY"], k) for k in keys},
@@ -369,13 +410,16 @@ def run(args) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--gold", type=Path, required=True)
-    ap.add_argument("--reports", type=Path)
+    ap.add_argument("--gold", type=Path, nargs="+", required=True,
+                    help="gold rows (silver gold set; Rad-SpRL landmarks from scripts/rad_sprl.py, role structure)")
+    ap.add_argument("--reports", type=Path, nargs="+")
     ap.add_argument("--reader-dir", type=Path, help="resources of the reader (scripts/build_ci_resources.py); "
                                                      "without it the reader arm is off and llm+reader sees the lattice only")
     ap.add_argument("--arms", default="lattice,reader,llm,llm+reader")
     ap.add_argument("--models", default="openai/gpt-oss-120b,mistralai/mistral-small-2603")
     ap.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
+    ap.add_argument("--quantization", default=DEFAULT_QUANTIZATION,
+                    help="precision of the weights per model, model=fp8,... (OpenRouter: hard filter, no fallback)")
     ap.add_argument("--public-data", action="store_true", help="the texts are public: an external endpoint is allowed")
     ap.add_argument("--examples", type=int, default=0, help="annotated items of other reports shown per question")
     ap.add_argument("--cache", type=Path, default=Path("role_probe_answers.jsonl"))

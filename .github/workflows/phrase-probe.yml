@@ -54,6 +54,10 @@ on:
         description: "Documents per corpus (empty = all; a number for a quick run)"
         required: false
         default: ""
+      quantization:
+        description: "Precision of the weights per model id, id=fp8,... (OpenRouter hard filter, no fallback)"
+        required: false
+        default: "openai/gpt-oss-120b=fp8"
 
 permissions:
   contents: read
@@ -109,6 +113,7 @@ jobs:
         env:
           LLM_MODE: ${{ inputs.llm_mode }}
           LLM_MODELS: ${{ inputs.llm_models }}
+          QUANTIZATION: ${{ inputs.quantization }}
           EXAMPLES: ${{ inputs.examples }}
           UMLS: ${{ inputs.umls }}
           UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
@@ -155,6 +160,11 @@ jobs:
             fi
           done
           # stderr carries the progress lines; the log is kept with the results
+          QUANTIZATION="${QUANTIZATION//[[:space:]]/}"
+          if [ -n "$QUANTIZATION" ] && ! [[ "$QUANTIZATION" =~ ^[A-Za-z0-9._:/-]+=[a-z0-9]+(,[A-Za-z0-9._:/-]+=[a-z0-9]+)*$ ]]; then
+            echo "::error::quantization takes id=fp8, comma-separated"; exit 2
+          fi
+          set -- "$@" --quantization "$QUANTIZATION"
           uv run --no-sync python -u scripts/phrase_probe.py "$@" 2> >(tee phrase_probe.log >&2)
 
       - name: Keep the UMLS lookups (also when the run fails or is stopped)

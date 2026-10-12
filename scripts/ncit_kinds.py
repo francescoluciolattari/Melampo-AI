@@ -30,8 +30,16 @@ KIND_ROOTS = (
     ("gene", "NCIT:C16612"),
     ("chemical", "NCIT:C1908"),
     ("organism", "NCIT:C14250"),
+    # A pathologic process ("ectasia", "dilatation") is a finding of the structure it happens in, not a
+    # function of it: read as a disease, the structure stays the site (12 October 2026, Rad-SpRL).
+    ("disease", "NCIT:C16956"),
     ("process", "NCIT:C17828"),
     ("property", "NCIT:C20189"),
+    # NCIt files "change", "enlargement", "alteration", "compression" under Action, the sense of the verb.
+    # "degenerative changes of the spine" is a finding in the spine, not a measure or process of it: an
+    # action word says nothing about the role of the structure, so it is a kind of its own that no role
+    # is read from (12 October 2026, Rad-SpRL: 60 + 54 landmarks of "changes of the (thoracic) spine").
+    ("action", "NCIT:C25404"),
     ("activity", "NCIT:C43431"),
     ("conceptual", "NCIT:C20181"),
 )

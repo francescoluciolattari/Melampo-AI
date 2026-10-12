@@ -1,0 +1,95 @@
+# Rad-SpRL landmarks: the class of each distinct landmark string (TotalSegmentator classes, our relations).
+# Labeller: Claude, 12 October 2026, by distinct string, AFTER seeing the linker's answers (a check of the
+# accepted links, not a blind label): every string the linker accepted on that day, each judged by hand
+# (all agreed). Strings not listed are not labelled. Format: landmark|class|relation|note
+# Source: Rad-SpRL (S. Datta, K. Roberts; Mendeley Data, DOI 10.17632/yhb26hfz8n.1), CC BY 4.0.
+7th posterior right rib|rib_right_7|part_of|
+abdominal aorta|aorta|part_of|
+anterior left 4th rib|rib_left_4|part_of|
+anterior left 5th rib|rib_left_5|part_of|
+anterior left 7th rib|rib_left_7|part_of|
+anterior right first rib|rib_right_1|part_of|
+anterior t10 vertebral body|vertebrae_T10|part_of|
+aorta|aorta|equal|
+ascending aorta|aorta|part_of|
+cardiac apex|heart|part_of|
+cardiac silhouette|heart|contour_of|
+carina|trachea|part_of|
+colon|colon|equal|
+descending aorta|aorta|part_of|
+descending thoracic aorta|aorta|part_of|
+distal left clavicle|clavicula_left|part_of|
+distal right clavicle|clavicula_right|part_of|
+fourth right anterior ribs|rib_right_4|part_of|
+heart|heart|equal|
+lateral left 6th rib|rib_left_6|part_of|
+lateral right 9th rib|rib_right_9|part_of|
+left 5th rib|rib_left_5|equal|
+left 6th posterior rib|rib_left_6|part_of|
+left 9th lateral rib|rib_left_9|part_of|
+left anterior 6th rib|rib_left_6|part_of|
+left anterior 7th rib|rib_left_7|part_of|
+left atrial appendage|atrial_appendage_left|equal|
+left clavicle|clavicula_left|equal|
+left distal clavicle|clavicula_left|part_of|
+left femur|femur_left|equal|
+left fifth rib|rib_left_5|equal|
+left hip|hip_left|approx|
+left humerus|humerus_left|equal|
+left lateral clavicle|clavicula_left|part_of|
+left lingula|lung_upper_lobe_left|part_of|
+left lower lobe|lung_lower_lobe_left|equal|
+left lower lobes|lung_lower_lobe_left|equal|
+left perihilar upper lobe|lung_upper_lobe_left|part_of|
+left posterior rib 8|rib_left_8|part_of|
+left upper lobe|lung_upper_lobe_left|equal|
+left upper lung lobe|lung_upper_lobe_left|equal|
+left ventricle|heart|part_of|
+lingula|lung_upper_lobe_left|part_of|
+liver|liver|equal|
+medial left lower lobe|lung_lower_lobe_left|part_of|
+medial right clavicle|clavicula_right|part_of|
+medial right middle lobe|lung_middle_lobe_right|part_of|
+mid right clavicle|clavicula_right|part_of|
+middle lobe|lung_middle_lobe_right|equal|
+posterior lateral left 7th rib|rib_left_7|part_of|
+posterior left 5th rib|rib_left_5|part_of|
+posterior left 6th rib|rib_left_6|part_of|
+posterior left 7th rib|rib_left_7|part_of|
+posterior left lower lobe|lung_lower_lobe_left|part_of|
+posterior right 6th rib|rib_right_6|part_of|
+posterior right 7th rib|rib_right_7|part_of|
+posterior right 9th rib|rib_right_9|part_of|
+posterolateral right 8th rib|rib_right_8|part_of|
+retrocardiac left lower lobe|lung_lower_lobe_left|part_of|
+right 3rd rib|rib_right_3|equal|
+right 6th rib laterally|rib_right_6|part_of|
+right 7th rib|rib_right_7|equal|
+right 8th rib|rib_right_8|equal|
+right anterior 7th rib|rib_right_7|part_of|
+right cardiac silhouette|heart|contour_of|
+right clavicle|clavicula_right|equal|
+right first rib|rib_right_1|equal|
+right humeral head|humerus_right|part_of|
+right lateral 7th rib|rib_right_7|part_of|
+right lateral 8th rib|rib_right_8|part_of|
+right lateral 9th rib|rib_right_9|part_of|
+right lower lobe|lung_lower_lobe_right|equal|
+right lower lobes|lung_lower_lobe_right|equal|
+right mid clavicle|clavicula_right|part_of|
+right middle lobe|lung_middle_lobe_right|equal|
+right posterior 5th rib|rib_right_5|part_of|
+right posterior 9th rib|rib_right_9|part_of|
+right posterolateral 7th rib|rib_right_7|part_of|
+right scapula|scapula_right|equal|
+right upper lobe|lung_upper_lobe_right|equal|
+small bowel|small_bowel|equal|
+sternum|sternum|equal|
+stomach|stomach|equal|
+svc|superior_vena_cava|equal|
+t11 level|vertebrae_T11|equal|
+t6|vertebrae_T6|equal|
+thoracic aorta|aorta|part_of|
+thyroid gland|thyroid_gland|equal|
+trachea|trachea|equal|
+upper abdominal aorta|aorta|part_of|
