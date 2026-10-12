@@ -1,0 +1,116 @@
+name: Report memory (learning from radiology reports)
+
+# Manual trigger only. Fetches radiology report text, lets the reader's text memory (collocations: pairs
+# and triples of words) read it in steps, and measures how much of reports it has not read it then knows
+# (scripts/report_memory_probe.py). Then re-reads the MedMentions spans with every cue of a reader, with
+# and without the report counts (scripts/chunk_probe.py). Decides nothing, changes nothing.
+#
+# Sources:
+#   iuxray        Indiana University chest X-ray reports (NLM Open-i), English, real, anonymised: open
+#   parrot        PARROT fictional reports written by radiologists, English and Italian (CC BY-NC-SA)
+#   hf            gated Hugging Face datasets listed in `hf_repos` (HF_TOKEN secret; the token's owner must
+#                 have accepted each dataset's terms on the site). Defaults: CT-RATE (chest CT) and MR-RATE
+#                 (brain MRI), both CC BY-NC-SA 4.0: research and development only, not for the product.
+on:
+  workflow_dispatch:
+    inputs:
+      parrot:
+        description: "Also read PARROT (fictional, CC BY-NC-SA)"
+        type: boolean
+        default: true
+      hf_repos:
+        description: "Gated Hugging Face datasets to read (space separated; empty = none)"
+        required: false
+        default: "ibrahimhamamci/CT-RATE Forithmus/MR-RATE"
+
+permissions:
+  contents: read
+
+jobs:
+  memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+          uv pip install scipy scikit-learn
+
+      - name: NCIt and the corpora (pinned)
+        run: |
+          curl -sSL --fail -o ncit.obo \
+            https://github.com/NCI-Thesaurus/thesaurus-obo-edition/releases/latest/download/ncit.obo
+          mkdir -p ext
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+
+      - name: Fetch the reports
+        env:
+          PARROT: ${{ inputs.parrot }}
+          HF_REPOS: ${{ inputs.hf_repos }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          mkdir -p reports
+          uv run --no-sync python scripts/fetch_public_reports.py iuxray --out reports/iuxray.jsonl
+          if [ "$PARROT" = "true" ]; then
+            mkdir -p corpora/parrot
+            for repo in $(gh repo list PARROT-reports --limit 50 --json name --jq '.[].name'); do
+              git clone --quiet --depth 1 "https://github.com/PARROT-reports/${repo}.git" "corpora/parrot/${repo}"
+            done
+            uv run --no-sync python scripts/fetch_public_reports.py parrot corpora/parrot --lang en --out reports/parrot_en.jsonl || true
+            uv run --no-sync python scripts/fetch_public_reports.py parrot corpora/parrot --lang it --out reports/parrot_it.jsonl || true
+          fi
+          for repo in $HF_REPOS; do
+            if ! [[ "$repo" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then echo "::error::not a dataset id: $repo"; exit 2; fi
+            if [ -z "$HF_TOKEN" ]; then echo "::warning::HF_TOKEN secret not set: $repo skipped"; continue; fi
+            name="${repo##*/}"
+            uv run --no-sync python scripts/fetch_public_reports.py hf "$repo" --out "reports/${name}.jsonl" \
+              || echo "::warning::$repo not read (terms not accepted, or an unknown layout: see the log)"
+          done
+          wc -l reports/*.jsonl
+
+      - name: Base memory (MedMentions training abstracts, CRAFT, NCIt definitions)
+        run: |
+          uv run --no-sync python -u scripts/collocation_probe.py --medmentions ext/mm --craft ext/craft \
+            --ncit ncit.obo --out collocation_probe.json --markdown collocation_probe.md --save base_colloc.json.gz
+
+      - name: Learning curve on reports not read
+        run: |
+          uv run --no-sync python -u scripts/report_memory_probe.py --reports reports/*.jsonl \
+            --base base_colloc.json.gz --out report_memory.json --markdown report_memory.md \
+            --save reports_colloc.json.gz
+
+      - name: Cues of a reader on MedMentions spans, with and without the report counts
+        run: |
+          uv run --no-sync python -u scripts/chunk_probe.py --medmentions ext/mm --craft ext/craft --ncit ncit.obo \
+            --out chunk_probe.json --markdown chunk_probe.md
+          uv run --no-sync python -u scripts/chunk_probe.py --medmentions ext/mm --craft ext/craft --ncit ncit.obo \
+            --extra reports_colloc.json.gz --out chunk_probe_reports.json --markdown chunk_probe_reports.md
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"
+            echo; wc -l reports/*.jsonl 2>/dev/null | sed 's/^/    /'
+            for f in report_memory.md chunk_probe.md chunk_probe_reports.md; do
+              [ -f "$f" ] && { echo; cat "$f"; }
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results (counts and numbers only, no report text)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-memory
+          path: |
+            report_memory.json
+            report_memory.md
+            chunk_probe*.json
+            chunk_probe*.md
+            reports_colloc.json.gz
