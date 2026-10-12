@@ -1,0 +1,107 @@
+name: Role probe (point 1, reader and chat models)
+
+# Manual trigger only. Point 1 of 12 October 2026: on the roles of the development ("silver") gold set,
+# the chunk lattice alone, the Kintsch reader alone, each chat model alone and each chat model given what
+# the reader built. The texts are public (E3C CC BY-NC, PARROT CC BY-NC-SA, IU X-ray Open-i) and go to
+# OpenRouter only as such (--public-data); patients' reports never take this road (a local server does).
+# The default models are open weights that run on one 80 GB GPU: openai/gpt-oss-120b (Apache 2.0) and
+# mistralai/mistral-small-2603 (Mistral Small 4, Apache 2.0). Billed calls. See scripts/role_probe.py.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "OpenRouter model ids, comma-separated (empty = no chat model: lattice and reader only)"
+        required: false
+        default: "openai/gpt-oss-120b,mistralai/mistral-small-2603"
+      arms:
+        description: "Arms, comma-separated: lattice, reader, llm, llm+reader"
+        required: false
+        default: "lattice,reader,llm,llm+reader"
+      examples:
+        description: "Annotated items of other reports shown per question (0 = none)"
+        required: false
+        default: "0"
+      limit:
+        description: "Items (empty = all 663 with a role)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+
+      - name: Sources of the silver gold set (texts are not in the repository)
+        run: |
+          mkdir -p ext
+          git clone --quiet --depth 1 https://github.com/hltfbk/E3C-Corpus.git ext/E3C
+          git clone --quiet --depth 1 https://github.com/PARROT-reports/PARROT_v1.0.git ext/PARROT
+          uv run --no-sync python scripts/fetch_public_reports.py iuxray --out iuxray.jsonl
+          uv run --no-sync python scripts/build_silver_gold.py --e3c ext/E3C \
+            --parrot ext/PARROT/data/PARROT_v1_0.jsonl --iuxray iuxray.jsonl --out silver
+          uv run --no-sync python scripts/assemble_silver_gold.py --items silver \
+            --labels data/gold/silver_2026-10-12/labels --out silver/gold.jsonl
+
+      - name: Resources of the reader (MedMentions training documents, CRAFT, NCIt)
+        run: |
+          curl -sSL --fail -o ncit.obo \
+            https://github.com/NCI-Thesaurus/thesaurus-obo-edition/releases/latest/download/ncit.obo
+          git clone --quiet --depth 1 --branch v5.1.0 https://github.com/UCDenver-ccp/CRAFT ext/craft
+          git clone --quiet https://github.com/chanzuckerberg/MedMentions ext/mm
+          git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
+          uv run --no-sync python scripts/build_ci_resources.py --medmentions ext/mm --craft ext/craft \
+            --ncit ncit.obo --out ci_resources
+
+      - name: Run the probe
+        env:
+          MODELS: ${{ inputs.models }}
+          ARMS: ${{ inputs.arms }}
+          EXAMPLES: ${{ inputs.examples }}
+          LIMIT: ${{ inputs.limit }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          MODELS="${MODELS//[[:space:]]/}"; ARMS="${ARMS//[[:space:]]/}"; LIMIT="${LIMIT//[[:space:]]/}"
+          if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
+            echo "::error::models takes ids like org/name, comma-separated"; exit 2
+          fi
+          if ! [[ "$ARMS" =~ ^[a-z+,]+$ ]]; then echo "::error::arms: lattice, reader, llm, llm+reader"; exit 2; fi
+          if ! [[ "$EXAMPLES" =~ ^[0-9]+$ ]]; then echo "::error::examples takes a whole number"; exit 2; fi
+          set -- --gold silver/gold.jsonl --reports silver/reports.jsonl --reader-dir ci_resources \
+            --arms "$ARMS" --models "$MODELS" --examples "$EXAMPLES" \
+            --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
+            --cache role_probe_answers.jsonl --out role_probe.json --markdown role_probe.md
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          uv run --no-sync python -u scripts/role_probe.py "$@" 2> >(tee role_probe.log >&2)
+
+      - name: Summarise
+        if: always()
+        run: |
+          { echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"; echo
+            if [ -f role_probe.md ]; then head -c 60000 role_probe.md; fi; } >> "$GITHUB_STEP_SUMMARY"
+
+      # Only the labels' ids, the answers and the scores: the report holds sentences of non-commercial
+      # corpora, so the artifact is short-lived and is not committed.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: role-probe
+          retention-days: 7
+          path: |
+            role_probe.json
+            role_probe.md
+            role_probe.log
+            role_probe_answers.jsonl
