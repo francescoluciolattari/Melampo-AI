@@ -112,3 +112,28 @@ def test_plural_keys_and_the_lexicon_reads_plurals():
     # a plural of an ambiguous form is judged by the form's senses, never linked straight
     axes = linker.link("axes", "Multiple pituitary hormone axes dysfunction occurs in SAH.")
     assert axes.status != al.ACCEPTED
+
+
+def test_a_plural_inside_a_longer_ontology_name_is_still_that_name():
+    import json
+    from pathlib import Path
+
+    import pytest
+
+    from melampo.memory import anatomy_parts as ap
+    from melampo.memory.anatomy_graph import AnatomyGraph
+
+    data = Path(__file__).resolve().parents[1] / "data" / "linking"
+    obo = data / "uberon-basic.obo"
+    if not obo.exists():
+        pytest.skip("UBERON not downloaded")
+    lexicon = al.Lexicon.from_json(json.loads((data / "anatomy_lexicon.json").read_text("utf-8")))
+    parts = ap.PartTable.from_json(json.loads((data / "anatomy_parts.json").read_text("utf-8")), lexicon)
+    with open(obo, encoding="utf-8") as fh:
+        terms = al.load_obo_terms(fh)
+    with open(obo, encoding="utf-8") as fh:
+        graph = AnatomyGraph.from_obo(fh)
+    pool, equivalent = al.build_pool(lexicon, terms)
+    linker = al.AnatomyLinker(lexicon, pool, equivalent, parts=parts, graph=graph)
+    got = linker.link("bladders", "The mutant fish did not inflate their swim bladders.")
+    assert got.status != al.ACCEPTED and got.reason.startswith("mention_is_inside_a_longer_name")

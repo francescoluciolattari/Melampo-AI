@@ -36,7 +36,7 @@ Le mancate erano soprattutto plurali ("kidneys", "livers", "brains", "hearts", "
 - un plurale di una forma ambigua passa dal profilo dei sensi come il singolare. Al primo giro "axes" era diventato C2 quattro volte; ora no.
 
 **Effetto sul controllo esterno.**
-- CRAFT: link giusti 1.315 → 1.476, errori 11 → 14. I tre nuovi errori sono dello stesso tipo dei singolari già noti: "swim bladders" (pesce), "right middle lobes" (granularità), "dorsal aortae" (embrione).
+- CRAFT: link giusti 1.315 → 1.476, errori 11 → 13. Al primo giro erano 14: "swim bladders" (la vescica natatoria del pesce) passava perché il controllo "la parola è dentro un nome più lungo dell'ontologia" non conosceva i plurali; corretto, ora si astiene come il singolare "swim bladder". Restano due errori nuovi, dello stesso tipo dei singolari già noti: "right middle lobes" (il topo; CRAFT etichetta una classe più generale, convenzione) e "dorsal aortae" (le aorte dorsali pari dell'embrione, non l'aorta dell'adulto: il quadro embrionale è registrato come conflitto, non ferma il link).
 - MedMentions: link giusti 710 → 758, errori invariati (22).
 
 Restano mai proposti: organi pari senza lato (voluto: "kidney" da solo non dice quale classe), aggettivi ("renal", "adrenal", "colonic"), sigle di figure ("Ao", "Tr").
