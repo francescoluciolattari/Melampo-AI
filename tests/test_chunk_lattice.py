@@ -132,3 +132,17 @@ def test_the_linker_writes_the_reading_in_the_trace_and_decides_nothing_by_it():
     assert plain.block == "" and with_blocks.block.startswith(
         "role:inherent_location:brain weight"
     )
+
+
+def test_a_reading_is_exact_only_from_a_name_the_vocabulary_has_as_written():
+    from melampo.memory import chunk_lattice as cl
+
+    memory = cl.BlockMemory.from_json({"heads": {"donation": ["procedure", 1.0, 0], "changes": ["activity", 1.0, 0]},
+                                       "names": {"liver transplantation": "procedure"}})
+    lat = cl.ChunkLattice(memory)
+    named = lat.read("liver", "Liver transplantation was done.")
+    composed = lat.read("liver", "Liver donation was done.")
+    assert named.outcome == "role" and named.exact
+    assert composed.outcome == "role" and not composed.exact
+    of = lat.read("spine", "Degenerative changes of the spine.")
+    assert not of.exact

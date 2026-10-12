@@ -80,6 +80,8 @@ Su ogni Landmark ci si aspetta la lettura "struttura":
 - **Pathologic Process (C16956) diventa `disease`:** un processo patologico è un reperto della struttura in cui avviene, non una sua funzione.
 - **Action (C25404) diventa un tipo a sé, da cui non si legge alcun ruolo:** una parola d'azione non dice che ruolo ha la struttura.
 
+**Rivisto la sera stessa** (`lettura_deterministica_solo_se_esatta_2026-10-12.md`). Questa correzione è un'altra regola deterministica, e Frank l'ha contestata. Misurando, le letture inferite da una sola parola testa sono giuste lo 0–31% delle volte. Il lettore Kintsch, sugli stessi item, ha ragione nell'81–94% dei casi. Il reticolo ora decide da solo solo quando la lettura è esatta. La correzione dei tipi resta come evidenza più pulita.
+
 **Effetto sul controllo esterno** (reticolo, righe giudicate):
 
 | | prima | dopo |
