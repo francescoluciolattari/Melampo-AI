@@ -114,11 +114,11 @@ melampo-prototype examples/
 - [x] Python research scaffold.
 - [x] Multimodal pipeline spine.
 - [x] Melampo-owned diagnostic orchestrator.
-- [x] Weaviate semantic schema contract.
+- [x] FalkorDB semantic schema contract.
 - [x] Model capability registry.
 - [x] Benchmark, prospective validation and calibration primitives.
-- [ ] Real Weaviate deployment adapter subclass.
-- [ ] Real Pillar-0 inference adapter.
+- [ ] FalkorDB deployment adapter subclass.
+- [ ] Evaluate Pillar-0 inference adapter.
 - [ ] Real Gemma 4 local/private backend adapter.
 - [ ] Optional Claude critique adapter.
 - [ ] Real Docling ingestion pipeline with governed source catalogs.
@@ -133,23 +133,21 @@ See `CONTRIBUTING.md`.
 
 ## ⚖️ License and Terms of Use
 
-This software is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** License. 
+This software is licensed under the **GNU Affero General Public License v3** (GNU AGPLv3). 
 
-To view a copy of this license, visit: https://creativecommons.org
+To view a copy of this license, visit: https://gnu.org
 
----
+### SPECIFIC ATTRIBUTION REQUIREMENTS (Pursuant to Section 7(b) of the GNU AGPLv3)
 
-### SPECIFIC ATTRIBUTION REQUIREMENTS (Pursuant to Section 3(a) of the CC BY-NC 4.0 License)
+As the Licensor of this software, the Author exercises the right to supplement the terms of this License with additional requirements regarding author attribution. Any user, redistributor, or developer of derivative works or network-accessible applications MUST strictly comply with the following enforcement conditions:
 
-As the Licensor of this software, the Author exercises the right to specify the reasonable manner of attribution. Any user, redistributor, or developer of derivative works **MUST strictly comply** with the following enforcement conditions:
-
-1. **Graphical User Interface (GUI) or Prompt
-   Attribution:** If the software, or any work derived from it, features a Graphical User Interface (GUI), a clear, permanent, and easily accessible credit to the original Author and source repository **MUST be displayed within the user interface itself** (e.g., in the "About" screen, "Credits" section, or prominently in the application footer).
-3. **Required Format:** The attribution within the GUI must remain visible to the end-user and must include the following text (or a substantially identical equivalent):  
+1. **Graphical User Interface (GUI) and Dashboard Attribution:** If the software, or any work derived from it (including web applications and network services), features a Graphical User Interface (GUI) or a web dashboard, a clear, permanent, and easily accessible credit to the original Author and source repository MUST be displayed within the user interface itself. This notice must be visible to the end-user without requiring interaction (e.g., prominently placed in the application footer, main dashboard layout, or the primary "About/Credits" screen).
+2. **Required Text Format:** The attribution within the GUI must include the following clickable hyperlink text (or a substantially identical equivalent):
    *"Based on MelampoAI by Francesco Lattari — Source: https://github.com/francescoluciolattari/Melampo-AI"*
-4. **Source Code Preservation:** All existing copyright notices, author credits, and license files within the source code must be preserved intact and unaltered in all copies or modifications.
+3. **Source Code Preservation:** All existing copyright notices, author credits, and license files within the source code must be preserved intact and unaltered in all copies, modifications, or network deployments.
 
-**Failure to comply with these specific attribution terms constitutes a material breach of the license agreement and an immediate infringement of copyright.**
+**Failure to comply with these specific attribution terms constitutes a material breach of the license agreement, results in the immediate termination of your rights under this license, and represents an infringement of copyright.**
+
 
 **THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
