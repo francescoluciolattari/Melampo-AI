@@ -143,3 +143,16 @@ def test_the_chat_client_sends_the_provider_filter():
     finally:
         urllib.request.urlopen = original
     assert sent["provider"] == {"quantizations": ["fp8"], "allow_fallbacks": False}
+
+
+def test_the_cascade_decides_by_the_lattice_only_when_its_reading_is_exact():
+    exact = item("procedure_site") | {"evidence": {"lattice_detail": {"exact": True}}}
+    inferred = item("structure") | {"evidence": {"lattice_detail": {"exact": False}}}
+    exact["answers"] = {"lattice": "procedure_site", "reader": "structure", "llm+reader:m": "structure"}
+    inferred["answers"] = {"lattice": "inherent_location", "reader": "structure", "llm+reader:m": "procedure_site"}
+    rp.cascade([exact, inferred])
+    assert exact["answers"]["exact->reader"] == "procedure_site"
+    assert exact["answers"]["exact->agree:m"] == "procedure_site"
+    assert inferred["answers"]["exact->reader"] == "structure"
+    assert inferred["answers"]["exact->llm+reader:m"] == "procedure_site"
+    assert inferred["answers"]["exact->agree:m"] == "uncertain"

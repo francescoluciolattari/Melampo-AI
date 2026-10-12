@@ -4,15 +4,17 @@ name: Role probe (point 1, reader and chat models)
 # the chunk lattice alone, the Kintsch reader alone, each chat model alone and each chat model given what
 # the reader built. The texts are public (E3C CC BY-NC, PARROT CC BY-NC-SA, IU X-ray Open-i) and go to
 # OpenRouter only as such (--public-data); patients' reports never take this road (a local server does).
-# The default models are open weights that run on one 80 GB GPU: openai/gpt-oss-120b (Apache 2.0) and
-# mistralai/mistral-small-2603 (Mistral Small 4, Apache 2.0). Billed calls. See scripts/role_probe.py.
+# The default models are open weights of three non-Chinese families that run on one server:
+# openai/gpt-oss-120b in FP8 (Apache 2.0), google/gemma-4-31b-it (Apache 2.0, dense 31B) and
+# mistralai/mistral-small-2603 (Mistral Small 4, Apache 2.0); nvidia/nemotron-3-ultra-550b-a55b can be
+# added (larger, 8 GPUs locally). Billed calls. See scripts/role_probe.py.
 on:
   workflow_dispatch:
     inputs:
       models:
         description: "OpenRouter model ids, comma-separated (empty = no chat model: lattice and reader only)"
         required: false
-        default: "openai/gpt-oss-120b,mistralai/mistral-small-2603"
+        default: "openai/gpt-oss-120b,google/gemma-4-31b-it,mistralai/mistral-small-2603"
       arms:
         description: "Arms, comma-separated: lattice, reader, llm, llm+reader"
         required: false

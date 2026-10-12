@@ -2142,11 +2142,16 @@ class AnatomyLinker:
             return "sense_profile"
         if self.senses.procedure_head(mention, sentence, where):
             return "role"
+        # The lattice answers in place of the reader only when its reading comes from a name the vocabulary
+        # has as written ("brain weight", "liver transplantation": ``Reading.exact``). A role composed from
+        # the kind of one head word ("changes of the spine" -> an NCIt action) is evidence, not an answer:
+        # those readings were right 0% (Rad-SpRL landmarks), 25% (silver gold set) and 34% (MedMentions)
+        # of the time, the reader 86%, 61% and 81% on the same items (12 October 2026).
         lattice = self.chunk_lattice or getattr(self.ci_reader, "lattice", None)
-        if lattice is not None and lattice.read(mention, sentence, where).outcome in (
-            "role", "not_a_site", "underspecified"
-        ):
-            return "lattice"
+        if lattice is not None:
+            seen = lattice.read(mention, sentence, where)
+            if seen.exact and seen.outcome in ("role", "not_a_site"):
+                return "lattice"
         return ""
 
     def read(
@@ -2303,7 +2308,8 @@ class AnatomyLinker:
                     "blocks",
                     SILENT,
                     None,
-                    f"{reading.outcome}:{reading.role or '-'}:{reading.block or '-'}",
+                    f"{reading.outcome}:{reading.role or '-'}:{reading.block or '-'}"
+                    f":{'exact' if reading.exact else 'inferred'}",
                 )
             )
         if self.ci_reader is not None:

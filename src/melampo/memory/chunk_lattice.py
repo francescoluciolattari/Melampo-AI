@@ -221,6 +221,11 @@ class Reading:
     margin: float = 0.0
     why: str = ""
     alternative: str = ""
+    # True when the kind comes from a name the vocabulary has *as written* (a remembered NCIt name of two
+    # words or more: "brain weight", "liver transplantation"), False when it is composed from the kind of
+    # one head word ("changes" -> an NCIt action). Only an exact reading may decide by itself; the others
+    # are evidence for the reader and the models (12 October 2026, Rad-SpRL).
+    exact: bool = False
 
 
 UNREAD = Reading("unread")
@@ -550,6 +555,7 @@ class ChunkLattice:
             margin,
             f"block_of_kind:{best.kind}",
             alternative,
+            exact=best.source == "memory" and len(text.split()) >= 2,
         )
 
     # -- "of" ----------------------------------------------------------------------------------
@@ -605,6 +611,7 @@ class ChunkLattice:
                     margin,
                     f"part_of_an_object:{head}",
                     alternative,
+                    exact=len(head.split()) >= 2,
                 )
         block_start = window[best.start][1]
         before = self._of_before(sentence[:block_start])
@@ -620,6 +627,7 @@ class ChunkLattice:
                     margin,
                     f"object_of:{head}",
                     alternative,
+                    exact=len(head.split()) >= 2,
                 )
         return base
 

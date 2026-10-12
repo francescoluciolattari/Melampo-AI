@@ -127,8 +127,8 @@ def evidence(item: dict, lattice, reader, docs: dict) -> tuple[dict, list[str]]:
     """The two readings and the lines given to the model in the ``llm+reader`` arm."""
     seen = lattice.read(item["mention"], item["sentence"], item["at"])
     got = {"lattice": lattice_role(seen), "lattice_detail": {k: getattr(seen, k) for k in
-                                                            ("outcome", "role", "kind", "block", "why", "alternative")}}
-    lines = [f"- chunk lattice: outcome {seen.outcome}"
+                                                            ("outcome", "role", "kind", "block", "why", "alternative", "exact")}}
+    lines = [f"- chunk lattice ({'a name the vocabulary has as written' if seen.exact else 'composed from the kind of one head word'}): outcome {seen.outcome}"
              + (f", role {seen.role}" if seen.role else "")
              + (f", block «{seen.block}»" if seen.block else "")
              + (f", head kind {seen.kind}" if seen.kind else "")
@@ -278,6 +278,28 @@ def ask_item(item: dict, chats: dict, arms: list[str], reader_lines: list[str], 
     return out
 
 
+def cascade(items: list[dict]) -> None:
+    """Arms composed from the others (12 October 2026, Frank: deterministic only where the vocabulary has
+    the correspondence, the reader and the models reading the phrase otherwise):
+
+    * ``exact->reader``             the lattice's reading when it is exact, else the reader's;
+    * ``exact->llm+reader:<model>`` the lattice's reading when exact, else the model given the reader;
+    * ``exact->agree:<model>``      the lattice's reading when exact, else the reader's and the model's
+                                    when they agree, ``uncertain`` when they do not (to a person)."""
+    for it in items:
+        a = it["answers"]
+        exact = bool((it.get("evidence") or {}).get("lattice_detail", {}).get("exact")) and "lattice" in a \
+            and a["lattice"] != "structure"
+        if "reader" in a:
+            a["exact->reader"] = a["lattice"] if exact else a["reader"]
+        for key in [k for k in a if k.startswith("llm+reader:")]:
+            model = key.split(":", 1)[1]
+            a[f"exact->llm+reader:{model}"] = a["lattice"] if exact else a[key]
+            if "reader" in a:
+                agree = a[key] if a[key] == a["reader"] else "uncertain"
+                a[f"exact->agree:{model}"] = a["lattice"] if exact else agree
+
+
 # -- scoring ------------------------------------------------------------------------------------
 
 
@@ -382,6 +404,7 @@ def run(args) -> dict:
             for key, a in raw.get(it["item_id"], {}).items():
                 it["answers"][key] = a["answer"].get("role") if a["valid"] else "uncertain"
             it["llm"] = raw.get(it["item_id"], {})
+    cascade(items)
     keys = sorted({k for it in items for k in it["answers"]})
     stats: dict[str, Counter] = defaultdict(Counter)
     for it in items:
@@ -416,7 +439,7 @@ def main(argv=None) -> int:
     ap.add_argument("--reader-dir", type=Path, help="resources of the reader (scripts/build_ci_resources.py); "
                                                      "without it the reader arm is off and llm+reader sees the lattice only")
     ap.add_argument("--arms", default="lattice,reader,llm,llm+reader")
-    ap.add_argument("--models", default="openai/gpt-oss-120b,mistralai/mistral-small-2603")
+    ap.add_argument("--models", default="openai/gpt-oss-120b,google/gemma-4-31b-it,mistralai/mistral-small-2603")
     ap.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     ap.add_argument("--quantization", default=DEFAULT_QUANTIZATION,
                     help="precision of the weights per model, model=fp8,... (OpenRouter: hard filter, no fallback)")

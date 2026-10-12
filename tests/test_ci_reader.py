@@ -257,13 +257,17 @@ def test_review_mode_sends_a_weakly_supported_link_to_review_and_never_changes_o
 def test_the_reader_is_not_used_where_another_method_decides():
     from melampo.memory import chunk_lattice as cl
 
-    memory = cl.BlockMemory.from_json({"heads": {"donation": ["procedure", 1.0, 0]}, "names": {}})
+    memory = cl.BlockMemory.from_json({"heads": {"cleansing": ["procedure", 1.0, 0]},
+                                       "names": {"liver donation": "procedure"}})
     lat = cl.ChunkLattice(memory)
     linker = _linker("not_a_body_site", "review", lattice=lat)
-    # "liver donation": the lattice reads a procedure site -> its method, not the reader's
+    # "liver donation" is a name the vocabulary has as written: the lattice's exact reading answers
     got = linker.read("liver", "Liver donation was done.")
     reader = next(e for e in got if e.stream == "reader")
     assert reader.verdict == "silent" and "other_method=lattice" in reader.reason
+    # "liver cleansing" is composed from the kind of one head word: evidence only, the reader reads
+    got = linker.read("liver", "Liver cleansing was done.")
+    assert next(e for e in got if e.stream == "reader").verdict == "against"
     # a procedure neighbour is the role rule's
     got = linker.read("liver", "Liver biopsy was done.")
     assert next(e for e in got if e.stream == "reader").reason.endswith("other_method=role")
