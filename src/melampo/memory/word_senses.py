@@ -78,6 +78,47 @@ def _fold(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
+_EN_IRREGULAR = {"femur": ("femora",), "pelvis": ("pelves",), "coccyx": ("coccyges",), "foot": ("feet",),
+                 "tooth": ("teeth",), "ilium": ("ilia",), "sacrum": ("sacra",)}
+_IT_IRREGULAR = {"osso": ("ossa",), "uovo": ("uova",), "braccio": ("braccia",), "dito": ("dita",)}
+
+
+def plural_keys(key: tuple[str, ...], language: str) -> tuple[tuple[str, ...], ...]:
+    """Plural forms of a normalised name, by inflecting its last word (English; Italian names of one word,
+    where the adjectives would agree too). Regular rules and a short list of irregular anatomical nouns."""
+    if not key:
+        return ()
+    *head, last = key
+    forms: list[str] = []
+    if language == "en":
+        forms += list(_EN_IRREGULAR.get(last, ()))
+        if last.endswith(("s", "x", "ch", "sh")) and not last.endswith(("us", "is")):
+            forms.append(last + "es")
+        elif last.endswith("y") and len(last) > 2 and last[-2] not in "aeiou":
+            forms.append(last[:-1] + "ies")
+        elif not last.endswith(("us", "is", "um", "ex", "ix")):
+            forms.append(last + "s")
+        if last.endswith("us"):
+            forms.append(last[:-2] + "i")
+        if last.endswith("is"):
+            forms.append(last[:-2] + "es")
+        if last.endswith("um"):
+            forms.append(last[:-2] + "a")
+        if last.endswith("a"):
+            forms.append(last + "e")
+        if last.endswith(("ex", "ix")):
+            forms.append(last[:-2] + "ices")
+    elif language == "it" and not head:
+        forms += list(_IT_IRREGULAR.get(last, ()))
+        if last.endswith(("ca", "ga")):
+            forms.append(last[:-1] + "he")
+        elif last.endswith("a"):
+            forms.append(last[:-1] + "e")
+        if last.endswith(("o", "e")) and len(last) > 3:
+            forms.append(last[:-1] + "i")
+    return tuple(tuple(head) + (f,) for f in dict.fromkeys(forms) if f != last)
+
+
 def words_of(text: str) -> list[str]:
     """Lower-case, accent-free words, as written."""
     return [_fold(w) for w in _WORD.findall(text)]
@@ -606,9 +647,24 @@ class SenseInventory:
         )
 
     def forms_in(self, mention: str) -> list[str]:
-        """The listed forms the mention is written with."""
+        """The listed forms the mention is written with, also in the plural ("axes" is "axis")."""
+        plurals = self.__dict__.get("_plurals")
+        if plurals is None:
+            plurals = {
+                variant[0]: form
+                for form in self.forms
+                for language in ("en", "it")
+                for variant in plural_keys((form,), language)
+                if variant[0] not in self.forms
+            }
+            self.__dict__["_plurals"] = plurals
         words = (_fold(w) for w in _WHOLE_WORD.findall(mention))
-        return [w for w in dict.fromkeys(words) if w in self.forms]
+        out = []
+        for w in dict.fromkeys(words):
+            form = w if w in self.forms else plurals.get(w)
+            if form and form not in out:
+                out.append(form)
+        return out
 
     def judge(self, mention: str, sentence: str, context: str = "") -> SenseVerdict:
         """Whether the mention can be read as an anatomical structure here, given everything around it."""

@@ -1,0 +1,110 @@
+S0000|N|e|p||piede (piede torto congenito: malattia del piede, intervento)
+S0001|aorta|e|d||endoprotesi aortica
+S0002|N|e|p||piede
+S0003|N|e|s||piede
+S0004|heart|e|p||intervento al cuore
+S0005|N|e|s||piede
+S0006|N|e|p||arto inferiore, fisiokinesiterapia
+S0007|heart|e|p||
+S0008|N|e|p||torace, radiografia
+S0009|N|e|p||torace, TC
+S0010|N|e|s||parenchima polmonare bilaterale: nessuna classe intera per il polmone
+S0011|trachea|ap|p||albero tracheobronchiale, broncoscopia
+S0012|X||ot||liquido alveolare (fluido)
+S0013|N|e|s||membrane basali glomerulari (istologia)
+S0014|X||ot||siero
+S0015|N|e|p||TC torace
+S0016|N|e|s||trama interstiziale polmonare
+S0017|N|e|s||vena del braccio
+S0018|N|e|s||braccio
+S0019|N|e|s||vena cefalica
+S0020|N|e|s||vena succlavia, lato non detto
+S0021|X||in||sangue occulto fecale (nome di un test)
+S0022|A||||piccolo e grosso intestino: due strutture coordinate
+S0023|N|e|s||linfonodo
+S0024|N|e|s||linfonodi
+S0025|N|e|s||linfonodi
+S0026|N|e|s||addome
+S0027|spleen|e|s||
+S0028|N|e|s||fauci
+S0029|X||nb||residuato dei peperoncini (cibo): annotazione E3C non anatomica
+S0030|X||ot||siero
+S0031|N|e|p||ecotomografia dell'addome
+S0032|liver|po|s||parenchima epatico
+S0033|N|e|p||TC torace-addome
+S0034|X||ot||tessuto infiltrato
+S0035|N|e|s||cute
+S0036|X||ot||cellule
+S0037|N|e|s||ipocondrio sinistro (regione)
+S0038|N|e|p||ecografia dell'addome
+S0039|spleen|e|s||
+S0040|N|e|s||arcata costale
+S0041|X||ot||sangue periferico e midollare
+S0042|X||ot||sangue periferico e midollare
+S0043|X||ot||materiale fecale
+S0044|X||ot||feci
+S0045|X||ot||feci liquide
+S0046|N|e|p||TC addome
+S0047|N|e|s||linfonodi
+S0048|N|e|s||ventaglio mesenteriale
+S0049|A||||assi iliaci comuni bilaterali: nessuna classe unica
+S0050|N|e|s||stazioni linfonodali
+S0051|N|e|s||linfonodi superficiali
+S0052|N|e|s||tronco
+S0053|X||ot||urine
+S0054|N|e|s||vie biliari
+S0055|heart|po|s||contorno mitralico (anulus)
+S0056|N|e|s||arterie coronarie
+S0057|heart|po|s||atrio destro
+S0058|heart|po|s||atrio destro
+S0059|heart|po|s||atrio destro
+S0060|heart|po|s||setto interatriale
+S0061|heart|po|s||atrio destro
+S0062|heart|po|s||atrio destro
+S0063|heart|po|s||setto interatriale
+S0064|inferior_vena_cava|e|s||VCI
+S0065|N|e|p||eco addome
+S0066|liver|e|s||
+S0067|N|e|s||vie biliari
+S0068|N|e|p||TC torace
+S0069|N|e|p||TC addome
+S0070|liver|po|s||lobo sinistro del fegato
+S0071|portal_vein_and_splenic_vein|po|s||vena porta
+S0072|liver|po|s||ilo epatico
+S0073|N|e|s||linfonodi
+S0074|liver|po|s||ilo epatico
+S0075|N|e|s||entrambi i polmoni: nessuna classe intera
+S0076|N|e|s||focolaio aortico (area di auscultazione)
+S0077|N|e|p||esame obiettivo del torace
+S0078|N|e|p||esame obiettivo dell'addome
+S0079|N|e|s||organi ipocondriaci (fegato e milza insieme)
+S0080|N|e|p||ecografia dell'addome
+S0081|N|e|s||addome
+S0082|N|e|p||RX torace
+S0083|N|e|s||trama broncovascolare
+S0084|N|e|p||esame dell'addome
+S0085|N|e|p||ECD dei vasi addominali
+S0086|N|e|s||tripode celiaco
+S0087|N|e|s||tripode celiaco
+S0088|N|e|s||legamento arcuato
+S0089|N|e|p||angio-TC addome
+S0090|N|e|s||tronco celiaco
+S0091|N|e|s||legamento arcuato
+S0092|N|e|p||TAC cranio (testa)
+S0093|N|e|p||rx torace
+S0094|brain|po|s||nuclei lenticolari
+S0095|N|e|s||arti inferiori
+S0096|N|e|s||arti inferiori
+S0097|A||||muscoli ileo-psoas bilaterali
+S0098|gluteus_medius_left|e|s||
+S0099|N|e|s||regione glutea
+S0100|lung_lower_lobe_left|e|s||
+S0101|A||||muscoli ileo-psoas bilaterali
+S0102|N|e|s||muscoli otturatori
+S0103|N|e|s||muscoli adduttori
+S0104|A||||glutei: tre muscoli, due lati
+S0105|N|e|s||vasto laterale
+S0106|N|e|s||retto femorale
+S0107|N|e|s||tensore della fascia lata
+S0108|N|e|s||tessuto adiposo dello scavo pelvico
+S0109|vertebrae_T10|e|s||

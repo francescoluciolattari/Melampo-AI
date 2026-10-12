@@ -1,0 +1,117 @@
+{
+ "note": "Voci, regole e costanti aggiunte DOPO aver visto un errore: gold_set.evaluate riporta a parte gli item che toccano (non contano come prova sugli stessi casi). Si aggiorna a mano a ogni correzione fatta dopo un errore.",
+ "entries": [
+  {
+   "id": "gb_blood_count",
+   "file": "src/melampo/memory/anatomy_linker.py",
+   "kind": "rule",
+   "added": "2026-10-06",
+   "post_error": true,
+   "seen_on": "E3C italian cases (GB 5040/mmc)",
+   "surfaces": [
+    "GB"
+   ],
+   "note": "GB e' cistifellea solo con contesto biliare/epatico e senza segni di emocromo"
+  },
+  {
+   "id": "paraspinal_tissue_word",
+   "file": "data/linking/anatomy_lexicon.json",
+   "kind": "lexicon",
+   "added": "2026-10-07",
+   "post_error": true,
+   "seen_on": "development runs, early October",
+   "surfaces": [
+    "paraspinal",
+    "paravertebrale",
+    "paravertebrali"
+   ],
+   "note": "nome del lessico con parola di tessuto"
+  },
+  {
+   "id": "hip_approx",
+   "file": "data/linking/anatomy_lexicon.json",
+   "kind": "relation",
+   "added": "2026-10-07",
+   "post_error": true,
+   "seen_on": "development runs, early October",
+   "surfaces": [
+    "hip",
+    "anca"
+   ],
+   "note": "hip/anca collegato con relazione approx"
+  },
+  {
+   "id": "abbreviation_see_through",
+   "file": "src/melampo/memory/chunk_lattice.py",
+   "kind": "rule",
+   "added": "2026-10-10",
+   "post_error": true,
+   "seen_on": "MedMentions dev: inferior vena cava (IVC) filter placement",
+   "surfaces": [
+    "IVC",
+    "vena cava"
+   ],
+   "note": "sigla tra parentesi trasparente nel sintagma"
+  },
+  {
+   "id": "discourse_food_owner",
+   "file": "src/melampo/memory/ci_reader.py",
+   "kind": "constant",
+   "added": "2026-10-10",
+   "post_error": true,
+   "seen_on": "MedMentions dev: heart of Maroilles cheese",
+   "surfaces": [
+    "cheese",
+    "formaggio"
+   ],
+   "note": "un senso per discorso solo per proprietari di tipo cibo (5 su 6 sensi da dispositivi erano sbagliati)"
+  },
+  {
+   "id": "frames_right_window_7",
+   "file": "src/melampo/memory/frames.py",
+   "kind": "constant",
+   "added": "2026-10-10",
+   "post_error": true,
+   "seen_on": "MedMentions dev: filter placement",
+   "surfaces": [
+    "placement"
+   ],
+   "note": "finestra dopo la preposizione portata da 5 a 7 parole"
+  },
+  {
+   "id": "colloc_threshold_0_3",
+   "file": "src/melampo/memory/chunk_lattice.py",
+   "kind": "constant",
+   "added": "2026-10-10",
+   "post_error": false,
+   "seen_on": "fitted on MedMentions training documents only",
+   "surfaces": [],
+   "note": "soglia npmi stimata sui soli documenti di addestramento"
+  },
+  {
+   "id": "plurals",
+   "file": "src/melampo/memory/anatomy_linker.py",
+   "kind": "rule",
+   "added": "2026-10-12",
+   "post_error": true,
+   "seen_on": "CRAFT candidate recall (14% of class annotations never proposed)",
+   "surfaces": [
+    "livers",
+    "brains",
+    "hearts",
+    "kidneys",
+    "spleens",
+    "prostates",
+    "femurs",
+    "femora",
+    "stomachs",
+    "bladders",
+    "aortae",
+    "lungs",
+    "reni",
+    "polmoni"
+   ],
+   "note": "forme plurali dei nomi del lessico; le forme ambigue al plurale passano dal profilo dei sensi"
+  }
+ ]
+}
