@@ -1,0 +1,108 @@
+S0220|A||||pelvi renale, lato non detto
+S0221|N|e|s||uretere
+S0222|kidney_right|po|s||regione papillare del calice inferiore destro
+S0223|kidney_right|po|s||calice inferiore (destro, frase precedente)
+S0224|kidney_right|po|s||parenchima renale restante (rene destro operato)
+S0225|N|e|s||tessuto adiposo
+S0226|N|e|s||linfonodi
+S0227|X||ot||feci
+S0228|X||ot||sangue periferico
+S0229|N|e|s||viso
+S0230|N|e|s||nuca
+S0231|N|e|p||ecografia addome
+S0232|spleen|e|s||
+S0233|spleen|e|s||
+S0234|liver|po|s||lobo epatico sinistro
+S0235|N|e|p||rx del torace
+S0236|spleen|e|p||esame istologico della milza
+S0237|spleen|e|o||tessuto splenico analizzato
+S0238|X||ot||cellule staminali
+S0239|N|e|s||cute
+S0240|N|e|s||tronco
+S0241|N|e|s||faringe
+S0242|X||ot||saliva
+S0243|X||ot||sangue
+S0244|X||ot||sangue periferico
+S0245|N|e|s||cute
+S0246|N|e|s||faringe
+S0247|A||||fegato e milza: due strutture coordinate
+S0248|N|e|s||arco costale
+S0249|N|e|s||regione frontale
+S0250|X||ot||saliva
+S0251|X||ot||sangue
+S0252|X||ot||feci
+S0253|X||ot||saliva
+S0254|X||ot||urine
+S0255|A||||lobo inferiore sinistro e superiore: due lobi
+S0256|N|e|s||masse muscolari
+S0257|A||||lobi di entrambi i polmoni
+S0258|X||ot||sangue periferico
+S0259|X||ot||SP = sangue periferico
+S0260|N|e|s||midollo osseo
+S0261|N|e|s||MO = midollo osseo
+S0262|X||in|trapianto di midollo osseo|nome di una procedura, materiale di innesto
+S0263|X||ot||SP = sangue periferico
+S0264|N|e|s||MO = midollo osseo
+S0265|X||ot||cellule staminali
+S0266|N|e|p||eco addome
+S0267|N|e|p||TC addome
+S0268|N|e|p||TC torace
+S0269|kidney_right|e|s||
+S0270|N|e|p||TC del torace
+S0271|N|e|s||mantello polmonare bilaterale
+S0272|lung_upper_lobe_right|e|p||biopsia
+S0273|X||ot||CSEP (cellule staminali)
+S0274|N|e|p||TC torace
+S0275|A||||segmento basale laterale: lato non detto
+S0276|N|e|p||TC torace
+S0277|N|e|p||TC torace
+S0278|N|e|p||TC torace
+S0279|X||ot||cellule
+S0280|N|e|p||TC torace
+S0281|N|e|p||ovaio destro, asportazione di cisti
+S0282|N|e|s||addome
+S0283|N|e|s||quadrante inferiore destro
+S0284|N|e|p||cavita peritoneale, esplorazione
+S0285|N|e|s||ovaio
+S0286|N|e|s||peritoneo parietale
+S0287|N|e|s||cieco (non nella classe colon)
+S0288|N|e|s||appendice
+S0289|A||||vasi iliaci: arteria e vena
+S0290|N|e|p||cieco, liberazione chirurgica
+S0291|N|e|p||appendice
+S0292|A||||vasi iliaci: arteria e vena
+S0293|N|e|s||uretere
+S0294|N|e|p||tuba
+S0295|N|e|p||vasi ovarici
+S0296|N|e|s||moncone tubarico
+S0297|N|e|p||cavo addominale
+S0298|N|e|s||ovaio
+S0299|X||ot||liquido biliare
+S0300|X||ot||bile
+S0301|X||ot||organi e apparati: generico
+S0302|esophagus|e|p||studio radiologico
+S0303|stomach|e|p||studio radiologico
+S0304|duodenum|e|p||studio radiologico
+S0305|esophagus|po|s||esofago distale
+S0306|N|e|p||apparato digerente
+S0307|duodenum|e|s||
+S0308|duodenum|e|s||
+S0309|N|e|s||regione mesogastrica
+S0310|N|e|s||mesogastrio-ipocondrio
+S0311|N|e|s||linea emiclaveare
+S0312|N|e|s||linea ombelicale
+S0313|N|e|s||legamento gastrocolico
+S0314|colon|po|s||colon trasverso
+S0315|colon|e|s||flessura del colon
+S0316|spleen|e|s||polo inferiore della milza
+S0317|spleen|e|s||
+S0318|portal_vein_and_splenic_vein|e|s||asse spleno-portale
+S0319|N|e|p||legamento gastrocolico, sezione
+S0320|pancreas|po|s||piano pancreatico
+S0321|N|e|s||peduncolo mesenterico
+S0322|N|e|s||piano mesenterico
+S0323|pancreas|e|s||
+S0324|pancreas|po|s||istmo
+S0325|pancreas|e|s||
+S0326|N|e|p||cavo addominale
+S0327|N|e|s||vasi sanguigni

@@ -1,0 +1,110 @@
+S0110|vertebrae_T11|e|s||
+S0111|vertebrae_T6|e|s||
+S0112|vertebrae_T8|e|s||
+S0113|vertebrae_T12|e|s||
+S0114|colon|e|s||
+S0115|N|e|p||retto (non nella classe colon)
+S0116|brain|e|p||RM encefalo
+S0117|brain|po|s||sistema ventricolare
+S0118|brain|po|s||parte sopratentoriale
+S0119|X||ot||idrocefalo: malattia
+S0120|brain|po|s||ventricoli laterali
+S0121|brain|po|s||corno frontale
+S0122|brain|po|s||acquedotto
+S0123|N|e|s||spazi liquorali periencefalici
+S0124|brain|po|s||corpo calloso
+S0125|brain|po|s||parenchima cerebrale
+S0126|X||ot||liquor
+S0127|X||ot||idrocefalo: malattia
+S0128|N|e|s||viso
+S0129|brain|e|p||RMN encefalo
+S0130|X||ot||liquidi
+S0131|N|e|s||arti inferiori
+S0132|N|e|s||occhio
+S0133|N|e|p||RX torace
+S0134|N|e|p||ecografia dell'addome
+S0135|N|e|p||esame obiettivo del torace
+S0136|X||il||murmure vescicolare: suono respiratorio
+S0137|N|e|p||RX torace
+S0138|N|e|s||strutture vascolari ilari
+S0139|N|e|p||ecografia dell'addome
+S0140|A||||corticale renale: entrambi i reni
+S0141|A||||entrambi i reni
+S0142|N|e|d||vena femorale destra, catetere
+S0143|N|e|s||dita dei piedi
+S0144|N|e|s||dita dei piedi
+S0145|N|e|p||dita, amputazione
+S0146|N|e|s||vie biliari
+S0147|N|e|p||ecografia del collo
+S0148|N|e|s||loggia paratiroidea
+S0149|X||ot||misura: annotazione E3C non anatomica
+S0150|heart|po|s||parete ventricolare
+S0151|heart|po|s||piano valvolare
+S0152|X||ot||urine
+S0153|urinary_bladder|e|s||
+S0154|X||ot||tessuto infiammatorio
+S0155|aorta|po|s||aorta addominale
+S0156|aorta|po|s||carrefour aortico
+S0157|X||ot||tessuto
+S0158|N|e|p||tac addome
+S0159|colon|e|s||
+S0160|N|e|s||parete e tessuto adiposo pericolico
+S0161|N|e|p||angioTC addome
+S0162|N|e|s||tronco celiaco
+S0163|N|e|s||arteria mesenterica inferiore
+S0164|N|e|s||diramazioni
+S0165|portal_vein_and_splenic_vein|ap|s||asse mesenterico-portale
+S0166|colon|po|s||mucosa del colon (colonscopia)
+S0167|pancreas|po|s||coda del pancreas
+S0168|N|e|p||eco addome
+S0169|N|e|s||albero biliare
+S0170|N|e|s||grasso peripancreatico
+S0171|N|e|p||TC addome
+S0172|colon|po|s||flessura splenica
+S0173|X||ot||epitelio
+S0174|X||in||addome acuto: nome di una sindrome
+S0175|N|e|p||TC addome
+S0176|N|e|s||linfonodi
+S0177|X||ot||plasmacellule
+S0178|N|e|s||gola
+S0179|N|e|s||collo
+S0180|N|e|s||addome
+S0181|X||ot||feci
+S0182|X||ot||feci
+S0183|spleen|e|s||
+S0184|N|e|s||torace
+S0185|heart|po|s||valvola mitrale (focolaio di ascoltazione)
+S0186|X||ot||emazie
+S0187|N|e|s||arti
+S0188|N|e|s||dorso
+S0189|N|e|s||organi ipocondriaci
+S0190|N|e|p||Rx torace
+S0191|N|e|s||arteria discendente anteriore
+S0192|heart|po|s||setto apicale
+S0193|N|e|s||regione epigastrica
+S0194|N|e|p||ecografia all'addome
+S0195|pancreas|e|s||
+S0196|X||in|sondino naso gastrico|naso nel nome di un dispositivo
+S0197|liver|e|s||
+S0198|pancreas|e|s||
+S0199|N|e|s||fossa iliaca
+S0200|stomach|e|s||
+S0201|N|e|s||ombelico
+S0202|N|e|s||fossa iliaca
+S0203|lung_lower_lobe_right|ap|s||base polmonare destra
+S0204|X||ot||sangue
+S0205|esophagus|e|s||varici esofagee: sede
+S0206|N|e|p||TC cranio (testa)
+S0207|N|e|s||arti
+S0208|N|e|s||coscia
+S0209|femur_right|e|s||
+S0210|N|e|s||cavo orale
+S0211|X||ot||urine
+S0212|N|e|p||arto inferiore, amputazione
+S0213|X||ot||urine
+S0214|A||||reni: entrambi
+S0215|N|e|s||vie urinarie
+S0216|urinary_bladder|e|s||
+S0217|kidney_right|po|s||calice inferiore (idronefrosi destra)
+S0218|kidney_right|po|s||pelvi renale destra
+S0219|N|e|s||uretere

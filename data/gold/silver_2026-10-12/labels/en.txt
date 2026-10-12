@@ -1,0 +1,150 @@
+S0328|X||ot||ovarian cyst: a lesion
+S0329|N|e|s||ear
+S0330|X||ot||platelets
+S0331|A||||femoral bones: side not said
+S0332|N|e|s||knees
+S0333|stomach|po|s||antrum
+S0334|X||ot||CSF
+S0335|A||||spinous process: level not said
+S0336|N|e|s||serosal vessels
+S0337|N|e|s||testis
+S0338|N|e|s||ankle
+S0339|A||||vascular axes of the neck, both sides
+S0340|N|e|s||head
+S0341|X||il||bowel movements: a function
+S0342|X||ot||tumor cells
+S0343|N|e|s||leg
+S0344|N|e|s||eye
+S0345|N|e|s||eyes
+S0346|N|e|s||lower back
+S0347|N|e|s||lung, side not said: no whole-lung class
+S0348|N|e|p||bone marrow exam
+S0349|N|e|s||knee joint
+S0350|thyroid_gland|po|s||retrosternal part of the goiter
+S0351|N|e|p||tooth extraction
+S0352|N|e|s||testis
+S0353|X||ot||fistula: a lesion
+S0354|X||ot||blood
+S0355|X||ot||whole blood
+S0356|N|e|s||breast
+S0357|N|e|s||eyelids
+S0358|N|e|s||uterus
+S0359|N|e|s||testis
+S0360|N|e|s||lower extremities
+S0361|N|e|s||conjunctivae
+S0362|brain|e|p||CT brain
+S0363|X||ot||blood culture
+S0364|X||ot||blood glucose
+S0365|N|e|s||neck
+S0366|N|e|s||canine tooth
+S0367|N|e|p||bone marrow aspiration
+S0368|N|e|p||skin incision
+S0369|N|e|s||elbows
+S0370|N|e|s||tooth roots
+S0371|N|e|s||chest
+S0372|trachea|e|s||
+S0373|X||ot||tumor
+S0374|N|e|p||skin graft
+S0375|N|e|s||rectus border
+S0376|N|e|s||ovary
+S0377|X||il||bowel sounds
+S0378|X||ot||abscess cavities
+S0379|N|e|p||conjunctiva incised
+S0380|brain|e|p||brain MRI
+S0381|X||ot||white blood cells
+S0382|esophagus|po|s||area within the Barrett esophagus
+S0383|N|e|s||hair
+S0384|thyroid_gland|ap|s||goiter: enlarged thyroid
+S0385|thyroid_gland|po|s||thyroid parenchyma
+S0386|heart|co|s||cardiac silhouette
+S0387|N|e|p||LIMA harvesting
+S0388|X||ot||serum
+S0389|X||ot||lump: a lesion
+S0390|X||ot||necrotic tissues
+S0391|N|e|s||skin
+S0392|X||ot||ovarian cyst: a lesion
+S0393|N|e|s||cervix
+S0394|brain|po|s||parietal and occipital lobes
+S0395|N|e|s||testis
+S0396|X||ot||necrotic tissue
+S0397|N|e|s||uterus
+S0398|N|e|s||cervix
+S0399|N|e|s||uterus
+S0400|X||ot||cells
+S0401|X||ot||tumour capsule
+S0402|N|e|s||subconjunctival space
+S0403|N|e|p||nose packed
+S0404|X||ot||skin rashes: a finding
+S0405|X||ot||cells
+S0406|N|e|p||skin examination
+S0407|N|e|s||abdominal wall veins
+S0408|N|e|s||thigh
+S0409|N|e|s||sternocleidomastoid muscle
+S0410|N|e|s||eye
+S0411|X||ot||red cells
+S0412|N|e|p||knee radiograph
+S0413|X||ot||CSF
+S0414|N|e|p||lymph node dissection
+S0415|thyroid_gland|ap|s||goiter
+S0416|N|e|s||lumbar region
+S0417|N|e|s||nasal septum
+S0418|X||ot||paratubal cyst: a lesion
+S0419|small_bowel|e|s||herniated small bowel
+S0420|N|e|s||gum
+S0421|N|e|s||muscle
+S0422|colon|po|s||sigmoid colon
+S0423|N|e|s||knees
+S0424|N|e|s||axilla
+S0425|X||ot||ovarian tumours: lesions
+S0426|N|e|s||extremities
+S0427|N|e|s||transversalis fascia
+S0428|X||ot||tumour
+S0429|N|e|s||omentum
+S0430|X||ot||histological pattern
+S0431|N|e|s||skin
+S0432|N|e|s||nasal cavity
+S0433|X||ot||blood group
+S0434|X||ot||platelets
+S0435|N|e|s||abdomen
+S0436|X||ot||stem cells
+S0437|N|e|p||MRI of the pelvic cavity
+S0438|N|e|s||cervix
+S0439|N|e|d||circumflex artery stented
+S0440|X||ot||blood stained fluid
+S0441|N|e|s||eyelid
+S0442|N|e|s||knee joint
+S0443|liver|e|s||
+S0444|liver|e|s||
+S0445|N|e|s||adnexa
+S0446|N|e|s||muscle
+S0447|N|e|s||umbilicus
+S0448|N|e|s||right coronary artery
+S0449|X||il||liver functions
+S0450|N|e|s||perineal soft tissue
+S0451|X||il||bowel management
+S0452|A||||posterior arch: level not said
+S0453|N|e|p||abdominal cavity explored
+S0454|X||ot||blood
+S0455|N|e|s||leg
+S0456|X||ot||blood transfusion
+S0457|esophagus|po|s||upper third of the esophagus
+S0458|N|e|s||common bile duct
+S0459|N|e|s||abdomen
+S0460|N|e|s||abdominal wall
+S0461|N|e|s||parotid
+S0462|X||ot||peripheral blood
+S0463|N|e|s||muscularis propria
+S0464|N|e|s||skin
+S0465|N|e|s||cheek
+S0466|duodenum|po|s||duodenal bulb
+S0467|liver|e|s||
+S0468|X||ot||blood tests
+S0469|N|e|s||abdominal wall
+S0470|N|e|s||submucosal plexuses
+S0471|N|e|s||lymph nodes
+S0472|N|e|s||perivascular space
+S0473|N|e|s||nasal mucosa
+S0474|duodenum|po|s||ampulla
+S0475|N|e|p||bone scan
+S0476|N|e|s||chest
+S0477|X||ot||peripheral blood

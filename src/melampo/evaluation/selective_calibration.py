@@ -161,3 +161,109 @@ def certify_by_stratum(
         stratum: certify(scores, oks, alpha, level)
         for stratum, (scores, oks) in sorted(grouped.items(), key=lambda kv: str(kv[0]))
     }
+
+
+# -- calibration and coverage-risk (12 Oct 2026) --------------------------------------------------
+#
+# A good ranking (AUC) is not a calibrated confidence, and neither says which links to accept. These
+# functions report the three apart: how far a stated probability is from the observed accuracy (Brier
+# score, expected calibration error, reliability bins), what risk each acceptance threshold gives at
+# what coverage (with an exact one-sided upper bound and the number of links behind each point), and
+# an interval for the error among accepted links that resamples whole reports, not single mentions
+# (mentions of one report are not independent).
+
+
+def brier(probs: Sequence[float], correct: Sequence[bool]) -> float:
+    """Mean squared distance between the stated probability of being right and the outcome."""
+    if not probs:
+        return float("nan")
+    return sum((p - (1.0 if ok else 0.0)) ** 2 for p, ok in zip(probs, correct, strict=True)) / len(probs)
+
+
+def reliability(probs: Sequence[float], correct: Sequence[bool], bins: int = 10) -> list[dict[str, Any]]:
+    """Equal-width bins of the stated probability: count, mean probability, observed accuracy."""
+    table: list[list[tuple[float, bool]]] = [[] for _ in range(bins)]
+    for p, ok in zip(probs, correct, strict=True):
+        table[min(bins - 1, max(0, int(p * bins)))].append((p, ok))
+    out = []
+    for i, items in enumerate(table):
+        if items:
+            out.append({
+                "bin": f"{i / bins:.1f}-{(i + 1) / bins:.1f}",
+                "n": len(items),
+                "mean_probability": round(sum(p for p, _ in items) / len(items), 4),
+                "accuracy": round(sum(ok for _, ok in items) / len(items), 4),
+            })
+    return out
+
+
+def expected_calibration_error(probs: Sequence[float], correct: Sequence[bool], bins: int = 10) -> float:
+    """Weighted mean of |accuracy - mean probability| over equal-width bins."""
+    if not probs:
+        return float("nan")
+    return sum(r["n"] * abs(r["accuracy"] - r["mean_probability"]) for r in reliability(probs, correct, bins)) / len(probs)
+
+
+def risk_upper_bound(errors: int, n: int, delta: float = 0.05) -> float:
+    """Exact one-sided (Clopper-Pearson) upper bound of the error rate at confidence 1 - delta."""
+    if n == 0:
+        return 1.0
+    lo, hi = errors / n, 1.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if binomial_cdf(errors, n, mid) > delta:
+            lo = mid
+        else:
+            hi = mid
+    return hi
+
+
+def coverage_risk(
+    scores: Sequence[float], correct: Sequence[bool], total: int | None = None, delta: float = 0.05
+) -> list[dict[str, Any]]:
+    """For every acceptance threshold (strictest first): links kept, coverage (over ``total``, default the
+    scored links), errors, observed risk and its upper bound. A point with few links says little: the
+    count is reported with it."""
+    total = total if total is not None else len(scores)
+    out = []
+    for t in sorted(set(scores), reverse=True):
+        kept = [ok for s, ok in zip(scores, correct, strict=True) if s >= t]
+        errors = sum(1 for ok in kept if not ok)
+        out.append({
+            "threshold": t,
+            "kept": len(kept),
+            "coverage": round(len(kept) / total, 4) if total else 0.0,
+            "errors": errors,
+            "risk": round(errors / len(kept), 4) if kept else 0.0,
+            "risk_upper": round(risk_upper_bound(errors, len(kept), delta), 4),
+        })
+    return out
+
+
+def grouped_bootstrap(
+    groups: Sequence[Hashable], correct: Sequence[bool], n: int = 2000, seed: int = 20261012, level: float = 0.95
+) -> dict[str, Any]:
+    """Interval of the error rate resampling whole groups (reports or patients) with replacement."""
+    import random
+
+    by: dict[Hashable, list[bool]] = defaultdict(list)
+    for g, ok in zip(groups, correct, strict=True):
+        by[g].append(ok)
+    keys = list(by)
+    if not keys:
+        return {"error": None, "low": None, "high": None, "groups": 0, "items": 0}
+    rng = random.Random(seed)
+    rates = []
+    for _ in range(n):
+        wrong = total = 0
+        for _ in keys:
+            items = by[keys[rng.randrange(len(keys))]]
+            wrong += sum(1 for ok in items if not ok)
+            total += len(items)
+        rates.append(wrong / total if total else 0.0)
+    rates.sort()
+    low, high = rates[int((1 - level) / 2 * n)], rates[min(n - 1, int((1 + level) / 2 * n))]
+    items = sum(len(v) for v in by.values())
+    observed = sum(1 for v in by.values() for ok in v if not ok) / items
+    return {"error": round(observed, 4), "low": round(low, 4), "high": round(high, 4), "groups": len(keys),
+            "items": items}

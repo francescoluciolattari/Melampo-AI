@@ -1,0 +1,102 @@
+iuxray-2529|osseous structures of the thorax|N|e|s||
+iuxray-1027|cardiomediastinal silhouette|heart|co|s||profilo di cuore e mediastino
+iuxray-119|chest|N|e|p||views of the chest
+iuxray-119|cardiac silhouette|heart|co|s||
+iuxray-1002|left mastectomy|X||in||procedura; mammella non nominata come parola
+iuxray-1161|cardiomediastinal silhouette|heart|co|s||
+iuxray-1161|pulmonary vasculature|N|e|s||
+iuxray-3115|cardiopulmonary|A||||cuore e polmoni
+iuxray-468|lungs|N|e|s||
+iuxray-468|pleural spaces|N|e|s||
+iuxray-3858|pleural|N|e|s||
+iuxray-3516|pleural|N|e|s||
+iuxray-938|pleural|N|e|s||
+iuxray-2481|lungs|N|e|s||
+iuxray-1189|thoracic spine|N|e|s||colonna toracica intera
+iuxray-1646|pleural|N|e|s||
+iuxray-1867|right rib|A||||quale costa non detto
+iuxray-3094|Heart size|X||il||misura del cuore
+iuxray-736|Left basilar|lung_lower_lobe_left|ap|s||base polmonare sinistra
+iuxray-736|pleural|N|e|s||
+iuxray-709|lungs|N|e|s||
+iuxray-3106|lungs|N|e|s||
+iuxray-1879|cardiopulmonary|A||||
+iuxray-1279|right upper abdomen|N|e|s||
+iuxray-3285|cardiomediastinal silhouette|heart|co|s||
+iuxray-3059|cardiopulmonary|A||||
+iuxray-798|heart|heart|e|s||
+iuxray-3469|heart size|X||il||
+iuxray-3469|pulmonary vascularity|N|e|s||
+iuxray-2191|osseous|N|e|s||ossa
+iuxray-2646|subdiaphragmatic|N|e|s||
+iuxray-143|heart|heart|e|s||
+iuxray-3765|Osseous structures|N|e|s||
+iuxray-3031|cardiomediastinal silhouette|heart|co|s||
+iuxray-1479|Heart size|X||il||
+iuxray-1479|mediastinal silhouette|N|co|s||mediastino
+iuxray-1479|pulmonary vascularity|N|e|s||
+iuxray-695|lower lung|N|e|s||basi polmonari bilaterali
+iuxray-597|diaphragm|N|e|s||
+iuxray-3238|left hemidiaphragm|N|e|s||
+iuxray-3165|rib|A||||coste destre, quali non detto
+iuxray-3663|lungs|N|e|s||
+iuxray-3459|lower cervical|A||||livelli cervicali non detti
+iuxray-2699|lungs|N|e|s||
+iuxray-3332|cardiopulmonary|A||||
+iuxray-1234|pleural|N|e|s||
+iuxray-1234|pleural-parenchymal|N|e|s||
+iuxray-2097|cardiopulmonary|A||||
+iuxray-2097|chest|N|e|p||chest x-ray
+iuxray-3641|pulmonary|N|e|s||edema polmonare
+iuxray-1356|pleural|N|e|s||
+iuxray-1330|cardiopulmonary|A||||
+iuxray-517|Lungs|N|e|s||
+iuxray-2723|left base|lung_lower_lobe_left|ap|s||base polmonare sinistra
+iuxray-3067|Pulmonary vasculature|N|e|s||
+iuxray-66|Heart|heart|e|s||
+iuxray-66|mediastinum|N|e|s||
+iuxray-2269|chest|N|e|d||dispositivo toracico (testo oscurato)
+iuxray-1269|Left nipple|N|e|s||
+iuxray-2100|aorta|aorta|e|s||
+iuxray-3305|cardiac silhouette|heart|co|s||
+iuxray-1019|right lateral costophrenic sulcus|N|e|s||
+iuxray-946|hilar and mediastinal contours|A||||ili e mediastino
+iuxray-3776|right hilar lymph|N|e|s||linfonodo ilare destro
+iuxray-2524|cardiac contours|heart|co|s||
+iuxray-2210|pulmonary|N|e|s||
+iuxray-3142|aorta|aorta|e|s||
+iuxray-1580|Heart size|X||il||
+iuxray-1580|mediastinal contour|N|co|s||
+iuxray-2544|valve replacement|heart|po|p||sostituzione valvolare cardiaca
+iuxray-2760|lungs|N|e|s||
+iuxray-3660|Lungs|N|e|s||
+iuxray-782|pleural|N|e|s||
+iuxray-1278|mediastinum|N|e|s||
+iuxray-2108|Both lungs|N|e|s||
+iuxray-521|Heart size|X||il||
+iuxray-521|mediastinal|N|e|s||
+iuxray-289|alveolar|N|e|s||
+iuxray-289|pleural|N|e|s||
+iuxray-1151|chest|N|e|p||views of the chest
+iuxray-1151|cardiomediastinal silhouette|heart|co|s||
+iuxray-718|lungs|N|e|s||
+iuxray-2505|pleural|N|e|s||
+iuxray-922|Pulmonary|N|e|s||
+iuxray-1961|cardiomegaly|heart|e|s||cardiomegalia: sede cuore
+iuxray-1961|lung volumes|X||il||misura
+iuxray-1961|cardiopulmonary|A||||
+iuxray-3614|pulmonary vascular|N|e|s||
+iuxray-1292|joints|A||||articolazioni non nominate
+iuxray-185|bronchovascular|N|e|s||
+iuxray-2194|cardiomediastinal silhouette|heart|co|s||
+iuxray-1730|thoracic spine|N|e|s||
+iuxray-1227|cardiopulmonary|A||||
+iuxray-1399|lungs|N|e|s||
+iuxray-2365|heart size|X||il||
+iuxray-2365|pulmonary vascularity|N|e|s||
+iuxray-2995|cardiopulmonary|A||||
+iuxray-1153|Heart size|X||il||
+iuxray-1153|pulmonary vasculature|N|e|s||
+iuxray-3647|pleural|N|e|s||
+iuxray-2800|soft tissue|N|e|s||
+iuxray-17|cardiopulmonary|A||||

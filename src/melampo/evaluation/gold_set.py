@@ -31,7 +31,8 @@ from typing import Any
 from ..memory import anatomy_linker as al
 from ..memory.report_state import ReportState
 from .linking_bench import upper_error_bound
-from .selective_calibration import certify, certify_by_stratum
+from .provenance import Provenance
+from .selective_calibration import certify, certify_by_stratum, coverage_risk, grouped_bootstrap
 
 NONE_IN_CLASSES = (
     "NONE_IN_CLASSES"  # a real anatomical structure that is not one of the classes
@@ -53,6 +54,15 @@ RELATIONS = ("equal", "part_of", "contour_of", "approx")
 ROLES_ON_STRUCTURE = ("structure", "procedure_site", "device_site", "source_of")
 ROLES_ON_NOT_ANATOMY = ("inherent_location", "inside_a_name", "not_a_body_site", "other")
 ROLES = ROLES_ON_STRUCTURE + ROLES_ON_NOT_ANATOMY
+# The level an error belongs to (12 Oct 2026): one primary level, so that a rule cannot "fix" an error of
+# another level (a span or a convention mistaken for a concept). ``span``: the unit read is not the gold
+# unit; ``type``: anatomy against measure / name / process; ``sense``: another sense of the word or an
+# ambiguous mention linked; ``concept``: another class (``concept:side`` when only the side differs);
+# ``role``: right class, wrong role; ``relation``: right class, other relation (equal / part_of / approx);
+# ``assertion``: polarity or time (only when the sheet says so); ``export_convention``: set by the
+# adjudicator when the output only breaks a benchmark convention.
+ERROR_LEVELS = ("span", "type", "sense", "concept", "concept:side", "role", "relation", "assertion",
+                "export_convention")
 SHEET_FIELDS = (
     "item_id", "report_id", "language", "sentence", "mention", "start", "end",
     "structure", "relation", "role", "span_text", "side_in_text", "note",
@@ -481,10 +491,38 @@ def merge_gold(
                 "relation": source.get("relation", "").strip() or "equal",
                 "role": source.get("role", "").strip(),
                 "span_text": source.get("span_text", "").strip(),
+                "error_level": source.get("error_level", "").strip(),
+                "assertion": source.get("assertion", "").strip(),
                 "agreed": agreed,
             }
         )
     return gold
+
+
+_SIDE_SUFFIX = re.compile(r"_(?:left|right)$")
+
+
+def error_level(row: dict[str, Any], result: Any, outcome: str, said_role: str) -> str:
+    """The primary level of a disagreement between the linker and the gold row ("" when they agree)."""
+    if row.get("error_level"):
+        return row["error_level"]
+    label = row["structure"]
+    if outcome == "wrong_critical":
+        if label == NOT_ANATOMY:
+            return "sense" if row.get("role") == "not_a_body_site" else "type"
+        if label == AMBIGUOUS:
+            return "sense"
+        span = _fold(row.get("span_text", ""))
+        if span and span != _fold(row["mention"]):
+            return "span"
+        if result.cid and _SIDE_SUFFIX.sub("", result.cid) == _SIDE_SUFFIX.sub("", label):
+            return "concept:side"
+        return "concept"
+    if outcome == "wrong_relation":
+        return "relation"
+    if outcome == "correct" and row.get("role") and said_role not in (row["role"], "none"):
+        return "role"
+    return ""
 
 
 def evaluate(
@@ -505,6 +543,12 @@ def evaluate(
     errors: list[dict[str, Any]] = []
     scored: list[tuple[str, float, bool]] = []
     role_confusion: dict[str, Counter[str]] = defaultdict(Counter)
+    levels: Counter[str] = Counter()
+    matches: Counter[str] = Counter()
+    grouped: list[tuple[str, bool]] = []
+    provenance = Provenance.load()
+    touched: Counter[str] = Counter()
+    touched_by: Counter[str] = Counter()
     for row in gold:
         text = (reports or {}).get(row.get("report_id", ""))
         if text is not None and str(row.get("start", "")).strip().isdigit():
@@ -515,10 +559,11 @@ def evaluate(
         else:
             result = linker.link(row["mention"], row["sentence"])
         label = row["structure"]
+        said = getattr(result, "role", "") or ("structure" if result.status == al.ACCEPTED else "none")
         if row.get("role"):
             # what the linker records beside the link: its role, or "structure" when it links with none
-            said = getattr(result, "role", "") or ("structure" if result.status == al.ACCEPTED else "none")
             role_confusion[row["role"]][said] += 1
+        matches[getattr(result, "match", "")] += 1
         if result.status != al.ACCEPTED:
             outcome = "abstained"
             reasons[result.reason] += 1
@@ -534,6 +579,15 @@ def evaluate(
             outcome = "correct"
         tally[outcome] += 1
         by_language[row.get("language", "")][outcome] += 1
+        level = error_level(row, result, outcome, said)
+        if level:
+            levels[level] += 1
+        hits = provenance.touches(row["mention"], row.get("sentence", ""))
+        if hits:
+            touched[outcome] += 1
+            touched_by.update(hits)
+        if outcome in ("correct", "wrong_critical", "wrong_relation"):
+            grouped.append((row.get("report_id", "") or row["item_id"], outcome == "correct"))
         if outcome in ("correct", "wrong_critical", "wrong_relation"):
             stage = (
                 "models"
@@ -550,7 +604,8 @@ def evaluate(
         if outcome.startswith("wrong") or outcome == "accepted_outside_classes":
             errors.append(
                 {"item_id": row["item_id"], "mention": row["mention"], "gold": label, "gold_relation": row["relation"],
-                 "got": result.cid, "got_relation": result.relation, "outcome": outcome, "stage": result.stage}
+                 "got": result.cid, "got_relation": result.relation, "outcome": outcome, "stage": result.stage,
+                 "level": level, "match": getattr(result, "match", ""), "post_error_entries": hits}
             )  # fmt: skip
     accepted = tally["correct"] + tally["wrong_critical"] + tally["wrong_relation"]
     wrong = tally["wrong_critical"] + tally["wrong_relation"]
@@ -569,6 +624,14 @@ def evaluate(
         "abstention_reasons": dict(reasons),
         "by_language": {k: dict(v) for k, v in by_language.items()},
         "role_confusion": {k: dict(v) for k, v in role_confusion.items()},
+        # 12 Oct 2026: the level of each disagreement, how each link meets its mention, the risk at every
+        # threshold of the convergence score, an interval that resamples whole reports, and the items that
+        # a rule written after an error touches (reported apart: they are not evidence for that rule)
+        "error_levels": dict(levels),
+        "match_states": dict(matches),
+        "coverage_risk": coverage_risk([s for _, s, _ in scored], [ok for _, _, ok in scored], total=len(gold)),
+        "error_by_report_bootstrap": grouped_bootstrap([g for g, _ in grouped], [ok for _, ok in grouped]),
+        "post_error_items": {"outcomes": dict(touched), "entries": dict(touched_by)},
         "errors": errors,
         "verdict": verdict(accepted, wrong, confidence),
         # Which convergence threshold keeps the error <= 1% with probability >= 1 - (1 - confidence),

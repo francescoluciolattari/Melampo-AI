@@ -116,7 +116,7 @@ from melampo.memory.report_state import (
     TECHNIQUE,
     ReportState,
 )
-from melampo.memory.word_senses import SenseInventory, detect_language, locate
+from melampo.memory.word_senses import SenseInventory, detect_language, locate, plural_keys
 
 SIDE_RIGHT = "<dx>"
 SIDE_LEFT = "<sn>"
@@ -721,6 +721,8 @@ class Lexicon:
     # only because a name lost its head noun ("osso dell'anca" -> "anca", "left innominate bone"
     # -> "left innominate") is not a name: the head noun is what the name refers to.
     headed: frozenset[tuple[str, ...]] = frozenset()
+    # Plural keys and the key they are the plural of ("livers" -> "liver").
+    plural_of: dict[tuple[str, ...], tuple[str, ...]] = field(default_factory=dict)
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Lexicon":
@@ -737,10 +739,23 @@ class Lexicon:
                 if region is None:
                     strict[normalise(name, keep_noise=True, map_words=False)].add(cid)
         written: dict[tuple[str, ...], set[str]] = defaultdict(set)
+        plural_of: dict[tuple[str, ...], tuple[str, ...]] = {}
         for entry in data["classes"].values():
             for language in ("it", "en"):
                 for name in entry[language]:
                     written[normalise(name)].add(language)
+        # Plurals (12 Oct 2026): "livers", "femora", "reni" were never recognised (14% of the CRAFT
+        # annotations of the classes were never proposed, mostly plurals). The plural of a name's last
+        # word is added for the name's language, only where it is not already a key of its own.
+        for key in list(index):
+            for language in written[key]:
+                for variant in plural_keys(key, language):
+                    if variant in index or variant in written:
+                        continue
+                    index[variant] = list(index[key])
+                    written[variant] = {language}
+                    plural_of[variant] = key
+        lexicon.plural_of = plural_of
         lexicon.languages = {k: frozenset(v) for k, v in written.items()}
         lexicon.index = dict(index)
         lexicon.strict = dict(strict)
@@ -755,6 +770,7 @@ class Lexicon:
             for name in entry["it"] + entry["en"]
             if normalise(name, keep_noise=True) == normalise(name)
         )
+        lexicon.headed = lexicon.headed | frozenset(v for v, k in plural_of.items() if k in lexicon.headed)
         return lexicon
 
     def abbreviation_clash(self, mention: str, language: str | None) -> bool:
@@ -1035,6 +1051,18 @@ class LinkResult:
     @property
     def convergence(self) -> int:
         return len(self.support) - len(self.conflicts)
+
+    @property
+    def match(self) -> str:
+        """How the link meets the mention (12 Oct 2026): ``exact`` (the class is the structure named),
+        ``approximate`` (an ``approx`` relation, or the structure named is a part or a contour of the
+        class), ``parent_candidate`` (a parent class proposed or applied by the graph: never promoted to
+        exact without a label or a stated convention) or ``abstain``."""
+        if self.status != ACCEPTED:
+            return "parent_candidate" if self.fallback else "abstain"
+        if "+graph_" in self.reason:
+            return "parent_candidate"
+        return "exact" if self.relation == "equal" else "approximate"
 
 
 _MEASUREMENT_VETOES = (

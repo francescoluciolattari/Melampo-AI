@@ -1,0 +1,134 @@
+parrot-826|strutture vascolari arteriose|N|e|s||arterie in esame, non specificate
+parrot-168|zona periferica sinistra|prostate|po|s||zona periferica (prostata)
+parrot-168|zona periferica destra|prostate|po|s||
+parrot-283|occhi|N|e|s||
+parrot-283|retinico|N|e|s||retina
+parrot-2196|parenchima epatico|liver|po|s||
+parrot-2196|vene sovraepatiche|N|e|s||vene sovraepatiche
+parrot-936|colecisti|gallbladder|e|s||
+parrot-304|polo posteriore|N|e|s||polo posteriore dell'occhio
+parrot-313|pleurici|N|e|s||pleura
+parrot-816|orecchio medio di destra|N|e|s||
+parrot-722|milza|spleen|e|s||
+parrot-722|pancreas|pancreas|e|s||
+parrot-722|surreni|A|||| surreni: entrambi
+parrot-722|reni|A||||reni: entrambi
+parrot-288|area maculare|N|e|s||
+parrot-288|retina|N|e|s||
+parrot-716|capi articolari|N|e|s||
+parrot-2012|vie biliari intra ed extraepatiche|N|e|s||
+parrot-2198|Crohn|X||in||nome di malattia (non anatomia)
+parrot-760|fascia plantare|N|e|s||
+parrot-285|retinica|N|e|s||retina
+parrot-285|occhi|N|e|s||
+parrot-947|parenchimali|N|e|s||parenchima (polmonare), lato non detto
+parrot-2011|tendini estensori e peronieri|N|e|s||
+parrot-818|somi vertebrali|A||||corpi vertebrali: livello non detto
+parrot-287|nervo ottico|N|e|s||
+parrot-287|occhi|N|e|s||
+parrot-921|collo chirurgico omerale|A||||omero: lato non detto
+parrot-921|grande tuberosità|A||||omero: lato non detto
+parrot-708|struttura ghiandolare|A||||ghiandola non nominata nella frase
+parrot-319|sistema ventricolare|brain|po|s||
+parrot-294|retinica|N|e|s||
+parrot-949|seno costofrenico di sinistra|N|e|s||
+parrot-949|pleurico|N|e|s||pleura
+parrot-2017|asse femoro-popliteo|N|e|s||arterie femoro-poplitee
+parrot-952|polmonari|N|e|s||polmoni
+parrot-725|prostata periferica|prostate|po|s||
+parrot-316|corpi vertebrali|A||||livello non detto
+parrot-316|muri somatici posteriori|A||||livello non detto
+parrot-310|reni|A||||entrambi i reni
+parrot-825|VI segmento|liver_segment_6|e|s||segmento epatico (referto epatico)
+parrot-306|polo posteriore|N|e|s||polo posteriore dell'occhio
+parrot-909|Seni costofrenici|N|e|s||
+parrot-909|pacemaker bicamerale|X||in||dispositivo
+parrot-309|ilo epatico|liver|po|s||
+parrot-309|linfonodo|N|e|s||
+parrot-780|Mediastino|N|e|s||
+parrot-325|pancreas|pancreas|e|s||
+parrot-325|milza|spleen|e|s||
+parrot-325|surreni|A||||entrambi
+parrot-325|reni|A||||entrambi
+parrot-282|coroide|N|e|s||
+parrot-814|diaframmatico|N|e|s||diaframma
+parrot-814|seni costo-frenici|N|e|s||
+parrot-731|ventaglio mesenteriale|N|e|s||
+parrot-731|linfonodali|N|e|s||
+parrot-943|poligono del Willis|N|e|s||
+parrot-798|spalla|N|e|s||
+parrot-798|cuffia|N|e|p||cuffia dei rotatori, sutura
+parrot-2010|articolazione acromion-claveare|N|e|s||
+parrot-2010|spazio di scorrimento subacromiale|N|e|s||
+parrot-181|pleurico|N|e|s||
+parrot-181|parenchima polmonare|N|e|s||lato sinistro implicito ma nessuna classe di polmone intero
+parrot-793|Ventricolo sinistro|heart|po|s||
+parrot-303|sottoretinica|N|e|s||
+parrot-924|L4|vertebrae_L4|e|s||soma di L4
+parrot-924|muro somatico posteriore|vertebrae_L4|po|s||
+parrot-307|fegato|liver|e|s||
+parrot-945|Arteria coronaria destra|N|e|s||
+parrot-945|Arteria discendente posteriore|N|e|s||
+parrot-292|coriocapillare|N|e|s||
+parrot-292|coroideale|N|e|s||
+parrot-315|sub diaframmatica|N|e|s||
+parrot-927|sistema calico-pielico del rene di DX|kidney_right|po|s||
+parrot-786|Vie biliari intra- ed extra-epatiche|N|e|s||
+parrot-305|polo posteriore|N|e|s||
+parrot-305|coroide|N|e|s||
+parrot-312|polmonari|N|e|s||
+parrot-312|pleuriche|N|e|s||
+parrot-710|vescica|urinary_bladder|e|s||
+parrot-939|ultima ansa ileale|small_bowel|po|s||ileo terminale
+parrot-939|colon ascendete|colon|po|s||refuso di ascendente
+parrot-939|parete colica|colon|po|s||
+parrot-934|tessuti encefalici|brain|e|s||
+parrot-934|tronco|brain|po|s||tronco encefalico
+parrot-934|angolo ponto cerebellare|N|e|s||
+parrot-934|strutture orbitarie|N|e|s||
+parrot-299|retina|N|e|s||
+parrot-179|epifisi distale della tibia sinistra|N|e|s||tibia
+parrot-179|malleolo posteriore|N|e|s||
+parrot-2203|vena poplitea dx|N|e|s||
+parrot-738|Milza|spleen|e|s||
+parrot-738|surreni|A||||entrambi
+parrot-717|vertebrali|A||||livello non detto
+parrot-2213|caviglia sinistra|N|e|p||ecografia
+parrot-2213|legamento peroneo astragalico anteriore|N|e|s||
+parrot-2204|linfonodi|N|e|s||
+parrot-2204|sede ilare destra|N|e|s||ilo polmonare destro
+parrot-2204|sottocarenale|N|e|s||
+parrot-755|zona periferica|prostate|po|s||
+parrot-755|lobo destro|prostate|po|s||
+parrot-755|ghiandola|prostate|e|s||
+parrot-302|polo posteriore|N|e|s||
+parrot-711|para-ilare superiore destra|N|e|s||regione parailare polmonare destra
+parrot-965|reni|A||||entrambi
+parrot-322|surrene sinistro|adrenal_gland_left|e|s||
+parrot-796|C5-C6|A||||disco intervertebrale fra due vertebre
+parrot-796|spazio perimidollare anteriore|N|e|s||
+parrot-796|midollo spinale|spinal_cord|e|s||
+parrot-796|forami di coniugazione|N|e|s||
+parrot-301|fovea|N|e|s||
+parrot-301|occhi|N|e|s||
+parrot-301|maculare|N|e|s||
+parrot-712|ombra cardiaca|heart|co|s||
+parrot-163|Vescica|urinary_bladder|e|s||
+parrot-811|Trachea|trachea|e|s||
+parrot-811|bronchi principali|N|e|s||
+parrot-289|occhi|N|e|s||
+parrot-289|vasi|N|e|s||vasi retinici
+parrot-910|parenchimali|N|e|s||parenchima non specificato
+parrot-709|milza|spleen|e|s||
+parrot-709|pancreas|pancreas|e|s||
+parrot-779|vie aeree segmentarie e sub-segmentarie|N|e|s||
+parrot-779|lobo superiore destro|lung_upper_lobe_right|e|s||
+parrot-779|piramide basale omolaterale|lung_lower_lobe_right|po|s||
+parrot-788|angolo ponto-cerebellare|N|e|s||
+parrot-293|polo posteriore|N|e|s||
+parrot-171|QSE DX|N|e|s||quadrante supero-esterno mammella destra
+parrot-735|Fegato|liver|e|s||
+parrot-735|s5|liver_segment_5|e|s||
+parrot-744|dotto di Wirsung|pancreas|po|s||
+parrot-166|spazi intersomatici|A||||livello non detto
+parrot-932|tessuto lasso adiposo ilare|N|e|s||
