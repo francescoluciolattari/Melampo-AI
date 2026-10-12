@@ -17,6 +17,8 @@ What this module keeps, from plain text and no label:
   seen fewer than ``MIN_COUNT`` times have no value (``None``): a count of one or two says nothing.
 - ``forward(a, b)`` = P(b | a) and ``backward(a, b)`` = P(a | b).
 - ``cohesion(words)``: the weakest link inside a block (a chunk holds only as well as its weakest pair).
+- ``forward3(a, b, c)`` = P(c | a b) and ``backward3(a, b, c)`` = P(a | b c): the pair in its longer
+  context (ordered triples, kept with the same lossy counting).
 
 For a large corpus (PubMed) the counts are kept with lossy counting (Manku & Motwani 2002): a pair seen
 less than once every ``1/epsilon`` pairs may be dropped; the error on any kept count is below ``epsilon *
@@ -66,10 +68,12 @@ class Collocations:
     def __init__(self, epsilon: float = 0.0):
         self.unigrams: Counter[str] = Counter()
         self.bigrams: Counter[tuple[str, str]] = Counter()
+        # ordered word triples (step 2, 10 October): the pair seen in its longer context
+        self.trigrams: Counter[tuple[str, str, str]] = Counter()
         self.tokens = 0
         self.pairs = 0
         self.epsilon = epsilon
-        self._delta: dict[tuple[str, str], int] = {}
+        self._delta: dict[tuple, int] = {}
         self._bucket = 1
         self._width = int(math.ceil(1 / epsilon)) if epsilon > 0 else 0
 
@@ -82,6 +86,10 @@ class Collocations:
     def add_run(self, words: list[str]) -> None:
         self.unigrams.update(words)
         self.tokens += len(words)
+        for triple in zip(words, words[1:], words[2:]):
+            self.trigrams[triple] += 1
+            if self._width and triple not in self._delta:
+                self._delta[triple] = self._bucket - 1
         for pair in zip(words, words[1:]):
             self.bigrams[pair] += 1
             if self._width and pair not in self._delta:
@@ -93,10 +101,11 @@ class Collocations:
 
     def _prune(self) -> None:
         """Lossy counting: drop the pairs whose count plus its possible undercount is within the bucket."""
-        drop = [p for p, n in self.bigrams.items() if n + self._delta.get(p, 0) <= self._bucket]
-        for p in drop:
-            del self.bigrams[p]
-            self._delta.pop(p, None)
+        for table in (self.bigrams, self.trigrams):
+            drop = [p for p, n in table.items() if n + self._delta.get(p, 0) <= self._bucket]
+            for p in drop:
+                del table[p]
+                self._delta.pop(p, None)
 
     def add_texts(self, texts: Iterable[str]) -> Collocations:
         for t in texts:
@@ -126,6 +135,17 @@ class Collocations:
     def backward(self, a: str, b: str) -> float:
         return self.count(a, b) / self.unigrams[b] if self.unigrams.get(b) else 0.0
 
+    def forward3(self, a: str, b: str, c: str, min_count: int = MIN_COUNT) -> float | None:
+        """P(c | a b): how predictable the next word is after the two before it (``None`` when the pair
+        a b is seen fewer than ``min_count`` times)."""
+        n = self.count(a, b)
+        return self.trigrams.get((a, b, c), 0) / n if n >= min_count else None
+
+    def backward3(self, a: str, b: str, c: str, min_count: int = MIN_COUNT) -> float | None:
+        """P(a | b c): how predictable the word before is from the two after it."""
+        n = self.count(b, c)
+        return self.trigrams.get((a, b, c), 0) / n if n >= min_count else None
+
     def cohesion(self, words: list[str]) -> float | None:
         """The weakest association inside a block of words (``None`` if a pair is not known)."""
         if len(words) < 2:
@@ -140,6 +160,7 @@ class Collocations:
     def prune(self, min_count: int = MIN_COUNT) -> Collocations:
         """Keep only pairs that can have a value (the file stays small)."""
         self.bigrams = Counter({p: n for p, n in self.bigrams.items() if n >= min_count})
+        self.trigrams = Counter({p: n for p, n in self.trigrams.items() if n >= min_count})
         return self
 
     def to_json(self) -> dict:
@@ -150,6 +171,7 @@ class Collocations:
             "min_count": MIN_COUNT,
             "unigrams": dict(self.unigrams),
             "bigrams": [[a, b, n] for (a, b), n in self.bigrams.items()],
+            "trigrams": [[a, b, c, n] for (a, b, c), n in self.trigrams.items()],
         }
 
     @classmethod
@@ -158,6 +180,7 @@ class Collocations:
         c.tokens, c.pairs = int(data["tokens"]), int(data["pairs"])
         c.unigrams = Counter(data["unigrams"])
         c.bigrams = Counter({(a, b): int(n) for a, b, n in data["bigrams"]})
+        c.trigrams = Counter({(a, b, x): int(n) for a, b, x, n in data.get("trigrams", [])})
         c._width = 0  # a loaded memory is read, not counted further
         return c
 

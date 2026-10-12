@@ -138,3 +138,36 @@ def test_pubmed_abstracts_are_read_from_the_xml():
            b"</Abstract></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>")
     got = list(abstracts(io.BytesIO(gzip.decompress(gzip.compress(xml)))))
     assert got == [("42", "IVC filter placement We placed filters.")]
+
+
+def test_triples_give_the_pair_in_its_longer_context():
+    c = Collocations().add_texts(TEXT)
+    assert c.forward3("inferior", "vena", "cava") == 1.0
+    assert c.backward3("vena", "cava", "filter") is not None
+    assert c.forward3("liver", "cava", "filter") is None  # the pair before is not known
+
+
+def test_report_text_columns_of_a_hub_dataset_are_found():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from fetch_public_reports import hf_reports
+
+    rows = [{"VolumeName": "a.nii", "Findings_EN": "Heart normal.", "Impressions_EN": "No effusion.",
+             "Findings_TR": "Kalp normal."}]
+    got = hf_reports(rows, "ct-rate")
+    assert got == [{"report_id": "ct-rate-0", "text": "Heart normal. No effusion.", "language": "en", "site": "ct-rate"}]
+
+
+def test_the_memory_of_reports_knows_more_of_unread_reports_as_it_reads():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from report_memory_probe import coverage
+
+    texts = ["The heart size is normal. No pleural effusion."] * 10
+    empty = coverage(Collocations(), texts[:2])
+    read = coverage(Collocations().add_texts(texts[2:]), texts[:2])
+    assert empty["pairs_known"] == 0.0 and read["pairs_known"] == 1.0

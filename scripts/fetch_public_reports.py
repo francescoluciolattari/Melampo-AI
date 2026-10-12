@@ -7,6 +7,10 @@
   e3c       DIR  --out F   E3C clinical cases (FBK, CC BY-NC), one language, one case per report -> jsonl
   multicare-files          list the files of the MultiCaRe record on Zenodo (CC BY 4.0)
   multicare --out F        MultiCaRe case reports that mention imaging (English) -> jsonl
+  hf REPO --out F          report text of a gated Hugging Face dataset (token in HF_TOKEN; terms accepted on
+                           the site by the token's owner): the CSV files whose path says "report", the text
+                           columns whose name says findings / impression / report / text. Prints what it
+                           found first, so that an unknown layout is seen before it is trusted.
 
 All corpora are public. PARROT is fictional: no patient is involved, so it is safe to share, but it is
 written by clinicians who know the task, so it is a development and stress set, not proof of real-world
@@ -327,6 +331,39 @@ def multicare_reports(rows: list[dict]) -> list[dict]:
     return out
 
 
+_REPORT_COLUMN = re.compile(r"finding|impression|report|text|conclusion", re.IGNORECASE)
+_SKIP_COLUMN = re.compile(r"_(?:tr|de|zh|cn)$|name|id$|path|file", re.IGNORECASE)
+
+
+def _hf_get(url: str, token: str) -> bytes:
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"} if token else {})
+    with urllib.request.urlopen(req, timeout=600) as response:  # noqa: S310 (https URL of the Hub API)
+        return response.read()
+
+
+def hf_report_files(repo: str, token: str) -> list[str]:
+    """Paths of the CSV files of a dataset repository whose path mentions reports."""
+    listing = json.loads(_hf_get(f"https://huggingface.co/api/datasets/{repo}/tree/main?recursive=true", token))
+    return sorted(
+        e["path"] for e in listing
+        if e.get("type") == "file" and e["path"].lower().endswith((".csv", ".csv.gz"))
+        and "report" in e["path"].lower()
+    )
+
+
+def hf_reports(rows: list[dict], source: str) -> list[dict]:
+    """One report per row: the text columns (findings, impression...) joined, in the order of the file."""
+    if not rows:
+        return []
+    columns = [c for c in rows[0] if _REPORT_COLUMN.search(c) and not _SKIP_COLUMN.search(c)]
+    out = []
+    for index, row in enumerate(rows):
+        text = " ".join(" ".join(str(row.get(c) or "").split()) for c in columns).strip()
+        if text:
+            out.append({"report_id": f"{source}-{index}", "text": text, "language": "en", "site": source})
+    return out
+
+
 def _get(url: str) -> bytes:
     with urllib.request.urlopen(url, timeout=300) as response:  # noqa: S310 (https URL from the Zenodo API)
         return response.read()
@@ -364,7 +401,31 @@ def main(argv=None) -> int:
     m = sub.add_parser("multicare")
     m.add_argument("--out", default="multicare.jsonl")
     m.add_argument("--max-mb", type=int, default=800)
+    h = sub.add_parser("hf")
+    h.add_argument("repo")
+    h.add_argument("--out", default="hf_reports.jsonl")
     args = parser.parse_args(argv)
+
+    if args.cmd == "hf":
+        import os
+
+        token = os.environ.get("HF_TOKEN", "")
+        files = hf_report_files(args.repo, token)
+        print(f"{args.repo}: report files {files}")
+        rows: list[dict] = []
+        for path in files:
+            raw = _hf_get(f"https://huggingface.co/datasets/{args.repo}/resolve/main/{path}", token)
+            if path.endswith(".gz"):
+                raw = gzip.decompress(raw)
+            csv.field_size_limit(sys.maxsize)
+            table = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+            print(f"{path}: {len(table)} rows, columns {list(table[0]) if table else []}")
+            rows += hf_reports(table, args.repo.split("/")[-1])
+        if not rows:
+            print("no report text recognised: read the columns above and adapt", file=sys.stderr)
+            return 2
+        _write(rows, Path(args.out))
+        return 0
 
     if args.cmd == "discover":
         print(discover(Path(args.root)))
