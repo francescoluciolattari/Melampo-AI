@@ -46,12 +46,14 @@ Ho verificato le opzioni ad oggi (fonti in fondo). Non esiste un successore di g
 
 | uso | modello | licenza | hardware locale |
 |---|---|---|---|
-| stadio 6, modello A | `openai/gpt-oss-120b` (117 miliardi di parametri, 5,1 attivi; HF sha `b5c939de`) | Apache 2.0 | 1 GPU da 80 GB (MXFP4, circa 60 GB) |
+| stadio 6, modello A | `openai/gpt-oss-120b` (117 miliardi di parametri, 5,1 attivi; HF sha `b5c939de`), **in FP8** (decisione di Frank, 12 ottobre) | Apache 2.0 | FP8: circa 120 GB di pesi, quindi 2 GPU da 80 GB o 1 H200 da 141 GB |
 | stadio 6, modello B (famiglia diversa, così i due errori sono indipendenti) | Mistral Small 4, `mistralai/Mistral-Small-4-119B-2603` (119 miliardi, 6,5 attivi) | Apache 2.0 | 1 GPU da 80 GB con la versione NVFP4 o 4 bit |
 | punto 2, base per LoRA | `openai/gpt-oss-20b` (stessa famiglia del modello A; OpenAI pubblica la ricetta LoRA con TRL) | Apache 2.0 | 1 GPU da 40–80 GB |
 | alternativa densa | `Qwen/Qwen3.8-27B` (agosto 2026) | Apache 2.0 | 1 GPU da 48–80 GB; su HF è un modello immagine+testo |
 
 Regole d'uso:
+
+- **gpt-oss-120b in FP8.** I pesi ufficiali sono MXFP4 (4 bit), quindi FP8 è una conversione. Su OpenRouter la precisione è un filtro rigido, senza ripiego su altre: `provider.quantizations = ["fp8"]` con `allow_fallbacks = false`. L'opzione è `--quantization openai/gpt-oss-120b=fp8`, predefinita in `role_probe`, in `phrase_probe` e nei due workflow. Prima del run c'è una domanda di prova: se nessun fornitore serve FP8, il run si ferma con un messaggio chiaro invece di trasformare ogni risposta in una risposta non valida. Il nome del modello nel report porta la precisione (`openai/gpt-oss-120b@fp8`). In locale serve un checkpoint FP8 fissato allo sha: su Hugging Face esistono solo conversioni di terzi (per esempio quelle AMD a pesi MXFP4 e attivazioni FP8). Prima di adottarne una va scelta e verificata, perché non sono di OpenAI.
 
 - **I testi pubblici** (E3C, PARROT, IU X-ray, CRAFT, MedMentions) possono passare da OpenRouter con gli stessi pesi, per misurare.
 - **I referti dei pazienti** non escono mai: vanno a un server locale compatibile con OpenAI (vLLM). `role_probe.py` rifiuta qualunque indirizzo non locale se non c'è `--public-data`.

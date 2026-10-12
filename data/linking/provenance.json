@@ -112,6 +112,47 @@
     "polmoni"
    ],
    "note": "forme plurali dei nomi del lessico; le forme ambigue al plurale passano dal profilo dei sensi"
+  },
+  {
+   "id": "placing_words",
+   "file": "src/melampo/memory/anatomy_linker.py",
+   "kind": "rule",
+   "added": "2026-10-12",
+   "post_error": true,
+   "seen_on": "Rad-SpRL landmarks (IU X-ray): numbered ribs and lobes with anterior/posterior/lateral/medial abstained",
+   "surfaces": [
+    "anterior",
+    "posterior",
+    "lateral",
+    "medial",
+    "posterolateral",
+    "mid",
+    "perihilar",
+    "retrocardiac",
+    "anteriore",
+    "posteriore",
+    "laterale",
+    "mediale"
+   ],
+   "note": "parole che collocano sulla struttura lette attraverso quando il nome e' altrimenti sconosciuto; link part_of; mai se la frase intera e' un nome UBERON"
+  },
+  {
+   "id": "ncit_kind_pathologic_process_and_action",
+   "file": "scripts/ncit_kinds.py",
+   "kind": "constant",
+   "added": "2026-10-12",
+   "post_error": true,
+   "seen_on": "Rad-SpRL landmarks: 'degenerative changes of the spine' read as inherent location by the lattice",
+   "surfaces": [
+    "changes",
+    "change",
+    "enlargement",
+    "ectasia",
+    "dilatation",
+    "alteration",
+    "compression"
+   ],
+   "note": "Pathologic Process (C16956) -> disease; Action (C25404) tipo a se', da cui non si legge un ruolo; block_memory.json rigenerato"
   }
  ]
 }

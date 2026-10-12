@@ -591,6 +591,7 @@ class OpenRouterChat:
         min_interval: float = 0.0,
         max_wait: float = 60.0,
         empty_retries: int = 2,
+        provider: dict | None = None,
     ) -> None:
         self.slug = slug
         self._api_key = api_key
@@ -604,6 +605,9 @@ class OpenRouterChat:
         self.min_interval = min_interval
         self.max_wait = max_wait
         self.empty_retries = empty_retries
+        # OpenRouter provider routing, e.g. {"quantizations": ["fp8"], "allow_fallbacks": False}: the
+        # weights' precision is part of the model being measured, never left to the router.
+        self.provider = provider
         self._pace = threading.Lock()
         self._last = 0.0
 
@@ -638,6 +642,7 @@ class OpenRouterChat:
                 "temperature": 0,
                 "max_tokens": self.max_tokens,
                 **({"reasoning": {"enabled": False}} if hint else {}),
+                **({"provider": self.provider} if self.provider else {}),
             }
             request = urllib.request.Request(
                 self.endpoint,

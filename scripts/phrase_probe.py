@@ -861,6 +861,8 @@ def main(argv=None) -> int:
     ap.add_argument("--llm-mode", choices=("plain", "informed"), default="plain",
                     help="informed (E2): rules, vocabulary knowledge and annotated examples in the prompt")
     ap.add_argument("--llm-models", default="", help="comma-separated OpenRouter ids (default: the two of verify_probe)")
+    ap.add_argument("--quantization", default="openai/gpt-oss-120b=fp8",
+                    help="precision of the weights per OpenRouter id, id=fp8,... (hard filter, no fallback)")
     ap.add_argument("--examples", type=int, default=5, help="annotated examples per case with --llm-mode informed")
     ap.add_argument("--max-minutes", type=float, default=0.0,
                     help="time budget: slow phases stop asking when it is spent and the report is still written (0 = none)")
@@ -903,7 +905,15 @@ def main(argv=None) -> int:
                 ids = [m.strip() for m in args.llm_models.split(",") if m.strip()]
                 models = {m.rsplit("/", 1)[-1]: m for m in ids}
             args.llm_models_used = list(models.values())
-            chats = {n: lb.OpenRouterChat(s, key, max_tokens=800, **CHAT_PACING) for n, s in models.items()}
+            import role_probe as rp
+
+            quant = rp.parse_quantization(args.quantization)
+            chats = {}
+            for n, s in models.items():
+                q = quant.get(s)
+                provider = {"quantizations": [q], "allow_fallbacks": False} if q else None
+                chats[f"{n}@{q}" if q else n] = lb.OpenRouterChat(s, key, max_tokens=800, provider=provider, **CHAT_PACING)
+            rp.probe_models(chats)
         else:
             failures_at_load["llm"] = "OPENROUTER_API_KEY not set"
     lookup = None

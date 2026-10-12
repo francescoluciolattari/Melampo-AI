@@ -21,10 +21,18 @@ on:
         description: "Annotated items of other reports shown per question (0 = none)"
         required: false
         default: "0"
+      rad_sprl:
+        description: "Rad-SpRL landmarks added, a fixed-seed sample (0 = none; 2084 = all; role structure by definition)"
+        required: false
+        default: "300"
       limit:
         description: "Items (empty = all 663 with a role)"
         required: false
         default: ""
+      quantization:
+        description: "Precision of the weights per model id, id=fp8,... (OpenRouter hard filter, no fallback)"
+        required: false
+        default: "openai/gpt-oss-120b=fp8"
 
 permissions:
   contents: read
@@ -51,6 +59,19 @@ jobs:
           uv run --no-sync python scripts/assemble_silver_gold.py --items silver \
             --labels data/gold/silver_2026-10-12/labels --out silver/gold.jsonl
 
+      - name: Rad-SpRL landmarks (CC BY 4.0), a fixed-seed sample
+        env:
+          RAD_SPRL: ${{ inputs.rad_sprl }}
+        run: |
+          if ! [[ "$RAD_SPRL" =~ ^[0-9]+$ ]]; then echo "::error::rad_sprl takes a whole number"; exit 2; fi
+          if [ "$RAD_SPRL" -gt 0 ]; then
+            uv run --no-sync python scripts/fetch_rad_sprl.py --out rad_sprl
+            uv run --no-sync python scripts/rad_sprl.py convert --xml rad_sprl/Rad-SpRL.xml \
+              --out rad_landmarks.jsonl --reports rad_reports.jsonl --gold rad_all.jsonl \
+              --classes data/gold/rad_sprl_2026-10-12/classes.txt
+            uv run --no-sync python -c "import random,sys; r=open('rad_all.jsonl').read().splitlines(); n=int(sys.argv[1]); random.Random(20261012).shuffle(r); open('rad_gold.jsonl','w').write(chr(10).join(r[:n])+chr(10))" "$RAD_SPRL"
+          fi
+
       - name: Resources of the reader (MedMentions training documents, CRAFT, NCIt)
         run: |
           curl -sSL --fail -o ncit.obo \
@@ -64,6 +85,7 @@ jobs:
       - name: Run the probe
         env:
           MODELS: ${{ inputs.models }}
+          QUANTIZATION: ${{ inputs.quantization }}
           ARMS: ${{ inputs.arms }}
           EXAMPLES: ${{ inputs.examples }}
           LIMIT: ${{ inputs.limit }}
@@ -76,7 +98,10 @@ jobs:
           fi
           if ! [[ "$ARMS" =~ ^[a-z+,]+$ ]]; then echo "::error::arms: lattice, reader, llm, llm+reader"; exit 2; fi
           if ! [[ "$EXAMPLES" =~ ^[0-9]+$ ]]; then echo "::error::examples takes a whole number"; exit 2; fi
-          set -- --gold silver/gold.jsonl --reports silver/reports.jsonl --reader-dir ci_resources \
+          GOLD="silver/gold.jsonl"; REPORTS="silver/reports.jsonl"
+          if [ -f rad_gold.jsonl ]; then GOLD="$GOLD rad_gold.jsonl"; REPORTS="$REPORTS rad_reports.jsonl"; fi
+          # shellcheck disable=SC2086  # two paths, split on purpose
+          set -- --gold $GOLD --reports $REPORTS --reader-dir ci_resources \
             --arms "$ARMS" --models "$MODELS" --examples "$EXAMPLES" \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
             --cache role_probe_answers.jsonl --out role_probe.json --markdown role_probe.md
@@ -84,6 +109,11 @@ jobs:
             if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
             set -- "$@" --limit "$LIMIT"
           fi
+          QUANTIZATION="${QUANTIZATION//[[:space:]]/}"
+          if [ -n "$QUANTIZATION" ] && ! [[ "$QUANTIZATION" =~ ^[A-Za-z0-9._:/-]+=[a-z0-9]+(,[A-Za-z0-9._:/-]+=[a-z0-9]+)*$ ]]; then
+            echo "::error::quantization takes id=fp8, comma-separated"; exit 2
+          fi
+          set -- "$@" --quantization "$QUANTIZATION"
           uv run --no-sync python -u scripts/role_probe.py "$@" 2> >(tee role_probe.log >&2)
 
       - name: Summarise

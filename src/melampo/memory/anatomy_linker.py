@@ -134,6 +134,17 @@ _SIDE_WORDS = {
 }
 # Languages whose abbreviations a sentence of the key language accepts as its own.
 _TOLERATED_LANGUAGES = {"it": frozenset({"en"})}
+# Words that place a finding on a structure without changing which structure it is ("posterior right
+# 9th rib", "lateral left clavicle", "medial right middle lobe"). Read through only when the phrase is
+# otherwise unknown and is not itself an anatomical name (``AnatomyLinker.link``). "superior" and
+# "inferior" are not here: they are part of names (superior vena cava, inferior lobe).
+PLACING_WORDS = frozenset((
+    "anterior", "posterior", "lateral", "medial", "posterolateral", "anterolateral", "posteromedial",
+    "anteromedial", "mid", "peripheral", "perihilar", "retrocardiac", "laterally", "medially",
+    "anteriore", "anteriori", "posteriore", "posteriori", "laterale", "laterali", "mediale", "mediali",
+    "posterolaterale", "anterolaterale", "periferico", "periferica", "periferici", "periferiche",
+    "periilare", "periilari", "retrocardiaco", "retrocardiaca",
+))
 _POSITION_WORDS = {
     **dict.fromkeys(("superiore", "superiori", "superior", "upper"), POS_UP),
     **dict.fromkeys(("medio", "media", "middle", "mid"), POS_MID),
@@ -1546,6 +1557,39 @@ class AnatomyLinker:
         return LinkResult(ABSTAINED, None, "lexicon", reason, options=readings)
 
     def link(
+        self,
+        mention: str,
+        sentence: str,
+        context: str = "",
+        report: ReportState | None = None,
+        at: int | None = None,
+    ) -> LinkResult:
+        """Link ``mention``, or abstain with the reason (see ``_link_once``).
+
+        Words that only place a finding *on* a structure ("posterior right 9th rib", "medial right
+        middle lobe", "lateral left clavicle") are read through when the name alone is unknown: the rest
+        is linked as it would be by itself and the link becomes ``part_of`` (Rad-SpRL landmarks,
+        12 October 2026: 2,084 human-annotated anatomical places of chest X-ray reports). Never when the
+        whole phrase is itself an anatomical name ("lateral ventricle" is a ventricle of the brain).
+        """
+        result = self._link_once(mention, sentence, context, report, at)
+        if result.status == ACCEPTED or result.reason != "unknown_name_and_no_deliberation_stage":
+            return result
+        words = mention.split()
+        kept = [w for w in words if _fold(w.strip(",;:")) not in PLACING_WORDS]
+        if len(kept) == len(words) or not kept:
+            return result
+        if tuple(normalise(mention)) in self._longer or tuple(normalise(mention, keep_noise=True)) in self._longer:
+            return result
+        inner = self._link_once(" ".join(kept), sentence, context, report, None)
+        if inner.status != ACCEPTED or inner.relation not in ("equal", "part_of"):
+            return result
+        inner.relation = "part_of"
+        inner.part = " ".join(w for w in words if w not in kept)
+        inner.trace = inner.trace + [Evidence("placing_words", SUPPORT, inner.cid, f"read_through:{inner.part}")]
+        return inner
+
+    def _link_once(
         self,
         mention: str,
         sentence: str,

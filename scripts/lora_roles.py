@@ -54,8 +54,8 @@ def fold_of(report_id: str, folds: int = FOLDS) -> int:
 
 
 def prepare(args) -> int:
-    gold = rp._jsonl(args.gold)
-    reports = {r["report_id"]: r["text"] for r in rp._jsonl(args.reports)} if args.reports else {}
+    gold = [g for path in args.gold for g in rp._jsonl(path)]
+    reports = {r["report_id"]: r["text"] for path in (args.reports or []) for r in rp._jsonl(path)}
     items = rp.items_of(gold, reports)
     lines_of: dict[str, list[str]] = {}
     if args.reader_dir is not None:
@@ -168,8 +168,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("prepare")
-    p.add_argument("--gold", type=Path, required=True)
-    p.add_argument("--reports", type=Path)
+    p.add_argument("--gold", type=Path, nargs="+", required=True)
+    p.add_argument("--reports", type=Path, nargs="+")
     p.add_argument("--reader-dir", type=Path)
     p.add_argument("--out", type=Path, required=True)
     for name in ("train", "evaluate"):
