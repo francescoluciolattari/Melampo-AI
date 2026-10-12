@@ -146,7 +146,7 @@ def test_gliner_reads_the_longest_covering_span():
 def test_llm_answers_are_counted_per_model_and_lost_answers_are_not_votes():
     c = case("heart", "heart of Maroilles cheese")
     pp.apply_llm(c, {
-        "a": {"phrase": "heart of Maroilles cheese", "type": "food", "body_site": "no"},
+        "a": {"answer": {"phrase": "heart of Maroilles cheese", "type": "food", "role": "not_a_body_site"}},
         "b": {"error": "HTTP 429"},
     })
     assert c["llm_other"] == 1.0 and c["llm_not_site"] == 1.0 and c["llm_kind"] == "food"
@@ -199,9 +199,9 @@ def test_the_marked_occurrence_is_the_judged_one_not_the_first():
     s = "Canine brain phantoms were made from agarose brain parenchyma."
     c = case("brain", s)
     c["at"] = s.rindex("brain")
-    assert pp.marked_sentence(c).endswith("agarose [[brain]] parenchyma.")
+    assert pp.marked_sentence(c).endswith("agarose <w>brain</w> parenchyma.")
     c.pop("at")
-    assert pp.marked_sentence(c).startswith("Canine [[brain]] phantoms")
+    assert pp.marked_sentence(c).startswith("Canine <w>brain</w> phantoms")
 
 
 def test_word_groups_skip_function_words_at_the_edges():
@@ -269,10 +269,11 @@ def test_informed_prompt_carries_rules_knowledge_examples_and_the_marked_sentenc
     definitions = pk.Definitions(None, kinds, lookup)
     c = case("heart", "Samples from rind and heart of Maroilles cheese were used.", 1)
     prompt = pp.informed_prompt(c, definitions, lambda _c: [{"sentence": "The [[heart]] of a loaf.", "phrase": "heart", "type": "food"}])
-    assert "longest phrase that names one concept" in prompt
+    assert "whole noun phrase" in prompt and "never the answer" in prompt
     assert "Maroilles cheese heart (UMLS, food)" in prompt and "Heart (UMLS, anatomical structure)" in prompt
-    assert "The [[heart]] of a loaf." in prompt
-    assert "rind and [[heart]] of Maroilles" in prompt
+    # one notation: the word is marked the same way in the examples and in the question
+    assert "The <w>heart</w> of a loaf. -> phrase «heart», type food" in prompt
+    assert "rind and <w>heart</w> of Maroilles" in prompt and "[[" not in prompt
     assert c["llm_knowledge"] and c["llm_examples"]
 
 

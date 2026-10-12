@@ -84,6 +84,7 @@ from melampo.evaluation.frozen_split import DEFAULT_PATH as FROZEN_PATH  # noqa:
 from melampo.evaluation.frozen_split import FrozenSplit, development_rows  # noqa: E402
 from melampo.memory.word_senses import _TAIL, _fold, locate, noun_phrase_after  # noqa: E402
 import phrase_knowledge as pk  # noqa: E402
+from melampo.evaluation import llm_reading as lr  # noqa: E402
 
 DATA = ROOT / "data" / "linking"
 
@@ -421,87 +422,54 @@ def word_groups(case, left: int = 3, right: int = 4) -> list[str]:
     return groups
 
 
-PROMPT = """Read the sentence. Split it into the concepts it names, each as the longest phrase that names one concept.
-Then answer about the concept whose phrase contains the word «{mention}» (the occurrence marked [[ ]]).
-
-Sentence: {marked}
-
-Answer with JSON only, no other text:
-{{"phrase": "<the phrase of that concept>", "type": "<one of: {types}>", "body_site": "<yes if «{mention}» there names a place in a body where something is, else no>"}}"""
-
-
-PROMPT_INFORMED = """You read sentences of biomedical texts the way an expert annotator does.
-
-Rules of the annotation:
-1. A concept is named by the longest phrase that names one concept of a medical vocabulary (UMLS).
-2. A body structure written inside a longer name of another kind of thing (a procedure, a device, a
-   measurement, a function or process, a protein or gene, a chemical, an organism, a food) is part
-   of that name; the longer name is the concept.
-3. The word names a body site only if, in this sentence, it names a place in a body where something
-   is or happens (a lesion in the liver, a filter in the vena cava): then answer body_site "yes" even
-   if the concept is longer.
-
-What the vocabularies know about the words around «{mention}» (every reading they have, the
-anatomical one included; this is knowledge, not a hint about the answer):
-{knowledge}
-
-Sentences of other documents annotated with these rules ([[ ]] marks the annotated concept):
-{examples}
-
-Now the sentence. Split it into the concepts it names and answer about the concept whose phrase
-contains «{mention}» (the occurrence marked [[ ]]).
-
-Sentence: {marked}
-
-Answer with JSON only, no other text:
-{{"phrase": "<the phrase of that concept>", "type": "<one of: {types}>", "body_site": "<yes or no>"}}"""
+# The question and the check of the answer live in ``melampo.evaluation.llm_reading`` (12 October 2026:
+# one mark for the word asked about, examples in the same notation, structured answer, one follow-up).
 
 
 def marked_sentence(case) -> str | None:
     found = pk.where(case)
     if not found:
         return None
-    s = case["sentence"]
-    return f"{s[: found.start()]}[[{s[found.start() : found.end()]}]]{s[found.end() :]}"
+    return lr.mark(case["sentence"], found.start(), found.end())
 
 
 def informed_prompt(case, definitions=None, examples=None) -> str:
+    found = pk.where(case)
     knowledge = definitions(case) if definitions else []
     shown = examples(case) if examples else []
     case["llm_knowledge"] = knowledge
-    case["llm_examples"] = shown
     k_lines = [
         f"- «{k['phrase']}»: {k['name']} ({k['source']}, {k['type']})" + (f": {k['definition']}" if k.get("definition") else "")
         for k in knowledge
     ] or ["- (nothing found)"]
-    e_lines = [f"{i}. {e['sentence']} -> concept «{e['phrase']}», type {e['type']}" for i, e in enumerate(shown, 1)] or ["(none)"]
-    return PROMPT_INFORMED.format(
-        mention=case["mention"], knowledge="\n".join(k_lines), examples="\n".join(e_lines),
-        marked=marked_sentence(case), types=", ".join(LLM_TYPES),
-    )
+    usable = []
+    for e in shown:
+        marked = lr.remark_example(e["sentence"], case["mention"])
+        if marked is not None:
+            usable.append({**e, "marked": marked})
+    usable = lr.balanced(usable, case["mention"], len(usable))
+    case["llm_examples"] = usable
+    return lr.prompt(case["sentence"], found.start(), found.end(), knowledge=k_lines, examples=usable)
 
 
 def ask_llm(chats: dict, case, mode: str = "plain", definitions=None, examples=None) -> dict:
-    marked = marked_sentence(case)
-    if marked is None:
+    found = pk.where(case)
+    if found is None:
         return {}
     if mode == "informed":
         prompt = informed_prompt(case, definitions, examples)
     else:
-        prompt = PROMPT.format(mention=case["mention"], marked=marked, types=", ".join(LLM_TYPES))
+        prompt = lr.prompt(case["sentence"], found.start(), found.end())
     answers = {}
     for name, chat in chats.items():
-        try:
-            text = chat(prompt)
-            body = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
-            answers[name] = body
-        except Exception as error:  # noqa: BLE001 - a lost answer is counted, not fatal
-            answers[name] = {"error": str(error)[:120]}
+        asked = lr.ask(chat, prompt, case["sentence"], found.start(), found.end())
+        answers[name] = asked.to_json() if asked.final.valid else {"error": "; ".join(asked.final.problems)[:160],
+                                                                   **asked.to_json()}
     return answers
 
 
 def apply_llm(case, answers: dict):
-    good = [a for a in answers.values() if "error" not in a]
+    good = [a["answer"] for a in answers.values() if "error" not in a]
     case["llm_answers"] = answers
     if not good:
         case["llm_lost"] = 1.0
@@ -510,14 +478,32 @@ def apply_llm(case, answers: dict):
     other = not_site = 0
     kinds = []
     for a in good:
-        kind = LLM_KIND.get(str(a.get("type", "")).strip().lower(), "conceptual")
+        kind = lr.kind_of_type(str(a.get("type", "")))
         kinds.append(kind)
         longer = len(_fold(str(a.get("phrase", ""))).split()) > len(mention.split())
         other += int(longer and kind not in SITE_KINDS)
-        not_site += int(str(a.get("body_site", "")).strip().lower().startswith("no"))
+        role = a.get("role", "")
+        not_site += int(role not in lr.SITE_ROLES and role != "uncertain")
     case["llm_other"] = other / len(good)
     case["llm_not_site"] = not_site / len(good)
     case["llm_kind"] = Counter(kinds).most_common(1)[0][0]
+    case["llm_roles"] = [a.get("role", "") for a in good]
+
+
+def llm_answer_stats(cases) -> dict:
+    """Per model: answers, invalid, bare word, asked again, changed by the follow-up."""
+    out: dict[str, Counter] = {}
+    for c in cases:
+        for name, a in (c.get("llm_answers") or {}).items():
+            n = out.setdefault(name, Counter())
+            n["answers"] += 1
+            n["invalid"] += int("error" in a)
+            n["asked_again"] += int(bool(a.get("asked_again")))
+            n["changed"] += int(bool(a.get("changed")))
+            phrase = _fold(str((a.get("answer") or {}).get("phrase", "")))
+            n["bare_word"] += int(phrase == _fold(c["mention"]))
+            n["uncertain"] += int((a.get("answer") or {}).get("role") == "uncertain")
+    return {k: dict(v) for k, v in out.items()}
 
 
 # -- run and report ------------------------------------------------------------------------------
@@ -685,6 +671,7 @@ def summarise(cases, failures, args) -> dict:
         "by_corpus": dict(Counter((c["corpus"], c["label"]) for c in cases).most_common()),
         "failures": failures,
         "llm_scope": getattr(args, "llm", None),
+        "llm_answers": llm_answer_stats(cases),
         "features": {},
     }
     report["by_corpus"] = {f"{k[0]}:{'error' if k[1] else 'right'}": v for k, v in report["by_corpus"].items()}
@@ -805,6 +792,8 @@ def markdown(report: dict) -> str:
         f"LLM scope: {report['llm_scope']}, mode {report.get('llm_mode')}, models {report.get('llm_models')}. "
         f"Arms that failed: {json.dumps(report['failures']) or 'none'}. UMLS lookups: {json.dumps(report.get('umls_lookups'))}.",
         f"Time: {json.dumps(report.get('timing'))}.",
+        f"LLM answers per model (invalid, bare word, asked again, changed by the follow-up, uncertain): "
+        f"{json.dumps(report.get('llm_answers'))}.",
         "",
         "## Criteria fixed before the run (E2, E4a)",
         "",
