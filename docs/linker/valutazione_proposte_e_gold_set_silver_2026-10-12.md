@@ -36,7 +36,7 @@ Le mancate erano soprattutto plurali ("kidneys", "livers", "brains", "hearts", "
 - un plurale di una forma ambigua passa dal profilo dei sensi come il singolare. Al primo giro "axes" era diventato C2 quattro volte; ora no.
 
 **Effetto sul controllo esterno.**
-- CRAFT: link giusti 1.315 → 1.476, errori 11 → 14. I tre nuovi errori sono dello stesso tipo dei singolari già noti: "swim bladders" (pesce), "right middle lobes" (granularità), "dorsal aortae" (embrione).
+- CRAFT: link giusti 1.315 → 1.476, errori 11 → 13 con la vecchia regola di conteggio. Con la regola corretta del 12 ottobre sera (un'etichetta più generica della struttura nominata, "anatomical lobe" per "right middle lobe" e "bladder organ" per "bladder", non è un errore ma un link più preciso dell'annotazione: non giudicato) gli errori CRAFT sono **2** ("dorsal aortae" e "aortic arch" in embrioni) e quelli MedMentions 21. Al primo giro erano 14: "swim bladders" (la vescica natatoria del pesce) passava perché il controllo "la parola è dentro un nome più lungo dell'ontologia" non conosceva i plurali; corretto, ora si astiene come il singolare "swim bladder". Restano due errori nuovi, dello stesso tipo dei singolari già noti: "right middle lobes" (il topo; CRAFT etichetta una classe più generale, convenzione) e "dorsal aortae" (le aorte dorsali pari dell'embrione, non l'aorta dell'adulto: il quadro embrionale è registrato come conflitto, non ferma il link).
 - MedMentions: link giusti 710 → 758, errori invariati (22).
 
 Restano mai proposti: organi pari senza lato (voluto: "kidney" da solo non dice quale classe), aggettivi ("renal", "adrenal", "colonic"), sigle di figure ("Ao", "Tr").
@@ -51,17 +51,27 @@ Restano mai proposti: organi pari senza lato (voluto: "kidney" da solo non dice 
 - Il rimedio adatto a un dispositivo deterministico è la conoscenza esplicita: morfologia (fatto), parti dal grafo `part_of` di UBERON e nomi italiani delle parti (il prossimo passo), sinonimi d'uso radiologici dal gold set.
 - Il recupero denso o ibrido va bene solo come proponente per la coda di revisione, misurato con la recall@K sul gold set. Mai come decisore.
 
-## 3. P1 rivalutato: il reranker generativo resta un proponente
+## 3. P1 rivalutato: il "29 %" era un difetto della misura, non del modello
 
-Dati già misurati nel progetto:
-- il segmentatore LLM (`phrase-probe llm=sample`, 9 ottobre) trova 10 errori su 22 ma segnala il **29 % dei link giusti**, e azzecca il ruolo in 3 casi su 12;
-- i due modelli concordano sul tipo nel 79 % dei casi e mancano gli stessi errori (errori correlati, come in letteratura).
+**Correzione (12 ottobre, sera, su domanda di Frank).** Il numero citato al mattino (29 % dei link giusti segnalati, ruolo giusto 3 volte su 12) veniva dal run del 9 ottobre, che aveva due difetti:
 
-Un decisore con il 29 % di falsi allarmi sui link giusti non è accettabile. Due vincoli restano:
-- il contratto d'uso di PhysioNet vieta l'invio di MIMIC/RadGraph a servizi esterni;
-- il dispositivo dev'essere deterministico e ispezionabile.
+1. **Occorrenza sbagliata.** Marcava la prima occorrenza della parola nella frase, non quella giudicata (278 frasi su 2.058 hanno la parola due volte). Il difetto è stato corretto la sera stessa.
+2. **Domanda e riferimento non adatti.** Il modello rispondeva a "questa parola è una sede del corpo?". Il riferimento era l'etichetta del corpus, che chiama "giusto" ogni link alla struttura anche quando la frase ne nomina una misura o una procedura.
 
-**Conclusione invariata, ora con i numeri:** LLM sì per proporre segmentazioni, riformulazioni o candidati alla revisione, mai come decisore. La priorità alta della proposta per P1 non regge sui nostri dati.
+Nel run corretto del 10 ottobre (E2, modelli informati con definizioni ed esempi) i link giusti segnalati sono 30 su circa 300, ma:
+- 9 volte i due modelli concordano, e in tutti e 9 la frase nomina una **misura** della struttura ("brain weight", "brain volume", "spleen sterol contents") o un processo ("brain plasticity");
+- negli altri 21 un modello dice "struttura" leggendo la parola, l'altro legge il sintagma: "liver ultrasound" (procedura), "liver gene expression" (gene), "brain weights" (misura), "spleen T regulatory lymphocytes" (cellule).
+
+**Nel nostro schema dei ruoli sono tutte letture giuste:** sono ruoli (sede di procedura, sede di una misura, origine), non link da perdere. Contarle come falsi allarmi era un errore della metrica.
+
+Il "ruolo giusto 1 su 12" (3 su 12 il 9 ottobre) confronta il modello con il ruolo derivato dalle etichette di MedMentions sugli errori. Quelle etichette sono in gran parte convenzioni o dubbie (§2 di `perche_il_medico_legge…`), quindi anche quel numero non misura il modello.
+
+**Che cosa resta vero:**
+- i due modelli sbagliano in modo correlato, quindi non sono due prove indipendenti;
+- un servizio esterno non può ricevere MIMIC (contratto PhysioNet) né, senza basi giuridiche, referti reali di pazienti (GDPR);
+- un modello che decide va congelato e versionato.
+
+**Che cosa cambia:** la prova giusta non è ancora stata fatta. Bisogna chiedere il **ruolo** nel nostro schema e confrontarlo con ruoli etichettati per quello scopo, cioè il gold set (§4), non con MedMentions.
 
 ## 4. Il gold set di sviluppo ("silver")
 

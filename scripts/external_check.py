@@ -426,6 +426,11 @@ def by_project_rule(row) -> str:
         return "agrees"
     if row["outcome"] not in BAD:
         return row["outcome"]
+    if row["outcome"] == "coarser_label":
+        # The label is a more general class than the structure named ("anatomical lobe" for "right middle
+        # lobe", "bladder organ" for "bladder"): the link is finer than the annotation, not wrong. Not judged
+        # (12 Oct 2026; before, these counted as errors: 11 of the 13 CRAFT "errors").
+        return "convention:coarser_label"
     if row["corpus"] != "medmentions":
         # CRAFT labels UBERON ids: no convention to apply, a disagreement is an error
         return "error"

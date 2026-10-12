@@ -1419,6 +1419,15 @@ class AnatomyLinker:
             for key in (normalise(name), normalise(name, keep_noise=True)):
                 if len(key) >= 2:
                     self._longer[tuple(key)].add(node)
+        # The plural of a longer name is the same name ("swim bladders", "dorsal aortae"): without it the
+        # plurals of the lexicon (12 Oct 2026) slipped past this check.
+        # (normalised names are bags of words, so any one of the words may be the inflected head)
+        for key in list(self._longer):
+            for i, word in enumerate(key):
+                for (plural,) in plural_keys((word,), "en"):
+                    variant = tuple(sorted((*key[:i], plural, *key[i + 1 :])))
+                    if variant not in self._longer:
+                        self._longer[variant] = set(self._longer[key])
         # Their other written names too (EXACT and RELATED synonyms): "aortic arch artery" is a
         # name of the pharyngeal arch artery, not of the aorta. Read as an ordered run of words
         # with a head of its own: "embryonic brain" (a brain) and "adult heart" (a heart) are
