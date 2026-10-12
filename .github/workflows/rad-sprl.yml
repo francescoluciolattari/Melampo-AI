@@ -1,0 +1,32 @@
+name: Rad-SpRL (download)
+
+# Manual trigger only. Downloads Rad-SpRL (2,000 IU X-ray reports annotated with spatial roles; Mendeley
+# Data, DOI 10.17632/yhb26hfz8n.1), which the development session cannot reach, and keeps it as a
+# short-lived artifact. Read the licence on the dataset page before any use beyond development.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download
+        run: python scripts/fetch_rad_sprl.py --out rad_sprl | tee rad_sprl_listing.txt
+      - name: Summarise
+        if: always()
+        run: |
+          { echo '```'; head -c 20000 rad_sprl_listing.txt 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rad-sprl
+          retention-days: 3
+          path: |
+            rad_sprl
+            rad_sprl_listing.txt
