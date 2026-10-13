@@ -147,3 +147,17 @@ Io leggo la sintassi (chi regge chi) e conosco le parole italiane. Il lettore no
 ### Nemotron 3 Super
 
 Nei benchmark generali è sotto Gemma 4 31B (indice AA 12,8 contro 14,7; GPQA 80,0% contro 85,7%; IFBench 71,5% contro 75,6%). Sul nostro compito non l'abbiamo misurato. Architettura: 120B, 12B attivi, Mamba-Transformer ibrido MoE, NVIDIA Open License. **È addestrabile:** NeMo Megatron-Bridge ha ricette per il fine-tuning completo e per LoRA, lanciate su un nodo da 8 GPU. Un QLoRA su una sola GPU, con l'architettura ibrida Mamba, non è documentato.
+
+### Hardware per addestrare e per usare (precisazione)
+
+"Una sola GPU" era una mia ipotesi sul budget, non un vincolo deciso. Tutti e tre i modelli sono addestrabili; cambia quanto hardware serve.
+
+| modello | addestramento LoRA | uso (inferenza) |
+|---|---|---|
+| Gemma 4 31B | QLoRA su 1 GPU da 80 GB (stima, non provato) | 1 GPU |
+| Nemotron 3 Super (120B, 12B attivi) | ricetta NVIDIA su 1 nodo da 8 GPU (Megatron-Bridge) | 2×80 GB in FP8 |
+| Nemotron 3 Ultra (550B, 55B attivi) | ricetta NVIDIA LoRA su 4 nodi: 16 GB200, oppure 32 H100 (NeMo AutoModel) | 8 GPU |
+
+L'addestramento si fa una volta e si può affittare. L'uso invece è continuo e, per i referti reali, deve stare su un server nostro (GDPR). Il costo che pesa di più è quindi quello dell'inferenza.
+
+**Perché il modello sbaglia l'appendice e il piede.** La definizione di `procedure_site` nel prompt (`llm_reading.ROLES`) dice: "the site of a procedure or exam **the phrase names**". Il modello prende il sintagma stretto ("dell'appendice", "piede torto congenito"), dove la procedura non c'è, e risponde struttura. Il reggente ("liberazione", "intervento") sta fuori da quel sintagma. Senza esempi (`examples=0`), il modello non vede che per noi conta il reggente.
