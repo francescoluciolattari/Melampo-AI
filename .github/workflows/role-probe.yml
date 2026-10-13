@@ -32,7 +32,7 @@ on:
         required: false
         default: ""
       resume_run:
-        description: "Id of an earlier role-probe run whose answers are reused (the cache of that run: no repeat calls, no repeat bill); empty = start fresh"
+        description: "Id of an earlier role-probe run (the number in its URL), or latest, whose answers are reused: no repeat calls, no repeat bill; empty = start fresh"
         required: false
         default: ""
       quantization:
@@ -97,11 +97,21 @@ jobs:
           RUN_ID: ${{ inputs.resume_run }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then echo "::error::resume_run takes the numeric id of a run"; exit 2; fi
+          RUN_ID="${RUN_ID//[[:space:]]/}"
+          if ! [[ "$RUN_ID" =~ ^([0-9]+|latest)$ ]]; then echo "::error::resume_run takes the numeric id of a run, or the word latest"; exit 2; fi
+          # The role-probe artifacts still available (the answers of a run are kept 7 days): run id, date, size.
+          LIST="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=role-probe&per_page=30" \
+            --jq '.artifacts[] | select(.expired==false) | [.workflow_run.id, .created_at, .size_in_bytes] | @tsv')"
+          echo "role-probe artifacts available (run id, created, bytes):"; echo "${LIST:-none}"
+          if [ "$RUN_ID" = latest ]; then RUN_ID="$(echo "$LIST" | head -n 1 | cut -f1)"; fi
+          if [ -z "$RUN_ID" ] || ! echo "$LIST" | cut -f1 | grep -qx "$RUN_ID"; then
+            echo "::error::run $RUN_ID has no role-probe artifact (expired, or the id is of another workflow or of a run that stopped before the upload). Use one of the ids above, or latest."
+            exit 2
+          fi
           mkdir -p prev
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name role-probe --dir prev
           cp prev/role_probe_answers.jsonl role_probe_answers.jsonl
-          echo "reused answers: $(wc -l < role_probe_answers.jsonl)"
+          echo "run $RUN_ID: reused answers: $(wc -l < role_probe_answers.jsonl)"
 
       - name: Run the probe
         env:
