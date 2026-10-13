@@ -25,6 +25,7 @@ Il report calcolava l'accordo tra il lettore e il modello *che aveva visto* il l
 | regola | a una persona | accuratezza sulle risposte | errori |
 |---|---|---|---|
 | lettore e Gemma | 20,5% | **99,27%** | 5 |
+| lettore e Nemotron | 17,2% | **99,30%** | 5 |
 | lettore, Gemma e Nemotron | 22,8% | **99,40%** | 4 |
 | lettore con Gemma o con Nemotron | 14,9% | 99,18% | 6 |
 | Gemma e Nemotron (senza lettore) | 8,7% | 95,5% | 35 |
@@ -54,3 +55,22 @@ Per lo stadio 6, il minimo è: **lettore e Gemma 4 31B concordano, altrimenti un
 - gpt-oss-120b non entra nello stadio 6 per i ruoli.
 
 Lavoro aperto: se il lavoro della persona sulle sedi di procedura (84) si può ridurre con un lettore migliore delle procedure, o con un LoRA su Gemma 4 31B (punto 2, serve una GPU). Questi numeri vengono da un set di sviluppo: una conferma richiede un gold set a doppio cieco.
+
+## Gli errori residui, uno per uno (analisi della sera)
+
+Lettore e Gemma sbagliano 5 item, lettore e Nemotron 5. Quattro sono in comune. Ciascuno ne ha uno suo: Gemma *dell'appendice*, Nemotron *piede torto congenito*. I due modelli sbagliano quanto l'altro; la differenza è che Nemotron concorda più spesso col lettore. Nemotron accetta giusti 47 item che Gemma manda a una persona, Gemma 19 che Nemotron manda a una persona. Limite superiore dell'errore al 95%: 1,5% per tutti e due. Su 700 item non si distinguono.
+
+**Tipo A: l'etichetta del gold set è sbagliata (2, in comune).** Le etichette silver le ho scritte io, prima del run.
+
+- *uterus* in "The uterus size was 6cm × 4cm × 3cm": per la convenzione del README ("heart size" ha ruolo `il`), il ruolo è `inherent_location`. Lettore e modelli hanno ragione.
+- *abdominal wall* in "the abdominal wall incisions were located…": l'incisione è una procedura sulla parete, quindi il ruolo è `procedure_site`. Lettore e modelli hanno ragione.
+
+**Tipo B: la menzione ha due ruoli e lo schema ne ammette uno (3).** La procedura e un reperto ("nella norma", "no findings", "appaiono normali") cadono sulla stessa struttura. La procedura sta fuori dal sintagma: in un verbo di un'altra proposizione ("the pelvic cavity **was explored** and no specific findings were found in the abdominal cavity"), nel soggetto di una relativa ("una **broncoscopia** che mostrava un albero tracheobronchiale nella norma"), oltre una coordinazione ("**liberazione** del cieco e dell'appendice che appaiono normali"). Il lettore legge il blocco anatomico da solo ("dell appendice") e non arriva alla procedura. Il modello vede il predicato più vicino, il reperto, e risponde struttura. Per *dell'appendice* Nemotron e gpt-oss risalgono alla "liberazione" e Gemma no: è l'errore in più di Gemma. Struttura o sede di procedura sono entrambe vere; in due casi su tre il gold scelto da me è dubbio.
+
+**Tipo C: la parola anatomica sta dentro il nome di una malattia (1, Nemotron).** "intervento chirurgico di **piede torto congenito**". "Piede torto congenito" è una malattia: il piede vi compare come pezzo del nome (`inside_a_name`), oppure è la sede dell'intervento (`procedure_site`, il gold). Il lettore legge un blocco anatomico. Nemotron dice struttura, Gemma e gpt-oss sede di procedura.
+
+**Nessuno dei cinque è un errore di sede contro non-sede.** Nessuno è un errore di addestramento del modello: due sono etichette mie da correggere, tre sono menzioni con due ruoli veri, uno è il confine tra nome di malattia e parte del corpo. Le correzioni utili sono nello schema, non nei pesi:
+
+- consentire due ruoli (sede di procedura **e** sede di un reperto), o una regola di precedenza scritta;
+- far vedere al lettore la procedura che regge la frase anche fuori dal sintagma (verbo, soggetto della relativa, coordinazione);
+- correggere le due etichette, registrandolo come correzione fatta dopo aver visto le risposte.
