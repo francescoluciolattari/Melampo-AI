@@ -74,3 +74,76 @@ Lettore e Gemma sbagliano 5 item, lettore e Nemotron 5. Quattro sono in comune. 
 - consentire due ruoli (sede di procedura **e** sede di un reperto), o una regola di precedenza scritta;
 - far vedere al lettore la procedura che regge la frase anche fuori dal sintagma (verbo, soggetto della relativa, coordinazione);
 - correggere le due etichette, registrandolo come correzione fatta dopo aver visto le risposte.
+
+## Tipo B e tipo C rivisti: perché il lettore sbaglia (seconda analisi)
+
+Frank ha chiesto tre cose. Perché il lettore sbaglia, se il problema è la divisione dei sintagmi. Perché, se io vedo l'errore, non lo vedono il lettore o il modello. Se il tipo C non sia piuttosto un problema di direzione della lettura, dal largo allo stretto.
+
+### Cosa fa davvero il lettore
+
+Ho fatto girare reticolo e lettore sulle frasi, anche con varianti:
+
+| frase | blocco letto | lettura |
+|---|---|---|
+| "liberazione del cieco e dell'appendice" | `dell appendice` | struttura 1,00 |
+| "Liberazione dell'appendice che appare normale" | `liberazione dell appendice` | struttura 1,00 |
+| "Asportazione dell'appendice" | `asportazione dell appendice` | struttura 1,00 |
+| "intervento chirurgico del piede" | `intervento chirurgico del piede` | struttura 1,00 |
+| "La TC del torace mostrava…" | `tc del torace` | struttura 1,00 |
+
+**Il sintagma viene ampliato** ("asportazione dell appendice", "tc del torace"). **Il lettore non sa che cosa sia la testa:** "asportazione", "liberazione", "intervento", "ecografia", "biopsia", "TC" non hanno un tipo nella memoria dei blocchi, che viene da NCIt e quindi è in inglese. Quando la testa è sconosciuta, il blocco prende il tipo della parola che conosce, quella anatomica, e la lettura esce "struttura" con certezza piena. **Il dubbio non emerge mai.** Per questo, unendo i blocchi, il lettore non si accorge dell'errore.
+
+**Due difetti, misurati.**
+
+1. **Grammatica.** Nella sonda (e in `build_ci_resources.py`) il reticolo è costruito senza grammatica, quindi legge l'italiano con la testa a destra, come l'inglese. La grammatica italiana esiste (`grammar.py`, testa a sinistra) ma non viene passata.
+2. **Vocabolario.** Mancano le parole italiane di procedura, e anche alcune inglesi ("radiograph", "sternotomy").
+
+Prova sugli 859 item anatomici, solo lettore:
+
+| variante | accuratezza | sedi di procedura giuste | "struttura" detta a torto |
+|---|---|---|---|
+| come nel run | 87,9% | 6/92 | 88 |
+| con la grammatica della lingua | 86,7% | 7/92 | 81 |
+| grammatica + suffissi di procedura (-scopia, -grafia, -tomia, -ectomia, -stomia, -plastica, -centesi, biopsia) e sigle d'esame (TC, TAC, RM, RMN, RX, ECO, PET, CT, MRI) | **90,9%** | **44/92** | **51** |
+
+La grammatica da sola peggiora, e il motivo conta: con la testa a sinistra la parola *precedente* tipizza il blocco, e parole come "su" o "EO" hanno tipi NCIt casuali ("chemical"). Ne escono errori nuovi: "su linfonodi regionali" letto come nome di sostanza. Il "sintagma" del reticolo è una finestra di parole, ciascuna con un tipo. Non è una struttura sintattica: il reticolo non sa quale parola regge quale.
+
+### Lettura dal largo allo stretto
+
+Frank propone di leggere dal largo allo stretto: prima la frase, poi chi regge chi, poi la parola. È quello che fa un analizzatore a dipendenze. Ho provato spaCy `it_core_news_md` (MIT):
+
+| menzione | catena dei reggenti |
+|---|---|
+| appendice | appendice →conj→ cieco →nmod→ **liberazione** |
+| piede (torto congenito) | piede →nmod→ **intervento** →obj→ esegue |
+| torace | torace →nmod→ **TC** →nsubj→ mostrava |
+| addome | addome →nmod→ **ecografia** |
+| albero tracheobronchiale | albero →obj→ **mostrava** →relcl→ broncoscopia |
+| membrane basali | membrane →obl→ **evidenziava** |
+
+Il reggente dice il ruolo: un nome di procedura che regge la sede porta a `procedure_site`; un verbo di reperto ("mostrava", "evidenziava", "found") porta a struttura, come per la silhouette cardiaca. La coordinazione eredita il reggente del primo membro: è il caso dell'appendice. Restano necessarie le parole italiane: un reggente sconosciuto deve dare *nessuna lettura*, mai "struttura".
+
+### Gli errori riclassificati
+
+| menzione | prima | dopo l'analisi |
+|---|---|---|
+| uterus (size) | A | A, etichetta sbagliata |
+| abdominal wall (incisions) | A | A, etichetta sbagliata |
+| abdominal cavity | B | **A**: "no findings were found in the abdominal cavity", cioè sede di un reperto (assente). Il gold "procedure_site" è sbagliato |
+| albero tracheobronchiale | B | **A**: "la broncoscopia mostrava un albero nella norma" ha la stessa forma di "the radiograph showed enlargement of the cardiac silhouette", che il gold chiama struttura. Ho applicato male la mia convenzione |
+| dell'appendice (Gemma) | B | **errore vero**: il reggente "liberazione" è oltre una coordinazione. Il lettore non lo conosce; Gemma si lascia guidare dalla relativa "che appaiono normali" |
+| piede torto congenito (Nemotron) | C | **errore vero, stesso meccanismo**: il reggente "intervento" è sconosciuto al lettore. Nemotron risponde "struttura" (il piede come sede della malattia), ma il reggente è l'intervento. Frank ha ragione: che un nome di malattia contenga una parola anatomica non è il problema |
+
+Gli errori veri sono 2 su 6 e hanno la stessa causa: il reggente della menzione sta fuori dalla portata del lettore (vocabolario italiano assente, nessuna sintassi), e il modello sceglie il predicato più vicino.
+
+### Perché io lo vedo e loro no
+
+Io leggo la sintassi (chi regge chi) e conosco le parole italiane. Il lettore non ha nessuna delle due. Il modello le ha entrambe, ma non conosce le nostre convenzioni (il run era con `examples=0`) e tende al predicato più vicino. Rimedi coerenti con il principio "deterministico solo dove c'è la corrispondenza":
+
+1. un analizzatore a dipendenze che dia al lettore il reggente della menzione, seguendo la coordinazione;
+2. un vocabolario italiano dei tipi delle teste (procedure, esami, dispositivi) da una fonte citabile, più la morfologia; un reggente sconosciuto non dà nessuna lettura;
+3. al modello, la catena dei reggenti e gli esempi delle nostre convenzioni.
+
+### Nemotron 3 Super
+
+Nei benchmark generali è sotto Gemma 4 31B (indice AA 12,8 contro 14,7; GPQA 80,0% contro 85,7%; IFBench 71,5% contro 75,6%). Sul nostro compito non l'abbiamo misurato. Architettura: 120B, 12B attivi, Mamba-Transformer ibrido MoE, NVIDIA Open License. **È addestrabile:** NeMo Megatron-Bridge ha ricette per il fine-tuning completo e per LoRA, lanciate su un nodo da 8 GPU. Un QLoRA su una sola GPU, con l'architettura ibrida Mamba, non è documentato.
