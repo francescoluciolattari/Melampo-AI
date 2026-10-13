@@ -288,8 +288,10 @@ def cascade(items: list[dict]) -> None:
 
     * ``exact->reader``             the lattice's reading when it is exact, else the reader's;
     * ``exact->llm+reader:<model>`` the lattice's reading when exact, else the model given the reader;
-    * ``exact->agree:<model>``      the lattice's reading when exact, else the reader's and the model's
-                                    when they agree, ``uncertain`` when they do not (to a person)."""
+    * ``exact->agree:<model>``      the lattice's reading when exact, else the reader's and the model's own
+                                    (``llm:``, not shown the reader) when they agree, ``uncertain`` when they
+                                    do not (to a person);
+    * ``exact->agree_all``          the same with the reader and every model agreeing."""
     for it in items:
         a = it["answers"]
         exact = bool((it.get("evidence") or {}).get("lattice_detail", {}).get("exact")) and "lattice" in a \
@@ -299,11 +301,20 @@ def cascade(items: list[dict]) -> None:
         for key in [k for k in a if k.startswith("llm+reader:")]:
             model = key.split(":", 1)[1]
             a[f"exact->llm+reader:{model}"] = a["lattice"] if exact else a[key]
+        # The agreement is between two readings that did not see each other: the reader's and the model's own
+        # (the model that was shown the reader's lines tends to repeat a wrong "structure": 13 October 2026).
+        for key in [k for k in a if k.startswith("llm:")]:
+            model = key.split(":", 1)[1]
             if "reader" in a:
-                agree = a[key] if a[key] == a["reader"] else "uncertain"
-                if a[key] == UNREACHABLE:
-                    agree = UNREACHABLE
+                agree = UNREACHABLE if a[key] == UNREACHABLE else (a[key] if a[key] == a["reader"] else "uncertain")
                 a[f"exact->agree:{model}"] = a["lattice"] if exact else agree
+        own = [a[k] for k in a if k.startswith("llm:")]
+        if "reader" in a and len(own) > 1:
+            if UNREACHABLE in own:
+                every = UNREACHABLE
+            else:
+                every = a["reader"] if all(r == a["reader"] for r in own) else "uncertain"
+            a["exact->agree_all"] = a["lattice"] if exact else every
 
 
 # -- scoring ------------------------------------------------------------------------------------

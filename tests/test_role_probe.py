@@ -148,23 +148,38 @@ def test_the_chat_client_sends_the_provider_filter():
 def test_the_cascade_decides_by_the_lattice_only_when_its_reading_is_exact():
     exact = item("procedure_site") | {"evidence": {"lattice_detail": {"exact": True}}}
     inferred = item("structure") | {"evidence": {"lattice_detail": {"exact": False}}}
-    exact["answers"] = {"lattice": "procedure_site", "reader": "structure", "llm+reader:m": "structure"}
-    inferred["answers"] = {"lattice": "inherent_location", "reader": "structure", "llm+reader:m": "procedure_site"}
+    exact["answers"] = {"lattice": "procedure_site", "reader": "structure", "llm+reader:m": "structure",
+                        "llm:m": "structure"}
+    inferred["answers"] = {"lattice": "inherent_location", "reader": "structure", "llm+reader:m": "structure",
+                           "llm:m": "procedure_site"}
     rp.cascade([exact, inferred])
     assert exact["answers"]["exact->reader"] == "procedure_site"
     assert exact["answers"]["exact->agree:m"] == "procedure_site"
     assert inferred["answers"]["exact->reader"] == "structure"
-    assert inferred["answers"]["exact->llm+reader:m"] == "procedure_site"
-    assert inferred["answers"]["exact->agree:m"] == "uncertain"
+    assert inferred["answers"]["exact->llm+reader:m"] == "structure"
+    assert inferred["answers"]["exact->agree:m"] == "uncertain"   # the reader and the model alone differ
 
 
 def test_a_refused_call_is_unreachable_not_uncertain_and_is_not_scored():
     ok, refused = item("structure"), item("structure", report="r2")
-    ok["answers"] = {"lattice": "structure", "llm+reader:m": "structure", "reader": "structure"}
-    refused["answers"] = {"lattice": "structure", "llm+reader:m": rp.UNREACHABLE, "reader": "structure"}
+    ok["answers"] = {"lattice": "structure", "llm+reader:m": "structure", "llm:m": "structure", "reader": "structure"}
+    refused["answers"] = {"lattice": "structure", "llm+reader:m": rp.UNREACHABLE, "llm:m": rp.UNREACHABLE,
+                          "reader": "structure"}
     rp.cascade([ok, refused])
     assert refused["answers"]["exact->agree:m"] == rp.UNREACHABLE
     assert refused["answers"]["exact->llm+reader:m"] == rp.UNREACHABLE
     s = rp.score([ok, refused], "llm+reader:m")
     assert s["items"] == 1 and s["uncertain"] == 0 and s["accuracy"] == 1.0
     assert rp.score([ok, refused], "lattice")["items"] == 2
+
+
+def test_the_agreement_arms_use_the_answer_that_did_not_see_the_reader():
+    a, b = item("structure"), item("structure", report="r2")
+    a["answers"] = {"lattice": "structure", "reader": "structure", "llm:m": "structure", "llm:n": "structure",
+                    "llm+reader:m": "inherent_location"}
+    b["answers"] = {"lattice": "structure", "reader": "structure", "llm:m": "structure", "llm:n": "procedure_site"}
+    rp.cascade([a, b])
+    assert a["answers"]["exact->agree:m"] == "structure"
+    assert a["answers"]["exact->agree_all"] == "structure"
+    assert b["answers"]["exact->agree:m"] == "structure"
+    assert b["answers"]["exact->agree_all"] == "uncertain"
