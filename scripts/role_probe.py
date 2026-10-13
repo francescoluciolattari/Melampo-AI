@@ -278,6 +278,10 @@ def ask_item(item: dict, chats: dict, arms: list[str], reader_lines: list[str], 
     return out
 
 
+UNREACHABLE = "unreachable"   # the model could not be asked (HTTP error): not an answer, not "uncertain"
+STOP_AFTER = 12               # consecutive refusals (401/402/403/429-style key or credit limits) that stop the run
+
+
 def cascade(items: list[dict]) -> None:
     """Arms composed from the others (12 October 2026, Frank: deterministic only where the vocabulary has
     the correspondence, the reader and the models reading the phrase otherwise):
@@ -297,6 +301,8 @@ def cascade(items: list[dict]) -> None:
             a[f"exact->llm+reader:{model}"] = a["lattice"] if exact else a[key]
             if "reader" in a:
                 agree = a[key] if a[key] == a["reader"] else "uncertain"
+                if a[key] == UNREACHABLE:
+                    agree = UNREACHABLE
                 a[f"exact->agree:{model}"] = a["lattice"] if exact else agree
 
 
@@ -304,7 +310,7 @@ def cascade(items: list[dict]) -> None:
 
 
 def score(items: list[dict], arm: str) -> dict:
-    said = [(it, it["answers"].get(arm)) for it in items if it["answers"].get(arm) is not None]
+    said = [(it, it["answers"].get(arm)) for it in items if it["answers"].get(arm) not in (None, UNREACHABLE)]
     if not said:
         return {}
     answered = [(it, r) for it, r in said if r != "uncertain"]
@@ -344,6 +350,15 @@ def markdown(report: dict) -> str:
         b = s.get("error_by_report") or {}
         lines.append(f"| {arm} | {s['items']} | {s['uncertain']:.3f} | {s['accuracy']} | {s['accuracy_3way']} | "
                      f"{s['critical']} | {s['said_structure_wrongly']} | {b.get('error')} [{b.get('low')}, {b.get('high')}] |")
+    if report.get("common_items") not in (None, report["n"]):
+        lines += ["", f"The same arms on the {report['common_items']} items every arm could answer "
+                  "(some calls were refused: HTTP error, not counted as uncertain):", "",
+                  "| arm | items | uncertain | accuracy (answered) | 3-way | critical | said structure wrongly |",
+                  "|---|---|---|---|---|---|---|"]
+        for arm, s in sorted(report["common"].items(), key=lambda kv: -(kv[1] or {}).get("accuracy") if kv[1] and kv[1].get("accuracy") is not None else 0):
+            if s:
+                lines.append(f"| {arm} | {s['items']} | {s['uncertain']:.3f} | {s['accuracy']} | {s['accuracy_3way']} | "
+                             f"{s['critical']} | {s['said_structure_wrongly']} |")
     lines += ["", "Mentions the gold set calls NOT_ANATOMY (lesions, fluids, cells), scored apart: "
               "how many each arm reads as the structure itself.", "", "| arm | items | said structure |", "|---|---|---|"]
     for arm, s in report.get("not_anatomy", {}).items():
@@ -391,18 +406,36 @@ def run(args) -> dict:
         probe_models(chats)
         started = time.monotonic()
 
+        refused = {"streak": 0, "stopped": False}
+        lock = threading.Lock()
+
         def one(it):
-            return it["item_id"], ask_item(it, chats, llm_arms, lines_of.get(it["item_id"], []),
-                                           examples_for(it, items, args.examples))
+            if refused["stopped"]:
+                return it["item_id"], {}
+            got = ask_item(it, chats, llm_arms, lines_of.get(it["item_id"], []),
+                           examples_for(it, items, args.examples))
+            with lock:
+                if got and all(a.get("error") for a in got.values()):
+                    refused["streak"] += 1
+                    if refused["streak"] >= STOP_AFTER and not refused["stopped"]:
+                        refused["stopped"] = True
+                        print(f"::error::every model refused the last {STOP_AFTER} items "
+                              f"({next(iter(got.values()))['error']}): key, credit or rate limit? "
+                              "Stopping; the answers so far stay in the cache.", file=sys.stderr, flush=True)
+                elif got:
+                    refused["streak"] = 0
+            return it["item_id"], got
 
         with ThreadPoolExecutor(args.workers) as pool:
             for n, (iid, answers) in enumerate(pool.map(one, items), 1):
                 raw[iid] = answers
                 if n % 50 == 0:
                     print(f"[{time.monotonic() - started:6.0f}s] {n}/{len(items)}", file=sys.stderr, flush=True)
+        args.stopped = refused["stopped"]
         for it in items:
             for key, a in raw.get(it["item_id"], {}).items():
-                it["answers"][key] = a["answer"].get("role") if a["valid"] else "uncertain"
+                it["answers"][key] = (UNREACHABLE if a.get("error") else
+                                      a["answer"].get("role") if a["valid"] else "uncertain")
             it["llm"] = raw.get(it["item_id"], {})
     cascade(items)
     keys = sorted({k for it in items for k in it["answers"]})
@@ -415,6 +448,7 @@ def run(args) -> dict:
             n["asked_again"] += int(a["asked_again"])
             n["changed"] += int(a["changed"])
             n["bare_word"] += int(lr._norm(a["answer"].get("phrase", "")) == lr._norm(it["mention"]))
+    common = [it for it in items if all(it["answers"].get(k) not in (None, UNREACHABLE) for k in keys)]
     report = {
         "n": len(items), "gold_roles": dict(Counter(it["role"] for it in items).most_common()),
         "endpoint": urlparse(args.endpoint).hostname if llm_arms and models else None,
@@ -424,6 +458,10 @@ def run(args) -> dict:
         # NOT_ANATOMY mentions (lesions, fluids, cells: a convention of the gold set) are scored apart.
         "arms": {k: score([it for it in items if it["structure"] != "NOT_ANATOMY"], k) for k in keys},
         "not_anatomy": {k: score([it for it in items if it["structure"] == "NOT_ANATOMY"], k) for k in keys},
+        # Same items for every arm: those every arm could answer (a model that could not be reached on some
+        # items would otherwise be compared with the others on a different, easier or harder, set).
+        "common_items": len(common),
+        "common": {k: score([it for it in common if it["structure"] != "NOT_ANATOMY"], k) for k in keys},
         "llm_answers": {k: dict(v) for k, v in stats.items()},
         "items": [{k: it.get(k) for k in ("item_id", "report_id", "stratum", "language", "mention", "sentence",
                                           "role", "structure", "answers", "evidence", "llm")} for it in items],
@@ -456,7 +494,7 @@ def main(argv=None) -> int:
     args.out.write_text(json.dumps(report, indent=1, ensure_ascii=False), "utf-8")
     args.markdown.write_text(markdown(report), "utf-8")
     print(markdown(report).split("\n\nAnswers")[0])
-    return 0
+    return 3 if getattr(args, "stopped", False) else 0
 
 
 if __name__ == "__main__":

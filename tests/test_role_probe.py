@@ -156,3 +156,15 @@ def test_the_cascade_decides_by_the_lattice_only_when_its_reading_is_exact():
     assert inferred["answers"]["exact->reader"] == "structure"
     assert inferred["answers"]["exact->llm+reader:m"] == "procedure_site"
     assert inferred["answers"]["exact->agree:m"] == "uncertain"
+
+
+def test_a_refused_call_is_unreachable_not_uncertain_and_is_not_scored():
+    ok, refused = item("structure"), item("structure", report="r2")
+    ok["answers"] = {"lattice": "structure", "llm+reader:m": "structure", "reader": "structure"}
+    refused["answers"] = {"lattice": "structure", "llm+reader:m": rp.UNREACHABLE, "reader": "structure"}
+    rp.cascade([ok, refused])
+    assert refused["answers"]["exact->agree:m"] == rp.UNREACHABLE
+    assert refused["answers"]["exact->llm+reader:m"] == rp.UNREACHABLE
+    s = rp.score([ok, refused], "llm+reader:m")
+    assert s["items"] == 1 and s["uncertain"] == 0 and s["accuracy"] == 1.0
+    assert rp.score([ok, refused], "lattice")["items"] == 2

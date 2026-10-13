@@ -31,6 +31,10 @@ on:
         description: "Items (empty = all 663 with a role)"
         required: false
         default: ""
+      resume_run:
+        description: "Id of an earlier role-probe run whose answers are reused (the cache of that run: no repeat calls, no repeat bill); empty = start fresh"
+        required: false
+        default: ""
       quantization:
         description: "Precision of the weights per model id, id=fp8,... (OpenRouter hard filter, no fallback)"
         required: false
@@ -38,6 +42,7 @@ on:
 
 permissions:
   contents: read
+  actions: read   # to fetch the answers of an earlier run (resume_run)
 
 jobs:
   probe:
@@ -85,6 +90,18 @@ jobs:
           git -C ext/mm checkout --quiet 14578232bb6cdf290fea9dd7fee60a3e01ee6fd5
           uv run --no-sync python scripts/build_ci_resources.py --medmentions ext/mm --craft ext/craft \
             --ncit ncit.obo --out ci_resources
+
+      - name: Answers of an earlier run (resume)
+        if: ${{ inputs.resume_run != '' }}
+        env:
+          RUN_ID: ${{ inputs.resume_run }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then echo "::error::resume_run takes the numeric id of a run"; exit 2; fi
+          mkdir -p prev
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name role-probe --dir prev
+          cp prev/role_probe_answers.jsonl role_probe_answers.jsonl
+          echo "reused answers: $(wc -l < role_probe_answers.jsonl)"
 
       - name: Run the probe
         env:
