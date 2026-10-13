@@ -40,33 +40,59 @@ Il nodo è spento per default. Si accende con `role_probe.py --governor` e con l
 
 **In inglese gli errori veri sono già zero su questo set di sviluppo.** Il reggente non cambia questo numero. Cambia il lettore da solo (in italiano) e rende onesto il suo "non so". Gli errori italiani restano finché "liberazione" e "intervento" non hanno un tipo.
 
-## 2. Un vocabolario italiano dei tipi: le fonti
+## 2. Vocabolari dei tipi: inglese più completo di NCIt, italiano (rivisto la sera, decisione di Frank)
 
-| fonte | cosa contiene | licenza | stato |
+### Cosa vuol dire "a una persona"
+
+Con la regola "lettore e modello d'accordo, altrimenti a una persona", un item va a una persona quando le due letture indipendenti non concordano: il sistema non decide e chiede a chi rivede. In inglese sono 63 item su 484 con Gemma (13%) e 49 con Nemotron (10%). Chi ha ragione in quei casi:
+
+| | lettore giusto | modello giusto | entrambi sbagliati |
 |---|---|---|---|
-| **LOINC, variante linguistica italiana** (traduzione CNR, in UMLS come LNC-IT-IT) | nomi di esami di laboratorio e di **radiologia** (LOINC/RSNA Radiology Playbook): "TC torace", "RM encefalo" | licenza LOINC (gratuita, con attribuzione; account su loinc.org) | candidata per esami e sigle |
-| **ICD-9-CM, versione italiana 2007** (Ministero della Salute, usata per le SDO) | interventi e procedure (volume 3): "asportazione", "resezione", "lisi di aderenze" | pubblicazione del Ministero; licenza di riuso da verificare | candidata per gli interventi |
-| **MeSH italiano** (ISS, in UMLS come MSHITA) | descrittori con albero (E = procedure, C = malattie, A = anatomia) | licenza UMLS (gratuita su richiesta, uso non redistribuibile) | buona tassonomia; non nel repo |
-| **Wikidata**, etichette italiane | voci con "istanza di procedura medica / malattia / struttura anatomica" | CC0 | aperta, qualità variabile |
-| SNOMED CT | completa | l'Italia non è membro: serve la licenza affiliata MLDS | decisione aperta (già nota) |
+| Gemma 4 31B | 40 | 20 | 3 |
+| Nemotron 3 Ultra | 26 | 21 | 2 |
 
-**Proposta.** Il tipo di una parola italiana va preso dove la fonte ha la corrispondenza esatta (principio "deterministico solo dove c'è la corrispondenza"):
+Il disaccordo più frequente è il lettore che dice struttura e il modello che dice sede di procedura (19 casi): "CT brain", "incising the conjunctiva", "extraction of the canine and lateral incisor tooth". Lì il modello ha quasi sempre ragione, e il lettore sbaglia perché il suo vocabolario non conosce la parola che regge.
 
-- LOINC IT per gli esami;
-- ICD-9-CM IT per gli interventi;
-- MeSH IT per il resto, se arriva la licenza UMLS;
-- Wikidata come riserva, segnata come tale.
+### I 3 errori inglesi della regola
 
-Una parola senza corrispondenza resta sconosciuta e produce "non so". Da questa sessione non si raggiungono loinc.org, Wikidata e Hugging Face; le fonti si scaricano nel workflow su GitHub Actions, come NCIt.
+Tutti e tre sono etichette sbagliate del gold set (le ho scritte io):
 
-## 3. Una procedura di addestramento per Gemma 4 e Nemotron
+- "The **uterus** size was 6cm × 4cm × 3cm": lettura `inherent_location`, gold struttura. Per la convenzione del gold ("heart size" ha ruolo `inherent_location`), il gold è sbagliato;
+- "the **abdominal wall** incisions were located…": lettura `procedure_site`, gold struttura. L'incisione è una procedura sulla parete, quindi il gold è sbagliato;
+- "no specific findings were found in the **abdominal cavity**": lettura struttura, gold `procedure_site`. "Found in" fa della cavità la sede di un reperto, quindi il gold è sbagliato.
+
+### Inglese: più completo di NCIt
+
+| fonte | cosa dà | licenza |
+|---|---|---|
+| **UMLS** (Metathesaurus + Semantic Network) | ogni concetto di oltre 200 vocabolari (SNOMED CT US, MeSH, NCIt, RadLex, LOINC…) con un tipo semantico: "Diagnostic Procedure", "Finding", "Body Part"… | licenza UMLS (gratuita su richiesta, non redistribuibile); `head_typing.py` è già pronto e aspetta la chiave |
+| **RadLex** (RSNA) | il lessico della radiologia: procedure ("radiograph", "view"), osservazioni d'immagine ("opacity", "density"), anatomia | licenza pubblica RadLex: uso anche commerciale e redistribuzione, con attribuzione |
+
+**Proposta:** RadLex per le parole della radiologia, che sono il nostro dominio e si possono tenere nel repo, e UMLS per il resto, se arriva la chiave. NCIt resta dove ha la corrispondenza.
+
+### Italiano (decisione di Frank: ICD, poi MeSH italiano e LOINC)
+
+**ICD-10-CM non esiste in italiano.** È la modifica statunitense. In Italia:
+
+- **ICD-9-CM 2007**, versione italiana del Ministero: in uso per le SDO fino al 31 dicembre 2026;
+- **ICD-10-IM** (diagnosi) e **CIPI**, la Classificazione italiana delle procedure e degli interventi chirurgici: adottate dal DM Salute 23 ottobre 2025 (GU n. 286 del 10 dicembre 2025). Valgono dal 1° gennaio 2027, con il 2026 come anno di doppia codifica sperimentale. Le versioni prototipo ("gamma") sono sul portale del Ministero (progetto NSIS-CLASS) da febbraio 2026; la versione finale è attesa per la fine del 2026. Il decreto non indica una licenza d'uso.
+
+**Ordine proposto:**
+
+1. **CIPI** per gli interventi e le procedure, perché è la classificazione italiana che resterà. In attesa della versione finale si usa **ICD-9-CM 2007 italiano** (volume 3, procedure), che è in vigore ora; le tavole di transcodifica del Ministero collegano le due.
+2. **ICD-10-IM / ICD-9-CM** per le diagnosi.
+3. **MeSH italiano** (ISS, in UMLS): procedure, malattie, anatomia, con l'albero dei tipi; licenza UMLS.
+4. **LOINC italiano** (CNR): esami di laboratorio e radiologia ("TC torace"); licenza LOINC.
+
+La licenza di riuso dei file del Ministero va verificata prima di mettere nel repo qualcosa di derivato. Fino ad allora, solo script che scaricano e costruiscono, come per NCIt.
+
+## 3. Una procedura di addestramento per Gemma 4 e Nemotron 3 Ultra (Nemotron 3 Super tolto, decisione di Frank)
 
 `melampo.evaluation.model_profiles` raccoglie in un posto i modelli previsti, con quanto è verificato e quanto viene solo dalle pagine dei fornitori:
 
 | profilo | pesi (Hugging Face) | uso | addestramento LoRA | verificato qui |
 |---|---|---|---|---|
 | `gemma-4-31b` | `google/gemma-4-31B-it`, Apache 2.0 | 1 GPU da 80 GB | NeMo AutoModel `gemma4_31b_peft.yaml` (esempio NVIDIA su 8 GPU); QLoRA su 1 GPU stimato | ruoli via OpenRouter |
-| `nemotron-3-super` | `nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16` (anche FP8, NVFP4) | 2×80 GB in FP8 | ricetta LoRA NVIDIA, 1 nodo da 8 GPU | non ancora misurato |
 | `nemotron-3-ultra` | `nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16` (anche NVFP4) | 1 nodo da 8 GPU | ricetta LoRA NeMo AutoModel, 4 nodi (16 GB200 o 32 H100) | ruoli via OpenRouter |
 
 **La procedura è la stessa per tutti** (`scripts/lora_roles.py`):
@@ -85,8 +111,10 @@ Una parola senza corrispondenza resta sconosciuta e produce "non so". Da questa 
 - [spaCy models, it_core_news_md / en_core_web_md 3.8.0](https://github.com/explosion/spacy-models/releases)
 - [NeMo AutoModel, Gemma 4 31B](https://docs.nvidia.com/nemo/automodel/model-coverage/vision-language-models/google/gemma-4-31B-it.md)
 - [NeMo AutoModel, Fine-Tune Nemotron-3-Ultra-550B](https://docs.nvidia.com/nemo/automodel/recipes-e2e-examples/nemotron-3-ultra)
-- [NeMo Megatron-Bridge, Nemotron 3 Super](https://docs.nvidia.com/nemo/megatron-bridge/0.4.2/models/llm/nemotron3-super.html)
 - [NeMo AutoModel, LLM coverage](https://docs.nvidia.com/nemo/automodel/latest/model-coverage/llm/index.html)
 - [UMLS, LOINC Italian (LNC-IT-IT)](https://www.nlm.nih.gov/research/umls/sourcereleasedocs/current/LNC-IT-IT/metadata.html)
 - [Università di Padova, la classificazione ICD-9-CM](https://sdb.unipd.it/laclassificazioneicd-9-cm)
 - Hugging Face API, modelli `nvidia/*Nemotron-3*` e `google/gemma-4*` (13 ottobre 2026)
+- [DM Salute 23 ottobre 2025, ICD-10-IM e CIPI](https://www.mefop.it/cms/doc/29766/dm-salute-23-ottobre-2025.pdf)
+- [ITDRG, ICD-10-IM e CIPI](https://www.italiandrg.com/itdrg-icd10-cipi-ent.html)
+- [RadLex public license 1.0.1](https://rsna.org/uploadedFiles/RSNA/Content/Informatics/RadLex/radlex_public_license_version_1-0-1.pdf)

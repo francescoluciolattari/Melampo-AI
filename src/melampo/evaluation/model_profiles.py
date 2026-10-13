@@ -1,6 +1,7 @@
 """The chat models the project can use for the roles (stage 6) and train with LoRA, in one place
 (13 October 2026; Frank: a development project for the future must allow both Gemma 4 and Nemotron, with
-one training procedure where possible).
+one training procedure where possible; Nemotron 3 Super dropped the same day: Gemma 4 31B and Nemotron 3
+Ultra are the two choices).
 
 A profile says where the model comes from, what it needs to run and to be trained, and how sure we are
 of each of those facts. The same procedure serves every profile:
@@ -55,20 +56,6 @@ PROFILES: dict[str, Profile] = {
         verified=("role-probe 13 Oct 2026 through OpenRouter: roles 91.1% alone, 99.27% agreeing with the reader",),
         sources=("https://docs.nvidia.com/nemo/automodel/model-coverage/vision-language-models/google/gemma-4-31B-it.md",
                  "https://openrouter.ai/google/gemma-4-31b-it"),
-    ),
-    "nemotron-3-super": Profile(
-        name="nemotron-3-super",
-        hf_id="nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16",  # also -FP8 and -NVFP4
-        openrouter_id="nvidia/nemotron-3-super-120b-a12b",
-        licence="NVIDIA Open Model License",
-        params="120B, 12B active (hybrid Mamba-Transformer MoE)",
-        run_hardware="2 GPUs of 80 GB in FP8",
-        train_backend="nemo-automodel",
-        train_recipe="NeMo Megatron-Bridge LoRA recipe for Nemotron 3 Super (full fine-tuning also published)",
-        train_hardware="one node of 8 GPUs (torchrun --nproc-per-node=8 in NVIDIA's recipe)",
-        verified=(),
-        sources=("https://docs.nvidia.com/nemo/megatron-bridge/0.4.2/models/llm/nemotron3-super.html",
-                 "https://openrouter.ai/nvidia/nemotron-3-super-120b-a12b"),
     ),
     "nemotron-3-ultra": Profile(
         name="nemotron-3-ultra",
