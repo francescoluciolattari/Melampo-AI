@@ -116,6 +116,8 @@ DOMAIN_SHARE = 0.25  # a kind is part of the ambito when it makes this share of 
 MIN_KIND_SHARE = 0.6  # a neighbour has a kind when the names ending with it agree this much
 TRACE_SUPPORT = 2.0  # a cue seen n times counts n / (n + TRACE_SUPPORT)
 NAME_WEIGHT = 0.5  # the string is a known name of a structure
+VERB_GOVERNOR = 0.5  # a typed verb governing the mention ("was explored") counts half a governing noun
+UNKNOWN_GOVERNOR = 1.0  # a governing noun the vocabulary does not know, against the default "structure"
 # One sense per discourse (Gale, Church & Yarowsky 1992): a word keeps its sense through a text 98% of the time.
 ONE_SENSE_PER_DISCOURSE = 0.98
 # Owners whose parts a text may settle for all its occurrences of a word. Only food: the parts of a food
@@ -559,14 +561,23 @@ class CIReader:
         traces: TraceMemory | None = None,
         inhibition: float = INHIBITION,
         use: frozenset[str] | None = None,
+        governor=None,
+        unknown_governor: float | dict[str, float] = UNKNOWN_GOVERNOR,
     ):
         self.lattice = lattice
+        # The word that governs the mention, from a dependency parser (``governor.GovernorParser``); None
+        # keeps the reader as it was. ``unknown_governor`` is how much a governing noun the vocabulary does
+        # not know weighs against the default reading "structure" (0 = it is only traced); a dict gives it per
+        # language (the English vocabulary types most governing nouns, the Italian one has none yet).
+        self.governor = governor
+        self.unknown_governor = unknown_governor
         self.space = space
         self.protos = protos or {}
         self.traces = traces
         self.inhibition = inhibition
         # which families of evidence are in the network (for the ablations of the probe)
-        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse"})
+        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse",
+                                     "governor"})
         self.scale = self._calibrate()
 
     def _calibrate(self) -> float:
@@ -612,14 +623,53 @@ class CIReader:
 
     # -- construction -------------------------------------------------------------------------
 
+    def _governor_nodes(self, mention: str, sentence: str, start: int | None, language: str):
+        """The governor of the mention as evidence (13 October 2026): its kind in the vocabulary supports the
+        reading of that kind; a governing noun the vocabulary does not know weighs against the default
+        reading (the mention modifies something the reader cannot name: it must not say "structure")."""
+        if self.governor is None or "governor" not in self.use:
+            return []
+        at = start if start is not None else sentence.find(mention)
+        if at is None or at < 0:
+            return []
+        try:
+            g = self.governor.governor(sentence, at, at + len(mention), language)
+        except (ValueError, OSError, ImportError):
+            return []
+        if g is None:
+            return []
+        typed = self.lattice._head(g.lemma)
+        reading = reading_of_kind(typed[0]) if typed else None
+        if g.locative:
+            # "opacity in the lower lobes", "clips in the right upper abdomen": the mention is a place; the
+            # kind of what is in it does not make it a property or a procedure (only a device changes it)
+            device = typed is not None and reading == "device_site"
+            return [(f"governor:{g.lemma}:{g.relation}:locative", 1.0, {"device_site" if device else STRUCTURE: 1.0})]
+        if reading is not None:
+            weight = float(typed[1]) * (1.0 if g.nominal else VERB_GOVERNOR)
+            return [(f"governor:{g.lemma}:{g.relation}:{typed[0]}", weight, {reading: 1.0})]
+        known = self.lattice.memory.head(g.lemma)
+        if g.nominal and known is not None:
+            # a word the vocabulary knows whose kind gives no role (an action or a change: "degenerative
+            # changes of the spine", "enlargement of the cardiac silhouette"): something happens to the
+            # structure, which stays the structure the text speaks of
+            return [(f"governor:{g.lemma}:{g.relation}:{known[0]}", float(known[1]), {STRUCTURE: 1.0})]
+        weight = (self.unknown_governor.get(language, UNKNOWN_GOVERNOR) if isinstance(self.unknown_governor, dict)
+                  else self.unknown_governor)
+        if g.nominal and g.pos in ("NOUN", "PROPN") and weight > 0:
+            return [(f"governor:{g.lemma}:{g.relation}:unknown", 1.0, {STRUCTURE: -weight})]
+        return []
+
     def construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None,
-                  doc_key: str = "", discourse: Discourse | None = None, doc_at: int | None = None):
+                  doc_key: str = "", discourse: Discourse | None = None, doc_at: int | None = None,
+                  language: str = "en"):
         """The evidence nodes: ``(label, activation, {reading: link weight})``. ``discourse`` is what the
         document has settled about its words and ``doc_at`` the offset of the mention in the document
         (so that it does not support itself)."""
         nodes: list[tuple[str, float, dict[str, float]]] = []
         if "name" in self.use:
             nodes.append(("name", 1.0, {STRUCTURE: NAME_WEIGHT}))
+        nodes.extend(self._governor_nodes(mention, sentence, start, language))
         sentence, start = see_through_abbreviations(sentence, start, mention)
         if "rules" in self.use:
             # Formal knowledge enters the network as a node, not as a filter afterwards (Kintsch 1998, the
@@ -748,8 +798,8 @@ class CIReader:
 
     def read(self, mention: str, sentence: str, start: int | None = None, doc: str | None = None,
              doc_vector=None, doc_key: str = "", discourse: Discourse | None = None,
-             doc_at: int | None = None) -> CIReading:
-        nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at)
+             doc_at: int | None = None, language: str = "en") -> CIReading:
+        nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at, language)
         act, cycles = self.integrate(nodes)
         total = sum(act.values())
         shares = {r: (v / total if total > 0 else 0.0) for r, v in act.items()}

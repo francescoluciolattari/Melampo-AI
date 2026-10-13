@@ -98,7 +98,14 @@ def items_of(gold: list[dict], reports: dict[str, str]) -> list[dict]:
 # -- the lattice and the reader -----------------------------------------------------------------
 
 
-def build_reading(reader_dir: Path | None):
+# How much a governing noun the vocabulary does not know weighs against "structure", per language, when
+# the reader is given the parser (13 October 2026): the English vocabulary (NCIt) types most governing
+# nouns, so an unknown one is mostly a finding word (0, only traced); the Italian vocabulary has none yet,
+# so the reader must not read "structure" under a governor it cannot name (1: it says it does not know).
+UNKNOWN_GOVERNOR = {"en": 0.0, "it": 1.0}
+
+
+def build_reading(reader_dir: Path | None, governor: bool = False):
     from melampo.memory import chunk_lattice as cl
     from melampo.memory.longer_names import LongerNames
 
@@ -107,7 +114,12 @@ def build_reading(reader_dir: Path | None):
     if reader_dir is not None:
         from melampo.memory import ci_reader as ci
 
-        reader = ci.load_reader(reader_dir, lattice)
+        parser = None
+        if governor:
+            from melampo.memory.governor import GovernorParser
+
+            parser = GovernorParser()
+        reader = ci.load_reader(reader_dir, lattice, governor=parser, unknown_governor=dict(UNKNOWN_GOVERNOR))
     return lattice, reader
 
 
@@ -141,7 +153,7 @@ def evidence(item: dict, lattice, reader, docs: dict) -> tuple[dict, list[str]]:
             docs[rid] = (vector, key, reader.discourse(text) if text else None)
         vector, key, discourse = docs[rid]
         r = reader.read(item["mention"], item["sentence"], item["at"], doc=None, doc_vector=vector,
-                        doc_key=key, discourse=discourse, doc_at=item.get("start"))
+                        doc_key=key, discourse=discourse, doc_at=item.get("start"), language=item.get("language", "en"))
         got["reader"] = "uncertain" if r.decision == "underspecified" else r.decision
         got["reader_detail"] = {"shares": {k: round(v, 3) for k, v in r.shares.items()}, "margin": round(r.margin, 3),
                                 "nodes": r.nodes[:12]}
@@ -395,7 +407,7 @@ def run(args) -> dict:
     models = [m for m in args.models.split(",") if m]
     lattice = reader = None
     if any(a in arms for a in ("lattice", "reader", "llm+reader")):
-        lattice, reader = build_reading(args.reader_dir)
+        lattice, reader = build_reading(args.reader_dir, governor=args.governor)
     docs: dict = {}
     lines_of = {}
     for it in items:
@@ -487,6 +499,9 @@ def main(argv=None) -> int:
     ap.add_argument("--reports", type=Path, nargs="+")
     ap.add_argument("--reader-dir", type=Path, help="resources of the reader (scripts/build_ci_resources.py); "
                                                      "without it the reader arm is off and llm+reader sees the lattice only")
+    ap.add_argument("--governor", action="store_true",
+                    help="give the reader the word that governs the mention (spaCy dependency parser; needs spacy and "
+                         "en_core_web_md / it_core_news_md)")
     ap.add_argument("--arms", default="lattice,reader,llm,llm+reader")
     ap.add_argument("--models", default="openai/gpt-oss-120b,google/gemma-4-31b-it,mistralai/mistral-small-2603")
     ap.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
