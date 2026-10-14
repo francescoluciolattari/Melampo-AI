@@ -136,6 +136,11 @@ def check(answer: dict, sentence: str, start: int, end: int) -> Checked:
     if not isinstance(answer, dict):
         return Checked({}, False, ["not a JSON object"])
     answer = {k: (str(v).strip() if v is not None else "") for k, v in answer.items()}
+    # A model that copies the mark into its answer ("the <w>lingula</w>", 6 Nemotron answers on 13 Oct 2026)
+    # has still answered about the right words: the mark is taken out before the phrase is checked.
+    for key in ("phrase", "head"):
+        if key in answer:
+            answer[key] = re.sub(r"\s+", " ", answer[key].replace(OPEN, "").replace(CLOSE, "")).strip()
     role = answer.get("role", "").lower().replace(" ", "_")
     answer["role"] = role
     if role not in ROLES:
