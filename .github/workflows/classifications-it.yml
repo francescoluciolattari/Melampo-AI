@@ -1,0 +1,93 @@
+name: Italian classifications (CIPI and ICD-9-CM)
+
+# Every week, and on demand: looks for new versions of the Italian classification of procedures (CIPI) and of
+# its transcoding table from ICD-9-CM on the pages that list them (reteclassificazioni.it, Ministry of Health),
+# downloads them, builds the unified dataset (data/classifications_it: codes, ICD-9-CM -> CIPI links, each CIPI
+# code with its ICD-9-CM codes and titles, the kinds of Italian procedure words) and loads it into FalkorDB to
+# check that it loads. When a file is new or changed, it opens a pull request: it proposes, it never commits to
+# main (as data-and-dependency-updates.yml). ICD-10-IM is not downloaded until its licence is checked.
+on:
+  schedule:
+    - cron: "17 4 * * 1"   # Mondays 04:17 UTC
+  workflow_dispatch:
+    inputs:
+      force_pr:
+        description: "Open the pull request even if nothing changed (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: |
+          uv sync --locked
+          uv pip install openpyxl
+
+      - name: Find the files
+        run: uv run --no-sync python scripts/classifications_it.py discover --out found.json
+
+      - name: Download them
+        run: uv run --no-sync python scripts/classifications_it.py fetch --found found.json --dir raw
+
+      - name: Compare with the versions in the repository
+        id: check
+        run: |
+          uv run --no-sync python scripts/classifications_it.py check --found found.json \
+            --manifest data/classifications_it/manifest.json | tee -a "$GITHUB_OUTPUT"
+
+      - name: Build the unified dataset
+        run: |
+          uv run --no-sync python scripts/classifications_it.py build --raw raw --found found.json \
+            --out data/classifications_it
+
+      - name: Load it into FalkorDB (embedded) to check it loads
+        run: |
+          uv run --no-sync python scripts/classifications_it.py falkordb \
+            --unified data/classifications_it/unified.jsonl --clear | tee falkordb.txt
+
+      - name: Summarise
+        if: always()
+        run: |
+          { echo "### Italian classifications"; echo
+            echo "changed: ${{ steps.check.outputs.changed }}"; echo
+            if [ -f data/classifications_it/manifest.json ]; then echo '```json'; head -c 20000 data/classifications_it/manifest.json; echo '```'; fi
+            if [ -f falkordb.txt ]; then cat falkordb.txt; fi; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the dataset
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: classifications-it
+          retention-days: 30
+          path: |
+            found.json
+            data/classifications_it/
+
+      - name: Open a pull request with the new version
+        if: steps.check.outputs.changed == 'true' || inputs.force_pr == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/classifications-it
+          title: "chore: Italian classifications (CIPI, ICD-9-CM transcoding) updated"
+          commit-message: "chore: update the Italian classifications dataset (CIPI, ICD-9-CM transcoding)"
+          author: frankltr <frankltr@users.noreply.github.com>
+          add-paths: data/classifications_it/*
+          body: |
+            The weekly check found new or changed files of the Italian classification of procedures (CIPI)
+            or of its transcoding from ICD-9-CM. The manifest in this diff lists each file with its URL,
+            version and SHA-256, the columns found in each table and the counts.
+
+            **Review before merging:** a new version can renumber codes; `italian_heads.json` (the kinds of
+            Italian procedure words the reader will use) changes with the titles.
+
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
+          labels: data-update
