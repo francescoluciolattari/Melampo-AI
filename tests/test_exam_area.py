@@ -123,10 +123,10 @@ def test_an_ambiguous_form_far_from_the_area_is_read_by_the_models_even_without_
     assert result.conflicts == ("outside_the_exam_area",)
 
 
-def test_a_measurement_keeps_the_structure_it_measures_without_linking_it(lexicon):
+def test_a_measurement_links_the_structure_it_measures_with_the_measure_as_role(lexicon):
     result = _linker(lexicon).link("fegato", "Funzione del fegato nella norma.")
-    assert result.status == al.ABSTAINED and result.cid is None
-    assert (result.role, result.about) == ("inherent_location", "liver")
+    assert (result.status, result.cid) == (al.ACCEPTED, "liver")
+    assert (result.role, result.about, result.roles) == ("inherent_location", "liver", ("inherent_location",))
 
 
 def test_a_procedure_on_the_structure_links_it_as_procedure_site(lexicon):

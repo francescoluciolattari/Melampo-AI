@@ -80,8 +80,8 @@ def test_the_frame_cues_name_no_structure(frames, lexicon):
     assert not (cues & names), sorted(cues & names)
 
 
-def test_a_structure_named_in_a_laboratory_sentence_is_not_linked(lexicon):
-    linker = al.AnatomyLinker(lexicon, [], {})
+def test_a_structure_named_in_a_laboratory_sentence_is_a_measured_structure(lexicon):
+    linker = al.AnatomyLinker(lexicon, [], {}, link_measured_structures=False)
     result = linker.link(
         "thyroid",
         "Thyroid, parathyroid, and vitamin D assay were within normal limits.",
@@ -109,7 +109,7 @@ def test_the_findings_of_an_imaging_report_are_about_the_images(lexicon):
     state = ReportState.parse(text)
     at = text.index("Fegato")
     sentence = state.sentence_at(at, at + 6)
-    linker = al.AnatomyLinker(lexicon, [], {})
+    linker = al.AnatomyLinker(lexicon, [], {}, link_measured_structures=False)
     assert linker.link("Fegato", sentence).reason == "frame_is_a_measurement:laboratory"
     assert linker.link("Fegato", sentence, report=state, at=at).status == al.ACCEPTED
     clinical = "RM RACHIDE LOMBOSACRALE\nQuesito clinico: emoglobina 12 g/dL, siero e fegato in studio.\nReferto: Nulla."

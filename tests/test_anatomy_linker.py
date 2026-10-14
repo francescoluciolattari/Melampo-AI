@@ -893,8 +893,8 @@ def test_a_retriever_that_does_not_answer_is_an_abstention_too(lexicon):
     assert (result.status, result.reason) == (al.ABSTAINED, "model_unavailable")
 
 
-def test_a_structure_that_only_modifies_a_measurement_is_not_linked(lexicon):
-    linker = al.AnatomyLinker(lexicon, [], {})
+def test_a_structure_that_only_modifies_a_measurement_is_not_linked_when_asked(lexicon):
+    linker = al.AnatomyLinker(lexicon, [], {}, link_measured_structures=False)
     for mention, sentence in [
         ("heart", "Her heart rate was high."),
         ("liver", "Liver function was abnormal."),
@@ -932,3 +932,14 @@ def test_the_verdict_is_the_word_the_reply_uses_not_its_first_word():
         "UNSURE",
     ]
     assert al._verdict("It could be yes or no") == "UNSURE"
+
+
+def test_a_measured_structure_is_linked_with_the_measure_as_its_role(lexicon):
+    """Option b (14 Oct 2026): the link is kept and carries the role; the reader of the link sees a measure."""
+    linker = al.AnatomyLinker(lexicon, [], {})
+    for mention, sentence, cid in [("heart", "Her heart rate was high.", "heart"),
+                                   ("liver", "Liver function was abnormal.", "liver")]:
+        result = linker.link(mention, sentence)
+        assert (result.status, result.cid) == (al.ACCEPTED, cid)
+        assert result.role == "inherent_location" and result.roles == ("inherent_location",)
+        assert result.reason.startswith("attribute_head_names_a_measurement:")

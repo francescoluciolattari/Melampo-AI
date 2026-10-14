@@ -83,9 +83,9 @@ def linker():
 
 
 @pytest.mark.skipif(not UBERON.exists(), reason="UBERON file missing")
-def test_the_linker_records_the_structure_instead_of_linking(linker):
+def test_the_linker_records_the_structure_as_a_process_site(linker):
     result = linker.link("heart", "Slit signalling has a role in heart development.")
-    assert result.status == al.ABSTAINED
+    assert result.status == al.ACCEPTED and result.cid == "heart" and result.roles == ("inherent_location",)
     assert result.reason == "process_head_names_a_process:development"
     assert (result.role, result.about) == ("inherent_location", "heart")
 
