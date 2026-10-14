@@ -68,12 +68,20 @@ jobs:
             https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl \
             https://github.com/explosion/spacy-models/releases/download/it_core_news_md-3.8.0/it_core_news_md-3.8.0-py3-none-any.whl
 
+      # IU X-ray reports kept between runs (Open-i can be down): the file stays in this repository's cache,
+      # never in the repository itself.
+      - name: Cached IU X-ray reports
+        uses: actions/cache@v4
+        with:
+          path: iuxray.jsonl
+          key: iuxray-reports-v1
+
       - name: Sources of the silver gold set (texts are not in the repository)
         run: |
           mkdir -p ext
           git clone --quiet --depth 1 https://github.com/hltfbk/E3C-Corpus.git ext/E3C
           git clone --quiet --depth 1 https://github.com/PARROT-reports/PARROT_v1.0.git ext/PARROT
-          uv run --no-sync python scripts/fetch_public_reports.py iuxray --out iuxray.jsonl
+          if [ ! -s iuxray.jsonl ]; then uv run --no-sync python scripts/fetch_public_reports.py iuxray --out iuxray.jsonl; fi
           uv run --no-sync python scripts/build_silver_gold.py --e3c ext/E3C \
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --iuxray iuxray.jsonl --out silver
           uv run --no-sync python scripts/assemble_silver_gold.py --items silver \
