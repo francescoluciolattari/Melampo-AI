@@ -567,6 +567,12 @@ def evaluate(
         if result.status != al.ACCEPTED:
             outcome = "abstained"
             reasons[result.reason] += 1
+        elif (label == NOT_ANATOMY and row.get("role") == "inherent_location"
+              and "inherent_location" in (getattr(result, "roles", ()) or (getattr(result, "role", ""),))):
+            # Option b (14 Oct 2026): the structure whose measure the phrase names is linked with the measure
+            # as its role. The sheet calls the phrase NOT_ANATOMY/inherent_location and names no class, so the
+            # class is not checked here; the role agrees.
+            outcome = "measured_structure"
         elif label in (NOT_ANATOMY, AMBIGUOUS):
             outcome = "wrong_critical"  # linked something that should not be linked
         elif label == NONE_IN_CLASSES:

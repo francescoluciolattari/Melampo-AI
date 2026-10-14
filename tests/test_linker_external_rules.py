@@ -126,7 +126,6 @@ def test_a_word_of_a_proper_name_is_not_the_structure(
         ("pancreas", "The artificial pancreas may be marketed within a year."),
         ("heart", "Virtual heart models were proposed for validation."),
         ("brain", "Canine brain phantoms were fabricated from skulls."),
-        ("liver", "Serum liver tests were normal."),
     ],
 )
 def test_the_name_of_another_thing_made_from_an_organ_name_is_not_the_organ(
@@ -197,3 +196,11 @@ def test_a_measurement_shared_by_two_coordinated_organs(lexicon):
         "thyroid", "Resection of the thyroid and central lymph node compartment."
     )
     assert result.status == al.ACCEPTED
+
+
+def test_tests_of_an_organ_link_it_with_the_measure_as_role(lexicon):
+    """Option b (14 Oct 2026): "liver tests" measure the liver; the link is kept and carries the role."""
+    result = al.AnatomyLinker(lexicon, [], {}).link("liver", "Serum liver tests were normal.")
+    assert (result.status, result.cid, result.roles) == (al.ACCEPTED, "liver", ("inherent_location",))
+    old = al.AnatomyLinker(lexicon, [], {}, link_measured_structures=False).link("liver", "Serum liver tests were normal.")
+    assert old.status == al.ABSTAINED

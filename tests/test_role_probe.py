@@ -208,3 +208,29 @@ def test_one_training_procedure_for_every_profile(tmp_path, capsys):
         assert mp.PROFILES[name].hf_id in out and "evaluate" in out and "export" in out
     with pytest.raises(ValueError):
         mp.profile("no-such-model")
+
+
+def test_agreement_on_the_outcome_and_roles_as_a_set():
+    a, b, c = item("structure"), item("structure", report="r2"), item("structure", report="r3")
+    a["answers"] = {"lattice": "structure", "reader": "structure", "llm:m": "source_of"}
+    a["roles"] = {"llm:m": ["source_of", "structure"]}
+    a["evidence"] = {"reader_detail": {"shares": {"structure": 0.9, "source_of": 0.1}}}
+    b["answers"] = {"lattice": "structure", "reader": "structure", "llm:m": "not_a_body_site"}
+    c["answers"] = {"lattice": "structure", "reader": "inherent_location", "llm:m": "procedure_site"}
+    c["roles"] = {"llm:m": ["procedure_site"]}
+    got = rp.site_agreement([a, b, c])["m"]
+    assert got["items"] == 3 and got["to_a_person"] == 1 and got["to_a_person_items"] == [b["item_id"]]
+    assert got["agreed_with_a_shared_role"] == 1 and got["agreed_without_a_shared_role"] == 1
+    assert got["agreed_but_wrong_outcome"] == 0
+
+
+def test_the_model_may_give_several_roles():
+    from melampo.evaluation import llm_reading as lr
+
+    s = "No pleural effusion."
+    got = lr.check({"phrase": "pleural effusion", "head": "effusion", "type": "disease or finding",
+                    "roles": ["structure", "source_of"]}, s, 3, 10)
+    assert got.valid and got.answer["roles"] == ["structure", "source_of"] and got.role == "structure"
+    old = lr.check({"phrase": "pleural effusion", "head": "effusion", "type": "disease or finding",
+                    "role": "structure"}, s, 3, 10)
+    assert old.valid and old.answer["roles"] == ["structure"]

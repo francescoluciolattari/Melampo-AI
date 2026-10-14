@@ -39,7 +39,7 @@ TYPES = (
 # The role of the word inside the phrase (the schema of the gold set, plus "uncertain").
 ROLES = {
     "structure": "the word names the body structure the text speaks of (a lesion IN it, its shape, the organ itself)",
-    "procedure_site": "the structure is the site of a procedure or exam the phrase names (liver biopsy, CT of the chest)",
+    "procedure_site": "the structure is the site of a procedure or exam named in the phrase or by the word that governs it, also outside the phrase (liver biopsy, CT of the chest, liberation of the caecum and of the appendix)",
     "device_site": "the structure is where a device is or goes (vena cava filter, biliary stent)",
     "inherent_location": "the phrase names a measure, property, function or process of the structure (brain weight, liver function)",
     "source_of": "the structure is where a substance, cell or sample comes from (liver enzymes, bone marrow cells)",
@@ -135,16 +135,29 @@ def check(answer: dict, sentence: str, start: int, end: int) -> Checked:
     problems = []
     if not isinstance(answer, dict):
         return Checked({}, False, ["not a JSON object"])
-    answer = {k: (str(v).strip() if v is not None else "") for k, v in answer.items()}
+    answer = {k: (v if isinstance(v, list) else str(v).strip() if v is not None else "") for k, v in answer.items()}
     # A model that copies the mark into its answer ("the <w>lingula</w>", 6 Nemotron answers on 13 Oct 2026)
     # has still answered about the right words: the mark is taken out before the phrase is checked.
     for key in ("phrase", "head"):
         if key in answer:
             answer[key] = re.sub(r"\s+", " ", answer[key].replace(OPEN, "").replace(CLOSE, "")).strip()
-    role = answer.get("role", "").lower().replace(" ", "_")
+    raw_roles = answer.get("roles")
+    if isinstance(raw_roles, str):
+        try:
+            raw_roles = json.loads(raw_roles.replace("'", '"'))
+        except ValueError:
+            raw_roles = [r for r in re.split(r"[,;]", raw_roles.strip("[] ")) if r.strip()]
+    roles = [str(r).strip().strip("'\"").lower().replace(" ", "_") for r in (raw_roles or [])] or \
+        ([answer.get("role", "").lower().replace(" ", "_")] if answer.get("role") else [])
+    roles = list(dict.fromkeys(r for r in roles if r))
+    if len(roles) > 1 and "uncertain" in roles:
+        roles = [r for r in roles if r != "uncertain"]
+    answer["roles"] = roles
+    role = roles[0] if roles else ""
     answer["role"] = role
-    if role not in ROLES:
-        problems.append(f"role {role!r} is not one of {', '.join(ROLES)}")
+    bad = [r for r in roles if r not in ROLES]
+    if not roles or bad:
+        problems.append(f"role {', '.join(bad) or repr('')} is not one of {', '.join(ROLES)}")
     kind = answer.get("type", "").lower()
     if kind and kind not in TYPES:
         problems.append(f"type {kind!r} is not one of the types")
@@ -222,7 +235,8 @@ def ask(chat: Callable[[str], str], prompt: str, sentence: str, start: int, end:
 
 SCHEMA = (
     '{"phrase": "<the whole phrase that contains the marked word, copied exactly from the sentence>", '
-    '"head": "<the head noun of that phrase>", "type": "<one of: %s>", "role": "<one of: %s>"}'
+    '"head": "<the head noun of that phrase>", "type": "<one of: %s>", '
+    '"roles": ["<every role that applies here, one or more of: %s>"]}'
 )
 
 
@@ -245,7 +259,10 @@ RULES = f"""Rules:
    measurement, a function or process, a protein or gene, a chemical, an organism, a food) is part of
    that name; the role says what the structure is for that name.
 4. Say "uncertain" when the sentence does not let you decide. A wrong certain answer costs more than
-   an uncertain one."""
+   an uncertain one.
+5. More than one role can be true at once, and the sentence decides which: a measure of an organ that is
+   also a finding in it, the place of a collection that is also where it comes from, a site examined that
+   is also where a finding is. Give every role the sentence supports, the most important first."""
 
 
 def example_lines(examples: Iterable[dict]) -> list[str]:

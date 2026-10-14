@@ -300,6 +300,54 @@ UNREACHABLE = "unreachable"   # the model could not be asked (HTTP error): not a
 STOP_AFTER = 12               # consecutive refusals (401/402/403/429-style key or credit limits) that stop the run
 
 
+READER_PLAUSIBLE = 0.2  # a reading of the reader with at least this share is one it holds possible
+
+
+def site_of(role: str | None) -> str:
+    """What changes the outcome (option b, 14 Oct 2026): the word names a body site here, or it does not."""
+    if role in lr.SITE_ROLES:
+        return "site"
+    if role in NOT_SITE:
+        return "not_a_site"
+    return "uncertain"
+
+
+def site_agreement(items: list[dict]) -> dict:
+    """Reader and each model agree on what changes the outcome (site or not) instead of on one label; the
+    roles are recorded as the set both hold possible. A person is asked only when they contradict each other
+    on the outcome, or when one of them cannot say."""
+    out = {}
+    models = sorted({k.split(":", 1)[1] for it in items for k in it["answers"] if k.startswith("llm:")})
+    for model in models:
+        key = f"llm:{model}"
+        n = agree = wrong = 0
+        shared_roles = no_shared = 0
+        to_person = []
+        for it in items:
+            a = it["answers"]
+            if a.get(key) in (None, UNREACHABLE) or "reader" not in a:
+                continue
+            exact = bool((it.get("evidence") or {}).get("lattice_detail", {}).get("exact")) and \
+                a.get("lattice") != "structure"
+            n += 1
+            reader_site = site_of(a["lattice"] if exact else a["reader"])
+            model_site = site_of(a[key])
+            if reader_site == model_site and reader_site != "uncertain":
+                agree += 1
+                wrong += reader_site != site_of(it["role"])
+                shares = ((it.get("evidence") or {}).get("reader_detail") or {}).get("shares", {})
+                held = {r for r, v in shares.items() if v >= READER_PLAUSIBLE} | {a["reader"]}
+                both = held & set((it.get("roles") or {}).get(key) or [a[key]])
+                shared_roles += bool(both)
+                no_shared += not both
+            else:
+                to_person.append(it["item_id"])
+        out[model] = {"items": n, "to_a_person": n - agree, "to_a_person_share": round((n - agree) / n, 4) if n else None,
+                      "agreed_but_wrong_outcome": wrong, "agreed_with_a_shared_role": shared_roles,
+                      "agreed_without_a_shared_role": no_shared, "to_a_person_items": to_person}
+    return out
+
+
 def cascade(items: list[dict]) -> None:
     """Arms composed from the others (12 October 2026, Frank: deterministic only where the vocabulary has
     the correspondence, the reader and the models reading the phrase otherwise):
@@ -388,6 +436,16 @@ def markdown(report: dict) -> str:
             if s:
                 lines.append(f"| {arm} | {s['items']} | {s['uncertain']:.3f} | {s['accuracy']} | {s['accuracy_3way']} | "
                              f"{s['critical']} | {s['said_structure_wrongly']} |")
+    if report.get("site_agreement"):
+        lines += ["", "Agreement on what changes the outcome (option b): the word names a body site here or not; "
+                  "the roles are kept as a set. A person is asked only when reader and model contradict each "
+                  "other on the outcome or one cannot say.", "",
+                  "| language | model | items | to a person | agreed, outcome wrong | agreed, a role shared | agreed, no role shared |",
+                  "|---|---|---|---|---|---|---|"]
+        for lang, per in report["site_agreement"].items():
+            for model, s in per.items():
+                lines.append(f"| {lang} | {model} | {s['items']} | {s['to_a_person']} ({s['to_a_person_share']:.1%}) | "
+                             f"{s['agreed_but_wrong_outcome']} | {s['agreed_with_a_shared_role']} | {s['agreed_without_a_shared_role']} |")
     lines += ["", "Mentions the gold set calls NOT_ANATOMY (lesions, fluids, cells), scored apart: "
               "how many each arm reads as the structure itself.", "", "| arm | items | said structure |", "|---|---|---|"]
     for arm, s in report.get("not_anatomy", {}).items():
@@ -465,6 +523,7 @@ def run(args) -> dict:
             for key, a in raw.get(it["item_id"], {}).items():
                 it["answers"][key] = (UNREACHABLE if a.get("error") else
                                       a["answer"].get("role") if a["valid"] else "uncertain")
+                it.setdefault("roles", {})[key] = list(a["answer"].get("roles") or []) if a["valid"] else []
             it["llm"] = raw.get(it["item_id"], {})
     cascade(items)
     keys = sorted({k for it in items for k in it["answers"]})
@@ -491,9 +550,12 @@ def run(args) -> dict:
         # items would otherwise be compared with the others on a different, easier or harder, set).
         "common_items": len(common),
         "common": {k: score([it for it in common if it["structure"] != "NOT_ANATOMY"], k) for k in keys},
+        "site_agreement": {lang: site_agreement([it for it in items if it["structure"] != "NOT_ANATOMY"
+                                                 and (lang == "all" or it.get("language") == lang)])
+                           for lang in ("all", "en", "it")},
         "llm_answers": {k: dict(v) for k, v in stats.items()},
         "items": [{k: it.get(k) for k in ("item_id", "report_id", "stratum", "language", "mention", "sentence",
-                                          "role", "structure", "answers", "evidence", "llm")} for it in items],
+                                          "role", "structure", "answers", "roles", "evidence", "llm")} for it in items],
     }
     return report
 

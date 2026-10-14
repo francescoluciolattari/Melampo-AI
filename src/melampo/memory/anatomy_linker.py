@@ -1051,6 +1051,10 @@ class LinkResult:
     # fegato"; the link abstains, ``about`` says which structure was measured), "" otherwise.
     role: str = ""
     about: str | None = None
+    # Every role the context supports for the structure (14 October 2026, Frank, option b): a mention can be
+    # at once a measurement of the structure and a finding in it ("low lung volumes"); the roles are
+    # recorded together, none is chosen by a rule. ``role`` stays the first of them, for older readers.
+    roles: tuple[str, ...] = ()
     # How the chunk lattice read the phrase ("role:inherent_location:heart size"), when it is on.
     block: str = ""
     # How the construction-integration reader read it ("decision:top reading:margin"), when it is on.
@@ -1366,6 +1370,11 @@ class AnatomyLinker:
     # It speaks only where no other method has: see ``_another_method_decides``. It can only keep a link
     # from being accepted automatically, never create or change one, so it can lower coverage but not precision.
     ci_reader_mode: str = "trace"
+    # Option b (14 October 2026): a structure whose measure or function the phrase names ("heart size",
+    # "funzione del fegato") is linked, with the role "inherent_location" carried with the link, instead of
+    # abstaining with ``about``. Whoever uses the link reads the roles: "normal heart size" is not a finding
+    # in the heart. False restores the abstention.
+    link_measured_structures: bool = True
     _ci_documents: dict = field(default_factory=dict, repr=False, compare=False)
     # Stage 8: what a conflict between independent readings does to an accepted link. "record"
     # keeps the link and writes the conflict in the profile; "review" sends the link to the review
@@ -1783,6 +1792,8 @@ class AnatomyLinker:
                 result.support, result.conflicts = held.support, held.conflicts
             if self.senses.procedure_head(mention, sentence, where):
                 result.role = "procedure_site"
+                if "procedure_site" not in result.roles:
+                    result.roles = (*result.roles, "procedure_site")
         result.trace = trace
         result.block = next((e.reason for e in trace if e.stream == "blocks"), "")
         result.reading = next((e.reason for e in trace if e.stream == "reader"), "")
@@ -2452,6 +2463,22 @@ class AnatomyLinker:
                             and head not in self.senses.heads_not_measured
                         ):
                             result.role, result.about = "inherent_location", named[0]
+                            result.roles = ("inherent_location",)
+                            other_vetoes = [
+                                e for e in trace
+                                if e.verdict == VETO and not e.reason.startswith(_MEASUREMENT_VETOES)
+                            ]
+                            if self.link_measured_structures and not other_vetoes:
+                                support = next(
+                                    e for e in (*by_stream.get("lexicon", ()), *by_stream.get("parts", ()))
+                                    if e.verdict == SUPPORT and e.cid == named[0]
+                                )
+                                result = LinkResult(
+                                    ACCEPTED, named[0], name, item.reason,
+                                    relation=getattr(support, "relation", "equal") or "equal",
+                                    part=getattr(support, "part", "") or "",
+                                )
+                                result.role, result.about, result.roles = "inherent_location", named[0], ("inherent_location",)
                     return result
         for item in by_stream.get("levels", ()):
             status = ACCEPTED if item.verdict == SUPPORT else ABSTAINED
