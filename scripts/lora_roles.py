@@ -25,6 +25,11 @@ the PhysioNet credentials arrive, trains roles on 2,300 reports: on the credenti
         [--reader-dir ci_resources] --out lora_data
     python scripts/lora_roles.py train --data lora_data --fold 0 --out adapters/fold0
     python scripts/lora_roles.py evaluate --data lora_data --fold 0 --adapter adapters/fold0 --out eval_fold0.json
+
+One procedure for every model (13 October 2026; ``melampo.evaluation.model_profiles``): ``export`` writes
+the fold as chat JSONL for any trainer (NeMo AutoModel recipes for Gemma 4 31B and Nemotron 3 Super /
+Ultra, TRL here), ``plan --profile <name>`` prints the steps for a model, and ``evaluate --endpoint``
+scores any model served behind an OpenAI-compatible endpoint, base and base + adapter, the same way.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -43,6 +49,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import role_probe as rp  # noqa: E402
 
 from melampo.evaluation import llm_reading as lr  # noqa: E402
+from melampo.evaluation import model_profiles as mp  # noqa: E402
 
 FOLDS = 5
 DEFAULT_BASE = "openai/gpt-oss-20b"
@@ -101,7 +108,53 @@ def _need_gpu():
     return torch
 
 
+def export(args) -> int:
+    """The fold as chat-format JSONL (one ``messages`` list per item: the question and the answer), the
+    format NeMo AutoModel, TRL and most trainers read: the same files for every model."""
+    train_rows, test_rows = _split(args.data, args.fold)
+    args.out.mkdir(parents=True, exist_ok=True)
+    for name, rows in (("train", train_rows), ("test", test_rows)):
+        lines = [json.dumps({"item_id": r["item_id"], "messages": r["prompt"] + r["completion"]}, ensure_ascii=False)
+                 for r in rows]
+        (args.out / f"{name}.jsonl").write_text("\n".join(lines) + "\n", "utf-8")
+    print(f"fold {args.fold}: {len(train_rows)} train, {len(test_rows)} test -> {args.out}")
+    return 0
+
+
+def plan(args) -> int:
+    """The steps of the one procedure for a model profile (nothing is run)."""
+    p = mp.profile(args.profile)
+    fold = f"lora_data/fold{args.fold}"
+    steps = [
+        f"# {p.name}: {p.hf_id} ({p.licence}; {p.params})",
+        f"# to serve: {p.run_hardware}",
+        f"# to train: {p.train_hardware}",
+        "python scripts/lora_roles.py prepare --gold silver/gold.jsonl --reports silver/reports.jsonl --out lora_data",
+        f"python scripts/lora_roles.py export --data lora_data --fold {args.fold} --out {fold}",
+    ]
+    if p.train_backend == "trl":
+        steps.append(f"python scripts/lora_roles.py train --data lora_data --fold {args.fold} --profile {p.name} "
+                     f"--out adapters/{p.name}-fold{args.fold}")
+    else:
+        steps += [
+            f"# NeMo AutoModel, recipe: {p.train_recipe}",
+            f"#   its dataset -> {fold}/train.jsonl (chat 'messages'), validation -> {fold}/test.jsonl;",
+            "#   LoRA rank 16, alpha 32, 2 epochs, lr 2e-4 as in the TRL path; checkpoint -> "
+            f"adapters/{p.name}-fold{args.fold}",
+            f"#   sources: {', '.join(p.sources)}",
+        ]
+    steps += [
+        "# serve the base and the base + adapter behind an OpenAI-compatible endpoint (e.g. vLLM --enable-lora), then:",
+        f"python scripts/lora_roles.py evaluate --data lora_data --fold {args.fold} --endpoint http://localhost:8000/v1/chat/completions "
+        f"--model {p.hf_id} --adapter-model {p.name}-fold{args.fold} --out eval_{p.name}_fold{args.fold}.json",
+    ]
+    print("\n".join(steps))
+    return 0
+
+
 def train(args) -> int:
+    if args.profile:
+        args.base = mp.profile(args.profile).hf_id
     torch = _need_gpu()
     from datasets import Dataset
     from peft import LoraConfig
@@ -129,7 +182,41 @@ def train(args) -> int:
     return 0
 
 
+def _score(args, items, arms, base) -> int:
+    report = {"fold": args.fold, "base": base, "adapter": str(getattr(args, "adapter", "") or getattr(args, "adapter_model", "") or ""),
+              "arms": {a: rp.score([i for i in items if i["structure"] != "NOT_ANATOMY"], a) for a in arms},
+              "not_anatomy": {a: rp.score([i for i in items if i["structure"] == "NOT_ANATOMY"], a) for a in arms},
+              "items": [{k: i[k] for k in ("item_id", "report_id", "role", "answers")} for i in items]}
+    Path(args.out).write_text(json.dumps(report, indent=1, ensure_ascii=False), "utf-8")
+    print(json.dumps(report["arms"], indent=1))
+    return 0
+
+
+def evaluate_endpoint(args) -> int:
+    """Any model behind an OpenAI-compatible endpoint: the base (``--model``) and, if given, the base with
+    the adapter (``--adapter-model``, the name the server gives the LoRA). Same question, same scores."""
+    from melampo.evaluation import linking_bench as lb
+
+    rp.check_endpoint(args.endpoint, args.public_data)
+    _, test_rows = _split(args.data, args.fold)
+    arms = {"base (zero-shot)": args.model}
+    if args.adapter_model:
+        arms["base + LoRA"] = args.adapter_model
+    key = os.environ.get("OPENAI_API_KEY", "local")
+    items = [{**r, "answers": {}} for r in test_rows]
+    for arm, model in arms.items():
+        chat = lb.OpenRouterChat(model, key, endpoint=args.endpoint, max_tokens=args.max_new_tokens, timeout=180.0)
+        for it in items:
+            text = chat(it["prompt"][0]["content"])
+            it["answers"][arm] = lr.read_role(text)
+    return _score(args, items, arms, args.model)
+
+
 def evaluate(args) -> int:
+    if args.endpoint:
+        return evaluate_endpoint(args)
+    if args.profile:
+        args.base = mp.profile(args.profile).hf_id
     torch = _need_gpu()
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -155,13 +242,7 @@ def evaluate(args) -> int:
             text = tokenizer.decode(out[0, ids.shape[1]:], skip_special_tokens=True)
             it["answers"][arm] = lr.read_role(text)
             it.setdefault("raw", {})[arm] = text[-400:]
-    report = {"fold": args.fold, "base": args.base, "adapter": str(args.adapter or ""),
-              "arms": {a: rp.score([i for i in items if i["structure"] != "NOT_ANATOMY"], a) for a in arms},
-              "not_anatomy": {a: rp.score([i for i in items if i["structure"] == "NOT_ANATOMY"], a) for a in arms},
-              "items": [{k: i[k] for k in ("item_id", "report_id", "role", "answers")} for i in items]}
-    Path(args.out).write_text(json.dumps(report, indent=1, ensure_ascii=False), "utf-8")
-    print(json.dumps(report["arms"], indent=1))
-    return 0
+    return _score(args, items, arms, args.base)
 
 
 def main(argv=None) -> int:
@@ -172,10 +253,18 @@ def main(argv=None) -> int:
     p.add_argument("--reports", type=Path, nargs="+")
     p.add_argument("--reader-dir", type=Path)
     p.add_argument("--out", type=Path, required=True)
+    q = sub.add_parser("export")
+    q.add_argument("--data", type=Path, required=True)
+    q.add_argument("--fold", type=int, required=True, choices=range(FOLDS))
+    q.add_argument("--out", type=Path, required=True)
+    q = sub.add_parser("plan")
+    q.add_argument("--profile", default=mp.DEFAULT_PROFILE, choices=sorted(mp.PROFILES))
+    q.add_argument("--fold", type=int, default=0, choices=range(FOLDS))
     for name in ("train", "evaluate"):
         q = sub.add_parser(name)
         q.add_argument("--data", type=Path, required=True)
         q.add_argument("--fold", type=int, required=True, choices=range(FOLDS))
+        q.add_argument("--profile", choices=sorted(mp.PROFILES), help="the base model of a profile (model_profiles.py)")
         q.add_argument("--base", default=DEFAULT_BASE)
         q.add_argument("--revision", default=None, help="pin the base model's commit")
         q.add_argument("--out", type=Path, required=True)
@@ -185,8 +274,12 @@ def main(argv=None) -> int:
         else:
             q.add_argument("--adapter", type=Path)
             q.add_argument("--max-new-tokens", type=int, default=512)
+            q.add_argument("--endpoint", help="an OpenAI-compatible server instead of loading the weights here")
+            q.add_argument("--model", help="with --endpoint: the base model's name on the server")
+            q.add_argument("--adapter-model", help="with --endpoint: the adapter's name on the server")
+            q.add_argument("--public-data", action="store_true", help="the texts are public: a remote endpoint is allowed")
     args = ap.parse_args(argv)
-    return {"prepare": prepare, "train": train, "evaluate": evaluate}[args.cmd](args)
+    return {"prepare": prepare, "export": export, "plan": plan, "train": train, "evaluate": evaluate}[args.cmd](args)
 
 
 if __name__ == "__main__":

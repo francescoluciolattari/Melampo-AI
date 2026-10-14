@@ -183,3 +183,28 @@ def test_the_agreement_arms_use_the_answer_that_did_not_see_the_reader():
     assert a["answers"]["exact->agree_all"] == "structure"
     assert b["answers"]["exact->agree:m"] == "structure"
     assert b["answers"]["exact->agree_all"] == "uncertain"
+
+
+def test_one_training_procedure_for_every_profile(tmp_path, capsys):
+    import lora_roles as lo
+
+    from melampo.evaluation import model_profiles as mp
+
+    rows = [{"item_id": f"i{k}", "report_id": f"r{k}", "stratum": "e3c_en", "language": "en", "mention": "liver",
+             "sentence": "The liver.", "structure": "liver", "role": "structure", "fold": k % lo.FOLDS,
+             "prompt": [{"role": "user", "content": "q"}],
+             "completion": [{"role": "assistant", "content": "{\"role\": \"structure\"}"}]} for k in range(10)]
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "items.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    assert lo.main(["export", "--data", str(data), "--fold", "0", "--out", str(tmp_path / "f0")]) == 0
+    train = [json.loads(x) for x in (tmp_path / "f0" / "train.jsonl").read_text().splitlines()]
+    test = [json.loads(x) for x in (tmp_path / "f0" / "test.jsonl").read_text().splitlines()]
+    assert len(train) == 8 and len(test) == 2
+    assert [m["role"] for m in train[0]["messages"]] == ["user", "assistant"]
+    for name in mp.PROFILES:
+        assert lo.main(["plan", "--profile", name]) == 0
+        out = capsys.readouterr().out
+        assert mp.PROFILES[name].hf_id in out and "evaluate" in out and "export" in out
+    with pytest.raises(ValueError):
+        mp.profile("no-such-model")

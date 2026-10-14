@@ -31,6 +31,10 @@ on:
         description: "Items (empty = all 663 with a role)"
         required: false
         default: ""
+      governor:
+        description: "Give the Kintsch reader the word that governs the mention (spaCy dependency parser): true or false"
+        required: false
+        default: "false"
       resume_run:
         description: "Id of an earlier role-probe run (the number in its URL), or latest, whose answers are reused: no repeat calls, no repeat bill; empty = start fresh"
         required: false
@@ -56,6 +60,13 @@ jobs:
           uv sync --locked
           # scipy is not in the lockfile; the reader's semantic space needs it (as in ci-probe.yml)
           uv pip install scipy
+
+      - name: Dependency parser (spaCy, MIT; models pinned to their release)
+        if: ${{ inputs.governor == 'true' }}
+        run: |
+          uv pip install "spacy==3.8.*" \
+            https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl \
+            https://github.com/explosion/spacy-models/releases/download/it_core_news_md-3.8.0/it_core_news_md-3.8.0-py3-none-any.whl
 
       - name: Sources of the silver gold set (texts are not in the repository)
         run: |
@@ -120,6 +131,7 @@ jobs:
           ARMS: ${{ inputs.arms }}
           EXAMPLES: ${{ inputs.examples }}
           LIMIT: ${{ inputs.limit }}
+          GOVERNOR: ${{ inputs.governor }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
@@ -145,6 +157,7 @@ jobs:
             echo "::error::quantization takes id=fp8, comma-separated"; exit 2
           fi
           set -- "$@" --quantization "$QUANTIZATION"
+          if [ "$GOVERNOR" = "true" ]; then set -- "$@" --governor; fi
           uv run --no-sync python -u scripts/role_probe.py "$@" 2> >(tee role_probe.log >&2)
 
       - name: Summarise
