@@ -96,6 +96,12 @@ class GovernorParser:
             return None
         heads = [t for t in inside if not (start <= t.head.idx < end) or t.head is t]
         tok = heads[-1] if heads else inside[-1]
+        # A noun written before the mention that modifies it ("CT brain", "MRI abdomen"): the exam names
+        # the mention as its site, the way "brain CT" does.
+        before = [c for c in tok.children if c.dep_ == "compound" and c.idx < start and c.pos_ in _NOUNS]
+        if before:
+            c = before[-1]
+            return Governor(c.lemma_.lower(), "modifier", c.pos_, (f"{c.text}-compound->{tok.text}",))
         path: list[str] = []
         for _ in range(self.max_steps):
             dep, head = tok.dep_, tok.head
@@ -119,6 +125,11 @@ class GovernorParser:
                 return Governor(head.lemma_.lower(), f"nmod:{case}" if case else "nmod", head.pos_, tuple(path))
             if dep in _NOUN_MODIFIER and head.pos_ in _NOUNS:
                 path.append(f"{tok.text}-{dep}->{head.text}")
+                # a chain of nouns ("skin graft surgery", "bone marrow biopsy needle"): the head of the
+                # whole noun phrase governs, not the next noun
+                while head.dep_ in ("compound",) and head.head is not head and head.head.pos_ in _NOUNS:
+                    path.append(f"{head.text}-{head.dep_}->{head.head.text}")
+                    head = head.head
                 return Governor(head.lemma_.lower(), "compound", head.pos_, tuple(path))
             if dep in _ARGUMENT or dep.startswith("obl") or dep.startswith("nsubj"):
                 path.append(f"{tok.text}-{dep}->{head.text}")

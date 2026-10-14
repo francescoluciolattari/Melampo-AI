@@ -70,3 +70,13 @@ def test_balanced_examples_keep_a_longer_and_a_bare_phrase():
     ex = [{"phrase": "brain"}, {"phrase": "brain"}, {"phrase": "brain"}, {"phrase": "brain weights"}]
     chosen = lr.balanced(ex, "brain", 2)
     assert {e["phrase"] for e in chosen} == {"brain", "brain weights"}
+
+
+def test_a_copied_mark_is_taken_out_of_the_phrase():
+    from melampo.evaluation import llm_reading as lr
+
+    s = "There is minimal opacity within the lingula favored as atelectasis."
+    a = s.index("lingula")
+    got = lr.check({"phrase": "the <w>lingula</w>", "head": "<w>lingula</w>", "type": "anatomical structure",
+                    "role": "structure"}, s, a, a + len("lingula"))
+    assert got.valid and got.answer["phrase"] == "the lingula"

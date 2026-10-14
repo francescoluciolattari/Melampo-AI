@@ -396,3 +396,13 @@ def test_an_unknown_governing_noun_weighs_against_structure_by_language():
 def test_without_a_parser_the_reader_is_unchanged():
     plain = ci.CIReader(lattice()).construct("liver", "Donation of the liver was planned.", 16)
     assert not [n for n in plain if n[0].startswith("governor:")]
+
+
+def test_a_governor_the_vocabulary_has_as_written_decides():
+    reader = ci.CIReader(lattice(), governor=_FakeGovernor(_governed("radiograph", "of")),
+                         governor_kinds={"radiograph": "procedure"})
+    got = reader.read("knees", "A plain radiograph of the knees.", 26)
+    assert got.decision == "procedure_site" and any(n.startswith("governor:radiograph:of:procedure:decides") for n in got.nodes)
+    place = ci.CIReader(lattice(), governor=_FakeGovernor(_governed("opacity", "in")),
+                        governor_kinds={"opacity": "disease"})
+    assert place.read("liver", "An opacity in the liver.", 18).decision == ci.STRUCTURE

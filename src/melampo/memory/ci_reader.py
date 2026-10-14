@@ -116,6 +116,7 @@ DOMAIN_SHARE = 0.25  # a kind is part of the ambito when it makes this share of 
 MIN_KIND_SHARE = 0.6  # a neighbour has a kind when the names ending with it agree this much
 TRACE_SUPPORT = 2.0  # a cue seen n times counts n / (n + TRACE_SUPPORT)
 NAME_WEIGHT = 0.5  # the string is a known name of a structure
+GOVERNOR_WEIGHT = 1.0  # a governing noun of known kind (the head of the noun phrase the mention is in)
 VERB_GOVERNOR = 0.5  # a typed verb governing the mention ("was explored") counts half a governing noun
 UNKNOWN_GOVERNOR = 1.0  # a governing noun the vocabulary does not know, against the default "structure"
 # One sense per discourse (Gale, Church & Yarowsky 1992): a word keeps its sense through a text 98% of the time.
@@ -563,6 +564,8 @@ class CIReader:
         use: frozenset[str] | None = None,
         governor=None,
         unknown_governor: float | dict[str, float] = UNKNOWN_GOVERNOR,
+        governor_weight: float = GOVERNOR_WEIGHT,
+        governor_kinds: dict[str, str] | None = None,
     ):
         self.lattice = lattice
         # The word that governs the mention, from a dependency parser (``governor.GovernorParser``); None
@@ -571,6 +574,13 @@ class CIReader:
         # language (the English vocabulary types most governing nouns, the Italian one has none yet).
         self.governor = governor
         self.unknown_governor = unknown_governor
+        # how much a governing noun of known kind weighs, against the default reading of the block
+        self.governor_weight = governor_weight
+        # Kinds of governing words from a vocabulary that has them as written (RadLex, UMLS semantic types;
+        # built by a script, word -> kind). When the governor is in it, the reading is decided by the governor
+        # (14 October 2026: deterministic only where the vocabulary has the correspondence); the integration
+        # of the other evidence is kept in the trace. None: the governor is only evidence.
+        self.governor_kinds = governor_kinds
         self.space = space
         self.protos = protos or {}
         self.traces = traces
@@ -638,6 +648,13 @@ class CIReader:
             return []
         if g is None:
             return []
+        exact = (self.governor_kinds or {}).get(g.lemma)
+        if exact is not None and (g.nominal or g.locative):
+            reading = reading_of_kind(exact)
+            if g.locative:
+                reading = "device_site" if reading == "device_site" else STRUCTURE
+            if reading is not None:
+                return [(f"governor:{g.lemma}:{g.relation}:{exact}:decides", 1.0, {reading: 1.0})]
         typed = self.lattice._head(g.lemma)
         reading = reading_of_kind(typed[0]) if typed else None
         if g.locative:
@@ -646,7 +663,7 @@ class CIReader:
             device = typed is not None and reading == "device_site"
             return [(f"governor:{g.lemma}:{g.relation}:locative", 1.0, {"device_site" if device else STRUCTURE: 1.0})]
         if reading is not None:
-            weight = float(typed[1]) * (1.0 if g.nominal else VERB_GOVERNOR)
+            weight = float(typed[1]) * (self.governor_weight if g.nominal else VERB_GOVERNOR)
             return [(f"governor:{g.lemma}:{g.relation}:{typed[0]}", weight, {reading: 1.0})]
         known = self.lattice.memory.head(g.lemma)
         if g.nominal and known is not None:
@@ -801,6 +818,11 @@ class CIReader:
              doc_at: int | None = None, language: str = "en") -> CIReading:
         nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at, language)
         act, cycles = self.integrate(nodes)
+        decided = next((links for label, _, links in nodes if label.endswith(":decides")), None)
+        if decided:
+            top = next(iter(decided))
+            shares = {r: (1.0 if r == top else 0.0) for r in READINGS}
+            return CIReading(top, top, 1.0, shares, cycles, [f"{n[0]}={n[1]:.2f}" for n in nodes])
         total = sum(act.values())
         shares = {r: (v / total if total > 0 else 0.0) for r, v in act.items()}
         ranked = sorted(shares.items(), key=lambda kv: -kv[1])
