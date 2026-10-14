@@ -27,8 +27,8 @@ the PhysioNet credentials arrive, trains roles on 2,300 reports: on the credenti
     python scripts/lora_roles.py evaluate --data lora_data --fold 0 --adapter adapters/fold0 --out eval_fold0.json
 
 One procedure for every model (13 October 2026; ``melampo.evaluation.model_profiles``): ``export`` writes
-the fold as chat JSONL for any trainer (NeMo AutoModel recipes for Gemma 4 31B and Nemotron 3 Super /
-Ultra, TRL here), ``plan --profile <name>`` prints the steps for a model, and ``evaluate --endpoint``
+the fold as chat JSONL for any trainer (NeMo AutoModel recipes for Gemma 4 31B and Nemotron 3 Ultra,
+TRL here), ``plan --profile <name>`` prints the steps for a model, and ``evaluate --endpoint``
 scores any model served behind an OpenAI-compatible endpoint, base and base + adapter, the same way.
 """
 
