@@ -105,7 +105,7 @@ def items_of(gold: list[dict], reports: dict[str, str]) -> list[dict]:
 UNKNOWN_GOVERNOR = {"en": 0.0, "it": 1.0}
 
 
-def build_reading(reader_dir: Path | None, governor: bool = False):
+def build_reading(reader_dir: Path | None, governor: bool = False, governor_kinds: Path | None = None):
     from melampo.memory import chunk_lattice as cl
     from melampo.memory.longer_names import LongerNames
 
@@ -119,7 +119,11 @@ def build_reading(reader_dir: Path | None, governor: bool = False):
             from melampo.memory.governor import GovernorParser
 
             parser = GovernorParser()
-        reader = ci.load_reader(reader_dir, lattice, governor=parser, unknown_governor=dict(UNKNOWN_GOVERNOR))
+        kinds = None
+        if governor_kinds is not None:
+            kinds = json.loads(Path(governor_kinds).read_text("utf-8")).get("kinds", {})
+        reader = ci.load_reader(reader_dir, lattice, governor=parser, unknown_governor=dict(UNKNOWN_GOVERNOR),
+                                governor_kinds=kinds)
     return lattice, reader
 
 
@@ -407,7 +411,7 @@ def run(args) -> dict:
     models = [m for m in args.models.split(",") if m]
     lattice = reader = None
     if any(a in arms for a in ("lattice", "reader", "llm+reader")):
-        lattice, reader = build_reading(args.reader_dir, governor=args.governor)
+        lattice, reader = build_reading(args.reader_dir, governor=args.governor, governor_kinds=args.governor_kinds)
     docs: dict = {}
     lines_of = {}
     for it in items:
@@ -502,6 +506,8 @@ def main(argv=None) -> int:
     ap.add_argument("--governor", action="store_true",
                     help="give the reader the word that governs the mention (spaCy dependency parser; needs spacy and "
                          "en_core_web_md / it_core_news_md)")
+    ap.add_argument("--governor-kinds", type=Path,
+                    help="word -> kind from RadLex/UMLS (scripts/build_governor_kinds.py): the governor decides when it is there")
     ap.add_argument("--arms", default="lattice,reader,llm,llm+reader")
     ap.add_argument("--models", default="openai/gpt-oss-120b,google/gemma-4-31b-it,mistralai/mistral-small-2603")
     ap.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")

@@ -67,3 +67,31 @@ Nel repo entra solo il derivato (parola → tipo), con l'attribuzione richiesta:
 - [RSNA, RadLex radiology lexicon](https://www.rsna.org/practice-tools/data-tools-and-standards/radlex-radiology-lexicon)
 - [RadLex License Agreement and Terms of Use V2.1](https://www.rsna.org/uploadedFiles/RSNA/Content/Informatics/RadLex_License_Agreement_and_Terms_of_Use_V2_Final.pdf)
 - [BioPortal, RADLEX 4.3](https://bioportal.bioontology.org/ontologies/RADLEX)
+
+## Aggiornamento della sera: cause C e D spiegate, vocabolari con le chiavi di Frank
+
+**Causa C, il modello sbaglia.** Lettore e gold sono d'accordo, ma il modello dà un altro ruolo. Esempio: in "No pleural effusion" la parola chiesta è "pleural". È la struttura in cui si trova il versamento, quindi struttura. Gemma risponde `source_of`, cioè "la struttura è da dove viene una sostanza", e lo fa 6 volte. È un errore di lettura del modello: si corregge scrivendo meglio la definizione dei ruoli nel prompt, con esempi.
+
+**Causa D, la regola non c'è.** Lettore e modello concordano tra loro, oppure non concordano, ma la risposta giusta dipende da una convenzione che non abbiamo mai scritto. Esempio: in "low lung volumes" la parola "lung" è struttura (il gold) o "misura del polmone"? Non è un errore di nessuno: manca una decisione. Le 6 decisioni sono elencate sopra.
+
+**Le chiavi.** Nei secret ci sono `BIOPORTAL_API_KEY` e `UMLS_API_KEY`, con la licenza UMLS già accettata.
+
+- `scripts/build_governor_kinds.py` raccoglie le parole che reggono le menzioni (dalle frasi, mai dalle etichette). Per ciascuna chiede:
+  - a **RadLex**, via BioPortal, la classe con quel nome esatto e il ramo sopra di essa: procedura o modalità d'esame, osservazione o reperto, anatomia, dispositivo, proprietà;
+  - a **UMLS** i concetti con quel nome esatto e i loro tipi semantici (procedura diagnostica o terapeutica, segno o sintomo, reperto, dispositivo, attributo…).
+- **Una parola riceve un tipo solo se tutte le corrispondenze esatte danno lo stesso tipo**, dentro ogni fonte e tra le due. Altrimenti resta senza tipo ed è registrata come conflitto.
+- **Da UMLS non uso SNOMED CT.** L'Italia non è membro di SNOMED International, e nei Paesi non membri SNOMED CT richiede la licenza affiliata. Le fonti cercate sono MeSH, NCI, HPO, Metathesaurus, CHV, LOINC e MedlinePlus.
+- **La tabella si costruisce nel workflow e non si committa né si carica come artefatto**: il contenuto UMLS non si ridistribuisce. Nell'artefatto vanno solo i conteggi.
+- **Uso:** con l'input `governor: true`, il workflow `role-probe` costruisce la tabella e la passa al lettore (`--governor-kinds`). Quando la parola che regge è nella tabella, decide la lettura.
+
+**BioPortal: quali ontologie servono.** BioPortal ne ospita centinaia. Per il nostro compito servono poche:
+
+| ontologia | a cosa serve | decisione |
+|---|---|---|
+| **RADLEX** (4.3, dic. 2025) | parole della radiologia: esami, proiezioni, osservazioni, anatomia | **usata subito** |
+| **HP** (Human Phenotype Ontology) | reperti e segni; ha una **traduzione italiana** | candidata per i reperti italiani |
+| **ORDO_IT** (Orphanet, italiano) | malattie rare in italiano | poco utile per i ruoli |
+| MESH, NCIT, LOINC, HPO via UMLS | già coperte dalla ricerca UMLS | non serve BioPortal |
+| SNOMEDCT | completa | **non utilizzabile** dall'Italia senza licenza affiliata |
+| UBERON, FMA | anatomia | UBERON è già nel linker |
+| ICD9CM, ICD10CM (inglese) | diagnosi e procedure in inglese | coperte da UMLS; per l'italiano servono ICD-9-CM IT e CIPI |
