@@ -1,0 +1,55 @@
+name: Radiology kinds (RadLex) for the reader
+
+# On demand and on the first day of every month: downloads RadLex through BioPortal (BIOPORTAL_API_KEY),
+# builds data/linking/radiology_kinds.json (the kinds of radiology words and names, derived from RadLex with
+# the RSNA attribution) and opens a pull request when it changed. The reader's block memory reads the file
+# when it is there (chunk_lattice.BlockMemory.load): it fills the words NCIt has no kind for ("CT", "MRI",
+# "radiograph"). Proposes, never commits to main.
+on:
+  schedule:
+    - cron: "41 5 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked
+
+      - name: Build the radiology kinds
+        env:
+          BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
+        run: |
+          uv run --no-sync python scripts/build_radiology_kinds.py --out data/linking/radiology_kinds.json \
+            | tee radiology_kinds_summary.json
+
+      - name: Summarise
+        if: always()
+        run: |
+          { echo "### Radiology kinds (RadLex)"; echo '```json'; cat radiology_kinds_summary.json 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/radiology-kinds
+          title: "chore: radiology kinds for the reader (based on RadLex)"
+          commit-message: "chore: update data/linking/radiology_kinds.json (based on RadLex)"
+          author: frankltr <frankltr@users.noreply.github.com>
+          add-paths: data/linking/radiology_kinds.json
+          body: |
+            The kinds of radiology words and names, derived from RadLex (RSNA), for the reader's base vocabulary.
+            A RadLex kind fills a word NCIt has no kind for (or only "conceptual"); NCIt kinds are kept otherwise.
+            The summary of the run gives the counts and the conflicts (words with two kinds in RadLex, left out).
+
+            This table is based on the RadLex® Ontology developed at the Radiological Society of North America.
+
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
+          labels: data-update

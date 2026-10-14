@@ -16,9 +16,9 @@ on:
         required: false
         default: "openai/gpt-oss-120b,google/gemma-4-31b-it,mistralai/mistral-small-2603"
       arms:
-        description: "Arms, comma-separated: lattice, reader, llm, llm+reader"
+        description: "Arms, comma-separated: lattice, reader, llm, llm_method (the method of the reader asked of the model), llm+reader"
         required: false
-        default: "lattice,reader,llm,llm+reader"
+        default: "lattice,reader,llm,llm_method"
       examples:
         description: "Annotated items of other reports shown per question (0 = none)"
         required: false
@@ -31,10 +31,6 @@ on:
         description: "Items (empty = all 663 with a role)"
         required: false
         default: ""
-      governor:
-        description: "Give the Kintsch reader the word that governs the mention (spaCy dependency parser): true or false"
-        required: false
-        default: "false"
       resume_run:
         description: "Id of an earlier role-probe run (the number in its URL), or latest, whose answers are reused: no repeat calls, no repeat bill; empty = start fresh"
         required: false
@@ -60,13 +56,6 @@ jobs:
           uv sync --locked
           # scipy is not in the lockfile; the reader's semantic space needs it (as in ci-probe.yml)
           uv pip install scipy
-
-      - name: Dependency parser (spaCy, MIT; models pinned to their release)
-        if: ${{ inputs.governor == 'true' }}
-        run: |
-          uv pip install "spacy==3.8.*" \
-            https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl \
-            https://github.com/explosion/spacy-models/releases/download/it_core_news_md-3.8.0/it_core_news_md-3.8.0-py3-none-any.whl
 
       # IU X-ray reports kept between runs (Open-i can be down): the file stays in this repository's cache,
       # never in the repository itself.
@@ -132,17 +121,6 @@ jobs:
           cp prev/role_probe_answers.jsonl role_probe_answers.jsonl
           echo "run $RUN_ID: reused answers: $(wc -l < role_probe_answers.jsonl)"
 
-      - name: Kinds of the governing words (RadLex via BioPortal, UMLS; built here, never uploaded)
-        if: ${{ inputs.governor == 'true' }}
-        env:
-          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
-          BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
-        run: |
-          GOLD="silver/gold.jsonl"; if [ -f rad_gold.jsonl ]; then GOLD="$GOLD rad_gold.jsonl"; fi
-          # shellcheck disable=SC2086  # two paths, split on purpose
-          uv run --no-sync python scripts/build_governor_kinds.py --gold $GOLD --out governor_kinds.json \
-            --cache governor_kinds_cache.json | tee governor_kinds_summary.json
-
       - name: Run the probe
         env:
           MODELS: ${{ inputs.models }}
@@ -150,7 +128,6 @@ jobs:
           ARMS: ${{ inputs.arms }}
           EXAMPLES: ${{ inputs.examples }}
           LIMIT: ${{ inputs.limit }}
-          GOVERNOR: ${{ inputs.governor }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
@@ -158,7 +135,7 @@ jobs:
           if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
             echo "::error::models takes ids like org/name, comma-separated"; exit 2
           fi
-          if ! [[ "$ARMS" =~ ^[a-z+,]+$ ]]; then echo "::error::arms: lattice, reader, llm, llm+reader"; exit 2; fi
+          if ! [[ "$ARMS" =~ ^[a-z_+,]+$ ]]; then echo "::error::arms: lattice, reader, llm, llm_method, llm+reader"; exit 2; fi
           if ! [[ "$EXAMPLES" =~ ^[0-9]+$ ]]; then echo "::error::examples takes a whole number"; exit 2; fi
           GOLD="silver/gold.jsonl"; REPORTS="silver/reports.jsonl"
           if [ -f rad_gold.jsonl ]; then GOLD="$GOLD rad_gold.jsonl"; REPORTS="$REPORTS rad_reports.jsonl"; fi
@@ -176,8 +153,6 @@ jobs:
             echo "::error::quantization takes id=fp8, comma-separated"; exit 2
           fi
           set -- "$@" --quantization "$QUANTIZATION"
-          if [ "$GOVERNOR" = "true" ]; then set -- "$@" --governor; fi
-          if [ -f governor_kinds.json ]; then set -- "$@" --governor-kinds governor_kinds.json; fi
           uv run --no-sync python -u scripts/role_probe.py "$@" 2> >(tee role_probe.log >&2)
 
       - name: Summarise
@@ -195,7 +170,6 @@ jobs:
           name: role-probe
           retention-days: 7
           path: |
-            governor_kinds_summary.json
             role_probe.json
             role_probe.md
             role_probe.log

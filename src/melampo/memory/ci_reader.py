@@ -116,10 +116,6 @@ DOMAIN_SHARE = 0.25  # a kind is part of the ambito when it makes this share of 
 MIN_KIND_SHARE = 0.6  # a neighbour has a kind when the names ending with it agree this much
 TRACE_SUPPORT = 2.0  # a cue seen n times counts n / (n + TRACE_SUPPORT)
 NAME_WEIGHT = 0.5  # the string is a known name of a structure
-GOVERNOR_KINDS = frozenset({"procedure", "device", "property", "process", "disease", "anatomy"})
-GOVERNOR_WEIGHT = 1.0  # a governing noun of known kind (the head of the noun phrase the mention is in)
-VERB_GOVERNOR = 0.5  # a typed verb governing the mention ("was explored") counts half a governing noun
-UNKNOWN_GOVERNOR = 0.0  # a governing noun the vocabulary does not know, against the default "structure" (off: 14 Oct 2026)
 # One sense per discourse (Gale, Church & Yarowsky 1992): a word keeps its sense through a text 98% of the time.
 ONE_SENSE_PER_DISCOURSE = 0.98
 # Owners whose parts a text may settle for all its occurrences of a word. Only food: the parts of a food
@@ -563,31 +559,14 @@ class CIReader:
         traces: TraceMemory | None = None,
         inhibition: float = INHIBITION,
         use: frozenset[str] | None = None,
-        governor=None,
-        unknown_governor: float | dict[str, float] = UNKNOWN_GOVERNOR,
-        governor_weight: float = GOVERNOR_WEIGHT,
-        governor_kinds: dict | None = None,
     ):
         self.lattice = lattice
-        # The word that governs the mention, from a dependency parser (``governor.GovernorParser``); None
-        # keeps the reader as it was. ``unknown_governor`` is how much a governing noun the vocabulary does
-        # not know weighs against the default reading "structure" (0 = it is only traced); a dict gives it per
-        # language (the English vocabulary types most governing nouns, the Italian one has none yet).
-        self.governor = governor
-        self.unknown_governor = unknown_governor
-        # how much a governing noun of known kind weighs, against the default reading of the block
-        self.governor_weight = governor_weight
-        # Kinds of governing words from a vocabulary that has them as written (RadLex, UMLS semantic types;
-        # built by a script, word -> kind, English; or language -> {word: kind}). Its kind is preferred to
-        # NCIt's for the governor node, which stays evidence among the others (14 October 2026).
-        self.governor_kinds = governor_kinds
         self.space = space
         self.protos = protos or {}
         self.traces = traces
         self.inhibition = inhibition
         # which families of evidence are in the network (for the ablations of the probe)
-        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse",
-                                     "governor"})
+        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse"})
         self.scale = self._calibrate()
 
     def _calibrate(self) -> float:
@@ -633,56 +612,6 @@ class CIReader:
 
     # -- construction -------------------------------------------------------------------------
 
-    def _governor_nodes(self, mention: str, sentence: str, start: int | None, language: str):
-        """The governor of the mention as evidence (13 October 2026): its kind in the vocabulary supports the
-        reading of that kind; a governing noun the vocabulary does not know weighs against the default
-        reading (the mention modifies something the reader cannot name: it must not say "structure")."""
-        if self.governor is None or "governor" not in self.use:
-            return []
-        at = start if start is not None else sentence.find(mention)
-        if at is None or at < 0:
-            return []
-        try:
-            g = self.governor.governor(sentence, at, at + len(mention), language)
-        except (ValueError, OSError, ImportError):
-            return []
-        if g is None:
-            return []
-        # The kind from a vocabulary that has the word as written (RadLex, UMLS) is preferred to NCIt's, but it
-        # is evidence, not a decision: a word has several senses ("elevation" is a finding and a procedure;
-        # UMLS types it as a procedure) and the context chooses among them (14 October 2026, measured: the
-        # governor deciding broke 24 English and 65 Italian readings).
-        # The table is English (RadLex, UMLS English names): an Italian word that spells like an English
-        # acronym ("via", "tc") must not take its kind. Kinds that name a thing other than a finding, an act,
-        # a measure or a structure (gene, chemical, organism) are not used for a governing word.
-        kinds = self.governor_kinds.get(language, {}) if isinstance(self.governor_kinds, dict) and \
-            all(isinstance(v, dict) for v in self.governor_kinds.values()) else \
-            (self.governor_kinds if language == "en" else {})
-        exact = (kinds or {}).get(g.lemma)
-        if exact not in GOVERNOR_KINDS:
-            exact = None
-        typed = (exact, 1.0) if exact is not None else self.lattice._head(g.lemma)
-        reading = reading_of_kind(typed[0]) if typed else None
-        if g.locative:
-            # "opacity in the lower lobes", "clips in the right upper abdomen": the mention is a place; the
-            # kind of what is in it does not make it a property or a procedure (only a device changes it)
-            device = typed is not None and reading == "device_site"
-            return [(f"governor:{g.lemma}:{g.relation}:locative", 1.0, {"device_site" if device else STRUCTURE: 1.0})]
-        if reading is not None:
-            weight = float(typed[1]) * (self.governor_weight if g.nominal else VERB_GOVERNOR)
-            return [(f"governor:{g.lemma}:{g.relation}:{typed[0]}", weight, {reading: 1.0})]
-        known = self.lattice.memory.head(g.lemma)
-        if g.nominal and known is not None:
-            # a word the vocabulary knows whose kind gives no role (an action or a change: "degenerative
-            # changes of the spine", "enlargement of the cardiac silhouette"): something happens to the
-            # structure, which stays the structure the text speaks of
-            return [(f"governor:{g.lemma}:{g.relation}:{known[0]}", float(known[1]), {STRUCTURE: 1.0})]
-        weight = (self.unknown_governor.get(language, UNKNOWN_GOVERNOR) if isinstance(self.unknown_governor, dict)
-                  else self.unknown_governor)
-        if g.nominal and g.pos in ("NOUN", "PROPN") and weight > 0:
-            return [(f"governor:{g.lemma}:{g.relation}:unknown", 1.0, {STRUCTURE: -weight})]
-        return []
-
     def construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None,
                   doc_key: str = "", discourse: Discourse | None = None, doc_at: int | None = None,
                   language: str = "en"):
@@ -692,7 +621,6 @@ class CIReader:
         nodes: list[tuple[str, float, dict[str, float]]] = []
         if "name" in self.use:
             nodes.append(("name", 1.0, {STRUCTURE: NAME_WEIGHT}))
-        nodes.extend(self._governor_nodes(mention, sentence, start, language))
         sentence, start = see_through_abbreviations(sentence, start, mention)
         if "rules" in self.use:
             # Formal knowledge enters the network as a node, not as a filter afterwards (Kintsch 1998, the
