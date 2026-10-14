@@ -342,7 +342,12 @@ def site_agreement(items: list[dict]) -> dict:
                 no_shared += not both
             else:
                 to_person.append(it["item_id"])
-        out[model] = {"items": n, "to_a_person": n - agree, "to_a_person_share": round((n - agree) / n, 4) if n else None,
+        answered = [it for it in items if it["answers"].get(key) not in (None, UNREACHABLE, "uncertain")]
+        among = sum(it["role"] in ((it.get("roles") or {}).get(key) or [it["answers"][key]]) for it in answered)
+        first = sum(it["answers"][key] == it["role"] for it in answered)
+        out_model = {"model_alone_first_role_right": round(first / len(answered), 4) if answered else None,
+                     "model_alone_gold_among_roles": round(among / len(answered), 4) if answered else None}
+        out[model] = {**out_model, "items": n, "to_a_person": n - agree, "to_a_person_share": round((n - agree) / n, 4) if n else None,
                       "agreed_but_wrong_outcome": wrong, "agreed_with_a_shared_role": shared_roles,
                       "agreed_without_a_shared_role": no_shared, "to_a_person_items": to_person}
     return out
@@ -440,12 +445,13 @@ def markdown(report: dict) -> str:
         lines += ["", "Agreement on what changes the outcome (option b): the word names a body site here or not; "
                   "the roles are kept as a set. A person is asked only when reader and model contradict each "
                   "other on the outcome or one cannot say.", "",
-                  "| language | model | items | to a person | agreed, outcome wrong | agreed, a role shared | agreed, no role shared |",
-                  "|---|---|---|---|---|---|---|"]
+                  "| language | model | items | to a person | agreed, outcome wrong | agreed, a role shared | agreed, no role shared | model alone: first role right | model alone: gold among its roles |",
+                  "|---|---|---|---|---|---|---|---|---|"]
         for lang, per in report["site_agreement"].items():
             for model, s in per.items():
                 lines.append(f"| {lang} | {model} | {s['items']} | {s['to_a_person']} ({s['to_a_person_share']:.1%}) | "
-                             f"{s['agreed_but_wrong_outcome']} | {s['agreed_with_a_shared_role']} | {s['agreed_without_a_shared_role']} |")
+                             f"{s['agreed_but_wrong_outcome']} | {s['agreed_with_a_shared_role']} | {s['agreed_without_a_shared_role']} | "
+                             f"{s['model_alone_first_role_right']} | {s['model_alone_gold_among_roles']} |")
     lines += ["", "Mentions the gold set calls NOT_ANATOMY (lesions, fluids, cells), scored apart: "
               "how many each arm reads as the structure itself.", "", "| arm | items | said structure |", "|---|---|---|"]
     for arm, s in report.get("not_anatomy", {}).items():

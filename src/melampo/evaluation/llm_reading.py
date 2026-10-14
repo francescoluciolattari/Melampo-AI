@@ -43,7 +43,7 @@ ROLES = {
     "device_site": "the structure is where a device is or goes (vena cava filter, biliary stent)",
     "inherent_location": "the phrase names a measure, property, function or process of the structure (brain weight, liver function)",
     "source_of": "the structure is where a substance, cell or sample comes from (liver enzymes, bone marrow cells)",
-    "inside_a_name": "the word is part of the name of a gene, protein, chemical, organism or other thing (Heart and Soul gene)",
+    "inside_a_name": "the word is part of the name of something that is not in the body: a gene, protein, chemical, drug, organism, organisation, product (Heart and Soul gene, American Heart Association); the word does not refer to the body here",
     "not_a_body_site": "the word does not name a place in a body here (heart of the matter, a cheese)",
     "other": "none of the above",
     "uncertain": "the sentence does not let you decide",
@@ -277,9 +277,12 @@ RULES = f"""Rules:
    noun, with the head's complements when they name one concept ("brain weights", "inferior vena cava
    filter placement", "liver gene expression"). The marked word alone is the phrase only when nothing
    in the sentence continues it.
-3. A body structure written inside a longer name of another kind of thing (a procedure, a device, a
-   measurement, a function or process, a protein or gene, a chemical, an organism, a food) is part of
-   that name; the role says what the structure is for that name.
+3. A body structure written inside a longer name of another kind of thing is part of that name; the role
+   says what the structure is for that name. A disease, finding or lesion named after where it is (pleural
+   effusion, pulmonary edema, osteosarcoma of the femur, macular pucker) still refers to that structure:
+   the structure is where the finding is. So does a procedure, device or measure named after it (liver
+   biopsy, biliary stent, heart rate). Only the name of something that is not in the body (a gene, a
+   protein, a chemical, an organism, an organisation, a product) makes the word "inside_a_name".
 4. Say "uncertain" when the sentence does not let you decide. A wrong certain answer costs more than
    an uncertain one.
 5. More than one role can be true at once, and the sentence decides which: a measure of an organ that is
