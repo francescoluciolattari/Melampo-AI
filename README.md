@@ -1,7 +1,7 @@
 # Project Melampo
 
 **From Attention to Intuition**  
-**Enterprise-grade research scaffold for multimodal, multimodel clinical intuition**
+**Enterprise-grade research scaffold for multimodal, multimodel clinical cognitive diagnosis**
 
 ![Status](https://img.shields.io/badge/Status-Research_Scaffold-blue)
 ![Focus](https://img.shields.io/badge/Focus-Medical_AI_%7C_RAG/RLM_%7C_Intuition-purple)
