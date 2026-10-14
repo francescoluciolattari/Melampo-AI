@@ -398,11 +398,12 @@ def test_without_a_parser_the_reader_is_unchanged():
     assert not [n for n in plain if n[0].startswith("governor:")]
 
 
-def test_a_governor_the_vocabulary_has_as_written_decides():
+def test_a_governor_kind_from_the_vocabulary_is_evidence_and_only_in_its_language():
     reader = ci.CIReader(lattice(), governor=_FakeGovernor(_governed("radiograph", "of")),
-                         governor_kinds={"radiograph": "procedure"})
-    got = reader.read("knees", "A plain radiograph of the knees.", 26)
-    assert got.decision == "procedure_site" and any(n.startswith("governor:radiograph:of:procedure:decides") for n in got.nodes)
-    place = ci.CIReader(lattice(), governor=_FakeGovernor(_governed("opacity", "in")),
-                        governor_kinds={"opacity": "disease"})
-    assert place.read("liver", "An opacity in the liver.", 18).decision == ci.STRUCTURE
+                         governor_kinds={"radiograph": "procedure", "via": "gene"})
+    nodes = reader.construct("knees", "A plain radiograph of the knees.", 26)
+    assert ("governor:radiograph:of:procedure", 1.0, {"procedure_site": 1.0}) in nodes
+    assert not [n for n in reader.construct("knees", "Radiografia delle ginocchia.", 16, language="it")
+                if n[0].startswith("governor:radiograph:of:procedure")]
+    gene = ci.CIReader(lattice(), governor=_FakeGovernor(_governed("via", "of")), governor_kinds={"via": "gene"})
+    assert not [n for n in gene.construct("liver", "Via of the liver.", 11) if n[0].startswith("governor:")]

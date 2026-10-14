@@ -80,3 +80,14 @@ def test_a_copied_mark_is_taken_out_of_the_phrase():
     got = lr.check({"phrase": "the <w>lingula</w>", "head": "<w>lingula</w>", "type": "anatomical structure",
                     "role": "structure"}, s, a, a + len("lingula"))
     assert got.valid and got.answer["phrase"] == "the lingula"
+
+
+def test_a_placeholder_left_out_at_the_edge_still_covers_the_marked_words():
+    from melampo.evaluation import llm_reading as lr
+
+    s = "A density overlying the left  costophrenic XXXX is due to soft tissues."
+    m = "left  costophrenic XXXX"
+    a = s.index(m)
+    got = lr.check({"phrase": "left costophrenic", "head": "costophrenic", "type": "anatomical structure",
+                    "role": "structure"}, s, a, a + len(m))
+    assert got.valid

@@ -101,8 +101,10 @@ def items_of(gold: list[dict], reports: dict[str, str]) -> list[dict]:
 # How much a governing noun the vocabulary does not know weighs against "structure", per language, when
 # the reader is given the parser (13 October 2026): the English vocabulary (NCIt) types most governing
 # nouns, so an unknown one is mostly a finding word (0, only traced); the Italian vocabulary has none yet,
-# so the reader must not read "structure" under a governor it cannot name (1: it says it does not know).
-UNKNOWN_GOVERNOR = {"en": 0.0, "it": 1.0}
+# so the reader must not read "structure" under a governor it cannot name. 14 October 2026, measured: the
+# weight against "structure" did not make the reader say it does not know; another role won the
+# integration instead (65 Italian readings broken): 0 for both languages until the Italian vocabulary exists.
+UNKNOWN_GOVERNOR = {"en": 0.0, "it": 0.0}
 
 
 def build_reading(reader_dir: Path | None, governor: bool = False, governor_kinds: Path | None = None):

@@ -95,3 +95,64 @@ Nel repo entra solo il derivato (parola → tipo), con l'attribuzione richiesta:
 | SNOMEDCT | completa | **non utilizzabile** dall'Italia senza licenza affiliata |
 | UBERON, FMA | anatomia | UBERON è già nel linker |
 | ICD9CM, ICD10CM (inglese) | diagnosi e procedure in inglese | coperte da UMLS; per l'italiano servono ICD-9-CM IT e CIPI |
+
+## Il run del 14 ottobre (governor acceso, tipi RadLex/UMLS) e il cambio di impostazione
+
+**Tabella dei tipi.** Delle 419 parole che reggono una menzione, 99 hanno ricevuto un tipo e 25 sono finite in conflitto.
+
+**Il lettore è peggiorato:** 88,1% → 80,0% di ruoli giusti, e gli errori sede/non-sede sono passati da 3 a 39. I casi rotti sono 65 in italiano e 24 in inglese. Le cause sono tre:
+
+1. **Il vocabolario inglese applicato a parole italiane.** "via" (vie biliari) è stato tipizzato come il gene *VIA*, "tc" come un gene.
+2. **Una parola con più sensi, fissata a un solo tipo.** UMLS dà "elevation" come procedura; in "elevation of the hemidiaphragm" è un reperto.
+3. **Il peso contro "struttura" sotto una parola sconosciuta.** Non ha prodotto un "non so": ha fatto vincere un altro ruolo (sede di dispositivo, nome di altro).
+
+È la conferma di quanto ha detto Frank: il tipo di una parola fuori dal contesto non può decidere.
+
+**Corretto:**
+
+- il tipo da RadLex/UMLS è solo un'evidenza tra le altre, mai una decisione;
+- vale solo per le parole inglesi;
+- non si usa se il tipo è gene, sostanza chimica o organismo;
+- nessun peso contro "struttura".
+
+Il lettore con il reggente resta spento per default. Misurato in locale con i tipi del run (79 parole), non migliora l'accordo: gli errori del lettore inglese passano da 25 a 21, ma i suoi "non so" aumentano.
+
+**Corretti anche, nel controllo delle risposte dei modelli:**
+
+- il segno `<w>` copiato nella risposta;
+- un sintagma che lascia fuori il segnaposto "XXXX" dei referti anonimizzati.
+
+Dei 9 disaccordi sede/non-sede di Nemotron in inglese, 7 venivano da questi due difetti.
+
+### C e D rivisti (Frank)
+
+- **C.** In "No pleural effusion", `source_of` (la pleura come origine del versamento) non è sbagliato. La struttura è la sede del reperto e anche da dove il liquido viene. Lo schema chiede *un* ruolo dove il testo ne sostiene più d'uno: questo non è un disaccordo tra due letture, è un limite dello schema.
+- **D.** Niente regole caso per caso. "Misura del polmone" (`inherent_location`) vuol dire che la frase parla di una quantità dell'organo, il suo volume. "Low lung volumes" è insieme una misura e un reperto radiologico dei polmoni. Quale dei due conta lo dice il contesto, come nella lettura umana. Le 6 "decisioni" proposte sono ritirate.
+
+### Che cosa deve concordare
+
+Dove serve davvero l'accordo tra lettore e modello è ciò che cambia l'esito. Prima di tutto: la parola indica qui una sede del corpo o no? Poi, se il link si fa o se la struttura è solo l'oggetto di una misura.
+
+Disaccordi (lettore senza reggente, risposte dei modelli con le due correzioni):
+
+| | ruolo esatto | link / misura / non-sede | sede / non-sede |
+|---|---|---|---|
+| inglese, Gemma 4 31B | 13,0% | 6,4% | 1,9% |
+| inglese, Nemotron 3 Ultra | 9,1% | 3,7% | **0,6%** (3 su 484) |
+| italiano, Gemma 4 31B | 30,1% | 8,0% | 4,5% |
+| italiano, Nemotron 3 Ultra | 26,4% | 3,2% | 1,9% |
+
+**Sulla domanda che conta di più (sede o no) l'inglese con Nemotron è già sotto l'1%, senza errori quando i due concordano.**
+
+I 3 casi che restano:
+
+- "Granulomatous disease in the bilateral": una frase mozzata;
+- "pulmonary outflow and XXXX": anonimizzata;
+- "T11 level": il lettore non sa.
+
+I ruoli più fini (sede di un reperto, di una procedura, oggetto di una misura) possono essere veri insieme. Vanno registrati come **insieme di ruoli che il contesto sostiene**, non scelti con una regola. Proposta:
+
+1. il modello indica *tutti* i ruoli che si applicano, non uno;
+2. il lettore conserva le letture alternative con le loro quote;
+3. si registrano i ruoli condivisi;
+4. una persona interviene solo quando le letture si contraddicono sull'esito: sede contro non-sede, oppure link contro solo misura.

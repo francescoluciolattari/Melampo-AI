@@ -150,6 +150,13 @@ def check(answer: dict, sentence: str, start: int, end: int) -> Checked:
         problems.append(f"type {kind!r} is not one of the types")
     span = covering(sentence, answer.get("phrase", ""), start, end)
     if span is None:
+        # de-identified reports replace words with "XXXX" (IU X-ray): a phrase that leaves out such a
+        # placeholder at the edge of the marked words still covers the words that are there
+        inner = re.match(r"^((?:X{3,}\s*)*)(.*?)((?:\s*X{3,})*)$", sentence[start:end], re.S)
+        if inner and inner.group(2) and (inner.group(1) or inner.group(3)):
+            s0 = start + len(inner.group(1))
+            span = covering(sentence, answer.get("phrase", ""), s0, s0 + len(inner.group(2)))
+    if span is None:
         problems.append("the phrase is not a piece of the sentence that contains the marked word")
     head = _norm(answer.get("head", ""))
     if span is not None and head and head not in _norm(sentence[span[0]: span[1]]):

@@ -116,9 +116,10 @@ DOMAIN_SHARE = 0.25  # a kind is part of the ambito when it makes this share of 
 MIN_KIND_SHARE = 0.6  # a neighbour has a kind when the names ending with it agree this much
 TRACE_SUPPORT = 2.0  # a cue seen n times counts n / (n + TRACE_SUPPORT)
 NAME_WEIGHT = 0.5  # the string is a known name of a structure
+GOVERNOR_KINDS = frozenset({"procedure", "device", "property", "process", "disease", "anatomy"})
 GOVERNOR_WEIGHT = 1.0  # a governing noun of known kind (the head of the noun phrase the mention is in)
 VERB_GOVERNOR = 0.5  # a typed verb governing the mention ("was explored") counts half a governing noun
-UNKNOWN_GOVERNOR = 1.0  # a governing noun the vocabulary does not know, against the default "structure"
+UNKNOWN_GOVERNOR = 0.0  # a governing noun the vocabulary does not know, against the default "structure" (off: 14 Oct 2026)
 # One sense per discourse (Gale, Church & Yarowsky 1992): a word keeps its sense through a text 98% of the time.
 ONE_SENSE_PER_DISCOURSE = 0.98
 # Owners whose parts a text may settle for all its occurrences of a word. Only food: the parts of a food
@@ -565,7 +566,7 @@ class CIReader:
         governor=None,
         unknown_governor: float | dict[str, float] = UNKNOWN_GOVERNOR,
         governor_weight: float = GOVERNOR_WEIGHT,
-        governor_kinds: dict[str, str] | None = None,
+        governor_kinds: dict | None = None,
     ):
         self.lattice = lattice
         # The word that governs the mention, from a dependency parser (``governor.GovernorParser``); None
@@ -577,9 +578,8 @@ class CIReader:
         # how much a governing noun of known kind weighs, against the default reading of the block
         self.governor_weight = governor_weight
         # Kinds of governing words from a vocabulary that has them as written (RadLex, UMLS semantic types;
-        # built by a script, word -> kind). When the governor is in it, the reading is decided by the governor
-        # (14 October 2026: deterministic only where the vocabulary has the correspondence); the integration
-        # of the other evidence is kept in the trace. None: the governor is only evidence.
+        # built by a script, word -> kind, English; or language -> {word: kind}). Its kind is preferred to
+        # NCIt's for the governor node, which stays evidence among the others (14 October 2026).
         self.governor_kinds = governor_kinds
         self.space = space
         self.protos = protos or {}
@@ -648,14 +648,20 @@ class CIReader:
             return []
         if g is None:
             return []
-        exact = (self.governor_kinds or {}).get(g.lemma)
-        if exact is not None and (g.nominal or g.locative):
-            reading = reading_of_kind(exact)
-            if g.locative:
-                reading = "device_site" if reading == "device_site" else STRUCTURE
-            if reading is not None:
-                return [(f"governor:{g.lemma}:{g.relation}:{exact}:decides", 1.0, {reading: 1.0})]
-        typed = self.lattice._head(g.lemma)
+        # The kind from a vocabulary that has the word as written (RadLex, UMLS) is preferred to NCIt's, but it
+        # is evidence, not a decision: a word has several senses ("elevation" is a finding and a procedure;
+        # UMLS types it as a procedure) and the context chooses among them (14 October 2026, measured: the
+        # governor deciding broke 24 English and 65 Italian readings).
+        # The table is English (RadLex, UMLS English names): an Italian word that spells like an English
+        # acronym ("via", "tc") must not take its kind. Kinds that name a thing other than a finding, an act,
+        # a measure or a structure (gene, chemical, organism) are not used for a governing word.
+        kinds = self.governor_kinds.get(language, {}) if isinstance(self.governor_kinds, dict) and \
+            all(isinstance(v, dict) for v in self.governor_kinds.values()) else \
+            (self.governor_kinds if language == "en" else {})
+        exact = (kinds or {}).get(g.lemma)
+        if exact not in GOVERNOR_KINDS:
+            exact = None
+        typed = (exact, 1.0) if exact is not None else self.lattice._head(g.lemma)
         reading = reading_of_kind(typed[0]) if typed else None
         if g.locative:
             # "opacity in the lower lobes", "clips in the right upper abdomen": the mention is a place; the
@@ -818,11 +824,6 @@ class CIReader:
              doc_at: int | None = None, language: str = "en") -> CIReading:
         nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at, language)
         act, cycles = self.integrate(nodes)
-        decided = next((links for label, _, links in nodes if label.endswith(":decides")), None)
-        if decided:
-            top = next(iter(decided))
-            shares = {r: (1.0 if r == top else 0.0) for r in READINGS}
-            return CIReading(top, top, 1.0, shares, cycles, [f"{n[0]}={n[1]:.2f}" for n in nodes])
         total = sum(act.values())
         shares = {r: (v / total if total > 0 else 0.0) for r, v in act.items()}
         ranked = sorted(shares.items(), key=lambda kv: -kv[1])
