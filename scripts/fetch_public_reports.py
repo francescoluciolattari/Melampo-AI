@@ -491,9 +491,34 @@ def main(argv=None) -> int:
             return 2
         _write(rows, Path(args.out))
         return 0
-    with urllib.request.urlopen(IU_URL, timeout=120) as response:  # noqa: S310 (fixed https URL)
-        _write(iu_reports(response.read()), Path(args.out))
+    _write(iu_reports(fetch_iu_archive()), Path(args.out))
     return 0
+
+
+def fetch_iu_archive(url: str = IU_URL, attempts: int = 5, wait: float = 30.0, opener=None, sleep=None) -> bytes:
+    """The IU X-ray archive from Open-i, checked to be gzip. Open-i sometimes answers with an HTML page
+    instead of the file (14 Oct 2026, a passing outage): that answer is retried, with a pause, and only after
+    the last attempt does the run stop, saying what came back instead of a tar error."""
+    import time
+
+    opener = opener or urllib.request.urlopen
+    sleep = sleep or time.sleep
+    last = ""
+    for attempt in range(1, attempts + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Melampo-AI research fetch (GitHub Actions)"})
+            with opener(req, timeout=300) as response:  # noqa: S310 (fixed https URL)
+                data = response.read()
+            if data[:2] == b"\x1f\x8b":
+                return data
+            last = f"not a gzip file ({len(data)} bytes, starts {data[:60]!r})"
+        except OSError as error:  # URLError, HTTPError, timeouts
+            last = f"{type(error).__name__}: {error}"
+        print(f"Open-i attempt {attempt}/{attempts}: {last}", file=sys.stderr)
+        if attempt < attempts:
+            sleep(wait * attempt)
+    raise SystemExit(f"Open-i did not return the IU X-ray archive after {attempts} attempts: {last}. "
+                     "The site may be down: run the workflow again later.")
 
 
 if __name__ == "__main__":
