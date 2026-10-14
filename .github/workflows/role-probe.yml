@@ -124,6 +124,17 @@ jobs:
           cp prev/role_probe_answers.jsonl role_probe_answers.jsonl
           echo "run $RUN_ID: reused answers: $(wc -l < role_probe_answers.jsonl)"
 
+      - name: Kinds of the governing words (RadLex via BioPortal, UMLS; built here, never uploaded)
+        if: ${{ inputs.governor == 'true' }}
+        env:
+          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
+          BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
+        run: |
+          GOLD="silver/gold.jsonl"; if [ -f rad_gold.jsonl ]; then GOLD="$GOLD rad_gold.jsonl"; fi
+          # shellcheck disable=SC2086  # two paths, split on purpose
+          uv run --no-sync python scripts/build_governor_kinds.py --gold $GOLD --out governor_kinds.json \
+            --cache governor_kinds_cache.json | tee governor_kinds_summary.json
+
       - name: Run the probe
         env:
           MODELS: ${{ inputs.models }}
@@ -158,6 +169,7 @@ jobs:
           fi
           set -- "$@" --quantization "$QUANTIZATION"
           if [ "$GOVERNOR" = "true" ]; then set -- "$@" --governor; fi
+          if [ -f governor_kinds.json ]; then set -- "$@" --governor-kinds governor_kinds.json; fi
           uv run --no-sync python -u scripts/role_probe.py "$@" 2> >(tee role_probe.log >&2)
 
       - name: Summarise
@@ -175,6 +187,7 @@ jobs:
           name: role-probe
           retention-days: 7
           path: |
+            governor_kinds_summary.json
             role_probe.json
             role_probe.md
             role_probe.log
