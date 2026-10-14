@@ -50,3 +50,30 @@ Item mandati a una persona con la regola sull'esito:
 ## Da misurare
 
 Il run `role-probe` con la nuova domanda: Gemma 4 31B e Nemotron 3 Ultra, `governor` = `false`, senza `resume_run`, perché il prompt è cambiato.
+
+## Il run del 14 ottobre sera (nuova domanda, Gemma 4 31B e Nemotron 3 Ultra)
+
+Item mandati a una persona (lettore e modello si contraddicono su "sede del corpo sì o no", oppure uno dei due non sa):
+
+| | inglese, 484 item | italiano, 375 item |
+|---|---|---|
+| **Nemotron 3 Ultra** | **2 (0,4%)** | 9 (2,4%); **7 (1,9%)** con la correzione del controllo qui sotto |
+| Gemma 4 31B | 12 (2,5%) | 20 (5,3%); 11 (2,9%) con la correzione |
+
+- **Concordi ma con esito sbagliato: 0** in tutte le righe.
+- Il modello dà più di un ruolo in circa un terzo delle risposte: Nemotron 302 volte su 963, Gemma 272.
+
+**L'inglese con Nemotron è sotto l'1%.** I 2 casi che restano sono una frase mozzata ("Granulomatous disease in the bilateral") e "T11 level", dove il lettore non sa.
+
+**Gemma va peggio con la nuova domanda.** Da sola dà il primo ruolo giusto l'85,8% delle volte (era 91,1%), con 14 errori sede/non-sede. Per esempio legge "pleural" in "No pleural effusion" come parte del nome di un'altra cosa (`inside_a_name`), 3 volte. Per questo compito Nemotron è chiaramente migliore.
+
+**Correzione del controllo.** Nei referti italiani il gold include l'articolo o la preposizione ("nelle membrane basali", "del tronco celiaco"). Il modello li lascia fuori dal sintagma ("membrane basali glomerulari"), e il controllo scartava la risposta. Ora articoli e preposizioni ai bordi della menzione possono restare fuori; anche "mesenterico- portale" e "mesenterico-portale" valgono come la stessa scrittura. Sulle risposte già pagate sono 11 risposte recuperate, e i numeri "con la correzione" vengono da lì.
+
+**Cosa resta in italiano (Nemotron, 7):**
+
+- 3 sono errori del lettore, che legge "parte di un nome" dove c'è una sede: "Addome dolente", "al torace", "dell'ovaio destro" in "Asportazione di cisti dermoide dell'ovaio destro". Il lettore non ha un vocabolario italiano: è il lavoro su CIPI, ICD-9-CM e MeSH italiano.
+- 1 è "cuffia" (dei rotatori), su cui il lettore non sa.
+- 1 è "MO": il modello ha risposto con l'espansione "midollo osseo".
+- 2 sono risposte del modello che non si possono usare.
+
+**Concordi senza un ruolo in comune:** 12 in inglese e 60 in italiano (Nemotron). Sono quasi tutte sedi di procedura: il modello dice {sede di procedura, struttura}, il lettore solo "struttura" con quota piena. L'esito non cambia (sede), ma il ruolo "procedura" lo vede solo il modello. Anche qui serve il vocabolario italiano del lettore.

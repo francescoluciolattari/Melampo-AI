@@ -70,7 +70,17 @@ def mark(sentence: str, start: int, end: int) -> str:
 
 
 def _norm(text: str) -> str:
-    return _SPACE.sub(" ", text.replace("’", "'")).strip().lower()
+    return _SPACE.sub(" ", re.sub(r"\s*-\s*", "-", text.replace("’", "'"))).strip().lower()
+
+
+# Articles and prepositions at the edge of the marked words: a phrase that leaves them out still covers the
+# words that name the thing ("nelle membrane basali" -> "membrane basali glomerulari", 14 Oct 2026).
+_EDGE_WORDS = frozenset(
+    """the a an of in on at to from by with for and or
+    il lo la i gli le l un uno una un' di del dello della dei degli delle dell a al allo alla ai agli alle all
+    da dal dallo dalla dai dagli dalle dall in nel nello nella nei negli nelle nell su sul sullo sulla sui
+    sugli sulle sull con per tra fra e""".split()
+)
 
 
 def next_words(sentence: str, end: int, limit: int = 3) -> list[str]:
@@ -97,9 +107,11 @@ def covering(sentence: str, phrase: str, start: int, end: int) -> tuple[int, int
     # a map from the folded sentence back to offsets
     chars, offsets = [], []
     prev_space = True
-    for i, ch in enumerate(sentence.replace("’", "'")):
+    text = sentence.replace("’", "'")
+    for i, ch in enumerate(text):
         if ch.isspace():
-            if prev_space:
+            nxt = text[i + 1] if i + 1 < len(text) else ""
+            if prev_space or nxt == "-" or (chars and chars[-1] == "-"):
                 continue
             chars.append(" ")
             prev_space = True
@@ -169,6 +181,16 @@ def check(answer: dict, sentence: str, start: int, end: int) -> Checked:
         if inner and inner.group(2) and (inner.group(1) or inner.group(3)):
             s0 = start + len(inner.group(1))
             span = covering(sentence, answer.get("phrase", ""), s0, s0 + len(inner.group(2)))
+    if span is None:
+        # the same for articles and prepositions at the edges of the marked words
+        s0, e0 = start, end
+        while True:
+            m = re.match(r"\s*([^\W\d_]+['’]?)\s*", sentence[s0:e0])
+            if not m or _norm(m.group(1)).rstrip("'") not in _EDGE_WORDS or m.end() >= e0 - s0:
+                break
+            s0 += m.end()
+        if s0 != start:
+            span = covering(sentence, answer.get("phrase", ""), s0, e0)
     if span is None:
         problems.append("the phrase is not a piece of the sentence that contains the marked word")
     head = _norm(answer.get("head", ""))

@@ -91,3 +91,20 @@ def test_a_placeholder_left_out_at_the_edge_still_covers_the_marked_words():
     got = lr.check({"phrase": "left costophrenic", "head": "costophrenic", "type": "anatomical structure",
                     "role": "structure"}, s, a, a + len(m))
     assert got.valid
+
+
+def test_articles_and_prepositions_at_the_edge_and_spaced_hyphens():
+    from melampo.evaluation import llm_reading as lr
+
+    s = "La biopsia evidenziava depositi nelle membrane basali glomerulari."
+    m = "nelle membrane basali"
+    a = s.index(m)
+    got = lr.check({"phrase": "membrane basali glomerulari", "head": "membrane", "type": "anatomical structure",
+                    "roles": ["structure"]}, s, a, a + len(m))
+    assert got.valid
+    s = "AngioTac dell'asse mesenterico- portale."
+    m = "asse mesenterico- portale"
+    a = s.index(m)
+    got = lr.check({"phrase": "asse mesenterico-portale", "head": "asse", "type": "anatomical structure",
+                    "roles": ["structure"]}, s, a, a + len(m))
+    assert got.valid
