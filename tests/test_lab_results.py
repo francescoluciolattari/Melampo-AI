@@ -455,3 +455,16 @@ def test_payload_observations_keep_working_with_the_new_optional_fields():
         observation.interpretation,
         observation.details,
     ) == (None, None, {})
+
+
+def test_a_percent_glued_to_the_value_and_a_score_are_read_in_a_biopsy_and_no_table_row_vanishes():
+    """16 Oct 2026: "Ki-67 20%" and "HER2 2+" gave no row and no residue in a narrative report."""
+    from melampo.data.lab_results import extract_lab_results
+
+    text = ("ESAME ISTOLOGICO\nMateriale: biopsia epatica.\nKi-67          20%\nHER2           2+\n"
+            "Grading: G2\nIl paziente riferisce dolore da 3 giorni.\n")
+    got = extract_lab_results(text, laboratory=False)
+    rows = {r.analyte: r for r in got.results}
+    assert rows["Ki-67"].value == 20.0 and rows["Ki-67"].unit == "%"
+    assert rows["HER2"].qualitative_value == "score:2+"
+    assert [line for _, line in got.unparsed_lines] == ["Grading: G2"]

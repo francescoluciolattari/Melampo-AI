@@ -344,6 +344,8 @@ def _qualitative(text: str) -> str | None:
     lowered = text.strip().lower()
     if not lowered or len(lowered) > 20:
         return None
+    if _ORDINAL_RE.match(lowered):
+        return f"score:{lowered}"  # kept as printed; never compared with a range
     for stem, meaning in _QUALITATIVE_STEMS.items():
         if lowered.startswith(stem):
             return meaning
@@ -512,8 +514,20 @@ def _parse_value_token(token: str, tail: _Tail, allow_qualitative: bool) -> bool
     return False
 
 
+_GLUED_PERCENT_RE = re.compile(rf"^([<>≤≥=]*{_NUMBER})%$")
+# A semi-quantitative score as printed: "2+" (immunohistochemistry HER2, urine dipstick), "+++".
+_ORDINAL_RE = re.compile(r"^(?:[0-4]\+|\+{1,4})$")
+
+
+def _split_glued_percent(token: str) -> tuple[str, ...]:
+    m = _GLUED_PERCENT_RE.match(token)
+    return (m.group(1), "%") if m else (token,)
+
+
 def _parse_tail_tokens(tokens: list[str], allow_qualitative: bool) -> _Tail | None:
     """VALUE [UNIT] [RANGE] with a printed flag allowed around any of them -- and nothing left over."""
+    # "20%" is the value 20 in % (Ki-67, a fraction): the unit glued to the number is split, never guessed at
+    tokens = [part for token in tokens for part in _split_glued_percent(token)]
     tail = _Tail()
     i = 0
     if i < len(tokens) and _take_flag(tail, tokens[i]):
@@ -779,6 +793,16 @@ def _is_column_header(line: str) -> bool:
     return len(words & _COLUMN_HEADER_WORDS) >= 1 and not re.search(r"\d", line)
 
 
+def _tabular(line: str) -> bool:
+    """A line laid out as a table row: explicit columns (2+ spaces, a tab, "|") or a short "label: value"."""
+    if _cells(line):
+        return True
+    # "Grading: G2", "pT: 1b", "Ki-67: 20%", "HER2: 2+" -- a short value that starts with a number, a score or a
+    # code; "Macroscopia: frustolo di 2 cm" is a sentence after a heading, not a row
+    return bool(re.fullmatch(r"\s*[\w\-/().' ]{1,40}:\s*(?:[<>]?\d|[A-Za-z]{1,3}\d|\+)[^\s]*(?:\s+\S+){0,2}\s*",
+                             line))
+
+
 def _looks_like_data(line: str) -> bool:
     """Digits and letters ("Glicemia seriati: 95 110 102"), or laid out in columns ("Colore   giallo paglierino")."""
     has_letters = sum(1 for char in line if char.isalpha()) >= 2
@@ -793,8 +817,12 @@ def _looks_like_data(line: str) -> bool:
     return bool(re.search(r"\d", line)) or bool(_cells(line))
 
 
-def extract_lab_results(text: str) -> LabExtraction:
-    """Every laboratory and antibiogram row a text contains, plus which kinds of report it is."""
+def extract_lab_results(text: str, laboratory: bool | None = None) -> LabExtraction:
+    """Every laboratory and antibiogram row a text contains, plus which kinds of report it is.
+
+    ``laboratory`` is what the report router (``report_router``) recognised: True or False overrides the
+    row count in deciding whether the whole document is a laboratory report (and so whether every unread
+    data line is residue); None keeps the row count. Rows are read the same way in every case."""
     lines = text.splitlines()
     section: str | None = None
     organism: str | None = None
@@ -860,7 +888,7 @@ def extract_lab_results(text: str) -> LabExtraction:
 
     numeric_rows = numeric
     types: set[str] = set()
-    is_laboratory = len(numeric_rows) >= MIN_NUMERIC_ROWS_FOR_LABORATORY
+    is_laboratory = len(numeric_rows) >= MIN_NUMERIC_ROWS_FOR_LABORATORY if laboratory is None else laboratory
     if is_laboratory:
         types.add(DOCUMENT_TYPE_LABORATORY)
     fractions = {
@@ -889,7 +917,14 @@ def extract_lab_results(text: str) -> LabExtraction:
         residue = tuple(candidates_for_residue)
     else:
         results = list(numeric_rows)
-        residue = ()
+        # In a narrative document a sentence with a number is not residue, but a line laid out as a table
+        # row (columns, or "name: value" with a unit or a score) is data whatever the document is: an
+        # immunohistochemistry block in a biopsy report ("Ki-67   20%", "HER2   2+") must never vanish
+        # silently (16 October 2026). Qualitative rows read in such a line are kept too.
+        results += [row for row in qualitative if _tabular(lines[row.line_number - 1])]
+        results.sort(key=lambda row: row.line_number)
+        kept = {row.line_number for row in results}
+        residue = tuple((n, l) for n, l in candidates_for_residue if n not in kept and _tabular(lines[n - 1]))
     return LabExtraction(
         results=tuple(results),
         susceptibilities=tuple(susceptibilities),

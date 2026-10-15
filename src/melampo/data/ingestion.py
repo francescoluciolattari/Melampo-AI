@@ -26,6 +26,9 @@ class ClinicalIngestionPipeline:
     # Out-of-range laboratory rows in the attachments become HPO phenotype
     # findings (data/lab_phenotypes.py), appended after the caller's own.
     derive_lab_findings: bool = True
+    # The local model asked only which kinds of report an attachment is (data/report_router.py); None: the
+    # router uses the deterministic cues alone. Never an external service: reports are patient data.
+    router_chat: Any = None
 
     def prepare_payload(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Process attachments once: report_text becomes note + labelled attachment text; raw bytes leave the payload.
@@ -47,7 +50,7 @@ class ClinicalIngestionPipeline:
             if isinstance(item, dict)
         ]
         processor = self.document_processor or ClinicalDocumentProcessor.from_env()
-        bundle = process_case_attachments(items, processor=processor)
+        bundle = process_case_attachments(items, processor=processor, router_chat=self.router_chat)
         prepared.pop("attachments")
         prepared["report_text"] = bundle.combined_text(
             str(payload.get("report_text", "") or "")
