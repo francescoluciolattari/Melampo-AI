@@ -116,6 +116,7 @@ from melampo.memory.report_state import (
     TECHNIQUE,
     ReportState,
 )
+from melampo.memory.site_qualifiers import read_site_qualifiers
 from melampo.memory.word_senses import SenseInventory, detect_language, locate, plural_keys
 
 SIDE_RIGHT = "<dx>"
@@ -1062,6 +1063,10 @@ class LinkResult:
     # Structures the Greek and Latin roots of the mention point to (stage 3): a proposal for the
     # review queue on an abstention, never a link.
     proposals: tuple[str, ...] = ()
+    # What the words around the structure say about it (15 October 2026, ``site_qualifiers``): how precise the
+    # site is (as named, approximate, a range, a region), how marked the finding is and its radiological
+    # character, how certain (ConText). They describe the link and never decide it; filled for accepted links.
+    qualifiers: dict = field(default_factory=dict, compare=False)
 
     @property
     def convergence(self) -> int:
@@ -1566,6 +1571,26 @@ class AnatomyLinker:
         return LinkResult(ABSTAINED, None, "lexicon", reason, options=readings)
 
     def link(
+        self,
+        mention: str,
+        sentence: str,
+        context: str = "",
+        report: ReportState | None = None,
+        at: int | None = None,
+    ) -> LinkResult:
+        """Link ``mention``, or abstain with the reason (see ``_link_placed``); an accepted link carries the
+        qualifiers of its site (``site_qualifiers``: location, degree and character, certainty)."""
+        result = self._link_placed(mention, sentence, context, report, at)
+        if result.status == ACCEPTED and not result.qualifiers:
+            where = mention_offset(mention, sentence, report, at)
+            found = locate(mention, sentence, where)
+            if found is not None:
+                result.qualifiers = read_site_qualifiers(
+                    sentence, found.start(), found.end(), self._reading_language(sentence, report)
+                ).as_dict()
+        return result
+
+    def _link_placed(
         self,
         mention: str,
         sentence: str,

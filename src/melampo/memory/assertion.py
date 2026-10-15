@@ -386,7 +386,7 @@ class AssertionDetector:
 
         experiencer = EXPERIENCER_PATIENT
         for cue in self.cues.experiencer_other:
-            if cue in clause:
+            if _contains_cue(clause, cue):
                 experiencer = EXPERIENCER_OTHER
                 fired.append(f"experiencer:{cue}")
                 break
@@ -426,13 +426,13 @@ class AssertionDetector:
 
         source = SOURCE_UNSPECIFIED
         for cue in self.cues.objective:
-            if cue in clause:
+            if _contains_cue(clause, cue):
                 source = SOURCE_OBJECTIVE
                 fired.append(f"objective:{cue}")
                 break
         if source == SOURCE_UNSPECIFIED:
             for cue in self.cues.subjective:
-                if cue in clause:
+                if _contains_cue(clause, cue):
                     source = SOURCE_SUBJECTIVE
                     fired.append(f"subjective:{cue}")
                     break
