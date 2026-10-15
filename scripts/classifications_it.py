@@ -214,7 +214,8 @@ def columns(header: list) -> dict[str, int]:
     for i, cell in enumerate(header):
         h = _fold(cell)
         system = "icd9" if re.search(r"icd[- ]?9|9[- ]?cm", h) else "cipi" if "cipi" in h else ""
-        what = "code" if "cod" in h else "title" if any(k in h for k in ("descr", "titolo", "denomin")) else ""
+        # "descrizione ICD-9-CM_primo codice" is a description: the description words are looked for first
+        what = "title" if any(k in h for k in ("descr", "titolo", "denomin")) else "code" if "cod" in h else ""
         if what:
             found.setdefault(f"{system or 'any'}_{what}", i)
     return found
@@ -247,25 +248,32 @@ def build(args) -> int:
         version = found.get(path.name, {}).get("version", "")
         report[path.name] = {"header": header, "columns": cols, "rows": len(rows), "version": version}
         print(f"{path.name}: {len(rows)} rows, columns {cols}, header {header}", file=sys.stderr)
-        transcoding = "cipi_code" in cols and "icd9_code" in cols
+        # The CIPI list has the CIPI code and its description (and the ICD-9-CM codes it comes from, in one
+        # cell); the transcoding table has both codes and both descriptions.
+        transcoding = "icd9_title" in cols and "cipi_code" in cols
         for row in rows:
             def cell(key):
                 i = cols.get(key)
                 return row[i] if i is not None and i < len(row) else None
+            cc = _code(cell("cipi_code"))
+            tc = _code(cell("cipi_title") or cell("any_title"))
             if transcoding:
                 c9, t9 = _code(cell("icd9_code")), _code(cell("icd9_title"))
-                cc, tc = _code(cell("cipi_code")), _code(cell("cipi_title"))
-                if c9:
+                if c9 and c9.lower() != "nd":
                     codes.setdefault(("ICD-9-CM", c9), {"system": "ICD-9-CM", "code": c9, "title": t9, "version": "2007"})
-                if cc:
-                    codes.setdefault(("CIPI", cc), {"system": "CIPI", "code": cc, "title": tc, "version": version})
-                if c9 and cc:
+                if cc and ("CIPI", cc) not in codes:
+                    codes[("CIPI", cc)] = {"system": "CIPI", "code": cc, "title": tc, "version": version}
+                if c9 and cc and c9.lower() != "nd":
                     maps.append({"icd9": c9, "cipi": cc, "source": path.name})
-            else:
-                code = _code(cell("cipi_code") or cell("any_code"))
-                title = _code(cell("cipi_title") or cell("any_title"))
-                if code:
-                    codes[("CIPI", code)] = {"system": "CIPI", "code": code, "title": title, "version": version}
+                continue
+            if not cc:
+                continue
+            extra = {_fold(header[i]).split(" (")[0]: _code(row[i]) for i in range(len(header))
+                     if i < len(row) and i not in cols.values() and row[i] not in (None, "")}
+            codes[("CIPI", cc)] = {"system": "CIPI", "code": cc, "title": tc, "version": version, **extra}
+            for c9 in re.split(r"[;,\s]+", _code(cell("icd9_code"))):
+                if c9 and c9.lower() not in ("nd", "n.d."):
+                    maps.append({"icd9": c9, "cipi": cc, "source": path.name})
     by_cipi: dict[str, list[str]] = defaultdict(list)
     for m in maps:
         by_cipi[m["cipi"]].append(m["icd9"])
@@ -297,7 +305,8 @@ def build(args) -> int:
 
 
 _STOP = frozenset("di del della dei degli delle dello dell d il lo la i gli le l un una uno e o con per su a al alla "
-                  "ai agli alle in nel nella nei negli nelle da dal dalla altra altro altri altre".split())
+                  "ai agli alle in nel nella nei negli nelle da dal dalla altra altro altri altre fino oltre entro tra fra senza "
+                  "mediante".split())
 
 
 def italian_heads(rows) -> dict:

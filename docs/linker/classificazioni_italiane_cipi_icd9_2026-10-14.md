@@ -24,13 +24,41 @@ Gira ogni lunedì e si può lanciare a mano.
 
 **Le intestazioni delle tabelle si riconoscono dalle parole** ("codice", "descrizione", "ICD-9-CM", "CIPI"), non dalla posizione: tra una versione e l'altra l'ordine delle colonne può cambiare. Il primo run scriverà nel manifest le intestazioni trovate, da controllare.
 
-**Da qui non posso scaricare i file** (il proxy blocca salute.gov.it): il parser è provato su tabelle costruite nei test, con la stessa forma descritta dalle pagine. Il primo run del workflow dirà se le intestazioni vere corrispondono.
+**Il primo run (15 ottobre 2026).** Il sito del Ministero controlla il browser prima di dare un file: il workflow lo scarica con un Chromium headless (Playwright) e funziona (`fetched_by: browser`). Le intestazioni vere hanno mostrato un errore di lettura: "Descrizione CIPI" e "Codifica ICD9CM" contengono entrambe "cod", e il riconoscimento guardava "cod" prima di "descr". Ora la descrizione si riconosce per prima, e la tabella CIPI (file 6) e la transcodifica (file 7) si leggono ciascuna con le sue colonne. Conteggi dai file veri (versione Gamma 2.0):
+
+| | |
+|---|---|
+| codici CIPI | 15.164 (con sezione, tipo, inclusioni, esclusioni, note, validità) |
+| codici ICD-9-CM | 4.036 |
+| legami ICD-9-CM → CIPI | 22.222 |
+| parole testa italiane con un tipo | 756 |
+
+I due file Excel sono nel repository (`data/classifications_it/source/`), licenza CIPI confermata da Frank: se il sito blocca il download, il workflow usa quella copia.
+
+**La pull request automatica non si è aperta.** Il ramo `chore/classifications-it` è stato spinto, ma l'ultimo passo si ferma: di solito è l'impostazione del repository *Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"*, spenta. Va accesa una volta; vale anche per `radiology-kinds`.
 
 **I codici ICD-9-CM da HL7.** I CodeSystem ICD-9-CM di HL7 (terminology.hl7.org) contengono solo i metadati, senza codici né titoli, e sono in inglese. I titoli ICD-9-CM in italiano arrivano dalla tavola di transcodifica del Ministero.
 
-## Il passo successivo
+## Le parole testa italiane nel lettore: misurato, non tenuto (15 ottobre 2026)
 
-Dare `italian_heads.json` al lettore come vocabolario delle parole italiane che reggono (gli stessi meccanismi di `governor_kinds`, per la lingua italiana) e rimisurare i 7 casi italiani e le 60 sedi di procedura che oggi vede solo il modello.
+Ho dato `italian_heads.json` al vocabolario dei blocchi del lettore, con la stessa regola di RadLex (riempie solo le parole che NCIt non conosce o tiene per "concettuali"), e ho rimisurato sugli item del run completo:
+
+| | solo NCIt | NCIt + teste CIPI/ICD-9-CM |
+|---|---|---|
+| lettore italiano giusto | 297/375 | 293/375 |
+| sedi di procedura italiane viste dal lettore | 0/72 | 0/72 |
+| Nemotron, a una persona (it) | 7 | 7 |
+| Nemotron, d'accordo senza ruolo comune (it) | 60 | 64 |
+| inglese | invariato | invariato |
+
+Nessun guadagno e un piccolo peggioramento, quindi il collegamento è tolto (regola di Frank: niente che peggiori, nemmeno spento). Il dataset resta.
+
+**Perché non aiuta.** Il reticolo compone i blocchi italiani come quelli inglesi: il tipo del blocco viene dall'ultima parola. In "asportazione del rene" la testa è la prima parola, quindi sapere che "asportazione" è una procedura non cambia niente; cambia solo qualche parola isolata, e in peggio. Il vocabolario serve solo se il lettore compone l'italiano con la testa a sinistra.
+
+**Dove può servire, da misurare:**
+- nel reticolo, una composizione italiana con la testa a sinistra ("nome + di/del + nome"), che decide dal contesto e non da una lista;
+- nel prompt del metodo (`llm_method`) come esempi di parole che reggono;
+- come dati di addestramento LoRA (titoli di procedura con la sede).
 
 ## Due domande di Frank sul lettore
 
