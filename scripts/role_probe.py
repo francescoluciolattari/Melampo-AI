@@ -98,16 +98,7 @@ def items_of(gold: list[dict], reports: dict[str, str]) -> list[dict]:
 # -- the lattice and the reader -----------------------------------------------------------------
 
 
-# How much a governing noun the vocabulary does not know weighs against "structure", per language, when
-# the reader is given the parser (13 October 2026): the English vocabulary (NCIt) types most governing
-# nouns, so an unknown one is mostly a finding word (0, only traced); the Italian vocabulary has none yet,
-# so the reader must not read "structure" under a governor it cannot name. 14 October 2026, measured: the
-# weight against "structure" did not make the reader say it does not know; another role won the
-# integration instead (65 Italian readings broken): 0 for both languages until the Italian vocabulary exists.
-UNKNOWN_GOVERNOR = {"en": 0.0, "it": 0.0}
-
-
-def build_reading(reader_dir: Path | None, governor: bool = False, governor_kinds: Path | None = None):
+def build_reading(reader_dir: Path | None):
     from melampo.memory import chunk_lattice as cl
     from melampo.memory.longer_names import LongerNames
 
@@ -116,16 +107,7 @@ def build_reading(reader_dir: Path | None, governor: bool = False, governor_kind
     if reader_dir is not None:
         from melampo.memory import ci_reader as ci
 
-        parser = None
-        if governor:
-            from melampo.memory.governor import GovernorParser
-
-            parser = GovernorParser()
-        kinds = None
-        if governor_kinds is not None:
-            kinds = json.loads(Path(governor_kinds).read_text("utf-8")).get("kinds", {})
-        reader = ci.load_reader(reader_dir, lattice, governor=parser, unknown_governor=dict(UNKNOWN_GOVERNOR),
-                                governor_kinds=kinds)
+        reader = ci.load_reader(reader_dir, lattice)
     return lattice, reader
 
 
@@ -288,8 +270,11 @@ def ask_item(item: dict, chats: dict, arms: list[str], reader_lines: list[str], 
     for arm in arms:
         if not arm.startswith("llm"):
             continue
-        prompt = lr.prompt(s, a, e, reader=reader_lines if arm == "llm+reader" else None, examples=examples,
-                           language=LANG.get(item["language"], ""))
+        if arm == "llm_method":
+            prompt = lr.method_prompt(s, a, e, language=LANG.get(item["language"], ""))
+        else:
+            prompt = lr.prompt(s, a, e, reader=reader_lines if arm == "llm+reader" else None, examples=examples,
+                               language=LANG.get(item["language"], ""))
         for name, chat in chats.items():
             asked = lr.ask(chat, prompt, s, a, e)
             out[f"{arm}:{name}"] = asked.to_json()
@@ -317,9 +302,9 @@ def site_agreement(items: list[dict]) -> dict:
     roles are recorded as the set both hold possible. A person is asked only when they contradict each other
     on the outcome, or when one of them cannot say."""
     out = {}
-    models = sorted({k.split(":", 1)[1] for it in items for k in it["answers"] if k.startswith("llm:")})
-    for model in models:
-        key = f"llm:{model}"
+    keys = sorted({k for it in items for k in it["answers"] if k.startswith(("llm:", "llm_method:"))})
+    for key in keys:
+        model = key.split(":", 1)[1] if key.startswith("llm:") else key
         n = agree = wrong = 0
         shared_roles = no_shared = 0
         to_person = []
@@ -477,7 +462,7 @@ def run(args) -> dict:
     models = [m for m in args.models.split(",") if m]
     lattice = reader = None
     if any(a in arms for a in ("lattice", "reader", "llm+reader")):
-        lattice, reader = build_reading(args.reader_dir, governor=args.governor, governor_kinds=args.governor_kinds)
+        lattice, reader = build_reading(args.reader_dir)
     docs: dict = {}
     lines_of = {}
     for it in items:
@@ -573,11 +558,6 @@ def main(argv=None) -> int:
     ap.add_argument("--reports", type=Path, nargs="+")
     ap.add_argument("--reader-dir", type=Path, help="resources of the reader (scripts/build_ci_resources.py); "
                                                      "without it the reader arm is off and llm+reader sees the lattice only")
-    ap.add_argument("--governor", action="store_true",
-                    help="give the reader the word that governs the mention (spaCy dependency parser; needs spacy and "
-                         "en_core_web_md / it_core_news_md)")
-    ap.add_argument("--governor-kinds", type=Path,
-                    help="word -> kind from RadLex/UMLS (scripts/build_governor_kinds.py): the governor decides when it is there")
     ap.add_argument("--arms", default="lattice,reader,llm,llm+reader")
     ap.add_argument("--models", default="openai/gpt-oss-120b,google/gemma-4-31b-it,mistralai/mistral-small-2603")
     ap.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")

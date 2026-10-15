@@ -234,3 +234,29 @@ def test_the_model_may_give_several_roles():
     old = lr.check({"phrase": "pleural effusion", "head": "effusion", "type": "disease or finding",
                     "role": "structure"}, s, 3, 10)
     assert old.valid and old.answer["roles"] == ["structure"]
+
+
+def test_the_method_arm_asks_the_steps_and_never_shows_the_reader():
+    from melampo.evaluation import llm_reading as lr
+
+    seen = []
+
+    def chat(prompt):
+        seen.append(prompt)
+        return json.dumps({"phrase": "liberazione del cieco e dell'appendice", "head": "liberazione",
+                           "type": "procedure", "governor": {"word": "liberazione", "names": "procedure"},
+                           "predicate": "freed during surgery",
+                           "readings": [{"role": "procedure_site", "for": "governed by liberazione", "against": ""}],
+                           "roles": ["procedure_site", "structure"]})
+
+    s = "Lisi delle aderenze e liberazione del cieco e dell'appendice che appaiono normali."
+    it = item("procedure_site", sentence=s, mention="appendice") | {"language": "it"}
+    out = rp.ask_item(it, {"m": chat}, ["llm_method"], ["- reader, readings: structure 1.00"], [])
+    assert "The governor" in seen[0] and "reader, readings" not in seen[0]
+    assert out["llm_method:m"]["answer"]["roles"] == ["procedure_site", "structure"]
+    assert out["llm_method:m"]["answer"]["governor"]["word"] == "liberazione"
+    it["answers"] = {"lattice": "structure", "reader": "structure", "llm_method:m": "procedure_site"}
+    it["roles"] = {"llm_method:m": ["procedure_site", "structure"]}
+    got = rp.site_agreement([it])
+    assert "llm_method:m" in got and got["llm_method:m"]["to_a_person"] == 0
+    assert lr.METHOD_STEPS.startswith("Read the way")

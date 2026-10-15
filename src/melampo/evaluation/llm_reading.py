@@ -147,7 +147,7 @@ def check(answer: dict, sentence: str, start: int, end: int) -> Checked:
     problems = []
     if not isinstance(answer, dict):
         return Checked({}, False, ["not a JSON object"])
-    answer = {k: (v if isinstance(v, list) else str(v).strip() if v is not None else "") for k, v in answer.items()}
+    answer = {k: (v if isinstance(v, (list, dict)) else str(v).strip() if v is not None else "") for k, v in answer.items()}
     # A model that copies the mark into its answer ("the <w>lingula</w>", 6 Nemotron answers on 13 Oct 2026)
     # has still answered about the right words: the mark is taken out before the phrase is checked.
     for key in ("phrase", "head"):
@@ -358,6 +358,38 @@ def prompt(sentence: str, start: int, end: int, *, knowledge: list[str] | None =
     return "\n\n".join(parts)
 
 
+# -- the reader's method, asked of the model (14 October 2026) ------------------------------------------
+# The Kintsch reader builds the possible readings, gathers the evidence for each and integrates them. The
+# model is asked to do the same with its own knowledge of the language: the method, never the reader's
+# answers (a model shown the reader's answers copies its errors, 13 October 2026), so that the two readers
+# stay independent and their agreement keeps its value.
+METHOD_STEPS = """Read the way the reading model of this project does, step by step, and write each step down:
+1. The phrase that contains the marked word, and its head noun.
+2. The governor: the word the phrase depends on, also outside the phrase (across "and", after "of"/"di",
+   the noun or verb that governs it), and what that word names: an exam, a procedure, a device, a finding or
+   disease, a measure or property, or something else. Empty when nothing governs it.
+3. The predicate: what the sentence says about the structure.
+4. The readings: every role that is possible here, each with the evidence for it and against it, taken
+   from steps 1-3 and the sentence.
+5. The roles: those the evidence supports, the most important first (one or more)."""
+
+METHOD_SCHEMA = (
+    '{"phrase": "<copied exactly from the sentence>", "head": "<head noun>", "type": "<one of: %s>", '
+    '"governor": {"word": "<the governing word, or empty>", "names": "<exam, procedure, device, finding or disease, '
+    'measure or property, other, or empty>"}, "predicate": "<what the sentence says about the structure>", '
+    '"readings": [{"role": "<one of the roles>", "for": "<evidence for>", "against": "<evidence against>"}], '
+    '"roles": ["<the roles the evidence supports, one or more of: %s>"]}'
+)
+
+
+def method_prompt(sentence: str, start: int, end: int, *, language: str = "") -> str:
+    """The question with the reader's method (steps written down), no reader output."""
+    full = prompt(sentence, start, end, language=language)
+    head, _, _ = full.rpartition("Sentence: ")
+    return (head + METHOD_STEPS + "\n\nSentence: " + mark(sentence, start, end) + "\n\nAnswer with JSON only, "
+            "no other text:\n" + METHOD_SCHEMA % (", ".join(TYPES), ", ".join(ROLES)))
+
+
 ROLE_SCHEMA = '{"role": "<one of: %s>"}'
 
 
@@ -388,6 +420,6 @@ def kind_of_type(kind: str) -> str:
 
 
 __all__ = [
-    "CLOSE", "OPEN", "ROLES", "SITE_ROLES", "TYPES", "Asked", "Checked", "ask", "balanced", "check",
+    "CLOSE", "METHOD_SCHEMA", "METHOD_STEPS", "OPEN", "ROLES", "method_prompt", "SITE_ROLES", "TYPES", "Asked", "Checked", "ask", "balanced", "check",
     "covering", "kind_of_type", "mark", "next_words", "parse", "prompt", "remark_example", "schema",
 ]

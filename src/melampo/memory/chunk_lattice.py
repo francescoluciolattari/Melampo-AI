@@ -32,12 +32,14 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections import Counter
 from collections.abc import Iterable
 from typing import Any
 
 from .grammar import Grammar
 from .word_senses import _PHRASE_STOP, _fold, locate
 
+RADIOLOGY_KINDS_PATH = Path(__file__).resolve().parents[3] / "data" / "linking" / "radiology_kinds.json"
 DEFAULT_PATH = (
     Path(__file__).resolve().parents[3] / "data" / "linking" / "block_memory.json"
 )
@@ -176,11 +178,33 @@ class BlockMemory:
         path: Path = DEFAULT_PATH,
         longer_names: dict[str, str] | None = None,
         anatomy_names: Iterable[str] | None = None,
+        radiology: Path | None = RADIOLOGY_KINDS_PATH,
     ) -> BlockMemory:
         data: dict[str, Any] = {}
         if path.exists():
             data = json.loads(path.read_text("utf-8"))
-        return cls.from_json(data, longer_names, anatomy_names)
+        memory = cls.from_json(data, longer_names, anatomy_names)
+        if radiology is not None and Path(radiology).exists():
+            memory.add_radiology(json.loads(Path(radiology).read_text("utf-8")))
+        return memory
+
+    def add_radiology(self, table: dict[str, Any]) -> dict[str, int]:
+        """Kinds from the radiology lexicon (``scripts/build_radiology_kinds.py``, based on RadLex): a word NCIt
+        has no kind for, or only the too-wide "conceptual", takes the radiology kind ("ct", "mri",
+        "radiograph"); a name of several words NCIt does not remember is added. NCIt kinds are not replaced
+        otherwise: where both vocabularies give a kind and they differ, the reader keeps NCIt's (14 Oct 2026)."""
+        added = Counter()
+        for word, value in (table.get("heads") or {}).items():
+            kind = value[0] if isinstance(value, list) else value
+            current = self.heads.get(word)
+            if current is None or current[0] == "conceptual":
+                self.heads[word] = (kind, 1.0)
+                added["heads"] += 1
+        for name, kind in (table.get("names") or {}).items():
+            if name not in self.names:
+                self.names[name] = kind
+                added["names"] += 1
+        return dict(added)
 
     @classmethod
     def from_json(
