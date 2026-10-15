@@ -95,7 +95,8 @@ jobs:
             version and SHA-256, the columns found in each table and the counts.
 
             **Review before merging:** a new version can renumber codes; `italian_heads.json` (the kinds of
-            Italian procedure words the reader will use) changes with the titles.
+            Italian procedure words, a dataset: not wired into the reader, measured worse on 15 Oct 2026)
+            changes with the titles.
 
             🤖 Generated with [Claude Code](https://claude.com/claude-code)
           labels: data-update

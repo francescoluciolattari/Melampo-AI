@@ -1,1 +1,70 @@
-{"files": []}
+{
+ "built": "2026-10-15",
+ "files": [
+  {
+   "name": "6.TAB_CIPI_V.GAMMA_2.0.xlsx",
+   "url": "https://www.salute.gov.it/new/sites/default/files/2026-02/6.TAB_CIPI_V.GAMMA_2.0.xlsx",
+   "version": "gamma 2.0",
+   "sha256": "a9e61b11fb4b9e228d073abad91d52404c1fcb7994ea2c161bcb11f9ba60d944",
+   "bytes": 1195831
+  },
+  {
+   "name": "7.TRANSCOD_ICD-9-CM-CIPI_V.GAMMA_2.0.xlsx",
+   "url": "https://www.salute.gov.it/new/sites/default/files/2026-02/7.TRANSCOD_ICD-9-CM-CIPI_V.GAMMA_2.0.xlsx",
+   "version": "gamma 2.0",
+   "sha256": "6b8987811e16bdf5ea9f022208254b45e372038d115f9b07a8e3fb77c82e4da1",
+   "bytes": 504512
+  }
+ ],
+ "tables": {
+  "6.TAB_CIPI_V.GAMMA_2.0.xlsx": {
+   "header": [
+    "Codice identificativo",
+    "Sezione",
+    "Tipo",
+    "Descrizione",
+    "CODICE CIPI 2025",
+    "Trans-codifica icd9CM",
+    "Equivalenza AHRQ",
+    "INCLUSIONI",
+    "ESCLUSIONI",
+    "Note",
+    "Periodo di validità\n(Per la SDO: la compilazione richiede l’utilizzo dei codici il cui intervallo di validità ricomprende la data di dimissione)"
+   ],
+   "columns": {
+    "any_code": 0,
+    "any_title": 3,
+    "cipi_code": 4,
+    "icd9_code": 5
+   },
+   "rows": 15164,
+   "version": "gamma 2.0"
+  },
+  "7.TRANSCOD_ICD-9-CM-CIPI_V.GAMMA_2.0.xlsx": {
+   "header": [
+    "descrizione ICD-9-CM_primo codice",
+    "Codifica ICD9CM",
+    "CODICE CIPI 2025",
+    "Descrizione CIPI"
+   ],
+   "columns": {
+    "icd9_title": 0,
+    "icd9_code": 1,
+    "cipi_code": 2,
+    "cipi_title": 3
+   },
+   "rows": 10671,
+   "version": "gamma 2.0"
+  }
+ },
+ "counts": {
+  "codes": {
+   "CIPI": 15164,
+   "ICD-9-CM": 4036
+  },
+  "transcoding_links": 22222,
+  "unified": 15164,
+  "italian_heads": 756
+ },
+ "licence": "CIPI and its ICD-9-CM transcoding: Ministero della Salute; use confirmed by the project owner (14 October 2026). ICD-10-IM not included."
+}
