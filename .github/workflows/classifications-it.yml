@@ -30,13 +30,19 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - run: |
           uv sync --locked
-          uv pip install openpyxl
+          uv pip install openpyxl playwright
+          # salute.gov.it checks the browser before it gives a file: a real headless Chromium passes the check
+          uv run --no-sync playwright install --with-deps chromium
 
       - name: Find the files
         run: uv run --no-sync python scripts/classifications_it.py discover --out found.json
 
-      - name: Download them
-        run: uv run --no-sync python scripts/classifications_it.py fetch --found found.json --dir raw
+      - name: Download them (request, then a real browser, then the copy kept in the repository)
+        run: |
+          uv run --no-sync python scripts/classifications_it.py fetch --found found.json --dir raw \
+            --fallback data/classifications_it/source
+          # the files just downloaded become the repository copy (licence confirmed for CIPI)
+          mkdir -p data/classifications_it/source && cp raw/*.xls* data/classifications_it/source/
 
       - name: Compare with the versions in the repository
         id: check
@@ -80,7 +86,9 @@ jobs:
           title: "chore: Italian classifications (CIPI, ICD-9-CM transcoding) updated"
           commit-message: "chore: update the Italian classifications dataset (CIPI, ICD-9-CM transcoding)"
           author: frankltr <frankltr@users.noreply.github.com>
-          add-paths: data/classifications_it/*
+          add-paths: |
+            data/classifications_it/*
+            data/classifications_it/source/*
           body: |
             The weekly check found new or changed files of the Italian classification of procedures (CIPI)
             or of its transcoding from ICD-9-CM. The manifest in this diff lists each file with its URL,

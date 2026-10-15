@@ -121,18 +121,73 @@ def discover(args) -> int:
     return 0
 
 
+CIPI_PAGE = "https://www.salute.gov.it/new/it/tema/assistenza-ospedaliera-sdo/la-classificazione-delle-procedure-cipi/"
+BROWSER_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36")
+
+
+def _is_file(data: bytes) -> bool:
+    return data[:2] == b"PK"  # xlsx and zip are zip archives: anything else is a page, not the file
+
+
+def browser_get(url: str, page_first: str = CIPI_PAGE, wait_ms: int = 10000) -> bytes:
+    """The file through a real browser (Playwright, headless Chromium). salute.gov.it answers a script with a
+    page that checks the browser (JavaScript and cookies) before it lets the file through (15 Oct 2026): the
+    browser opens the Ministry's page first, passes the check, then asks for the file with the same cookies."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        try:
+            context = browser.new_context(user_agent=BROWSER_UA, accept_downloads=True, locale="it-IT")
+            page = context.new_page()
+            page.goto(page_first, wait_until="domcontentloaded", timeout=120000)
+            page.wait_for_timeout(wait_ms)
+            data = context.request.get(url, timeout=120000).body()
+            if _is_file(data):
+                return data
+            with page.expect_download(timeout=120000) as download:
+                page.evaluate("u => { const a = document.createElement('a'); a.href = u; a.click(); }", url)
+            return Path(download.value.path()).read_bytes()
+        finally:
+            browser.close()
+
+
 def fetch(args) -> int:
+    """Each file: a plain request first; if the site answers with a page, a real browser; if that fails too,
+    the copy kept in the repository (``--fallback``), marked as such: the check then says it could not look."""
     found = json.loads(Path(args.found).read_text("utf-8"))
     raw = Path(args.dir)
     raw.mkdir(parents=True, exist_ok=True)
+    fallback = Path(args.fallback) if args.fallback else None
+    missing = []
     for item in found:
-        data = _get(item["url"])
-        if data[:2] != b"PK":  # xlsx and zip are zip archives: anything else is a page, not the file
-            raise SystemExit(f"{item['url']} did not return the file ({data[:60]!r}): run again later")
+        data, how = b"", ""
+        try:
+            data, how = _get(item["url"]), "request"
+        except OSError as error:
+            print(f"request failed: {error}", file=sys.stderr)
+        if not _is_file(data):
+            print(f"{item['name']}: the site answered with a page ({data[:40]!r}); trying a browser", file=sys.stderr)
+            try:
+                data, how = browser_get(item["url"]), "browser"
+            except Exception as error:  # noqa: BLE001 - any browser failure leads to the fallback
+                print(f"browser failed: {type(error).__name__}: {error}", file=sys.stderr)
+                data = b""
+        if not _is_file(data) and fallback is not None and (fallback / item["name"]).exists():
+            data, how = (fallback / item["name"]).read_bytes(), "repository copy"
+            print(f"::warning::{item['name']}: not downloadable now; using the copy in the repository "
+                  "(the check for a new version could not be done for this file)", file=sys.stderr)
+        if not _is_file(data):
+            missing.append(item["name"])
+            continue
         (raw / item["name"]).write_bytes(data)
         item["sha256"] = hashlib.sha256(data).hexdigest()
         item["bytes"] = len(data)
+        item["fetched_by"] = how
     Path(args.found).write_text(json.dumps(found, indent=1, ensure_ascii=False), "utf-8")
+    if missing:
+        raise SystemExit(f"not downloaded and no copy in the repository: {missing}. Download them by hand from "
+                         f"{CIPI_PAGE} and put them in {fallback or 'the fallback folder'}.")
     return 0
 
 
@@ -267,7 +322,7 @@ def check(args) -> int:
     manifest = Path(args.manifest)
     old = {f["url"]: f.get("sha256") for f in json.loads(manifest.read_text("utf-8")).get("files", [])} \
         if manifest.exists() else {}
-    changed = [f["name"] for f in found if old.get(f["url"]) != f.get("sha256")]
+    changed = [f["name"] for f in found if f.get("fetched_by") != "repository copy" and old.get(f["url"]) != f.get("sha256")]
     print(f"changed={'true' if changed else 'false'}")
     print(json.dumps({"changed_files": changed}, ensure_ascii=False), file=sys.stderr)
     return 0
@@ -305,6 +360,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("fetch")
     p.add_argument("--found", required=True)
     p.add_argument("--dir", required=True)
+    p.add_argument("--fallback", default="data/classifications_it/source",
+                   help="copies kept in the repository, used when the site cannot be reached")
     p = sub.add_parser("build")
     p.add_argument("--raw", required=True)
     p.add_argument("--found", required=True)
