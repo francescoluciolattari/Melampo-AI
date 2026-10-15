@@ -943,3 +943,17 @@ def test_a_measured_structure_is_linked_with_the_measure_as_its_role(lexicon):
         assert (result.status, result.cid) == (al.ACCEPTED, cid)
         assert result.role == "inherent_location" and result.roles == ("inherent_location",)
         assert result.reason.startswith("attribute_head_names_a_measurement:")
+
+
+def test_an_accepted_link_carries_the_qualifiers_of_its_site(lexicon):
+    """15 Oct 2026: the words around the structure describe the link (approximate site, degree, certainty)."""
+    pool, equivalent = al.build_pool(lexicon, al.load_obo_terms(_OBO_LIVE.splitlines()))
+    linker = al.AnatomyLinker(
+        lexicon, pool, equivalent,
+        retriever=lambda m, s, k: ["UBERON:0001154"],
+        chats={"a": lambda p: "1", "b": lambda p: "1"},
+    )
+    result = linker.link("Appendix", "Possible mild thickening near the Appendix.")
+    assert result.status == al.ACCEPTED
+    q = result.qualifiers
+    assert q["location"] == "approximate" and q["degree"] == "low" and q["certainty"] == "possible"
