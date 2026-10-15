@@ -48,7 +48,8 @@ _IT_CLOSED = frozenset(
     quindi però anche ancora già solo sempre mai molto poco più meno circa
     di a da in con su per tra fra del dello della dei degli delle dell nel nello nella nei negli nelle
     sul sullo sulla sui sugli sulle al allo alla ai agli alle dal dallo dalla dai dagli dalle
-    e ed o od ma se""".split()
+    e ed o od ma se oltre sopra sotto durante dopo prima verso intorno attorno presso senza mediante tramite
+    entro fino oltre contro dentro fuori davanti dietro accanto""".split()
 )
 
 _OF_EN = r"of"

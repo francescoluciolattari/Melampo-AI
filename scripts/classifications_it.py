@@ -318,6 +318,10 @@ def italian_heads(rows) -> dict:
         words = [w for w in re.findall(r"[a-zà-ù]+", _fold(r.get("title", ""))) if w not in _STOP]
         if words:
             count[words[0]] += 1
+            # the abbreviation a title gives in brackets for its head ("Tomografia assiale computerizzata (TAC)")
+            # is another word for the same kind of procedure
+            for short in re.findall(r"\(([A-Za-z]{2,6})\)", r.get("title", "")):
+                count[_fold(short)] += 1
     kinds = {w: "procedure" for w, n in count.items() if n >= MIN_TITLES}
     return {"kinds": dict(sorted(kinds.items())), "titles_per_word": dict(count.most_common()),
             "min_titles": MIN_TITLES, "source": "CIPI and ICD-9-CM (Italian titles of procedures)"}

@@ -2144,7 +2144,14 @@ class AnatomyLinker:
             "graph", UNDECIDED, result.cid, lifted or "no_class_near"
         )
 
-    def _another_method_decides(self, mention: str, sentence: str, where: int | None, sense) -> str:
+    @staticmethod
+    def _reading_language(sentence: str, report) -> str:
+        """The language the phrase is read in (Italian is left-headed and has its own vocabulary): the
+        sentence's own words first, then the report's language, English when neither says."""
+        return detect_language(sentence) or (getattr(report, "language", None) if report else None) or "en"
+
+    def _another_method_decides(self, mention: str, sentence: str, where: int | None, sense,
+                                language: str = "en") -> str:
         """The method that already answers for this link, or "". The reader is not used there:
         * ``lattice``: the chunk lattice reads the phrase as a role, a name of another thing, or two readings;
         * ``role``: a procedure neighbour ("biopsia epatica") is recorded as a role by its own rule;
@@ -2160,7 +2167,7 @@ class AnatomyLinker:
         # of the time, the reader 86%, 61% and 81% on the same items (12 October 2026).
         lattice = self.chunk_lattice or getattr(self.ci_reader, "lattice", None)
         if lattice is not None:
-            seen = lattice.read(mention, sentence, where)
+            seen = lattice.in_language(language).read(mention, sentence, where)
             if seen.exact and seen.outcome in ("role", "not_a_site"):
                 return "lattice"
         return ""
@@ -2313,7 +2320,8 @@ class AnatomyLinker:
                 )
             )
         if self.chunk_lattice is not None:
-            reading = self.chunk_lattice.read(mention, sentence, where)
+            reading = self.chunk_lattice.in_language(self._reading_language(sentence, report)).read(
+                mention, sentence, where)
             evidence.append(
                 Evidence(
                     "blocks",
@@ -2335,10 +2343,12 @@ class AnatomyLinker:
                         self.ci_reader.discourse(report.text),
                     )
                 vector, key, settled = self._ci_documents[report.text]
-            got = self.ci_reader.read(mention, sentence, where, None, vector, key, settled, at)
+            reading_language = self._reading_language(sentence, report)
+            got = self.ci_reader.read(mention, sentence, where, None, vector, key, settled, at,
+                                      language=reading_language)
             vote, note = SILENT, ""
             if got.decision in READER_NON_SITE and self.ci_reader_mode in ("record", "review"):
-                other = self._another_method_decides(mention, sentence, where, verdict)
+                other = self._another_method_decides(mention, sentence, where, verdict, reading_language)
                 if other:
                     note = f":other_method={other}"
                 else:
