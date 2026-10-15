@@ -125,7 +125,7 @@ def lattice_role(reading) -> str:
 
 def evidence(item: dict, lattice, reader, docs: dict) -> tuple[dict, list[str]]:
     """The two readings and the lines given to the model in the ``llm+reader`` arm."""
-    seen = lattice.read(item["mention"], item["sentence"], item["at"])
+    seen = lattice.in_language(item.get("language", "en")).read(item["mention"], item["sentence"], item["at"])
     got = {"lattice": lattice_role(seen), "lattice_detail": {k: getattr(seen, k) for k in
                                                             ("outcome", "role", "kind", "block", "why", "alternative", "exact")}}
     lines = [f"- chunk lattice ({'a name the vocabulary has as written' if seen.exact else 'composed from the kind of one head word'}): outcome {seen.outcome}"

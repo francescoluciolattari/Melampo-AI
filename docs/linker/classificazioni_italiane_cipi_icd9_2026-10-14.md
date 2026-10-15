@@ -51,7 +51,7 @@ Ho dato `italian_heads.json` al vocabolario dei blocchi del lettore, con la stes
 | Nemotron, d'accordo senza ruolo comune (it) | 60 | 64 |
 | inglese | invariato | invariato |
 
-Nessun guadagno e un piccolo peggioramento, quindi il collegamento è tolto (regola di Frank: niente che peggiori, nemmeno spento). Il dataset resta.
+Nessun guadagno e un piccolo peggioramento, quindi quel collegamento (parole CIPI come riempitivo del lettore inglese) fu tolto. Poi, lo stesso giorno, le parole italiane sono tornate **insieme alla grammatica italiana** (testa a sinistra) e alle parole grammaticali che non danno mai un tipo: italiano 297→336/375, sedi di procedura 0→54/72. Vedi `lettura_italiana_e_t11_2026-10-15.md`.
 
 **Perché non aiuta.** Il reticolo compone i blocchi italiani come quelli inglesi: il tipo del blocco viene dall'ultima parola. In "asportazione del rene" la testa è la prima parola, quindi sapere che "asportazione" è una procedura non cambia niente; cambia solo qualche parola isolata, e in peggio. Il vocabolario serve solo se il lettore compone l'italiano con la testa a sinistra.
 

@@ -88,3 +88,9 @@ def test_a_page_instead_of_the_file_falls_back_to_the_browser_then_to_the_reposi
     monkeypatch.setattr(ci, "browser_get", lambda url, **k: b"PK\x03\x04real")
     assert ci.main(["fetch", "--found", str(found), "--dir", str(tmp_path / "raw"), "--fallback", str(copies)]) == 0
     assert json.loads(found.read_text())[0]["fetched_by"] == "browser"
+
+
+def test_the_abbreviation_a_title_gives_in_brackets_is_a_head_too():
+    rows = [{"title": f"Tomografia assiale computerizzata (TAC) del {w}"} for w in ("capo", "torace", "rene")]
+    heads = ci.italian_heads(rows)["kinds"]
+    assert heads["tomografia"] == "procedure" and heads["tac"] == "procedure"

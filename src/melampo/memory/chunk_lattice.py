@@ -40,6 +40,8 @@ from .grammar import Grammar
 from .word_senses import _PHRASE_STOP, _fold, locate
 
 RADIOLOGY_KINDS_PATH = Path(__file__).resolve().parents[3] / "data" / "linking" / "radiology_kinds.json"
+# The head words of the Italian titles of procedures (CIPI and ICD-9-CM, scripts/classifications_it.py)
+ITALIAN_HEADS_PATH = Path(__file__).resolve().parents[3] / "data" / "classifications_it" / "italian_heads.json"
 DEFAULT_PATH = (
     Path(__file__).resolve().parents[3] / "data" / "linking" / "block_memory.json"
 )
@@ -171,6 +173,8 @@ def singular(word: str) -> str:
 class BlockMemory:
     heads: dict[str, tuple[str, float]] = field(default_factory=dict)
     names: dict[str, str] = field(default_factory=dict)
+    # kinds of Italian words (procedures: "radiografia", "tc", "asportazione"); read only by the Italian lattice
+    italian: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(
@@ -179,6 +183,7 @@ class BlockMemory:
         longer_names: dict[str, str] | None = None,
         anatomy_names: Iterable[str] | None = None,
         radiology: Path | None = RADIOLOGY_KINDS_PATH,
+        italian: Path | None = ITALIAN_HEADS_PATH,
     ) -> BlockMemory:
         data: dict[str, Any] = {}
         if path.exists():
@@ -186,6 +191,8 @@ class BlockMemory:
         memory = cls.from_json(data, longer_names, anatomy_names)
         if radiology is not None and Path(radiology).exists():
             memory.add_radiology(json.loads(Path(radiology).read_text("utf-8")))
+        if italian is not None and Path(italian).exists():
+            memory.italian.update(json.loads(Path(italian).read_text("utf-8")).get("kinds", {}))
         return memory
 
     def add_radiology(self, table: dict[str, Any]) -> dict[str, int]:
@@ -255,8 +262,11 @@ class Reading:
 UNREAD = Reading("unread")
 
 
+_COORDINATION = frozenset(("e", "ed", "and"))
+
+
 def _words(
-    sentence: str, found: re.Match[str], ends=None
+    sentence: str, found: re.Match[str], ends=None, joins=None
 ) -> tuple[list[tuple[str, int, int]], int, int]:
     """The window of words around the mention (folded, with offsets) and the mention's word range."""
     toks = [(m.group(0), m.start(), m.end()) for m in _TOKEN.finditer(sentence)]
@@ -269,6 +279,15 @@ def _words(
     lo = mi
     while lo > 0 and mi - lo < LEFT:
         prev = toks[lo - 1]
+        if (
+            joins is not None
+            and lo > 1
+            and _fold(prev[0]) in _COORDINATION
+            and joins(_fold(toks[lo - 2][0]))
+            and not _BREAK.search(sentence[prev[2] : toks[lo][1]])
+        ):
+            lo -= 1  # "TC torace ed addome": a structure coordinated with a structure shares what governs it
+            continue
         if (
             _fold(prev[0]) in _PHRASE_STOP
             or (ends is not None and ends(_fold(prev[0])))
@@ -315,8 +334,28 @@ class ChunkLattice:
         self.frames = frames
         self._left = grammar is not None and grammar.head_side == "left"
 
+    def in_language(self, language: str) -> ChunkLattice:
+        """The lattice that reads text of this language: Italian is left-headed and has its own closed class
+        and vocabulary (``Grammar.for_language``); English (and any other) is read as before."""
+        if language != "it" or (self.grammar is not None and self.grammar.language == "it"):
+            return self
+        if getattr(self, "_italian", None) is None:
+            self._italian = ChunkLattice(self.memory, Grammar.for_language("it"), self.typer, self.collocations,
+                                         self.colloc_threshold, self.frames)
+        return self._italian
+
     def _head(self, word: str) -> tuple[str, float] | None:
         """The kind of a head word and how sure: the block memory first, then UMLS for the unknown."""
+        if self.grammar is not None and word.lower() in self.grammar.closed:
+            # a word of the language's closed class (an article, a preposition) is never the word that types a
+            # block: the Italian "su" is not the English abbreviation SU, "in" and "al" are not "conceptual"
+            return None
+        if self.grammar is not None and self.grammar.language == "it":
+            # NCIt is an English vocabulary: for Italian text the Italian word comes first ("rx", "rm", "eo" are
+            # chemical abbreviations in NCIt and radiographs, resonances and examinations in Italian)
+            kind = self.memory.italian.get(word.lower())
+            if kind:
+                return kind, 1.0
         got = self.memory.head(word)
         if got or self.typer is None:
             return got
@@ -336,6 +375,10 @@ class ChunkLattice:
         if c is None or c <= self.colloc_threshold:
             return 0.0
         return (C_COMPOSED - C_MEMORY) * (c - self.colloc_threshold) / (1.0 - self.colloc_threshold)
+
+    def _is_structure(self, word: str) -> bool:
+        got = self.memory.head(word)
+        return self.memory.names.get(word) == "anatomy" or bool(got and got[0] == "anatomy")
 
     def _ends(self, word: str) -> bool:
         """A word that closes the noun phrase: closed class or verb form, unless the memory knows it."""
@@ -419,7 +462,8 @@ class ChunkLattice:
         found = locate(mention, sentence, start)
         if not found:
             return None
-        window, mi, mj = _words(sentence, found, self._ends if self.grammar else None)
+        window, mi, mj = _words(sentence, found, self._ends if self.grammar else None,
+                                self._is_structure if self.grammar else None)
         if not window:
             return None
         words = [w for w, _, _ in window]

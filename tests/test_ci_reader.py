@@ -200,7 +200,7 @@ class _StubReader:
     def discourse(self, text):
         return None
 
-    def read(self, mention, sentence, start, doc, vector, key, discourse=None, doc_at=None):
+    def read(self, mention, sentence, start, doc, vector, key, discourse=None, doc_at=None, language="en"):
         return ci.CIReading(self.decision, self.decision, 0.6, {self.decision: 0.8}, 3)
 
 
@@ -354,3 +354,12 @@ def test_a_text_settles_a_sense_only_through_food_and_never_through_a_role(space
     assert len(reader.discourse("The outer layer of the olfactory bulb was thin. The layer was stained.")) == 0
     # a role in a compound is local to its phrase
     assert len(reader.discourse("The heart donation was done. The heart was large.")) == 0
+
+
+def test_an_adverb_next_to_the_mention_is_not_its_predicate(space):
+    """"approximately T11 level": the adverb said nothing about the word, yet its vector made a tie (15 Oct 2026)."""
+    protos = ci.prototypes(space, [("anatomy", "heart liver organ"), ("food", "cheese rind dairy")])
+    reader = ci.CIReader(lattice(), space, protos, None)
+    sentence = "There was a mild change, approximately heart size."
+    nodes = reader.construct("heart size", sentence, sentence.index("heart"))
+    assert not [n for n in nodes if n[0].startswith("predication:approximately")]

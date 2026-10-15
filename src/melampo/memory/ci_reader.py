@@ -66,6 +66,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .grammar import Grammar
 from .chunk_lattice import (
     CLASS_OF_KIND,
     ROLE_OF_KIND,
@@ -621,13 +622,14 @@ class CIReader:
         nodes: list[tuple[str, float, dict[str, float]]] = []
         if "name" in self.use:
             nodes.append(("name", 1.0, {STRUCTURE: NAME_WEIGHT}))
+        lattice = self.lattice.in_language(language)
         sentence, start = see_through_abbreviations(sentence, start, mention)
         if "rules" in self.use:
             # Formal knowledge enters the network as a node, not as a filter afterwards (Kintsch 1998, the
             # problem of Linda). Only the rule that changes the *sense* of the word and that no block stands
             # for: "heart of Maroilles cheese", a part of an object. A role the structure takes ("appearance
             # of the small intestine") leaves the word a structure and is not a reading of the word.
-            seen = self.lattice.read(mention, sentence, start)
+            seen = lattice.read(mention, sentence, start)
             if seen.outcome == "not_a_site" and seen.source == "of" and seen.role in READINGS:
                 # a rule that changes the sense overrules the sense it replaces: it also inhibits the structure
                 nodes.append((f"rule:{seen.why}", 1.0, {seen.role: 1.0, STRUCTURE: -1.0}))
@@ -638,12 +640,12 @@ class CIReader:
             links = discourse.node(key, where)
             if links:
                 nodes.append((f"discourse:{key}", 1.0, links))
-        got = self.lattice.candidates(mention, sentence, start)
+        got = lattice.candidates(mention, sentence, start)
         cues = Cues(_singular(_fold(mention.split()[-1])) if mention.split() else "")
         if got is not None:
             window, mi, mj, blocks, found = got
             words = [w for w, _, _ in window]
-            cues = make_cues(self.lattice, sentence, found.start(), found.end(), doc_key) or cues
+            cues = make_cues(lattice, sentence, found.start(), found.end(), doc_key) or cues
             if "blocks" in self.use:
                 best = blocks[0][0]
                 seen: set[str] = set()
@@ -655,12 +657,12 @@ class CIReader:
                     act = float(np.exp(-(total - best)))
                     nodes.append((f"block:{' '.join(words[b.start:b.end])}:{b.kind}", act, {reading: 1.0}))
             if mj < len(words):
-                head, kind, share = self.lattice._phrase_head(sentence, found.end())
+                head, kind, share = lattice._phrase_head(sentence, found.end())
                 reading = reading_of_kind(kind) if kind else None
                 if "head" in self.use and reading is not None:
                     nodes.append((f"head:{head}:{kind}", float(share), {reading: 1.0}))
             elif mi > 0:
-                head, kind, share = self.lattice._phrase_head_before(sentence, found.start())
+                head, kind, share = lattice._phrase_head_before(sentence, found.start())
                 reading = reading_of_kind(kind) if kind else None
                 if "head" in self.use and reading is not None and reading != STRUCTURE:
                     nodes.append((f"before:{head}:{kind}", float(share) * 0.5, {reading: 1.0}))
@@ -677,7 +679,12 @@ class CIReader:
 
             ctx = [w for w in content_words(sentence) if w not in cues.word.split()][:CONTEXT_WORDS * 4]
             if "predication" in self.use:
-                predicate = cues.head or cues.nxt or cues.previous
+                # the word that says something about the mention: a noun or an adjective next to it, never an
+                # adverb or a closed-class word ("approximately T11 level": "approximately" says nothing about
+                # the word, yet its vector pointed at "a name of something else")
+                grammar = Grammar.for_language(language) if language in ("en", "it") else None
+                predicate = next((w for w in (cues.head, cues.nxt, cues.previous)
+                                  if w and (grammar is None or not grammar.ends_phrase(w))), "")
                 if predicate:
                     v = space.predicate(predicate, [cues.word])
                     if v is not None:
