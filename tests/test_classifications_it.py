@@ -68,3 +68,23 @@ def test_check_says_what_changed(tmp_path, capsys):
     found.write_text(json.dumps([{"url": "a", "name": "a", "sha256": "2"}]))
     ci.main(["check", "--found", str(found), "--manifest", str(manifest)])
     assert "changed=true" in capsys.readouterr().out
+
+
+def test_a_page_instead_of_the_file_falls_back_to_the_browser_then_to_the_repository_copy(tmp_path, monkeypatch):
+    found = tmp_path / "found.json"
+    found.write_text(json.dumps([{"url": "https://x/6.TAB_CIPI.xlsx", "name": "6.TAB_CIPI.xlsx"}]))
+    monkeypatch.setattr(ci, "_get", lambda url, **k: b"<!doctype html>")
+    def no_browser(url, **k):
+        raise RuntimeError("no chromium")
+    monkeypatch.setattr(ci, "browser_get", no_browser)
+    with pytest.raises(SystemExit, match="not downloaded"):
+        ci.main(["fetch", "--found", str(found), "--dir", str(tmp_path / "raw"), "--fallback", str(tmp_path / "none")])
+    copies = tmp_path / "copies"
+    copies.mkdir()
+    (copies / "6.TAB_CIPI.xlsx").write_bytes(b"PK\x03\x04copy")
+    assert ci.main(["fetch", "--found", str(found), "--dir", str(tmp_path / "raw"), "--fallback", str(copies)]) == 0
+    item = json.loads(found.read_text())[0]
+    assert item["fetched_by"] == "repository copy"
+    monkeypatch.setattr(ci, "browser_get", lambda url, **k: b"PK\x03\x04real")
+    assert ci.main(["fetch", "--found", str(found), "--dir", str(tmp_path / "raw"), "--fallback", str(copies)]) == 0
+    assert json.loads(found.read_text())[0]["fetched_by"] == "browser"
