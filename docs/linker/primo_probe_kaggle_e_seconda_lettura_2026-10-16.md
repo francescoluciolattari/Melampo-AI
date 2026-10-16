@@ -83,3 +83,32 @@ Cambiamenti decisi con Frank:
    - la frase sintetica non dice più "solida", che i dati non dicono.
 
 Le soglie (fasce di HU, -300 HU per la parte solida, rapporto 0,8 per "solida") sono valori di partenza da calibrare su dati annotati.
+
+## Terzo probe: 15 casi (notte del 16 ottobre)
+
+Tutti completati; lung_006 corretto (25,2 mm contro 26,7). Prompt italiano e inglese danno gli stessi risultati.
+
+| | |
+|---|---|
+| accettati | 14 su 15 |
+| a una persona | lung_014: VoxTell trova 7-10 pezzi e la parte principale non è il tumore (Dice 0,00). Lo stato "ambiguous" lo ha fermato ed era giusto |
+| Dice della parte principale | 0,71-0,94, mediana circa 0,89 |
+| errore di diametro sui casi accettati | entro 2 mm in 9 casi |
+
+Errori, letti con il criterio stretto (max 2 mm, 10%):
+- **Tumori parzialmente solidi** (riferimento con alone a vetro smerigliato): lung_016 (-3,0 mm), lung_018 (-4,3), lung_020 (-3,7), lung_023 (-5,1). VoxTell segmenta la parte solida e lascia fuori il vetro smerigliato, quindi anche la composizione risultava "solid" invece di "part_solid".
+- **lung_022:** 60,5 mm contro 77,6, accettato perché la tolleranza del 30% era troppo larga.
+- **"Contiene grasso" falso** su 14 tumori su 15: rumore della TC e miscela aria-tessuto nello stesso voxel (effetto di volume parziale).
+- **"Calcio"** in lung_004: con il contrasto potrebbe essere un vaso opacizzato.
+- **Seconda lettura a metà strada:** d'accordo solo su lung_003 e lung_018. Negli altri casi scorre ancora lungo i vasi dentro il lobo (+6..+15 mm).
+
+Correzioni:
+1. **Tolleranza sulla misura** del referto ridotta a max(3 mm, 15%). lung_022 (17 mm) e lung_023 (5 mm) andrebbero a una persona.
+2. **Estensione a vetro smerigliato** (`threshold_check.ground_glass_extent`): nel polmone aerato, la lesione con la sua parte a vetro smerigliato, con soglia di 150 HU (e almeno 3 volte il rumore) sopra il polmone intorno. Tra le due letture dell'immagine si tiene quella che misura ciò che misura il referto (`measured_on`). La densità e la composizione si calcolano sulla lesione intera.
+3. **Grasso:** solo un focolaio, di almeno 10 mm³, nei valori mediati su 3×3×3 voxel tra -120 e -40 HU, a 2 mm o più dal bordo e lontano da tessuto aerato o a vetro smerigliato.
+4. **Alta densità:** un focolaio sopra 200 HU si chiama `high_density_focus`. Diventa `contains_calcium` solo se si sa che l'esame è senza contrasto (`contrast="unenhanced"`).
+5. **Seconda lettura:** apertura nel piano di 2 mm, così i vasi fino a circa 4 mm si staccano.
+6. **Probe:**
+   - riporta l'errore rispetto al contorno di riferimento e se è entro il criterio stretto;
+   - riepiloga quanti casi accettati sono davvero giusti e quanti di quelli mandati a una persona erano davvero sbagliati;
+   - i casi salgono a 30.

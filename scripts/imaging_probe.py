@@ -118,6 +118,9 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
                                character=character)
         got = seg.mask if seg.mask is not None else np.zeros_like(reference)
         main = split_main_part(got, affine)[0] if got.any() else got
+        ext, _ = tc.ground_glass_extent(main, volume, affine, modality, organ) if main.any() else (None, {})
+        measured = ev.measures.longest_axial_diameter_mm if ev.measures else None
+        err = measured - ref_size if measured is not None and ref_size else None
         second_dice = None
         if ev.second.get("status") == tc.APPLIED and main.any():
             region, _ = tc.threshold_region(volume, main, affine, organ)
@@ -131,7 +134,12 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
                     "other_regions": ev.other_regions, "fragments": list(ev.fragments)[:5],
                     "measured_longest_axial_mm": ev.measures.longest_axial_diameter_mm if ev.measures else None,
                     "whole_region_longest_axial_mm": ev.whole_axial_mm, "second_reading": ev.second,
-                    "density": _density_summary(ev.density), "text_size_mm": text_size}
+                    "density": _density_summary(ev.density), "text_size_mm": text_size,
+                    "measured_on": ev.measured_on, "with_ground_glass_axial_mm": ev.with_ground_glass_axial_mm,
+                    "dice_with_ground_glass": dice(ext, reference) if ext is not None else None,
+                    # against the reference contour: the probe's own truth, never seen by the checks
+                    "reference_error_mm": err,
+                    "within_strict": None if err is None else abs(err) <= max(2.0, 0.10 * ref_size)}
     return row
 
 

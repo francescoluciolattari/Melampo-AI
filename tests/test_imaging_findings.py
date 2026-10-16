@@ -285,7 +285,10 @@ def test_density_profile_of_a_part_solid_nodule_with_a_solid_core():
 
 def test_calcium_fat_and_cavity_flags():
     calcified = ct_with(core_hu=600.0)
-    assert "contains_calcium" in dn.density_profile(calcified, ball(CENTER, 9), AFFINE, "CT", LUNG).flags
+    unknown = dn.density_profile(calcified, ball(CENTER, 9), AFFINE, "CT", LUNG).flags
+    assert "high_density_focus" in unknown and "contains_calcium" not in unknown   # may be contrast in a vessel
+    assert "contains_calcium" in dn.density_profile(calcified, ball(CENTER, 9), AFFINE, "CT", LUNG,
+                                                    contrast="unenhanced").flags
     fatty = ct_with(lesion_hu=40.0, core_hu=-90.0)
     assert "contains_fat" in dn.density_profile(fatty, ball(CENTER, 9), AFFINE, "CT", LUNG).flags
     cavity = ct_with(core_hu=-990.0)
@@ -312,3 +315,40 @@ def test_parts_are_labelled_largest_first_with_and_without_scipy():
     labels, sizes = label_parts(m)
     assert sizes[0] > sizes[1] and (labels == 1).sum() == sizes[0]
     assert _label_numpy(m)[1] == 2
+
+
+# --- third probe (15 MSD lung tumours): fat flagged on 14, part-solid tumours measured on their solid part ---
+
+def test_noise_and_a_ground_glass_rim_are_not_fat():
+    rng = np.random.default_rng(3)
+    noisy = np.full(SHAPE, -850.0) + rng.normal(0, 40, SHAPE)
+    noisy[ball(CENTER, 9)] = 30.0 + rng.normal(0, 45, int(ball(CENTER, 9).sum()))
+    assert "contains_fat" not in dn.density_profile(noisy, ball(CENTER, 9), AFFINE, "CT", LUNG).flags
+    part_solid = ct_with(lesion_hu=-600.0, core_hu=30.0)
+    assert "contains_fat" not in dn.density_profile(part_solid, ball(CENTER, 9), AFFINE, "CT", LUNG).flags
+
+
+def test_a_part_solid_lesion_measured_with_its_ground_glass_when_the_report_does():
+    image = ct_with(lesion_hu=-600.0, core_hu=30.0)               # solid core r 4 mm, ground glass to r 9 mm
+    solid_only = ball(CENTER, 4.5)                                  # what the segmenter found
+    ev = fd.image_evidence(seg(solid_only), AFFINE, image, organ_mask=LUNG, text_size_mm=18.0, modality="CT",
+                           character=["composition:part_solid"])
+    assert ev.measured_on == "with_ground_glass" and abs(ev.measures.longest_axial_diameter_mm - 18) < 2.5
+    assert ev.density.composition == "part_solid" and not ev.needs_review
+    solid_report = fd.image_evidence(seg(solid_only), AFFINE, image, organ_mask=LUNG, text_size_mm=9.0,
+                                     modality="CT")
+    assert solid_report.measured_on == "segmenter_region" and solid_report.size_check == "consistent"
+    assert abs(solid_report.with_ground_glass_axial_mm - 18) < 2.5
+
+
+def test_a_size_17_mm_short_of_a_78_mm_report_goes_to_a_person():
+    big = ball(CENTER, 30)
+    image = fd.image_evidence(seg(big), AFFINE, organ_mask=LUNG, text_size_mm=78.0)
+    assert fd.SIZE_DIFFERS in image.review
+
+
+def test_a_vessel_of_2_4_mm_leaves_the_second_reading():
+    z, y, x = np.mgrid[0:SHAPE[0], 0:SHAPE[1], 0:SHAPE[2]]
+    vessel = (np.abs(y - 50) <= 1) & (np.abs(z - 20) <= 1) & (x > 20) & (x < 75)   # 3 voxels wide in the plane
+    r = tc.second_reading(ball(CENTER, 9), ct_with(extra=vessel), AFFINE, "CT", LUNG)
+    assert r.agree and abs(r.second_axial_mm - r.first_axial_mm) < 2.5
