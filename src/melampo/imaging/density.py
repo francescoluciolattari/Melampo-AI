@@ -47,7 +47,8 @@ DEPTH_BINS = (0.0, 0.25, 0.5, 0.75, 1.0001)   # rim -> core, as a share of the d
 ISO_HU = 15.0                  # lesion vs surroundings within +-15 HU: isodense
 ISO_RATIO = 0.15               # MR/US: within +-15% of the surroundings: iso
 SOLID_RATIO, GGO_SOLID_MM = 0.8, 2.0   # solid: solid component >= 80% of the diameter; ground glass: < 2 mm
-CALCIUM_SHARE, FAT_SHARE, CAVITY_SHARE = 0.02, 0.05, 0.05   # fat and cavity: share of the interior (>= 2 mm deep)
+CALCIUM_SHARE, CAVITY_SHARE = 0.02, 0.05   # cavity: share of the interior (>= 2 mm deep)
+FAT_FOCUS_MM3 = 10.0           # a fat focus inside a lesion (hamartoma, lipoma): at least this volume
 
 
 def spacing_zyx(affine) -> np.ndarray:
@@ -134,9 +135,23 @@ def _stats(values: np.ndarray) -> dict[str, float]:
     return {"n": int(values.size), "mean": float(values.mean()), "sd": float(values.std())}
 
 
+def _smooth3(img: np.ndarray) -> np.ndarray:
+    """Mean over the 3x3x3 neighbourhood (edges replicated): one voxel's noise is not a fat focus."""
+    p = np.pad(img, 1, mode="edge")
+    out = np.zeros_like(img, dtype=np.float32)
+    for dz in range(3):
+        for dy in range(3):
+            for dx in range(3):
+                out += p[dz:dz + img.shape[0], dy:dy + img.shape[1], dx:dx + img.shape[2]]
+    return out / 27.0
+
+
 def density_profile(image: np.ndarray, mask: np.ndarray, affine, modality: str = "CT",
-                    organ_mask: np.ndarray | None = None, units: str | None = None) -> DensityProfile:
-    """The density profile of the region ``mask`` of ``image`` (both (slice, row, column), same grid)."""
+                    organ_mask: np.ndarray | None = None, units: str | None = None,
+                    contrast: str = "unknown") -> DensityProfile:
+    """The density profile of the region ``mask`` of ``image`` (both (slice, row, column), same grid).
+    ``contrast``: "unenhanced", "enhanced" or "unknown" -- a focus above 200 HU is calcium only without
+    contrast; with contrast or unknown it may be an enhancing vessel, and is called ``high_density_focus``."""
     mask = np.asarray(mask, dtype=bool)
     sp = spacing_zyx(affine)
     hu = units == "HU" or (units is None and (modality or "").upper() == "CT" and float(np.min(image)) < -500)
@@ -199,12 +214,21 @@ def density_profile(image: np.ndarray, mask: np.ndarray, affine, modality: str =
         profile.bands = {name: float(((vals >= lo) & (vals < hi)).mean()) for name, lo, hi in BANDS_HU}
         flags = []
         if profile.bands["calcium"] >= CALCIUM_SHARE and (vals >= 200).sum() >= 3:
-            flags.append("contains_calcium")
-        # fat and cavity are judged away from the rim: at the border of a lung nodule soft tissue and air average
-        # into the fat range (partial volume), so every nodule would "contain fat"
+            flags.append("high_density_focus")
+            if contrast == "unenhanced":
+                flags.append("contains_calcium")
+        # fat (third probe: flagged on 14 of 15 lung tumours, none of them fatty): a focus of the smoothed values
+        # in -120..-40 HU, at least FAT_FOCUS_MM3, deep inside, and not next to aerated or ground-glass tissue
+        # -- soft tissue mixed with air in one voxel reads as fat (partial volume), and so does CT noise
         interior = m & (inside >= 2.0)
-        if interior.sum() >= 10 and float(((img[interior] >= -150) & (img[interior] < -30)).mean()) >= FAT_SHARE:
-            flags.append("contains_fat")
+        if interior.sum() >= 10:
+            sm = _smooth3(img)
+            near_air = _grow_mm(img < SOLID_HU, sp, 2.0)
+            fat = interior & (sm >= -120) & (sm <= -40) & ~near_air
+            if fat.any():
+                largest = label_parts(fat)[1][0] * float(np.prod(sp))
+                if largest >= FAT_FOCUS_MM3:
+                    flags.append("contains_fat")
         if interior.sum() >= 10 and float((img[interior] < -900).mean()) >= CAVITY_SHARE:
             flags.append("cavitated")
         profile.flags = tuple(flags)
@@ -225,6 +249,12 @@ def density_profile(image: np.ndarray, mask: np.ndarray, affine, modality: str =
                 profile.composition = "part_solid"
     profile.notes = tuple(notes)
     return profile
+
+
+def _grow_mm(mask: np.ndarray, spacing, mm: float) -> np.ndarray:
+    from .threshold_check import grow
+
+    return grow(mask, np.ceil(mm / np.asarray(spacing)).astype(int))
 
 
 def _shifted(affine, box: tuple[slice, ...]) -> np.ndarray:
@@ -272,7 +302,9 @@ def _composition_holds(kind: str, p: DensityProfile) -> bool | None:
             return p.composition == "ground_glass"
         return p.composition == "part_solid"
     if kind == "calcified":
-        return "contains_calcium" in p.flags
+        if "contains_calcium" in p.flags:
+            return True
+        return None if "high_density_focus" in p.flags else False   # a focus with unknown contrast: may be
     if kind == "fat":
         return "contains_fat" in p.flags
     if kind == "cavitated":

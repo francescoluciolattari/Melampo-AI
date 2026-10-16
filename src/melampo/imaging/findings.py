@@ -39,13 +39,13 @@ import numpy as np
 from .lesion_measures import RegionMeasures, label_parts, measure_region, overlap_inside, split_main_part
 from .segmenters import Segmentation
 from .density import DensityProfile, compare_with_report, density_profile
-from .threshold_check import APPLIED, second_reading
+from .threshold_check import APPLIED, ground_glass_extent, second_reading
 
 AGREE, DISAGREE, NOT_FOUND, AMBIGUOUS, UNCHECKED, NO_IMAGE = (
     "agree", "disagree", "not_found", "ambiguous", "unchecked", "no_image")
 IN_ORGAN_SHARE = 0.5          # share of the region inside the (grown) organ for "agree"
-SIZE_TOLERANCE_MM = 3.0       # text size vs measured size: within max(3 mm, 30%)
-SIZE_TOLERANCE_SHARE = 0.30
+SIZE_TOLERANCE_MM = 3.0       # text size vs measured size: within max(3 mm, 15%) -- 30% let a 60 mm measure
+SIZE_TOLERANCE_SHARE = 0.15   # pass for a 78 mm lesion (third probe, lung_022)
 SECOND_COMPONENT_SHARE = 0.5  # a second separate region at least half the first: ambiguous
 DETACHED_SHARE = 0.10         # a detached part of at least a tenth of the main one: perhaps a second lesion
 
@@ -107,6 +107,8 @@ class ImageSide:
     other_regions: int = 0                  # detached parts large enough to be another lesion (not a reason alone)
     density: DensityProfile | None = None
     character_differences: tuple[str, ...] = ()
+    with_ground_glass_axial_mm: float | None = None   # the lesion with its ground-glass part (aerated lung, CT)
+    measured_on: str = "segmenter_region"             # or "with_ground_glass" when that is the measure kept
 
     @property
     def needs_review(self) -> bool:
@@ -144,7 +146,10 @@ class Finding:
             "second_reading": json.dumps(self.image.second, default=float) if self.image.second else "",
             "measure_support": list(self.image.measure_support) or ["single_reading"],
             "character_differences": list(self.image.character_differences),
+            "measured_on": self.image.measured_on,
         }
+        if self.image.with_ground_glass_axial_mm is not None:
+            row["with_ground_glass_axial_mm"] = self.image.with_ground_glass_axial_mm
         d = self.image.density
         if d is not None:
             row.update(density_units=d.units, density_median=d.percentiles["p50"], density_relative=d.relative,
@@ -199,7 +204,7 @@ def _components_numpy(mask: np.ndarray) -> list[int]:
 def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = None,
                    organ_mask: np.ndarray | None = None, text_size_mm: float | None = None,
                    frame_of_reference: str = "", modality: str = "", structure=None,
-                   character: list[str] | tuple[str, ...] = ()) -> ImageSide:
+                   character: list[str] | tuple[str, ...] = (), contrast: str = "unknown") -> ImageSide:
     """The image side of a finding: the checks of decision D19, the measures and the density of the region,
     and the reasons a person must look (the lesion is not identified, or the image differs from the report)."""
     if seg is None:
@@ -221,22 +226,39 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
             review.append(OUTSIDE_STRUCTURE)
     measures = measure_region(main, affine, image)
     whole = measure_region(seg.mask, affine).longest_axial_diameter_mm if fragments else measures.longest_axial_diameter_mm
+    # in aerated lung the lesion may have a ground-glass part the segmenter left out: measured beside it
+    extent, ext_notes = ground_glass_extent(main, image, affine, modality, organ_mask)
+    ext_measures = None
+    if extent is not None and "reaches_the_search_zone_edge" not in ext_notes.get("notes", ()):
+        ext_measures = measure_region(extent, affine, image)
+    region, measured_on = main, "segmenter_region"
     support: list[str] = []
     size_check = ""
     if text_size_mm:
-        measured = measures.longest_axial_diameter_mm or measures.longest_diameter_mm
         tol = max(SIZE_TOLERANCE_MM, SIZE_TOLERANCE_SHARE * text_size_mm)
-        size_check = "consistent" if abs(measured - text_size_mm) <= tol else "inconsistent"
+
+        def error(m):
+            return abs((m.longest_axial_diameter_mm or m.longest_diameter_mm) - text_size_mm)
+
+        # two image readings of the same lesion (the segmenter's region; the lesion with its ground-glass part):
+        # the one that measures what the report measured is kept (third probe: on part-solid tumours the
+        # segmenter's region was 3-5 mm short of a reference that included the ground glass)
+        if ext_measures is not None and error(ext_measures) < error(measures):
+            measures, region, measured_on = ext_measures, extent, "with_ground_glass"
+        size_check = "consistent" if error(measures) <= tol else "inconsistent"
         if size_check == "inconsistent":
             review.append(SIZE_DIFFERS)
         else:
             support.append("report")
-    second = second_reading(main, image, affine, modality, organ_mask) if image is not None else None
+    second = second_reading(region, image, affine, modality, organ_mask) if image is not None else None
     if second is not None and second.status == APPLIED and second.agree:
         support.append("second_reading")
     density = differences = None
     if image is not None:
-        density = density_profile(image, main, affine, modality, organ_mask)
+        # the density of the whole lesion: with its ground-glass part when there is one (a part-solid lesion
+        # measured on its solid part alone reads "solid")
+        dens_region = extent if ext_measures is not None else region
+        density = density_profile(image, dens_region, affine, modality, organ_mask, contrast=contrast)
         differences = compare_with_report(character, density)
         if differences:
             review.append(CHARACTER_DIFFERS)
@@ -246,7 +268,8 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
     return ImageSide(status, seg.provider, seg.version, seg.prompt, measures, share, size_check, 1 + len(fragments),
                      frame_of_reference, seg.notes, tuple(dict.fromkeys(review)), frags, whole,
                      second.as_dict() if second is not None else {}, tuple(support), others, density,
-                     tuple(differences or ()))
+                     tuple(differences or ()),
+                     ext_measures.longest_axial_diameter_mm if ext_measures is not None else None, measured_on)
 
 
 def build_finding(patient: str, study: str, study_date: str, modality: str, text: TextSide,

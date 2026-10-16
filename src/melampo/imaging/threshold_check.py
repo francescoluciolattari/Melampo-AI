@@ -35,6 +35,9 @@ import numpy as np
 from .lesion_measures import label_parts, measure_region
 
 MARGIN_MM = 6.0            # how far beyond the first reading the threshold may extend
+OPEN_MM = 2.0              # in-plane opening radius: vessels thinner than ~4 mm are cut from the lesion
+GGO_MARGIN_MM = 10.0       # how far a ground-glass component may extend beyond the first reading
+GGO_STEP_HU = 150.0        # ground glass: at least this much (and 3 x noise) above the aerated lung around
 MIN_CNR = 2.5              # |core - surrounding| / noise of the surrounding
 DICE_AGREE = 0.70
 SIZE_AGREE_MM = 2.0        # longest axial diameter: within max(2 mm, 15%), the order of the variability
@@ -98,6 +101,19 @@ def _dilate(mask: np.ndarray) -> np.ndarray:
     return out
 
 
+def _open_inplane(mask: np.ndarray, radius_vox: tuple[int, int]) -> np.ndarray:
+    """Opening within each slice (rows and columns only): slices are often thicker than the pixels, and a vessel
+    runs through the slices as easily as along them."""
+    out = mask.copy()
+    for axis, r in ((1, radius_vox[0]), (2, radius_vox[1])):
+        for _ in range(r):
+            out = out & _shift(out, axis, 1) & _shift(out, axis, -1)
+    for axis, r in ((1, radius_vox[0]), (2, radius_vox[1])):
+        for _ in range(r):
+            out = out | _shift(out, axis, 1) | _shift(out, axis, -1)
+    return out & mask
+
+
 def dice(a: np.ndarray, b: np.ndarray) -> float:
     s = int(a.sum()) + int(b.sum())
     return float(2 * int((a & b).sum()) / s) if s else 1.0
@@ -116,8 +132,10 @@ def _box(mask: np.ndarray, margin_vox) -> tuple[slice, ...]:
 
 
 def threshold_region(image: np.ndarray, seed: np.ndarray, affine, organ_mask: np.ndarray | None = None,
-                     margin_mm: float = MARGIN_MM) -> tuple[np.ndarray | None, dict]:
-    """The half-way threshold region connected to ``seed``. Returns (mask on the full grid or None, details)."""
+                     margin_mm: float = MARGIN_MM, mode: str = "half_way") -> tuple[np.ndarray | None, dict]:
+    """The threshold region connected to ``seed``. ``half_way``: between the lesion's core and its surroundings;
+    ``ground_glass``: just above aerated lung (the whole lesion, its ground-glass part included). Returns (mask
+    on the full grid or None, details)."""
     from .density import distance_mm
 
     seed = np.asarray(seed, dtype=bool)
@@ -143,14 +161,24 @@ def threshold_region(image: np.ndarray, seed: np.ndarray, affine, organ_mask: np
     details = {"core": core, "surrounding": surrounding, "cnr": cnr}
     if cnr < MIN_CNR:
         return None, {**details, "notes": ("no_density_contrast",)}
-    threshold = (core + surrounding) / 2.0
+    if mode == "ground_glass":
+        if surrounding >= -500.0:
+            return None, {**details, "notes": ("not_in_aerated_lung",)}
+        threshold = surrounding + max(GGO_STEP_HU, 3.0 * noise)
+        core = max(core, threshold + 1.0)   # the lesion side is above
+    else:
+        threshold = (core + surrounding) / 2.0
     details["threshold"] = threshold
     zone = grow(s, np.ceil(margin_mm / sp).astype(int))
     if organ is not None:
         zone &= grow(organ, (2, 2, 2)) | s
     side = (img >= threshold) if core > surrounding else (img <= threshold)
     dense = side & zone
-    opened = _dilate(_erode(dense)) & dense
+    r = tuple(int(x) for x in np.maximum(1, np.round(OPEN_MM / sp[1:])))
+    opened = _open_inplane(dense, r)
+    if not (opened & s).any():
+        opened = _dilate(_erode(dense)) & dense
+        notes.append("small_lesion_one_voxel_opening")
     if (opened & s).any():
         dense = opened
     else:
@@ -187,4 +215,17 @@ def second_reading(first: np.ndarray, image: np.ndarray | None, affine, modality
     return SecondReading(APPLIED, mask=region, agree=agree, dice=dc, second_axial_mm=second_axial, **common)
 
 
-__all__ = ["APPLIED", "NOT_APPLICABLE", "SecondReading", "dice", "grow", "second_reading", "threshold_region"]
+def ground_glass_extent(first: np.ndarray, image: np.ndarray | None, affine, modality: str,
+                        organ_mask: np.ndarray | None = None) -> tuple[np.ndarray | None, dict]:
+    """The lesion with its ground-glass part, in aerated lung on CT (16 Oct 2026, third probe: on the
+    part-solid tumours VoxTell's region was the solid part, 3.7-5.1 mm short of the reference)."""
+    if image is None or first is None or not np.any(first) or (modality or "").upper() != "CT":
+        return None, {"notes": ("not_applicable",)}
+    region, d = threshold_region(image, first, affine, organ_mask, GGO_MARGIN_MM, mode="ground_glass")
+    if region is not None:
+        region = region | np.asarray(first, dtype=bool)
+    return region, d
+
+
+__all__ = ["APPLIED", "NOT_APPLICABLE", "SecondReading", "dice", "ground_glass_extent", "grow", "second_reading",
+           "threshold_region"]
