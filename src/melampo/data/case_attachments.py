@@ -50,6 +50,7 @@ from .document_processing import (
     detect_document_format,
 )
 from .lab_results import LabExtraction
+from .pathology_report import read_pathology
 from .report_router import lab_reading, route
 
 _FORMAT_LABELS = {
@@ -137,6 +138,9 @@ class ProcessedAttachment:
     """Laboratory and antibiogram rows read from this attachment's text (data/lab_results.py)."""
     routing: dict[str, Any] = field(default_factory=dict)
     """Which kinds of report this is and which interpreters read it (data/report_router.py)."""
+    pathology: dict[str, Any] = field(default_factory=dict)
+    """Sections, staging/grading systems, margins, nodes, receptors and the diagnosis of a pathology report
+    (data/pathology_report.py), when the router recognised one."""
 
     def summary(self) -> dict[str, Any]:
         """JSON-safe, no image bytes, no filename -- what travels with the case result."""
@@ -154,6 +158,7 @@ class ProcessedAttachment:
             "embedded_image_count": len(self.embedded_images_png),
             "laboratory": self.lab.summary(),
             "routing": dict(self.routing),
+            "pathology": dict(self.pathology),
             "deidentified_dicom_instance_kept": self.dicom_instance is not None,
         }
 
@@ -329,12 +334,14 @@ def _as_png(data: bytes) -> bytes:
     return buffer.getvalue()
 
 
-def _routed_lab(text: str, router_chat, images: int) -> tuple[LabExtraction, dict[str, Any]]:
-    """The report router first (which kinds of report), then the laboratory grammar told what it found."""
+def _routed_lab(text: str, router_chat, images: int) -> tuple[LabExtraction, dict[str, Any], dict[str, Any]]:
+    """The report router first (which kinds of report), then the interpreters it chose: the laboratory grammar
+    told what the router found, and the pathology reader for a histology or cytology report."""
     if not text.strip():
-        return LabExtraction(), {}
+        return LabExtraction(), {}, {}
     decision = route(text, chat=router_chat, images=images)
-    return lab_reading(text, decision), decision.as_dict()
+    pathology = read_pathology(text).summary() if "pathology" in decision.interpreters else {}
+    return lab_reading(text, decision), decision.as_dict(), pathology
 
 
 def process_case_attachments(
@@ -387,7 +394,7 @@ def process_case_attachments(
             deidentified = deidentify_instance(attachment.data)
             dicom_notes = list(dicom.get("notes", []))
             instance = None
-            lab, routing = _routed_lab(text, router_chat, len(result.get("dicom_images_png", [])))
+            lab, routing, pathology = _routed_lab(text, router_chat, len(result.get("dicom_images_png", [])))
             if deidentified is None:
                 dicom_notes.append("deidentified_instance_not_built")
             elif deidentified.has_pixel_data:
@@ -407,12 +414,13 @@ def process_case_attachments(
                     notes=tuple(dicom_notes),
                     lab=lab,
                     routing=routing,
+                    pathology=pathology,
                     dicom_instance=instance,
                 )
             )
             continue
 
-        lab, routing = _routed_lab(text, router_chat, len(result.get("embedded_images_png", [])))
+        lab, routing, pathology = _routed_lab(text, router_chat, len(result.get("embedded_images_png", [])))
         if attachment.modality and declared is None:
             notes.append(f"declared_modality_not_recognised: {attachment.modality}")
         elif attachment.modality:
@@ -432,6 +440,7 @@ def process_case_attachments(
                 embedded_images_png=tuple(result.get("embedded_images_png", [])),
                 lab=lab,
                 routing=routing,
+                pathology=pathology,
             )
         )
     return AttachmentBundle(attachments=tuple(processed))
