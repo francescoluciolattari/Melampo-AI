@@ -32,6 +32,8 @@ from __future__ import annotations
 import base64
 import binascii
 import io
+from functools import lru_cache
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,6 +53,8 @@ from .document_processing import (
 )
 from .lab_results import LabExtraction
 from .pathology_report import read_pathology
+from .loinc import LoincIndex, map_rows
+from .traces import read_document_traces
 from .report_router import lab_reading, route
 
 _FORMAT_LABELS = {
@@ -138,6 +142,11 @@ class ProcessedAttachment:
     """Laboratory and antibiogram rows read from this attachment's text (data/lab_results.py)."""
     routing: dict[str, Any] = field(default_factory=dict)
     """Which kinds of report this is and which interpreters read it (data/report_router.py)."""
+    loinc: tuple[dict[str, Any], ...] = ()
+    """The LOINC code of each laboratory row, only when exactly one term fits (data/loinc.py)."""
+    traces: dict[str, Any] = field(default_factory=dict)
+    """The curves of the document (data/traces.py): an electrophoresis trace read as zones and peaks, any other
+    trace kept as a series."""
     pathology: dict[str, Any] = field(default_factory=dict)
     """Sections, staging/grading systems, margins, nodes, receptors and the diagnosis of a pathology report
     (data/pathology_report.py), when the router recognised one."""
@@ -157,8 +166,19 @@ class ProcessedAttachment:
             "pdf_structure": self.pdf_structure,
             "embedded_image_count": len(self.embedded_images_png),
             "laboratory": self.lab.summary(),
-            "routing": dict(self.routing),
-            "pathology": dict(self.pathology),
+            # counts and kinds only, like "laboratory": the readings themselves stay on the object
+            "routing": {k: self.routing.get(k) for k in ("kinds", "interpreters", "agreement", "needs_review")
+                        if k in self.routing},
+            "pathology": {"items_by_kind": dict(Counter(i["kind"] for i in self.pathology.get("items", []))),
+                          "residue_count": len(self.pathology.get("residue", [])),
+                          "has_diagnosis": bool(self.pathology.get("diagnosis"))} if self.pathology else {},
+            "traces": {"count": self.traces.get("traces", 0),
+                       "sources": sorted({i["source"] for i in self.traces.get("items", [])}),
+                       "interpreted": sum(1 for i in self.traces.get("items", []) if i.get("interpreted")),
+                       "narrow_peaks": sum(len(i.get("reading", {}).get("narrow_peaks", []))
+                                           for i in self.traces.get("items", [])),
+                       "note": self.traces.get("note")} if self.traces else {},
+            "loinc": dict(Counter(m["status"] for m in self.loinc)),
             "deidentified_dicom_instance_kept": self.dicom_instance is not None,
         }
 
@@ -344,6 +364,24 @@ def _routed_lab(text: str, router_chat, images: int) -> tuple[LabExtraction, dic
     return lab_reading(text, decision), decision.as_dict(), pathology
 
 
+@lru_cache(maxsize=1)
+def _loinc_index():
+    return LoincIndex.load()
+
+
+def _loinc(lab: LabExtraction) -> tuple[dict[str, Any], ...]:
+    return tuple(map_rows(lab.results, _loinc_index())) if lab.results else ()
+
+
+def _traces(pdf: bytes | None, embedded: tuple[bytes, ...], lab: LabExtraction,
+            routing: dict[str, Any]) -> dict[str, Any]:
+    """The traces of a document, read when the router saw an electrophoresis or the PDF embeds pictures."""
+    electrophoresis = "electrophoresis_trace" in routing.get("interpreters", [])
+    if not (electrophoresis or embedded):
+        return {}
+    return read_document_traces(pdf, embedded, lab.results, electrophoresis=electrophoresis)
+
+
 def process_case_attachments(
     attachments: list[CaseAttachment],
     processor: ClinicalDocumentProcessor | None = None,
@@ -441,6 +479,9 @@ def process_case_attachments(
                 lab=lab,
                 routing=routing,
                 pathology=pathology,
+                loinc=_loinc(lab),
+                traces=_traces(attachment.data if document_format == "pdf" else None,
+                               tuple(result.get("embedded_images_png", [])), lab, routing),
             )
         )
     return AttachmentBundle(attachments=tuple(processed))

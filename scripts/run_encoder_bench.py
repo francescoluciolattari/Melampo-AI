@@ -216,6 +216,17 @@ LOCAL_CANDIDATES = [
         "triplet_prefix": "task: sentence similarity | query: ",
     },
     {
+        # 6 October 2026: from the Gemma 4 architecture, Apache-2.0 (no Gemma terms), 100+ languages, 768 dims;
+        # the embedding member of the family Frank chose for the reader (D21 re-run, 16 October 2026)
+        "name": "embeddinggemma-2",
+        "model_id": "google/embeddinggemma-2",
+        "origin": "USA (Google)",
+        "access": "open weights, Apache-2.0",
+        "query_prefix": "task: search result | query: ",
+        "document_prefix": "title: none | text: ",
+        "triplet_prefix": "task: sentence similarity | query: ",
+    },
+    {
         "name": "arctic-embed-l-v2",
         "model_id": "Snowflake/snowflake-arctic-embed-l-v2.0",
         "origin": "USA (Snowflake)",

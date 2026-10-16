@@ -118,6 +118,8 @@ def test_an_attachment_recognised_as_pathology_carries_its_reading():
     from melampo.data.document_processing import ClinicalDocumentProcessor
 
     item = CaseAttachment.from_payload_item({"data": IT_BREAST.encode(), "filename": "istologico.txt"})
-    summary = process_case_attachments([item], ClinicalDocumentProcessor()).attachments[0].summary()
+    attachment = process_case_attachments([item], ClinicalDocumentProcessor()).attachments[0]
+    summary = attachment.summary()
     assert "pathology" in summary["routing"]["interpreters"]
-    assert {i["kind"] for i in summary["pathology"]["items"]} >= {"tnm", "margin", "biomarker", "lymph_nodes"}
+    assert {i["kind"] for i in attachment.pathology["items"]} >= {"tnm", "margin", "biomarker", "lymph_nodes"}
+    assert set(summary["pathology"]["items_by_kind"]) >= {"tnm", "margin"} and "Carcinoma" not in str(summary)
