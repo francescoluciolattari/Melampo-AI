@@ -176,7 +176,11 @@ class TotalSegmentatorSegmenter:
         with tempfile.TemporaryDirectory() as tmp:
             src, out = Path(tmp) / "case.nii.gz", Path(tmp) / "seg"
             write_nifti(volume, affine, src)
-            totalsegmentator(str(src), str(out), roi_subset=list(prompts), fast=self.fast, device=self.device)
+            kwargs = dict(roi_subset=list(prompts), fast=self.fast, device=self.device)
+            try:   # one saving thread: the second Kaggle probe ran out of memory saving a 567-slice series
+                totalsegmentator(str(src), str(out), nr_thr_saving=1, **kwargs)
+            except TypeError:
+                totalsegmentator(str(src), str(out), **kwargs)
             results = []
             for p in prompts:
                 f = out / f"{p}.nii.gz"

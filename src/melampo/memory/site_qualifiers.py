@@ -90,6 +90,19 @@ _PLAIN_CHARACTER = (
     (re.compile(r"\b(sclerotic|sclerosing|sclerotizzat\w*|addensat\w*)\b", re.I), "density", HIGH),
     (re.compile(r"\b(lytic|litic\w*|osteolitic\w*|osteolytic)\b", re.I), "density", LOW),
 )
+# Composition of a lesion as reports write it (16 Oct 2026): compared with the density measured in the image
+# (``imaging.density``). Longer forms first: "parzialmente solida" is part-solid, not solid. A negator just
+# before ("non calcifico", "without fat") gives "not_<kind>".
+_COMPOSITION = (
+    (re.compile(r"\b(parzialmente\s+solid\w*|part[-\s]?solid\w*|subsolid\w*|semi-?solid\w*)\b", re.I), "part_solid"),
+    (re.compile(r"\b(a\s+vetro\s+smerigliato|vetro\s+smerigliato|ground[-\s]?glass|GGO|GGN)\b", re.I), "ground_glass"),
+    (re.compile(r"\b(solid[oaie]|solid)\b", re.I), "solid"),
+    (re.compile(r"\b(calcific\w*|calcified|calcificat\w*)\b", re.I), "calcified"),
+    (re.compile(r"\b(adipos\w*|lipomatos\w*|fat[-\s]containing|fatty)\b", re.I), "fat"),
+    (re.compile(r"\b(cistic[oaihe]\w*|cystic|fluid[oa]?|fluid-filled|liquid[oaie])\b", re.I), "fluid"),
+    (re.compile(r"\b(cavitat\w*|cavitazion\w*|cavitary|cavitation|escavat\w*)\b", re.I), "cavitated"),
+)
+_NEGATOR_BEFORE = re.compile(r"\b(?:non|not|no|without|senza|privo\s+di|priva\s+di)\s+(?:\w+\s+)?$", re.I)
 _RANGE = re.compile(
     r"\b([CTLS]\d{1,2})\s*(?:-|–|/|to|a|e|through)\s*([CTLS]?\d{1,2})\b"
     r"|\b(?:between|tra|fra)\s+(?:the\s+|il\s+|lo\s+|la\s+)?([\w-]+)\s+(?:and|e)\s+(?:the\s+|il\s+|lo\s+|la\s+)?([\w-]+)",
@@ -215,6 +228,12 @@ def read_site_qualifiers(sentence: str, start: int, end: int, language: str = "e
         for m in rx.finditer(sentence, lo, hi):
             if not any(c.start <= m.start() < c.end for c in character):
                 character.append(Cue(m.group(0), m.start(), m.end(), f"{quality}:{direction}"))
+    for rx, kind in _COMPOSITION:
+        for m in rx.finditer(sentence, lo, hi):
+            if any(c.start <= m.start() < c.end for c in character):
+                continue
+            negated = _NEGATOR_BEFORE.search(sentence[max(lo, m.start() - 25):m.start()])
+            character.append(Cue(m.group(0), m.start(), m.end(), f"composition:{'not_' if negated else ''}{kind}"))
     character.sort(key=lambda c: c.start)
     character, character_scope = _scoped(character, plo, phi)
 

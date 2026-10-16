@@ -11,10 +11,13 @@
   report names), ``disagree`` (it does not: the image part is set aside, the finding lives on the text), ``not_found``,
   ``ambiguous`` (several separate regions of comparable size), ``unchecked`` (no organ mask to check against),
   ``no_image``. Absence of visual evidence is an explicit state, never zeros. Sizes are measured on the largest
-  part of the region; detached parts are reported beside it. A finding goes to a person (``needs_review``, with
-  the reasons) when the image does not confirm the report: outside the named structure, not found, several
-  regions, a size that differs from the one written, a second reading (``threshold_check``) that disagrees, or a
-  measure nothing independent confirms;
+  part of the region; detached parts are reported beside it (``other_regions``). Every region has a density
+  profile (``density``: distribution, composition, behaviour from core to border and around). How well the
+  measure is supported is recorded (``measure_support``: the report's size, the second reading of
+  ``threshold_check``, or a single reading). A finding goes to a person (``needs_review``, with the reasons) only
+  when the lesion the report describes is not identified in the image (not found, several comparable regions,
+  outside the named structure, the structure not checked) or the image differs from what the report writes (a
+  size, a density or a composition clearly against the report's words);
 * **the vectors**: the shape descriptors (no encoder behind them, comparable across lesions) and, once decision D21
   is taken, the text vector of the chosen encoder with its identity; the source text is always kept to recompute.
 
@@ -35,6 +38,7 @@ import numpy as np
 
 from .lesion_measures import RegionMeasures, label_parts, measure_region, overlap_inside, split_main_part
 from .segmenters import Segmentation
+from .density import DensityProfile, compare_with_report, density_profile
 from .threshold_check import APPLIED, second_reading
 
 AGREE, DISAGREE, NOT_FOUND, AMBIGUOUS, UNCHECKED, NO_IMAGE = (
@@ -47,8 +51,8 @@ DETACHED_SHARE = 0.10         # a detached part of at least a tenth of the main 
 
 # why a finding goes to a person
 OUTSIDE_STRUCTURE, NOT_IN_IMAGE, SEVERAL_REGIONS = "outside_the_named_structure", "not_found_in_image", "several_regions"
-SIZE_DIFFERS, SECOND_DISAGREES = "size_differs_from_report", "second_reading_disagrees"
-DETACHED_PARTS, UNCONFIRMED, STRUCTURE_UNCHECKED = "detached_parts", "measure_unconfirmed", "structure_not_checked"
+SIZE_DIFFERS, CHARACTER_DIFFERS = "size_differs_from_report", "character_differs_from_report"
+STRUCTURE_UNCHECKED = "structure_not_checked"
 
 _NUM = r"\d+(?:[.,]\d+)?"
 _SIZE_RE = re.compile(rf"(?<![\w.,])(?P<a>{_NUM})(?:\s*[x×]\s*(?P<b>{_NUM}))?(?:\s*[x×]\s*(?P<c>{_NUM}))?\s*"
@@ -99,6 +103,10 @@ class ImageSide:
     fragments: tuple[dict[str, float], ...] = ()
     whole_axial_mm: float | None = None   # longest axial diameter of the whole region, detached parts included
     second: dict[str, Any] = field(default_factory=dict)   # the threshold reading (threshold_check)
+    measure_support: tuple[str, ...] = ()   # "report", "second_reading"; empty: a single reading
+    other_regions: int = 0                  # detached parts large enough to be another lesion (not a reason alone)
+    density: DensityProfile | None = None
+    character_differences: tuple[str, ...] = ()
 
     @property
     def needs_review(self) -> bool:
@@ -132,9 +140,18 @@ class Finding:
             "in_organ_share": self.image.in_organ_share if self.image.in_organ_share is not None else -1.0,
             "image_notes": list(self.image.notes),
             "needs_review": self.image.needs_review, "review_reasons": list(self.image.review),
-            "detached_parts": len(self.image.fragments),
-            "second_reading": json.dumps(self.image.second) if self.image.second else "",
+            "detached_parts": len(self.image.fragments), "other_regions": self.image.other_regions,
+            "second_reading": json.dumps(self.image.second, default=float) if self.image.second else "",
+            "measure_support": list(self.image.measure_support) or ["single_reading"],
+            "character_differences": list(self.image.character_differences),
         }
+        d = self.image.density
+        if d is not None:
+            row.update(density_units=d.units, density_median=d.percentiles["p50"], density_relative=d.relative,
+                       density_composition=d.composition, density_flags=list(d.flags),
+                       density_json=json.dumps(d.as_dict(), default=float))
+            if d.solid_axial_mm is not None:
+                row["solid_axial_mm"] = d.solid_axial_mm
         if m is not None and self.image.status in (AGREE, UNCHECKED, AMBIGUOUS):
             row.update(volume_mm3=m.volume_mm3, longest_mm=m.longest_diameter_mm,
                        longest_axial_mm=m.longest_axial_diameter_mm, centroid_mm=list(m.centroid_mm),
@@ -181,8 +198,10 @@ def _components_numpy(mask: np.ndarray) -> list[int]:
 
 def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = None,
                    organ_mask: np.ndarray | None = None, text_size_mm: float | None = None,
-                   frame_of_reference: str = "", modality: str = "", structure=None) -> ImageSide:
-    """The image side of a finding, with the checks of decision D19 and the reasons a person must look."""
+                   frame_of_reference: str = "", modality: str = "", structure=None,
+                   character: list[str] | tuple[str, ...] = ()) -> ImageSide:
+    """The image side of a finding: the checks of decision D19, the measures and the density of the region,
+    and the reasons a person must look (the lesion is not identified, or the image differs from the report)."""
     if seg is None:
         return ImageSide(NO_IMAGE)
     if seg.mask is None or not seg.mask.any():
@@ -200,10 +219,9 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
         status = AGREE if share >= IN_ORGAN_SHARE else DISAGREE
         if status == DISAGREE:
             review.append(OUTSIDE_STRUCTURE)
-    if any(f.share_of_main >= DETACHED_SHARE for f in fragments) and status != AMBIGUOUS:
-        review.append(DETACHED_PARTS)
     measures = measure_region(main, affine, image)
     whole = measure_region(seg.mask, affine).longest_axial_diameter_mm if fragments else measures.longest_axial_diameter_mm
+    support: list[str] = []
     size_check = ""
     if text_size_mm:
         measured = measures.longest_axial_diameter_mm or measures.longest_diameter_mm
@@ -211,17 +229,24 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
         size_check = "consistent" if abs(measured - text_size_mm) <= tol else "inconsistent"
         if size_check == "inconsistent":
             review.append(SIZE_DIFFERS)
-    second = second_reading(main, image, affine, modality, structure) if image is not None else None
-    if second is not None and second.status == APPLIED and not second.agree:
-        review.append(SECOND_DISAGREES)
-    confirmed = size_check == "consistent" or (second is not None and second.agree is True)
-    if status in (AGREE, UNCHECKED) and not confirmed:
-        review.append(UNCONFIRMED)
+        else:
+            support.append("report")
+    second = second_reading(main, image, affine, modality, organ_mask) if image is not None else None
+    if second is not None and second.status == APPLIED and second.agree:
+        support.append("second_reading")
+    density = differences = None
+    if image is not None:
+        density = density_profile(image, main, affine, modality, organ_mask)
+        differences = compare_with_report(character, density)
+        if differences:
+            review.append(CHARACTER_DIFFERS)
     frags = tuple({"voxels": f.voxels, "volume_mm3": round(f.volume_mm3, 1), "share_of_main": round(f.share_of_main, 4),
                    "distance_mm": round(f.distance_mm, 1)} for f in fragments[:20])
+    others = sum(1 for f in fragments if f.share_of_main >= DETACHED_SHARE) if status != AMBIGUOUS else 0
     return ImageSide(status, seg.provider, seg.version, seg.prompt, measures, share, size_check, 1 + len(fragments),
                      frame_of_reference, seg.notes, tuple(dict.fromkeys(review)), frags, whole,
-                     second.as_dict() if second is not None else {})
+                     second.as_dict() if second is not None else {}, tuple(support), others, density,
+                     tuple(differences or ()))
 
 
 def build_finding(patient: str, study: str, study_date: str, modality: str, text: TextSide,
@@ -231,6 +256,8 @@ def build_finding(patient: str, study: str, study_date: str, modality: str, text
         shape = image.measures.shape_vector()
         if all(np.isfinite(shape)):   # a region too small for shape descriptors has no shape vector
             vectors["shape"] = shape
+        if image.density is not None:
+            vectors[f"density_{image.density.units.lower()}"] = image.density.vector()
     return Finding(finding_id(text.report_id, text.start, text.end), patient, study, study_date, modality, text,
                    image, vectors)
 
@@ -260,7 +287,7 @@ def findings_of(graph, patient: str) -> list[dict[str, Any]]:
     return [dict(r[0].properties) for r in got.result_set]
 
 
-__all__ = ["AGREE", "AMBIGUOUS", "DETACHED_PARTS", "OUTSIDE_STRUCTURE", "SECOND_DISAGREES", "SEVERAL_REGIONS",
-           "SIZE_DIFFERS", "UNCONFIRMED", "NOT_IN_IMAGE", "STRUCTURE_UNCHECKED", "DISAGREE", "NOT_FOUND", "NO_IMAGE", "UNCHECKED", "Finding", "ImageSide",
+__all__ = ["AGREE", "AMBIGUOUS", "CHARACTER_DIFFERS", "OUTSIDE_STRUCTURE", "SEVERAL_REGIONS", "SIZE_DIFFERS",
+           "NOT_IN_IMAGE", "STRUCTURE_UNCHECKED", "DISAGREE", "NOT_FOUND", "NO_IMAGE", "UNCHECKED", "Finding", "ImageSide",
            "TextSide", "build_finding", "finding_id", "findings_of", "image_evidence", "load_findings",
            "sizes_in_text", "asdict"]
