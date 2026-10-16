@@ -163,3 +163,9 @@ def test_without_the_segmenter_installed_the_finding_stays_on_the_text():
                          [{"mention": "fegato", "start": at, "end": at + 6, "cid": "liver"}],
                          volume=np.zeros(SHAPE), affine=AFFINE, lesion_segmenter=VoxTellSegmenter())
     assert got[0].image.status == fd.NO_IMAGE and got[0].image.notes[0].startswith("segmenter_unavailable")
+
+
+def test_the_parts_of_a_region_are_counted_without_scipy_too():
+    two = ball((-60, -70, 100), 6) | ball((-30, -70, 100), 6)
+    sizes = fd._components_numpy(two)
+    assert len(sizes) == 2 and sizes == fd._components(two)

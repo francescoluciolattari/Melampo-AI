@@ -130,12 +130,36 @@ def finding_id(report_id: str, start: int, end: int) -> str:
 
 
 def _components(mask: np.ndarray) -> list[int]:
+    """Sizes of the 6-connected parts of the region, largest first (scipy when installed, else plain numpy:
+    scipy is not a dependency of the project, and a count that silently says "one part" hid two regions)."""
     try:
         from scipy.ndimage import label
     except ImportError:
-        return [int(mask.sum())]
+        return _components_numpy(np.asarray(mask, dtype=bool))
     labels, n = label(mask)
     return sorted((int((labels == i).sum()) for i in range(1, n + 1)), reverse=True)
+
+
+def _components_numpy(mask: np.ndarray) -> list[int]:
+    from collections import deque
+
+    seen = np.zeros_like(mask, dtype=bool)
+    sizes = []
+    for start in map(tuple, np.argwhere(mask)):
+        if seen[start]:
+            continue
+        seen[start] = True
+        queue, size = deque([start]), 0
+        while queue:
+            z, y, x = queue.popleft()
+            size += 1
+            for dz, dy, dx in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+                n = (z + dz, y + dy, x + dx)
+                if all(0 <= n[i] < mask.shape[i] for i in range(3)) and mask[n] and not seen[n]:
+                    seen[n] = True
+                    queue.append(n)
+        sizes.append(size)
+    return sorted(sizes, reverse=True)
 
 
 def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = None,

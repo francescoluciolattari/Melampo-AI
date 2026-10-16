@@ -62,7 +62,12 @@ def run(cases: list[dict], device: str, fast: bool) -> list[dict]:
         volume, affine = load_case(case["image"])
         reference = read_nifti_mask(Path(case["lesion"]))
         row = {"id": case["id"], "structure": case["structure"]}
-        organ = organ_seg.segment(volume, affine, [case["structure"]])[0].mask
+        # one class or several (the lobes of a lung): the organ check uses their union
+        names = case["structure"] if isinstance(case["structure"], list) else [case["structure"]]
+        organ = None
+        for got in organ_seg.segment(volume, affine, names):
+            if got.mask is not None:
+                organ = got.mask if organ is None else (organ | got.mask)
         for key in ("prompt", "prompt_en"):
             if not case.get(key):
                 continue
