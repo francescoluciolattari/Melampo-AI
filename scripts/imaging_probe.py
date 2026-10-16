@@ -3,9 +3,10 @@
 
 For each case: the image (NIfTI), the reference lesion mask (NIfTI, same grid), the structure the lesion is in
 (a TotalSegmentator class) and a prompt (the words a report would use). VoxTell isolates the region from the
-prompt, TotalSegmentator gives the organ, ``findings.image_evidence`` runs the checks of decision D19, and the
-probe writes per case: Dice and surface distance against the reference, the status (agree / disagree /
-not_found / ambiguous), the measured vs reference size and volume, the run time and the device.
+prompt, TotalSegmentator gives the organ, ``findings.image_evidence`` runs the checks of decision D19 (organ,
+size written in the report, detached parts, the threshold reading of ``threshold_check`` on lung CT), and the
+probe writes per case: Dice of the region, of its largest part and of the threshold reading against the
+reference, the status, whether a person must look and why, the sizes, the run time.
 
 Where it runs: Kaggle (free GPU, public data only) or a CPU runner for one or two small cases. Public data only:
 pseudonymised patient data is still personal data and these services have no data-processing agreement.
@@ -13,7 +14,8 @@ pseudonymised patient data is still personal data and these services have no dat
     python scripts/imaging_probe.py --cases cases.json --out probe.json [--device cuda|cpu] [--fast-organs]
 
 ``cases.json``: [{"id": "msd_liver_001", "image": "...nii.gz", "lesion": "...nii.gz", "structure": "liver",
-"prompt": "lesione ipodensa nel fegato", "prompt_en": "hypodense liver lesion"}]
+"prompt": "lesione ipodensa nel fegato", "prompt_en": "hypodense liver lesion", "modality": "CT",
+"report": optional clause of the real report (else a synthetic one with the reference size, flagged as such)}]
 Datasets with permissive licences for this: Medical Segmentation Decathlon (CC BY-SA 4.0: liver, lung, pancreas,
 colon tumours), TotalSegmentator CT (CC BY 4.0: organs, no lesions).
 """
@@ -31,7 +33,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from melampo.imaging import findings as fd  # noqa: E402
-from melampo.imaging.lesion_measures import measure_region  # noqa: E402
+from melampo.imaging import threshold_check as tc  # noqa: E402
+from melampo.imaging.lesion_measures import measure_region, split_main_part  # noqa: E402
 from melampo.imaging.segmenters import (  # noqa: E402
     MaskSegmenter,
     TotalSegmentatorSegmenter,
@@ -54,6 +57,15 @@ def dice(a: np.ndarray, b: np.ndarray) -> float:
     return float(2 * (a & b).sum() / s) if s else 1.0
 
 
+def synthetic_clause(reference_mm: float | None) -> str:
+    """MSD has no reports: the probe writes the sentence a report would carry, with the reference size, and the
+    finding's size is read from it by the same reader used on real reports (``findings.sizes_in_text``). The
+    sentence is synthetic and labelled so in the output."""
+    if not reference_mm:
+        return "Formazione solida polmonare."
+    return f"Formazione solida polmonare di {reference_mm / 10:.1f} cm.".replace(".", ",", 1)
+
+
 def run(cases: list[dict], device: str, fast: bool) -> list[dict]:
     lesion_seg = VoxTellSegmenter(device=device)
     organ_seg = TotalSegmentatorSegmenter(fast=fast, device="gpu" if device == "cuda" else "cpu")
@@ -61,28 +73,46 @@ def run(cases: list[dict], device: str, fast: bool) -> list[dict]:
     for case in cases:
         volume, affine = load_case(case["image"])
         reference = read_nifti_mask(Path(case["lesion"]))
-        row = {"id": case["id"], "structure": case["structure"]}
-        # one class or several (the lobes of a lung): the organ check uses their union
+        modality = case.get("modality", "CT")
         names = case["structure"] if isinstance(case["structure"], list) else [case["structure"]]
+        row = {"id": case["id"], "structure": case["structure"], "modality": modality}
+        # one class or several (the lobes of a lung): the organ check uses their union
         organ = None
         for got in organ_seg.segment(volume, affine, names):
             if got.mask is not None:
                 organ = got.mask if organ is None else (organ | got.mask)
+        ref_main, _ = split_main_part(reference, affine) if reference.any() else (reference, [])
+        ref_size = measure_region(ref_main, affine).longest_axial_diameter_mm if reference.any() else None
+        clause = case.get("report") or synthetic_clause(ref_size)
+        sizes = fd.sizes_in_text(clause)
+        text_size = max((s["largest_mm"] for s in sizes), default=None)
+        row["report_clause"] = clause
+        row["report_is_synthetic"] = not case.get("report")
         for key in ("prompt", "prompt_en"):
             if not case.get(key):
                 continue
             t0 = time.time()
             seg = lesion_seg.segment(volume, affine, [case[key]])[0]
             seconds = time.time() - t0
-            ref_size = measure_region(reference, affine).longest_axial_diameter_mm if reference.any() else None
-            ev = fd.image_evidence(seg, affine, volume, organ, ref_size)
+            ev = fd.image_evidence(seg, affine, volume, organ, text_size, modality=modality, structure=names)
             got = seg.mask if seg.mask is not None else np.zeros_like(reference)
-            row[key] = {"status": ev.status, "dice": dice(got, reference), "seconds": round(seconds, 1),
-                        "size_check": ev.size_check, "in_organ_share": ev.in_organ_share,
+            main = split_main_part(got, affine)[0] if got.any() else got
+            second_dice = None
+            if ev.second.get("status") == tc.APPLIED and main.any():
+                region, _ = tc.threshold_region(volume, main, affine)
+                second_dice = dice(region, reference) if region is not None else 0.0
+            row[key] = {"status": ev.status, "needs_review": ev.needs_review, "review": list(ev.review),
+                        "dice": dice(got, reference), "dice_main_part": dice(main, reference),
+                        "dice_second_reading": second_dice, "seconds": round(seconds, 1),
+                        "segmenter_notes": list(seg.notes), "size_check": ev.size_check,
+                        "in_organ_share": ev.in_organ_share, "parts": ev.components,
+                        "fragments": list(ev.fragments)[:5],
                         "measured_longest_axial_mm": ev.measures.longest_axial_diameter_mm if ev.measures else None,
+                        "whole_region_longest_axial_mm": ev.whole_axial_mm,
+                        "second_reading": ev.second, "text_size_mm": text_size,
                         "reference_longest_axial_mm": ref_size}
         out.append(row)
-        print(json.dumps(row), flush=True)
+        print(json.dumps(row, default=float), flush=True)
     return out
 
 
@@ -104,7 +134,7 @@ def main(argv=None) -> int:
             rows.append({"id": case["id"], "status": fd.image_evidence(seg, affine, volume).status})
     else:
         rows = run(cases, args.device, args.fast_organs)
-    Path(args.out).write_text(json.dumps(rows, indent=1))
+    Path(args.out).write_text(json.dumps(rows, indent=1, default=float))
     return 0
 
 

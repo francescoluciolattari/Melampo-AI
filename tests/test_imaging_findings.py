@@ -169,3 +169,97 @@ def test_the_parts_of_a_region_are_counted_without_scipy_too():
     two = ball((-60, -70, 100), 6) | ball((-30, -70, 100), 6)
     sizes = fd._components_numpy(two)
     assert len(sizes) == 2 and sizes == fd._components(two)
+
+
+# --- 16 October 2026, after the first Kaggle probe (lung_006: a good overlap measured 137 mm against 27 mm) ---
+
+from melampo.imaging import threshold_check as tc  # noqa: E402
+
+LUNG = ball((-50, -70, 100), 45)
+
+
+def ct_with(lesion_hu=40.0, extra=None):
+    """A synthetic chest CT: aerated lung (-850 HU) around a lesion of radius 9 mm."""
+    img = np.full(SHAPE, -850.0)
+    img[ball((-50, -70, 100), 9)] = lesion_hu
+    if extra is not None:
+        img[extra] = 30.0
+    return img
+
+
+def test_a_detached_speck_does_not_enter_the_size_but_is_reported():
+    speck = np.zeros(SHAPE, bool)
+    speck[20, 120, 120] = True                               # far from the lesion, same slice
+    image = fd.image_evidence(seg(ball((-50, -70, 100), 9) | speck), AFFINE, organ_mask=LIVER, text_size_mm=18.0)
+    assert abs(image.measures.longest_axial_diameter_mm - 18) < 2.5 and image.whole_axial_mm > 60
+    assert len(image.fragments) == 1 and image.fragments[0]["distance_mm"] > 40
+    assert not image.needs_review            # a speck of one voxel is noted, not a second lesion
+
+
+def test_a_detached_part_of_some_size_goes_to_a_person():
+    image = fd.image_evidence(seg(ball((-50, -70, 100), 9) | ball((-50, -40, 100), 5)), AFFINE, organ_mask=LIVER,
+                              text_size_mm=18.0)
+    assert image.status == fd.AGREE and fd.DETACHED_PARTS in image.review
+
+
+def test_a_size_different_from_the_report_goes_to_a_person_and_is_not_used_for_growth():
+    image = fd.image_evidence(seg(ball((-50, -70, 100), 9)), AFFINE, organ_mask=LIVER, text_size_mm=30.0)
+    assert image.status == fd.AGREE and image.size_check == "inconsistent" and fd.SIZE_DIFFERS in image.review
+    f = fd.build_finding("pt1", "st1", "2026-01-10", "CT", text("3 cm"), image)
+    assert f.as_row()["needs_review"] and "shape" not in f.vectors
+
+
+def test_a_measure_nothing_confirms_goes_to_a_person():
+    image = fd.image_evidence(seg(ball((-50, -70, 100), 9)), AFFINE, organ_mask=LIVER)   # no size written, no CT
+    assert image.review == (fd.UNCONFIRMED,)
+
+
+def test_not_found_and_outside_say_why():
+    assert fd.image_evidence(seg(np.zeros(SHAPE, bool)), AFFINE).review == (fd.NOT_IN_IMAGE,)
+    out = fd.image_evidence(seg(ball((-10, -30, 100), 6)), AFFINE, organ_mask=LIVER, text_size_mm=12.0)
+    assert fd.OUTSIDE_STRUCTURE in out.review
+
+
+def test_the_threshold_reading_confirms_a_solid_nodule_with_a_vessel_attached():
+    z, y, x = np.mgrid[0:SHAPE[0], 0:SHAPE[1], 0:SHAPE[2]]
+    vessel = (np.abs(y - 50) <= 0) & (np.abs(z - 20) <= 0) & (x > 20) & (x < 75)     # one voxel thick
+    image = ct_with(extra=vessel)
+    first = ball((-50, -70, 100), 8.5)                                                  # VoxTell a little short
+    r = tc.second_reading(first, image, AFFINE, "CT", "lung_upper_lobe_right")
+    assert r.status == tc.APPLIED and r.agree and r.dice > 0.7 and abs(r.second_axial_mm - 18) < 2.5
+    # 3 mm short is beyond the agreement: the readings are reported apart, not averaged
+    short = tc.second_reading(ball((-50, -70, 100), 7.5), image, AFFINE, "CT", "lung_upper_lobe_right")
+    assert short.agree is False and short.second_axial_mm > short.first_axial_mm + 2
+    ev = fd.image_evidence(seg(first), AFFINE, image, organ_mask=LUNG, modality="CT",
+                           structure="lung_upper_lobe_right")
+    assert ev.second["agree"] and not ev.needs_review       # no size written, but two readings agree
+
+
+def test_a_ground_glass_lesion_is_not_confirmed_by_a_solid_threshold():
+    image = ct_with(lesion_hu=-600.0)
+    ev = fd.image_evidence(seg(ball((-50, -70, 100), 9)), AFFINE, image, organ_mask=LUNG, modality="CT",
+                           structure="lung_lower_lobe_left")
+    assert ev.second["agree"] is False and fd.SECOND_DISAGREES in ev.review
+
+
+def test_a_lesion_on_the_chest_wall_leaks_and_goes_to_a_person():
+    wall = np.zeros(SHAPE, bool)
+    wall[:, :, 73:] = True                                     # dense wall touching the lesion's side
+    image = ct_with(extra=wall)
+    r = tc.second_reading(ball((-50, -70, 100), 9), image, AFFINE, "CT", "lung")
+    assert r.agree is False and "reaches_the_search_zone_edge" in r.notes
+
+
+def test_the_threshold_reading_is_not_applied_outside_lung_ct():
+    image = ct_with()
+    assert tc.second_reading(ball((-50, -70, 100), 9), image, AFFINE, "CT", "liver").status == tc.NOT_APPLICABLE
+    assert tc.second_reading(ball((-50, -70, 100), 9), image, AFFINE, "MR", "lung").status == tc.NOT_APPLICABLE
+
+
+def test_parts_are_labelled_largest_first_with_and_without_scipy():
+    from melampo.imaging.lesion_measures import _label_numpy, label_parts
+
+    m = ball((-50, -70, 100), 5) | ball((-50, -40, 100), 9)
+    labels, sizes = label_parts(m)
+    assert sizes[0] > sizes[1] and (labels == 1).sum() == sizes[0]
+    assert _label_numpy(m)[1] == 2

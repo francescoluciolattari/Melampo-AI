@@ -82,14 +82,63 @@ class MaskSegmenter:
 
 
 class VoxTellSegmenter:
-    """VoxTell through its CLI (``voxtell-predict``): one NIfTI in, one mask per prompt out."""
+    """VoxTell: one mask per prompt. Through its Python API when installed (the model is loaded once and the
+    prompts embedded once -- the first Kaggle probe spent 70-200 s per call reloading the model through the CLI,
+    and an Italian prompt, not in VoxTell's bank of precomputed English embeddings, also loads the text encoder,
+    Qwen3-Embedding-4B), else through its CLI (``voxtell-predict``)."""
 
     name = "voxtell"
 
-    def __init__(self, model_dir: str | None = None, device: str = "cuda", version: str = "voxtell_v1.1"):
-        self.model_dir, self.device, self.version = model_dir, device, version
+    def __init__(self, model_dir: str | None = None, device: str = "cuda", version: str = "voxtell_v1.1",
+                 use_api: bool = True):
+        self.model_dir, self.device, self.version, self.use_api = model_dir, device, version, use_api
+        self._predictor = None
+        self._embeddings: dict[tuple[str, ...], object] = {}
+
+    def _api(self):
+        if self._predictor is None:
+            import torch
+            from voxtell.inference.predictor import VoxTellPredictor
+
+            kwargs = {"device": torch.device("cuda:0" if self.device == "cuda" else "cpu")}
+            if self.model_dir:
+                kwargs["model_dir"] = self.model_dir
+            self._predictor = VoxTellPredictor(**kwargs)
+        return self._predictor
+
+    def _segment_api(self, volume, affine, prompts):
+        from nnunetv2.imageio.nibabel_reader_writer import NibabelIOWithReorient
+
+        predictor = self._api()
+        key = tuple(prompts)
+        if key not in self._embeddings:
+            self._embeddings[key] = predictor.embed_text_prompts(list(prompts))
+        io = NibabelIOWithReorient()
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "case.nii.gz"
+            write_nifti(volume, affine, src)
+            img, props = io.read_images([str(src)])
+            seg = np.asarray(predictor.predict_single_image(img, text_embeddings=self._embeddings[key]))
+            results = []
+            for i, p in enumerate(prompts):
+                out = Path(tmp) / f"mask_{i}.nii.gz"
+                io.write_seg((seg[i] > 0).astype(np.uint8), str(out), props)   # back to the input's orientation
+                m = read_nifti_mask(out)
+                results.append(Segmentation(m if m.any() else None, self.name, self.version, p, notes=("api",)))
+            return results
 
     def segment(self, volume, affine, prompts):
+        if self.use_api:
+            try:
+                import voxtell.inference.predictor  # noqa: F401
+                import nnunetv2.imageio.nibabel_reader_writer  # noqa: F401
+            except ImportError:
+                pass
+            else:
+                try:
+                    return self._segment_api(volume, affine, prompts)
+                except Exception as error:  # noqa: BLE001 -- the API changed: the CLI still works, and says so
+                    self.use_api, self.api_error = False, f"api_failed:{type(error).__name__}:{error}"[:300]
         if shutil.which("voxtell-predict") is None:
             raise SegmenterUnavailable("voxtell-predict not installed (pip install voxtell)")
         with tempfile.TemporaryDirectory() as tmp:
@@ -105,8 +154,9 @@ class VoxTellSegmenter:
                 # one file per prompt, in prompt order; a missing file is "nothing found", never an error
                 f = files[i] if i < len(files) else None
                 m = read_nifti_mask(f) if f else None
+                notes = ("cli",) + ((self.api_error,) if getattr(self, "api_error", "") else ())
                 results.append(Segmentation(m if m is not None and m.any() else None, self.name, self.version, p,
-                                            notes=() if f else ("no_output_file",)))
+                                            notes=notes if f else notes + ("no_output_file",)))
             return results
 
 

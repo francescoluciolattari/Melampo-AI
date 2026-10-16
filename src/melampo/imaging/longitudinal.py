@@ -62,14 +62,16 @@ def _days(a: str, b: str) -> int | None:
 
 def _size(f: Finding) -> float | None:
     m = f.image.measures
-    if m is not None and f.image.status in (AGREE, UNCHECKED):
+    # a measure the checks did not confirm is not a measure of growth: the report's own size is used instead
+    if m is not None and f.image.status in (AGREE, UNCHECKED) and not f.image.needs_review:
         return m.longest_axial_diameter_mm or m.longest_diameter_mm
     return f.text.largest_size_mm
 
 
 def _volume(f: Finding) -> float | None:
     m = f.image.measures
-    return m.volume_mm3 if m is not None and f.image.status in (AGREE, UNCHECKED) else None
+    ok = m is not None and f.image.status in (AGREE, UNCHECKED) and not f.image.needs_review
+    return m.volume_mm3 if ok else None
 
 
 def pair_score(a: Finding, b: Finding, relative_positions: dict[str, tuple[float, float, float]] | None = None,
