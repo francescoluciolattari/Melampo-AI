@@ -49,3 +49,37 @@ Cosa abbiamo imparato:
 Il Dice contro un contorno manuale ha un tetto: due radiologi che contornano lo stesso tumore non coincidono. Anche il diametro di un nodulo varia di circa 1,5-2 mm tra lettori. L'obiettivo del 99% non riguarda il Dice. Riguarda i reperti accettati: una misura viene accettata solo quando due fonti indipendenti (il referto e/o la lettura a soglia) la confermano, altrimenti va a una persona. La precisione si ottiene astenendosi, non chiedendo a un solo modello di non sbagliare mai.
 
 Restano da fare: referti veri accoppiati a immagini (es. CT-RATE, da verificare la licenza), lesioni del fegato e del pancreas (MSD Task03/07) dove la soglia non si applica, ecografia.
+
+## Secondo probe (sera del 16 ottobre) e revisione
+
+Risultati su 4 casi (lung_006 è andato in esaurimento di memoria salvando le maschere di una serie di 567 fette):
+- **Parte principale.** Nel caso lung_001 VoxTell ha trovato anche una seconda regione: 26% del volume, a 59 mm. Misurata solo la parte principale, il Dice sale da 0,79 a 0,90 e il diametro coincide con il referto (15,7 contro 16 mm).
+- **Dimensioni.** Tutte coerenti con il referto sintetico: 15,7/16, 19,0/19, 16,3/18, 32,0/32 mm.
+- **Soglia fissa -400 HU, da buttare.** In tutti e quattro i casi è arrivata al bordo della zona di ricerca, scorrendo lungo i vasi e la pleura. Ha dato 25, 32,8 e 44,6 mm contro 16, 18 e 32. Solo in lung_003 coincideva (18,7 mm).
+
+Cambiamenti decisi con Frank:
+1. **Quando un reperto va a una persona.** Solo se la lesione del referto non viene identificata (non trovata, più regioni comparabili, fuori dalla struttura, struttura non verificata), oppure se l'immagine differisce dal referto (misura, densità o composizione chiaramente opposte alle parole del referto). Non vanno più a una persona una lesione a vetro smerigliato, una misura confermata da una sola lettura (`measure_support`) o un'altra regione trovata (`other_regions`): sono attributi.
+2. **Seconda lettura con soglia a metà strada** (`threshold_check.py`), come la volumetria PET:
+   - la soglia sta a metà tra il nucleo della lesione e il tessuto intorno, dal lato della lesione;
+   - la ricerca è limitata all'organo, così la parete toracica resta fuori;
+   - si applica dove la lesione si distingue dal rumore (rapporto contrasto/rumore ≥ 2,5): TC di qualunque organo, RM e PET;
+   - un nodulo a vetro smerigliato viene letto con la sua soglia (circa -725 HU).
+3. **Profilo di densità per ogni regione** (`imaging/density.py`):
+   - distribuzione (percentili, entropia);
+   - in TC, quota in fasce di HU: aria, vetro smerigliato, grasso, liquido, tessuti molli, alta densità, calcio;
+   - profilo dal bordo al centro, per profondità relativa, e fuori a 0-2, 2-5 e 5-10 mm;
+   - gradiente sul bordo (nitidezza del margine) e asimmetria tra ottanti;
+   - densità rispetto al tessuto intorno (ipo/iso/iper);
+   - nel polmone aerato, componente solida (quota e diametro, come in Lung-RADS) e composizione solid/part_solid/ground_glass;
+   - indicatori di calcio, grasso (valutato all'interno, lontano dal bordo, per l'effetto di volume parziale) e cavitazione.
+   Il profilo è anche un vettore (`density_hu`) per ricerca e confronto. In RM ed ecografia restano solo valori relativi: le intensità non sono una scala assoluta.
+4. **Parole del referto sulla composizione** (`site_qualifiers`): solido, parzialmente solido/subsolido, vetro smerigliato, calcifico, adiposo, cistico/fluido, cavitato, e le forme negate ("non calcifico"). `compare_with_report` segnala solo le contraddizioni nette.
+5. **Probe:**
+   - volumi in float32;
+   - TotalSegmentator con un solo thread di salvataggio;
+   - un caso che fallisce viene registrato e gli altri proseguono;
+   - probe.json viene scritto dopo ogni caso;
+   - i due prompt girano in una sola esecuzione;
+   - la frase sintetica non dice più "solida", che i dati non dicono.
+
+Le soglie (fasce di HU, -300 HU per la parte solida, rapporto 0,8 per "solida") sono valori di partenza da calibrare su dati annotati.

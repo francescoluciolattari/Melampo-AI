@@ -1,21 +1,29 @@
-"""A second, independent reading of a lesion's extent on CT: the method of the scanners' own software
-(16 October 2026).
+"""A second, independent reading of a lesion's extent: the half-way threshold of volumetry software
+(16 October 2026, revised after the second Kaggle probe).
 
-The nodule volumetry shipped with CT workstations is semi-automatic and deterministic: the radiologist clicks the
-nodule, the software keeps the voxels above a density threshold connected to the click, cuts the thin vessels
-with a morphological opening, and measures. In the lung this works because a solid lesion (soft tissue, about
--100..+100 HU) sits in air (about -850 HU): the border is where the density crosses a threshold, not a guess.
+Volumetry software on CT and PET workstations is semi-automatic and deterministic: from a click on the lesion
+it keeps the voxels on the lesion's side of a threshold, connected to the click, and measures. The first version
+here used a fixed -400 HU: it only fits a solid lesion in aerated lung, and on 5 real MSD lung tumours it ran
+along vessels and the pleura every time (all five reached the edge of the search zone).
 
-Here the "click" is the region VoxTell found from the report's words. Inside that region grown by a margin, the
-voxels at or above ``SOLID_HU`` connected to it are the second reading. The two readings are compared
-(``compare``): when they agree, the size has two independent sources; when they do not, or the threshold region
-runs to the edge of the search zone (it leaked into the chest wall or the mediastinum), the finding goes to a
-person. Nothing is averaged and nothing is chosen: disagreement is reported, not resolved.
+Now the threshold comes from the lesion itself, as PET volumetry does with a share of the maximum:
 
-Where the method holds, stated: CT, lung structures, solid lesions. A ground-glass or part-solid lesion
-(-750..-300 HU) is under-read by a solid threshold, so the readings disagree and the finding goes to a person:
-that is the intended outcome, not an error to tune away. Elsewhere (liver, pancreas, MR, ultrasound) a lesion is
-not separated from its organ by a fixed density, and the method answers ``not_applicable``.
+* the "click" is the region the segmenter found from the report's words (its largest part);
+* ``core``: the median value in the deeper half of that region; ``surrounding``: the median of the tissue
+  2-10 mm around it (inside the organ when the organ mask is given); the threshold is half-way between them, on
+  the lesion's side (above it for a lesion denser than its surroundings, below for a cyst in the liver);
+* the search is limited to the region grown by ``MARGIN_MM`` and, when the organ mask is given, to the organ
+  (grown by two voxels) plus the region: a tumour touching the chest wall does not run into the wall;
+* a one-voxel opening detaches thin vessels; the connected part overlapping the click is kept.
+
+It applies wherever the lesion differs from its surroundings by more than the noise (contrast-to-noise >=
+``MIN_CNR``): CT in any organ, MR and PET too, since half-way between two values of the same image does not need
+absolute units. A ground-glass nodule (-600 HU in -850 HU lung) has its own half-way threshold and is read like
+a solid one. Where there is no contrast it says ``not_applicable``.
+
+The two readings agree when they overlap (Dice >= 0.70) and their longest axial diameters differ by no more than
+max(2 mm, 15%). The outcome is recorded as how well the measure is supported (``measure_support`` of the
+finding); it does not send a finding to a person by itself.
 """
 
 from __future__ import annotations
@@ -26,13 +34,12 @@ import numpy as np
 
 from .lesion_measures import label_parts, measure_region
 
-SOLID_HU = -400.0          # solid tissue vs aerated lung
 MARGIN_MM = 6.0            # how far beyond the first reading the threshold may extend
-DICE_AGREE = 0.70          # overlap of the two readings
-SIZE_AGREE_MM = 2.0        # longest axial diameter: within max(2 mm, 15%) -- the order of the variability
-SIZE_AGREE_SHARE = 0.15    # between radiologists measuring the same nodule
-LUNG_CLASSES = frozenset({"lung", "lung_left", "lung_right", "lung_upper_lobe_left", "lung_lower_lobe_left",
-                          "lung_upper_lobe_right", "lung_middle_lobe_right", "lung_lower_lobe_right"})
+MIN_CNR = 2.5              # |core - surrounding| / noise of the surrounding
+DICE_AGREE = 0.70
+SIZE_AGREE_MM = 2.0        # longest axial diameter: within max(2 mm, 15%), the order of the variability
+SIZE_AGREE_SHARE = 0.15    # between radiologists measuring the same lesion
+VOLUME_MODALITIES = frozenset({"CT", "MR", "PT", "PET"})
 
 APPLIED, NOT_APPLICABLE = "applied", "not_applicable"
 
@@ -40,28 +47,20 @@ APPLIED, NOT_APPLICABLE = "applied", "not_applicable"
 @dataclass
 class SecondReading:
     status: str                                # "applied" or "not_applicable"
-    method: str = f"ct_threshold_{int(SOLID_HU)}HU"
+    method: str = "half_way_threshold"
     mask: np.ndarray | None = None
-    agree: bool | None = None                  # None when not applicable or nothing to compare
+    agree: bool | None = None
     dice: float | None = None
+    threshold: float | None = None
+    core: float | None = None
+    surrounding: float | None = None
+    cnr: float | None = None
     first_axial_mm: float | None = None
     second_axial_mm: float | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
 
     def as_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if k != "mask"}
-
-
-def applicable(modality: str, structures, image: np.ndarray | None) -> bool:
-    names = {structures} if isinstance(structures, str) else set(structures or ())
-    if image is None or (modality or "").upper() != "CT" or not names & LUNG_CLASSES:
-        return False
-    return float(np.min(image)) < -500.0   # the values are Hounsfield units with air in the field
-
-
-def _spacing(affine) -> np.ndarray:
-    a = np.asarray(affine, dtype=float)[:3, :3]
-    return np.array([np.linalg.norm(a[:, 2]), np.linalg.norm(a[:, 1]), np.linalg.norm(a[:, 0])])  # slice,row,col
 
 
 def _shift(mask: np.ndarray, axis: int, step: int) -> np.ndarray:
@@ -99,54 +98,93 @@ def _dilate(mask: np.ndarray) -> np.ndarray:
     return out
 
 
-def threshold_region(image: np.ndarray, seed: np.ndarray, affine, threshold: float = SOLID_HU,
-                     margin_mm: float = MARGIN_MM) -> tuple[np.ndarray | None, tuple[str, ...]]:
-    """The voxels >= threshold connected to the seed, within the seed grown by ``margin_mm``, after a one-voxel
-    opening (thin vessels leave the lesion). Returns the mask (None: nothing) and notes."""
-    seed = np.asarray(seed, dtype=bool)
-    notes: list[str] = []
-    radius = np.ceil(margin_mm / _spacing(affine)).astype(int)
-    zone = grow(seed, radius)
-    dense = (np.asarray(image) >= threshold) & zone
-    opened = _dilate(_erode(dense)) & dense
-    if (opened & seed).any():
-        dense = opened
-    else:
-        notes.append("opening_skipped_small_lesion")
-    labels, sizes = label_parts(dense)
-    if not sizes:
-        return None, tuple(notes + ["nothing_above_threshold"])
-    overlap = np.bincount(labels[seed].ravel(), minlength=len(sizes) + 1)[1:]
-    if not overlap.any():
-        return None, tuple(notes + ["nothing_above_threshold_in_the_first_reading"])
-    region = labels == int(np.argmax(overlap)) + 1
-    border = zone & ~_erode(zone)
-    if (region & border).any():
-        notes.append("reaches_the_search_zone_edge")   # leaked along the pleura, a vessel or the mediastinum
-    return region, tuple(notes)
-
-
 def dice(a: np.ndarray, b: np.ndarray) -> float:
     s = int(a.sum()) + int(b.sum())
     return float(2 * int((a & b).sum()) / s) if s else 1.0
 
 
-def second_reading(first: np.ndarray, image: np.ndarray | None, affine, modality: str, structures) -> SecondReading:
-    """The threshold reading of the region ``first`` (the largest part of the segmenter's region) and whether
-    the two readings agree."""
-    if not applicable(modality, structures, image) or first is None or not np.any(first):
+def _spacing(affine) -> np.ndarray:
+    a = np.asarray(affine, dtype=float)[:3, :3]
+    return np.array([np.linalg.norm(a[:, 2]), np.linalg.norm(a[:, 1]), np.linalg.norm(a[:, 0])])  # slice,row,col
+
+
+def _box(mask: np.ndarray, margin_vox) -> tuple[slice, ...]:
+    idx = np.argwhere(mask)
+    lo = np.maximum(idx.min(0) - margin_vox, 0)
+    hi = np.minimum(idx.max(0) + margin_vox + 1, mask.shape)
+    return tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
+
+
+def threshold_region(image: np.ndarray, seed: np.ndarray, affine, organ_mask: np.ndarray | None = None,
+                     margin_mm: float = MARGIN_MM) -> tuple[np.ndarray | None, dict]:
+    """The half-way threshold region connected to ``seed``. Returns (mask on the full grid or None, details)."""
+    from .density import distance_mm
+
+    seed = np.asarray(seed, dtype=bool)
+    sp = _spacing(affine)
+    box = _box(seed, np.ceil((margin_mm + 12.0) / sp).astype(int))
+    img = np.asarray(image[box], dtype=np.float32)
+    s = seed[box]
+    organ = None if organ_mask is None or not np.any(organ_mask) else np.asarray(organ_mask, dtype=bool)[box]
+    notes: list[str] = []
+    inside, _ = distance_mm(s, sp)
+    deep = s & (inside >= 0.5 * inside.max())
+    core = float(np.median(img[deep] if deep.sum() >= 5 else img[s]))
+    outside, _ = distance_mm(~s, sp)
+    shell = ~s & (outside > 2.0) & (outside <= 10.0)
+    if organ is not None:
+        shell &= organ
+    if shell.sum() < 20:
+        return None, {"notes": ("too_little_surrounding_tissue",), "core": core}
+    around = img[shell]
+    surrounding = float(np.median(around))
+    noise = float(1.4826 * np.median(np.abs(around - surrounding))) or float(around.std()) or 1.0
+    cnr = abs(core - surrounding) / noise
+    details = {"core": core, "surrounding": surrounding, "cnr": cnr}
+    if cnr < MIN_CNR:
+        return None, {**details, "notes": ("no_density_contrast",)}
+    threshold = (core + surrounding) / 2.0
+    details["threshold"] = threshold
+    zone = grow(s, np.ceil(margin_mm / sp).astype(int))
+    if organ is not None:
+        zone &= grow(organ, (2, 2, 2)) | s
+    side = (img >= threshold) if core > surrounding else (img <= threshold)
+    dense = side & zone
+    opened = _dilate(_erode(dense)) & dense
+    if (opened & s).any():
+        dense = opened
+    else:
+        notes.append("opening_skipped_small_lesion")
+    labels, sizes = label_parts(dense)
+    overlap = np.bincount(labels[s].ravel(), minlength=len(sizes) + 1)[1:] if sizes else np.zeros(0)
+    if not sizes or not overlap.any():
+        return None, {**details, "notes": tuple(notes + ["nothing_on_the_lesion_side"])}
+    region = labels == int(np.argmax(overlap)) + 1
+    if (region & (zone & ~_erode(zone))).any():
+        notes.append("reaches_the_search_zone_edge")
+    full = np.zeros(seed.shape, dtype=bool)
+    full[box] = region
+    return full, {**details, "notes": tuple(notes)}
+
+
+def second_reading(first: np.ndarray, image: np.ndarray | None, affine, modality: str,
+                   organ_mask: np.ndarray | None = None) -> SecondReading:
+    """The half-way threshold reading of the region ``first`` and whether the two readings agree."""
+    if image is None or first is None or not np.any(first) or (modality or "").upper() not in VOLUME_MODALITIES:
         return SecondReading(NOT_APPLICABLE)
-    region, notes = threshold_region(image, first, affine)
+    region, d = threshold_region(image, first, affine, organ_mask)
     first_axial = measure_region(first, affine).longest_axial_diameter_mm
+    common = {"threshold": d.get("threshold"), "core": d.get("core"), "surrounding": d.get("surrounding"),
+              "cnr": d.get("cnr"), "first_axial_mm": first_axial, "notes": d.get("notes", ())}
     if region is None:
-        return SecondReading(APPLIED, agree=False, first_axial_mm=first_axial, notes=notes)
+        status = NOT_APPLICABLE if set(common["notes"]) & {"no_density_contrast", "too_little_surrounding_tissue"} \
+            else APPLIED
+        return SecondReading(status, agree=None if status == NOT_APPLICABLE else False, **common)
     second_axial = measure_region(region, affine).longest_axial_diameter_mm
-    d = dice(first, region)
+    dc = dice(first, region)
     tol = max(SIZE_AGREE_MM, SIZE_AGREE_SHARE * max(first_axial, second_axial))
-    agree = d >= DICE_AGREE and abs(first_axial - second_axial) <= tol and "reaches_the_search_zone_edge" not in notes
-    return SecondReading(APPLIED, mask=region, agree=agree, dice=d, first_axial_mm=first_axial,
-                         second_axial_mm=second_axial, notes=notes)
+    agree = dc >= DICE_AGREE and abs(first_axial - second_axial) <= tol
+    return SecondReading(APPLIED, mask=region, agree=agree, dice=dc, second_axial_mm=second_axial, **common)
 
 
-__all__ = ["APPLIED", "LUNG_CLASSES", "NOT_APPLICABLE", "SOLID_HU", "SecondReading", "applicable", "dice", "grow",
-           "second_reading", "threshold_region"]
+__all__ = ["APPLIED", "NOT_APPLICABLE", "SecondReading", "dice", "grow", "second_reading", "threshold_region"]

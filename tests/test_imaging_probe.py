@@ -46,8 +46,23 @@ def test_probe_reports_the_far_speck_case_and_the_review_reasons(tmp_path, monke
     row = probe.run(cases, "cpu", True)[0]
     got = row["prompt"]
     assert row["report_is_synthetic"] and "cm" in row["report_clause"]
-    assert abs(got["measured_longest_axial_mm"] - got["reference_longest_axial_mm"]) < 1.5
+    assert abs(got["measured_longest_axial_mm"] - row["reference_longest_axial_mm"]) < 1.5
     assert got["whole_region_longest_axial_mm"] > 40 and got["parts"] == 2
     assert got["second_reading"]["agree"] and got["dice_second_reading"] > 0.9
     assert got["status"] == "agree" and not got["needs_review"]
+    assert got["measure_support"] == ["report", "second_reading"] and got["density"]["composition"] == "solid"
+    assert row["reference_density"]["units"] == "HU" and "solida" not in row["report_clause"]
     json.dumps(row, default=float)
+
+
+def test_a_failing_case_is_recorded_and_the_others_go_on(tmp_path, monkeypatch):
+    class Broken(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({})
+
+    monkeypatch.setattr(probe, "VoxTellSegmenter", Broken)
+    monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Broken)
+    out = tmp_path / "probe.json"
+    rows = probe.run([{"id": "missing", "image": str(tmp_path / "nope.nii.gz"), "lesion": "x", "structure": "lung"}],
+                     "cpu", True, out)
+    assert "error" in rows[0] and json.loads(out.read_text())[0]["id"] == "missing"

@@ -58,7 +58,8 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                 if organ_segmenter is not None:
                     organ = organ_segmenter.segment(volume, affine, [site["cid"]])[0].mask
                 image = image_evidence(seg, affine, volume, organ, text.largest_size_mm, frame_of_reference,
-                                       modality=modality, structure=site["cid"])
+                                       modality=modality, structure=site["cid"],
+                                       character=qd.get("character", ()))
             except SegmenterUnavailable as error:
                 image = ImageSide(NO_IMAGE, notes=(f"segmenter_unavailable:{error}",))
         findings.append(build_finding(patient, study, study_date, modality, text, image))
