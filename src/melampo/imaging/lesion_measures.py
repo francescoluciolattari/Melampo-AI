@@ -198,6 +198,77 @@ def mesh_mm(mask: np.ndarray, affine) -> tuple[np.ndarray, np.ndarray] | None:
     return None if got is None else (got[1], got[2])
 
 
+def label_parts(mask: np.ndarray) -> tuple[np.ndarray, list[int]]:
+    """The 6-connected parts of a region: a label array (0 outside, 1 the largest part, 2 the next, ...) and the
+    sizes in voxels, largest first. scipy when installed, else plain numpy (scipy is not a dependency)."""
+    mask = np.asarray(mask, dtype=bool)
+    try:
+        from scipy.ndimage import label
+        labels, n = label(mask)
+    except ImportError:
+        labels, n = _label_numpy(mask)
+    if n == 0:
+        return np.zeros(mask.shape, dtype=np.int32), []
+    sizes = np.bincount(labels.ravel())[1:]
+    order = np.argsort(-sizes, kind="stable")
+    relabel = np.zeros(n + 1, dtype=np.int32)
+    relabel[order + 1] = np.arange(1, n + 1)
+    return relabel[labels], [int(sizes[i]) for i in order]
+
+
+def _label_numpy(mask: np.ndarray) -> tuple[np.ndarray, int]:
+    from collections import deque
+
+    labels = np.zeros(mask.shape, dtype=np.int32)
+    n = 0
+    for start in map(tuple, np.argwhere(mask)):
+        if labels[start]:
+            continue
+        n += 1
+        labels[start] = n
+        queue = deque([start])
+        while queue:
+            z, y, x = queue.popleft()
+            for dz, dy, dx in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+                q = (z + dz, y + dy, x + dx)
+                if all(0 <= q[i] < mask.shape[i] for i in range(3)) and mask[q] and not labels[q]:
+                    labels[q] = n
+                    queue.append(q)
+    return labels, n
+
+
+@dataclass
+class Fragment:
+    """A part of the region detached from its largest part."""
+    voxels: int
+    volume_mm3: float
+    share_of_main: float          # its volume / the largest part's volume
+    distance_mm: float            # closest distance between its voxels and the largest part's boundary
+
+
+def split_main_part(mask: np.ndarray, affine) -> tuple[np.ndarray, list[Fragment]]:
+    """The largest part of the region and the detached rest (16 October 2026, case lung_006 of the Kaggle probe:
+    a region with a good overlap measured 137 mm against 27 mm of reference, because a detached speck far from
+    the lesion entered the longest diameter). Sizes are measured on the largest part; the rest is reported."""
+    labels, sizes = label_parts(mask)
+    if not sizes:
+        return np.zeros(np.shape(mask), dtype=bool), []
+    main = labels == 1
+    main_edge = to_mm(boundary(main), affine)
+    if len(main_edge) > MAX_BOUNDARY_POINTS:
+        main_edge = main_edge[np.random.default_rng(0).choice(len(main_edge), MAX_BOUNDARY_POINTS, replace=False)]
+    vox = voxel_volume_mm3(affine)
+    fragments = []
+    for k, size in enumerate(sizes[1:], start=2):
+        pts = to_mm(np.argwhere(labels == k), affine)
+        if len(pts) > 500:
+            pts = pts[np.random.default_rng(0).choice(len(pts), 500, replace=False)]
+        d = min(float(np.sqrt(((c[:, None, :] - main_edge[None, :, :]) ** 2).sum(-1)).min())
+                for c in np.array_split(pts, max(1, len(pts) // 100)))
+        fragments.append(Fragment(size, size * vox, size / sizes[0], d))
+    return main, fragments
+
+
 def lps_to_ras_affine(affine) -> np.ndarray:
     """The same grid in RAS (what VoxTell and NIfTI expect): x and y change sign."""
     return np.diag([-1.0, -1.0, 1.0, 1.0]) @ _affine(affine)
@@ -216,5 +287,5 @@ def overlap_inside(region: np.ndarray, organ: np.ndarray, margin_voxels: int = 2
     return float((region & grown).sum() / max(region.sum(), 1))
 
 
-__all__ = ["MIN_VOXELS", "RegionMeasures", "boundary", "boundary_points_mm", "lps_to_ras_affine", "measure_region",
+__all__ = ["MIN_VOXELS", "Fragment", "RegionMeasures", "label_parts", "split_main_part", "boundary", "boundary_points_mm", "lps_to_ras_affine", "measure_region",
            "mesh_mm", "overlap_inside", "to_mm", "voxel_volume_mm3"]
