@@ -247,8 +247,9 @@ class NnInteractiveRefiner:
         import torch
 
         session = self._get()
-        img = np.asarray(volume, dtype=np.float32).transpose(2, 1, 0)[None]       # (1, x, y, z)
-        reg = np.asarray(region, dtype=bool).transpose(2, 1, 0)
+        # transposed views are not C-contiguous and nnInteractive refuses them (fifth probe: 3 cases failed)
+        img = np.ascontiguousarray(np.asarray(volume, dtype=np.float32).transpose(2, 1, 0)[None])   # (1, x, y, z)
+        reg = np.ascontiguousarray(np.asarray(region, dtype=bool).transpose(2, 1, 0))
         session.set_image(img)
         target = torch.zeros(img.shape[1:], dtype=torch.uint8)
         session.set_target_buffer(target)
@@ -262,7 +263,7 @@ class NnInteractiveRefiner:
         session.add_bbox_interaction(box, include_interaction=True)
         out = np.asarray(session.target_buffer.cpu().numpy() if hasattr(session.target_buffer, "cpu")
                          else session.target_buffer) > 0
-        return out.transpose(2, 1, 0)
+        return np.ascontiguousarray(out.transpose(2, 1, 0))
 
 
 class TotalSegmentatorSegmenter:
