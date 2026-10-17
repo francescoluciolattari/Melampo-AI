@@ -130,3 +130,24 @@ Correzioni:
    - nessuna apertura. I vasi sono più densi della fascia e la crescita non li segue.
 2. **Controllo dell'organo:** se meno della metà della regione è nella maschera ma almeno il 20% la tocca, conta la sagoma convessa di ogni lobo, fetta per fetta. Se l'80% ci sta dentro, lo stato è "agree" con la nota `inside_the_outline_of_the_structure`.
 3. **Fase del contrasto dal DICOM** (`dicom_volume.contrast_phase`): ContrastBolusAgent, altrimenti le parole di SeriesDescription e ProtocolName ("senza mdc", "basale", "portale", "arteriosa"). Un tag assente vale "unknown", non "senza contrasto".
+
+## Quinto probe (17 ottobre): 30 casi completi
+
+Riepilogo del notebook (prompt italiano; inglese tra parentesi):
+- accettati 20 (20), di cui entro max(2 mm, 10%) dal contorno di riferimento 16 (17): precisione circa 80%;
+- a una persona 10 (10), di cui davvero sbagliati 10 (9): nessun falso allarme in italiano;
+- lung_026, prima dato fuori dal polmone, ora è accettato grazie al controllo sulla sagoma del lobo (-1,4 mm).
+
+Accettati sbagliati: lung_016 (-3,0 mm, fuori per 0,03), lung_020 (-3,8), lung_027 (-8,1 mm su 57), lung_044 (-5,0).
+
+Cosa mostrano gli errori:
+- **Sempre per difetto.** Quasi tutti gli errori sono misure più corte del riferimento, e crescono con la dimensione: oltre 5 cm VoxTell sottostima del 15-20% (lung_022 -17, lung_028 -14,6, lung_031 -13,9, lung_033 -13 mm). Questi casi vanno correttamente a una persona.
+- **Alone ancora mancante.** Nei tumori soprattutto a vetro smerigliato (lung_042, lung_043, lung_044) l'estensione non c'è o è stata scartata. Il prossimo run stampa perché: soglia, rumore, voxel aggiunti, bordo raggiunto.
+- **Regressione corretta.** La densità calcolata sull'estensione ha fatto leggere "part_solid" due tumori solidi (lung_003, lung_004), perché l'estensione era cresciuta nel polmone intorno. Ora la densità è quella della regione misurata.
+
+Correzioni:
+1. **Tolleranza** con il referto: max(3 mm, 10%), che è anche l'ordine della variabilità tra radiologi. Ricalcolata sui numeri di questo run (arrotondati): circa 17 accettati, di cui 2 fuori dal criterio stretto (precisione circa 88%), 13 a una persona, nessun falso allarme.
+2. **Densità** calcolata sulla regione misurata.
+3. **Probe:** dettagli dell'estensione a vetro smerigliato.
+
+Limite: il referto sintetico riporta esattamente la misura di riferimento. Con referti veri la misura del radiologo ha la sua variabilità, quindi la tolleranza va riverificata.

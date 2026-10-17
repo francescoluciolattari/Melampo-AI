@@ -119,7 +119,7 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
                                character=character, contrast=case.get("contrast", "unknown"), organ_parts=parts)
         got = seg.mask if seg.mask is not None else np.zeros_like(reference)
         main = split_main_part(got, affine)[0] if got.any() else got
-        ext, _ = tc.ground_glass_extent(main, volume, affine, modality, organ) if main.any() else (None, {})
+        ext, ext_d = tc.ground_glass_extent(main, volume, affine, modality, organ) if main.any() else (None, {})
         measured = ev.measures.longest_axial_diameter_mm if ev.measures else None
         err = measured - ref_size if measured is not None and ref_size else None
         second_dice = None
@@ -139,6 +139,7 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
                     "image_notes": [n for n in ev.notes if n != "api"],
                     "measured_on": ev.measured_on, "with_ground_glass_axial_mm": ev.with_ground_glass_axial_mm,
                     "dice_with_ground_glass": dice(ext, reference) if ext is not None else None,
+                    "ground_glass_details": {k: v for k, v in ext_d.items() if k != "notes"} | {"notes": list(ext_d.get("notes", ()))},
                     # against the reference contour: the probe's own truth, never seen by the checks
                     "reference_error_mm": err,
                     "within_strict": None if err is None else abs(err) <= max(2.0, 0.10 * ref_size)}
