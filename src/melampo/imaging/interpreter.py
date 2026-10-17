@@ -34,7 +34,7 @@ def _describes(qualifiers: dict[str, Any], sizes: list) -> bool:
 def interpret_exam(patient: str, study: str, study_date: str, modality: str, report_id: str, report_text: str,
                    sites: list[dict[str, Any]], language: str = "it", volume: np.ndarray | None = None,
                    affine=None, frame_of_reference: str = "", lesion_segmenter=None,
-                   organ_segmenter=None) -> list[Finding]:
+                   organ_segmenter=None, contrast: str = "unknown") -> list[Finding]:
     """The findings of one exam. ``sites``: rows with mention, start, end (offsets in ``report_text``), cid, roles."""
     findings: list[Finding] = []
     for site in sites:
@@ -59,7 +59,7 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                     organ = organ_segmenter.segment(volume, affine, [site["cid"]])[0].mask
                 image = image_evidence(seg, affine, volume, organ, text.largest_size_mm, frame_of_reference,
                                        modality=modality, structure=site["cid"],
-                                       character=qd.get("character", ()))
+                                       character=qd.get("character", ()), contrast=contrast)
             except SegmenterUnavailable as error:
                 image = ImageSide(NO_IMAGE, notes=(f"segmenter_unavailable:{error}",))
         findings.append(build_finding(patient, study, study_date, modality, text, image))

@@ -269,6 +269,52 @@ def split_main_part(mask: np.ndarray, affine) -> tuple[np.ndarray, list[Fragment
     return main, fragments
 
 
+def _hull2d(points: np.ndarray) -> np.ndarray:
+    """Convex hull of 2D integer points (monotone chain), counter-clockwise."""
+    pts = sorted(set(map(tuple, points.tolist())))
+    if len(pts) <= 2:
+        return np.array(pts, dtype=float)
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return np.array(lower[:-1] + upper[:-1], dtype=float)
+
+
+def inside_hull_share(region: np.ndarray, organ_parts) -> float:
+    """Share of the region's voxels inside the convex hull, slice by slice, of each organ part (a lobe, a
+    kidney...). A tumour that replaces lung tissue is missing from the lung mask (TotalSegmentator segments the
+    parenchyma), so the plain overlap can be low for a tumour that is in the lung (fourth probe, lung_026: 40%);
+    inside the outline of the lobe on its slices it is not. Only the slices of the region are computed."""
+    region = np.asarray(region, dtype=bool)
+    parts = [np.asarray(p, dtype=bool) for p in (organ_parts if isinstance(organ_parts, (list, tuple)) else [organ_parts])]
+    inside = np.zeros(region.shape, dtype=bool)
+    for z in np.unique(np.argwhere(region)[:, 0]):
+        rz = np.argwhere(region[z])
+        for part in parts:
+            pts = np.argwhere(part[z])
+            if len(pts) < 3:
+                continue
+            hull = _hull2d(pts)
+            if len(hull) < 3:
+                continue
+            ok = np.ones(len(rz), dtype=bool)
+            for i in range(len(hull)):
+                a, b = hull[i], hull[(i + 1) % len(hull)]
+                ok &= (b[0] - a[0]) * (rz[:, 1] - a[1]) - (b[1] - a[1]) * (rz[:, 0] - a[0]) >= -0.5
+            inside[z][tuple(rz[ok].T)] = True
+    return float(inside.sum() / max(region.sum(), 1))
+
+
 def lps_to_ras_affine(affine) -> np.ndarray:
     """The same grid in RAS (what VoxTell and NIfTI expect): x and y change sign."""
     return np.diag([-1.0, -1.0, 1.0, 1.0]) @ _affine(affine)
@@ -287,5 +333,5 @@ def overlap_inside(region: np.ndarray, organ: np.ndarray, margin_voxels: int = 2
     return float((region & grown).sum() / max(region.sum(), 1))
 
 
-__all__ = ["MIN_VOXELS", "Fragment", "RegionMeasures", "label_parts", "split_main_part", "boundary", "boundary_points_mm", "lps_to_ras_affine", "measure_region",
+__all__ = ["MIN_VOXELS", "Fragment", "inside_hull_share", "RegionMeasures", "label_parts", "split_main_part", "boundary", "boundary_points_mm", "lps_to_ras_affine", "measure_region",
            "mesh_mm", "overlap_inside", "to_mm", "voxel_volume_mm3"]

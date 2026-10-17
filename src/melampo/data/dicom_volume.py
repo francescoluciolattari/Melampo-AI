@@ -306,6 +306,8 @@ class VolumeAssessment:
     frame_of_reference_uid: str | None = None
     convolution_kernel: str | None = None
     manufacturer_model: str | None = None
+    # "enhanced", "unenhanced" or "unknown" (contrast_phase): a value above 200 HU is calcium only without contrast
+    contrast: str = "unknown"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -326,6 +328,7 @@ class VolumeAssessment:
             "frame_of_reference_uid": self.frame_of_reference_uid,
             "convolution_kernel": self.convolution_kernel,
             "manufacturer_model": self.manufacturer_model,
+            "contrast": self.contrast,
         }
 
 
@@ -658,7 +661,28 @@ def _assessment(
         frame_of_reference_uid=frame_of_reference_uid,
         convolution_kernel=_text(first.get("ConvolutionKernel")),
         manufacturer_model=_text(first.get("ManufacturerModelName")),
+        contrast=contrast_phase(first),
     )
+
+
+_UNENHANCED = re.compile(r"\b(senza\s+(?:m\.?d\.?c|contrasto)|basale|diretta|non[-\s]?contrast\w*|without\s+contrast|"
+                         r"plain|unenhanced|pre[-\s]?contrast|smdc|nc)\b", re.IGNORECASE)
+_ENHANCED = re.compile(r"\b(m\.?d\.?c|con\s+contrasto|contrast\w*|arterios\w*|arterial|venos\w*|venous|portal\w*|"
+                       r"tardiv\w*|delayed|angio\w*|c\+|cect)\b", re.IGNORECASE)
+
+
+def contrast_phase(header: Any) -> str:
+    """Whether the series was acquired with contrast, from the DICOM header: ContrastBolusAgent (0018,0010) when
+    filled; else the words of SeriesDescription / ProtocolName ("senza mdc", "basale", "portale", "arterial").
+    An absent tag is not proof of a plain scan (anonymisers often strip it): then "unknown"."""
+    if _text(header.get("ContrastBolusAgent")):
+        return "enhanced"
+    words = " ".join(filter(None, (_text(header.get("SeriesDescription")), _text(header.get("ProtocolName")))))
+    if _UNENHANCED.search(words):
+        return "unenhanced"
+    if _ENHANCED.search(words):
+        return "enhanced"
+    return "unknown"
 
 
 def _text(value: Any) -> str | None:
