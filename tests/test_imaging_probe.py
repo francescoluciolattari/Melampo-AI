@@ -89,3 +89,17 @@ def test_size_diagnostics_say_where_the_missed_voxels_are(tmp_path, monkeypatch)
     assert d["volume_ratio"] < 0.8 and d["missed_within_2mm_share"] > 0.75 and d["missed_median_hu"] == 30.0
     assert d["cut_0.35"]["dice"] > 0.95 > d["cut_0.5"]["dice"]
     assert d["resampled_1_5mm"]["dice"] == 0.0 and "nninteractive" not in d
+
+
+def test_shape_diagnostics_find_a_missing_tail():
+    pytest.importorskip("scipy")
+    zyx = lambda m: m.transpose(2, 1, 0)  # noqa: E731
+    body = _ball((60, 40, 20), 9)
+    tail = np.zeros_like(body)
+    tail[30:56, 18:23, 8:13] = True                              # a thin tail along x the region lacks
+    ref, found = zyx(body | tail), zyx(body)
+    ct = np.where(ref, 30.0, -850.0)
+    affine = np.array([[0.8, 0, 0, 0], [0, 0.8, 0, 0], [0, 0, 2.5, 0], [0, 0, 0, 1.0]])
+    s = probe._shape_diagnostics(found, ref, ct, affine)
+    assert s["extent_reference_mm"][0] > s["extent_region_mm"][0] + 5
+    assert s["missed_at_ends_share"] > 0.7 and s["missed_blobs"] == 1 and s["missed_largest_blob_share"] == 1.0

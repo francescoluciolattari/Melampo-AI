@@ -108,6 +108,42 @@ def _merge_near(mask, affine, gap_mm: float = 5.0):
     return keep
 
 
+def _shape_diagnostics(main, ref, volume, affine) -> dict:
+    """Volume right but diameter short (fifth probe): is the miss a tail at the two ends of the reference's long
+    axis, one detached blob, or spread around? Extents along the principal axes (1st-99th percentile) of region
+    and reference, the share of missed voxels in the outer fifth of each end, the missed blobs, and the
+    sphericity and elongation of both."""
+    from melampo.imaging.lesion_measures import label_parts, to_mm
+
+    def extent(mask):
+        pts = to_mm(np.argwhere(mask), affine)
+        pts = pts - pts.mean(axis=0)
+        vec = np.linalg.eigh(np.cov(pts.T))[1][:, ::-1]
+        proj = pts @ vec
+        return [round(float(x), 1) for x in np.percentile(proj, 99, axis=0) - np.percentile(proj, 1, axis=0)], vec[:, 0]
+
+    out: dict = {}
+    out["extent_reference_mm"], axis = extent(ref)
+    out["extent_region_mm"], _ = extent(main)
+    missed = ref & ~main
+    if missed.any():
+        p_ref = to_mm(np.argwhere(ref), affine) @ axis
+        p_mis = to_mm(np.argwhere(missed), affine) @ axis
+        lo, hi = np.percentile(p_ref, 1), np.percentile(p_ref, 99)
+        span = hi - lo
+        out["missed_at_ends_share"] = float(((p_mis < lo + 0.2 * span) | (p_mis > hi - 0.2 * span)).mean())
+        labels, sizes = label_parts(missed)
+        out["missed_blobs"] = len(sizes)
+        if sizes:
+            out["missed_largest_blob_share"] = float(sizes[0] / missed.sum())
+            out["missed_largest_blob_median_hu"] = float(np.median(volume[labels == 1]))
+    for name, m in (("region", main), ("reference", ref)):
+        r = measure_region(m, affine)
+        out[f"sphericity_{name}"] = r.sphericity
+        out[f"elongation_{name}"] = r.elongation
+    return out
+
+
 def size_diagnostics(volume, affine, reference, main, full, lesion_seg, prompt, refiner=None) -> dict:
     """Why a measure is short of the reference (fifth probe: under-measures growing with size). Nothing here
     decides: each line is a candidate cause, measured.
@@ -140,6 +176,10 @@ def size_diagnostics(volume, affine, reference, main, full, lesion_seg, prompt, 
         out["missed_distance_p90_mm"] = float(np.percentile(md, 90))
         out["missed_median_hu"] = float(np.median(volume[missed]))
         out["rim_thickness_mm"] = float(missed.sum() * vox / max(measure_region(main, affine).surface_mm2 or 1, 1))
+    try:   # shape: same volume but a shorter diameter means the region is rounder than the reference
+        out["shape"] = _shape_diagnostics(main, ref, volume, affine)
+    except Exception as error:  # noqa: BLE001
+        out["shape_error"] = f"{type(error).__name__}: {error}"[:200]
     out["merged_near_parts_axial_mm"] = None
     try:
         merged = _merge_near(full, affine)
