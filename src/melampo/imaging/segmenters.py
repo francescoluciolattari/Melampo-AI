@@ -127,6 +127,38 @@ class VoxTellSegmenter:
                 results.append(Segmentation(m if m.any() else None, self.name, self.version, p, notes=("api",)))
             return results
 
+    def probabilities(self, volume, affine, prompts) -> list[np.ndarray]:
+        """The voxel probabilities (sigmoid of the logits) per prompt, on the series' grid, in [0, 1] with 1/255
+        steps -- before the 0.5 cut that ``segment`` applies. For the measurement of how the cut shapes the
+        region (fifth probe: under-measures growing with the lesion's size)."""
+        from acvl_utils.cropping_and_padding.bounding_boxes import insert_crop_into_image
+        from nnunetv2.imageio.nibabel_reader_writer import NibabelIOWithReorient
+        import nibabel as nib
+        import torch
+
+        predictor = self._api()
+        key = tuple(prompts)
+        if key not in self._embeddings:
+            self._embeddings[key] = predictor.embed_text_prompts(list(prompts))
+        io = NibabelIOWithReorient()
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "case.nii.gz"
+            write_nifti(volume, affine, src)
+            img, props = io.read_images([str(src)])
+            data, bbox, shape = predictor.preprocess(img)
+            with torch.no_grad():
+                logits = predictor.predict_sliding_window_return_logits(data, self._embeddings[key])
+                prob = (torch.sigmoid(logits.float()) * 255).round().to(torch.uint8).cpu().numpy()
+            del logits
+            full = insert_crop_into_image(np.zeros([prob.shape[0], *shape], dtype=np.uint8), prob, bbox)
+            out = []
+            for i in range(len(prompts)):
+                f = Path(tmp) / f"prob_{i}.nii.gz"
+                io.write_seg(full[i], str(f), props)            # back to the input's orientation, values kept
+                data_i = np.asarray(nib.load(str(f)).dataobj, dtype=np.float32) / 255.0
+                out.append(data_i.transpose(2, 1, 0))
+            return out
+
     def segment(self, volume, affine, prompts):
         if self.use_api:
             try:
@@ -160,6 +192,79 @@ class VoxTellSegmenter:
             return results
 
 
+def resample_to(volume: np.ndarray, affine, spacing_mm: float, order: int = 1):
+    """The volume on an isotropic grid of ``spacing_mm`` (VoxTell does not resample; its README suggests a
+    typical clinical spacing such as 1.5 mm when the native one is unusual). Returns (volume, affine, factors)."""
+    from scipy.ndimage import zoom
+
+    a = np.asarray(affine, dtype=float)
+    sp = np.array([np.linalg.norm(a[:3, 2]), np.linalg.norm(a[:3, 1]), np.linalg.norm(a[:3, 0])])  # z, y, x
+    factors = sp / spacing_mm
+    out = zoom(np.asarray(volume, dtype=np.float32), factors, order=order)
+    new = a.copy()
+    for col, f in zip((2, 1, 0), factors):
+        new[:3, col] = a[:3, col] / f
+    return out, new, factors
+
+
+def mask_back(mask: np.ndarray, shape) -> np.ndarray:
+    """A mask from a resampled grid back onto the original one (linear, cut at 0.5; exact shape)."""
+    from scipy.ndimage import zoom
+
+    f = np.array(shape, dtype=float) / np.array(mask.shape, dtype=float)
+    back = zoom(mask.astype(np.float32), f, order=1) > 0.5
+    out = np.zeros(shape, dtype=bool)
+    sl = tuple(slice(0, min(a, b)) for a, b in zip(shape, back.shape))
+    out[sl] = back[sl]
+    return out
+
+
+class NnInteractiveRefiner:
+    """nnInteractive (MIC-DKFZ, 2025; code Apache-2.0, weights CC BY-NC-SA 4.0): a second, different network
+    that refines a region from a prompt. Given the first region as the initial segmentation and a 2D box on its
+    largest axial slice (enlarged by ``box_margin``), it returns its own 3D region -- an independent reader of the
+    lesion's extent, not a threshold."""
+
+    name = "nninteractive"
+
+    def __init__(self, device: str = "cuda", box_margin: float = 0.2):
+        self.device, self.box_margin = device, box_margin
+        self._session = None
+
+    def _get(self):
+        if self._session is None:
+            import torch
+            from nnInteractive.inference.inference_session import nnInteractiveInferenceSession
+            from nnInteractive.model_management import ensure_model_available, get_default_model_id
+
+            session = nnInteractiveInferenceSession(device=torch.device("cuda:0" if self.device == "cuda" else "cpu"),
+                                                    use_torch_compile=False, verbose=False, do_autozoom=True)
+            session.initialize_from_trained_model_folder(str(ensure_model_available(get_default_model_id())))
+            self._session = session
+        return self._session
+
+    def refine(self, volume: np.ndarray, region: np.ndarray, use_initial: bool = True) -> np.ndarray:
+        import torch
+
+        session = self._get()
+        img = np.asarray(volume, dtype=np.float32).transpose(2, 1, 0)[None]       # (1, x, y, z)
+        reg = np.asarray(region, dtype=bool).transpose(2, 1, 0)
+        session.set_image(img)
+        target = torch.zeros(img.shape[1:], dtype=torch.uint8)
+        session.set_target_buffer(target)
+        if use_initial:
+            session.add_initial_seg_interaction(reg.astype(np.uint8), run_prediction=False)
+        z = int(np.argmax(reg.sum(axis=(0, 1))))
+        xs, ys = np.where(reg[:, :, z])
+        mx, my = self.box_margin * (xs.max() - xs.min() + 1), self.box_margin * (ys.max() - ys.min() + 1)
+        box = [[max(0, int(xs.min() - mx)), min(img.shape[1], int(xs.max() + mx) + 1)],
+               [max(0, int(ys.min() - my)), min(img.shape[2], int(ys.max() + my) + 1)], [z, z + 1]]
+        session.add_bbox_interaction(box, include_interaction=True)
+        out = np.asarray(session.target_buffer.cpu().numpy() if hasattr(session.target_buffer, "cpu")
+                         else session.target_buffer) > 0
+        return out.transpose(2, 1, 0)
+
+
 class TotalSegmentatorSegmenter:
     """TotalSegmentator for the organ masks (``roi_subset`` of TotalSegmentator class names)."""
 
@@ -189,5 +294,5 @@ class TotalSegmentatorSegmenter:
             return results
 
 
-__all__ = ["MaskSegmenter", "Segmentation", "Segmenter", "SegmenterUnavailable", "TotalSegmentatorSegmenter",
+__all__ = ["MaskSegmenter", "NnInteractiveRefiner", "Segmentation", "mask_back", "resample_to", "Segmenter", "SegmenterUnavailable", "TotalSegmentatorSegmenter",
            "VoxTellSegmenter", "read_nifti_mask", "write_nifti"]

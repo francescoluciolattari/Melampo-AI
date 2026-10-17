@@ -66,3 +66,26 @@ def test_a_failing_case_is_recorded_and_the_others_go_on(tmp_path, monkeypatch):
     rows = probe.run([{"id": "missing", "image": str(tmp_path / "nope.nii.gz"), "lesion": "x", "structure": "lung"}],
                      "cpu", True, out)
     assert "error" in rows[0] and json.loads(out.read_text())[0]["id"] == "missing"
+
+
+def test_size_diagnostics_say_where_the_missed_voxels_are(tmp_path, monkeypatch):
+    pytest.importorskip("scipy")
+    from melampo.imaging.segmenters import Segmentation
+
+    zyx = lambda m: m.transpose(2, 1, 0)  # noqa: E731
+    ref = zyx(_ball((48, 48, 20), 12))
+    found = zyx(_ball((48, 48, 20), 10.5))                       # the border placed 1.5 mm inside
+    ct = np.where(ref, 30.0, -850.0)
+    affine = np.array([[0.8, 0, 0, 0], [0, 0.8, 0, 0], [0, 0, 2.5, 0], [0, 0, 0, 1.0]])
+
+    class Fake:
+        def probabilities(self, volume, aff, prompts):
+            return [np.where(ref, 0.4, 0.0) + np.where(found, 0.5, 0.0)]
+
+        def segment(self, volume, aff, prompts):
+            return [Segmentation(np.ones(volume.shape, bool)[:0] if False else None, "fake")]
+
+    d = probe.size_diagnostics(ct, affine, ref, found, found, Fake(), "tumore polmonare")
+    assert d["volume_ratio"] < 0.8 and d["missed_within_2mm_share"] > 0.75 and d["missed_median_hu"] == 30.0
+    assert d["cut_0.35"]["dice"] > 0.95 > d["cut_0.5"]["dice"]
+    assert d["resampled_1_5mm"]["dice"] == 0.0 and "nninteractive" not in d
