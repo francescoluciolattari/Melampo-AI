@@ -112,3 +112,21 @@ Correzioni:
    - riporta l'errore rispetto al contorno di riferimento e se è entro il criterio stretto;
    - riepiloga quanti casi accettati sono davvero giusti e quanti di quelli mandati a una persona erano davvero sbagliati;
    - i casi salgono a 30.
+
+## Quarto probe (17 ottobre, parziale: 10 casi su 30 nell'output ricevuto)
+
+- **Accettati:** 7 con il prompt italiano. Fuori dal criterio stretto: lung_020 (-3,8 mm) e lung_016 (-2,96 mm, per 0,03 mm). In entrambi è la parte a vetro smerigliato che manca.
+- **A una persona:**
+  - lung_023: misura 5,1 mm più corta. Errore vero, giusto fermarlo;
+  - lung_026: dato "fuori dal polmone" (40% nella maschera) ma misurato bene (-1,3 mm). È un falso allarme: TotalSegmentator segmenta il parenchima, e il tumore che lo sostituisce manca dalla maschera del lobo.
+- **Estensione a vetro smerigliato:** non ha aggiunto nulla su nessun caso. L'apertura cancellava l'alone, spesso pochi millimetri; la soglia di 150 HU sopra il polmone lasciava fuori un alone a -725 HU.
+- **Grasso:** nessun falso positivo dopo la correzione. Il "focolaio ad alta densità" resta su lung_004 e lung_026, ed è corretto non chiamarlo calcio.
+- **Seconda lettura:** d'accordo in 3 casi su 10. Resta un supporto in più, non decide nulla.
+
+Correzioni:
+1. **Alone a vetro smerigliato** fatto crescere voxel per voxel dalla regione, solo attraverso la fascia del vetro smerigliato, fino a 10 mm:
+   - fascia: valori mediati su 3×3×3 voxel, almeno 100 HU sopra il polmone (e 3 volte il rumore del parenchima), sotto -300 HU;
+   - il voxel stesso deve essere fuori dal rumore del polmone;
+   - nessuna apertura. I vasi sono più densi della fascia e la crescita non li segue.
+2. **Controllo dell'organo:** se meno della metà della regione è nella maschera ma almeno il 20% la tocca, conta la sagoma convessa di ogni lobo, fetta per fetta. Se l'80% ci sta dentro, lo stato è "agree" con la nota `inside_the_outline_of_the_structure`.
+3. **Fase del contrasto dal DICOM** (`dicom_volume.contrast_phase`): ContrastBolusAgent, altrimenti le parole di SeriesDescription e ProtocolName ("senza mdc", "basale", "portale", "arteriosa"). Un tag assente vale "unknown", non "senza contrasto".

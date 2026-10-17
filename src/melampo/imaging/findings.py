@@ -36,7 +36,8 @@ from typing import Any
 
 import numpy as np
 
-from .lesion_measures import RegionMeasures, label_parts, measure_region, overlap_inside, split_main_part
+from .lesion_measures import (RegionMeasures, inside_hull_share, label_parts, measure_region, overlap_inside,
+                              split_main_part)
 from .segmenters import Segmentation
 from .density import DensityProfile, compare_with_report, density_profile
 from .threshold_check import APPLIED, ground_glass_extent, second_reading
@@ -44,6 +45,7 @@ from .threshold_check import APPLIED, ground_glass_extent, second_reading
 AGREE, DISAGREE, NOT_FOUND, AMBIGUOUS, UNCHECKED, NO_IMAGE = (
     "agree", "disagree", "not_found", "ambiguous", "unchecked", "no_image")
 IN_ORGAN_SHARE = 0.5          # share of the region inside the (grown) organ for "agree"
+IN_HULL_SHARE, TOUCH_SHARE = 0.8, 0.2   # else: inside the organ's outline slice by slice, and touching the organ
 SIZE_TOLERANCE_MM = 3.0       # text size vs measured size: within max(3 mm, 15%) -- 30% let a 60 mm measure
 SIZE_TOLERANCE_SHARE = 0.15   # pass for a 78 mm lesion (third probe, lung_022)
 SECOND_COMPONENT_SHARE = 0.5  # a second separate region at least half the first: ambiguous
@@ -204,7 +206,8 @@ def _components_numpy(mask: np.ndarray) -> list[int]:
 def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = None,
                    organ_mask: np.ndarray | None = None, text_size_mm: float | None = None,
                    frame_of_reference: str = "", modality: str = "", structure=None,
-                   character: list[str] | tuple[str, ...] = (), contrast: str = "unknown") -> ImageSide:
+                   character: list[str] | tuple[str, ...] = (), contrast: str = "unknown",
+                   organ_parts=None) -> ImageSide:
     """The image side of a finding: the checks of decision D19, the measures and the density of the region,
     and the reasons a person must look (the lesion is not identified, or the image differs from the report)."""
     if seg is None:
@@ -212,6 +215,7 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
     if seg.mask is None or not seg.mask.any():
         return ImageSide(NOT_FOUND, seg.provider, seg.version, seg.prompt, notes=seg.notes, review=(NOT_IN_IMAGE,))
     main, fragments = split_main_part(seg.mask, affine)
+    seg_notes_extra: list[str] = []
     share = overlap_inside(seg.mask, organ_mask) if organ_mask is not None and np.any(organ_mask) else None
     review: list[str] = []
     if fragments and fragments[0].share_of_main >= SECOND_COMPONENT_SHARE:
@@ -222,6 +226,12 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
         review.append(STRUCTURE_UNCHECKED)
     else:
         status = AGREE if share >= IN_ORGAN_SHARE else DISAGREE
+        if status == DISAGREE and share >= TOUCH_SHARE:
+            # a tumour replaces the tissue the organ mask is made of: check the outline of the organ's parts
+            hull = inside_hull_share(main, organ_parts if organ_parts is not None else organ_mask)
+            if hull >= IN_HULL_SHARE:
+                status = AGREE
+                seg_notes_extra.append(f"inside_the_outline_of_the_structure:{hull:.2f}")
         if status == DISAGREE:
             review.append(OUTSIDE_STRUCTURE)
     measures = measure_region(main, affine, image)
@@ -266,7 +276,8 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
                    "distance_mm": round(f.distance_mm, 1)} for f in fragments[:20])
     others = sum(1 for f in fragments if f.share_of_main >= DETACHED_SHARE) if status != AMBIGUOUS else 0
     return ImageSide(status, seg.provider, seg.version, seg.prompt, measures, share, size_check, 1 + len(fragments),
-                     frame_of_reference, seg.notes, tuple(dict.fromkeys(review)), frags, whole,
+                     frame_of_reference, tuple(seg.notes) + tuple(seg_notes_extra), tuple(dict.fromkeys(review)), frags,
+                     whole,
                      second.as_dict() if second is not None else {}, tuple(support), others, density,
                      tuple(differences or ()),
                      ext_measures.longest_axial_diameter_mm if ext_measures is not None else None, measured_on)

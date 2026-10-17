@@ -96,9 +96,10 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
     names = case["structure"] if isinstance(case["structure"], list) else [case["structure"]]
     row = {"id": case["id"], "structure": case["structure"], "modality": modality, "slices": int(volume.shape[0])}
     # one class or several (the lobes of a lung): the organ check uses their union
-    organ = None
+    organ, parts = None, []
     for got in organ_seg.segment(volume, affine, names):
         if got.mask is not None:
+            parts.append(got.mask)
             organ = got.mask if organ is None else (organ | got.mask)
     ref_main, _ = split_main_part(reference, affine) if reference.any() else (reference, [])
     ref_size = measure_region(ref_main, affine).longest_axial_diameter_mm if reference.any() else None
@@ -115,7 +116,7 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
     row["seconds"] = round(time.time() - t0, 1)
     for key, seg in zip(keys, segs):
         ev = fd.image_evidence(seg, affine, volume, organ, text_size, modality=modality, structure=names,
-                               character=character)
+                               character=character, contrast=case.get("contrast", "unknown"), organ_parts=parts)
         got = seg.mask if seg.mask is not None else np.zeros_like(reference)
         main = split_main_part(got, affine)[0] if got.any() else got
         ext, _ = tc.ground_glass_extent(main, volume, affine, modality, organ) if main.any() else (None, {})
@@ -135,6 +136,7 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
                     "measured_longest_axial_mm": ev.measures.longest_axial_diameter_mm if ev.measures else None,
                     "whole_region_longest_axial_mm": ev.whole_axial_mm, "second_reading": ev.second,
                     "density": _density_summary(ev.density), "text_size_mm": text_size,
+                    "image_notes": [n for n in ev.notes if n != "api"],
                     "measured_on": ev.measured_on, "with_ground_glass_axial_mm": ev.with_ground_glass_axial_mm,
                     "dice_with_ground_glass": dice(ext, reference) if ext is not None else None,
                     # against the reference contour: the probe's own truth, never seen by the checks

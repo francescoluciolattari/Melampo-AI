@@ -352,3 +352,45 @@ def test_a_vessel_of_2_4_mm_leaves_the_second_reading():
     vessel = (np.abs(y - 50) <= 1) & (np.abs(z - 20) <= 1) & (x > 20) & (x < 75)   # 3 voxels wide in the plane
     r = tc.second_reading(ball(CENTER, 9), ct_with(extra=vessel), AFFINE, "CT", LUNG)
     assert r.agree and abs(r.second_axial_mm - r.first_axial_mm) < 2.5
+
+
+# --- fourth probe: the halo was not found (opening, step too high); a tumour at the hilum read as outside ---
+
+def test_a_thin_ground_glass_halo_is_grown_and_vessels_are_not_followed():
+    rng = np.random.default_rng(4)
+    img = np.full(SHAPE, -860.0) + rng.normal(0, 20, SHAPE)
+    img[ball(CENTER, 9)] = -720.0                                   # halo 3 mm thick at -720 HU
+    img[ball(CENTER, 6)] = 30.0                                     # solid part
+    z, y, x = np.mgrid[0:SHAPE[0], 0:SHAPE[1], 0:SHAPE[2]]
+    img[(np.abs(y - 50) <= 1) & (np.abs(z - 20) <= 1) & (x > 20) & (x < 75)] = 40.0   # a vessel through it
+    ext, d = tc.ground_glass_extent(ball(CENTER, 6), img, AFFINE, "CT", LUNG)
+    m = measure_region(ext, AFFINE).longest_axial_diameter_mm
+    assert 16.0 < m < 21.0 and "reaches_the_search_zone_edge" not in d["notes"]
+    ev = fd.image_evidence(seg(ball(CENTER, 6)), AFFINE, img, organ_mask=LUNG, text_size_mm=18.0, modality="CT")
+    assert ev.measured_on == "with_ground_glass" and ev.density.composition == "part_solid" and not ev.needs_review
+
+
+def test_a_solid_nodule_gains_at_most_its_partial_volume_rim():
+    image = ct_with()
+    ext, _ = tc.ground_glass_extent(ball(CENTER, 9), image, AFFINE, "CT", LUNG)
+    assert measure_region(ext, AFFINE).longest_axial_diameter_mm < 18.0 + 3.5
+
+
+def test_a_tumour_missing_from_the_lobe_mask_is_inside_the_lobe_outline():
+    tumour = ball((-50, -70 + 22, 100), 20)
+    lobe = LUNG & ~tumour                                            # the mask is made of parenchyma
+    ev = fd.image_evidence(seg(tumour), AFFINE, organ_mask=lobe, text_size_mm=40.0, organ_parts=[lobe])
+    assert ev.in_organ_share < 0.5 and ev.status == fd.AGREE and not ev.needs_review
+    assert any(n.startswith("inside_the_outline") for n in ev.notes)
+    outside = ball((-50, -70 + 52, 100), 12)                         # beyond the lobe, touching it
+    away = fd.image_evidence(seg(outside), AFFINE, organ_mask=LUNG & ~outside, text_size_mm=24.0)
+    assert away.status == fd.DISAGREE
+
+
+def test_contrast_phase_from_the_dicom_header():
+    from melampo.data.dicom_volume import contrast_phase
+
+    assert contrast_phase({"ContrastBolusAgent": "Iomeron 400"}) == "enhanced"
+    assert contrast_phase({"SeriesDescription": "Torace senza mdc"}) == "unenhanced"
+    assert contrast_phase({"SeriesDescription": "Addome fase portale"}) == "enhanced"
+    assert contrast_phase({"SeriesDescription": "Torace 1.25"}) == "unknown"

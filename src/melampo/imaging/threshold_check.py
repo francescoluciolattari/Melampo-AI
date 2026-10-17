@@ -37,7 +37,7 @@ from .lesion_measures import label_parts, measure_region
 MARGIN_MM = 6.0            # how far beyond the first reading the threshold may extend
 OPEN_MM = 2.0              # in-plane opening radius: vessels thinner than ~4 mm are cut from the lesion
 GGO_MARGIN_MM = 10.0       # how far a ground-glass component may extend beyond the first reading
-GGO_STEP_HU = 150.0        # ground glass: at least this much (and 3 x noise) above the aerated lung around
+GGO_STEP_HU = 100.0        # ground glass: at least this much (and 3 x noise) above the aerated lung around
 MIN_CNR = 2.5              # |core - surrounding| / noise of the surrounding
 DICE_AGREE = 0.70
 SIZE_AGREE_MM = 2.0        # longest axial diameter: within max(2 mm, 15%), the order of the variability
@@ -217,14 +217,58 @@ def second_reading(first: np.ndarray, image: np.ndarray | None, affine, modality
 
 def ground_glass_extent(first: np.ndarray, image: np.ndarray | None, affine, modality: str,
                         organ_mask: np.ndarray | None = None) -> tuple[np.ndarray | None, dict]:
-    """The lesion with its ground-glass part, in aerated lung on CT (16 Oct 2026, third probe: on the
-    part-solid tumours VoxTell's region was the solid part, 3.7-5.1 mm short of the reference)."""
+    """The lesion with its ground-glass part, in aerated lung on CT.
+
+    Third probe: on part-solid tumours VoxTell's region was the solid part, 3.7-5.1 mm short of the reference.
+    Fourth probe: a threshold region with an opening found nothing more on any of them -- the opening erased the
+    halo (a few millimetres thick) and a step of 150 HU above the lung left out a halo at -725 HU.
+
+    Now the halo is grown from the region, voxel by voxel, through the ground-glass band only (values smoothed
+    over 3x3x3, between ``surrounding + max(100 HU, 3 x noise of the parenchyma)`` and the solid threshold), up to
+    ``GGO_MARGIN_MM``. Vessels are denser than the band, so the growth does not run along them; it stops where
+    the lung is normal again."""
+    from .density import SOLID_HU, _smooth3, distance_mm
+
     if image is None or first is None or not np.any(first) or (modality or "").upper() != "CT":
         return None, {"notes": ("not_applicable",)}
-    region, d = threshold_region(image, first, affine, organ_mask, GGO_MARGIN_MM, mode="ground_glass")
-    if region is not None:
-        region = region | np.asarray(first, dtype=bool)
-    return region, d
+    seed = np.asarray(first, dtype=bool)
+    sp = _spacing(affine)
+    box = _box(seed, np.ceil((GGO_MARGIN_MM + 16.0) / sp).astype(int))
+    img = np.asarray(image[box], dtype=np.float32)
+    s = seed[box]
+    organ = None if organ_mask is None or not np.any(organ_mask) else np.asarray(organ_mask, dtype=bool)[box]
+    outside, _ = distance_mm(~s, sp)
+    shell = ~s & (outside > GGO_MARGIN_MM) & (outside <= GGO_MARGIN_MM + 15.0) & (img < SOLID_HU)
+    if organ is not None:
+        shell &= organ
+    if shell.sum() < 50:
+        return None, {"notes": ("too_little_surrounding_lung",)}
+    lung = img[shell]
+    surrounding = float(np.median(lung))
+    if surrounding >= -500.0:
+        return None, {"surrounding": surrounding, "notes": ("not_in_aerated_lung",)}
+    noise = float(1.4826 * np.median(np.abs(lung - surrounding))) or float(lung.std()) or 1.0
+    threshold = surrounding + max(GGO_STEP_HU, 3.0 * noise)
+    smooth = _smooth3(img)
+    # smoothed, so one noisy voxel does not open a path; and the voxel itself not plainly lung, so the smoothing
+    # does not add a ring of normal lung around the halo
+    band = (smooth >= threshold) & (img >= threshold - noise) & (img < SOLID_HU)
+    zone = (outside <= GGO_MARGIN_MM) | s
+    if organ is not None:
+        zone &= grow(organ, (1, 2, 2)) | s
+    cur = s.copy()
+    for _ in range(int(np.ceil(GGO_MARGIN_MM / float(min(sp))))):
+        nxt = cur | (_dilate(cur) & band & zone)
+        if nxt.sum() == cur.sum():
+            break
+        cur = nxt
+    notes = []
+    if (cur & ~s & (outside > GGO_MARGIN_MM - float(max(sp)))).any():
+        notes.append("reaches_the_search_zone_edge")
+    full = np.zeros(seed.shape, dtype=bool)
+    full[box] = cur
+    return full, {"threshold": threshold, "surrounding": surrounding, "noise": noise,
+                  "added_voxels": int((cur & ~s).sum()), "notes": tuple(notes)}
 
 
 __all__ = ["APPLIED", "NOT_APPLICABLE", "SecondReading", "dice", "ground_glass_extent", "grow", "second_reading",
