@@ -174,3 +174,13 @@ Limite: il referto sintetico riporta esattamente la misura di riferimento. Con r
 - nnInteractive che rifinisce la regione partendo da un box.
 
 Il notebook stampa l'errore medio di ciascuna variante per fascia di dimensione (sotto 30 mm, 30-50 mm, sopra 50 mm). La correzione si sceglie solo dopo aver visto quale variante toglie il bias, e va poi verificata su casi diversi da quelli usati per sceglierla.
+
+### Risultato del sesto probe (17 ottobre, 21 casi su 30 completati): l'ipotesi del bias di volume non regge
+
+- **Il volume è giusto.** Rapporto di volume mediano 1,03 sotto i 30 mm, 1,02 tra 30 e 50, 0,97 sopra i 50. Il diametro assiale invece è corto: errore medio -1,5 mm, -1,6 mm, -11,3 mm. Quindi non è una sottostima del volume (regressione verso la media), ma una regione di forma diversa dal riferimento.
+- **Le correzioni della letteratura non aiutano.** Taglio a 0,35 o 0,2: al più 1-2 mm di recupero sui grandi (031: -14,2 → -12,4; 033: -17,4 → -17,2). Ricampionamento a 1,5 mm: peggiora quasi sempre (033: -46 mm). Unire le parti vicine: nessun effetto. Volume morbido ≈ volume del taglio.
+- **nnInteractive non è affidabile:** sbaglia in entrambe le direzioni (+25,6 mm su 031, +14,4 su 022, -3,6 su 027, +0,2 su 018). 3 casi hanno dato "ndarray is not C-contiguous": corretto con `ascontiguousarray`.
+- **Dove sta la parte mancante** sopra i 50 mm: non un bordo sottile (entro 2 mm dal bordo solo 38-57% contro 80-100% dei casi piccoli), mancante 15-28% e in eccesso 10-30%, a 5-8 mm dalla regione, a densità -577…-762 HU (polmone aerato o vetro smerigliato). Il riferimento include zone meno dense che VoxTell lascia fuori e ne aggiunge altre altrove.
+- **Sotto i 50 mm** il metodo regge: tra i 12 casi accettati, con prompt inglese 12/12 entro tolleranza, con l'italiano 11/12 (lung_016, parzialmente solido, -3,0 mm contro tolleranza di 3 mm: al limite). I 9 inviati a una persona sono tutti davvero fuori (lung_014 ha segmentato un'altra struttura, Dice 0 sulla parte principale).
+- **Seconda lettura a soglia:** d'accordo in 9 casi su 21. Conferma, non decide.
+- **Prossimo passo:** il probe ora scrive la "forma": estensioni lungo gli assi principali del riferimento e della regione, quota del mancante agli estremi dell'asse lungo, blob mancanti e loro densità, sfericità. Dirà se il mancante è una coda (spicule, estensione lungo la pleura) o una zona separata.
