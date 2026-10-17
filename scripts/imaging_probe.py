@@ -89,7 +89,93 @@ def _density_summary(d) -> dict | None:
             "core_to_rim": [round(r.get("mean", float("nan")), 1) for r in d.depth_profile][::-1]}
 
 
-def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
+def _axial(mask, affine):
+    return measure_region(mask, affine).longest_axial_diameter_mm if mask is not None and mask.any() else None
+
+
+def _merge_near(mask, affine, gap_mm: float = 5.0):
+    """The largest part with the parts closer than ``gap_mm`` to it (a large tumour split by a thin gap)."""
+    main, frags = split_main_part(mask, affine)
+    if not frags:
+        return main
+    from melampo.imaging.lesion_measures import label_parts
+
+    labels, _ = label_parts(mask)
+    keep = main.copy()
+    for k, f in enumerate(frags, start=2):
+        if f.distance_mm <= gap_mm:
+            keep |= labels == k
+    return keep
+
+
+def size_diagnostics(volume, affine, reference, main, full, lesion_seg, prompt, refiner=None) -> dict:
+    """Why a measure is short of the reference (fifth probe: under-measures growing with size). Nothing here
+    decides: each line is a candidate cause, measured.
+
+    * the region vs the reference: volume ratio, share of the reference missed, and whether the missed voxels are
+      a rim around the region (within 2 mm of it: the border placed inside) or whole lobes (farther: parts not
+      found), with their density;
+    * the 0.5 cut on VoxTell's probabilities: the region at 0.35 and 0.2, and the soft volume;
+    * the scale: VoxTell on the series resampled to 1.5 mm (its README's suggestion);
+    * parts split by a thin gap merged with the main one;
+    * a second network, nnInteractive, refining the region from a box."""
+    from melampo.imaging.density import distance_mm, spacing_zyx
+    from melampo.imaging.segmenters import mask_back, resample_to
+
+    out: dict = {}
+    sp = spacing_zyx(affine)
+    vox = float(np.prod(sp))
+    ref = reference.astype(bool)
+    if not main.any() or not ref.any():
+        return {"note": "nothing to compare"}
+    out["volume_ratio"] = float(main.sum() / ref.sum())
+    missed = ref & ~main
+    out["missed_share_of_reference"] = float(missed.sum() / ref.sum())
+    out["extra_share_of_region"] = float((main & ~ref).sum() / main.sum())
+    if missed.any():
+        box = tuple(slice(max(0, int(a.min()) - 5), int(a.max()) + 6) for a in np.nonzero(ref | main))
+        d, _ = distance_mm(~main[box], sp)
+        md = d[missed[box]]
+        out["missed_within_2mm_share"] = float((md <= 2.0).mean())
+        out["missed_distance_p90_mm"] = float(np.percentile(md, 90))
+        out["missed_median_hu"] = float(np.median(volume[missed]))
+        out["rim_thickness_mm"] = float(missed.sum() * vox / max(measure_region(main, affine).surface_mm2 or 1, 1))
+    out["merged_near_parts_axial_mm"] = None
+    try:
+        merged = _merge_near(full, affine)
+        out["merged_near_parts_axial_mm"] = _axial(merged, affine)
+    except Exception as error:  # noqa: BLE001
+        out["merged_error"] = str(error)[:200]
+    try:
+        prob = lesion_seg.probabilities(volume, affine, [prompt])[0]
+        out["soft_volume_ratio"] = float(prob.sum() / ref.sum())
+        for cut in (0.5, 0.35, 0.2):
+            m = split_main_part(prob >= cut, affine)[0] if (prob >= cut).any() else prob >= cut
+            out[f"cut_{cut}"] = {"axial_mm": _axial(m, affine), "dice": dice(m, ref)}
+    except Exception as error:  # noqa: BLE001
+        out["probabilities_error"] = f"{type(error).__name__}: {error}"[:300]
+    try:
+        small, small_aff, _ = resample_to(volume, affine, 1.5)
+        seg = lesion_seg.segment(small, small_aff, [prompt])[0]
+        if seg.mask is not None:
+            back = mask_back(seg.mask, volume.shape)
+            m = split_main_part(back, affine)[0] if back.any() else back
+            out["resampled_1_5mm"] = {"axial_mm": _axial(m, affine), "dice": dice(m, ref)}
+        else:
+            out["resampled_1_5mm"] = {"axial_mm": None, "dice": 0.0}
+    except Exception as error:  # noqa: BLE001
+        out["resampled_error"] = f"{type(error).__name__}: {error}"[:300]
+    if refiner is not None:
+        try:
+            r = refiner.refine(volume, main)
+            m = split_main_part(r, affine)[0] if r.any() else r
+            out["nninteractive"] = {"axial_mm": _axial(m, affine), "dice": dice(m, ref)}
+        except Exception as error:  # noqa: BLE001
+            out["nninteractive_error"] = f"{type(error).__name__}: {error}"[:300]
+    return out
+
+
+def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool = False) -> dict:
     volume, affine = load_case(case["image"])
     reference = read_nifti_mask(Path(case["lesion"]))
     modality = case.get("modality", "CT")
@@ -143,16 +229,24 @@ def probe_case(case: dict, lesion_seg, organ_seg) -> dict:
                     # against the reference contour: the probe's own truth, never seen by the checks
                     "reference_error_mm": err,
                     "within_strict": None if err is None else abs(err) <= max(2.0, 0.10 * ref_size)}
+        if diagnose and key == keys[0]:
+            row[key]["size_diagnostics"] = size_diagnostics(volume, affine, reference, main, got, lesion_seg, case[key],
+                                                            refiner)
     return row
 
 
-def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None) -> list[dict]:
+def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None, diagnose: bool = False,
+        refiner: bool = False) -> list[dict]:
     lesion_seg = VoxTellSegmenter(device=device)
     organ_seg = TotalSegmentatorSegmenter(fast=fast, device="gpu" if device == "cuda" else "cpu")
+    ref_obj = None
+    if refiner:
+        from melampo.imaging.segmenters import NnInteractiveRefiner
+        ref_obj = NnInteractiveRefiner(device=device)
     out = []
     for case in cases:
         try:
-            row = probe_case(case, lesion_seg, organ_seg)
+            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose)
         except Exception as error:  # noqa: BLE001 -- one case failing must not lose the others
             row = {"id": case.get("id"), "error": f"{type(error).__name__}: {error}"[:500]}
         out.append(row)
@@ -170,6 +264,8 @@ def main(argv=None) -> int:
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--fast-organs", action="store_true")
     ap.add_argument("--self-test", action="store_true", help="run the checks with the reference masks only")
+    ap.add_argument("--diagnose-size", action="store_true", help="measure the candidate causes of short measures")
+    ap.add_argument("--nninteractive", action="store_true", help="also refine with nnInteractive (diagnosis)")
     args = ap.parse_args(argv)
     cases = json.loads(Path(args.cases).read_text())
     if args.self_test:
@@ -180,7 +276,7 @@ def main(argv=None) -> int:
             seg = MaskSegmenter({"p": ref}).segment(volume, affine, ["p"])[0]
             rows.append({"id": case["id"], "status": fd.image_evidence(seg, affine, volume).status})
     else:
-        rows = run(cases, args.device, args.fast_organs, Path(args.out))
+        rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive)
     Path(args.out).write_text(json.dumps(rows, indent=1, default=float))
     return 0
 

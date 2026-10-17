@@ -151,3 +151,26 @@ Correzioni:
 3. **Probe:** dettagli dell'estensione a vetro smerigliato.
 
 Limite: il referto sintetico riporta esattamente la misura di riferimento. Con referti veri la misura del radiologo ha la sua variabilità, quindi la tolleranza va riverificata.
+
+## Misure corte che crescono con la dimensione: cause note e verifica (17 ottobre)
+
+**Cosa dice la letteratura:**
+- **Regressione verso la media.** Le reti di segmentazione tendono a sovrastimare i volumi piccoli e a sottostimare quelli grandi; il punto di svolta è vicino al volume medio dei dati di addestramento. Vale sia con la loss Dice sia con la cross-entropy (Bertels et al., analisi teorica e sperimentale del bias di volume; arXiv 2211.04161).
+  - Il taglio a 0,5 delle probabilità porta a sotto-segmentare i bordi incerti.
+  - La somma delle probabilità (volume "morbido") è meno distorta.
+  - Una ricalibrazione lineare stimata su dati separati toglie gran parte del bias.
+- **Stesso effetto in clinica.** Un ensemble 3D U-Net per tumori polmonari (Radiology, gennaio 2025; 1.504 TC) dichiara come limite la tendenza a sottostimare il volume, con risultati peggiori sui tumori molto grandi.
+- **VoxTell:** addestrato con Dice + cross-entropy, binarizza a logit > 0 (probabilità 0,5) e non ricampiona l'immagine. Il README suggerisce 1,5 mm se la spaziatura è insolita. Il modello lavora a patch di dimensione fissa in voxel: a 0,7 mm un tumore di 8 cm occupa più di 100 voxel per lato.
+- **Altri modelli:**
+  - nnInteractive (MIC-DKFZ 2025, pesi CC BY-NC-SA 4.0): accetta una segmentazione iniziale e un box 2D. È un secondo modello diverso, utile per rifinire il contorno.
+  - LesionLocator (CVPR 2025, codice GPL-3.0, licenza dei pesi da verificare su Zenodo): il suo dataset include MSD Lung, quindi su questi casi non sarebbe una prova pulita.
+
+**Verifica nel probe** (`--diagnose-size`, solo prompt italiano; nessuna di queste misure decide):
+- volume rispetto al riferimento;
+- quota del riferimento mancante, e dove sta: entro 2 mm dal bordo (bordo messo dentro) o più lontano (parti intere non trovate), con la sua densità;
+- taglio delle probabilità di VoxTell a 0,35 e 0,2, e volume morbido;
+- VoxTell sulla serie ricampionata a 1,5 mm;
+- parti separate da meno di 5 mm unite alla principale;
+- nnInteractive che rifinisce la regione partendo da un box.
+
+Il notebook stampa l'errore medio di ciascuna variante per fascia di dimensione (sotto 30 mm, 30-50 mm, sopra 50 mm). La correzione si sceglie solo dopo aver visto quale variante toglie il bias, e va poi verificata su casi diversi da quelli usati per sceglierla.
