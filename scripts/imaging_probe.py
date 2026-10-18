@@ -297,6 +297,35 @@ def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None
     return out
 
 
+def run_isolated(cases: list[dict], args, out_path: Path) -> list[dict]:
+    """One process per case. The sixth and seventh probes died silently after 21 and 15 cases (no traceback, the
+    log ends inside a progress bar: the host ran out of memory, which VoxTell, TotalSegmentator and nnInteractive
+    keep across cases). A process per case gives the memory back each time, and a case that is killed becomes a
+    row with the exit code instead of ending the whole run."""
+    import subprocess
+    import tempfile
+
+    out: list[dict] = []
+    for case in cases:
+        with tempfile.TemporaryDirectory() as tmp:
+            one, res = Path(tmp) / "case.json", Path(tmp) / "row.json"
+            one.write_text(json.dumps([case]))
+            cmd = [sys.executable, str(Path(__file__).resolve()), "--cases", str(one), "--out", str(res),
+                   "--device", args.device]
+            cmd += [f for f, on in (("--fast-organs", args.fast_organs), ("--diagnose-size", args.diagnose_size),
+                                    ("--nninteractive", args.nninteractive)) if on]
+            done = subprocess.run(cmd, check=False)
+            try:
+                row = json.loads(res.read_text())[0]
+            except Exception:  # noqa: BLE001 -- killed before writing: say so
+                row = {"id": case.get("id"), "error": f"process ended with code {done.returncode} "
+                       "(killed: -9 is the system out of memory)"}
+        out.append(row)
+        print(json.dumps(row, default=float), flush=True)
+        out_path.write_text(json.dumps(out, indent=1, default=float))
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--cases", required=True)
@@ -306,6 +335,7 @@ def main(argv=None) -> int:
     ap.add_argument("--self-test", action="store_true", help="run the checks with the reference masks only")
     ap.add_argument("--diagnose-size", action="store_true", help="measure the candidate causes of short measures")
     ap.add_argument("--nninteractive", action="store_true", help="also refine with nnInteractive (diagnosis)")
+    ap.add_argument("--isolate", action="store_true", help="one process per case (memory is given back each time)")
     args = ap.parse_args(argv)
     cases = json.loads(Path(args.cases).read_text())
     if args.self_test:
@@ -315,6 +345,8 @@ def main(argv=None) -> int:
             ref = read_nifti_mask(Path(case["lesion"]))
             seg = MaskSegmenter({"p": ref}).segment(volume, affine, ["p"])[0]
             rows.append({"id": case["id"], "status": fd.image_evidence(seg, affine, volume).status})
+    elif args.isolate and len(cases) > 1:
+        rows = run_isolated(cases, args, Path(args.out))
     else:
         rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive)
     Path(args.out).write_text(json.dumps(rows, indent=1, default=float))

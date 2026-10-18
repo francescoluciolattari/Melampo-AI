@@ -103,3 +103,12 @@ def test_shape_diagnostics_find_a_missing_tail():
     s = probe._shape_diagnostics(found, ref, ct, affine)
     assert s["extent_reference_mm"][0] > s["extent_region_mm"][0] + 5
     assert s["missed_at_ends_share"] > 0.7 and s["missed_blobs"] == 1 and s["missed_largest_blob_share"] == 1.0
+
+
+def test_isolated_run_turns_a_dead_process_into_a_row(tmp_path):
+    import argparse
+
+    args = argparse.Namespace(device="cpu", fast_organs=False, diagnose_size=False, nninteractive=False)
+    rows = probe.run_isolated([{"id": "x", "image": str(tmp_path / "none.nii.gz")}], args, tmp_path / "out.json")
+    assert rows[0]["id"] == "x" and "error" in rows[0]
+    assert (tmp_path / "out.json").exists()
