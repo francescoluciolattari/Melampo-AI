@@ -184,3 +184,12 @@ Il notebook stampa l'errore medio di ciascuna variante per fascia di dimensione 
 - **Sotto i 50 mm** il metodo regge: tra i 12 casi accettati, con prompt inglese 12/12 entro tolleranza, con l'italiano 11/12 (lung_016, parzialmente solido, -3,0 mm contro tolleranza di 3 mm: al limite). I 9 inviati a una persona sono tutti davvero fuori (lung_014 ha segmentato un'altra struttura, Dice 0 sulla parte principale).
 - **Seconda lettura a soglia:** d'accordo in 9 casi su 21. Conferma, non decide.
 - **Prossimo passo:** il probe ora scrive la "forma": estensioni lungo gli assi principali del riferimento e della regione, quota del mancante agli estremi dell'asse lungo, blob mancanti e loro densità, sfericità. Dirà se il mancante è una coda (spicule, estensione lungo la pleura) o una zona separata.
+
+### Settimo probe (18 ottobre, 15 casi completati): la forma, e la tolleranza scende a 2 mm
+
+- **Sono due fenomeni diversi, non un bias unico.**
+  1. *Bordo ruvido* (casi piccoli e medi): il riferimento ha sfericità 0,34-0,69, la regione di VoxTell 0,65-0,85. Il mancante è fatto di molti blob minuscoli (24-320), per il 35-68% agli estremi dell'asse lungo: punte e spicole che VoxTell arrotonda. Costa 0,1-1,1 mm sul diametro maggiore (1-4 mm nei casi 018, 004). È dentro la variabilità tra osservatori: non va corretto.
+  2. *Pezzo coerente mancante* (022, 023, 020, 016, tutti parzialmente solidi o molto grandi): un unico blob che vale il 51-93% del mancante, con volume sotto il riferimento (0,85-0,91; 022: Dice 0,71, asse lungo 51 mm contro 64). VoxTell non ha segmentato una parte della lesione. Questi sono i casi che il confronto col referto manda a una persona, ed è il comportamento voluto.
+- **Conclusione:** nessuna ricalibrazione globale è supportata dai dati (taglio, scala e nnInteractive non hanno aiutato nel sesto probe). La protezione è il confronto con la misura del referto, non una correzione della misura.
+- **Una modifica:** la tolleranza sulla misura del referto passa da max(3 mm, 10%) a max(2 mm, 10%), cioè al limite "stretto" che il probe già usa per giudicare. Motivo: il caso 016 era accettato a 2,7 mm dal referto ma era a 3,0 mm dal riferimento. Con 2 mm sarebbe andato a una persona. Su questi 15 casi i 10 accettati sono tutti entro 1,6 mm.
+- Questo run ha completato 15 casi su 30 (il precedente 21): i casi grandi e le serie lunghe sono quelli che mancano. Il campione dei grandi accettati resta quasi vuoto, quindi la precisione sopra 50 mm non è ancora misurata.

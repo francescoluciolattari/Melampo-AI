@@ -46,7 +46,7 @@ AGREE, DISAGREE, NOT_FOUND, AMBIGUOUS, UNCHECKED, NO_IMAGE = (
     "agree", "disagree", "not_found", "ambiguous", "unchecked", "no_image")
 IN_ORGAN_SHARE = 0.5          # share of the region inside the (grown) organ for "agree"
 IN_HULL_SHARE, TOUCH_SHARE = 0.8, 0.2   # else: inside the organ's outline slice by slice, and touching the organ
-SIZE_TOLERANCE_MM = 3.0       # text size vs measured size: within max(3 mm, 10%) -- 30% let a 60 mm measure
+SIZE_TOLERANCE_MM = 2.0       # text size vs measured size: within max(2 mm, 10%), the probe's strict bound (sixth probe: lung_016 passed at 2.7 mm and was 3.0 off) -- 30% let a 60 mm measure
 SIZE_TOLERANCE_SHARE = 0.10   # pass for a 78 mm lesion (third probe), 15% a 49 mm one for 57 mm (fifth probe)
 SECOND_COMPONENT_SHARE = 0.5  # a second separate region at least half the first: ambiguous
 DETACHED_SHARE = 0.10         # a detached part of at least a tenth of the main one: perhaps a second lesion
