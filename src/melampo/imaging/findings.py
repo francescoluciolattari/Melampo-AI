@@ -21,7 +21,14 @@
 * **the vectors**: the shape descriptors (no encoder behind them, comparable across lesions) and, once decision D21
   is taken, the text vector of the chosen encoder with its identity; the source text is always kept to recompute.
 
-The graph (FalkorDB): ``(:Patient)-[:HAS_STUDY]->(:Study)-[:HAS_FINDING]->(:Finding)-[:AT]->(:Structure)``, and
+The image side also records every anatomical structure the lesion involves (``involvement``: inside, crossing
+the border, in contact, with the shares and the gap) and its position in the structure that holds it (depth,
+on the surface or not), and its margins (``margins``: sharpness of the border, spicules, lobulation) -- data for
+the finding's branch, compared with the report's words where the report has them (18 October 2026).
+
+The graph (FalkorDB): ``(:Patient)-[:HAS_STUDY]->(:Study)-[:HAS_FINDING]->(:Finding)-[:AT]->(:Structure)``, the
+structures the image shows the lesion involves as ``(:Finding)-[:INVOLVES {relation, lesion_share,
+surround_share, distance_mm, structure_share}]->(:Structure)``, and
 ``(:Finding)-[:FOLLOWS]->(:Finding)`` between the exams of one person (``longitudinal``). Identifiers are
 pseudonymous keys; no name, no date of birth, no free identifier reaches the graph.
 """
@@ -41,6 +48,8 @@ from .lesion_measures import (RegionMeasures, inside_hull_share, label_parts, me
 from .segmenters import Segmentation
 from .density import DensityProfile, compare_with_report, density_profile
 from .threshold_check import APPLIED, ground_glass_extent, second_reading
+from .involvement import compare_position_with_report, involvement
+from .margins import MarginProfile, compare_margins_with_report, margin_profile
 
 AGREE, DISAGREE, NOT_FOUND, AMBIGUOUS, UNCHECKED, NO_IMAGE = (
     "agree", "disagree", "not_found", "ambiguous", "unchecked", "no_image")
@@ -111,6 +120,9 @@ class ImageSide:
     character_differences: tuple[str, ...] = ()
     with_ground_glass_axial_mm: float | None = None   # the lesion with its ground-glass part (aerated lung, CT)
     measured_on: str = "segmenter_region"             # or "with_ground_glass" when that is the measure kept
+    involvement: tuple[dict[str, Any], ...] = ()      # every structure the region involves (``involvement``)
+    position: dict[str, Any] = field(default_factory=dict)   # in the structure that holds it
+    margins: MarginProfile | None = None
 
     @property
     def needs_review(self) -> bool:
@@ -166,6 +178,19 @@ class Finding:
                        frame=self.image.frame_of_reference, measures_json=json.dumps(m.as_dict()))
             if "mean" in m.intensity:
                 row["intensity_mean"] = m.intensity["mean"]
+        if self.image.involvement and self.image.status in (AGREE, UNCHECKED, AMBIGUOUS):
+            row.update(involved_structures=[i["structure"] for i in self.image.involvement],
+                       involvement_json=json.dumps(list(self.image.involvement)))
+        if self.image.position and self.image.status in (AGREE, UNCHECKED, AMBIGUOUS):
+            p = self.image.position
+            row.update(host_structure=p["host"], gap_to_surface_mm=p["gap_to_surface_mm"],
+                       touches_surface=p["touches_surface"], position_zone=p["zone"],
+                       relative_depth=p["relative_depth"])
+        g = self.image.margins
+        if g is not None and self.image.status in (AGREE, UNCHECKED, AMBIGUOUS):
+            row.update(margin_contour=g.contour, margin_sharpness=g.sharpness, margins_json=json.dumps(g.as_dict()))
+            if g.transition_mm is not None:
+                row["margin_transition_mm"] = g.transition_mm
         for name, vec in self.vectors.items():
             row[f"vec_{re.sub(r'[^a-z0-9]+', '_', name.lower())}"] = [float(x) for x in vec]
         return row
@@ -207,13 +232,15 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
                    organ_mask: np.ndarray | None = None, text_size_mm: float | None = None,
                    frame_of_reference: str = "", modality: str = "", structure=None,
                    character: list[str] | tuple[str, ...] = (), contrast: str = "unknown",
-                   organ_parts=None) -> ImageSide:
+                   organ_parts=None, structures: dict[str, np.ndarray] | None = None) -> ImageSide:
     """The image side of a finding: the checks of decision D19, the measures and the density of the region,
     and the reasons a person must look (the lesion is not identified, or the image differs from the report)."""
     if seg is None:
         return ImageSide(NO_IMAGE)
     if seg.mask is None or not seg.mask.any():
         return ImageSide(NOT_FOUND, seg.provider, seg.version, seg.prompt, notes=seg.notes, review=(NOT_IN_IMAGE,))
+    if organ_mask is None and structures and isinstance(structure, str) and structure in structures:
+        organ_mask = structures[structure]
     main, fragments = split_main_part(seg.mask, affine)
     seg_notes_extra: list[str] = []
     share = overlap_inside(seg.mask, organ_mask) if organ_mask is not None and np.any(organ_mask) else None
@@ -272,8 +299,12 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
         dens_region = region
         density = density_profile(image, dens_region, affine, modality, organ_mask, contrast=contrast)
         differences = compare_with_report(character, density)
-        if differences:
-            review.append(CHARACTER_DIFFERS)
+    margins = margin_profile(region, affine, density) if image is not None else None
+    involved, position = involvement(region, structures, affine) if structures else ([], None)
+    differences = list(differences or ()) + compare_margins_with_report(character, margins) \
+        + compare_position_with_report(character, position)
+    if differences:
+        review.append(CHARACTER_DIFFERS)
     frags = tuple({"voxels": f.voxels, "volume_mm3": round(f.volume_mm3, 1), "share_of_main": round(f.share_of_main, 4),
                    "distance_mm": round(f.distance_mm, 1)} for f in fragments[:20])
     others = sum(1 for f in fragments if f.share_of_main >= DETACHED_SHARE) if status != AMBIGUOUS else 0
@@ -282,7 +313,9 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
                      whole,
                      second.as_dict() if second is not None else {}, tuple(support), others, density,
                      tuple(differences or ()),
-                     ext_measures.longest_axial_diameter_mm if ext_measures is not None else None, measured_on)
+                     ext_measures.longest_axial_diameter_mm if ext_measures is not None else None, measured_on,
+                     tuple(i.as_dict() for i in involved), position.as_dict() if position is not None else {},
+                     margins)
 
 
 def build_finding(patient: str, study: str, study_date: str, modality: str, text: TextSide,
@@ -301,6 +334,8 @@ def build_finding(patient: str, study: str, study_date: str, modality: str, text
 def load_findings(graph, findings: list[Finding]) -> int:
     """Write the findings (MERGE on the id: running twice changes nothing)."""
     rows = [f.as_row() for f in findings]
+    edges = [{"id": f.id, **i} for f in findings if f.image.status in (AGREE, UNCHECKED, AMBIGUOUS)
+             for i in f.image.involvement]
     for at in range(0, len(rows), 200):
         graph.query(
             "UNWIND $rows AS row "
@@ -312,6 +347,16 @@ def load_findings(graph, findings: list[Finding]) -> int:
             "MERGE (s:Structure {cid: row.structure}) "
             "MERGE (f)-[:AT]->(s)",
             params={"rows": rows[at:at + 200]},
+        )
+    for at in range(0, len(edges), 500):
+        graph.query(
+            "UNWIND $edges AS e "
+            "MATCH (f:Finding {id: e.id}) "
+            "MERGE (s:Structure {cid: e.structure}) "
+            "MERGE (f)-[r:INVOLVES]->(s) "
+            "SET r.relation = e.relation, r.lesion_share = e.lesion_share, r.surround_share = e.surround_share, "
+            "r.distance_mm = e.distance_mm, r.structure_share = e.structure_share",
+            params={"edges": edges[at:at + 500]},
         )
     return len(rows)
 

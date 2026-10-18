@@ -102,6 +102,32 @@ _COMPOSITION = (
     (re.compile(r"\b(cistic[oaihe]\w*|cystic|fluid[oa]?|fluid-filled|liquid[oaie])\b", re.I), "fluid"),
     (re.compile(r"\b(cavitat\w*|cavitazion\w*|cavitary|cavitation|escavat\w*)\b", re.I), "cavitated"),
 )
+# Margins as reports write them (18 Oct 2026), compared with the margins measured in the image
+# (``imaging.margins``). Words that are margins on their own ("spiculato", "sfumato", "ill-defined") stand alone;
+# the adjectives that need a margin noun ("netti", "regolari", "irregolari", "smooth", "sharp", "irregular":
+# "forma irregolare" is a shape, "contorni irregolari" a margin) are read only next to one.
+_MARGIN_NOUN = r"(?:margin[ei]|margins?|contorn[oi]|profil[oi]|bord[oi]|borders?|edges?|outlines?)"
+_MARGIN = (
+    (re.compile(r"\b(spicul\w*|spiculated)\b", re.I), "spiculated"),
+    (re.compile(r"\b(lobulat\w*|polilobat\w*|plurilobat\w*|microlobulat\w*)\b", re.I), "lobulated"),
+    (re.compile(r"\b(sfumat\w*|mal\s+definit\w*|scarsamente\s+definit\w*|indistint\w*|ill[-\s]defined|"
+                r"poorly[-\s]defined|indistinct|blurred|hazy)\b", re.I), "blurred"),
+    (re.compile(r"\b(ben\s+definit\w*|ben\s+circoscritt\w*|circoscritt\w*|well[-\s]defined|well[-\s]circumscribed|"
+                r"circumscribed|sharply[-\s]defined)\b", re.I), "sharp"),
+    (re.compile(r"\b" + _MARGIN_NOUN + r"\s+(?:\w+\s+)?(?:nett[ioae]|nitid[ioae]|sharp)\b", re.I), "sharp"),
+    (re.compile(r"\bsharp\s+" + _MARGIN_NOUN + r"\b", re.I), "sharp"),
+    (re.compile(r"\bsmooth\s+" + _MARGIN_NOUN + r"\b", re.I), "smooth"),
+    (re.compile(r"\b" + _MARGIN_NOUN + r"\s+(?:\w+\s+)?(?:regolar[ie]|smooth)\b", re.I), "smooth"),
+    (re.compile(r"\b" + _MARGIN_NOUN + r"\s+(?:\w+\s+)?(?:irregolar[ie]|irregular|sfrangiat\w*)\b", re.I),
+     "irregular"),
+    (re.compile(r"\birregular\s+" + _MARGIN_NOUN + r"\b", re.I), "irregular"),
+)
+# Position on the surface of the structure that holds the lesion (unambiguous words only: "centrale" is also
+# "necrosi centrale", "periferico" also "edema periferico").
+_POSITION = (
+    (re.compile(r"\b(subpleuric\w*|sottopleuric\w*|subpleural|subcapsular\w*|sottocapsular\w*|"
+                r"iuxtapleuric\w*|juxtapleural)\b", re.I), "surface"),
+)
 _NEGATOR_BEFORE = re.compile(r"\b(?:non|not|no|without|senza|privo\s+di|priva\s+di)\s+(?:\w+\s+)?$", re.I)
 _RANGE = re.compile(
     r"\b([CTLS]\d{1,2})\s*(?:-|–|/|to|a|e|through)\s*([CTLS]?\d{1,2})\b"
@@ -234,6 +260,16 @@ def read_site_qualifiers(sentence: str, start: int, end: int, language: str = "e
                 continue
             negated = _NEGATOR_BEFORE.search(sentence[max(lo, m.start() - 25):m.start()])
             character.append(Cue(m.group(0), m.start(), m.end(), f"composition:{'not_' if negated else ''}{kind}"))
+    for rx, kind in _MARGIN:
+        for m in rx.finditer(sentence, lo, hi):
+            if any(c.start < m.end() and m.start() < c.end for c in character):
+                continue
+            negated = _NEGATOR_BEFORE.search(sentence[max(lo, m.start() - 25):m.start()])
+            character.append(Cue(m.group(0), m.start(), m.end(), f"margin:{'not_' if negated else ''}{kind}"))
+    for rx, kind in _POSITION:
+        for m in rx.finditer(sentence, lo, hi):
+            if not any(c.start < m.end() and m.start() < c.end for c in character):
+                character.append(Cue(m.group(0), m.start(), m.end(), f"position:{kind}"))
     character.sort(key=lambda c: c.start)
     character, character_scope = _scoped(character, plo, phi)
 
