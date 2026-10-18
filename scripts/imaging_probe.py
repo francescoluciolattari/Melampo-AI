@@ -215,7 +215,18 @@ def size_diagnostics(volume, affine, reference, main, full, lesion_seg, prompt, 
     return out
 
 
-def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool = False) -> dict:
+def _anatomy_summary(region, affine, structures, density=None) -> dict:
+    """The structures a region involves, its position in its host and its margins (18 Oct 2026)."""
+    from melampo.imaging.involvement import involvement
+    from melampo.imaging.margins import margin_profile
+
+    got, pos = involvement(region, structures, affine) if structures else ([], None)
+    return {"involvement": [i.as_dict() for i in got[:8]], "position": pos.as_dict() if pos else None,
+            "margins": margin_profile(region, affine, density).as_dict()}
+
+
+def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool = False,
+               anatomy: bool = False) -> dict:
     volume, affine = load_case(case["image"])
     reference = read_nifti_mask(Path(case["lesion"]))
     modality = case.get("modality", "CT")
@@ -223,10 +234,17 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
     row = {"id": case["id"], "structure": case["structure"], "modality": modality, "slices": int(volume.shape[0])}
     # one class or several (the lobes of a lung): the organ check uses their union
     organ, parts = None, []
-    for got in organ_seg.segment(volume, affine, names):
-        if got.mask is not None:
-            parts.append(got.mask)
-            organ = got.mask if organ is None else (organ | got.mask)
+    structures = organ_seg.all_structures(volume, affine) if anatomy else None
+    if structures is not None:   # one whole-body run gives the named structures too
+        for name in names:
+            if name in structures:
+                parts.append(structures[name])
+                organ = parts[-1] if organ is None else (organ | parts[-1])
+    else:
+        for got in organ_seg.segment(volume, affine, names):
+            if got.mask is not None:
+                parts.append(got.mask)
+                organ = got.mask if organ is None else (organ | got.mask)
     ref_main, _ = split_main_part(reference, affine) if reference.any() else (reference, [])
     ref_size = measure_region(ref_main, affine).longest_axial_diameter_mm if reference.any() else None
     clause = case.get("report") or synthetic_clause(ref_size)
@@ -235,14 +253,18 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
     character = case.get("report_character", [])
     row.update(report_clause=clause, report_is_synthetic=not case.get("report"), reference_longest_axial_mm=ref_size)
     if reference.any():
-        row["reference_density"] = _density_summary(density_profile(volume, ref_main, affine, modality, organ))
+        ref_density = density_profile(volume, ref_main, affine, modality, organ)
+        row["reference_density"] = _density_summary(ref_density)
+        if anatomy:   # the same reading on the reference contour: what the image reading should find
+            row["reference_anatomy"] = _anatomy_summary(ref_main, affine, structures, ref_density)
     keys = [k for k in ("prompt", "prompt_en") if case.get(k)]
     t0 = time.time()
     segs = lesion_seg.segment(volume, affine, [case[k] for k in keys])   # one run for both prompts
     row["seconds"] = round(time.time() - t0, 1)
     for key, seg in zip(keys, segs):
         ev = fd.image_evidence(seg, affine, volume, organ, text_size, modality=modality, structure=names,
-                               character=character, contrast=case.get("contrast", "unknown"), organ_parts=parts)
+                               character=character, contrast=case.get("contrast", "unknown"), organ_parts=parts,
+                               structures=structures)
         got = seg.mask if seg.mask is not None else np.zeros_like(reference)
         main = split_main_part(got, affine)[0] if got.any() else got
         ext, ext_d = tc.ground_glass_extent(main, volume, affine, modality, organ) if main.any() else (None, {})
@@ -269,6 +291,9 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
                     # against the reference contour: the probe's own truth, never seen by the checks
                     "reference_error_mm": err,
                     "within_strict": None if err is None else abs(err) <= max(2.0, 0.10 * ref_size)}
+        if anatomy:
+            row[key]["anatomy"] = {"involvement": list(ev.involvement)[:8], "position": ev.position or None,
+                                   "margins": ev.margins.as_dict() if ev.margins is not None else None}
         if diagnose and key == keys[0]:
             row[key]["size_diagnostics"] = size_diagnostics(volume, affine, reference, main, got, lesion_seg, case[key],
                                                             refiner)
@@ -276,7 +301,7 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
 
 
 def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None, diagnose: bool = False,
-        refiner: bool = False) -> list[dict]:
+        refiner: bool = False, anatomy: bool = False) -> list[dict]:
     lesion_seg = VoxTellSegmenter(device=device)
     organ_seg = TotalSegmentatorSegmenter(fast=fast, device="gpu" if device == "cuda" else "cpu")
     ref_obj = None
@@ -286,7 +311,7 @@ def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None
     out = []
     for case in cases:
         try:
-            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose)
+            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose, anatomy)
         except Exception as error:  # noqa: BLE001 -- one case failing must not lose the others
             row = {"id": case.get("id"), "error": f"{type(error).__name__}: {error}"[:500]}
         out.append(row)
@@ -313,7 +338,7 @@ def run_isolated(cases: list[dict], args, out_path: Path) -> list[dict]:
             cmd = [sys.executable, str(Path(__file__).resolve()), "--cases", str(one), "--out", str(res),
                    "--device", args.device]
             cmd += [f for f, on in (("--fast-organs", args.fast_organs), ("--diagnose-size", args.diagnose_size),
-                                    ("--nninteractive", args.nninteractive)) if on]
+                                    ("--nninteractive", args.nninteractive), ("--anatomy", getattr(args, "anatomy", False))) if on]
             done = subprocess.run(cmd, check=False)
             try:
                 row = json.loads(res.read_text())[0]
@@ -336,6 +361,8 @@ def main(argv=None) -> int:
     ap.add_argument("--diagnose-size", action="store_true", help="measure the candidate causes of short measures")
     ap.add_argument("--nninteractive", action="store_true", help="also refine with nnInteractive (diagnosis)")
     ap.add_argument("--isolate", action="store_true", help="one process per case (memory is given back each time)")
+    ap.add_argument("--anatomy", action="store_true",
+                    help="whole-body structures: the zones each lesion involves, its position and its margins")
     args = ap.parse_args(argv)
     cases = json.loads(Path(args.cases).read_text())
     if args.self_test:
@@ -348,7 +375,8 @@ def main(argv=None) -> int:
     elif args.isolate and len(cases) > 1:
         rows = run_isolated(cases, args, Path(args.out))
     else:
-        rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive)
+        rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive,
+                   args.anatomy)
     Path(args.out).write_text(json.dumps(rows, indent=1, default=float))
     return 0
 

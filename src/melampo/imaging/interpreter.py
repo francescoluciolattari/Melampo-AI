@@ -34,9 +34,13 @@ def _describes(qualifiers: dict[str, Any], sizes: list) -> bool:
 def interpret_exam(patient: str, study: str, study_date: str, modality: str, report_id: str, report_text: str,
                    sites: list[dict[str, Any]], language: str = "it", volume: np.ndarray | None = None,
                    affine=None, frame_of_reference: str = "", lesion_segmenter=None,
-                   organ_segmenter=None, contrast: str = "unknown") -> list[Finding]:
-    """The findings of one exam. ``sites``: rows with mention, start, end (offsets in ``report_text``), cid, roles."""
+                   organ_segmenter=None, contrast: str = "unknown",
+                   structures: dict[str, np.ndarray] | None = None) -> list[Finding]:
+    """The findings of one exam. ``sites``: rows with mention, start, end (offsets in ``report_text``), cid, roles.
+    ``structures``: every anatomical mask of the exam (name -> mask), for the structures each lesion involves;
+    when not given and the organ segmenter can segment the whole body (``all_structures``), it is asked once."""
     findings: list[Finding] = []
+    asked = structures is not None
     for site in sites:
         if "procedure_site" in (site.get("roles") or ()):
             continue  # "TC del torace": the examined structure is not a finding
@@ -54,12 +58,21 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
         if volume is not None and affine is not None and lesion_segmenter is not None:
             try:
                 seg = lesion_segmenter.segment(volume, affine, [clause])[0]
+                if not asked and organ_segmenter is not None and hasattr(organ_segmenter, "all_structures"):
+                    asked = True
+                    try:
+                        structures = organ_segmenter.all_structures(volume, affine)
+                    except SegmenterUnavailable:
+                        structures = None
                 organ = None
-                if organ_segmenter is not None:
+                if structures and site["cid"] in structures:
+                    organ = structures[site["cid"]]
+                elif organ_segmenter is not None:
                     organ = organ_segmenter.segment(volume, affine, [site["cid"]])[0].mask
                 image = image_evidence(seg, affine, volume, organ, text.largest_size_mm, frame_of_reference,
                                        modality=modality, structure=site["cid"],
-                                       character=qd.get("character", ()), contrast=contrast)
+                                       character=qd.get("character", ()), contrast=contrast,
+                                       structures=structures)
             except SegmenterUnavailable as error:
                 image = ImageSide(NO_IMAGE, notes=(f"segmenter_unavailable:{error}",))
         findings.append(build_finding(patient, study, study_date, modality, text, image))

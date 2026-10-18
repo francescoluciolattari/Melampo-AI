@@ -112,3 +112,35 @@ def test_isolated_run_turns_a_dead_process_into_a_row(tmp_path):
     rows = probe.run_isolated([{"id": "x", "image": str(tmp_path / "none.nii.gz")}], args, tmp_path / "out.json")
     assert rows[0]["id"] == "x" and "error" in rows[0]
     assert (tmp_path / "out.json").exists()
+
+
+def test_anatomy_records_the_zones_the_position_and_the_margins(tmp_path, monkeypatch):
+    lesion = _ball((48, 48, 20), 10)
+    ct = np.full(SHAPE_XYZ, -850.0)
+    ct[lesion] = 35.0
+    nib.save(nib.Nifti1Image(ct, AFFINE_RAS), str(tmp_path / "img.nii.gz"))
+    nib.save(nib.Nifti1Image(lesion.astype(np.uint8), AFFINE_RAS), str(tmp_path / "ref.nii.gz"))
+    zyx = lambda m: m.transpose(2, 1, 0)  # noqa: E731
+    lobe = _ball((48, 48, 20), 40) & ~lesion
+
+    class Lesions(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({"tumore polmonare": zyx(lesion)}, "fake")
+
+    class Organs(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({}, "fake")
+
+        def all_structures(self, volume, affine):
+            return {"lung_upper_lobe_right": zyx(lobe)}
+
+    monkeypatch.setattr(probe, "VoxTellSegmenter", Lesions)
+    monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Organs)
+    cases = [{"id": "syn", "image": str(tmp_path / "img.nii.gz"), "lesion": str(tmp_path / "ref.nii.gz"),
+              "structure": ["lung_upper_lobe_right"], "prompt": "tumore polmonare"}]
+    row = probe.run(cases, "cpu", True, anatomy=True)[0]
+    got = row["prompt"]["anatomy"]
+    assert got["position"]["host"] == "lung_upper_lobe_right" and got["position"]["zone"] == "central"
+    assert got["involvement"][0]["structure"] == "lung_upper_lobe_right"
+    assert got["margins"]["sharpness"] == "sharp" and row["reference_anatomy"]["position"] == got["position"]
+    json.dumps(row, default=float)

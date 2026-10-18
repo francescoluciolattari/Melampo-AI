@@ -294,6 +294,29 @@ class TotalSegmentatorSegmenter:
                 results.append(Segmentation(m if m is not None and m.any() else None, self.name, self.version, p))
             return results
 
+    def all_structures(self, volume, affine):
+        """Every structure of the task ``total`` (``involvement.StructureLabels``: name -> mask on the series'
+        grid, built on demand from one label map; empty structures left out), from one multi-label run: the structures a lesion involves, not only the one the report names."""
+        try:
+            from totalsegmentator.python_api import totalsegmentator
+            from totalsegmentator.map_to_binary import class_map
+        except ImportError as error:
+            raise SegmenterUnavailable("TotalSegmentator not installed (pip install TotalSegmentator)") from error
+        with tempfile.TemporaryDirectory() as tmp:
+            src, out = Path(tmp) / "case.nii.gz", Path(tmp) / "seg.nii.gz"
+            write_nifti(volume, affine, src)
+            kwargs = dict(ml=True, fast=self.fast, device=self.device)
+            try:
+                totalsegmentator(str(src), str(out), nr_thr_saving=1, **kwargs)
+            except TypeError:
+                totalsegmentator(str(src), str(out), **kwargs)
+            import nibabel as nib
+
+            labels = np.asarray(nib.load(str(out)).dataobj).astype(np.int16).transpose(2, 1, 0)
+        from .involvement import StructureLabels
+
+        return StructureLabels(labels, {int(k): v for k, v in class_map["total"].items()})
+
 
 __all__ = ["MaskSegmenter", "NnInteractiveRefiner", "Segmentation", "mask_back", "resample_to", "Segmenter", "SegmenterUnavailable", "TotalSegmentatorSegmenter",
            "VoxTellSegmenter", "read_nifti_mask", "write_nifti"]
