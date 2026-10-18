@@ -202,3 +202,9 @@ Il notebook stampa l'errore medio di ciascuna variante per fascia di dimensione 
 - **Accettato sopra i 50 mm:** 009 (60 mm, -0,9) e 041 (64 mm, -5,6 mm, dentro il 10%).
 - **La quota inviata a una persona (47%) è lontana dal <1% voluto.** Il tetto non è la precisione ma la copertura: le lesioni parzialmente solide e quelle grandi vanno quasi sempre a una persona. Prossimo lavoro: l'alone di vetro smerigliato nelle parzialmente solide (la crescita si ferma con la nota `reaches_the_search_zone_edge` e non viene usata).
 - `probe.json` non era tra i file scaricabili da Kaggle; le righe per caso sono state ricostruite dal log.
+
+### Alone di vetro smerigliato: taglio per profilo di densità (18 ottobre, da verificare al nono probe)
+
+- **Dai dati dell'ottavo probe:** nelle lesioni parzialmente solide (016, 018, 020, 023, 037, 042, 043, 044) la crescita dell'alone si spingeva fino al bordo dei 10 mm (da 147 a 7544 voxel aggiunti) e il Dice con l'alone (0,66-0,83) era peggiore di quello della regione di VoxTell (0,75-0,89), mentre al riferimento mancavano solo 1,5-2,7 mm per lato. La banda "più densa del polmone" si attacca a tutto ciò che ha densità simile, non solo all'alone.
+- **Correzione:** l'alone finisce dove il profilo di densità lascia il suo plateau, a metà tra il plateau (mediana dei primi 2 mm attorno alla regione, sui valori grezzi) e il polmone: la stessa regola "a metà strada" della seconda lettura. Se la densità non scende mai, non è un alone (nota `reaches_the_search_zone_edge`, estensione non usata); se accanto alla regione c'è solo polmone normale, nessun alone (`no_halo`).
+- **Verifica prevista:** al nono probe, sulle stesse lesioni parzialmente solide, `with_ground_glass_axial_mm` deve avvicinarsi al riferimento (errore sotto 2-3 mm) senza peggiorare i casi solidi. Se non succede, la correzione si scarta. Solo test sintetici finora.
