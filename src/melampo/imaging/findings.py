@@ -119,7 +119,7 @@ class ImageSide:
     density: DensityProfile | None = None
     character_differences: tuple[str, ...] = ()
     with_ground_glass_axial_mm: float | None = None   # the lesion with its ground-glass part (aerated lung, CT)
-    measured_on: str = "segmenter_region"             # or "with_ground_glass" when that is the measure kept
+    measured_on: str = "segmenter_region"             # the region the measures are taken on (always the segmenter's)
     involvement: tuple[dict[str, Any], ...] = ()      # every structure the region involves (``involvement``)
     position: dict[str, Any] = field(default_factory=dict)   # in the structure that holds it
     margins: MarginProfile | None = None
@@ -277,11 +277,13 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
         def error(m):
             return abs((m.longest_axial_diameter_mm or m.longest_diameter_mm) - text_size_mm)
 
-        # two image readings of the same lesion (the segmenter's region; the lesion with its ground-glass part):
-        # the one that measures what the report measured is kept (third probe: on part-solid tumours the
-        # segmenter's region was 3-5 mm short of a reference that included the ground glass)
-        if ext_measures is not None and error(ext_measures) < error(measures):
-            measures, region, measured_on = ext_measures, extent, "with_ground_glass"
+        # The measure is the segmenter's region, whatever the report says. Until the ninth probe the reading
+        # nearest the report's size was kept between this and the lesion with its ground-glass part (``extent``);
+        # that is a choice made with the answer in hand: two windows of acceptance instead of one (on the 29
+        # isolated lesions of the eighth and ninth probes the share of other lesions' reports passing the size
+        # check went from 9.6% to 12.6%, for 4 more right ones passed in 29). The extension is kept as an
+        # attribute (``with_ground_glass_axial_mm``) and as the evidence of a part-solid lesion, never chosen
+        # by the report.
         size_check = "consistent" if error(measures) <= tol else "inconsistent"
         if size_check == "inconsistent":
             review.append(SIZE_DIFFERS)

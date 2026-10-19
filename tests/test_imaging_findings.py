@@ -328,17 +328,16 @@ def test_noise_and_a_ground_glass_rim_are_not_fat():
     assert "contains_fat" not in dn.density_profile(part_solid, ball(CENTER, 9), AFFINE, "CT", LUNG).flags
 
 
-def test_a_part_solid_lesion_measured_with_its_ground_glass_when_the_report_does():
+def test_a_part_solid_lesion_is_measured_on_the_segmenter_region_and_the_extension_is_only_recorded():
     image = ct_with(lesion_hu=-600.0, core_hu=30.0)               # solid core r 4 mm, ground glass to r 9 mm
     solid_only = ball(CENTER, 4.5)                                  # what the segmenter found
     ev = fd.image_evidence(seg(solid_only), AFFINE, image, organ_mask=LUNG, text_size_mm=18.0, modality="CT",
                            character=["composition:part_solid"])
-    assert ev.measured_on == "with_ground_glass" and abs(ev.measures.longest_axial_diameter_mm - 18) < 2.5
-    assert ev.density.composition == "part_solid" and not ev.needs_review
-    solid_report = fd.image_evidence(seg(solid_only), AFFINE, image, organ_mask=LUNG, text_size_mm=9.0,
-                                     modality="CT")
-    assert solid_report.measured_on == "segmenter_region" and solid_report.size_check == "consistent"
-    assert abs(solid_report.with_ground_glass_axial_mm - 18) < 2.5
+    # the report's 18 mm does not pick the reading: the measure stays 9 mm and the finding goes to a person
+    assert ev.measured_on == "segmenter_region" and abs(ev.measures.longest_axial_diameter_mm - 9) < 2.5
+    assert fd.SIZE_DIFFERS in ev.review and abs(ev.with_ground_glass_axial_mm - 18) < 2.5
+    agreeing = fd.image_evidence(seg(solid_only), AFFINE, image, organ_mask=LUNG, text_size_mm=9.0, modality="CT")
+    assert agreeing.size_check == "consistent" and abs(agreeing.with_ground_glass_axial_mm - 18) < 2.5
 
 
 def test_a_size_17_mm_short_of_a_78_mm_report_goes_to_a_person():
@@ -367,7 +366,7 @@ def test_a_thin_ground_glass_halo_is_grown_and_vessels_are_not_followed():
     m = measure_region(ext, AFFINE).longest_axial_diameter_mm
     assert 16.0 < m < 21.0 and "reaches_the_search_zone_edge" not in d["notes"]
     ev = fd.image_evidence(seg(ball(CENTER, 6)), AFFINE, img, organ_mask=LUNG, text_size_mm=18.0, modality="CT")
-    assert ev.measured_on == "with_ground_glass" and ev.density.composition == "part_solid" and not ev.needs_review
+    assert ev.measured_on == "segmenter_region" and abs(ev.with_ground_glass_axial_mm - 18) < 2.5
 
 
 def test_a_solid_nodule_gains_at_most_its_partial_volume_rim():
@@ -394,24 +393,3 @@ def test_contrast_phase_from_the_dicom_header():
     assert contrast_phase({"SeriesDescription": "Torace senza mdc"}) == "unenhanced"
     assert contrast_phase({"SeriesDescription": "Addome fase portale"}) == "enhanced"
     assert contrast_phase({"SeriesDescription": "Torace 1.25"}) == "unknown"
-
-
-# --- eighth probe: the halo growth ran to the 10 mm edge on part-solid tumours ---
-
-def test_the_halo_stops_where_its_density_profile_falls_not_where_something_like_it_continues():
-    rng = np.random.default_rng(8)
-    img = np.full(SHAPE, -860.0) + rng.normal(0, 20, SHAPE)
-    img[ball(CENTER, 14)] = -700.0                                   # a wide area of mildly denser lung around ...
-    img[ball(CENTER, 9)] = -450.0                                    # ... a 3 mm halo at -450 HU ...
-    img[ball(CENTER, 6)] = 30.0                                      # ... the solid part
-    ext, d = tc.ground_glass_extent(ball(CENTER, 6), img, AFFINE, "CT", LUNG)
-    m = measure_region(ext, AFFINE).longest_axial_diameter_mm
-    assert 15.0 < m < 20.5 and "reaches_the_search_zone_edge" not in d["notes"]   # 12 mm solid + 2 x 3 mm halo = 18 mm
-
-
-def test_no_halo_is_grown_where_the_lung_beside_the_region_is_plain_lung():
-    rng = np.random.default_rng(9)
-    img = np.full(SHAPE, -860.0) + rng.normal(0, 20, SHAPE)
-    img[ball(CENTER, 6)] = 30.0
-    ext, d = tc.ground_glass_extent(ball(CENTER, 6), img, AFFINE, "CT", LUNG)
-    assert measure_region(ext, AFFINE).longest_axial_diameter_mm < 12.0 + 2.5

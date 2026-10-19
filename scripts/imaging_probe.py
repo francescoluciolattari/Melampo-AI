@@ -215,6 +215,62 @@ def size_diagnostics(volume, affine, reference, main, full, lesion_seg, prompt, 
     return out
 
 
+def _png(rgb: np.ndarray) -> bytes:
+    """A PNG from an (h, w, 3) uint8 array, with the standard library only (no matplotlib on a bare runner)."""
+    import struct
+    import zlib
+
+    h, w, _ = rgb.shape
+    raw = b"".join(b"\x00" + rgb[y].tobytes() for y in range(h))
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
+
+
+def _edge2d(m: np.ndarray) -> np.ndarray:
+    """The border pixels of a 2D mask (inside pixels with a 4-neighbour outside)."""
+    p = np.pad(m, 1)
+    inner = p[1:-1, 1:-1] & p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
+    return m & ~inner
+
+
+def overlay_png(volume, affine, reference, region, margin_mm: float = 25.0, pixel_mm: float = 0.5) -> bytes:
+    """Two views of one lesion -- the axial slice and the coronal slice of its largest cross-section -- with the
+    reference contour in green and the found region's in red (yellow where they coincide), grey levels from the
+    1st to the 99th percentile of the values around the lesion (no window chosen for an organ)."""
+    from melampo.imaging.density import spacing_zyx
+
+    sp = spacing_zyx(affine)
+    both = reference | region
+    idx = np.argwhere(both)
+    lo = np.maximum(idx.min(0) - np.ceil(margin_mm / sp).astype(int), 0)
+    hi = np.minimum(idx.max(0) + np.ceil(margin_mm / sp).astype(int) + 1, both.shape)
+    box = tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
+    img, ref, reg = np.asarray(volume[box], dtype=np.float32), reference[box], region[box]
+    vlo, vhi = np.percentile(img, [1, 99])
+    gray = np.clip((img - vlo) / max(vhi - vlo, 1e-6), 0, 1)
+    z = int(np.argmax((ref | reg).sum((1, 2))))
+    y = int(np.argmax((ref | reg).sum((0, 2))))
+    views = []
+    for name, sl, step in (("axial", (z, slice(None), slice(None)), (sp[1], sp[2])),
+                           ("coronal", (slice(None), y, slice(None)), (sp[0], sp[2]))):
+        g, a, b = gray[sl], ref[sl], reg[sl]
+        ry, rx = max(1, round(step[0] / pixel_mm)), max(1, round(step[1] / pixel_mm))
+        rgb = np.repeat((np.stack([g, g, g], -1) * 255).astype(np.uint8), 1, axis=2)
+        ea, eb = _edge2d(a), _edge2d(b)
+        rgb[ea] = (0, 255, 0)
+        rgb[eb] = (255, 0, 0)
+        rgb[ea & eb] = (255, 255, 0)
+        views.append(np.repeat(np.repeat(rgb, ry, axis=0), rx, axis=1))
+    h = max(v.shape[0] for v in views)
+    pad = [np.pad(v, ((0, h - v.shape[0]), (0, 4), (0, 0))) for v in views]
+    return _png(np.concatenate(pad, axis=1))
+
+
 def _anatomy_summary(region, affine, structures, density=None) -> dict:
     """The structures a region involves, its position in its host and its margins (18 Oct 2026)."""
     from melampo.imaging.involvement import involvement
@@ -226,7 +282,7 @@ def _anatomy_summary(region, affine, structures, density=None) -> dict:
 
 
 def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool = False,
-               anatomy: bool = False) -> dict:
+               anatomy: bool = False, overlays: Path | None = None, overlays_all: bool = False) -> dict:
     volume, affine = load_case(case["image"])
     reference = read_nifti_mask(Path(case["lesion"]))
     modality = case.get("modality", "CT")
@@ -294,6 +350,15 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
         if anatomy:
             row[key]["anatomy"] = {"involvement": list(ev.involvement)[:8], "position": ev.position or None,
                                    "margins": ev.margins.as_dict() if ev.margins is not None else None}
+        if overlays is not None and key == keys[0] and main.any() and reference.any() \
+                and (overlays_all or not row[key]["within_strict"]):
+            try:   # the lesion as the reference and the found region draw it, where the measure is off
+                overlays.mkdir(parents=True, exist_ok=True)
+                target = overlays / f"{case['id']}.png"
+                target.write_bytes(overlay_png(volume, affine, ref_main, main))
+                row[key]["overlay"] = target.name
+            except Exception as error:  # noqa: BLE001 -- a picture failing must not lose the measures
+                row[key]["overlay_error"] = f"{type(error).__name__}: {error}"[:200]
         if diagnose and key == keys[0]:
             row[key]["size_diagnostics"] = size_diagnostics(volume, affine, reference, main, got, lesion_seg, case[key],
                                                             refiner)
@@ -301,7 +366,8 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
 
 
 def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None, diagnose: bool = False,
-        refiner: bool = False, anatomy: bool = False) -> list[dict]:
+        refiner: bool = False, anatomy: bool = False, overlays: Path | None = None,
+        overlays_all: bool = False) -> list[dict]:
     lesion_seg = VoxTellSegmenter(device=device)
     organ_seg = TotalSegmentatorSegmenter(fast=fast, device="gpu" if device == "cuda" else "cpu")
     ref_obj = None
@@ -311,7 +377,7 @@ def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None
     out = []
     for case in cases:
         try:
-            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose, anatomy)
+            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose, anatomy, overlays, overlays_all)
         except Exception as error:  # noqa: BLE001 -- one case failing must not lose the others
             row = {"id": case.get("id"), "error": f"{type(error).__name__}: {error}"[:500]}
         out.append(row)
@@ -339,6 +405,8 @@ def run_isolated(cases: list[dict], args, out_path: Path) -> list[dict]:
                    "--device", args.device]
             cmd += [f for f, on in (("--fast-organs", args.fast_organs), ("--diagnose-size", args.diagnose_size),
                                     ("--nninteractive", args.nninteractive), ("--anatomy", getattr(args, "anatomy", False))) if on]
+            if getattr(args, "overlays", None):
+                cmd += ["--overlays", args.overlays] + (["--overlays-all"] if getattr(args, "overlays_all", False) else [])
             done = subprocess.run(cmd, check=False)
             try:
                 row = json.loads(res.read_text())[0]
@@ -361,6 +429,9 @@ def main(argv=None) -> int:
     ap.add_argument("--diagnose-size", action="store_true", help="measure the candidate causes of short measures")
     ap.add_argument("--nninteractive", action="store_true", help="also refine with nnInteractive (diagnosis)")
     ap.add_argument("--isolate", action="store_true", help="one process per case (memory is given back each time)")
+    ap.add_argument("--overlays", metavar="DIR", help="a PNG per case whose measure is off (axial + coronal, "
+                    "reference green, found region red) written in DIR")
+    ap.add_argument("--overlays-all", action="store_true", help="a PNG for every case, not only the off ones")
     ap.add_argument("--anatomy", action="store_true",
                     help="whole-body structures: the zones each lesion involves, its position and its margins")
     args = ap.parse_args(argv)
@@ -376,7 +447,7 @@ def main(argv=None) -> int:
         rows = run_isolated(cases, args, Path(args.out))
     else:
         rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive,
-                   args.anatomy)
+                   args.anatomy, Path(args.overlays) if args.overlays else None, args.overlays_all)
     Path(args.out).write_text(json.dumps(rows, indent=1, default=float))
     return 0
 
