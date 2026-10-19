@@ -263,33 +263,7 @@ def ground_glass_extent(first: np.ndarray, image: np.ndarray | None, affine, mod
             break
         cur = nxt
     notes = []
-    # Eighth probe: on the part-solid tumours the growth ran to the 10 mm edge (thousands of voxels, Dice with the
-    # reference worse than the segmenter's own) while the reference was only 1.5-2.7 mm wider on each side: the band
-    # joins everything of ground-glass density around, not just the halo. The halo ends where the density profile
-    # leaves its plateau: halfway between the plateau (median of the first 2 mm around the region) and the lung
-    # (the same half-way rule as the second reading). Growth beyond that distance is cut.
-    def ring(a: float, b: float) -> np.ndarray:
-        return (outside > a) & (outside <= b) & zone & ~s & (img < SOLID_HU)
-
-    plateau_vox = ring(0.0, 2.0)
-    if plateau_vox.sum() >= 20:
-        plateau = float(np.median(img[plateau_vox]))     # raw values: smoothing pulls the solid part into the first mm
-        if plateau < threshold:
-            cur = s.copy()                                   # nothing denser than lung beside the region
-            notes.append("no_halo")
-        else:
-            half = 0.5 * (plateau + surrounding)
-            edge = None
-            for k in range(1, int(GGO_MARGIN_MM)):
-                vox = ring(float(k), float(k + 1))
-                if vox.sum() >= 20 and float(np.median(img[vox])) < half:
-                    edge = float(k)
-                    break
-            if edge is None:
-                notes.append("reaches_the_search_zone_edge")  # the density never falls back: not a halo
-            else:
-                cur = cur & ((outside <= edge) | s)
-    elif (cur & ~s & (outside > GGO_MARGIN_MM - float(max(sp)))).any():
+    if (cur & ~s & (outside > GGO_MARGIN_MM - float(max(sp)))).any():
         notes.append("reaches_the_search_zone_edge")
     full = np.zeros(seed.shape, dtype=bool)
     full[box] = cur

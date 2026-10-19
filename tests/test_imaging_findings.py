@@ -394,24 +394,3 @@ def test_contrast_phase_from_the_dicom_header():
     assert contrast_phase({"SeriesDescription": "Torace senza mdc"}) == "unenhanced"
     assert contrast_phase({"SeriesDescription": "Addome fase portale"}) == "enhanced"
     assert contrast_phase({"SeriesDescription": "Torace 1.25"}) == "unknown"
-
-
-# --- eighth probe: the halo growth ran to the 10 mm edge on part-solid tumours ---
-
-def test_the_halo_stops_where_its_density_profile_falls_not_where_something_like_it_continues():
-    rng = np.random.default_rng(8)
-    img = np.full(SHAPE, -860.0) + rng.normal(0, 20, SHAPE)
-    img[ball(CENTER, 14)] = -700.0                                   # a wide area of mildly denser lung around ...
-    img[ball(CENTER, 9)] = -450.0                                    # ... a 3 mm halo at -450 HU ...
-    img[ball(CENTER, 6)] = 30.0                                      # ... the solid part
-    ext, d = tc.ground_glass_extent(ball(CENTER, 6), img, AFFINE, "CT", LUNG)
-    m = measure_region(ext, AFFINE).longest_axial_diameter_mm
-    assert 15.0 < m < 20.5 and "reaches_the_search_zone_edge" not in d["notes"]   # 12 mm solid + 2 x 3 mm halo = 18 mm
-
-
-def test_no_halo_is_grown_where_the_lung_beside_the_region_is_plain_lung():
-    rng = np.random.default_rng(9)
-    img = np.full(SHAPE, -860.0) + rng.normal(0, 20, SHAPE)
-    img[ball(CENTER, 6)] = 30.0
-    ext, d = tc.ground_glass_extent(ball(CENTER, 6), img, AFFINE, "CT", LUNG)
-    assert measure_region(ext, AFFINE).longest_axial_diameter_mm < 12.0 + 2.5
