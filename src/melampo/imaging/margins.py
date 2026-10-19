@@ -26,7 +26,7 @@ A lesion too small for its contour to be read at the scan's resolution (longest 
 ``MIN_JUDGE_MM`` or ``MIN_JUDGE_VOXELS`` voxels) gets the numbers but no contour category.
 
 The comparison with the report sends a finding to a person only on clear opposites, outside a grey zone between
-the categories: a lesion written "spiculata" with no spicule at all, "a margini regolari" that is clearly
+the categories (for the contour only once ``CONTOUR_COMPARED`` is on: not calibrated, see the constant): a lesion written "spiculata" with no spicule at all, "a margini regolari" that is clearly
 spiculated, "netti" with a transition wider than ``BLURRED_MM`` x 1.5, "sfumati" sharper than ``SHARP_MM`` / 1.25.
 
 Thresholds are starting values written here, to be calibrated on annotated data -- LIDC-IDRI carries four
@@ -53,6 +53,12 @@ SMOOTH_SPICULE_SHARE, SMOOTH_CONCAVITY_SHARE = 0.02, 0.03   # a voxelised sphere
 SHARP_MM, BLURRED_MM = 3.0, 5.0
 MIN_CONTRAST_HU, MIN_CONTRAST_RATIO = 60.0, 0.20
 MIN_JUDGE_MM, MIN_JUDGE_VOXELS = 8.0, 6
+# Ninth probe, 30 lesions: the contour read on VoxTell's region and on the reference contour agreed on 5 (the
+# reference, drawn by hand, is rough at the voxel and reads "spiculated" on 25; VoxTell's region is smooth and
+# reads "irregular"): the measure reads how rough the mask is, and there is no truth about spicules in MSD to say
+# which mask is right. The contour is recorded as data; it is compared with the report (and can send a finding
+# to a person) only once calibrated on annotated spiculation (LIDC-IDRI) -- set this to True then.
+CONTOUR_COMPARED = False
 
 
 @dataclass
@@ -170,6 +176,8 @@ def compare_margins_with_report(character: list[str] | tuple[str, ...], margins:
             continue
         neg = kind.startswith("not_")
         kind = kind.removeprefix("not_")
+        if kind in ("spiculated", "smooth", "lobulated", "irregular") and not CONTOUR_COMPARED:
+            continue
         clash = False
         if kind == "spiculated" and judged:
             none_at_all = margins.spicules == 0 and (margins.spicule_share or 0.0) < SMOOTH_SPICULE_SHARE

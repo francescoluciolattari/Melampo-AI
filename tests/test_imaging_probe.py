@@ -144,3 +144,49 @@ def test_anatomy_records_the_zones_the_position_and_the_margins(tmp_path, monkey
     assert got["involvement"][0]["structure"] == "lung_upper_lobe_right"
     assert got["margins"]["sharpness"] == "sharp" and row["reference_anatomy"]["position"] == got["position"]
     json.dumps(row, default=float)
+
+
+def test_overlay_png_draws_both_contours_where_the_measure_is_off(tmp_path, monkeypatch):
+    import struct
+    import zlib
+
+    lesion = _ball((48, 48, 20), 10)
+    found = _ball((48, 48, 20), 6)                                 # a region well short of the reference
+    ct = np.full(SHAPE_XYZ, -850.0)
+    ct[lesion] = 35.0
+    zyx = lambda m: m.transpose(2, 1, 0)  # noqa: E731
+    affine = np.diag([-0.8, -0.8, 2.5, 1.0])
+    png = probe.overlay_png(zyx(ct), affine, zyx(lesion), zyx(found))
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    w, h = struct.unpack(">II", png[16:24])
+    at, idat = 8, b""
+    while at < len(png):
+        n = struct.unpack(">I", png[at:at + 4])[0]
+        if png[at + 4:at + 8] == b"IDAT":
+            idat += png[at + 8:at + 8 + n]
+        at += 12 + n
+    raw = np.frombuffer(zlib.decompress(idat), np.uint8).reshape(h, 1 + 3 * w)
+    assert (raw[:, 0] == 0).all()
+    px = raw[:, 1:].reshape(h, w, 3)
+    green = ((px == (0, 255, 0)).all(-1)).sum()
+    red = ((px == (255, 0, 0)).all(-1)).sum()
+    assert green > 50 and red > 30 and green > red      # the reference contour is the longer one
+
+    nib.save(nib.Nifti1Image(ct, AFFINE_RAS), str(tmp_path / "img.nii.gz"))
+    nib.save(nib.Nifti1Image(lesion.astype(np.uint8), AFFINE_RAS), str(tmp_path / "ref.nii.gz"))
+
+    class Lesions(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({"tumore polmonare": zyx(found)}, "fake")
+
+    class Organs(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({"lung_upper_lobe_right": zyx(_ball((48, 48, 20), 40))}, "fake")
+
+    monkeypatch.setattr(probe, "VoxTellSegmenter", Lesions)
+    monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Organs)
+    cases = [{"id": "syn", "image": str(tmp_path / "img.nii.gz"), "lesion": str(tmp_path / "ref.nii.gz"),
+              "structure": ["lung_upper_lobe_right"], "prompt": "tumore polmonare"}]
+    row = probe.run(cases, "cpu", True, overlays=tmp_path / "ov")[0]
+    assert row["prompt"]["within_strict"] is False and row["prompt"]["overlay"] == "syn.png"
+    assert (tmp_path / "ov" / "syn.png").read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"

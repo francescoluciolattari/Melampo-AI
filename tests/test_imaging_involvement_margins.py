@@ -120,11 +120,23 @@ def test_report_words_on_margins_and_position(sentence, want):
     assert sorted(got) == sorted(want)
 
 
-def test_a_spiculated_report_on_a_smooth_lesion_goes_to_a_person():
+def test_the_contour_is_recorded_but_not_compared_until_it_is_calibrated(monkeypatch):
+    from melampo.imaging import margins as mg
+
     smooth = margin_profile(ball((36, 36, 36), 9), AFF)
+    assert not compare_margins_with_report(["margin:spiculated"], smooth)          # not calibrated: no review reason
+    monkeypatch.setattr(mg, "CONTOUR_COMPARED", True)
     assert compare_margins_with_report(["margin:spiculated"], smooth)
     assert not compare_margins_with_report(["margin:spiculated"], margin_profile(_spiked(), AFF))
-    assert not compare_margins_with_report(["margin:lobulated"], smooth)   # no clear opposite: not compared
+    assert not compare_margins_with_report(["margin:lobulated"], smooth)           # no clear opposite: not compared
+
+
+def test_a_sharpness_clash_with_the_report_is_compared():
+    pytest.importorskip("scipy")
+    lesion = ball((36, 36, 36), 10)
+    blurred = margin_profile(lesion, AFF, density_profile(_image(lesion, 8), lesion, AFF, "CT"))
+    assert compare_margins_with_report(["margin:sharp"], blurred)
+    assert not compare_margins_with_report(["margin:blurred"], blurred)
 
 
 def test_the_finding_carries_involvement_position_and_margins_into_the_graph(tmp_path):
