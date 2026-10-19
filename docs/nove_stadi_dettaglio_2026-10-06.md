@@ -1,3 +1,4 @@
+# I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 6 dell'8 ottobre: tutti gli stadi hanno un meccanismo; controllo esterno su CRAFT e MedMentions)
 # I nove stadi del linker, in dettaglio (6 ottobre 2026, rev. 4 del 7 ottobre sera: flussi paralleli, grafo, stato del referto)
 
 Aggiornamento del 7 ottobre: gli stadi sono ora flussi indipendenti con traccia, e i due LLM sono interrogati in parallelo. Sulla scelta dei modelli c'è un controllo dei vicini nel grafo UBERON, e il ripiego al padre è una proposta. Dettagli in `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 7.
@@ -6,19 +7,19 @@ Obiettivo misurabile: **precisione ≥99% sui link accettati automaticamente** (
 
 Principio aggiunto in questa revisione (richiesta di Frank): **dove una parola può voler dire più cose, decidono il contesto, la lingua e i dati che la accompagnano, in tutti i casi e non parola per parola.** Non è un decimo passo: è il cuore del passo 4, e tocca i passi 1, 2 e 8.
 
-Stato: ✔ fatto, ◐ parziale, ○ da fare.
+Stato: ✔ fatto, ◐ parziale, ○ da fare. Dall'8 ottobre ogni stadio ha il suo meccanismo nel codice. Precisione sui link accettati, su testo etichettato da altri: 99,0% su CRAFT, 96% su MedMentions secondo le nostre regole. Sui referti radiologici non è ancora misurata: lo farà il gold set (stadio 9). Gli errori rimasti sono di contesto e solo chi legge la frase li vede (modelli o radiologo): vedi `architettura_parallela_predittiva_linker_2026-10-06.md`, §18.
 
 | # | Stadio | Stato |
 |---|---|---|
-| 1 | Stato del referto (modalità, regione, lato, **lingua**) | ◐ sezioni, titolo, intestazione, lingua, modalità e "referto sul rachide" sì (7 ott, `report_state.py`); la previsione agisce solo sui codici di livello; altre regioni, lato dell'intestazione e strutture già collegate no |
+| 1 | Stato del referto (modalità, regione, lato, **lingua**, **quadro**) | ✔ come meccanismo: quadro, sezioni, titolo, lingua, modalità, area dell'esame; **lato dell'esame** (sostegno, veto sul lato opposto, proposta per le strutture senza lato) e **discorso** (la struttura già nominata nel referto sostiene) aggiunti l'8 ottobre (§18). Il lato dall'esame come link attende la decisione dei radiologi |
 | 2 | Lessico esatto bilingue + tabella parti (una forma ambigua non si accetta dal solo nome) | ✔ |
-| 3 | Candidati morfologici e recupero denso (solo proposta) | ◐ encoder valutati, morfologia no |
-| 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ◐ inventario dei sensi attivo su 7 forme (GB, LM, ponte, ileo, digiuno, midollo, paraspinal/paravertebrale), controlli deterministici sì, punteggio continuo no |
-| 5 | Controllo dei vicini (fratelli, controlaterale, padre, figli) | ◐ lato/numero/tipo sì; vicini nel grafo UBERON sulla scelta dei modelli sì (7 ott); vicini per lessico e parti no |
+| 3 | Candidati morfologici e recupero denso (solo proposta) | ✔ come meccanismo: radici greco-latine (8 ott, `morphology.py`) propongono sulle astensioni e sostengono i link; encoder valutati |
+| 4 | **Significati in competizione + integrazione** (recupero e integrazione separati) | ✔ come meccanismo: inventario dei sensi (8 forme con "atlas"), forme a rischio dai dati, vicini letti all'occorrenza giusta, nomi propri, molecole e dispositivi, nome anatomico più lungo, lingua del nome, sigle per tipo di testo (8 ott, §18). Restano le teste composte a più parole |
+| 5 | Controllo dei vicini (fratelli, controlaterale, padre, figli) | ✔ come meccanismo: grafo sulla scelta dei modelli; per i link del lessico nomi condivisi, lato (lettore cieco, esame), nome più lungo, parte/tipo nel grafo |
 | 6 | Scelta vincolata con "nessuna delle precedenti" (Nemotron + Gemma) | ✔ |
-| 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ◐ la traduzione IT→EN ci somiglia, manca il lettore indipendente |
-| 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ◐ motivi sì, punteggio unico no |
-| 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ ripiego al padre calcolato dal grafo come **proposta** (7 ott; ~1–5% di errori nelle revisioni cieche, quindi non applicato); soglia: serve il gold set |
+| 7 | Ri-derivazione cieca da un lettore di meccanismo diverso | ✔ come meccanismo: lettore non-LLM (`blind_reader.py`), legge anche il lato; veto spento. Su testo esterno sostiene anche gli errori di contesto: non basta da solo |
+| 8 | Monitor di conflitto → astensione con motivo (ora anche tra sensi) | ✔ come meccanismo: profilo `support`/`conflicts`/`convergence`, `conflict_policy` (`record`/`review`). Sui dati esterni la convergenza non separa gli errori (§18.3): la politica si decide sul gold set |
+| 9 | Soglia certificata (Learn-then-Test) e ripiego al padre `part_of` | ◐ strumenti completi: LTT per strato, `--exclude` e `--split` calibrazione/test, pacchetto inglese per i radiologi (518 + 1.150), controllo esterno CRAFT/MedMentions. **Il certificato richiede le etichette dei radiologi** |
 
 ## 1. Stato del referto
 Umano: l'esperto capisce il "gist" prima delle parole e si aspetta certe strutture (TC torace: polmone, mediastino). Il cervello prevede più in là e più gerarchicamente dei modelli di linguaggio (Caucheteux 2023). La lingua in cui è scritto il testo è parte dello stato: la stessa sigla vuol dire cose diverse in italiano e in inglese.
@@ -71,6 +72,10 @@ Questo risolve il compromesso che Frank ha rifiutato: non si perde "GB" inglese 
 **Scoperta sistematica (da fare).** Invece di aspettare che le sigle ambigue emergano una per una, scansionare il lessico e il pool con UMLS (la chiave c'è): una stringa che mappa su concetti di tipi semantici diversi (struttura anatomica / test di laboratorio / unità / procedura) è una forma da inventariare. Per le forme trovate, gli indizi si ricavano dalle definizioni e dai contesti dei corpora, poi vanno rivisti da una persona.
 Da fare anche: rendere l'integrazione un punteggio per soglia (accetta / ripiega / astieni), non solo un sì/no.
 
+**Aggiornamento 7 ottobre (notte): il vicino a destra e a sinistra.** Una parola anatomica seguita da un nome di misura o di esame ("heart rate", "liver function", "thyroid hormone", "anti-thyroid") non nomina la struttura: il linker si astiene con `attribute_head_names_a_measurement:<parola>`. È una proprietà del vicino, valida per tutte le strutture (dati in `word_senses.json`, chiave `attribute_heads`). Su 600 menzioni di case report ha corretto 48 link, tutti verificati a mano; "axis" (seconda vertebra o asse geometrico) è ora un profilo dei sensi. Dettagli e limiti in `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 12.
+
+**Il contesto è il tipo, il quadro e l'area dell'esame (7 ottobre, notte).** Tipo: titolo, sezioni e modalità dell'intestazione (ACR, RSNA). Quadro: la frase è scritta nei reperti di immagini, nei risultati di laboratorio o nei segni vitali (LOINC/HL7, SecTag): in un quadro di misura una struttura nominata è il modificatore di una misura e il linker si astiene (`frame_is_a_measurement`), tranne nei reperti di un referto di immagini. Area: oggi solo il rachide. Il vicino immediato ("heart rate") è un indizio dello stesso quadro. Dettagli, misure e fonti: `architettura_parallela_predittiva_linker_2026-10-06.md`, sezione 13.
+
 ## 5. Controllo dei vicini
 Umano: l'illusione di Mosè: la sostituzione di una parola simile passa inosservata (5–60% dei casi). È l'errore "struttura sorella" o "lato opposto".
 Cosa fa: per ogni link con somiglianza alta, confronto esplicito con sorelle (milza/rene), controlaterale, padre e figli. Senza una ragione verificabile per preferire il candidato → astensione.
@@ -82,10 +87,20 @@ Umano: decisione fra alternative note.
 Cosa fa: Nemotron e Gemma scelgono una lettera fra candidati già filtrati, con la menzione marcata `<tgt>`, e l'opzione "nessuna". Mai codici liberi (GPT-4 sbaglia i codici ICD nel 54–66% dei casi, 18,5% inventati: NEJM AI 2024). Le forme ambigue arrivano qui solo dopo il passo 4.
 Stato: fatto. Limite: due LLM che sbagliano scelgono la stessa risposta ~60% delle volte (Kim 2025): sono copertura, non prova. Anche sulle sigle cliniche gli LLM hanno mostrato calo in lingue diverse dall'inglese e sovra-confidenza (vedi documento di sintesi): un motivo in più per non lasciare il senso a loro.
 
+**Aggiunto il 7 ottobre (notte), stadi 1, 4 e 8.**
+- *Stadio 1, area dell'esame.* L'area si legge dal nome dell'esame (`exam_area`): "RM pelvi", "TC torace-addome", "brain MRI". Una struttura dell'area sostiene il link; una lontana è un errore di previsione.
+- *Stadio 4, integrazione.*
+  - Una forma di composizione unita da trattino ("cranio-facial") non è la struttura.
+  - Un nome senza la sua parola-testa ("anca" per "osso dell'anca", "left innominate") non è quel nome.
+  - Le teste di misura seguono la sintassi della lingua: a destra in inglese, a sinistra in italiano.
+- *Stadio 8, conflitto.* Una forma ambigua lontana dall'area va ai modelli (Sistema 2 sul conflitto). Ogni link accettato porta il suo profilo: meccanismi a favore (`support`), conflitti (`conflicts`), `convergence`, e il ruolo (`procedure_site` / `inherent_location`).
+- *Stadio 9.* Lo strumento di certificazione è pronto (`selective_calibration.py`, Learn-then-Test per strato) e attende il gold set.
+
 ## 7. Ri-derivazione cieca
 Umano: la metacomprensione migliora (r da 0,14 a 0,41) solo se si ricostruisce il significato dopo un intervallo; spiegare la propria risposta non aiuta (Prinz 2020).
 Cosa fa: un secondo lettore *di meccanismo diverso* (encoder + regole, oppure un LLM che non vede la prima risposta) deriva il concetto dalla sola menzione. Il disaccordo è un'astensione.
-Da fare: lettore indipendente non-LLM; misurare l'errore congiunto dei due LLM sul gold set per sapere quanto l'accordo vale davvero.
+**Fatto in parte (8 ottobre):** lettore non-LLM (`blind_reader.py`, n-grammi di caratteri su nomi grezzi, nessun modello); in traccia come meccanismo `blind` (support) o conflitto `blind_reader_disagrees` (against); veto opzionale (`blind_veto`, spento di default). 0 falsi allarmi su 373 menzioni, contro classi a caso: 244 disaccordi, 0 conferme sbagliate, 129 silenzi (vedi §17); debole sull'italiano e cieco al lato.
+Da fare: misurare l'errore congiunto dei due LLM sul gold set per sapere quanto l'accordo vale davvero; decidere il veto con il gold set.
 
 ## 8. Monitor di conflitto
 Umano: il segnale di errore del cingolato anteriore compare ~50 ms dopo l'errore, anche senza consapevolezza. Nei lettori, un buon rilevamento del conflitto predice quanti errori di significato vengono notati. Il controllo semantico (corteccia frontale inferiore sinistra) interviene quando più significati competono.
