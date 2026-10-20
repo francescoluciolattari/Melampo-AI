@@ -215,6 +215,96 @@ def size_diagnostics(volume, affine, reference, main, full, lesion_seg, prompt, 
     return out
 
 
+def _pack(mask: np.ndarray) -> dict:
+    m = np.asarray(mask, dtype=bool)
+    return {"bits": np.packbits(m.ravel()), "shape": np.array(m.shape)}
+
+
+def _unpack(bits: np.ndarray, shape: np.ndarray) -> np.ndarray:
+    shape = tuple(int(x) for x in shape)
+    return np.unpackbits(bits)[: int(np.prod(shape))].reshape(shape).astype(bool)
+
+
+def save_case_masks(folder: Path, case_id: str, prompts: list[str], segs, structures=None,
+                    organs: dict | None = None) -> Path:
+    """What the GPU computed for one case -- the segmenter's region per prompt and the whole-body structures (or
+    the named organs) -- so that the analysis can be run again on a CPU without segmenting again."""
+    folder.mkdir(parents=True, exist_ok=True)
+    arrays: dict[str, np.ndarray] = {"prompts": np.array(json.dumps(prompts))}
+    for i, seg in enumerate(segs):
+        if seg.mask is not None:
+            for k, v in _pack(seg.mask).items():
+                arrays[f"lesion{i}_{k}"] = v
+        arrays[f"lesion{i}_meta"] = np.array(json.dumps({"provider": seg.provider, "version": seg.version,
+                                                         "notes": list(seg.notes)}))
+    if structures is not None and hasattr(structures, "labels"):
+        arrays["labels"] = np.asarray(structures.labels, dtype=np.int16)
+        arrays["label_names"] = np.array(json.dumps({str(v): k for k, v in structures.code.items()}))
+    elif structures:
+        organs = {**(organs or {}), **dict(structures.items())}
+    for name, m in (organs or {}).items():
+        if m is not None:
+            for k, v in _pack(m).items():
+                arrays[f"organ__{name}__{k}"] = v
+    target = folder / f"{case_id}.npz"
+    np.savez_compressed(target, **arrays)
+    return target
+
+
+class ReplaySegmenters:
+    """The segmenters of a GPU run read back from ``save_case_masks`` files: the same regions, no GPU. One object
+    serves as both the lesion and the organ segmenter; ``set_case`` picks the case."""
+
+    name = "replay"
+
+    def __init__(self, folder: Path):
+        self.folder, self.data, self.case = Path(folder), None, None
+
+    def set_case(self, case_id: str) -> None:
+        f = self.folder / f"{case_id}.npz"
+        if not f.exists():
+            raise FileNotFoundError(f"no saved masks for {case_id} in {self.folder}")
+        self.data, self.case = dict(np.load(f, allow_pickle=False)), case_id
+
+    def segment(self, volume, affine, prompts):
+        from melampo.imaging.segmenters import Segmentation
+
+        saved = json.loads(str(self.data["prompts"]))
+        out = []
+        for p in prompts:
+            if p in saved:   # a lesion prompt
+                i = saved.index(p)
+                meta = json.loads(str(self.data[f"lesion{i}_meta"]))
+                m = _unpack(self.data[f"lesion{i}_bits"], self.data[f"lesion{i}_shape"]) \
+                    if f"lesion{i}_bits" in self.data else None
+                out.append(Segmentation(m, f"replay:{meta['provider']}", meta["version"], p,
+                                        notes=tuple(meta["notes"]) + ("replayed",)))
+            else:            # an organ
+                m = self._organ(p)
+                out.append(Segmentation(m if m is not None and m.any() else None, "replay:organs", "", p))
+        return out
+
+    def _organ(self, name):
+        if "labels" in self.data:
+            names = {v: int(k) for k, v in json.loads(str(self.data["label_names"])).items()}
+            return self.data["labels"] == names[name] if name in names else None
+        key = f"organ__{name}__bits"
+        return _unpack(self.data[key], self.data[f"organ__{name}__shape"]) if key in self.data else None
+
+    def all_structures(self, volume, affine):
+        from melampo.imaging.involvement import StructureLabels
+        from melampo.imaging.segmenters import SegmenterUnavailable
+
+        if "labels" in self.data:
+            names = {int(k): v for k, v in json.loads(str(self.data["label_names"])).items()}
+            return StructureLabels(self.data["labels"], names)
+        organs = {k.split("__")[1]: self._organ(k.split("__")[1]) for k in self.data if k.startswith("organ__")
+                  and k.endswith("__bits")}
+        if not organs:
+            raise SegmenterUnavailable("the saved run has no whole-body structures (run it with --anatomy)")
+        return organs
+
+
 def _png(rgb: np.ndarray) -> bytes:
     """A PNG from an (h, w, 3) uint8 array, with the standard library only (no matplotlib on a bare runner)."""
     import struct
@@ -304,14 +394,18 @@ def _anatomy_summary(region, affine, structures, density=None) -> dict:
 
 
 def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool = False,
-               anatomy: bool = False, overlays: Path | None = None, overlays_all: bool = False) -> dict:
+               anatomy: bool = False, overlays: Path | None = None, overlays_all: bool = False,
+               save_masks: Path | None = None) -> dict:
     volume, affine = load_case(case["image"])
     reference = read_nifti_mask(Path(case["lesion"]))
     modality = case.get("modality", "CT")
     names = case["structure"] if isinstance(case["structure"], list) else [case["structure"]]
     row = {"id": case["id"], "structure": case["structure"], "modality": modality, "slices": int(volume.shape[0])}
+    for seg_obj in {id(lesion_seg): lesion_seg, id(organ_seg): organ_seg}.values():
+        if hasattr(seg_obj, "set_case"):   # a replay of a saved GPU run
+            seg_obj.set_case(case["id"])
     # one class or several (the lobes of a lung): the organ check uses their union
-    organ, parts = None, []
+    organ, parts, named = None, [], {}
     structures = organ_seg.all_structures(volume, affine) if anatomy else None
     if structures is not None:   # one whole-body run gives the named structures too
         for name in names:
@@ -319,7 +413,8 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
                 parts.append(structures[name])
                 organ = parts[-1] if organ is None else (organ | parts[-1])
     else:
-        for got in organ_seg.segment(volume, affine, names):
+        for name, got in zip(names, organ_seg.segment(volume, affine, names)):
+            named[name] = got.mask
             if got.mask is not None:
                 parts.append(got.mask)
                 organ = got.mask if organ is None else (organ | got.mask)
@@ -339,6 +434,12 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
     t0 = time.time()
     segs = lesion_seg.segment(volume, affine, [case[k] for k in keys])   # one run for both prompts
     row["seconds"] = round(time.time() - t0, 1)
+    if save_masks is not None:
+        try:
+            row["saved_masks"] = save_case_masks(save_masks, case["id"], [case[k] for k in keys], segs,
+                                                 structures, named).name
+        except Exception as error:  # noqa: BLE001 -- saving must not lose the measures
+            row["save_masks_error"] = f"{type(error).__name__}: {error}"[:300]
     for key, seg in zip(keys, segs):
         ev = fd.image_evidence(seg, affine, volume, organ, text_size, modality=modality, structure=names,
                                character=character, contrast=case.get("contrast", "unknown"), organ_parts=parts,
@@ -392,9 +493,15 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
 
 def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None, diagnose: bool = False,
         refiner: bool = False, anatomy: bool = False, overlays: Path | None = None,
-        overlays_all: bool = False) -> list[dict]:
-    lesion_seg = VoxTellSegmenter(device=device)
-    organ_seg = TotalSegmentatorSegmenter(fast=fast, device="gpu" if device == "cuda" else "cpu")
+        overlays_all: bool = False, save_masks: Path | None = None, from_masks: Path | None = None) -> list[dict]:
+    if from_masks is not None:   # the regions of a saved GPU run: no segmenter runs, no GPU
+        lesion_seg = organ_seg = ReplaySegmenters(from_masks)
+        if diagnose or refiner:
+            print("replay: --diagnose-size and --nninteractive need the segmenters, skipped", flush=True)
+        diagnose, refiner = False, False
+    else:
+        lesion_seg = VoxTellSegmenter(device=device)
+        organ_seg = TotalSegmentatorSegmenter(fast=fast, device="gpu" if device == "cuda" else "cpu")
     ref_obj = None
     if refiner:
         from melampo.imaging.segmenters import NnInteractiveRefiner
@@ -402,7 +509,8 @@ def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None
     out = []
     for case in cases:
         try:
-            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose, anatomy, overlays, overlays_all)
+            row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose, anatomy, overlays, overlays_all,
+                             save_masks)
         except Exception as error:  # noqa: BLE001 -- one case failing must not lose the others
             row = {"id": case.get("id"), "error": f"{type(error).__name__}: {error}"[:500]}
         out.append(row)
@@ -430,6 +538,9 @@ def run_isolated(cases: list[dict], args, out_path: Path) -> list[dict]:
                    "--device", args.device]
             cmd += [f for f, on in (("--fast-organs", args.fast_organs), ("--diagnose-size", args.diagnose_size),
                                     ("--nninteractive", args.nninteractive), ("--anatomy", getattr(args, "anatomy", False))) if on]
+            for flag, attr in (("--save-masks", "save_masks"), ("--from-masks", "from_masks")):
+                if getattr(args, attr, None):
+                    cmd += [flag, getattr(args, attr)]
             if getattr(args, "overlays", None):
                 cmd += ["--overlays", args.overlays] + (["--overlays-all"] if getattr(args, "overlays_all", False) else [])
             done = subprocess.run(cmd, check=False)
@@ -457,6 +568,10 @@ def main(argv=None) -> int:
     ap.add_argument("--overlays", metavar="DIR", help="a PNG per case whose measure is off (axial + coronal, "
                     "reference green, found region red) written in DIR")
     ap.add_argument("--overlays-all", action="store_true", help="a PNG for every case, not only the off ones")
+    ap.add_argument("--save-masks", metavar="DIR", help="save each case's regions and structures (npz) in DIR, "
+                    "to run the analysis again later on a CPU (--from-masks)")
+    ap.add_argument("--from-masks", metavar="DIR", help="no segmenter: read the regions and structures saved "
+                    "by a run with --save-masks (CPU only)")
     ap.add_argument("--anatomy", action="store_true",
                     help="whole-body structures: the zones each lesion involves, its position and its margins")
     args = ap.parse_args(argv)
@@ -472,7 +587,9 @@ def main(argv=None) -> int:
         rows = run_isolated(cases, args, Path(args.out))
     else:
         rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive,
-                   args.anatomy, Path(args.overlays) if args.overlays else None, args.overlays_all)
+                   args.anatomy, Path(args.overlays) if args.overlays else None, args.overlays_all,
+                   Path(args.save_masks) if args.save_masks else None,
+                   Path(args.from_masks) if args.from_masks else None)
     Path(args.out).write_text(json.dumps(rows, indent=1, default=float))
     return 0
 
