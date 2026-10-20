@@ -194,3 +194,52 @@ def test_overlay_png_draws_both_contours_where_the_measure_is_off(tmp_path, monk
     row = probe.run(cases, "cpu", True, overlays=tmp_path / "ov")[0]
     assert row["prompt"]["within_strict"] is False and row["prompt"]["overlay"] == "syn.png"
     assert (tmp_path / "ov" / "syn.png").read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@pytest.mark.parametrize("anatomy", [True, False])
+def test_a_run_saved_and_replayed_on_cpu_gives_the_same_row(tmp_path, monkeypatch, anatomy):
+    lesion = _ball((48, 48, 20), 10)
+    ct = np.full(SHAPE_XYZ, -850.0)
+    ct[lesion] = 35.0
+    nib.save(nib.Nifti1Image(ct, AFFINE_RAS), str(tmp_path / "img.nii.gz"))
+    nib.save(nib.Nifti1Image(lesion.astype(np.uint8), AFFINE_RAS), str(tmp_path / "ref.nii.gz"))
+    zyx = lambda m: m.transpose(2, 1, 0)  # noqa: E731
+    found = _ball((48, 48, 20), 8)
+    lobe = zyx(_ball((48, 48, 20), 40) & ~lesion)
+
+    class Lesions(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({"tumore polmonare": zyx(found), "lung tumor": zyx(found)}, "fake")
+
+    class Organs(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({"lung_upper_lobe_right": lobe}, "fake")
+
+        def all_structures(self, volume, affine):
+            from melampo.imaging.involvement import StructureLabels
+            return StructureLabels(lobe.astype(np.int16) * 3, {3: "lung_upper_lobe_right"})
+
+    monkeypatch.setattr(probe, "VoxTellSegmenter", Lesions)
+    monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Organs)
+    cases = [{"id": "syn", "image": str(tmp_path / "img.nii.gz"), "lesion": str(tmp_path / "ref.nii.gz"),
+              "structure": ["lung_upper_lobe_right"], "prompt": "tumore polmonare", "prompt_en": "lung tumor"}]
+    first = probe.run(cases, "cpu", True, anatomy=anatomy, save_masks=tmp_path / "masks")[0]
+    assert first["saved_masks"] == "syn.npz"
+
+    class Broken:   # replay must not touch a segmenter
+        def __init__(self, **_):
+            raise AssertionError("a segmenter was built in a replay")
+
+    monkeypatch.setattr(probe, "VoxTellSegmenter", Broken)
+    monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Broken)
+    again = probe.run(cases, "cpu", True, anatomy=anatomy, from_masks=tmp_path / "masks")[0]
+    for key in ("prompt", "prompt_en"):
+        a, b = first[key], again[key]
+        assert a["measured_longest_axial_mm"] == b["measured_longest_axial_mm"] and a["dice"] == b["dice"]
+        assert a["status"] == b["status"] and a["review"] == b["review"]
+        if anatomy:
+            assert a["anatomy"]["position"] == b["anatomy"]["position"]
+    if anatomy:
+        assert first["prompt"]["radiologist"]["window"]["axial_long_mm"] == \
+            again["prompt"]["radiologist"]["window"]["axial_long_mm"]
+    assert "replayed" in again["prompt"]["segmenter_notes"]

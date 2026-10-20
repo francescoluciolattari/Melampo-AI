@@ -261,3 +261,12 @@ Domanda di Frank: come discrimina un radiologo, come interpreta un'immagine? Tra
 4. **Le misure come le prende lui.** Diametro assiale maggiore, asse corto perpendicolare sulla stessa fetta, media dei due (Lung-RADS), per ogni lettura. Asse corto e media entrano anche nel ramo del grafo di ogni lesione (`short_axial_mm`, `mean_axial_mm`).
 
 Nel probe (`--anatomy`) ogni caso riporta le tre letture con Dice e misure contro il contorno di riferimento, e una tabella per fascia di dimensione: dirà quale bordo segue il riferimento di MSD (quello di VoxTell, quello della finestra o quello con il vetro smerigliato). Non serve a tarare nulla sul riferimento: la taratura del bordo "da radiologo" va fatta sui contorni di quattro radiologi per nodulo di LIDC-IDRI.
+
+### Rilettura su CPU (20 ottobre): la GPU solo quando cambia la segmentazione
+
+La quota GPU settimanale di Kaggle (30 ore) è finita il 20 ottobre, prima del giro con le letture da radiologo. Quelle letture, come zone e margini, partono dalla regione di VoxTell e dalle strutture di TotalSegmentator: non serve rifare la segmentazione per provarle.
+
+- `--save-masks DIR`: il giro con GPU salva per ogni caso un file `npz` con la regione di VoxTell per ogni prompt e la mappa delle strutture dell'intero corpo (o le maschere degli organi nominati).
+- `--from-masks DIR`: nessun segmentatore, nessuna GPU; rilegge quei file e rifà tutta l'analisi. Un test controlla che la rilettura dia la stessa riga del giro originale (misure, Dice, stato, motivi, zone, letture da radiologo).
+- Kaggle: il notebook con GPU salva in `/kaggle/working/masks`; il nuovo notebook `melampo-imaging-replay` (solo CPU) monta l'output dell'ultimo giro con GPU come dati in ingresso e lancia la rilettura. Da Termux: `python kaggle_api.py push replay`, `status replay`, `output replay` (risultati in `output_replay`). Il `push` ora avvisa quando Kaggle rifiuta il giro (come per la quota esaurita), invece di lasciare credere che sia partito.
+- Serve un solo giro con GPU (al rinnovo della quota) per avere le maschere; da lì ogni cambiamento dell'analisi si prova su CPU.
