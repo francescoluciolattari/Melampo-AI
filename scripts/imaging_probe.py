@@ -271,6 +271,28 @@ def overlay_png(volume, affine, reference, region, margin_mm: float = 25.0, pixe
     return _png(np.concatenate(pad, axis=1))
 
 
+def _radiologist_summary(volume, main, ref_main, affine, modality, host, structures) -> dict:
+    """The lesion read as a radiologist reads it (window, solid part, total with its ground glass) beside the
+    segmenter's region, each against the reference contour: which edge does the reference follow?"""
+    from melampo.imaging.radiologist_reading import radiologist_readings, readings_summary
+
+    try:
+        r = radiologist_readings(volume, main, affine, modality, host, structures)
+    except Exception as error:  # noqa: BLE001 -- a diagnostic failing must not lose the measures
+        return {"error": f"{type(error).__name__}: {error}"[:300]}
+    out = readings_summary(r)
+    ref = measure_region(ref_main, affine) if ref_main.any() else None
+    seg = measure_region(main, affine)
+    out["reference"] = None if ref is None else {"axial_long_mm": ref.longest_axial_diameter_mm,
+                                                 "axial_short_mm": ref.axial_short_mm, "axial_mean_mm": ref.axial_mean_mm}
+    out["segmenter"] = {"axial_long_mm": seg.longest_axial_diameter_mm, "axial_short_mm": seg.axial_short_mm,
+                        "axial_mean_mm": seg.axial_mean_mm, "dice": dice(main, ref_main)}
+    for k in ("window", "solid", "total"):
+        if r.get(k) is not None and r[k].get("mask") is not None:
+            out[k]["dice"] = dice(r[k]["mask"], ref_main)
+    return out
+
+
 def _anatomy_summary(region, affine, structures, density=None) -> dict:
     """The structures a region involves, its position in its host and its margins (18 Oct 2026)."""
     from melampo.imaging.involvement import involvement
@@ -347,6 +369,9 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
                     # against the reference contour: the probe's own truth, never seen by the checks
                     "reference_error_mm": err,
                     "within_strict": None if err is None else abs(err) <= max(2.0, 0.10 * ref_size)}
+        if anatomy and key == keys[0] and main.any():
+            row[key]["radiologist"] = _radiologist_summary(volume, main, ref_main, affine, modality,
+                                                           (ev.position or {}).get("host") or names[0], structures)
         if anatomy:
             row[key]["anatomy"] = {"involvement": list(ev.involvement)[:8], "position": ev.position or None,
                                    "margins": ev.margins.as_dict() if ev.margins is not None else None}

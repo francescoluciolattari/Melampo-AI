@@ -99,6 +99,27 @@ def _longest(points: np.ndarray) -> float:
     return best
 
 
+def _short_axis(points: np.ndarray, affine) -> float | None:
+    """The widest extent of one slice's points perpendicular to their longest chord, in the slice's plane."""
+    if len(points) < 2:
+        return None
+    best, pair = -1.0, (0, 0)
+    for at in range(0, len(points), 500):
+        d = ((points[at:at + 500, None, :] - points[None, :, :]) ** 2).sum(-1)
+        k = int(np.argmax(d))
+        i, j = divmod(k, len(points))
+        if d.flat[k] > best:
+            best, pair = float(d.flat[k]), (at + i, j)
+    v = points[pair[1]] - points[pair[0]]
+    a = _affine(affine)
+    normal = a[:3, 2] / (np.linalg.norm(a[:3, 2]) or 1.0)      # the slice axis
+    u = np.cross(normal, v)
+    if not np.linalg.norm(u):
+        return 0.0
+    proj = points @ (u / np.linalg.norm(u))
+    return float(proj.max() - proj.min())
+
+
 @dataclass
 class RegionMeasures:
     voxels: int
@@ -109,6 +130,10 @@ class RegionMeasures:
     longest_axial_diameter_mm: float
     principal_axes_mm: tuple[float, float, float]      # full axis lengths of the equivalent solid ellipsoid
     surface_mm2: float | None = None
+    # as a radiologist measures (Lung-RADS: long and short axis on one slice, and their mean): the short axis is
+    # the widest extent perpendicular to the longest axial diameter, on the same slice (20 Oct 2026)
+    axial_short_mm: float | None = None
+    axial_mean_mm: float | None = None
     surface_method: str = ""
     sphericity: float | None = None
     elongation: float | None = None                    # second / first principal axis
@@ -144,9 +169,12 @@ def measure_region(mask: np.ndarray, affine, image: np.ndarray | None = None,
     edge = boundary(mask)
     edge_mm = to_mm(edge, affine)
     longest = _longest(edge_mm)
-    axial = 0.0
+    axial, axial_slice = 0.0, None
     for s in np.unique(edge[:, 0]):
-        axial = max(axial, _longest(edge_mm[edge[:, 0] == s]))
+        d = _longest(edge_mm[edge[:, 0] == s])
+        if d > axial:
+            axial, axial_slice = d, s
+    short = _short_axis(edge_mm[edge[:, 0] == axial_slice], affine) if axial_slice is not None else None
 
     cov = np.cov(pts.T) if n > 1 else np.zeros((3, 3))
     eig = np.sort(np.clip(np.linalg.eigvalsh(cov), 0, None))[::-1]
@@ -158,6 +186,9 @@ def measure_region(mask: np.ndarray, affine, image: np.ndarray | None = None,
         bbox_mm=(tuple(float(x) for x in lo), tuple(float(x) for x in hi)),
         longest_diameter_mm=longest, longest_axial_diameter_mm=axial, principal_axes_mm=axes,
     )
+    if short is not None:
+        measures.axial_short_mm = short
+        measures.axial_mean_mm = (axial + short) / 2.0
     if n >= MIN_VOXELS:
         mesh = _mesh_area(mask, affine)
         if mesh is not None:

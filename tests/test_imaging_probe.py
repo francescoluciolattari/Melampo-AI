@@ -143,6 +143,10 @@ def test_anatomy_records_the_zones_the_position_and_the_margins(tmp_path, monkey
     assert got["position"]["host"] == "lung_upper_lobe_right" and got["position"]["zone"] == "central"
     assert got["involvement"][0]["structure"] == "lung_upper_lobe_right"
     assert got["margins"]["sharpness"] == "sharp" and row["reference_anatomy"]["position"] == got["position"]
+    rad = row["prompt"]["radiologist"]
+    assert rad["window"]["window"] == "lung" and rad["window"]["dice"] > 0.9
+    assert abs(rad["window"]["axial_long_mm"] - rad["reference"]["axial_long_mm"]) < 2.0
+    assert rad["segmenter"]["axial_short_mm"] is not None and "mask" not in rad["window"]
     json.dumps(row, default=float)
 
 

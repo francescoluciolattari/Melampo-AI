@@ -174,6 +174,8 @@ class Finding:
         if m is not None and self.image.status in (AGREE, UNCHECKED, AMBIGUOUS):
             row.update(volume_mm3=m.volume_mm3, longest_mm=m.longest_diameter_mm,
                        longest_axial_mm=m.longest_axial_diameter_mm, centroid_mm=list(m.centroid_mm),
+                       short_axial_mm=m.axial_short_mm if m.axial_short_mm is not None else -1.0,
+                       mean_axial_mm=m.axial_mean_mm if m.axial_mean_mm is not None else -1.0,
                        sphericity=m.sphericity if m.sphericity is not None else -1.0,
                        frame=self.image.frame_of_reference, measures_json=json.dumps(m.as_dict()))
             if "mean" in m.intensity:
