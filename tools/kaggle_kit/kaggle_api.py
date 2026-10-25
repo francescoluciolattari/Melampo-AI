@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""Come la Kaggle CLI (push / status / output) ma solo con la libreria standard: niente pip, funziona in Termux.
+Credenziali: KAGGLE_USERNAME e KAGGLE_API_TOKEN (il token unico), oppure il vecchio ~/.kaggle/kaggle.json.
+
+  python kaggle_api.py push      carica kaggle_imaging_probe.ipynb e lo fa girare sui server Kaggle (GPU, Internet)
+  python kaggle_api.py status    running / complete / error
+  python kaggle_api.py output    scarica probe.json, probe.log e il resto in ./output
+  python kaggle_api.py quota     ore di GPU usate e rimaste
+
+Con "replay" dopo il comando si usa il notebook di rilettura su CPU (nessuna quota GPU): rilegge le regioni
+salvate dall'ultimo giro con GPU e rifà solo l'analisi. I risultati vanno in ./output_replay.
+  python kaggle_api.py push replay
+  python kaggle_api.py status replay
+  python kaggle_api.py output replay
+"""
+import base64, json, os, sys, urllib.parse, urllib.request
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SLUG = "melampo-imaging-probe"
+NOTEBOOK = os.path.join(HERE, "kaggle_imaging_probe.ipynb")
+REPLAY = len(sys.argv) > 2 and "replay" in sys.argv[2:]
+if REPLAY:
+    SLUG, NOTEBOOK = "melampo-imaging-replay", os.path.join(HERE, "kaggle_imaging_replay.ipynb")
+OUT = "output_replay" if REPLAY else "output"
+BASE = "https://www.kaggle.com/api/v1"
+
+
+def creds():
+    """(username, token, 'bearer'|'basic'). Il nuovo token API di Kaggle (una sola stringa) va in
+    KAGGLE_API_TOKEN, oppure nel file ~/.kaggle/access_token; il nome utente in KAGGLE_USERNAME.
+    Il vecchio formato kaggle.json (username + key) funziona ancora."""
+    user = os.environ.get("KAGGLE_USERNAME")
+    token = os.environ.get("KAGGLE_API_TOKEN")
+    tfile = os.path.expanduser("~/.kaggle/access_token")
+    if not token and os.path.exists(tfile):
+        token = open(tfile).read().strip()
+    if token and user:
+        return user, token, "bearer"
+    key, path = os.environ.get("KAGGLE_KEY"), os.path.expanduser("~/.kaggle/kaggle.json")
+    if not (user and key) and os.path.exists(path):
+        data = json.load(open(path))
+        user, key = data["username"], data["key"]
+    if user and key:
+        return user, key, "basic"
+    sys.exit("Mancano le credenziali: esporta KAGGLE_USERNAME=<tuo nome utente> e KAGGLE_API_TOKEN=<il token>")
+
+
+def call(method, url, body=None):
+    user, key, mode = creds()
+    req = urllib.request.Request(url, method=method, data=json.dumps(body).encode() if body is not None else None)
+    req.add_header("Authorization", "Bearer " + key if mode == "bearer"
+                   else "Basic " + base64.b64encode(f"{user}:{key}".encode()).decode())
+    if body is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read().decode() or "{}")
+    except urllib.error.HTTPError as e:
+        sys.exit(f"HTTP {e.code}: {e.read().decode()[:500]}")
+
+
+def notebook_text():
+    """Come la CLI ufficiale: output svuotati e ogni cella con il sorgente in una sola stringa (il server lo vuole così)."""
+    nb = json.load(open(NOTEBOOK))
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") == "code":
+            cell["outputs"] = []
+        if isinstance(cell.get("source"), list):
+            cell["source"] = "".join(cell["source"])
+    return json.dumps(nb)
+
+
+def main():
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    user = creds()[0]
+    if cmd == "push":
+        body = {
+            "slug": f"{user}/{SLUG}", "newTitle": SLUG, "text": notebook_text(),
+            "language": "python", "kernelType": "notebook", "isPrivate": True, "enableGpu": not REPLAY,
+            "enableInternet": True, "datasetDataSources": [], "competitionDataSources": [],
+            # la rilettura monta l'output dell'ultimo giro con GPU (le maschere salvate) in /kaggle/input
+            "kernelDataSources": [f"{user}/melampo-imaging-probe"] if REPLAY else [],
+            "modelDataSources": [], "categoryIds": []}
+        if not REPLAY:
+            body["machineShape"] = "NvidiaTeslaT4"
+        out = call("POST", f"{BASE}/kernels/push", body)
+        print(json.dumps(out, indent=1))
+        if out.get("error"):
+            print("\nATTENZIONE: il giro NON è partito. Lo stato resta quello del giro precedente.")
+    elif cmd == "quota":
+        print(json.dumps(call("GET", f"{BASE}/kernels/quota"), indent=1))
+    elif cmd == "status":
+        q = urllib.parse.urlencode({"userName": user, "kernelSlug": SLUG})
+        print(json.dumps(call("GET", f"{BASE}/kernels/status?{q}"), indent=1))
+    elif cmd == "output":
+        # l'elenco dei file arriva a pagine: si seguono tutte (prima mancava probe.json, sulla seconda pagina)
+        files, token, out = [], "", {}
+        for _ in range(50):
+            params = {"userName": user, "kernelSlug": SLUG, "pageSize": 200}
+            if token:
+                params["pageToken"] = token
+            page = call("GET", f"{BASE}/kernels/output?{urllib.parse.urlencode(params)}")
+            out = out or page
+            files += page.get("files", [])
+            token = page.get("nextPageToken") or ""
+            if not token:
+                break
+        os.makedirs(OUT, exist_ok=True)
+        everything = "all" in sys.argv[2:]     # "output all" scarica anche i .nii.gz e le maschere
+        names = [os.path.basename(f["fileName"]) for f in files]
+        print(f"{len(files)} file nell'output:", ", ".join(n for n in names if not n.endswith(".nii.gz")))
+        for f in files:
+            name = os.path.basename(f["fileName"])
+            if not everything and name.endswith((".nii.gz", ".nii", ".tar", ".tar.gz", ".tgz", ".zip", ".npz")):
+                print("saltato (dati, non servono):", name)
+                continue
+            urllib.request.urlretrieve(f["url"], os.path.join(OUT, name))
+            print("scaricato", name)
+        if out.get("log"):
+            open(os.path.join(OUT, "log.json"), "w").write(out["log"])
+    else:
+        sys.exit(__doc__)
+
+
+main()
