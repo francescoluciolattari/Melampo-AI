@@ -81,7 +81,10 @@ class StructureLabels(Mapping):
     """The structures of one multi-label map, as name -> mask without holding a full mask per structure (a
     whole-body CT has ~100 structures: 100 boolean volumes of 512 x 512 x 300 would take 8 GB)."""
 
-    def __init__(self, labels: np.ndarray, names: dict[int, str]):
+    def __init__(self, labels: np.ndarray, names: dict[int, str], regions: dict[str, np.ndarray] | None = None):
+        # ``regions``: containers that overlap the structures (thoracic and abdominal cavity, mediastinum,
+        # pericardium): where a lesion may be, not tissue to leave out of it (25 Oct 2026)
+        self.regions = {k: np.asarray(v, dtype=bool) for k, v in (regions or {}).items()}
         self.labels = np.asarray(labels)
         present = np.unique(self.labels)
         self.code = {names[int(v)]: int(v) for v in present if int(v) and int(v) in names}
