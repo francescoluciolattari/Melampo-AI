@@ -108,7 +108,7 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
     runs into another; a fat plane separates it from the wall and the mediastinum; the tissue around it, for its
     density and noise, is the parenchyma of the structure that holds it, not a ring mixing lung, wall and
     mediastinum (which gave a noise of 240-520 HU and a total reading above the tumour's own density)."""
-    names = ("window", "window_band", "solid", "total")
+    names = ("window", "window_band", "edge", "solid", "total")
     out: dict = {k: None for k in names} | {"notes": []}
     seed = np.asarray(seed, dtype=bool)
     if image is None or not seed.any() or (modality or "").upper() != "CT":
@@ -197,6 +197,19 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
         out["notes"].append(f"window_level_not_between_lesion_and_surroundings:{win}:half_way")
     out["window"] = {"window": win, **reading(level, zone, zone_edge)}
     out["window_band"] = {"window": win, **reading(level, band, band & ~_erode(band))}
+    # ``edge``: where a radiologist sees the edge depends on what the lesion is made of. A solid lesion in the
+    # lung on the lung window: the middle grey (-600 HU) between soft tissue and air. A ground-glass lesion is
+    # itself darker than that grey, and its edge is where it meets the lung: half-way between the two (first
+    # CPU replay, 25 Oct: the -600 HU edge cut the part-solid lesions 7-20 mm short, and fitted the large solid
+    # masses within 1-3 mm where VoxTell was 8-15 mm short). Only within the band.
+    # solid or not: the median of the whole region (its deepest part is solid in a part-solid lesion too)
+    lesion_median = float(np.median(img[s]))
+    out["lesion_median"] = lesion_median
+    if win == "lung" and lesion_median >= SOLID_HU and level == WINDOWS["lung"][0]:
+        edge_level, rule = level, "solid_lesion:window_level"
+    else:
+        edge_level, rule = (core + surrounding) / 2.0, "half_way_between_lesion_and_surroundings"
+    out["edge"] = {"window": win, "rule": rule, **reading(edge_level, band, band & ~_erode(band))}
     if surrounding < AERATED_HU and above:
         out["solid"] = reading(SOLID_HU, zone, zone_edge)
         total_level = surrounding + max(GGO_STEP_HU, 3.0 * noise)
@@ -211,7 +224,7 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
 
 def readings_summary(r: dict) -> dict:
     """The readings without their masks (for a row of the probe or the graph)."""
-    keys = ("window", "window_band", "solid", "total")
+    keys = ("window", "window_band", "edge", "solid", "total")
     out = {k: v for k, v in r.items() if k not in keys}
     for k in keys:
         out[k] = None if r.get(k) is None else {kk: vv for kk, vv in r[k].items() if kk != "mask"}

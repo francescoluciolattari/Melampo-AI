@@ -99,3 +99,17 @@ def test_the_band_reading_refines_only_near_the_segmenter_edge():
     img[(np.abs((Y - 55) * 0.8) <= 0.5) & (np.abs(Z - 30) <= 0.5) & (X > 55) & (X < 66)] = -400.0
     r = radiologist_readings(img, d <= 8, A, "CT", "lung_upper_lobe_right")
     assert abs(r["window_band"]["axial_long_mm"] - 19) < 1.6   # the rim, within 3 mm of the seed's edge
+
+
+def test_the_edge_follows_what_the_lesion_is_made_of():
+    img = _lung()
+    d = _dist(55, 55)
+    img[d <= 10] = -640.0                                       # a ground-glass nodule, 20 mm
+    img[d <= 3] = 20.0                                          # with a small solid core
+    r = radiologist_readings(img, d <= 8, A, "CT", "lung_upper_lobe_right")
+    assert r["edge"]["rule"].startswith("half_way") and r["lesion_median"] < -300
+    assert abs(r["edge"]["axial_long_mm"] - 20) < 1.6         # its edge against the lung
+    solid = _lung()
+    solid[d <= 10] = 30.0
+    rs = radiologist_readings(solid, d <= 8.5, A, "CT", "lung_upper_lobe_right")
+    assert rs["edge"]["rule"].startswith("solid_lesion") and abs(rs["edge"]["axial_long_mm"] - 20) < 1.6

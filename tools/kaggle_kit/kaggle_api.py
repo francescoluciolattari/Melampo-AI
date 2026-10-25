@@ -12,16 +12,26 @@ salvate dall'ultimo giro con GPU e rifà solo l'analisi. I risultati vanno in ./
   python kaggle_api.py push replay
   python kaggle_api.py status replay
   python kaggle_api.py output replay
+
+Con "holdout" si lavora sui casi tenuti da parte (MSD Task06 Lung dal 31° al 63°, mai usati per scegliere una
+regola): un giro con GPU a sé (notebook melampo-imaging-holdout) e la sua rilettura su CPU. Risultati in
+./output_holdout e ./output_replay_holdout.
+  python kaggle_api.py push holdout            poi status holdout, output holdout
+  python kaggle_api.py push replay holdout     poi status replay holdout, output replay holdout
 """
 import base64, json, os, sys, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SLUG = "melampo-imaging-probe"
 NOTEBOOK = os.path.join(HERE, "kaggle_imaging_probe.ipynb")
-REPLAY = len(sys.argv) > 2 and "replay" in sys.argv[2:]
+REPLAY = "replay" in sys.argv[2:]
+HOLDOUT = "holdout" in sys.argv[2:]
+GPU_SLUG = "melampo-imaging-holdout" if HOLDOUT else "melampo-imaging-probe"   # the run whose masks are read back
+SLUG = GPU_SLUG
 if REPLAY:
-    SLUG, NOTEBOOK = "melampo-imaging-replay", os.path.join(HERE, "kaggle_imaging_replay.ipynb")
-OUT = "output_replay" if REPLAY else "output"
+    SLUG, NOTEBOOK = "melampo-imaging-replay" + ("-holdout" if HOLDOUT else ""), \
+        os.path.join(HERE, "kaggle_imaging_replay.ipynb")
+OUT = "output" + ("_replay" if REPLAY else "") + ("_holdout" if HOLDOUT else "")
 BASE = "https://www.kaggle.com/api/v1"
 
 
@@ -67,6 +77,11 @@ def notebook_text():
             cell["outputs"] = []
         if isinstance(cell.get("source"), list):
             cell["source"] = "".join(cell["source"])
+        if HOLDOUT and "CASES = slice(0, 30)" in cell.get("source", ""):
+            cell["source"] = cell["source"].replace("CASES = slice(0, 30)", "CASES = slice(30, 63)")
+            cell["_holdout"] = True
+    if HOLDOUT and not any(c.pop("_holdout", False) for c in nb.get("cells", [])):
+        sys.exit("Il notebook non ha la riga CASES = slice(0, 30): kit vecchio, estrai di nuovo kaggle_kit.tar.gz")
     return json.dumps(nb)
 
 
@@ -79,7 +94,7 @@ def main():
             "language": "python", "kernelType": "notebook", "isPrivate": True, "enableGpu": not REPLAY,
             "enableInternet": True, "datasetDataSources": [], "competitionDataSources": [],
             # la rilettura monta l'output dell'ultimo giro con GPU (le maschere salvate) in /kaggle/input
-            "kernelDataSources": [f"{user}/melampo-imaging-probe"] if REPLAY else [],
+            "kernelDataSources": [f"{user}/{GPU_SLUG}"] if REPLAY else [],
             "modelDataSources": [], "categoryIds": []}
         if not REPLAY:
             body["machineShape"] = "NvidiaTeslaT4"
