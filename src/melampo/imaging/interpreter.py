@@ -61,7 +61,10 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                 if not asked and organ_segmenter is not None and hasattr(organ_segmenter, "all_structures"):
                     asked = True
                     try:
-                        structures = organ_segmenter.all_structures(volume, affine)
+                        try:
+                            structures = organ_segmenter.all_structures(volume, affine, modality=modality)
+                        except TypeError:   # a segmenter whose atlas does not depend on the modality
+                            structures = organ_segmenter.all_structures(volume, affine)
                     except SegmenterUnavailable:
                         structures = None
                 organ = None

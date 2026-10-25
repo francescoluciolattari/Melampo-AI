@@ -294,29 +294,79 @@ class TotalSegmentatorSegmenter:
                 results.append(Segmentation(m if m is not None and m.any() else None, self.name, self.version, p))
             return results
 
-    def all_structures(self, volume, affine):
-        """Every structure of the task ``total`` (``involvement.StructureLabels``: name -> mask on the series'
-        grid, built on demand from one label map; empty structures left out), from one multi-label run: the structures a lesion involves, not only the one the report names."""
+    # The patient's own anatomical atlas (25 Oct 2026): the main task and the open (Apache-2.0) tasks that name
+    # what the threshold readings of the eleventh probe ran into -- the vessels and airways inside the lung, the
+    # chest-wall muscles, effusions -- merged into one label map; the cavities are kept apart, as containers.
+    # ``tissue_types`` (fat, muscle) is licensed (free for research, commercial on request): not used.
+    EXCLUSIVE_TASKS_CT = ("lung_vessels", "pleural_pericard_effusion", "abdominal_muscles")
+    REGION_TASKS_CT = ("trunk_cavities",)
+    AUXILIARY_CLASSES = frozenset({"lung_pleural"})   # a task's helper class (the lung with its pleura), not a structure
+
+    def _run(self, src: Path, out: Path, task: str) -> np.ndarray:
+        from totalsegmentator.python_api import totalsegmentator
+        import nibabel as nib
+
+        kwargs = dict(ml=True, device=self.device, task=task)
+        if task in ("total", "total_mr"):
+            kwargs["fast"] = self.fast
         try:
-            from totalsegmentator.python_api import totalsegmentator
+            totalsegmentator(str(src), str(out), nr_thr_saving=1, **kwargs)
+        except TypeError:
+            totalsegmentator(str(src), str(out), **kwargs)
+        return np.asarray(nib.load(str(out)).dataobj).astype(np.int16).transpose(2, 1, 0)
+
+    def all_structures(self, volume, affine, modality: str = "CT", extra: bool = True):
+        """The patient's atlas (``involvement.StructureLabels``: name -> mask on the series' grid, built on demand
+        from one label map, empty structures left out; ``.regions``: the cavities). On CT the main task
+        ``total`` and, with ``extra``, the tasks of ``EXCLUSIVE_TASKS_CT`` (merged over it: the finer
+        structure wins) and ``REGION_TASKS_CT``; on MR ``total_mr`` only. A task that fails is left out
+        and named in ``.notes``."""
+        try:
             from totalsegmentator.map_to_binary import class_map
         except ImportError as error:
             raise SegmenterUnavailable("TotalSegmentator not installed (pip install TotalSegmentator)") from error
-        with tempfile.TemporaryDirectory() as tmp:
-            src, out = Path(tmp) / "case.nii.gz", Path(tmp) / "seg.nii.gz"
-            write_nifti(volume, affine, src)
-            kwargs = dict(ml=True, fast=self.fast, device=self.device)
-            try:
-                totalsegmentator(str(src), str(out), nr_thr_saving=1, **kwargs)
-            except TypeError:
-                totalsegmentator(str(src), str(out), **kwargs)
-            import nibabel as nib
-
-            labels = np.asarray(nib.load(str(out)).dataobj).astype(np.int16).transpose(2, 1, 0)
         from .involvement import StructureLabels
 
-        return StructureLabels(labels, {int(k): v for k, v in class_map["total"].items()})
-
+        mr = (modality or "").upper() in ("MR", "MRI")
+        main_task = "total_mr" if mr else "total"
+        notes: list[str] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "case.nii.gz"
+            write_nifti(volume, affine, src)
+            labels = self._run(src, Path(tmp) / f"{main_task}.nii.gz", main_task)
+            names = {int(k): v for k, v in class_map[main_task].items()}
+            regions: dict[str, np.ndarray] = {}
+            if extra and not mr:
+                code = max(names) + 1
+                for task in self.EXCLUSIVE_TASKS_CT:
+                    try:
+                        sub = self._run(src, Path(tmp) / f"{task}.nii.gz", task)
+                    except Exception as error:  # noqa: BLE001 -- the atlas goes on without this task
+                        notes.append(f"{task}:{type(error).__name__}"[:120])
+                        continue
+                    for v, name in class_map[task].items():
+                        if name in self.AUXILIARY_CLASSES:
+                            continue
+                        # the finer task wins where they overlap: the lobe masks of ``total`` contain the
+                        # vessels and airways inside them, which ``lung_vessels`` names
+                        free = sub == int(v)
+                        if free.any():
+                            labels[free] = code
+                            names[code] = name
+                            code += 1
+                for task in self.REGION_TASKS_CT:
+                    try:
+                        sub = self._run(src, Path(tmp) / f"{task}.nii.gz", task)
+                    except Exception as error:  # noqa: BLE001
+                        notes.append(f"{task}:{type(error).__name__}"[:120])
+                        continue
+                    for v, name in class_map[task].items():
+                        m = sub == int(v)
+                        if m.any():
+                            regions[name] = m
+        atlas = StructureLabels(labels, names, regions)
+        atlas.notes = tuple(notes)
+        return atlas
 
 __all__ = ["MaskSegmenter", "NnInteractiveRefiner", "Segmentation", "mask_back", "resample_to", "Segmenter", "SegmenterUnavailable", "TotalSegmentatorSegmenter",
            "VoxTellSegmenter", "read_nifti_mask", "write_nifti"]

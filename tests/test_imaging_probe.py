@@ -217,7 +217,8 @@ def test_a_run_saved_and_replayed_on_cpu_gives_the_same_row(tmp_path, monkeypatc
 
         def all_structures(self, volume, affine):
             from melampo.imaging.involvement import StructureLabels
-            return StructureLabels(lobe.astype(np.int16) * 3, {3: "lung_upper_lobe_right"})
+            return StructureLabels(lobe.astype(np.int16) * 3, {3: "lung_upper_lobe_right"},
+                                   regions={"thoracic_cavity": np.ones_like(lobe)})
 
     monkeypatch.setattr(probe, "VoxTellSegmenter", Lesions)
     monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Organs)
@@ -243,3 +244,5 @@ def test_a_run_saved_and_replayed_on_cpu_gives_the_same_row(tmp_path, monkeypatc
         assert first["prompt"]["radiologist"]["window"]["axial_long_mm"] == \
             again["prompt"]["radiologist"]["window"]["axial_long_mm"]
     assert "replayed" in again["prompt"]["segmenter_notes"]
+    if anatomy:   # the cavities of the atlas come back from the saved file
+        assert first["atlas"]["regions"] == again["atlas"]["regions"] == ["thoracic_cavity"]

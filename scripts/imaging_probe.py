@@ -239,6 +239,9 @@ def save_case_masks(folder: Path, case_id: str, prompts: list[str], segs, struct
                                                          "notes": list(seg.notes)}))
     if structures is not None and hasattr(structures, "labels"):
         arrays["labels"] = np.asarray(structures.labels, dtype=np.int16)
+        for name, m in (getattr(structures, "regions", None) or {}).items():   # the cavities (containers)
+            for k, v in _pack(m).items():
+                arrays[f"region__{name}__{k}"] = v
         arrays["label_names"] = np.array(json.dumps({str(v): k for k, v in structures.code.items()}))
     elif structures:
         organs = {**(organs or {}), **dict(structures.items())}
@@ -291,13 +294,15 @@ class ReplaySegmenters:
         key = f"organ__{name}__bits"
         return _unpack(self.data[key], self.data[f"organ__{name}__shape"]) if key in self.data else None
 
-    def all_structures(self, volume, affine):
+    def all_structures(self, volume, affine, **_):
         from melampo.imaging.involvement import StructureLabels
         from melampo.imaging.segmenters import SegmenterUnavailable
 
         if "labels" in self.data:
             names = {int(k): v for k, v in json.loads(str(self.data["label_names"])).items()}
-            return StructureLabels(self.data["labels"], names)
+            regions = {k.split("__")[1]: _unpack(self.data[k], self.data[k.replace("__bits", "__shape")])
+                       for k in self.data if k.startswith("region__") and k.endswith("__bits")}
+            return StructureLabels(self.data["labels"], names, regions)
         organs = {k.split("__")[1]: self._organ(k.split("__")[1]) for k in self.data if k.startswith("organ__")
                   and k.endswith("__bits")}
         if not organs:
@@ -377,7 +382,7 @@ def _radiologist_summary(volume, main, ref_main, affine, modality, host, structu
                                                  "axial_short_mm": ref.axial_short_mm, "axial_mean_mm": ref.axial_mean_mm}
     out["segmenter"] = {"axial_long_mm": seg.longest_axial_diameter_mm, "axial_short_mm": seg.axial_short_mm,
                         "axial_mean_mm": seg.axial_mean_mm, "dice": dice(main, ref_main)}
-    for k in ("window", "solid", "total"):
+    for k in ("window", "window_band", "solid", "total"):
         if r.get(k) is not None and r[k].get("mask") is not None:
             out[k]["dice"] = dice(r[k]["mask"], ref_main)
     return out
@@ -407,6 +412,9 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
     # one class or several (the lobes of a lung): the organ check uses their union
     organ, parts, named = None, [], {}
     structures = organ_seg.all_structures(volume, affine) if anatomy else None
+    if structures is not None:
+        row["atlas"] = {"structures": len(structures), "regions": sorted(getattr(structures, "regions", {}) or {}),
+                        "notes": list(getattr(structures, "notes", ()) or ())}
     if structures is not None:   # one whole-body run gives the named structures too
         for name in names:
             if name in structures:
