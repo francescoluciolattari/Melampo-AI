@@ -308,3 +308,20 @@ Proposta di Frank: per leggere come un radiologo serve un atlante anatomico di t
 - Test sintetici: vaso di 6 mm nominato, parete non nominata fuori dalla cavità, grasso mediastinico, massa di 32 mm con anello misto, banda.
 
 **Da verificare su dati reali:** un giro di rilettura su CPU con le maschere dell'undicesimo probe (solo `total`, niente cavità) dice già quanto pesano piani adiposi, parenchima e banda; il giro con GPU con i compiti aggiunti (circa 1-2 minuti di GPU in più per caso per ciascun compito) dice quanto pesa l'atlante completo. Criterio: 1-2 mm sulle parzialmente solide, nessun peggioramento sulle solide.
+
+### Prima rilettura su CPU con l'atlante (25 ottobre): la banda raddrizza le masse grandi, sbaglia le altre
+
+Rilettura delle maschere dell'undicesimo probe (30/30, nessuna GPU). Le maschere salvate hanno solo il compito principale: niente vasi del polmone, niente muscoli, niente cavità. Hanno agito piani adiposi, parenchima per il tessuto attorno e banda.
+
+| lettura (asse lungo) | entro max(2 mm, 10%) | mediana < 30 mm | 30-50 mm | > 50 mm |
+|---|---|---|---|---|
+| VoxTell | 12/30 | -1,6 | -4,6 | -12,4 |
+| finestra (10 mm) | 2/30 | +7,0 | +15,5 | +14,6 |
+| banda 3 mm a -600 HU (`window_band`) | 13/30 | -0,2 | -1,1 | -2,6 |
+| solida | 2/30 | -3,4 | +6,0 | +14,6 |
+| totale | 2/23 | +8,0 | +14,2 | +11,2 |
+
+- **Il tessuto attorno ora è il parenchima:** rumore 36-194 HU invece di 240-550; la lettura totale non crolla più a un frammento (dove la sua soglia finirebbe sopra la parte solida, viene saltata e scritto perché).
+- **La banda a -600 HU** porta le masse solide grandi vicino al riferimento: 028 -14,6 → -2,6 mm, 027 -8,1 → -1,6, 041 -7,2 → +1,3, 034 -6,0 → -3,5, 045 -5,3 → -1,9, 022 -17,1 → -8,0, 031 -14,2 → -8,3. Ma va oltre sui noduli solidi piccoli e medi dove VoxTell era già giusto (004 +4,3, 005 +4,2, 009 +6,4, 010 +4,4, 025 +5,0: arriva al bordo della banda, quasi certamente lungo vasi e pleura che queste maschere non nominano) e accorcia le lesioni a vetro smerigliato (016 -18,8, 042 -20,7, 043 -12,8: il grigio a -600 HU è più chiaro del vetro smerigliato stesso).
+- Con il criterio di Frank (1-2 mm sulle parzialmente solide, nessun peggioramento sulle solide) la banda così com'è non passa.
+- **Cosa si cambia, e come si evita di adattarsi ai 30 casi.** (1) Nuova lettura `edge`: il bordo dipende da cosa è fatta la lesione, come per il radiologo: lesione solida (mediana della regione ≥ -300 HU) al grigio della finestra polmonare; vetro smerigliato a metà tra la lesione e il polmone; sempre entro la banda. (2) Il giro con GPU con l'atlante completo (vasi, muscoli, cavità) dirà quanto dell'eccesso sui noduli piccoli viene dai vasi e dalla pleura. (3) Regola scelta su questi 30 casi, da verificare senza toccarla sui 33 casi di MSD Task06 Lung mai usati (dal 31° al 63°): `kaggle_api.py push holdout` e `push replay holdout`.
