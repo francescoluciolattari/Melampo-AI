@@ -270,3 +270,21 @@ La quota GPU settimanale di Kaggle (30 ore) è finita il 20 ottobre, prima del g
 - `--from-masks DIR`: nessun segmentatore, nessuna GPU; rilegge quei file e rifà tutta l'analisi. Un test controlla che la rilettura dia la stessa riga del giro originale (misure, Dice, stato, motivi, zone, letture da radiologo).
 - Kaggle: il notebook con GPU salva in `/kaggle/working/masks`; il nuovo notebook `melampo-imaging-replay` (solo CPU) monta l'output dell'ultimo giro con GPU come dati in ingresso e lancia la rilettura. Da Termux: `python kaggle_api.py push replay`, `status replay`, `output replay` (risultati in `output_replay`). Il `push` ora avvisa quando Kaggle rifiuta il giro (come per la quota esaurita), invece di lasciare credere che sia partito.
 - Serve un solo giro con GPU (al rinnovo della quota) per avere le maschere; da lì ogni cambiamento dell'analisi si prova su CPU.
+
+### Undicesimo probe (25 ottobre): le letture "a soglia da radiologo" falliscono; VoxTell resta il bordo migliore
+
+Giro con GPU dopo il rinnovo della quota, 30/30 casi, maschere salvate per tutti (`--save-masks`): d'ora in poi le prove dell'analisi si fanno su CPU. Accettati 12 (italiano 11/12 entro il limite stretto), come nel nono e decimo.
+
+Le tre letture (finestra, solida, totale) contro il contorno di riferimento, diametro assiale maggiore:
+
+| lettura | entro max(2 mm, 10%) | errore mediano < 30 mm | 30-50 mm | > 50 mm | Dice mediano |
+|---|---|---|---|---|---|
+| VoxTell (regione) | 12/30 | -1,6 | -4,6 | -12,4 | 0,85-0,89 |
+| finestra (-600 HU) | 3/30 | +9,9 | +15,5 | +14,1 | 0,34-0,56 |
+| solida (-300 HU) | 1/27 | -3,4 | +6,0 | +16,1 | 0,28-0,56 |
+| totale (con vetro smerigliato) | 2/25 | -0,6 | +11,9 | -55,9 | 0,00-0,51 |
+
+- **Perché falliscono.** Quasi tutte le letture arrivano al bordo della zona (10 mm): la soglia scorre lungo vasi più spessi di 4 mm, pleura e tessuti della parete che la segmentazione non nomina (+15/+26 mm su 004, 006, 015, 029, 041). Accanto al mediastino o alla parete il "tessuto intorno" è tessuto molle e la finestra polmonare non sta tra lesione e intorno (009, 014, 028, 033, 036: si ripiega su metà strada). Sulle masse grandi la lettura totale prende un'altra componente (Dice 0: 026, 027, 031, 041).
+- **Cosa insegna.** È la stessa lezione della soglia fissa -400 HU del secondo probe: una regola di densità non sa quale oggetto sta misurando. Il radiologo separa la lesione da ciò che le sta attaccato con la conoscenza dell'oggetto (continuità, forma, anatomia, contrasto), ed è proprio ciò che VoxTell ha imparato: la sua regione è molto più vicina al contorno del riferimento (Dice 0,85 contro 0,3-0,5). Le letture restano registrate come diagnostica, non decidono nulla.
+- **Overlay di 022 (con nome file, ora):** non è solo una corona in più. VoxTell include una parte in alto che il riferimento esclude e lascia fuori una parte bassa verso l'ilo che il riferimento include: due scelte diverse su dove finisce la massa e cominciano ilo e polmone alterato, che un radiologo decide anche col contrasto e il contesto. Su 031 i due contorni coincidono quasi ovunque; la differenza è in pochi punti alle estremità.
+- **Prossimi passi proposti:** (1) rifinire il bordo di VoxTell solo localmente, in una banda di 3 mm attorno al suo contorno, al livello della finestra (nessuna fuga possibile per costruzione), provato su CPU con le maschere salvate e con il criterio di Frank (1-2 mm sulle parzialmente solide, nessun peggioramento sulle solide); (2) LIDC-IDRI: VoxTell contro i contorni di quattro radiologi per nodulo, per sapere se la sua misura sta dentro la variabilità umana (serve un giro con GPU).
