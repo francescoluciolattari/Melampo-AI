@@ -325,3 +325,23 @@ Rilettura delle maschere dell'undicesimo probe (30/30, nessuna GPU). Le maschere
 - **La banda a -600 HU** porta le masse solide grandi vicino al riferimento: 028 -14,6 → -2,6 mm, 027 -8,1 → -1,6, 041 -7,2 → +1,3, 034 -6,0 → -3,5, 045 -5,3 → -1,9, 022 -17,1 → -8,0, 031 -14,2 → -8,3. Ma va oltre sui noduli solidi piccoli e medi dove VoxTell era già giusto (004 +4,3, 005 +4,2, 009 +6,4, 010 +4,4, 025 +5,0: arriva al bordo della banda, quasi certamente lungo vasi e pleura che queste maschere non nominano) e accorcia le lesioni a vetro smerigliato (016 -18,8, 042 -20,7, 043 -12,8: il grigio a -600 HU è più chiaro del vetro smerigliato stesso).
 - Con il criterio di Frank (1-2 mm sulle parzialmente solide, nessun peggioramento sulle solide) la banda così com'è non passa.
 - **Cosa si cambia, e come si evita di adattarsi ai 30 casi.** (1) Nuova lettura `edge`: il bordo dipende da cosa è fatta la lesione, come per il radiologo: lesione solida (mediana della regione ≥ -300 HU) al grigio della finestra polmonare; vetro smerigliato a metà tra la lesione e il polmone; sempre entro la banda. (2) Il giro con GPU con l'atlante completo (vasi, muscoli, cavità) dirà quanto dell'eccesso sui noduli piccoli viene dai vasi e dalla pleura. (3) Regola scelta su questi 30 casi, da verificare senza toccarla sui 33 casi di MSD Task06 Lung mai usati (dal 31° al 63°): `kaggle_api.py push holdout` e `push replay holdout`.
+
+### Dodicesimo probe (26 ottobre): l'atlante completo ferma le fuoriuscite; la banda arriva a 1-2 mm sui solidi
+
+Giro con GPU, atlante completo (110 strutture con vasi e vie aeree del polmone, versamenti, muscoli del tronco; cavità toracica, addominale, mediastino, pericardio). 29 casi su 30: lung_006 (567 fette) ucciso per memoria (-9). Accettati 11 (italiano 10/11 entro il limite stretto).
+
+- **Le fuoriuscite si fermano.** Lettura a finestra entro 10 mm: entro tolleranza 9/29 (prima 2/30); 004 +26,0 → +9,1 mm, 005 +15,3 → +1,3, 010 +15,6 → +1,2, 015 +22,3 → +1,0, 045 +18,1 → 0,0.
+- **Banda di 3 mm a -600 HU (`window_band`), per gruppo** (errore mediano assoluto del diametro maggiore, entro tolleranza):
+
+| gruppo | VoxTell | banda |
+|---|---|---|
+| solide < 30 mm (7) | 0,6 mm, 6/7 | 1,0 mm, 6/7 |
+| solide 30-50 mm (5) | 1,4 mm, 3/5 | 1,8 mm, 5/5 |
+| solide > 50 mm (9) | 12,4 mm, 1/9 | 10,8 mm, 2/9 |
+| parzialmente solide (8) | 4,7 mm, 1/8 | 8,4 mm, 1/8 |
+
+  Sui solidi fino a 50 mm la banda sta tra 1 e 2 mm e porta dentro 034 (-6,0 → -4,2), 045 (-5,3 → -1,9), 029 (-3,2 → +1,0); esce 025 (+0,3 → +3,0). Totale entro tolleranza 14/29 contro 11/29.
+- **Masse grandi:** il miglioramento della prima rilettura era in parte una fuoriuscita lungo vasi non ancora nominati: con l'atlante 028 -14,6 → -9,5 (nella rilettura -2,6), 022 → -12,9 (rilettura -8,0). Restano 027 -1,6 e 041 -0,5.
+- **Parzialmente solide e lesioni a soglia frammentata:** la banda le accorcia (016 -18,8, 042 -25,2, 043 -12,8; anche 031, cavitata, -27,5): a soglia la lesione si spezza in pezzi e la lettura teneva un pezzo solo.
+- **Correzioni.** (1) Le letture in banda raffinano solo verso l'esterno: la regione di VoxTell resta intera e la banda aggiunge ciò che il bordo del radiologo aggiunge, mai toglie. (2) Le serie più lunghe di 400 fette si segmentano a parti (`force_split` di TotalSegmentator), per la memoria.
+- **Regola candidata, da verificare senza toccarla sui 33 casi tenuti da parte:** misura con la banda per le lesioni solide; per le parzialmente solide la regione di VoxTell. Scelta su questi 30 casi, quindi vale solo se tiene sugli altri 33.
