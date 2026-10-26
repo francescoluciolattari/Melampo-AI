@@ -24,8 +24,11 @@ CLASS_MAP = {
 def fake_ts(monkeypatch):
     calls = []
 
-    def totalsegmentator(src, out, ml=True, device="gpu", task="total", fast=False, nr_thr_saving=6):
+    def totalsegmentator(src, out, ml=True, device="gpu", task="total", fast=False, nr_thr_saving=6,
+                         force_split=False):
         calls.append((task, fast))
+        if force_split:
+            calls.append(("split", task))
         if task == "abdominal_muscles":
             raise RuntimeError("weights not downloaded")
         img = nib.load(src)
@@ -72,3 +75,8 @@ def test_on_mr_only_the_main_mr_task(fake_ts):
     atlas = TotalSegmentatorSegmenter(fast=False, device="cpu").all_structures(
         np.zeros((6, 10, 10), np.float32), np.eye(4), modality="MR")
     assert [t for t, _ in fake_ts] == ["total_mr"] and atlas.regions == {}
+
+
+def test_a_long_series_is_segmented_in_parts(fake_ts):
+    TotalSegmentatorSegmenter(fast=True, device="cpu").all_structures(np.zeros((450, 4, 4), np.float32), np.eye(4))
+    assert ("split", "total") in fake_ts and ("split", "lung_vessels") in fake_ts

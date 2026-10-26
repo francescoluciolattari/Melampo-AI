@@ -113,3 +113,17 @@ def test_the_edge_follows_what_the_lesion_is_made_of():
     solid[d <= 10] = 30.0
     rs = radiologist_readings(solid, d <= 8.5, A, "CT", "lung_upper_lobe_right")
     assert rs["edge"]["rule"].startswith("solid_lesion") and abs(rs["edge"]["axial_long_mm"] - 20) < 1.6
+
+
+def test_the_band_never_takes_away_from_the_segmenter_region():
+    img = _lung()
+    d = _dist(55, 55)
+    img[d <= 12] = -700.0                                       # a ground-glass lesion 24 mm
+    rng = np.random.default_rng(9)
+    holes = (d <= 12) & (rng.random(X.shape) < 0.35)
+    img[holes] = -820.0                                         # patchy: at a threshold it falls apart
+    seed = d <= 11
+    r = radiologist_readings(img, seed, A, "CT", "lung_upper_lobe_right")
+    for k in ("window_band", "edge"):
+        assert (r[k]["mask"] & seed).sum() == seed.sum()        # the whole region is kept
+        assert r[k]["axial_long_mm"] >= 22 - 0.5

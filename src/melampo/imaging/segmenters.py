@@ -302,13 +302,17 @@ class TotalSegmentatorSegmenter:
     REGION_TASKS_CT = ("trunk_cavities",)
     AUXILIARY_CLASSES = frozenset({"lung_pleural"})   # a task's helper class (the lung with its pleura), not a structure
 
-    def _run(self, src: Path, out: Path, task: str) -> np.ndarray:
+    SPLIT_SLICES = 400   # longer series are segmented in parts (twelfth probe: lung_006, 567 slices, killed -9)
+
+    def _run(self, src: Path, out: Path, task: str, slices: int = 0) -> np.ndarray:
         from totalsegmentator.python_api import totalsegmentator
         import nibabel as nib
 
         kwargs = dict(ml=True, device=self.device, task=task)
         if task in ("total", "total_mr"):
             kwargs["fast"] = self.fast
+        if slices > self.SPLIT_SLICES:
+            kwargs["force_split"] = True
         try:
             totalsegmentator(str(src), str(out), nr_thr_saving=1, **kwargs)
         except TypeError:
@@ -333,14 +337,15 @@ class TotalSegmentatorSegmenter:
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "case.nii.gz"
             write_nifti(volume, affine, src)
-            labels = self._run(src, Path(tmp) / f"{main_task}.nii.gz", main_task)
+            n = int(np.asarray(volume).shape[0])
+            labels = self._run(src, Path(tmp) / f"{main_task}.nii.gz", main_task, n)
             names = {int(k): v for k, v in class_map[main_task].items()}
             regions: dict[str, np.ndarray] = {}
             if extra and not mr:
                 code = max(names) + 1
                 for task in self.EXCLUSIVE_TASKS_CT:
                     try:
-                        sub = self._run(src, Path(tmp) / f"{task}.nii.gz", task)
+                        sub = self._run(src, Path(tmp) / f"{task}.nii.gz", task, n)
                     except Exception as error:  # noqa: BLE001 -- the atlas goes on without this task
                         notes.append(f"{task}:{type(error).__name__}"[:120])
                         continue
@@ -356,7 +361,7 @@ class TotalSegmentatorSegmenter:
                             code += 1
                 for task in self.REGION_TASKS_CT:
                     try:
-                        sub = self._run(src, Path(tmp) / f"{task}.nii.gz", task)
+                        sub = self._run(src, Path(tmp) / f"{task}.nii.gz", task, n)
                     except Exception as error:  # noqa: BLE001
                         notes.append(f"{task}:{type(error).__name__}"[:120])
                         continue

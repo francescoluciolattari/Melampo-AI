@@ -66,7 +66,7 @@ def _crops(structures, box) -> dict[str, np.ndarray]:
 
 
 def _region_at(img: np.ndarray, s: np.ndarray, sp, level: float, above: bool, zone: np.ndarray,
-               zone_edge: np.ndarray, notes: list[str]) -> np.ndarray | None:
+               zone_edge: np.ndarray, notes: list[str], keep_seed: bool = False) -> np.ndarray | None:
     side = (img >= level) if above else (img <= level)
     dense = side & zone
     r = tuple(int(x) for x in np.maximum(1, np.round(OPEN_MM / sp[1:])))
@@ -75,6 +75,8 @@ def _region_at(img: np.ndarray, s: np.ndarray, sp, level: float, above: bool, zo
         opened = _dilate(_erode(dense)) & dense
     if (opened & s).any():
         dense = opened
+    if keep_seed:   # refine outward only: the segmenter's region stays, what the threshold adds joins through it
+        dense = dense | s
     labels, sizes = label_parts(dense)
     if not sizes:
         return None
@@ -181,9 +183,9 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
     above = core > surrounding
     band = grow(s, np.ceil(BAND_MM / sp).astype(int))
 
-    def reading(level: float, within: np.ndarray, edge: np.ndarray) -> dict:
+    def reading(level: float, within: np.ndarray, edge: np.ndarray, keep_seed: bool = False) -> dict:
         notes: list[str] = []
-        region = _region_at(img, s, sp, level, above, within & allowed, edge, notes)
+        region = _region_at(img, s, sp, level, above, within & allowed, edge, notes, keep_seed)
         full = None
         if region is not None:
             full = np.zeros(seed.shape, dtype=bool)
@@ -196,7 +198,11 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
         level = (core + surrounding) / 2.0
         out["notes"].append(f"window_level_not_between_lesion_and_surroundings:{win}:half_way")
     out["window"] = {"window": win, **reading(level, zone, zone_edge)}
-    out["window_band"] = {"window": win, **reading(level, band, band & ~_erode(band))}
+    # The band readings refine the segmenter's edge outward only (twelfth probe, 26 Oct: at a threshold, a
+    # ground-glass or cavitated lesion falls apart into pieces and the reading kept one piece: 031 -27.5 mm,
+    # 042 -25.2, 016 -18.8, where VoxTell had -14.2, -10.7, -3.0). The region of the segmenter is the object the
+    # report names; the band adds to it what the radiologist's edge adds, never takes from it.
+    out["window_band"] = {"window": win, **reading(level, band, band & ~_erode(band), keep_seed=True)}
     # ``edge``: where a radiologist sees the edge depends on what the lesion is made of. A solid lesion in the
     # lung on the lung window: the middle grey (-600 HU) between soft tissue and air. A ground-glass lesion is
     # itself darker than that grey, and its edge is where it meets the lung: half-way between the two (first
@@ -209,7 +215,7 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
         edge_level, rule = level, "solid_lesion:window_level"
     else:
         edge_level, rule = (core + surrounding) / 2.0, "half_way_between_lesion_and_surroundings"
-    out["edge"] = {"window": win, "rule": rule, **reading(edge_level, band, band & ~_erode(band))}
+    out["edge"] = {"window": win, "rule": rule, **reading(edge_level, band, band & ~_erode(band), keep_seed=True)}
     if surrounding < AERATED_HU and above:
         out["solid"] = reading(SOLID_HU, zone, zone_edge)
         total_level = surrounding + max(GGO_STEP_HU, 3.0 * noise)
