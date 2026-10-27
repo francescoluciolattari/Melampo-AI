@@ -345,3 +345,22 @@ Giro con GPU, atlante completo (110 strutture con vasi e vie aeree del polmone, 
 - **Parzialmente solide e lesioni a soglia frammentata:** la banda le accorcia (016 -18,8, 042 -25,2, 043 -12,8; anche 031, cavitata, -27,5): a soglia la lesione si spezza in pezzi e la lettura teneva un pezzo solo.
 - **Correzioni.** (1) Le letture in banda raffinano solo verso l'esterno: la regione di VoxTell resta intera e la banda aggiunge ciò che il bordo del radiologo aggiunge, mai toglie. (2) Le serie più lunghe di 400 fette si segmentano a parti (`force_split` di TotalSegmentator), per la memoria.
 - **Regola candidata, da verificare senza toccarla sui 33 casi tenuti da parte:** misura con la banda per le lesioni solide; per le parzialmente solide la regione di VoxTell. Scelta su questi 30 casi, quindi vale solo se tiene sugli altri 33.
+
+### Rilettura su CPU della banda che non toglie (27 ottobre) e regola fissata prima della verifica
+
+Maschere del dodicesimo probe (atlante completo), 29 casi. La banda ora tiene intera la regione di VoxTell.
+
+| gruppo | VoxTell (errore mediano assoluto, entro tolleranza) | banda 3 mm |
+|---|---|---|
+| solide < 30 mm (7) | 0,6 mm, 6/7 | 1,0 mm, 6/7 |
+| solide 30-50 mm (5) | 1,4 mm, 3/5 | 1,5 mm, 5/5 |
+| solide > 50 mm (9) | 12,4 mm, 1/9 | 9,1 mm, 2/9 |
+| parzialmente solide (8) | 4,7 mm, 1/8 | 4,5 mm, 2/8 |
+
+- Entro tolleranza 15/29 contro 11/29; spariti gli accorciamenti (016, 042, 031 tornano al valore di VoxTell). Sui solidi fino a 50 mm la banda sta tra 1 e 2 mm (004 +1,0, 029 +2,0, 034 -3,6, 045 -1,5; esce solo 025, +3,0).
+- **Parzialmente solide:** la banda a metà strada non aggiunge nulla (016 -3,0, 020 -3,8, 023 -5,1, 042 -10,7, 043 -5,5, 044 -4,8). Il riferimento include vetro smerigliato tenue, 60-180 HU sopra il polmone, sotto quella soglia.
+- **Masse grandi:** restano 8-13 mm corte (022, 028, 033, 036): più di quanto una banda di 3 mm per lato possa restituire.
+
+**Modifiche.** Per il vetro smerigliato il bordo è dove la lesione smette di distinguersi dal polmone: max(100 HU, 3 volte il rumore) sopra il parenchima, entro la banda. Lettura `edge_wide` (banda di 6 mm) solo esplorativa per le masse grandi: non sarà mai la misura senza una verifica a parte.
+
+**Regola fissata ora, prima di vedere i 33 casi tenuti da parte** (`push holdout`), e da non cambiare dopo averli visti: la misura è la lettura `edge` (banda di 3 mm che non toglie nulla alla regione di VoxTell; bordo al grigio della finestra polmonare per le lesioni solide, al limite di visibilità sul polmone per il vetro smerigliato). Criterio di successo sui 33: errore mediano tra 1 e 2 mm sulle lesioni solide fino a 50 mm e sulle parzialmente solide, nessun peggioramento rispetto a VoxTell sulle altre; entro tolleranza almeno quanto VoxTell. Se non succede, la regola si scarta.

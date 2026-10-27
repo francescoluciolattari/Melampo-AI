@@ -382,7 +382,7 @@ def _radiologist_summary(volume, main, ref_main, affine, modality, host, structu
                                                  "axial_short_mm": ref.axial_short_mm, "axial_mean_mm": ref.axial_mean_mm}
     out["segmenter"] = {"axial_long_mm": seg.longest_axial_diameter_mm, "axial_short_mm": seg.axial_short_mm,
                         "axial_mean_mm": seg.axial_mean_mm, "dice": dice(main, ref_main)}
-    for k in ("window", "window_band", "edge", "solid", "total"):
+    for k in ("window", "window_band", "edge", "edge_wide", "solid", "total"):
         if r.get(k) is not None and r[k].get("mask") is not None:
             out[k]["dice"] = dice(r[k]["mask"], ref_main)
     return out
