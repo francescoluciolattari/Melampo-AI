@@ -48,6 +48,7 @@ AERATED_HU = -500.0             # the lesion lies in aerated lung when its surro
 KEEP_SHARE = 0.05               # a cavity the lesion already runs into (this share of it) is one it may be in
 HOLD_SHARE = 0.20               # a structure holding at least this share of the lesion is not left out
 BAND_MM = 3.0                   # the band reading: the edge refined only this close to the segmenter's edge
+BAND_WIDE_MM = 6.0              # an exploratory wider band (never the measure)
 FAT_HU = (-190.0, -30.0)        # a fat plane (smoothed values), away from aerated lung (partial volume reads as fat)
 FAT_SPREAD_HU = 40.0            # ... and homogeneous (3x3x3 standard deviation)
 
@@ -110,7 +111,7 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
     runs into another; a fat plane separates it from the wall and the mediastinum; the tissue around it, for its
     density and noise, is the parenchyma of the structure that holds it, not a ring mixing lung, wall and
     mediastinum (which gave a noise of 240-520 HU and a total reading above the tumour's own density)."""
-    names = ("window", "window_band", "edge", "solid", "total")
+    names = ("window", "window_band", "edge", "edge_wide", "solid", "total")
     out: dict = {k: None for k in names} | {"notes": []}
     seed = np.asarray(seed, dtype=bool)
     if image is None or not seed.any() or (modality or "").upper() != "CT":
@@ -211,11 +212,26 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
     # solid or not: the median of the whole region (its deepest part is solid in a part-solid lesion too)
     lesion_median = float(np.median(img[s]))
     out["lesion_median"] = lesion_median
+    # Ground glass in aerated lung (replay of 27 Oct: at half-way the band added nothing to the part-solid
+    # lesions, still 3-11 mm short; what the reference adds is faint ground glass 60-180 HU above the lung): the
+    # radiologist follows a ground-glass lesion as far as it can be told from the lung, i.e. as long as it stays
+    # above the lung's own noise -- the level of the ``total`` reading, max(100 HU, 3 x noise) above the
+    # parenchyma.
     if win == "lung" and lesion_median >= SOLID_HU and level == WINDOWS["lung"][0]:
         edge_level, rule = level, "solid_lesion:window_level"
+    elif win == "lung" and surrounding < AERATED_HU and above:
+        edge_level = surrounding + max(GGO_STEP_HU, 3.0 * noise)
+        rule = "ground_glass:as_long_as_it_stands_out_of_the_lung"
+        if edge_level >= lesion_median:
+            edge_level, rule = (core + surrounding) / 2.0, "ground_glass_too_faint:half_way"
     else:
         edge_level, rule = (core + surrounding) / 2.0, "half_way_between_lesion_and_surroundings"
     out["edge"] = {"window": win, "rule": rule, **reading(edge_level, band, band & ~_erode(band), keep_seed=True)}
+    # exploratory only, never the measure: the same edge with a wider band (the large masses are 8-15 mm short,
+    # more than a 3 mm band can give back)
+    wide = grow(s, np.ceil(BAND_WIDE_MM / sp).astype(int))
+    out["edge_wide"] = {"window": win, "rule": rule, **reading(edge_level, wide & zone, wide & ~_erode(wide),
+                                                                 keep_seed=True)}
     if surrounding < AERATED_HU and above:
         out["solid"] = reading(SOLID_HU, zone, zone_edge)
         total_level = surrounding + max(GGO_STEP_HU, 3.0 * noise)
@@ -230,7 +246,7 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
 
 def readings_summary(r: dict) -> dict:
     """The readings without their masks (for a row of the probe or the graph)."""
-    keys = ("window", "window_band", "edge", "solid", "total")
+    keys = ("window", "window_band", "edge", "edge_wide", "solid", "total")
     out = {k: v for k, v in r.items() if k not in keys}
     for k in keys:
         out[k] = None if r.get(k) is None else {kk: vv for kk, vv in r[k].items() if kk != "mask"}

@@ -107,7 +107,7 @@ def test_the_edge_follows_what_the_lesion_is_made_of():
     img[d <= 10] = -640.0                                       # a ground-glass nodule, 20 mm
     img[d <= 3] = 20.0                                          # with a small solid core
     r = radiologist_readings(img, d <= 8, A, "CT", "lung_upper_lobe_right")
-    assert r["edge"]["rule"].startswith("half_way") and r["lesion_median"] < -300
+    assert r["edge"]["rule"].startswith("ground_glass") and r["lesion_median"] < -300
     assert abs(r["edge"]["axial_long_mm"] - 20) < 1.6         # its edge against the lung
     solid = _lung()
     solid[d <= 10] = 30.0
@@ -127,3 +127,15 @@ def test_the_band_never_takes_away_from_the_segmenter_region():
     for k in ("window_band", "edge"):
         assert (r[k]["mask"] & seed).sum() == seed.sum()        # the whole region is kept
         assert r[k]["axial_long_mm"] >= 22 - 0.5
+
+
+def test_a_ground_glass_edge_follows_it_as_long_as_it_stands_out_of_the_lung():
+    img = _lung()                                               # lung -860 HU, noise 20
+    d = _dist(55, 55)
+    img[d <= 12] = -740.0                                       # faint ground glass to 24 mm (120 HU above lung)
+    img[d <= 9] = -600.0                                        # denser ground glass, 18 mm: what VoxTell found
+    seed = d <= 9
+    r = radiologist_readings(img, seed, A, "CT", "lung_upper_lobe_right")
+    assert r["edge"]["rule"].startswith("ground_glass:as_long_as")
+    assert abs(r["edge"]["axial_long_mm"] - 24) < 1.6          # 3 mm per side: within the band
+    assert r["edge_wide"]["axial_long_mm"] >= r["edge"]["axial_long_mm"] - 0.1
