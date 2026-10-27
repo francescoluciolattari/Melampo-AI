@@ -364,3 +364,19 @@ Maschere del dodicesimo probe (atlante completo), 29 casi. La banda ora tiene in
 **Modifiche.** Per il vetro smerigliato il bordo è dove la lesione smette di distinguersi dal polmone: max(100 HU, 3 volte il rumore) sopra il parenchima, entro la banda. Lettura `edge_wide` (banda di 6 mm) solo esplorativa per le masse grandi: non sarà mai la misura senza una verifica a parte.
 
 **Regola fissata ora, prima di vedere i 33 casi tenuti da parte** (`push holdout`), e da non cambiare dopo averli visti: la misura è la lettura `edge` (banda di 3 mm che non toglie nulla alla regione di VoxTell; bordo al grigio della finestra polmonare per le lesioni solide, al limite di visibilità sul polmone per il vetro smerigliato). Criterio di successo sui 33: errore mediano tra 1 e 2 mm sulle lesioni solide fino a 50 mm e sulle parzialmente solide, nessun peggioramento rispetto a VoxTell sulle altre; entro tolleranza almeno quanto VoxTell. Se non succede, la regola si scarta.
+
+### Rilettura del 27 ottobre (sera): il bordo del vetro smerigliato cambia poco
+
+29 casi, maschere con l'atlante. Errore mediano assoluto del diametro maggiore (entro tolleranza):
+
+| gruppo | VoxTell | banda -600 | `edge` (la regola fissata) | `edge_wide` 6 mm |
+|---|---|---|---|---|
+| solide < 30 mm (7) | 0,6 (6) | 1,0 (6) | 0,6 (6) | 3,2 (3) |
+| solide 30-50 mm (5) | 1,4 (3) | 1,5 (5) | 1,5 (5) | 1,5 (4) |
+| solide > 50 mm (9) | 12,4 (1) | 9,1 (2) | 9,1 (2) | 9,1 (4) |
+| parzialmente solide (8) | 4,6 (1) | 4,6 (2) | 4,4 (2) | 4,7 (1) |
+
+- Entro tolleranza: VoxTell 11, `edge` 15, `edge_wide` 12 su 29.
+- Il nuovo bordo del vetro smerigliato sposta poco: 020 -3,8 → -3,5, 043 -5,5 → -4,5, 038 -1,2 → -0,6; gli altri restano. Il vetro smerigliato tenue che il riferimento include sta dentro il rumore del polmone voxel per voxel (60-180 HU sopra il parenchima contro un rumore di 40-70 HU): una soglia sul singolo voxel non lo separa. L'occhio del radiologo lo vede perché integra su un'area; la prova possibile è una soglia sull'immagine mediata, da tenere esplorativa.
+- La banda di 6 mm recupera alcune masse grandi (036 -0,3, 022 -6,5) ma va oltre su quasi tutte le lesioni piccole (+4,7…+6,5): resta solo esplorativa.
+- Con il criterio di Frank la regola fissata va bene sulle solide fino a 50 mm (0,6 e 1,5 mm), non sulle parzialmente solide (4,4 mm) né sulle masse grandi. La verifica sui 33 casi tenuti da parte dirà se il risultato sulle solide regge su casi mai visti.
