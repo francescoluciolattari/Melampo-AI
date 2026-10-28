@@ -406,3 +406,11 @@ Per la regola stabilita prima del giro, la lettura `edge` non diventa la misura.
 - **Precisione degli accettati:** 10 accettati, tutti entro il limite stretto sulla misura; ma uno, lung_096, è un nodulo diverso (Dice 0) nel lobo superiore destro, della stessa misura (12,0 mm) del nodulo di riferimento nel lobo inferiore destro. Il referto sintetico diceva solo "Formazione polmonare di 1,2 cm": la misura da sola lo ha fatto passare. Precisione vera 9/10.
 - **Correzione:** con `--report-site` (ora nei notebook) il referto sintetico nomina il lobo del riferimento, come fa un referto vero ("Formazione nel lobo inferiore destro di 1,2 cm"), e il controllo si fa su quel lobo: un nodulo in un altro lobo va a una persona. Test sintetico con due noduli uguali in due lobi.
 - **Prossimo passo per il bordo:** LIDC-IDRI, con i contorni di quattro radiologi per nodulo, per sapere quanto variano i radiologi stessi e se 1-2 mm è raggiungibile contro un solo contorno di riferimento.
+
+### Rilettura con il lobo nel referto (28 ottobre)
+
+Rilettura su CPU dei due gruppi con `--report-site` (referto sintetico che nomina il lobo del riferimento), 29 + 32 casi (006 e 047 non hanno maschere salvate).
+- **lung_096 ora va a una persona** (`outside_the_named_structure`: il nodulo trovato è nel lobo superiore destro, il referto dice inferiore destro). Nessun altro caso dei 61 cambia stato: il controllo sul lobo non ha prodotto falsi allarmi.
+- **Precisione degli accettati** (misura entro il limite stretto e lesione giusta, Dice > 0,3): casi di lavoro 10/11 con il prompt italiano (lung_016, -3,0 mm contro un limite di 2,9: l'arrotondamento noto del referto sintetico) e 11/11 con l'inglese; casi tenuti da parte 9/9 e 10/10. In totale 19/20 e 21/21.
+- **Copertura:** 20 accettati su 61 (33%); gli altri vanno a una persona quasi tutti per misura diversa dal referto.
+- **Prossimo passo proposto:** LIDC-IDRI (TCIA, CC BY 3.0): 1.018 TC del torace con i contorni di quattro radiologi per nodulo, senza consenso forzato. Serve a misurare la variabilità tra radiologi sul bordo e a tarare il bordo "da radiologo" contro più lettori invece che contro un solo contorno.
