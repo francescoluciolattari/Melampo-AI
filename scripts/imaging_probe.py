@@ -59,13 +59,23 @@ def dice(a: np.ndarray, b: np.ndarray) -> float:
     return float(2 * (a & b).sum() / s) if s else 1.0
 
 
-def synthetic_clause(reference_mm: float | None) -> str:
+LOBES_IT = {"lung_upper_lobe_left": "lobo superiore sinistro", "lung_lower_lobe_left": "lobo inferiore sinistro",
+            "lung_upper_lobe_right": "lobo superiore destro", "lung_middle_lobe_right": "lobo medio",
+            "lung_lower_lobe_right": "lobo inferiore destro"}
+
+
+def synthetic_clause(reference_mm: float | None, site: str | None = None) -> str:
     """MSD has no reports: the probe writes the sentence a report would carry, with the reference size and no
     other character (nothing the data does not say), and the finding's size is read from it by the same reader
-    used on real reports (``findings.sizes_in_text``). The sentence is synthetic and labelled so in the output."""
+    used on real reports (``findings.sizes_in_text``). The sentence is synthetic and labelled so in the output.
+    With ``site`` (a lobe), the sentence names where the lesion is, as a real report does (28 Oct 2026: in the
+    held-out run VoxTell isolated another nodule of the same size in another lobe, lung_096, and a sentence with
+    the size only let it pass)."""
+    where = f"nel {LOBES_IT.get(site, site)} " if site else "polmonare "
     if not reference_mm:
-        return "Formazione polmonare."
-    return f"Formazione polmonare di {reference_mm / 10:.1f} cm.".replace(".", ",", 1)
+        return f"Formazione {where}".strip() + "."
+    size = f"{reference_mm / 10:.1f}".replace(".", ",")
+    return f"Formazione {where}di {size} cm."
 
 
 def _free_memory() -> None:
@@ -400,7 +410,7 @@ def _anatomy_summary(region, affine, structures, density=None) -> dict:
 
 def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool = False,
                anatomy: bool = False, overlays: Path | None = None, overlays_all: bool = False,
-               save_masks: Path | None = None) -> dict:
+               save_masks: Path | None = None, report_site: bool = False) -> dict:
     volume, affine = load_case(case["image"])
     reference = read_nifti_mask(Path(case["lesion"]))
     modality = case.get("modality", "CT")
@@ -415,6 +425,18 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
     if structures is not None:
         row["atlas"] = {"structures": len(structures), "regions": sorted(getattr(structures, "regions", {}) or {}),
                         "notes": list(getattr(structures, "notes", ()) or ())}
+    ref_main, _ = split_main_part(reference, affine) if reference.any() else (reference, [])
+    site = None
+    if report_site and structures is not None and reference.any() and not case.get("report"):
+        # the report names the lobe the reference lesion lies in, and the check is against that lobe only
+        from melampo.imaging.involvement import involvement as _involvement
+
+        lobes = {n: structures[n] for n in names if n in structures}
+        got, pos = _involvement(ref_main, lobes, affine)
+        site = pos.host if pos is not None else None
+        if site:
+            names = [site]
+            row["report_site"] = site
     if structures is not None:   # one whole-body run gives the named structures too
         for name in names:
             if name in structures:
@@ -426,9 +448,8 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
             if got.mask is not None:
                 parts.append(got.mask)
                 organ = got.mask if organ is None else (organ | got.mask)
-    ref_main, _ = split_main_part(reference, affine) if reference.any() else (reference, [])
     ref_size = measure_region(ref_main, affine).longest_axial_diameter_mm if reference.any() else None
-    clause = case.get("report") or synthetic_clause(ref_size)
+    clause = case.get("report") or synthetic_clause(ref_size, site)
     sizes = fd.sizes_in_text(clause)
     text_size = max((s["largest_mm"] for s in sizes), default=None)
     character = case.get("report_character", [])
@@ -501,7 +522,8 @@ def probe_case(case: dict, lesion_seg, organ_seg, refiner=None, diagnose: bool =
 
 def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None, diagnose: bool = False,
         refiner: bool = False, anatomy: bool = False, overlays: Path | None = None,
-        overlays_all: bool = False, save_masks: Path | None = None, from_masks: Path | None = None) -> list[dict]:
+        overlays_all: bool = False, save_masks: Path | None = None, from_masks: Path | None = None,
+        report_site: bool = False) -> list[dict]:
     if from_masks is not None:   # the regions of a saved GPU run: no segmenter runs, no GPU
         lesion_seg = organ_seg = ReplaySegmenters(from_masks)
         if diagnose or refiner:
@@ -518,7 +540,7 @@ def run(cases: list[dict], device: str, fast: bool, out_path: Path | None = None
     for case in cases:
         try:
             row = probe_case(case, lesion_seg, organ_seg, ref_obj, diagnose, anatomy, overlays, overlays_all,
-                             save_masks)
+                             save_masks, report_site=report_site)
         except Exception as error:  # noqa: BLE001 -- one case failing must not lose the others
             row = {"id": case.get("id"), "error": f"{type(error).__name__}: {error}"[:500]}
         out.append(row)
@@ -545,7 +567,8 @@ def run_isolated(cases: list[dict], args, out_path: Path) -> list[dict]:
             cmd = [sys.executable, str(Path(__file__).resolve()), "--cases", str(one), "--out", str(res),
                    "--device", args.device]
             cmd += [f for f, on in (("--fast-organs", args.fast_organs), ("--diagnose-size", args.diagnose_size),
-                                    ("--nninteractive", args.nninteractive), ("--anatomy", getattr(args, "anatomy", False))) if on]
+                                    ("--nninteractive", args.nninteractive), ("--anatomy", getattr(args, "anatomy", False)),
+                                    ("--report-site", getattr(args, "report_site", False))) if on]
             for flag, attr in (("--save-masks", "save_masks"), ("--from-masks", "from_masks")):
                 if getattr(args, attr, None):
                     cmd += [flag, getattr(args, attr)]
@@ -580,6 +603,9 @@ def main(argv=None) -> int:
                     "to run the analysis again later on a CPU (--from-masks)")
     ap.add_argument("--from-masks", metavar="DIR", help="no segmenter: read the regions and structures saved "
                     "by a run with --save-masks (CPU only)")
+    ap.add_argument("--report-site", action="store_true",
+                    help="with --anatomy: the synthetic report names the lobe of the reference lesion, and the "
+                    "check is against that lobe (a real report says where the lesion is)")
     ap.add_argument("--anatomy", action="store_true",
                     help="whole-body structures: the zones each lesion involves, its position and its margins")
     args = ap.parse_args(argv)
@@ -597,7 +623,7 @@ def main(argv=None) -> int:
         rows = run(cases, args.device, args.fast_organs, Path(args.out), args.diagnose_size, args.nninteractive,
                    args.anatomy, Path(args.overlays) if args.overlays else None, args.overlays_all,
                    Path(args.save_masks) if args.save_masks else None,
-                   Path(args.from_masks) if args.from_masks else None)
+                   Path(args.from_masks) if args.from_masks else None, args.report_site)
     Path(args.out).write_text(json.dumps(rows, indent=1, default=float))
     return 0
 

@@ -246,3 +246,39 @@ def test_a_run_saved_and_replayed_on_cpu_gives_the_same_row(tmp_path, monkeypatc
     assert "replayed" in again["prompt"]["segmenter_notes"]
     if anatomy:   # the cavities of the atlas come back from the saved file
         assert first["atlas"]["regions"] == again["atlas"]["regions"] == ["thoracic_cavity"]
+
+
+def test_a_report_that_names_the_lobe_stops_a_same_size_nodule_in_another_lobe(tmp_path, monkeypatch):
+    ref = _ball((30, 48, 20), 6)                                     # the lesion, in the lobe on one side
+    other = _ball((70, 48, 20), 6)                                   # a nodule of the same size, other lobe
+    ct = np.full(SHAPE_XYZ, -850.0)
+    ct[ref | other] = 35.0
+    nib.save(nib.Nifti1Image(ct, AFFINE_RAS), str(tmp_path / "img.nii.gz"))
+    nib.save(nib.Nifti1Image(ref.astype(np.uint8), AFFINE_RAS), str(tmp_path / "ref.nii.gz"))
+    zyx = lambda m: m.transpose(2, 1, 0)  # noqa: E731
+    x = np.mgrid[0:SHAPE_XYZ[0], 0:SHAPE_XYZ[1], 0:SHAPE_XYZ[2]][0]
+    labels = np.where(x < 50, 1, 2).astype(np.int16)
+    labels[ref | other] = 0                                          # the lobe masks are parenchyma
+
+    class Lesions(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({"tumore polmonare": zyx(other)}, "fake")
+
+    class Organs(MaskSegmenter):
+        def __init__(self, **_):
+            super().__init__({}, "fake")
+
+        def all_structures(self, volume, affine):
+            from melampo.imaging.involvement import StructureLabels
+            return StructureLabels(zyx(labels), {1: "lung_upper_lobe_left", 2: "lung_upper_lobe_right"})
+
+    monkeypatch.setattr(probe, "VoxTellSegmenter", Lesions)
+    monkeypatch.setattr(probe, "TotalSegmentatorSegmenter", Organs)
+    cases = [{"id": "syn", "image": str(tmp_path / "img.nii.gz"), "lesion": str(tmp_path / "ref.nii.gz"),
+              "structure": ["lung_upper_lobe_left", "lung_upper_lobe_right"], "prompt": "tumore polmonare"}]
+    blind = probe.run(cases, "cpu", True, anatomy=True)[0]
+    assert not blind["prompt"]["needs_review"] and blind["prompt"]["dice"] == 0.0      # the size alone lets it pass
+    sited = probe.run(cases, "cpu", True, anatomy=True, report_site=True)[0]
+    sides = {"lung_upper_lobe_left", "lung_upper_lobe_right"}
+    assert sited["report_site"] in sides and "lobo superiore" in sited["report_clause"]
+    assert sited["prompt"]["needs_review"] and "outside_the_named_structure" in sited["prompt"]["review"]
