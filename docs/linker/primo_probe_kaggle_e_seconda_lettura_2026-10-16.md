@@ -426,3 +426,35 @@ Obiettivo: smettere di misurare l'errore contro un solo contorno. LIDC-IDRI (TCI
   - il controllo con un referto sintetico che nomina il lobo e la misura del consenso.
 - **Kaggle:** notebook `kaggle_lidc.ipynb`: scarica da TCIA solo le serie scelte (fuori dall'output), lancia lo script con GPU e salva le maschere; `MODE = "replay"` rilegge su CPU. Kit: `push lidc`, `push replay lidc`, `push lidc verifica`.
 - **Non provato da qui:** il download da TCIA (la rete di questo ambiente non raggiunge TCIA). Lettura delle serie, posizionamento dei contorni dei radiologi, statistiche e letture sono provati con una serie DICOM sintetica che ha la geometria di una TC LIDC vera e i contorni veri del database.
+
+### LIDC-IDRI, gruppo "misura" (29 ottobre): VoxTell misura come un radiologo; la tolleranza è più stretta dei radiologi stessi
+
+40 noduli, 40 completati, nessun errore; circa 105 s per nodulo.
+
+**I radiologi tra loro** (differenza tra il diametro maggiore più grande e il più piccolo dei quattro; errore mediano di un radiologo sulla media degli altri tre; Dice mediano tra radiologi):
+
+| strato | differenza | radiologo vs altri | Dice |
+|---|---|---|---|
+| solido < 10 mm | 0,7 mm | 0,4 mm | 0,73 |
+| solido 10-20 mm | 1,8 | 0,6 | 0,81 |
+| solido ≥ 20 mm | 5,5 | 2,9 | 0,84 |
+| parzialmente solido < 10 | 2,1 | 0,8 | 0,64 |
+| parzialmente solido 10-20 | 3,7 | 2,0 | 0,78 |
+| parzialmente solido ≥ 20 | 7,9 | 3,4 | 0,75 |
+| vetro smerigliato (tutti) | 2,2-2,7 | 0,8-1,1 | 0,65-0,86 |
+| tutti (40) | 2,8 | 1,2 | 0,75 |
+
+Sui 160 confronti radiologo-contro-gli-altri: mediana 0,6 mm sotto i 10 mm, 1,3 mm tra 10 e 20, 2,7 mm sopra i 20; al 90° percentile 2,0 / 3,1 / 8,0 mm (circa il 29% del diametro). **Con la nostra tolleranza max(2 mm, 10%), il 26% delle misure di un radiologo vero verrebbe mandato a una persona**, anche se il nostro numero fosse identico al suo.
+
+**Le nostre letture contro i quattro** (prompt italiano; errore assoluto mediano sulla media dei radiologi):
+- VoxTell trova il nodulo in 33/40 (in inglese 36/40). I mancati sono soprattutto vetri smerigliati piccoli (4 su 7) e un nodulo solido in un polmone con molte altre regioni.
+- VoxTell: 1,27 mm; dentro l'intervallo dei quattro radiologi 17/33; con un errore non oltre quello del radiologo peggiore ("come un radiologo") 25/33; Dice sul consenso 0,85 (i radiologi tra loro: 0,75).
+- `edge`: 1,01 mm; dentro l'intervallo 20/33; come un radiologo 26/33; Dice 0,83. Migliora poco, non peggiora.
+- Accettati 23: 18 come un radiologo; i 5 restanti hanno errori di 0,9-2,0 mm su noduli dove i quattro radiologi concordavano entro 0,3-0,6 mm (piccoli e solidi).
+- A una persona 10: 7 di questi erano "come un radiologo" (per esempio LIDC-IDRI-0130: i radiologi misurano 13,0 / 24,2 / 22,8 / 13,3 mm, VoxTell 13,6 mm, il consenso 23,7 mm). Falsi allarmi rispetto alla variabilità umana.
+
+**Cosa cambia nella lettura dei risultati MSD.** Contro un solo contorno l'errore di VoxTell sembrava grande; contro quattro radiologi è dentro la loro variabilità nella maggior parte dei noduli fino a 30 mm. LIDC non contiene masse sopra i 40 mm: per quelle resta aperto.
+
+**Proposte (da decidere):**
+1. Tolleranza dal comportamento dei radiologi, non fissa: il 90° percentile del disaccordo tra radiologi per fascia di diametro (2,0 mm sotto i 10, 3,1 tra 10 e 20, 8,0 sopra i 20), fissata ora sul gruppo "misura" e verificata sul gruppo "verifica". La protezione contro la lesione sbagliata viene dalla sede (il lobo, già attivo) e dalle altre caratteristiche, non da una tolleranza stretta sulla misura.
+2. Il prompt dal referto: un nodulo a vetro smerigliato viene descritto così nel referto, e VoxTell va interrogato con quelle parole ("nodulo a vetro smerigliato"), non con "nodulo polmonare". Da provare sul gruppo "verifica".
