@@ -18,6 +18,12 @@ regola): un giro con GPU a sé (notebook melampo-imaging-holdout) e la sua rilet
 ./output_holdout e ./output_replay_holdout.
   python kaggle_api.py push holdout            poi status holdout, output holdout
   python kaggle_api.py push replay holdout     poi status replay holdout, output replay holdout
+
+Con "lidc" si lavora su LIDC-IDRI (quattro radiologi per nodulo): "misura" di default, "verifica" per i noduli
+tenuti da parte. Risultati in ./output_lidc, ./output_lidc_verifica, ./output_replay_lidc, ...
+  python kaggle_api.py push lidc                poi status lidc, output lidc            (GPU)
+  python kaggle_api.py push replay lidc         poi status replay lidc, output replay lidc   (solo CPU)
+  python kaggle_api.py push lidc verifica       poi status lidc verifica, output lidc verifica
 """
 import base64, json, os, sys, urllib.parse, urllib.request
 
@@ -26,12 +32,20 @@ SLUG = "melampo-imaging-probe"
 NOTEBOOK = os.path.join(HERE, "kaggle_imaging_probe.ipynb")
 REPLAY = "replay" in sys.argv[2:]
 HOLDOUT = "holdout" in sys.argv[2:]
-GPU_SLUG = "melampo-imaging-holdout" if HOLDOUT else "melampo-imaging-probe"   # the run whose masks are read back
-SLUG = GPU_SLUG
-if REPLAY:
-    SLUG, NOTEBOOK = "melampo-imaging-replay" + ("-holdout" if HOLDOUT else ""), \
-        os.path.join(HERE, "kaggle_imaging_replay.ipynb")
-OUT = "output" + ("_replay" if REPLAY else "") + ("_holdout" if HOLDOUT else "")
+LIDC = "lidc" in sys.argv[2:]
+VERIFICA = LIDC and "verifica" in sys.argv[2:]
+if LIDC:
+    GPU_SLUG = "melampo-lidc" + ("-verifica" if VERIFICA else "")
+    SLUG = "melampo-lidc-replay" + ("-verifica" if VERIFICA else "") if REPLAY else GPU_SLUG
+    NOTEBOOK = os.path.join(HERE, "kaggle_lidc.ipynb")
+    OUT = "output" + ("_replay" if REPLAY else "") + "_lidc" + ("_verifica" if VERIFICA else "")
+else:
+    GPU_SLUG = "melampo-imaging-holdout" if HOLDOUT else "melampo-imaging-probe"   # the run whose masks are read back
+    SLUG = GPU_SLUG
+    if REPLAY:
+        SLUG, NOTEBOOK = "melampo-imaging-replay" + ("-holdout" if HOLDOUT else ""), \
+            os.path.join(HERE, "kaggle_imaging_replay.ipynb")
+    OUT = "output" + ("_replay" if REPLAY else "") + ("_holdout" if HOLDOUT else "")
 BASE = "https://www.kaggle.com/api/v1"
 
 
@@ -77,6 +91,13 @@ def notebook_text():
             cell["outputs"] = []
         if isinstance(cell.get("source"), list):
             cell["source"] = "".join(cell["source"])
+        if LIDC and 'MODE = "gpu"' in cell.get("source", ""):
+            src = cell["source"]
+            if REPLAY:
+                src = src.replace('MODE = "gpu"', 'MODE = "replay"')
+            if VERIFICA:
+                src = src.replace('SET = "misura"', 'SET = "verifica"')
+            cell["source"] = src
         if HOLDOUT and "CASES = slice(0, 30)" in cell.get("source", ""):
             cell["source"] = cell["source"].replace("CASES = slice(0, 30)", "CASES = slice(30, 63)")
             cell["_holdout"] = True

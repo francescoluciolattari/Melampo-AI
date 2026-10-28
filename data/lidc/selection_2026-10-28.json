@@ -1,0 +1,1880 @@
+{
+ "description": "LIDC-IDRI (TCIA, CC BY 3.0): nodules outlined by all four radiologists, slices <= 2.5 mm, one nodule per patient, stratified by the readers' median texture (5 solid, 3-4 part-solid, 1-2 ground glass) and mean diameter; order by SHA-1 of series UID + annotation ids. Fixed on 28 Oct 2026 before any run. 'misura': to measure; 'verifica': kept apart to verify any rule chosen on 'misura'.",
+ "source": "pylidc 0.2.3 annotation database",
+ "misura": [
+  {
+   "patient": "LIDC-IDRI-0672",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.329334252028672866365623335798",
+   "scan_id": 983,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.742188,
+   "readers": 4,
+   "annotation_ids": [
+    6608,
+    6609,
+    6610,
+    6611
+   ],
+   "texture": 5.0,
+   "diameter_mean": 6.948114551161505,
+   "diameters": [
+    6.638331280338457,
+    7.001787588438822,
+    7.309704074199448,
+    6.842635261669292
+   ],
+   "slices": 462,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0283",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.150097650621090951325113116280",
+   "scan_id": 283,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.820312,
+   "readers": 4,
+   "annotation_ids": [
+    2115,
+    2116,
+    2117,
+    2118
+   ],
+   "texture": 5.0,
+   "diameter_mean": 8.60937249150446,
+   "diameters": [
+    8.835030626540226,
+    8.203119999999974,
+    8.564308712937416,
+    8.835030626540226
+   ],
+   "slices": 115,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0770",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.265453131727473342790950829556",
+   "scan_id": 885,
+   "slice_thickness": 1.0,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    6009,
+    6017,
+    6024,
+    6033
+   ],
+   "texture": 5.0,
+   "diameter_mean": 7.98970319242058,
+   "diameters": [
+    6.373774391990981,
+    7.7308230480331135,
+    7.603453162872775,
+    10.250762166785453
+   ],
+   "slices": 347,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0568",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.156016499715048493339281864474",
+   "scan_id": 574,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    4027,
+    4032,
+    4036,
+    4037
+   ],
+   "texture": 5.0,
+   "diameter_mean": 8.299409758176804,
+   "diameters": [
+    8.466746188213333,
+    8.016858457728313,
+    8.016858457728313,
+    8.697175929037252
+   ],
+   "slices": 295,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0454",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.259123825760999546551970425757",
+   "scan_id": 459,
+   "slice_thickness": 1.0,
+   "pixel_spacing": 0.724609375,
+   "readers": 4,
+   "annotation_ids": [
+    3307,
+    3313,
+    3317,
+    3323
+   ],
+   "texture": 5.0,
+   "diameter_mean": 7.9522795751981,
+   "diameters": [
+    7.565143974230105,
+    9.165664155644286,
+    8.84498463561954,
+    6.233325535298466
+   ],
+   "slices": 275,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0300",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.324290109423920971676288828329",
+   "scan_id": 300,
+   "slice_thickness": 1.0,
+   "pixel_spacing": 0.6640625,
+   "readers": 4,
+   "annotation_ids": [
+    2216,
+    2220,
+    2224,
+    2227
+   ],
+   "texture": 5.0,
+   "diameter_mean": 11.274599395106582,
+   "diameters": [
+    11.597352982099245,
+    11.767217480210116,
+    11.597352982099245,
+    10.136474136017723
+   ],
+   "slices": 383,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0130",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.257515388956260258681136624817",
+   "scan_id": 134,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.720703125,
+   "readers": 4,
+   "annotation_ids": [
+    1122,
+    1124,
+    1127,
+    1128
+   ],
+   "texture": 5.0,
+   "diameter_mean": 19.659845558096325,
+   "diameters": [
+    14.35990803489883,
+    25.541783824691368,
+    24.162371690057178,
+    14.575318682737922
+   ],
+   "slices": 324,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0195",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.826829446346820089862659555750",
+   "scan_id": 196,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.664062,
+   "readers": 4,
+   "annotation_ids": [
+    1654,
+    1662,
+    1668,
+    1672
+   ],
+   "texture": 5.0,
+   "diameter_mean": 17.429912709738293,
+   "diameters": [
+    17.072981070594675,
+    18.06443941794376,
+    17.265612000000008,
+    17.31661835041473
+   ],
+   "slices": 133,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0785",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.148447286464082095534651426689",
+   "scan_id": 870,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    5879,
+    5887,
+    5895,
+    5900
+   ],
+   "texture": 5.0,
+   "diameter_mean": 13.160741490803932,
+   "diameters": [
+    15.611908578169583,
+    11.786522775637648,
+    12.964984393068123,
+    12.279550216340377
+   ],
+   "slices": 220,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0759",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.692598144815688523679745963696",
+   "scan_id": 896,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.646484,
+   "readers": 4,
+   "annotation_ids": [
+    6080,
+    6083,
+    6085,
+    6089
+   ],
+   "texture": 5.0,
+   "diameter_mean": 10.239683571310161,
+   "diameters": [
+    10.444268655526656,
+    11.009225815389577,
+    10.523997054248941,
+    8.981242760075473
+   ],
+   "slices": 136,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0050",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.183982839679953938397312236359",
+   "scan_id": 61,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    539,
+    540,
+    541,
+    542
+   ],
+   "texture": 5.0,
+   "diameter_mean": 32.72064289205031,
+   "diameters": [
+    32.522903588279135,
+    40.894538525945,
+    29.94338733865125,
+    27.52174211532584
+   ],
+   "slices": 139,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0007",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.272348349298439120568330857680",
+   "scan_id": 18,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    124,
+    126,
+    127,
+    128
+   ],
+   "texture": 5.0,
+   "diameter_mean": 34.442065596612395,
+   "diameters": [
+    34.410493039914435,
+    33.811070325597505,
+    37.62998305872593,
+    31.916715962211715
+   ],
+   "slices": 145,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-1002",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.100621383016233746780170740405",
+   "scan_id": 653,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.556640625,
+   "readers": 4,
+   "annotation_ids": [
+    4566,
+    4571,
+    4574,
+    4578
+   ],
+   "texture": 5.0,
+   "diameter_mean": 20.645675170119684,
+   "diameters": [
+    19.1536148523996,
+    21.87250613574501,
+    20.06996315443822,
+    21.48661653789591
+   ],
+   "slices": 321,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0194",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.198698492013538481395497694975",
+   "scan_id": 195,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    1643,
+    1646,
+    1649,
+    1651
+   ],
+   "texture": 5.0,
+   "diameter_mean": 29.594755345208,
+   "diameters": [
+    42.042575147105346,
+    23.554395987002085,
+    24.269100885951666,
+    28.512949360772904
+   ],
+   "slices": 149,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0044",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.511347030803753100045216493273",
+   "scan_id": 55,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    422,
+    425,
+    428,
+    431
+   ],
+   "texture": 5.0,
+   "diameter_mean": 31.086422592000407,
+   "diameters": [
+    32.412460982670304,
+    30.9375,
+    30.753179618384586,
+    30.242549766946734
+   ],
+   "slices": 147,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0255",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.240969450540588211676803094518",
+   "scan_id": 255,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    1994,
+    1996,
+    1998,
+    2000
+   ],
+   "texture": 4.5,
+   "diameter_mean": 7.356266307294552,
+   "diameters": [
+    7.340840514077731,
+    7.340840514077731,
+    7.572888010032896,
+    7.170496190989853
+   ],
+   "slices": 133,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0643",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.245391706475696258069508046497",
+   "scan_id": 1012,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.611328,
+   "readers": 4,
+   "annotation_ids": [
+    6803,
+    6804,
+    6806,
+    6807
+   ],
+   "texture": 4.5,
+   "diameter_mean": 8.00614055401952,
+   "diameters": [
+    8.514813748714372,
+    8.314959763164213,
+    8.224577081449452,
+    6.970211622750043
+   ],
+   "slices": 128,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0828",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.114195693932194925962391697338",
+   "scan_id": 827,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    5633,
+    5634,
+    5635,
+    5636
+   ],
+   "texture": 3.0,
+   "diameter_mean": 8.1676505479757,
+   "diameters": [
+    8.705242673240075,
+    8.500919067959652,
+    7.315437444199766,
+    8.14900300650331
+   ],
+   "slices": 255,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0006",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.132817748896065918417924920957",
+   "scan_id": 17,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    117,
+    118,
+    120,
+    122
+   ],
+   "texture": 4.5,
+   "diameter_mean": 8.763416161900523,
+   "diameters": [
+    9.519716382329886,
+    9.702609185162515,
+    8.705242673240075,
+    7.126096406869612
+   ],
+   "slices": 133,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0916",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.338875090785618956575597613546",
+   "scan_id": 739,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.664062,
+   "readers": 4,
+   "annotation_ids": [
+    5007,
+    5011,
+    5018,
+    5027
+   ],
+   "texture": 4.5,
+   "diameter_mean": 7.5763527936264,
+   "diameters": [
+    8.320673010971424,
+    7.77264643211231,
+    6.640620000000013,
+    7.571471731421852
+   ],
+   "slices": 127,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0525",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.716498695101447665580610403574",
+   "scan_id": 531,
+   "slice_thickness": 0.75,
+   "pixel_spacing": 0.53710938,
+   "readers": 4,
+   "annotation_ids": [
+    3819,
+    3821,
+    3823,
+    3825
+   ],
+   "texture": 3.5,
+   "diameter_mean": 12.621180413343739,
+   "diameters": [
+    13.34152022499004,
+    11.176522199430591,
+    12.538944728954329,
+    13.427734499999996
+   ],
+   "slices": 429,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0060",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.463214953282361219537913355115",
+   "scan_id": 71,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    619,
+    627,
+    630,
+    631
+   ],
+   "texture": 4.5,
+   "diameter_mean": 13.906047066969782,
+   "diameters": [
+    13.135459002376924,
+    11.786522775637648,
+    12.299664153189307,
+    18.40254233667525
+   ],
+   "slices": 115,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0036",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.177685820605315926524514718990",
+   "scan_id": 47,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.740234,
+   "readers": 4,
+   "annotation_ids": [
+    343,
+    344,
+    345,
+    347
+   ],
+   "texture": 4.5,
+   "diameter_mean": 11.16524419824512,
+   "diameters": [
+    12.670765083589387,
+    10.598537956953304,
+    11.323402831874523,
+    10.068270920563263
+   ],
+   "slices": 273,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0660",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.226456162308124493341905600418",
+   "scan_id": 995,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.589844,
+   "readers": 4,
+   "annotation_ids": [
+    6669,
+    6674,
+    6677,
+    6678
+   ],
+   "texture": 4.0,
+   "diameter_mean": 10.444586554718617,
+   "diameters": [
+    8.445280847247203,
+    12.498570278510442,
+    9.022878197926886,
+    11.811616895189939
+   ],
+   "slices": 241,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0309",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.199261544234308780356714831537",
+   "scan_id": 309,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.64453125,
+   "readers": 4,
+   "annotation_ids": [
+    2263,
+    2264,
+    2266,
+    2268
+   ],
+   "texture": 4.5,
+   "diameter_mean": 11.744330023919554,
+   "diameters": [
+    10.804312544334511,
+    13.657372330346954,
+    13.287352113806914,
+    9.228283107189837
+   ],
+   "slices": 225,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0203",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.329404588567903628160652715124",
+   "scan_id": 204,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    1710,
+    1712,
+    1714,
+    1716
+   ],
+   "texture": 4.0,
+   "diameter_mean": 32.818535053820376,
+   "diameters": [
+    40.51969524965606,
+    32.04077602251544,
+    28.811076429040273,
+    29.902592514069745
+   ],
+   "slices": 147,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-1011",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.272123398257168239653655006815",
+   "scan_id": 644,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.859375,
+   "readers": 4,
+   "annotation_ids": [
+    4484,
+    4486,
+    4489,
+    4492
+   ],
+   "texture": 3.5,
+   "diameter_mean": 28.67580489709698,
+   "diameters": [
+    29.68266819232437,
+    28.268082224591218,
+    26.235580116751755,
+    30.516889054720583
+   ],
+   "slices": 133,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0772",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.112740418331256326754121315800",
+   "scan_id": 883,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    5994,
+    5995,
+    5997,
+    5999
+   ],
+   "texture": 4.5,
+   "diameter_mean": 28.446711851192624,
+   "diameters": [
+    32.84968131504475,
+    24.828513409485474,
+    26.700011704117284,
+    29.40864097612299
+   ],
+   "slices": 149,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0655",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.204303454658845815034433453512",
+   "scan_id": 1000,
+   "slice_thickness": 0.75,
+   "pixel_spacing": 0.6484375,
+   "readers": 4,
+   "annotation_ids": [
+    6705,
+    6714,
+    6716,
+    6725
+   ],
+   "texture": 4.5,
+   "diameter_mean": 22.247809519825385,
+   "diameters": [
+    26.451163726762573,
+    21.041771896653124,
+    18.84935427908026,
+    22.648948176805586
+   ],
+   "slices": 558,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0624",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.226383054119800793308721198594",
+   "scan_id": 629,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.6484375,
+   "readers": 4,
+   "annotation_ids": [
+    4385,
+    4388,
+    4389,
+    4390
+   ],
+   "texture": 4.0,
+   "diameter_mean": 26.341645704677042,
+   "diameters": [
+    37.771136499202754,
+    22.648948176805586,
+    19.89128932757455,
+    25.055208815125273
+   ],
+   "slices": 290,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0966",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.413896555982844732694353377538",
+   "scan_id": 689,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.683594,
+   "readers": 4,
+   "annotation_ids": [
+    4772,
+    4775,
+    4777,
+    4779
+   ],
+   "texture": 2.0,
+   "diameter_mean": 9.33294735023475,
+   "diameters": [
+    10.808570174125705,
+    9.120281504252397,
+    8.231561804494932,
+    9.171375918065964
+   ],
+   "slices": 154,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0587",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.213140617640021803112060161074",
+   "scan_id": 592,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.6171875,
+   "readers": 4,
+   "annotation_ids": [
+    4173,
+    4179,
+    4184,
+    4190
+   ],
+   "texture": 2.0,
+   "diameter_mean": 8.932489712751925,
+   "diameters": [
+    10.5103243977202,
+    7.197581245199668,
+    7.4575049368279,
+    10.564548271259934
+   ],
+   "slices": 276,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0394",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.295420274214095686326263147663",
+   "scan_id": 398,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.525391,
+   "readers": 4,
+   "annotation_ids": [
+    2822,
+    2825,
+    2830,
+    2840
+   ],
+   "texture": 1.0,
+   "diameter_mean": 5.894809922082057,
+   "diameters": [
+    6.910439681989347,
+    5.357957922532051,
+    4.984296666460577,
+    6.3265454173462565
+   ],
+   "slices": 244,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0956",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.534083630500464995109143618896",
+   "scan_id": 699,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.654297,
+   "readers": 4,
+   "annotation_ids": [
+    4822,
+    4826,
+    4830,
+    4831
+   ],
+   "texture": 1.0,
+   "diameter_mean": 6.320932276149331,
+   "diameters": [
+    7.2269465774625825,
+    5.924911329727879,
+    5.395471283049514,
+    6.7363999143573485
+   ],
+   "slices": 229,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0497",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.265780642925621389994857727416",
+   "scan_id": 503,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    3668,
+    3669,
+    3670,
+    3671
+   ],
+   "texture": 1.0,
+   "diameter_mean": 18.388957804876817,
+   "diameters": [
+    21.350005946281374,
+    17.122212649527075,
+    17.006324937817254,
+    18.077287685881558
+   ],
+   "slices": 236,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0686",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.195557219224169985110295082004",
+   "scan_id": 969,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    6514,
+    6525,
+    6528,
+    6546
+   ],
+   "texture": 1.0,
+   "diameter_mean": 10.681199814326659,
+   "diameters": [
+    9.563533951454609,
+    11.005647076756777,
+    12.015005266852778,
+    10.14061296224247
+   ],
+   "slices": 238,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0936",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.296738183013079390785739615169",
+   "scan_id": 719,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.585938,
+   "readers": 4,
+   "annotation_ids": [
+    4914,
+    4917,
+    4918,
+    4920
+   ],
+   "texture": 1.0,
+   "diameter_mean": 18.247859739063884,
+   "diameters": [
+    18.342760780403815,
+    19.477481626935766,
+    18.08831509210663,
+    17.08288145680932
+   ],
+   "slices": 227,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0305",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.111258527162678142285870245028",
+   "scan_id": 305,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    2240,
+    2243,
+    2244,
+    2250
+   ],
+   "texture": 1.0,
+   "diameter_mean": 14.015173839075281,
+   "diameters": [
+    14.045128158902646,
+    13.877252069484074,
+    15.811388300841896,
+    12.326926827072512
+   ],
+   "slices": 253,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0681",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.277662902666135640561346462196",
+   "scan_id": 974,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.761719,
+   "readers": 4,
+   "annotation_ids": [
+    6569,
+    6570,
+    6571,
+    6572
+   ],
+   "texture": 1.0,
+   "diameter_mean": 21.815009903115406,
+   "diameters": [
+    21.50423261741549,
+    21.812312684995582,
+    22.493292513235833,
+    21.450201796814717
+   ],
+   "slices": 497,
+   "stratum": "vetro_smerigliato >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0464",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.558286136379689377915919180358",
+   "scan_id": 469,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.585938,
+   "readers": 4,
+   "annotation_ids": [
+    3391,
+    3392,
+    3394,
+    3395
+   ],
+   "texture": 1.5,
+   "diameter_mean": 22.790354890904016,
+   "diameters": [
+    24.727694357989876,
+    22.821514115924654,
+    22.632684839568824,
+    20.979526250132707
+   ],
+   "slices": 241,
+   "stratum": "vetro_smerigliato >=20"
+  }
+ ],
+ "verifica": [
+  {
+   "patient": "LIDC-IDRI-0456",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.179162671133894061547290922949",
+   "scan_id": 461,
+   "slice_thickness": 1.5,
+   "pixel_spacing": 0.67578125,
+   "readers": 4,
+   "annotation_ids": [
+    3326,
+    3329,
+    3333,
+    3335
+   ],
+   "texture": 5.0,
+   "diameter_mean": 9.298212422629366,
+   "diameters": [
+    9.016046418335375,
+    9.016046418335375,
+    9.675715015417223,
+    9.485041838429487
+   ],
+   "slices": 445,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0353",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.908250781706513856628130123235",
+   "scan_id": 355,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    2545,
+    2547,
+    2549,
+    2553
+   ],
+   "texture": 5.0,
+   "diameter_mean": 8.602136048749358,
+   "diameters": [
+    8.016858457728313,
+    9.140625,
+    8.697175929037252,
+    8.55388480823187
+   ],
+   "slices": 260,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0978",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.765459236550358748053283544075",
+   "scan_id": 677,
+   "slice_thickness": 1.5,
+   "pixel_spacing": 0.724609375,
+   "readers": 4,
+   "annotation_ids": [
+    4719,
+    4723,
+    4727,
+    4728
+   ],
+   "texture": 5.0,
+   "diameter_mean": 9.176392902077282,
+   "diameters": [
+    9.07932944523156,
+    10.450465024977657,
+    8.450324816357838,
+    8.725452321742074
+   ],
+   "slices": 350,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0775",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.280072876841890439628529365478",
+   "scan_id": 880,
+   "slice_thickness": 1.0,
+   "pixel_spacing": 0.5859375,
+   "readers": 4,
+   "annotation_ids": [
+    5952,
+    5962,
+    5973,
+    5977
+   ],
+   "texture": 5.0,
+   "diameter_mean": 9.367236990715359,
+   "diameters": [
+    8.389348279263489,
+    8.531378776500608,
+    9.171372563963981,
+    11.376848343133359
+   ],
+   "slices": 334,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0501",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.900182736599353600185270496549",
+   "scan_id": 507,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.642578,
+   "readers": 4,
+   "annotation_ids": [
+    3694,
+    3696,
+    3698,
+    3700
+   ],
+   "texture": 5.0,
+   "diameter_mean": 6.025372165849399,
+   "diameters": [
+    5.9242764382783655,
+    5.924276438278338,
+    6.328659348562553,
+    5.924276438278338
+   ],
+   "slices": 247,
+   "stratum": "solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0228",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.337845202462615014431060697507",
+   "scan_id": 229,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    1835,
+    1836,
+    1837,
+    1838
+   ],
+   "texture": 5.0,
+   "diameter_mean": 12.258907743930614,
+   "diameters": [
+    12.015005266852778,
+    12.459406743751886,
+    12.964984393068123,
+    11.59623457204967
+   ],
+   "slices": 127,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0732",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.244681063194071446501270815660",
+   "scan_id": 923,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.6640625,
+   "readers": 4,
+   "annotation_ids": [
+    6270,
+    6271,
+    6272,
+    6273
+   ],
+   "texture": 5.0,
+   "diameter_mean": 14.348440686006676,
+   "diameters": [
+    15.157508404588013,
+    13.67388378099836,
+    14.2580265394893,
+    14.304344018951026
+   ],
+   "slices": 167,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0733",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.172573195301625265149778785969",
+   "scan_id": 922,
+   "slice_thickness": 0.75,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    6256,
+    6257,
+    6262,
+    6267
+   ],
+   "texture": 5.0,
+   "diameter_mean": 10.526848862545268,
+   "diameters": [
+    9.793398007395083,
+    11.337549958544836,
+    10.983163606743732,
+    9.993283877497426
+   ],
+   "slices": 529,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0053",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.300136985030081433029390459071",
+   "scan_id": 64,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    561,
+    562,
+    564,
+    567
+   ],
+   "texture": 5.0,
+   "diameter_mean": 12.596769618268173,
+   "diameters": [
+    12.299664153189307,
+    11.702332249518683,
+    11.337549958544836,
+    15.047532111819864
+   ],
+   "slices": 111,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0490",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.247816269490470394602288565775",
+   "scan_id": 496,
+   "slice_thickness": 0.9,
+   "pixel_spacing": 0.626953125,
+   "readers": 4,
+   "annotation_ids": [
+    3606,
+    3607,
+    3610,
+    3611
+   ],
+   "texture": 5.0,
+   "diameter_mean": 17.9281870570654,
+   "diameters": [
+    20.10164637868722,
+    16.30078125,
+    17.655160299787187,
+    17.655160299787187
+   ],
+   "slices": 590,
+   "stratum": "solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0211",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.173931884906244951746140865701",
+   "scan_id": 212,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.742188,
+   "readers": 4,
+   "annotation_ids": [
+    1758,
+    1760,
+    1761,
+    1762
+   ],
+   "texture": 5.0,
+   "diameter_mean": 28.721955057149458,
+   "diameters": [
+    31.31294602352708,
+    31.488370062916882,
+    23.05566137387861,
+    29.030842768275267
+   ],
+   "slices": 230,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0057",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.252634638822000832774167856951",
+   "scan_id": 68,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.730469,
+   "readers": 4,
+   "annotation_ids": [
+    602,
+    603,
+    604,
+    605
+   ],
+   "texture": 5.0,
+   "diameter_mean": 30.851935468563035,
+   "diameters": [
+    31.008387540304646,
+    28.450806390343942,
+    27.18483344708929,
+    36.76371449651427
+   ],
+   "slices": 245,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0377",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.295462530340364058116953738925",
+   "scan_id": 381,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.664062,
+   "readers": 4,
+   "annotation_ids": [
+    2708,
+    2709,
+    2712,
+    2714
+   ],
+   "texture": 5.0,
+   "diameter_mean": 20.64491700466733,
+   "diameters": [
+    20.628720220834364,
+    21.924105236701436,
+    20.316390577412687,
+    19.71045198372084
+   ],
+   "slices": 258,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0314",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.154677396354641150280013275227",
+   "scan_id": 314,
+   "slice_thickness": 1.0,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    2295,
+    2296,
+    2297,
+    2298
+   ],
+   "texture": 5.0,
+   "diameter_mean": 22.08725296088693,
+   "diameters": [
+    20.3125,
+    22.71006539648224,
+    21.888946447065468,
+    23.4375
+   ],
+   "slices": 275,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0819",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.149893110752986700464921264055",
+   "scan_id": 836,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    5692,
+    5695,
+    5698,
+    5700
+   ],
+   "texture": 5.0,
+   "diameter_mean": 22.45457191795485,
+   "diameters": [
+    22.194101130705878,
+    23.200888991588233,
+    23.200888991588233,
+    21.222408557937054
+   ],
+   "slices": 375,
+   "stratum": "solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0055",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.214252223927572015414741039150",
+   "scan_id": 66,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    573,
+    576,
+    586,
+    589
+   ],
+   "texture": 3.5,
+   "diameter_mean": 9.186081627499759,
+   "diameters": [
+    9.380857545088828,
+    8.016858457728313,
+    10.452704587958324,
+    8.893905919223567
+   ],
+   "slices": 139,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0676",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.143412474064515942785157561636",
+   "scan_id": 979,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    6581,
+    6582,
+    6583,
+    6584
+   ],
+   "texture": 4.5,
+   "diameter_mean": 8.05816431116019,
+   "diameters": [
+    9.228014412645875,
+    7.905694150420948,
+    6.76040864149498,
+    8.338540040078959
+   ],
+   "slices": 449,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0450",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.215640837032688688030770057224",
+   "scan_id": 455,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.537109,
+   "readers": 4,
+   "annotation_ids": [
+    3260,
+    3271,
+    3277,
+    3284
+   ],
+   "texture": 4.5,
+   "diameter_mean": 8.161934970267186,
+   "diameters": [
+    8.38991078635311,
+    8.67726145318562,
+    7.5958683227265,
+    7.984699318803514
+   ],
+   "slices": 235,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0590",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.245248446973732759194067808002",
+   "scan_id": 595,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    4192,
+    4193,
+    4194,
+    4195
+   ],
+   "texture": 3.0,
+   "diameter_mean": 8.510878422688606,
+   "diameters": [
+    7.766269465209793,
+    8.58273441731276,
+    9.140625,
+    8.55388480823187
+   ],
+   "slices": 500,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0999",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.216882370221919561230873289517",
+   "scan_id": 656,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.654297,
+   "readers": 4,
+   "annotation_ids": [
+    4602,
+    4604,
+    4607,
+    4608
+   ],
+   "texture": 4.5,
+   "diameter_mean": 6.137159481119017,
+   "diameters": [
+    5.395471283049528,
+    7.046994355627379,
+    5.275111057938509,
+    6.831061227860653
+   ],
+   "slices": 250,
+   "stratum": "parzialmente_solido <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0031",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.124663713663969377020085460568",
+   "scan_id": 42,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.859375,
+   "readers": 4,
+   "annotation_ids": [
+    320,
+    322,
+    327,
+    331
+   ],
+   "texture": 4.5,
+   "diameter_mean": 18.7050589643358,
+   "diameters": [
+    18.591123764111195,
+    16.41833632187272,
+    17.40101750347519,
+    22.409758267884104
+   ],
+   "slices": 133,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0480",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.979083010707182900091062408058",
+   "scan_id": 485,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.664062,
+   "readers": 4,
+   "annotation_ids": [
+    3503,
+    3504,
+    3506,
+    3507
+   ],
+   "texture": 3.5,
+   "diameter_mean": 10.724035023383996,
+   "diameters": [
+    10.992181999824071,
+    10.810146162687174,
+    11.289054000000014,
+    9.804757931024724
+   ],
+   "slices": 140,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0678",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.202643836890896697853521610450",
+   "scan_id": 977,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.527344,
+   "readers": 4,
+   "annotation_ids": [
+    6575,
+    6576,
+    6577,
+    6578
+   ],
+   "texture": 4.0,
+   "diameter_mean": 12.614265349883302,
+   "diameters": [
+    11.383792406776237,
+    12.87410772924696,
+    14.58561435685999,
+    11.613546906650022
+   ],
+   "slices": 164,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0415",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.312127933722985204808706697221",
+   "scan_id": 419,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.605469,
+   "readers": 4,
+   "annotation_ids": [
+    3023,
+    3032,
+    3034,
+    3045
+   ],
+   "texture": 4.5,
+   "diameter_mean": 13.472252373367237,
+   "diameters": [
+    14.54386446744803,
+    12.25981284865351,
+    15.329250702007629,
+    11.75608147535978
+   ],
+   "slices": 205,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0800",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.450501966058662668272378865145",
+   "scan_id": 855,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.644531,
+   "readers": 4,
+   "annotation_ids": [
+    5796,
+    5798,
+    5801,
+    5804
+   ],
+   "texture": 4.5,
+   "diameter_mean": 11.247050942616921,
+   "diameters": [
+    12.160986586051163,
+    11.884564417206894,
+    11.27468776720962,
+    9.66796500000001
+   ],
+   "slices": 129,
+   "stratum": "parzialmente_solido 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0811",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.220596530836092324070084384692",
+   "scan_id": 844,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.66796875,
+   "readers": 4,
+   "annotation_ids": [
+    5730,
+    5731,
+    5732,
+    5733
+   ],
+   "texture": 3.5,
+   "diameter_mean": 38.38961897957009,
+   "diameters": [
+    37.69735361216158,
+    40.08369101974769,
+    37.69735361216158,
+    38.08007767420949
+   ],
+   "slices": 371,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0796",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.801945620899034889998809817499",
+   "scan_id": 859,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    5820,
+    5821,
+    5822,
+    5823
+   ],
+   "texture": 4.0,
+   "diameter_mean": 33.07131803026549,
+   "diameters": [
+    32.57222293659507,
+    30.52728751794245,
+    38.31224829138359,
+    30.873513375140835
+   ],
+   "slices": 262,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0265",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.217955041973656886482758642958",
+   "scan_id": 265,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.78125,
+   "readers": 4,
+   "annotation_ids": [
+    2049,
+    2050,
+    2051,
+    2052
+   ],
+   "texture": 4.5,
+   "diameter_mean": 35.0459106731404,
+   "diameters": [
+    31.59960690024482,
+    37.89666511135907,
+    33.37501463014661,
+    37.312356050811104
+   ],
+   "slices": 133,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0313",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.123697637451437522065941162930",
+   "scan_id": 313,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.701172,
+   "readers": 4,
+   "annotation_ids": [
+    2291,
+    2292,
+    2293,
+    2294
+   ],
+   "texture": 4.0,
+   "diameter_mean": 31.894440068747876,
+   "diameters": [
+    36.44071227144692,
+    29.457570103044176,
+    32.625224992471104,
+    29.05425290802931
+   ],
+   "slices": 244,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-1004",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.141511313712034597336182402384",
+   "scan_id": 651,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.605469,
+   "readers": 4,
+   "annotation_ids": [
+    4533,
+    4537,
+    4541,
+    4543
+   ],
+   "texture": 4.5,
+   "diameter_mean": 23.99923488946119,
+   "diameters": [
+    29.068818284548573,
+    23.51216295071953,
+    21.087364870525978,
+    22.328593452050672
+   ],
+   "slices": 529,
+   "stratum": "parzialmente_solido >=20"
+  },
+  {
+   "patient": "LIDC-IDRI-0730",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.584871944187559733312703328980",
+   "scan_id": 925,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.5625,
+   "readers": 4,
+   "annotation_ids": [
+    6274,
+    6275,
+    6276,
+    6277
+   ],
+   "texture": 1.0,
+   "diameter_mean": 6.41841496532931,
+   "diameters": [
+    6.7967133601469465,
+    5.791291954305188,
+    6.288941186718159,
+    6.7967133601469465
+   ],
+   "slices": 237,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0298",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.326057189095429101398977448288",
+   "scan_id": 298,
+   "slice_thickness": 1.0,
+   "pixel_spacing": 0.64453125,
+   "readers": 4,
+   "annotation_ids": [
+    2180,
+    2186,
+    2191,
+    2199
+   ],
+   "texture": 1.0,
+   "diameter_mean": 9.46020323153305,
+   "diameters": [
+    8.766572788833392,
+    11.088934914547137,
+    8.40365935045654,
+    9.58164587229513
+   ],
+   "slices": 326,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0380",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.262736997975960398949912434623",
+   "scan_id": 384,
+   "slice_thickness": 2.0,
+   "pixel_spacing": 0.625,
+   "readers": 4,
+   "annotation_ids": [
+    2733,
+    2735,
+    2738,
+    2741
+   ],
+   "texture": 1.5,
+   "diameter_mean": 5.286457306003939,
+   "diameters": [
+    5.038911092686593,
+    5.153882032022076,
+    6.76040864149498,
+    4.192627457812105
+   ],
+   "slices": 182,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0620",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.199670099218798685977406484591",
+   "scan_id": 625,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.603516,
+   "readers": 4,
+   "annotation_ids": [
+    4373,
+    4378,
+    4380,
+    4381
+   ],
+   "texture": 1.5,
+   "diameter_mean": 5.7604783875926335,
+   "diameters": [
+    5.943943265108787,
+    5.974503586164136,
+    5.725455493062548,
+    5.398011206035063
+   ],
+   "slices": 240,
+   "stratum": "vetro_smerigliato <10"
+  },
+  {
+   "patient": "LIDC-IDRI-0476",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.250397690690072950000431855143",
+   "scan_id": 481,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.761719,
+   "readers": 4,
+   "annotation_ids": [
+    3465,
+    3469,
+    3475,
+    3481
+   ],
+   "texture": 1.0,
+   "diameter_mean": 15.639445278553028,
+   "diameters": [
+    16.861368839180606,
+    16.407929406902763,
+    15.119690439113985,
+    14.168792429014756
+   ],
+   "slices": 246,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0429",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.392861216720727557882279374324",
+   "scan_id": 433,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    3100,
+    3101,
+    3104,
+    3106
+   ],
+   "texture": 1.0,
+   "diameter_mean": 11.411358934684566,
+   "diameters": [
+    10.70968093012112,
+    11.786522775637648,
+    10.70968093012112,
+    12.439551102858374
+   ],
+   "slices": 436,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0075",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.177086402277715068525592995222",
+   "scan_id": 85,
+   "slice_thickness": 1.25,
+   "pixel_spacing": 0.921875,
+   "readers": 4,
+   "annotation_ids": [
+    738,
+    741,
+    742,
+    745
+   ],
+   "texture": 2.0,
+   "diameter_mean": 14.810061679797219,
+   "diameters": [
+    14.893346419731362,
+    14.576123589838623,
+    14.071811153530486,
+    15.698965556088401
+   ],
+   "slices": 257,
+   "stratum": "vetro_smerigliato 10-20"
+  },
+  {
+   "patient": "LIDC-IDRI-0179",
+   "series": "1.3.6.1.4.1.14519.5.2.1.6279.6001.202283133206014258077705539227",
+   "scan_id": 180,
+   "slice_thickness": 2.5,
+   "pixel_spacing": 0.703125,
+   "readers": 4,
+   "annotation_ids": [
+    1485,
+    1491,
+    1506,
+    1507
+   ],
+   "texture": 1.0,
+   "diameter_mean": 17.710802864034473,
+   "diameters": [
+    17.801703142273354,
+    18.28125,
+    17.365906455790036,
+    17.394351858074504
+   ],
+   "slices": 123,
+   "stratum": "vetro_smerigliato 10-20"
+  }
+ ]
+}
