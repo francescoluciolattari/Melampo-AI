@@ -364,3 +364,45 @@ Maschere del dodicesimo probe (atlante completo), 29 casi. La banda ora tiene in
 **Modifiche.** Per il vetro smerigliato il bordo è dove la lesione smette di distinguersi dal polmone: max(100 HU, 3 volte il rumore) sopra il parenchima, entro la banda. Lettura `edge_wide` (banda di 6 mm) solo esplorativa per le masse grandi: non sarà mai la misura senza una verifica a parte.
 
 **Regola fissata ora, prima di vedere i 33 casi tenuti da parte** (`push holdout`), e da non cambiare dopo averli visti: la misura è la lettura `edge` (banda di 3 mm che non toglie nulla alla regione di VoxTell; bordo al grigio della finestra polmonare per le lesioni solide, al limite di visibilità sul polmone per il vetro smerigliato). Criterio di successo sui 33: errore mediano tra 1 e 2 mm sulle lesioni solide fino a 50 mm e sulle parzialmente solide, nessun peggioramento rispetto a VoxTell sulle altre; entro tolleranza almeno quanto VoxTell. Se non succede, la regola si scarta.
+
+### Rilettura del 27 ottobre (sera): il bordo del vetro smerigliato cambia poco
+
+29 casi, maschere con l'atlante. Errore mediano assoluto del diametro maggiore (entro tolleranza):
+
+| gruppo | VoxTell | banda -600 | `edge` (la regola fissata) | `edge_wide` 6 mm |
+|---|---|---|---|---|
+| solide < 30 mm (7) | 0,6 (6) | 1,0 (6) | 0,6 (6) | 3,2 (3) |
+| solide 30-50 mm (5) | 1,4 (3) | 1,5 (5) | 1,5 (5) | 1,5 (4) |
+| solide > 50 mm (9) | 12,4 (1) | 9,1 (2) | 9,1 (2) | 9,1 (4) |
+| parzialmente solide (8) | 4,6 (1) | 4,6 (2) | 4,4 (2) | 4,7 (1) |
+
+- Entro tolleranza: VoxTell 11, `edge` 15, `edge_wide` 12 su 29.
+- Il nuovo bordo del vetro smerigliato sposta poco: 020 -3,8 → -3,5, 043 -5,5 → -4,5, 038 -1,2 → -0,6; gli altri restano. Il vetro smerigliato tenue che il riferimento include sta dentro il rumore del polmone voxel per voxel (60-180 HU sopra il parenchima contro un rumore di 40-70 HU): una soglia sul singolo voxel non lo separa. L'occhio del radiologo lo vede perché integra su un'area; la prova possibile è una soglia sull'immagine mediata, da tenere esplorativa.
+- La banda di 6 mm recupera alcune masse grandi (036 -0,3, 022 -6,5) ma va oltre su quasi tutte le lesioni piccole (+4,7…+6,5): resta solo esplorativa.
+- Con il criterio di Frank la regola fissata va bene sulle solide fino a 50 mm (0,6 e 1,5 mm), non sulle parzialmente solide (4,4 mm) né sulle masse grandi. La verifica sui 33 casi tenuti da parte dirà se il risultato sulle solide regge su casi mai visti.
+
+### Verifica sui 33 casi tenuti da parte (28 ottobre): la regola migliora VoxTell ma non raggiunge 1-2 mm
+
+Giro con GPU sui casi lung_046-lung_096 (mai usati per scegliere nulla), atlante completo, 32 casi su 33 (lung_047 ucciso per memoria anche con la segmentazione a parti). Gruppi: "non solide" = composizione del riferimento parzialmente solida o vetro smerigliato. Errore mediano assoluto del diametro maggiore (entro tolleranza):
+
+| gruppo | VoxTell | `edge` (regola fissata) |
+|---|---|---|
+| solide < 30 mm (6) | 3,1 (1) | 2,5 (2) |
+| solide 30-50 mm (9) | 4,1 (3) | 4,1 (3) |
+| solide > 50 mm (6) | 6,1 (3) | 2,7 (5) |
+| non solide (11) | 3,1 (3) | 2,4 (5) |
+
+**Esito rispetto ai criteri fissati il 27 ottobre:**
+- errore mediano tra 1 e 2 mm sulle solide fino a 50 mm: **no** (2,5 e 4,1 mm);
+- tra 1 e 2 mm sulle parzialmente solide: **no** (2,4 mm);
+- nessun peggioramento rispetto a VoxTell: **sì** (la banda non toglie mai, migliora o lascia uguale in ogni caso);
+- entro tolleranza almeno quanto VoxTell: **sì** (15 contro 10 su 32).
+
+Per la regola stabilita prima del giro, la lettura `edge` non diventa la misura. Resta una lettura registrata che sui casi nuovi migliora VoxTell senza mai peggiorarlo (soprattutto sulle masse grandi, 5/6 entro tolleranza): se usarla come misura pur senza raggiungere 1-2 mm è una decisione di Frank.
+
+**Cosa insegna la verifica.**
+- I 30 casi di lavoro erano favorevoli a VoxTell: sui solidi fino a 50 mm il suo errore mediano era 0,6-1,4 mm, sui casi nuovi 3,1-4,1 mm. Una regola scelta su 30 casi non si trasferisce intera: la verifica su casi mai visti era necessaria.
+- Sui solidi 30-50 mm dei casi nuovi la banda non aggiunge nulla (VoxTell corto di 3-13 mm): il bordo del riferimento sta sotto il grigio della finestra o oltre i 3 mm.
+- **Precisione degli accettati:** 10 accettati, tutti entro il limite stretto sulla misura; ma uno, lung_096, è un nodulo diverso (Dice 0) nel lobo superiore destro, della stessa misura (12,0 mm) del nodulo di riferimento nel lobo inferiore destro. Il referto sintetico diceva solo "Formazione polmonare di 1,2 cm": la misura da sola lo ha fatto passare. Precisione vera 9/10.
+- **Correzione:** con `--report-site` (ora nei notebook) il referto sintetico nomina il lobo del riferimento, come fa un referto vero ("Formazione nel lobo inferiore destro di 1,2 cm"), e il controllo si fa su quel lobo: un nodulo in un altro lobo va a una persona. Test sintetico con due noduli uguali in due lobi.
+- **Prossimo passo per il bordo:** LIDC-IDRI, con i contorni di quattro radiologi per nodulo, per sapere quanto variano i radiologi stessi e se 1-2 mm è raggiungibile contro un solo contorno di riferimento.
