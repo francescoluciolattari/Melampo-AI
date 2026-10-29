@@ -139,3 +139,19 @@ def test_a_ground_glass_edge_follows_it_as_long_as_it_stands_out_of_the_lung():
     assert r["edge"]["rule"].startswith("ground_glass:as_long_as")
     assert abs(r["edge"]["axial_long_mm"] - 24) < 1.6          # 3 mm per side: within the band
     assert r["edge_wide"]["axial_long_mm"] >= r["edge"]["axial_long_mm"] - 0.1
+
+
+def test_calipers_on_the_sub_voxel_contour_and_the_sweep_of_edge_levels():
+    from scipy.ndimage import gaussian_filter
+    img = _lung() * 0 - 860.0
+    d = _dist(55, 55)
+    img[d <= 10] = 30.0                                          # a 20 mm sphere
+    img = gaussian_filter(img, (1.0, 1.0, 1.0))                  # the scanner's blur: a ramp, not a step
+    r = radiologist_readings(img, d <= 9.5, A, "CT", "lung_upper_lobe_right", sweep=True)
+    e = r["edge"]
+    assert 20 < e["caliper_long_mm"] < 21.5                       # the -600 HU grey lies outside the half-way edge
+    assert abs(e["caliper_long_mm"] - e["caliper_short_mm"]) < 1.0
+    longs = [r["sweep"][f]["axial_long_mm"] for f in ("0.2", "0.5", "0.8")]
+    assert longs[0] > longs[1] > longs[2]                         # the higher the level, the tighter the edge
+    half = r["sweep"]["0.5"]
+    assert abs(half["caliper_long_mm"] - 20) < 0.8 and half["axial_long_mm"] < half["caliper_long_mm"]

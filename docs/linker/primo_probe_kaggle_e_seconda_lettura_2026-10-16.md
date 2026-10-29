@@ -458,3 +458,19 @@ Sui 160 confronti radiologo-contro-gli-altri: mediana 0,6 mm sotto i 10 mm, 1,3 
 **Proposte (da decidere):**
 1. Tolleranza dal comportamento dei radiologi, non fissa: il 90° percentile del disaccordo tra radiologi per fascia di diametro (2,0 mm sotto i 10, 3,1 tra 10 e 20, 8,0 sopra i 20), fissata ora sul gruppo "misura" e verificata sul gruppo "verifica". La protezione contro la lesione sbagliata viene dalla sede (il lobo, già attivo) e dalle altre caratteristiche, non da una tolleranza stretta sulla misura.
 2. Il prompt dal referto: un nodulo a vetro smerigliato viene descritto così nel referto, e VoxTell va interrogato con quelle parole ("nodulo a vetro smerigliato"), non con "nodulo polmonare". Da provare sul gruppo "verifica".
+
+### Come un radiologo, o meglio (29 ottobre): il metodo del radiologo con la precisione della macchina
+
+Richiesta di Frank: fare come o meglio di un radiologo, con il suo metodo e la precisione di un'IA unita alla macchina (TC, RM).
+
+**Cosa vuol dire "meglio di un radiologo", misurabile su LIDC.** Un radiologo, confrontato con la media degli altri tre, sbaglia in mediana 0,6 mm sotto i 10 mm, 1,3 mm tra 10 e 20, 2,7 mm sopra. "Come un radiologo": il nostro errore sulla media dei quattro non supera quello del radiologo peggiore. "Meglio di un radiologo": il nostro errore mediano sulla media dei quattro è sotto l'errore mediano di un radiologo sulla media degli altri, in ogni fascia; e il Dice sul consenso supera quello tra radiologi (oggi VoxTell 0,85 contro 0,75).
+
+**Cosa ha la macchina che il radiologo non ha, e come lo usiamo.**
+1. **Il bordo dove lo mettono i radiologi, imparato da quattro di loro.** Scansione dei livelli: il bordo a una frazione f (0,1 ... 0,9) tra il parenchima attorno e il nucleo della lesione, entro la banda di 3 mm, libero anche di stringersi. Si sceglie f per tipo di nodulo (solido, parzialmente solido, vetro smerigliato) sul gruppo "misura", con la regola fissata qui: errore assoluto mediano più basso sulla media dei quattro radiologi, a parità il maggior numero di "come un radiologo". Poi f resta fisso e si verifica sul gruppo "verifica".
+2. **Il calibro sub-voxel.** Il radiologo misura col calibro da bordo a bordo; la misura sui centri dei voxel è corta di circa un voxel (una sfera di 20 mm a 0,8 mm di voxel misura 19,6). Il diametro sul contorno interpolato tra voxel (`caliper_*`) è quello da confrontare con i referti veri.
+3. **I dati di acquisizione.** Spessore e passo delle fette, kernel di ricostruzione, apparecchio: registrati per ogni esame. Un nodulo più piccolo di tre fette è segnalato (`small_for_the_slices`): lì l'effetto di volume parziale domina il bordo. Integrati con la macchina, si chiederebbe una ricostruzione a fette sottili; qui si registra il limite.
+4. **Il prompt dal referto.** Nel giro "verifica" VoxTell riceve le parole del tipo di nodulo ("nodulo polmonare a vetro smerigliato", "parzialmente solido", "solido"): con "nodulo polmonare" mancava 4 vetri smerigliati su 10.
+
+**Criteri sul gruppo "verifica", fissati ora:** errore assoluto mediano sulla media dei quattro non sopra l'errore mediano di un radiologo sugli altri tre, in ogni fascia di diametro; almeno il 90% dei noduli trovati "come un radiologo"; mai peggio di VoxTell. Se tutti e tre tengono, la misura è "come un radiologo"; se l'errore mediano è sotto quello dei radiologi, "meglio".
+
+**Passi.** (1) Rilettura su CPU del gruppo "misura" con la scansione (`push replay lidc`): nessuna GPU. (2) Scelta di f per tipo, scritta qui prima del passo 3. (3) Giro con GPU sul gruppo "verifica" (`push lidc verifica`).

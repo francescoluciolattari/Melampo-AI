@@ -44,7 +44,8 @@ def test_a_series_is_read_in_z_order_with_its_geometry(tmp_path):
     for k in range(5):
         vol[k] = k * 10 - 1000
     _write_series(tmp_path / "s", vol, [10.0, 12.5, 15.0, 17.5, 20.0], 0.7)
-    got, affine, zs = lp.load_series(tmp_path / "s")
+    got, affine, zs, meta = lp.load_series(tmp_path / "s")
+    assert abs(meta["slice_step_mm"] - 2.5) < 1e-6
     assert got.shape == (5, 8, 6) and np.allclose(got[:, 0, 0], [-1000, -990, -980, -970, -960])
     assert np.allclose(zs, [10, 12.5, 15, 17.5, 20]) and np.allclose(np.diag(affine)[:3], [0.7, 0.7, 2.5])
 
@@ -111,6 +112,8 @@ def test_one_real_lidc_nodule_on_a_synthetic_series(tmp_path):
     assert p["found"]["found"] and p["segmenter"]["dice_consensus"] > 0.6
     assert p["segmenter"]["within_readers_range"] or abs(p["segmenter"]["error_on_readers_mean_mm"]) < 5
     assert row["report_site"] == "lung_upper_lobe_right" and "lobo superiore destro" in row["report_clause"]
-    assert "edge" in p and p["edge"]["axial_long_mm"] is not None
+    assert "edge" in p and p["edge"]["axial_long_mm"] is not None and p["edge"].get("caliper_long_mm")
+    assert set(p["sweep"]) == {"0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"}
+    assert row["acquisition"]["pixel_spacing_mm"] and "small_for_the_slices" in row
     assert len(row["ratings"]) == 4 and all(x["texture"] for x in row["ratings"])
     json.dumps(row, default=float)

@@ -98,8 +98,46 @@ def _measures(region: np.ndarray | None, affine) -> dict:
             "axial_mean_mm": m.axial_mean_mm, "volume_mm3": m.volume_mm3}
 
 
+SWEEP_FRACTIONS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+
+
+def caliper(img: np.ndarray, region: np.ndarray, sp, level: float, allowed: np.ndarray, background: float) -> dict:
+    """The diameters a radiologist takes with the calipers, on the iso-contour at ``level`` (sub-voxel: the
+    contour is interpolated between voxels, not drawn through voxel centres), on the axial slice where the
+    longest axial diameter is; the short axis perpendicular to it on that slice, and their mean. Outside
+    ``allowed`` the image is set to ``background`` so the contour closes against what is not the lesion."""
+    try:
+        from skimage.measure import find_contours, points_in_poly
+    except ImportError:
+        return {"caliper_long_mm": None, "caliper_short_mm": None, "caliper_mean_mm": None,
+                "caliper_note": "scikit-image not installed"}
+    best = None
+    for z in np.unique(np.argwhere(region)[:, 0]):
+        sl = np.where(allowed[z], img[z], background).astype(float)
+        pix = np.argwhere(region[z])
+        for c in find_contours(sl, level):
+            if len(c) < 4:
+                continue
+            inside = points_in_poly(pix.astype(float), c).sum()
+            if inside < 0.5 * len(pix):
+                continue
+            mm = c * np.array([sp[1], sp[2]])
+            d2 = ((mm[:, None, :] - mm[None, :, :]) ** 2).sum(-1)
+            k = int(np.argmax(d2))
+            i, j = divmod(k, len(mm))
+            long = float(np.sqrt(d2.flat[k]))
+            if best is None or long > best[0]:
+                v = mm[j] - mm[i]
+                u = np.array([-v[1], v[0]]) / (np.linalg.norm(v) or 1.0)
+                proj = mm @ u
+                best = (long, float(proj.max() - proj.min()))
+    if best is None:
+        return {"caliper_long_mm": None, "caliper_short_mm": None, "caliper_mean_mm": None}
+    return {"caliper_long_mm": best[0], "caliper_short_mm": best[1], "caliper_mean_mm": (best[0] + best[1]) / 2}
+
+
 def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: str = "CT",
-                         host: str | None = None, structures: Mapping | None = None) -> dict:
+                         host: str | None = None, structures: Mapping | None = None, sweep: bool = False) -> dict:
     """The readings of the lesion ``seed`` (the segmenter's region) on the patient's atlas: ``window`` (the edge
     at the window's level, up to ``ZONE_MM`` beyond the seed), ``window_band`` (the same edge only within
     ``BAND_MM`` of the seed's), ``solid`` and ``total`` (aerated lung). Each with its level, measures, notes and
@@ -184,14 +222,18 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
     above = core > surrounding
     band = grow(s, np.ceil(BAND_MM / sp).astype(int))
 
-    def reading(level: float, within: np.ndarray, edge: np.ndarray, keep_seed: bool = False) -> dict:
+    def reading(level: float, within: np.ndarray, edge: np.ndarray, keep_seed: bool = False,
+                with_caliper: bool = False) -> dict:
         notes: list[str] = []
         region = _region_at(img, s, sp, level, above, within & allowed, edge, notes, keep_seed)
         full = None
         if region is not None:
             full = np.zeros(seed.shape, dtype=bool)
             full[box] = region
-        return {"level": level, "notes": notes, "mask": full, **_measures(full, affine)}
+        out_r = {"level": level, "notes": notes, "mask": full, **_measures(full, affine)}
+        if with_caliper and region is not None:
+            out_r.update(caliper(img, region, sp, level, within & allowed, surrounding))
+        return out_r
 
     win = window_for(host)
     level = WINDOWS[win][0]
@@ -226,7 +268,8 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
             edge_level, rule = (core + surrounding) / 2.0, "ground_glass_too_faint:half_way"
     else:
         edge_level, rule = (core + surrounding) / 2.0, "half_way_between_lesion_and_surroundings"
-    out["edge"] = {"window": win, "rule": rule, **reading(edge_level, band, band & ~_erode(band), keep_seed=True)}
+    out["edge"] = {"window": win, "rule": rule, **reading(edge_level, band, band & ~_erode(band), keep_seed=True,
+                                                          with_caliper=True)}
     # exploratory only, never the measure: the same edge with a wider band (the large masses are 8-15 mm short,
     # more than a 3 mm band can give back)
     wide = grow(s, np.ceil(BAND_WIDE_MM / sp).astype(int))
@@ -241,6 +284,15 @@ def radiologist_readings(image: np.ndarray, seed: np.ndarray, affine, modality: 
             out["total"] = reading(total_level, zone, zone_edge)
     else:
         out["notes"].append("solid_and_total_only_in_aerated_lung")
+    if sweep:
+        # 29 Oct 2026: where do four radiologists put the edge? The edge at a fraction f of the way from the
+        # parenchyma around to the lesion's core, f = 0.1 ... 0.9, within the band and free to be smaller than
+        # the segmenter's region; the fraction that matches the readers is chosen on one LIDC set and verified
+        # on another (never on the set it is chosen on). Each with the caliper diameters.
+        out["sweep"] = {}
+        for f in SWEEP_FRACTIONS:
+            lev = surrounding + f * (core - surrounding)
+            out["sweep"][f"{f:.1f}"] = reading(lev, band, band & ~_erode(band), with_caliper=True)
     return out
 
 
@@ -250,7 +302,9 @@ def readings_summary(r: dict) -> dict:
     out = {k: v for k, v in r.items() if k not in keys}
     for k in keys:
         out[k] = None if r.get(k) is None else {kk: vv for kk, vv in r[k].items() if kk != "mask"}
+    if r.get("sweep"):
+        out["sweep"] = {f: {kk: vv for kk, vv in v.items() if kk != "mask"} for f, v in r["sweep"].items()}
     return out
 
 
-__all__ = ["BAND_MM", "WINDOWS", "radiologist_readings", "readings_summary", "window_for"]
+__all__ = ["BAND_MM", "SWEEP_FRACTIONS", "WINDOWS", "caliper", "radiologist_readings", "readings_summary", "window_for"]

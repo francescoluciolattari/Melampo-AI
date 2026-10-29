@@ -46,6 +46,14 @@ from melampo.imaging.segmenters import Segmentation  # noqa: E402
 
 SELECTION = Path(__file__).resolve().parents[1] / "data" / "lidc" / "selection_2026-10-28.json"
 PROMPTS = {"prompt": "nodulo polmonare", "prompt_en": "lung nodule"}
+# the words a report uses for each kind of nodule (the readers' median texture stands for the report's wording):
+# VoxTell is asked with the report's words, as in the pipeline (29 Oct 2026: with "nodulo polmonare" it missed 4
+# of the 10 ground-glass nodules)
+PROMPTS_BY_TEXTURE = {
+    "solido": {"prompt": "nodulo polmonare solido", "prompt_en": "solid lung nodule"},
+    "parzialmente_solido": {"prompt": "nodulo polmonare parzialmente solido", "prompt_en": "part-solid lung nodule"},
+    "vetro_smerigliato": {"prompt": "nodulo polmonare a vetro smerigliato", "prompt_en": "ground-glass lung nodule"},
+}
 RATINGS = ("subtlety", "internalStructure", "calcification", "sphericity", "margin", "lobulation", "spiculation",
            "texture", "malignancy")
 READINGS = ("window_band", "edge", "edge_wide", "window", "solid", "total")
@@ -55,7 +63,7 @@ READINGS = ("window_band", "edge", "edge_wide", "window", "solid", "total")
 
 def load_series(folder: Path):
     """The CT series in ``folder``: (volume (slice, row, column) in HU float32, affine (column, row, slice) ->
-    patient LPS mm, the slices' z positions in ascending order)."""
+    patient LPS mm, the slices' z positions in ascending order, the acquisition data a measure depends on)."""
     import pydicom
 
     slices = []
@@ -90,7 +98,13 @@ def load_series(folder: Path):
     affine[:3, 1] = np.array(iop[3:]) * row_sp
     affine[:3, 2] = step
     affine[:3, 3] = first
-    return vol, affine, np.array(zs)
+    d0 = kept[0]
+    meta = {"slice_thickness_mm": float(getattr(d0, "SliceThickness", 0) or 0),
+            "slice_step_mm": float(np.linalg.norm(step)), "pixel_spacing_mm": [row_sp, col_sp],
+            "kernel": str(getattr(d0, "ConvolutionKernel", "") or ""),
+            "manufacturer": str(getattr(d0, "Manufacturer", "") or ""),
+            "model": str(getattr(d0, "ManufacturerModelName", "") or ""), "kvp": str(getattr(d0, "KVP", "") or "")}
+    return vol, affine, np.array(zs), meta
 
 
 def place_mask(mask_rcs: np.ndarray, bbox, slice_index: list[int], shape) -> np.ndarray:
@@ -177,6 +191,9 @@ def against_readers(measure: dict, mask: np.ndarray | None, stats: dict, consens
            "dice_consensus": dice(mask, consensus) if mask is not None else None}
     if measure.get("axial_mean_mm") is not None:
         out["mean_axis_error_on_readers_mm"] = measure["axial_mean_mm"] - stats["mean_axis_mean_mm"]
+    for k in ("caliper_long_mm", "caliper_short_mm", "caliper_mean_mm", "level"):
+        if measure.get(k) is not None:
+            out[k] = measure[k]
     return out
 
 
@@ -196,7 +213,7 @@ def pick_component(mask: np.ndarray | None, target: np.ndarray, affine) -> tuple
 # --- one nodule --------------------------------------------------------------------------------------------------
 
 def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks: Path | None = None,
-                 annotations=reader_annotations) -> dict:
+                 annotations=reader_annotations, prompt_from_texture: bool = False) -> dict:
     from melampo.imaging.involvement import involvement
     from melampo.imaging.radiologist_reading import radiologist_readings, readings_summary
     from imaging_probe import LOBES_IT, save_case_masks, synthetic_clause
@@ -207,8 +224,9 @@ def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks
     for seg_obj in {id(lesion_seg): lesion_seg, id(organ_seg): organ_seg}.values():
         if hasattr(seg_obj, "set_case"):
             seg_obj.set_case(case_id)
-    volume, affine, zs = load_series(Path(dicom_root) / item["series"])
+    volume, affine, zs, meta = load_series(Path(dicom_root) / item["series"])
     row["slices"] = int(volume.shape[0])
+    row["acquisition"] = meta
     anns = annotations(item["annotation_ids"])
     scan_z = [float(z) for z in anns[0].scan.slice_zvals] if hasattr(anns[0], "scan") else list(zs)
     smap = slice_map(scan_z, zs)
@@ -217,6 +235,9 @@ def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks
                       for a in anns]
     stats, consensus = reader_stats(masks, affine)
     row["readers"] = stats
+    # a nodule less than three slices thick is measured on few slices: partial volume dominates its edge
+    thick = meta.get("slice_step_mm") or meta.get("slice_thickness_mm") or 0
+    row["small_for_the_slices"] = bool(thick and stats["consensus"]["axial_long_mm"] < 3 * thick)
 
     structures = organ_seg.all_structures(volume, affine) if hasattr(organ_seg, "all_structures") else None
     site = None
@@ -229,13 +250,17 @@ def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks
     row["report_clause"] = clause
     text_size = max((s["largest_mm"] for s in fd.sizes_in_text(clause)), default=None)
 
-    keys = list(PROMPTS)
+    prompts = dict(PROMPTS)
+    if prompt_from_texture:
+        prompts = PROMPTS_BY_TEXTURE.get((item.get("stratum") or "").split(" ")[0], PROMPTS)
+    row["prompts"] = prompts
+    keys = list(prompts)
     t0 = time.time()
-    segs = lesion_seg.segment(volume, affine, [PROMPTS[k] for k in keys])
+    segs = lesion_seg.segment(volume, affine, [prompts[k] for k in keys])
     row["seconds"] = round(time.time() - t0, 1)
     if save_masks is not None:
         try:
-            row["saved_masks"] = save_case_masks(save_masks, case_id, [PROMPTS[k] for k in keys], segs,
+            row["saved_masks"] = save_case_masks(save_masks, case_id, [prompts[k] for k in keys], segs,
                                                  structures).name
         except Exception as error:  # noqa: BLE001
             row["save_masks_error"] = f"{type(error).__name__}: {error}"[:300]
@@ -252,7 +277,7 @@ def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks
         out.update(status=ev.status, needs_review=ev.needs_review, review=list(ev.review))
         out["segmenter"] = against_readers(_axes(comp, affine), comp, stats, consensus)
         if key == keys[0]:
-            r = radiologist_readings(volume, comp, affine, "CT", site, structures)
+            r = radiologist_readings(volume, comp, affine, "CT", site, structures, sweep=True)
             summ = readings_summary(r)
             out["readings_notes"] = summ.get("notes")
             out["edge_rule"] = (summ.get("edge") or {}).get("rule")
@@ -262,12 +287,16 @@ def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks
                     continue
                 out[name] = against_readers(reading, reading.get("mask"), stats, consensus)
                 out[name]["notes"] = reading.get("notes")
+            out["core_hu"], out["surrounding_hu"] = r.get("core"), r.get("surrounding")
+            out["sweep"] = {f: against_readers(v, v.get("mask"), stats, consensus) | {"notes": v.get("notes")}
+                            for f, v in (r.get("sweep") or {}).items()}
+            del r
         row[key] = out
     return row
 
 
 def run(items: list[dict], dicom_root: Path, device: str, out_path: Path | None, save_masks: Path | None = None,
-        from_masks: Path | None = None) -> list[dict]:
+        from_masks: Path | None = None, prompt_from_texture: bool = False) -> list[dict]:
     from imaging_probe import ReplaySegmenters, _free_memory
 
     if from_masks is not None:
@@ -280,7 +309,8 @@ def run(items: list[dict], dicom_root: Path, device: str, out_path: Path | None,
     rows = []
     for item in items:
         try:
-            row = probe_nodule(item, dicom_root, lesion_seg, organ_seg, save_masks)
+            row = probe_nodule(item, dicom_root, lesion_seg, organ_seg, save_masks,
+                               prompt_from_texture=prompt_from_texture)
         except Exception as error:  # noqa: BLE001 -- one nodule failing must not lose the others
             row = {"id": f"{item.get('patient')}_{(item.get('annotation_ids') or ['?'])[0]}",
                    "error": f"{type(error).__name__}: {error}"[:500]}
@@ -306,6 +336,8 @@ def run_isolated(items, args, out_path: Path) -> list[dict]:
             for flag, attr in (("--save-masks", "save_masks"), ("--from-masks", "from_masks")):
                 if getattr(args, attr, None):
                     cmd += [flag, getattr(args, attr)]
+            if getattr(args, "prompt_from_texture", False):
+                cmd.append("--prompt-from-texture")
             done = subprocess.run(cmd, check=False)
             try:
                 row = json.loads(res.read_text())[0]
@@ -329,6 +361,8 @@ def main(argv=None) -> int:
     ap.add_argument("--save-masks", metavar="DIR")
     ap.add_argument("--from-masks", metavar="DIR")
     ap.add_argument("--isolate", action="store_true")
+    ap.add_argument("--prompt-from-texture", action="store_true",
+                    help="ask VoxTell with the report's words for the nodule's kind (solid, part-solid, ground glass)")
     args = ap.parse_args(argv)
     items = json.loads(Path(args.selection).read_text())[args.set]
     if args.limit:
@@ -339,7 +373,7 @@ def main(argv=None) -> int:
     else:
         rows = run(items, Path(args.dicom_root), args.device, out,
                    Path(args.save_masks) if args.save_masks else None,
-                   Path(args.from_masks) if args.from_masks else None)
+                   Path(args.from_masks) if args.from_masks else None, args.prompt_from_texture)
     out.write_text(json.dumps(rows, indent=1, default=float))
     return 0
 
