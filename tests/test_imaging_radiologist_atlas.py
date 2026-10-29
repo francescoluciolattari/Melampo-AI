@@ -3,6 +3,7 @@ into -- a thick vessel in the lung, the chest wall, the mediastinal fat, a ring 
 mass -- is left out because the atlas names it. Synthetic volumes only."""
 
 import numpy as np
+import pytest
 
 from melampo.imaging.involvement import StructureLabels
 from melampo.imaging.radiologist_reading import radiologist_readings
@@ -142,11 +143,12 @@ def test_a_ground_glass_edge_follows_it_as_long_as_it_stands_out_of_the_lung():
 
 
 def test_calipers_on_the_sub_voxel_contour_and_the_sweep_of_edge_levels():
-    from scipy.ndimage import gaussian_filter
+    pytest.importorskip("skimage")                               # the calipers need scikit-image
+    from melampo.imaging.density import _smooth3                 # numpy only: CI has no scipy
     img = _lung() * 0 - 860.0
     d = _dist(55, 55)
     img[d <= 10] = 30.0                                          # a 20 mm sphere
-    img = gaussian_filter(img, (1.0, 1.0, 1.0))                  # the scanner's blur: a ramp, not a step
+    img = _smooth3(_smooth3(img))                                # the scanner's blur: a ramp, not a step
     r = radiologist_readings(img, d <= 9.5, A, "CT", "lung_upper_lobe_right", sweep=True)
     e = r["edge"]
     assert 20 < e["caliper_long_mm"] < 21.5                       # the -600 HU grey lies outside the half-way edge
