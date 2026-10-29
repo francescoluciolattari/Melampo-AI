@@ -474,3 +474,19 @@ Richiesta di Frank: fare come o meglio di un radiologo, con il suo metodo e la p
 **Criteri sul gruppo "verifica", fissati ora:** errore assoluto mediano sulla media dei quattro non sopra l'errore mediano di un radiologo sugli altri tre, in ogni fascia di diametro; almeno il 90% dei noduli trovati "come un radiologo"; mai peggio di VoxTell. Se tutti e tre tengono, la misura è "come un radiologo"; se l'errore mediano è sotto quello dei radiologi, "meglio".
 
 **Passi.** (1) Rilettura su CPU del gruppo "misura" con la scansione (`push replay lidc`): nessuna GPU. (2) Scelta di f per tipo, scritta qui prima del passo 3. (3) Giro con GPU sul gruppo "verifica" (`push lidc verifica`).
+
+### Scansione dei livelli sul gruppo "misura" e regola congelata per la verifica (29 ottobre)
+
+Rilettura su CPU, 40 noduli (33 trovati da VoxTell). Errore assoluto mediano sulla media dei quattro radiologi, misura sui voxel come per i radiologi (diametro maggiore assiale):
+
+| tipo (n) | radiologo vs altri | VoxTell | f migliore | a quel livello | "come un radiologo" (VoxTell → livello) |
+|---|---|---|---|---|---|
+| solido (14) | 1,04 | 1,40 | 0,1 | 0,93 | 9 → 11 |
+| parzialmente solido (14) | 1,55 | 1,18 | 0,3 | 0,92 | 13 → 12 |
+| vetro smerigliato (5) | 1,15 | 1,63 | nessuno (0,1: 2,71) | — | 3 |
+
+- Sul vetro smerigliato ogni livello è peggio di VoxTell (la lesione si spezza alla soglia; Dice 0,06-0,36): per questo tipo la misura resta VoxTell.
+- Il calibro sub-voxel non è confrontabile con le maschere dei radiologi (misurate sui centri dei voxel, come le nostre): coincide con loro a f 0,4-0,5 solo per la differenza di circa un voxel tra i due modi di misurare. Servirà con i referti veri.
+- Per fascia di diametro, con la regola scelta: sotto i 10 mm 0,54 mm contro 0,55 di un radiologo (pari); 10-20 mm 1,41 contro 1,29 (VoxTell 0,86: meglio di un radiologo); sopra i 20 mm 3,39 contro 2,89 (`edge` 2,62: meglio di un radiologo). Nessuna lettura sola è sotto i radiologi in tutte le fasce. Una regola per fascia sarebbe scelta guardando questi stessi 33 noduli: è un'ipotesi per un terzo gruppo, non per la verifica.
+
+**Regola congelata, scritta prima del giro "verifica":** misura principale = livello 0,1 per i noduli solidi, 0,3 per i parzialmente solidi, VoxTell per i vetri smerigliati (il tipo viene dalla tessitura dei radiologi, come verrebbe dalle parole del referto). Si riportano accanto VoxTell e `edge` come riferimento, senza cambiare la misura principale. Criteri invariati (errore mediano non sopra quello di un radiologo in ogni fascia, almeno 90% "come un radiologo", mai peggio di VoxTell).
