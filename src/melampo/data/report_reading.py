@@ -11,10 +11,11 @@ the DICOM series of the attachments.
   qualifiers); an abstention keeps its reason, and is what a person reads. When the reader's resources and a
   local model are configured (below), the linker runs with the Kintsch reader in "review" mode and the model's
   choice: a disagreement is an abstention, never a silent link.
-* **Imaging interpreter.** For a text the router recognised as an imaging report, the sites become findings
-  (``imaging.interpreter.interpret_exam``: a site the clause describes with a size, a character, a degree or a
-  hedge). The findings always have their text side. The image side is added only when the exam is paired with
-  that report without ambiguity -- exactly one imaging report and exactly one usable volume series among the
+* **Imaging interpreter.** In every text read, the sites become findings (``imaging.interpreter.interpret_exam``:
+  a site the clause describes with a size, a character, a degree or a hedge); a text that is not an imaging
+  report keeps them on the text (``not_an_imaging_report``). The findings always have their text side. The image
+  side is added only to an imaging report's findings, when the exam is paired with that report without
+  ambiguity -- exactly one imaging report and exactly one usable volume series among the
   attachments, of a compatible modality -- and the segmenters are configured: VoxTell isolates the lesion the
   clause describes, TotalSegmentator gives the patient's atlas, and ``findings.image_evidence`` checks organ,
   size and character. Otherwise each finding says why there is no image (``exam_not_paired``,
@@ -237,16 +238,21 @@ class ReportReaders:
             out["texts"].append(entry)
             out["to_a_person"] += [{"report": source_id, "mention": a["mention"], "reason": a["reason"]}
                                    for a in reading["abstentions"]]
+            # Every text read gives its findings (a site the clause describes); only an imaging report is looked
+            # for in an exam. A clinical letter or a histology report that describes "a 32 mm mass in the right
+            # upper lobe" states a finding as much as a CT report does (30 October 2026: a report the router read
+            # as a clinical note gave no findings at all).
+            volume, reason = None, "not_an_imaging_report"
             if IMAGING_KIND in (routing.get("kinds") or ()):
-                volume = None
+                reason = why
                 if paired is not None and paired[0] == source_id:
                     volume = _load(paired[1])
                     if isinstance(volume, str):
-                        why, volume = volume, None
-                rows = self.read_exam(case_key, reading, text, volume, why)
-                out["findings"] += rows
-                out["to_a_person"] += [{"report": source_id, "mention": r["mention"],
-                                        "reason": ",".join(r["review_reasons"])} for r in rows if r["needs_review"]]
+                        reason, volume = volume, None
+            rows = self.read_exam(case_key, reading, text, volume, reason)
+            out["findings"] += rows
+            out["to_a_person"] += [{"report": source_id, "mention": r["mention"],
+                                    "reason": ",".join(r["review_reasons"])} for r in rows if r["needs_review"]]
         out["status"] = "read"
         return out
 

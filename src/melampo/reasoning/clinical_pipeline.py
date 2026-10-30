@@ -29,6 +29,7 @@ from ..training.nexus_candidate_store import NexusCandidateStore
 from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
 from ..training.replay_filter import ReplayFilter
+from ..data.ingestion import PHYSICIAN_NOTE_KEY
 from ..types import CaseContext
 from .area_coherence import AreaCoherenceAnalyzer
 from .diagnostic_orchestrator import MelampoDiagnosticOrchestrator
@@ -41,6 +42,67 @@ from .policy_stack import PolicyStack
 # Capped for MechanismEnumerator.run()'s real per-candidate cost -- see the
 # comment at its call site in _nexus_case_context for the measurement.
 NEXUS_ENUMERATION_CANDIDATE_CAP = 8
+
+
+def _merged_payload(payload: dict[str, Any], routing: Any) -> dict[str, Any]:
+    """The submission merged with the pending case it continues, BEFORE ingestion (30 October 2026).
+
+    Until then the merged text replaced ``case.report_text`` after ingestion: the reports' reading saw only the
+    newest submission, and the graph started again from its findings alone. Now the merged text is the report the
+    case is read from, the physician's notes are merged the same way (the attachments of earlier submissions are
+    already in the previous report's text; this submission's are read from its own bundle), and the findings are
+    the union, earlier ones first, none repeated.
+    """
+    from ..training.pending_case_router import merge_report_text
+
+    previous = dict((getattr(routing.existing_record, "payload", None) or {}).get("case_context", {}) or {})
+    merged = dict(payload)
+    if routing.merged_report_text is not None:
+        merged["report_text"] = routing.merged_report_text
+    note = str(payload.get(PHYSICIAN_NOTE_KEY, payload.get("report_text", "")) or "")
+    previous_note = str(previous.get("physician_note", previous.get("report_text", "")) or "")
+    merged[PHYSICIAN_NOTE_KEY] = merge_report_text(
+        previous_note, note,
+        previous_date=(getattr(routing.existing_record, "payload", None) or {}).get("report_date"))
+    findings: list[str] = []
+    seen: set[str] = set()
+    for item in list(previous.get("findings") or []) + list(payload.get("findings") or []):
+        text = str(item).strip()
+        if text and text.lower() not in seen:
+            seen.add(text.lower())
+            findings.append(text)
+    if findings or "findings" in payload:
+        merged["findings"] = findings
+    return merged
+
+
+def _findings_away_from_the_diagnosis(reading: dict[str, Any], diagnosis: str, readers: Any) -> list[dict[str, Any]]:
+    """Findings of the data that came with a confirmation, at a site the confirmed diagnosis does not name.
+
+    The diagnosis is read by the same linker ("adenocarcinoma of the right upper lobe" -> that lobe); a finding
+    at a structure of another family (left and right of one organ, segments of one liver are one family) is a
+    possible new problem. When the diagnosis names no structure the linker can place, nothing can be said about
+    any finding: each one is listed with that reason, for the physician to judge -- never dropped, never decided.
+    """
+    from ..evaluation.gold_set import family
+
+    findings = list(reading.get("findings") or [])
+    if not findings:
+        return []
+    named: set[str] = set()
+    if readers is not None and getattr(readers, "linker", None) is not None and diagnosis:
+        try:
+            named = {family(s["cid"]) for s in readers.read_sites(diagnosis, "diagnosis")["sites"]}
+        except Exception:  # noqa: BLE001 -- the list below says the relation is not known
+            named = set()
+    out = []
+    for f in findings:
+        if named and family(f.get("structure")) in named:
+            continue
+        out.append({"report": f.get("report"), "structure": f.get("structure"), "clause": f.get("clause"),
+                    "reason": "site_not_named_by_the_diagnosis" if named
+                    else "diagnosis_names_no_site_the_linker_can_place"})
+    return out
 
 
 class IngestionProtocol(Protocol):
@@ -248,6 +310,109 @@ class ClinicalInferencePipeline:
     _nexus_ic_table: Any = None
     _nexus_scheduler: Any = None
     _model_router: Any = None
+    # Where a confirmed case is kept and the gate to the learning cycle (case_confirmation.py). None: built from
+    # DB_PASSWORD (encrypted files), or kept in this process only when it is not set.
+    confirmed_case_store: Any = None
+    confirmation_registry: Any = None
+
+    def _confirmation_stores(self) -> tuple[Any, Any]:
+        from ..governance.confirmation_registry import (
+            DEFAULT_CONFIRMATION_REGISTRY_PATH,
+            ConfirmationRegistry,
+        )
+        from ..training.confirmed_case_store import (
+            DEFAULT_CONFIRMED_CASE_STORE_PATH,
+            ConfirmedCaseStore,
+            InMemoryConfirmedCaseStore,
+        )
+
+        password = os.environ.get("DB_PASSWORD")
+        if self.confirmed_case_store is None:
+            self.confirmed_case_store = (
+                ConfirmedCaseStore(password=password, path=Path(DEFAULT_CONFIRMED_CASE_STORE_PATH))
+                if password else InMemoryConfirmedCaseStore()
+            )
+        if self.confirmation_registry is None:
+            self.confirmation_registry = (
+                ConfirmationRegistry(password=password, path=Path(DEFAULT_CONFIRMATION_REGISTRY_PATH))
+                if password else ConfirmationRegistry()
+            )
+        return self.confirmed_case_store, self.confirmation_registry
+
+    def _close_confirmed_case(self, payload: dict[str, Any], routing: Any) -> dict[str, Any]:
+        """Close the pending case with its confirmed diagnosis (decisions of 30 October 2026).
+
+        * The clinical basis of the confirmation comes with the payload (``confirmation_source``: histopathology,
+          clinical_outcome, independent_review with ``reviewer_blinded_to_suggestion``, reference_standard) or
+          from the physician's form, which calls the same function. Without it the case is closed and kept, but
+          it does not enter the learning cycle until a physician declares it (``cases_awaiting_source``,
+          ``declare_confirmation_source``).
+        * Whatever arrives with the confirmation (a histology report with margins, nodes, other findings) is read
+          -- attachments, laboratory, the reports' reading -- and kept with the closed case, in its learning
+          record, never as what the system proposed: it was written knowing the answer. The outcome is the
+          comparison of the confirmation with the proposal made before it.
+        * A finding of that new data at a site the diagnosis does not name goes to the physician as a possible
+          new problem: whether it opens a new case is the physician's decision, never automatic.
+        """
+        from ..governance.confirmation_registry import REJECT_UNSPECIFIED_SOURCE, SOURCE_UNSPECIFIED
+        from ..training.case_confirmation import submit_confirmed_diagnosis
+
+        diagnosis = str(payload.get("confirmed_diagnosis") or "").strip()
+        after = self._after_confirmation(payload, diagnosis)
+        confirmed_store, registry = self._confirmation_stores()
+        blinded = payload.get("reviewer_blinded_to_suggestion")
+        result = submit_confirmed_diagnosis(
+            routing.case_id,
+            diagnosis,
+            source=str(payload.get("confirmation_channel") or "payload"),
+            candidate_store=self._nexus_scheduler_instance().candidate_store,
+            confirmed_case_store=confirmed_store,
+            registry=registry,
+            confirmation_source=str(payload.get("confirmation_source") or SOURCE_UNSPECIFIED),
+            reviewer_blinded_to_suggestion=blinded if isinstance(blinded, bool) else None,
+            note=payload.get("confirmation_note"),
+            after_confirmation=after,
+        )
+        return {
+            "case_id": routing.case_id,
+            "status": "case_closed_by_confirmation" if result.found_pending_record else "no_pending_case_to_close",
+            "confirmation": result.as_dict(),
+            "learning": {
+                "admitted": result.admitted_to_learning,
+                "rejection": result.learning_rejection,
+                "awaiting_clinical_basis": result.learning_rejection == REJECT_UNSPECIFIED_SOURCE,
+            },
+            "confirmed_case_store": "encrypted" if getattr(confirmed_store, "persistent", False)
+            else "this_process_only",
+            "after_confirmation": {
+                "findings": len(after.get("report_reading", {}).get("findings", [])),
+                "sites": sum(len(t.get("sites", [])) for t in after.get("report_reading", {}).get("texts", [])),
+                "findings_listed": len(after.get("findings", [])),
+            },
+            "to_the_physician": after.get("to_the_physician", []),
+            "pending_case_routing": routing.as_dict(),
+            "routing_mode": "confirmation",
+            "routing_reason": "confirmed_diagnosis_closes_the_pending_case",
+        }
+
+    def _after_confirmation(self, payload: dict[str, Any], diagnosis: str) -> dict[str, Any]:
+        """What arrived with the confirmation, read but not diagnosed; and the findings for the physician."""
+        has_data = bool(str(payload.get("report_text") or "").strip() or payload.get("findings")
+                        or payload.get("attachment_summary"))
+        if not has_data:
+            return {}
+        case = self.ingestion.from_payload(payload)
+        reading = dict(case.provenance.get("report_reading") or {})
+        after = {
+            "report_text": case.report_text,
+            "findings": [str(f) for f in (payload.get("findings") or [])],
+            "lab_phenotypes": case.provenance.get("lab_phenotypes"),
+            "attachments": case.provenance.get("attachments"),
+            "report_reading": reading,
+        }
+        after["to_the_physician"] = _findings_away_from_the_diagnosis(
+            reading, diagnosis, getattr(self.ingestion, "report_readers", None))
+        return after
 
     def _build_runtime_components(self) -> dict[str, Any]:
         diagnostic_orchestrator = MelampoDiagnosticOrchestrator()
@@ -725,12 +890,14 @@ class ClinicalInferencePipeline:
             payload = prepare(payload)
         pending_case_routing = self._model_router_instance().pick_pending_case(payload)
         payload = {**payload, "case_id": pending_case_routing.case_id}
+        if pending_case_routing.action == "confirm_and_train":
+            # A confirmed diagnosis closes the pending case: no diagnosis is run (30 October 2026). Until then the
+            # pipeline diagnosed the confirmation as a case, queued a new pending record for it, and the
+            # confirmation itself was never recorded.
+            return self._close_confirmed_case(payload, pending_case_routing)
+        if pending_case_routing.action == "merge_and_rerun":
+            payload = _merged_payload(payload, pending_case_routing)
         case = self.ingestion.from_payload(payload)
-        if (
-            pending_case_routing.action == "merge_and_rerun"
-            and pending_case_routing.merged_report_text is not None
-        ):
-            case.report_text = pending_case_routing.merged_report_text
         bundle = self.normalizer.to_fhir_bundle(case)
         components = self._build_runtime_components()
         text_features, volume_features, pathology_features, fused = (
@@ -808,6 +975,10 @@ class ClinicalInferencePipeline:
                 "patient_fiscal_code": payload.get("patient_fiscal_code", ""),
                 "case_date": payload.get("case_date", ""),
                 "diagnostic_question": payload.get("diagnostic_question", ""),
+                # kept so a later submission merges with them (merge_and_rerun): until 30 October 2026 only
+                # the text was kept, and the graph restarted from the newest submission's findings alone
+                "findings": [str(f) for f in (payload.get("findings") or []) if str(f).strip()],
+                "physician_note": str(payload.get(PHYSICIAN_NOTE_KEY, case.report_text) or ""),
             },
             area_dynamics=area_dynamics,
             nexus=nexus,

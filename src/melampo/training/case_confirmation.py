@@ -54,6 +54,9 @@ class ConfirmationResult:
     outcome_feedback: dict[str, Any] | None
     confirmation: Confirmation | None
     closed_case_ids: list[str] = field(default_factory=list)
+    # Whether the confirmation entered the learning cycle (ConfirmationRegistry), and why not. None: no registry.
+    admitted_to_learning: bool | None = None
+    learning_rejection: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -62,6 +65,8 @@ class ConfirmationResult:
             "outcome_feedback": self.outcome_feedback,
             "confirmation": self.confirmation.as_dict() if self.confirmation else None,
             "closed_case_ids": self.closed_case_ids,
+            "admitted_to_learning": self.admitted_to_learning,
+            "learning_rejection": self.learning_rejection,
         }
 
 
@@ -115,7 +120,8 @@ def _close_one_record(
     confirmation_source: str = SOURCE_UNSPECIFIED,
     reviewer_blinded_to_suggestion: bool | None = None,
     note: str | None = None,
-) -> tuple[dict[str, Any], Confirmation]:
+    after_confirmation: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], Confirmation, bool | None, str | None]:
     """Close exactly one pending record: outcome feedback, persist (retained, anonymised), remove from pending, register the confirmation.
 
     Shared by every record a single submit_confirmed_diagnosis() call
@@ -146,6 +152,12 @@ def _close_one_record(
             "source": source,
             "case_context": record.payload.get("case_context", {}),
             "outcome_feedback": feedback_record.get("outcome_feedback", []),
+            # the confirmation's clinical basis, kept so it can be completed later (declare_confirmation_source)
+            "confirmation_source": confirmation_source,
+            "reviewer_blinded_to_suggestion": reviewer_blinded_to_suggestion,
+            # what arrived together with the confirmation (decision of 30 October 2026): read, kept and part of
+            # the learning record, never part of what the system proposed -- it was written knowing the answer
+            "after_confirmation": after_confirmation or {},
         }
     )
 
@@ -158,9 +170,18 @@ def _close_one_record(
         reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion,
         note=note,
     )
-    if registry is not None:
-        registry.register(confirmation)
-    return feedback_record, confirmation
+    admitted, reason = _register(registry, confirmation)
+    return feedback_record, confirmation, admitted, reason
+
+
+def _register(registry: Any, confirmation: Confirmation) -> tuple[bool | None, str | None]:
+    """Register in the learning gate; (admitted, rejection reason), or (None, None) without a registry."""
+    if registry is None:
+        return None, None
+    if registry.register(confirmation):
+        return True, None
+    rejected = [r for r in getattr(registry, "rejected", []) if r.confirmation.case_id == confirmation.case_id]
+    return False, rejected[-1].reason if rejected else None
 
 
 def submit_confirmed_diagnosis(
@@ -177,6 +198,7 @@ def submit_confirmed_diagnosis(
     reviewer_blinded_to_suggestion: bool | None = None,
     note: str | None = None,
     patient_payload: dict[str, Any] | None = None,
+    after_confirmation: dict[str, Any] | None = None,
 ) -> ConfirmationResult:
     """Close every pending record for this case -- the shared endpoint both confirmation paths call.
 
@@ -246,7 +268,7 @@ def submit_confirmed_diagnosis(
             confirmation=None,
         )
 
-    feedback_record, confirmation = _close_one_record(
+    feedback_record, confirmation, admitted, reason = _close_one_record(
         primary,
         diagnosis,
         source=source,
@@ -256,6 +278,7 @@ def submit_confirmed_diagnosis(
         confirmation_source=confirmation_source,
         reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion,
         note=note,
+        after_confirmation=after_confirmation,
     )
     return ConfirmationResult(
         case_id=case_id,
@@ -263,7 +286,53 @@ def submit_confirmed_diagnosis(
         outcome_feedback=feedback_record,
         confirmation=confirmation,
         closed_case_ids=[primary.case_id],
+        admitted_to_learning=admitted,
+        learning_rejection=reason,
     )
+
+
+def cases_awaiting_source(confirmed_case_store: ConfirmedCaseStore, registry: Any) -> list[dict[str, Any]]:
+    """Closed cases kept but not in the learning cycle because their clinical basis was not declared (option C,
+    30 October 2026): the list a physician completes. A case rejected for another reason (an accepted suggestion,
+    a reviewer who saw it) is not here: declaring a basis afterwards would not make it independent."""
+    admitted = {c.case_id for c in getattr(registry, "admitted", [])}
+    out = []
+    for record in confirmed_case_store.load():
+        case_id = record.get("case_id")
+        if not case_id or case_id in admitted:
+            continue
+        if record.get("confirmation_source", SOURCE_UNSPECIFIED) != SOURCE_UNSPECIFIED:
+            continue
+        out.append({"case_id": case_id, "confirmed_diagnosis": record.get("confirmed_diagnosis", ""),
+                    "channel": record.get("source", "")})
+    return out
+
+
+def declare_confirmation_source(
+    case_id: str,
+    confirmation_source: str,
+    *,
+    confirmed_case_store: ConfirmedCaseStore,
+    registry: Any,
+    reviewer_blinded_to_suggestion: bool | None = None,
+    note: str | None = None,
+) -> tuple[bool | None, str | None]:
+    """Complete the clinical basis of a case closed without one, and offer it again to the learning gate.
+
+    Only for a case whose basis was never declared: a basis already recorded is not rewritten (it was captured
+    at the time, which is what makes it trustworthy). Returns (admitted, rejection reason)."""
+    record = next((r for r in confirmed_case_store.load() if r.get("case_id") == case_id), None)
+    if record is None:
+        return False, "no_confirmed_case"
+    if record.get("confirmation_source", SOURCE_UNSPECIFIED) != SOURCE_UNSPECIFIED:
+        return False, "confirmation_source_already_recorded"
+    confirmed_case_store.update({**record, "confirmation_source": confirmation_source,
+                                  "reviewer_blinded_to_suggestion": reviewer_blinded_to_suggestion,
+                                  "source_declared_after_closure": True})
+    confirmation = Confirmation(case_id=case_id, diagnosis=str(record.get("confirmed_diagnosis", "")),
+                                source=confirmation_source,
+                                reviewer_blinded_to_suggestion=reviewer_blinded_to_suggestion, note=note)
+    return _register(registry, confirmation)
 
 
 def list_pending_cases(candidate_store: NexusCandidateStore) -> list[dict[str, Any]]:

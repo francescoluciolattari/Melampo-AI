@@ -85,6 +85,8 @@ def anonymize_identifying_fields(data: dict[str, Any], password: str) -> dict[st
 class ConfirmedCaseStore:
     """Persists a confirmed case's record, encrypted and anonymised, once its training use is served."""
 
+    persistent = True
+
     password: str
     path: Path = Path(DEFAULT_CONFIRMED_CASE_STORE_PATH)
 
@@ -95,6 +97,11 @@ class ConfirmedCaseStore:
     def persist(self, record: dict[str, Any]) -> None:
         """Anonymise identifying fields, then encrypt and append -- both steps, always, never one without the other."""
         self._store.append(anonymize_identifying_fields(record, self.password))
+
+    def update(self, record: dict[str, Any]) -> None:
+        """A new version of a record read back from this store (already anonymised): appended, encrypted, without
+        anonymising a second time -- an HMAC of an HMAC would no longer match the patient's other records."""
+        self._store.append(dict(record))
 
     def delete(self, case_id: str) -> None:
         """Purge a confirmed case's record once its training use is served -- an event, not a rewrite of the file.
@@ -120,6 +127,46 @@ class ConfirmedCaseStore:
                 None if record.get("_event") == "deleted" else record
             )
         for record in latest_by_case.values():
+            if record is not None:
+                yield record
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self.load())
+
+
+class InMemoryConfirmedCaseStore:
+    """The same interface when no DB_PASSWORD is configured (a fresh checkout, a test): kept in this process only.
+
+    Found necessary when the pipeline began closing confirmed cases (30 October 2026): without a password there
+    is no encrypted file to write, and refusing to close would leave the case pending forever. Identifying fields
+    are still anonymised (HMAC with a per-process random key). Nothing survives the process: whoever reads the
+    result is told so (``persistent`` is False).
+    """
+
+    persistent = False
+
+    def __init__(self) -> None:
+        import secrets
+
+        self._key = secrets.token_hex(32)
+        self._records: list[dict[str, Any]] = []
+
+    def persist(self, record: dict[str, Any]) -> None:
+        self._records.append(anonymize_identifying_fields(record, self._key))
+
+    def update(self, record: dict[str, Any]) -> None:
+        self._records.append(dict(record))
+
+    def delete(self, case_id: str) -> None:
+        self._records.append({"case_id": case_id, "_event": "deleted"})
+
+    def load(self):
+        latest: dict[str, dict[str, Any] | None] = {}
+        for record in self._records:
+            case_id = record.get("case_id")
+            if case_id is not None:
+                latest[case_id] = None if record.get("_event") == "deleted" else record
+        for record in latest.values():
             if record is not None:
                 yield record
 
