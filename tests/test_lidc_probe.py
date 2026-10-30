@@ -113,6 +113,7 @@ def test_one_real_lidc_nodule_on_a_synthetic_series(tmp_path):
     assert p["segmenter"]["within_readers_range"] or abs(p["segmenter"]["error_on_readers_mean_mm"]) < 5
     assert row["report_site"] == "lung_upper_lobe_right" and "lobo superiore destro" in row["report_clause"]
     assert "edge" in p and p["edge"]["axial_long_mm"] is not None and p["edge"].get("caliper_long_mm")
+    assert set(p["size_check_by_policy"]) == {"fixed", "readers"}
     assert set(p["sweep"]) == {"0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"}
     assert row["acquisition"]["pixel_spacing_mm"] and "small_for_the_slices" in row
     assert len(row["ratings"]) == 4 and all(x["texture"] for x in row["ratings"])
