@@ -7,6 +7,7 @@ from typing import Any
 from ..types import CaseContext, ClinicalObservation, ImagingStudy, Modality
 
 ATTACHMENT_BUNDLE_KEY = "_attachment_bundle"
+PHYSICIAN_NOTE_KEY = "_physician_note"
 
 
 @dataclass(slots=True)
@@ -29,6 +30,11 @@ class ClinicalIngestionPipeline:
     # The local model asked only which kinds of report an attachment is (data/report_router.py); None: the
     # router uses the deterministic cues alone. Never an external service: reports are patient data.
     router_chat: Any = None
+    # The narrative reader (linker) and the imaging interpreter (VoxTell + TotalSegmentator) on the case's
+    # reports (data/report_reading.py). None: built once from the environment (ReportReaders.from_env);
+    # read_reports=False leaves the reading out (the case is ingested as before).
+    report_readers: Any = None
+    read_reports: bool = True
 
     def prepare_payload(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Process attachments once: report_text becomes note + labelled attachment text; raw bytes leave the payload.
@@ -52,6 +58,7 @@ class ClinicalIngestionPipeline:
         processor = self.document_processor or ClinicalDocumentProcessor.from_env()
         bundle = process_case_attachments(items, processor=processor, router_chat=self.router_chat)
         prepared.pop("attachments")
+        prepared[PHYSICIAN_NOTE_KEY] = str(payload.get("report_text", "") or "")
         prepared["report_text"] = bundle.combined_text(
             str(payload.get("report_text", "") or "")
         )
@@ -98,6 +105,21 @@ class ClinicalIngestionPipeline:
             prepared["findings"] = existing + added
         provenance["added_findings"] = added
         prepared["lab_phenotypes"] = provenance
+
+    def _read_reports(self, payload: Mapping[str, Any], bundle: Any) -> dict[str, Any]:
+        """The narrative reader and the imaging interpreter on the note and the attachments (report_reading.py).
+        A failure is written in the result, never raised: the case is still ingested."""
+        from .report_reading import ReportReaders
+
+        try:
+            if self.report_readers is None:
+                self.report_readers = ReportReaders.from_env()
+            note = payload.get(PHYSICIAN_NOTE_KEY, payload.get("report_text", ""))
+            return self.report_readers.read(str(payload.get("case_id", "")), str(note or ""), bundle,
+                                            self.router_chat)
+        except Exception as error:  # noqa: BLE001
+            return {"status": f"reading_failed:{type(error).__name__}:{error}"[:300], "texts": [], "findings": [],
+                    "to_a_person": []}
 
     def from_payload(self, payload: Mapping[str, Any]) -> CaseContext:
         payload = self.prepare_payload(payload)
@@ -147,6 +169,8 @@ class ClinicalIngestionPipeline:
                 provenance["imaging_volumes"] = imaging_summary
         if isinstance(payload.get("lab_phenotypes"), dict):
             provenance["lab_phenotypes"] = payload["lab_phenotypes"]
+        if self.read_reports:
+            provenance["report_reading"] = self._read_reports(payload, bundle)
         return CaseContext(
             case_id=str(payload["case_id"]),
             patient_id=str(payload["patient_id"])
