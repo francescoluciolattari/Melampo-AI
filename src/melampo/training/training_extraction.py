@@ -61,8 +61,8 @@ def extract_and_purge(
     prompt_for_case: dict[str, str] = {}
     for record in records:
         case_id = record.get("case_id")
-        if not case_id:
-            continue
+        if not case_id or record.get("dpo_extracted"):
+            continue    # its pairs were already built in an earlier pass (a record kept for its reports)
         raised_by_case[case_id] = list(record.get("raised_labels", []))
         question = record.get("case_context", {}).get("diagnostic_question")
         if question:
@@ -73,9 +73,22 @@ def extract_and_purge(
     )
 
     usable_case_ids = {pair.case_id for pair in report.pairs}
+    by_id = {r.get("case_id"): r for r in records}
     for case_id in usable_case_ids:
-        confirmed_store.delete(case_id)
+        record = by_id.get(case_id) or {}
+        if _has_after_confirmation(record):
+            # Decision of 30 October 2026: the reports that arrived with the confirmation stay in the learning
+            # flow. The pairs are built (and not again); the record is kept, marked, instead of purged.
+            confirmed_store.update({**record, "dpo_extracted": True})
+        else:
+            confirmed_store.delete(case_id)
 
     return ExtractionAndPurgeReport(
-        extraction=report, purged_case_ids=sorted(usable_case_ids)
+        extraction=report,
+        purged_case_ids=sorted(c for c in usable_case_ids if not _has_after_confirmation(by_id.get(c) or {})),
     )
+
+
+def _has_after_confirmation(record: dict[str, Any]) -> bool:
+    after = record.get("after_confirmation") or {}
+    return bool(after.get("report_text") or after.get("findings") or after.get("report_reading", {}).get("texts"))

@@ -128,10 +128,9 @@ def test_a_case_pending_after_offline_processing_merges_new_findings():
     assert "Initial findings: persistent cough." in routing["merged_report_text"]
 
 
-def test_a_confirmed_diagnosis_for_a_pending_case_is_recognised_but_not_yet_acted_on():
-    """confirm_and_train is attached to the result for a future caller to
-    act on -- executing it (training extraction, then deleting the raw
-    record) is separate, not-yet-built work, deliberately not done here."""
+def test_a_confirmed_diagnosis_for_a_pending_case_closes_it():
+    """confirm_and_train closes the pending case (30 October 2026): no diagnosis is run; the details are in
+    test_confirmation_and_merge.py."""
     runtime = build_default_runtime()
     pipeline = runtime.pipeline
 
@@ -145,6 +144,7 @@ def test_a_confirmed_diagnosis_for_a_pending_case_is_recognised_but_not_yet_acte
     )
 
     assert result["pending_case_routing"]["action"] == "confirm_and_train"
+    assert result["status"] == "case_closed_by_confirmation"
 
 
 # --------------------------------------------------------------------------
