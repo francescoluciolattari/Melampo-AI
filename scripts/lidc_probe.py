@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from melampo.imaging import findings as fd  # noqa: E402
 from melampo.imaging.lesion_measures import label_parts, measure_region  # noqa: E402
 from melampo.imaging.segmenters import Segmentation  # noqa: E402
+from melampo.imaging.size_tolerance import POLICIES as SIZE_POLICIES, consistent  # noqa: E402
 
 SELECTION = Path(__file__).resolve().parents[1] / "data" / "lidc" / "selection_2026-10-28.json"
 PROMPTS = {"prompt": "nodulo polmonare", "prompt_en": "lung nodule"}
@@ -275,6 +276,10 @@ def probe_nodule(item: dict, dicom_root: Path, lesion_seg, organ_seg, save_masks
         ev = fd.image_evidence(one, affine, volume, organ, text_size, modality="CT", structure=site,
                                structures=structures)
         out.update(status=ev.status, needs_review=ev.needs_review, review=list(ev.review))
+        # the size check under each tolerance (only recorded: the measure is the same)
+        m = ev.measures
+        long_mm = (m.longest_axial_diameter_mm or m.longest_diameter_mm) if m is not None else None
+        out["size_check_by_policy"] = {p: consistent(long_mm, text_size, p) for p in SIZE_POLICIES}
         out["segmenter"] = against_readers(_axes(comp, affine), comp, stats, consensus)
         if key == keys[0]:
             r = radiologist_readings(volume, comp, affine, "CT", site, structures, sweep=True)

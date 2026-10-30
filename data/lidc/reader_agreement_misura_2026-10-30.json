@@ -1,0 +1,200 @@
+{
+ "source": "scripts/reader_agreement.py on the output of scripts/lidc_probe.py --set misura (replay of 29 October 2026, 40 nodules, four readers each; LIDC-IDRI, TCIA, CC BY 3.0)",
+ "table_in_code": "melampo.imaging.size_tolerance.READER_LIMITS_MM",
+ "nodules": 40,
+ "agreement": {
+  "all": {
+   "nodules": 40,
+   "pairs": 240,
+   "limits_of_agreement_mm": 7.54,
+   "limits_bootstrap_95_mm": [
+    5.05,
+    9.79
+   ],
+   "pair_abs_median_mm": 1.43,
+   "pair_abs_p90_mm": 5.21,
+   "pair_abs_p95_mm": 10.3
+  },
+  "<10": {
+   "nodules": 19,
+   "pairs": 114,
+   "limits_of_agreement_mm": 2.98,
+   "limits_bootstrap_95_mm": [
+    2.37,
+    3.51
+   ],
+   "pair_abs_median_mm": 0.92,
+   "pair_abs_p90_mm": 2.76,
+   "pair_abs_p95_mm": 3.11
+  },
+  "10-20": {
+   "nodules": 10,
+   "pairs": 60,
+   "limits_of_agreement_mm": 6.77,
+   "limits_bootstrap_95_mm": [
+    3.59,
+    9.97
+   ],
+   "pair_abs_median_mm": 1.36,
+   "pair_abs_p90_mm": 5.19,
+   "pair_abs_p95_mm": 9.8
+  },
+  ">=20": {
+   "nodules": 11,
+   "pairs": 66,
+   "limits_of_agreement_mm": 12.23,
+   "limits_bootstrap_95_mm": [
+    7.79,
+    16.01
+   ],
+   "pair_abs_median_mm": 2.78,
+   "pair_abs_p90_mm": 11.71,
+   "pair_abs_p95_mm": 14.4
+  }
+ },
+ "to_a_person": {
+  "another_reader": {
+   "fixed": {
+    "all": {
+     "to_a_person": 44,
+     "of": 160,
+     "share": 0.275
+    },
+    "<10": {
+     "to_a_person": 12,
+     "of": 76,
+     "share": 0.158
+    },
+    "10-20": {
+     "to_a_person": 12,
+     "of": 40,
+     "share": 0.3
+    },
+    ">=20": {
+     "to_a_person": 20,
+     "of": 44,
+     "share": 0.455
+    }
+   },
+   "readers": {
+    "all": {
+     "to_a_person": 3,
+     "of": 160,
+     "share": 0.019
+    },
+    "<10": {
+     "to_a_person": 0,
+     "of": 76,
+     "share": 0.0
+    },
+    "10-20": {
+     "to_a_person": 0,
+     "of": 40,
+     "share": 0.0
+    },
+    ">=20": {
+     "to_a_person": 3,
+     "of": 44,
+     "share": 0.068
+    }
+   }
+  },
+  "segmenter": {
+   "fixed": {
+    "all": {
+     "to_a_person": 43,
+     "of": 132,
+     "share": 0.326
+    },
+    "<10": {
+     "to_a_person": 9,
+     "of": 60,
+     "share": 0.15
+    },
+    "10-20": {
+     "to_a_person": 15,
+     "of": 36,
+     "share": 0.417
+    },
+    ">=20": {
+     "to_a_person": 19,
+     "of": 36,
+     "share": 0.528
+    }
+   },
+   "readers": {
+    "all": {
+     "to_a_person": 7,
+     "of": 132,
+     "share": 0.053
+    },
+    "<10": {
+     "to_a_person": 1,
+     "of": 60,
+     "share": 0.017
+    },
+    "10-20": {
+     "to_a_person": 4,
+     "of": 36,
+     "share": 0.111
+    },
+    ">=20": {
+     "to_a_person": 2,
+     "of": 36,
+     "share": 0.056
+    }
+   }
+  },
+  "frozen_rule": {
+   "fixed": {
+    "all": {
+     "to_a_person": 48,
+     "of": 132,
+     "share": 0.364
+    },
+    "<10": {
+     "to_a_person": 8,
+     "of": 60,
+     "share": 0.133
+    },
+    "10-20": {
+     "to_a_person": 19,
+     "of": 36,
+     "share": 0.528
+    },
+    ">=20": {
+     "to_a_person": 21,
+     "of": 36,
+     "share": 0.583
+    }
+   },
+   "readers": {
+    "all": {
+     "to_a_person": 6,
+     "of": 132,
+     "share": 0.045
+    },
+    "<10": {
+     "to_a_person": 0,
+     "of": 60,
+     "share": 0.0
+    },
+    "10-20": {
+     "to_a_person": 4,
+     "of": 36,
+     "share": 0.111
+    },
+    ">=20": {
+     "to_a_person": 2,
+     "of": 36,
+     "share": 0.056
+    }
+   }
+  }
+ },
+ "not_found": {
+  "<10": 4,
+  "10-20": 1,
+  ">=20": 2
+ }
+}

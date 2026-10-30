@@ -50,6 +50,7 @@ from .density import DensityProfile, compare_with_report, density_profile
 from .threshold_check import APPLIED, ground_glass_extent, second_reading
 from .involvement import compare_position_with_report, involvement
 from .margins import MarginProfile, compare_margins_with_report, margin_profile
+from .size_tolerance import FIXED, tolerance_mm
 
 AGREE, DISAGREE, NOT_FOUND, AMBIGUOUS, UNCHECKED, NO_IMAGE = (
     "agree", "disagree", "not_found", "ambiguous", "unchecked", "no_image")
@@ -234,7 +235,8 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
                    organ_mask: np.ndarray | None = None, text_size_mm: float | None = None,
                    frame_of_reference: str = "", modality: str = "", structure=None,
                    character: list[str] | tuple[str, ...] = (), contrast: str = "unknown",
-                   organ_parts=None, structures: dict[str, np.ndarray] | None = None) -> ImageSide:
+                   organ_parts=None, structures: dict[str, np.ndarray] | None = None,
+                   size_policy: str = FIXED) -> ImageSide:
     """The image side of a finding: the checks of decision D19, the measures and the density of the region,
     and the reasons a person must look (the lesion is not identified, or the image differs from the report)."""
     if seg is None:
@@ -274,7 +276,9 @@ def image_evidence(seg: Segmentation | None, affine, image: np.ndarray | None = 
     support: list[str] = []
     size_check = ""
     if text_size_mm:
-        tol = max(SIZE_TOLERANCE_MM, SIZE_TOLERANCE_SHARE * text_size_mm)
+        # FIXED is max(SIZE_TOLERANCE_MM, SIZE_TOLERANCE_SHARE x size); READERS the limits of agreement between
+        # two radiologists (size_tolerance.py)
+        tol = tolerance_mm(text_size_mm, size_policy)
 
         def error(m):
             return abs((m.longest_axial_diameter_mm or m.longest_diameter_mm) - text_size_mm)
