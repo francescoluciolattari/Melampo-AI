@@ -70,3 +70,13 @@ def test_the_phrase_of_the_mention_comes_before_the_rest_of_the_clause():
     assert r.degree_scope == "phrase" and [c.word for c in r.degree_cues] == ["lievemente"]
     r = q("There is mild anterior wedging of a lower thoracic vertebral body, approximately T11 level.", "T11 level")
     assert r.degree == "low" and r.degree_scope == "clause"
+
+
+def test_a_decimal_point_is_not_the_end_of_the_clause():
+    """31 October 2026: "Cyst measuring 1.1 cm in the middle lobe" was read as "1 cm in the middle lobe"."""
+    from melampo.memory.site_qualifiers import read_site_qualifiers
+
+    text = "Colonic diverticula. Cyst measuring 1.1 cm in the middle lobe of the right lung. Single nodules."
+    at = text.find("middle lobe")
+    lo, hi = read_site_qualifiers(text, at, at + len("middle lobe"), "en").clause
+    assert text[lo:hi].strip() == "Cyst measuring 1.1 cm in the middle lobe of the right lung"

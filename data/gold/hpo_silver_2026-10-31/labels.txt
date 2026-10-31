@@ -7,8 +7,12 @@
 # the finding is about another structure than the item's (the linker's site is not the finding's).
 # Items: scripts/hpo_probe.py sample (PARROT v1.0, seed 20261031); one label per pair (an Italian report's
 # finding and its English translation share it). Format: pair|label|note
+# Revised 31 October 2026, after the first run: (1) the sample was rebuilt after fixing the decimal point
+# read as a sentence end ("1.1 cm"), and the pairs whose clause or structure changed were labelled again
+# ("relabelled"); (2) three labels were corrected where HPO has the exact term the clause states and the first
+# labelling missed it ("corrected"): written after seeing the models' answers, they lean towards the models.
 parrot-935|HP:0008775|prostate heterogeneous, size given; enlargement not stated
-parrot-797|HP:0005108|disc protrusion L5-S1
+parrot-797|HP:0008441|disc protrusion is a herniation of the nucleus (first label too general) [corrected after the first run]
 parrot-961|HP:0001737|cystic lesion of the pancreatic head
 parrot-955|NONE|dilated ureters; site bladder is not the finding
 parrot-787|HP:0005562|some cystic formations in the right kidney
@@ -22,14 +26,15 @@ parrot-725|HP:0008775|prostate enlarged (no prostatomegaly term; BPH not stated)
 parrot-767|HP:0005303|aortic arch calcification
 parrot-174|HP:0001394|cirrhotic liver
 parrot-758|NONE|fatty image dorsal to the sternum; not a sternal abnormality
-parrot-2205|HP:0008775|prostate slightly enlarged, inhomogeneous
+parrot-2205|HP:0001679|focal ectasia of the infrarenal aorta with a thrombus (ectasia, not called aneurysm) [relabelled after the decimal-point fix]
 parrot-736|HP:6000377|intramural air in the colonic wall
 parrot-180|HP:0009726|large renal mass with irregular margins (no renal mass term)
+parrot-163|HP:0001081|mobile gallstone [relabelled after the decimal-point fix]
 parrot-748|HP:6000409|solid pancreatic lesion, neuroendocrine only "likely"
 parrot-957|HP:0012090|pancreas hyperechoic
 parrot-755|HP:0032465|columnar hypertrophy of the bladder wall
 parrot-785|HP:0002253|sigmoid diverticulosis
-parrot-325|HP:0012437|biliary sludge (no sludge term)
+parrot-325|HP:0034961|biliary sludge: HPO has Gallbladder biliary sludging (missed in the first labelling) [corrected after the first run]
 parrot-2197|HP:0002253|perforated diverticulitis (no diverticulitis term)
 parrot-311|HP:0001744|spleen enlarged
 parrot-783|HP:0032564|terminal ileum thickening and enhancement
@@ -56,16 +61,14 @@ parrot-743|HP:0006555|diffuse steatosis
 parrot-962|HP:6000451|calcified gallbladder wall
 parrot-730|HP:0034505|thickened gallbladder walls
 parrot-173|HP:0002253|sigmoid diverticulitis (no diverticulitis term)
-parrot-954|HP:0012090|cystic dilations of pancreatic side ducts
 parrot-516|NONE|title of the exam
 parrot-2319|HP:0001640|heart moderately enlarged
 parrot-2459|HP:0002059|cortical and subcortical brain atrophy
 parrot-2434|NONE|gallbladder contracted, not assessable
-parrot-1281|NONE|oesophageal thickening at the level of T6; not the vertebra
+parrot-1281|HP:6000589|dilated oesophagus with thickened wall [relabelled after the decimal-point fix]
 parrot-2320|HP:0005303|calcifications of the aortic arch
 parrot-1430|HP:0012397|calcified atherosclerotic plaques of the aorta
 parrot-2299|HP:0000772|irregular rib outline; old fracture only queried
-parrot-2340|NONE|ascending aorta normal
 parrot-830|HP:0002253|colonic diverticulosis
 parrot-2693|NONE|title
 parrot-2300|HP:0033649|periseptal emphysema
@@ -77,9 +80,9 @@ parrot-1117|HP:0002113|alveolar infiltrates
 parrot-1424|NONE|brain normal
 parrot-2476|HP:0025722|small hypodense foci of past vascular origin
 parrot-2494|HP:0008422|wedged L4 vertebra
-parrot-1682|NONE|no stones
+parrot-1682|NONE|smooth bladder outline [relabelled after the decimal-point fix]
 parrot-1078|HP:0002107|pneumothorax
-parrot-1915|HP:0000107|septated renal cyst (complexity not graded)
+parrot-1915|HP:0012210|parenchyma slightly thinned at the upper pole [relabelled after the decimal-point fix]
 parrot-1628|NONE|jejunum poorly filled, technical
 parrot-1471|NONE|no significant changes
 parrot-2318|HP:0005562|cysts in both kidneys
@@ -92,43 +95,42 @@ parrot-2097|NONE|portal vein calibre, no judgement
 parrot-1177|HP:0002019|massive faecal impaction
 parrot-1766|HP:0005344|atherosclerotic plaques at the carotid bifurcation
 parrot-2307|HP:0011772|thyroid hypoechoic and heterogeneous
-parrot-1286|HP:0012162|re-entry point in the common carotid (dissection)
+parrot-1286|HP:0012162|re-entry point in the right common carotid [relabelled after the decimal-point fix]
 parrot-1489|HP:0012210|left kidney markedly smaller
-parrot-2120|NONE|bladder normal
+parrot-2120|HP:0001744|spleen of increased size [relabelled after the decimal-point fix]
 parrot-1846|HP:0002113|infiltrate, inflammatory most likely
 parrot-1810|NONE|ureteral stone at the level of L4; not the vertebra
 parrot-1085|NONE|soft-tissue haematoma near the femur; not the bone
 parrot-2241|HP:0034880|adrenal nodular formation
-parrot-1873|HP:0005562|several renal cysts
+parrot-1873|HP:0012090|pancreatic head hypoechoic and prominent [relabelled after the decimal-point fix]
 parrot-2508|HP:0033655|lung cavitation with bronchiectasis
 parrot-1929|HP:0000107|small renal cyst
 parrot-1707|NONE|free fluid around the spleen; not the spleen
 parrot-2141|NONE|heading
-parrot-2325|NONE|bladder moderately filled
+parrot-2325|HP:0012210|small right kidney, thinned parenchyma (atrophy not written) [relabelled after the decimal-point fix]
+parrot-2662|NONE|bladder with catheter [relabelled after the decimal-point fix]
 parrot-1030|HP:0011732|adrenal slightly thickened
-parrot-2377|NONE|truncated measure
+parrot-2377|NONE|normal intima-media thickness [relabelled after the decimal-point fix]
 parrot-1366|HP:0025408|splenic lesion called metastasis
 parrot-1018|HP:0033609|solid pulmonary nodule
 parrot-657|HP:0002113|regressing infiltrate
 parrot-1763|HP:0033821|nodular infiltrative lesion of 99 mm (mass)
 parrot-2125|HP:0002088|subpleural ventilatory disturbances
-parrot-2385|NONE|truncated
+parrot-2385|HP:0000803|small cortical renal cyst [relabelled after the decimal-point fix]
 parrot-2052|NONE|truncated
-parrot-2369|HP:0001747|accessory spleen
-parrot-2607|NONE|measures
-parrot-499|NONE|retroperitoneal blood around the kidney; not the kidney
+parrot-2607|NONE|kidney sizes [relabelled after the decimal-point fix]
 parrot-2217|HP:0002204|pulmonary embolism in the lobar artery
-parrot-55|HP:0002823|femoral neck shortened, abnormal signal
+parrot-55|HP:0100864|shortened femoral neck: HPO has Short femoral neck (first label too general) [corrected after the first run]
 parrot-1565|HP:0004610|lumbar central stenosis
 parrot-1806|HP:0041084|compression fracture of T12
-parrot-1637|NONE|truncated
+parrot-1637|NONE|kidney size only [relabelled after the decimal-point fix]
 parrot-2424|NONE|measures
-parrot-1208|NONE|truncated
+parrot-1208|HP:0034015|excavated pulmonary nodule [relabelled after the decimal-point fix]
 parrot-2098|NONE|measures
-parrot-2116|NONE|lobulated contour, preserved differentiation
+parrot-2116|NONE|portal vein calibre [relabelled after the decimal-point fix]
 parrot-1526|HP:0002239|blood in the stomach from the duodenum
 parrot-1478|HP:0000889|deformed sternal end of the clavicle
-parrot-1812|HP:0008775|pericapsular prostatic calcifications
+parrot-1812|HP:0000126|dilated collecting system of the left kidney [relabelled after the decimal-point fix]
 parrot-1587|HP:0041084|old T12 fracture with loss of height
 parrot-2364|NONE|little secretion
 parrot-2288|NONE|apical opacity; not the subclavian artery
@@ -137,8 +139,9 @@ parrot-1688|HP:0034880|adrenal nodule below 10 HU
 parrot-2470|NONE|measures
 parrot-1594|HP:0041168|fracture of L3
 parrot-1372|HP:0034880|hypodense adrenal nodule
-parrot-2348|HP:0000853|thyroid lobe enlarged
-parrot-1639|NONE|periaortic fat density, postoperative
+parrot-2637|HP:0008775|prostate of 196 ml [relabelled after the decimal-point fix]
+parrot-2348|HP:0100031|infiltrative neoplasm of the thyroid [relabelled after the decimal-point fix]
+parrot-1639|HP:0008775|prostate not enlarged, calcifications [relabelled after the decimal-point fix]
 parrot-1563|HP:6000931|small calcified pulmonary nodules
 parrot-2483|NONE|measures
 parrot-2416|HP:0000853|retrosternal goitre with focal lesions
@@ -151,9 +154,10 @@ parrot-2255|HP:0011772|thyroid hypoechoic, pseudo-nodular
 parrot-1620|HP:0008445|cervical canal narrowed by osteophytes
 parrot-975|HP:0034931|lumbar osteophytes
 parrot-1869|HP:0008256|adrenal nodule consistent with lipid-rich adenoma
-parrot-1296|HP:0034015|cavitated pulmonary nodule
+parrot-1296|HP:0033608|middle-lobe nodule with a ground-glass halo [relabelled after the decimal-point fix]
 parrot-2375|NONE|measures
 parrot-72|HP:0002896|solid enhancing liver formation
+parrot-572|HP:0025388|heterogeneous thyroid lesion with cystic component [relabelled after the decimal-point fix]
 parrot-498|HP:0008256|adrenal mass appearing as lipid-rich adenoma
 parrot-1022|HP:0033608|pulmonary nodules
 parrot-1772|NONE|lung tumour at the level of the pulmonary veins; the vein is not the finding

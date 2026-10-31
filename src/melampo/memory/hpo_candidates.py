@@ -52,12 +52,17 @@ _STOP = frozenset("of the a an in on at to and or with without by for from as is
 
 
 def stem(word: str) -> str:
-    """A light English stem: plural and the commonest suffixes, enough to match "nodules" with "nodule"."""
+    """A light English stem: plurals, the commonest suffixes and a final "e", enough to match "nodules" with
+    "nodule", "infiltrate" with "infiltrates", "fractured" with "fracture" (31 October 2026: without the final "e"
+    and "-ed", *Pulmonary infiltrates* never met "infiltrate")."""
     w = word.lower()
-    for suffix in ("ations", "ation", "ities", "ity", "ings", "ing", "otic", "osis", "ies", "ous", "es", "s", "al",
-                   "ic"):
+    for suffix in ("ations", "ation", "ments", "ment", "ities", "ity", "ings", "ing", "otic", "osis", "ies", "ous",
+                   "ed", "es", "s", "al", "ic"):
         if len(w) > len(suffix) + 3 and w.endswith(suffix):
-            return w[: -len(suffix)] + ("y" if suffix == "ies" else "")
+            w = w[: -len(suffix)] + ("y" if suffix == "ies" else "")
+            break
+    if len(w) > 4 and w.endswith("e"):
+        w = w[:-1]
     return w
 
 
