@@ -1,0 +1,167 @@
+# From a report's finding to an HPO term: HELD-OUT labels, 31 October 2026 (third run).
+# Labeller: Claude, one labeller, not a radiologist. Not a certification.
+# Written BEFORE any method was run on these items (neither the models nor method A nor the shortlist were shown):
+# the labeller saw the sentence and searched the whole HPO by name. No parameter of the generator, the descent or
+# the integration was chosen on these items.
+# Items: scripts/hpo_probe.py sample --seed 2026103102 --exclude data/gold/hpo_silver_2026-10-31/labels.txt
+# (PARROT v1.0; no report of the development set).
+# Policy as in the development set: the most specific HPO term (release 2026-09-01) the sentence states about the
+# finding at the item's structure, never more specific than written ("suggestive of", "consistent with", "likely",
+# "riferibile a" are not stated; an enhancing solid mass is a neoplasm of the organ, a disc protrusion is a
+# herniation of the nucleus); NONE when the sentence states no abnormality there (normal, measures only,
+# technique, title, question) or when the finding is another structure's.
+# New, declared before the run: (1) a label may list several terms, one per finding the sentence states
+# ("HP:a,HP:b"): an answer is scored against the nearest; (2) an Italian item whose sentence is not the one of its
+# English translation (the pairing is by structure) has its own label ("parrot-791-it"); (3) "?" at the end of the
+# note marks a label for a radiologist to review. Format: pair-or-item|label|note
+parrot-765|HP:0031941|splenic, mesenteric and portal veins encased and significantly narrowed (no portal vein stenosis term)
+parrot-791|NONE|normal left ventricle
+parrot-954|HP:0030992|cystic dilations of the secondary pancreatic ducts
+parrot-323|NONE|clinical question
+parrot-959|HP:0001744|spleen markedly enlarged
+parrot-2200|NONE|enlarged nodes along the aortic arch; the finding is the nodes, not the aorta
+parrot-769|HP:0005303|calcification of the aortic arch
+parrot-806|NONE|prostatic hypertrophy protruding into the bladder; the finding is the prostate's
+parrot-749|HP:0002240,HP:0001397,HP:0031207|enlarged, markedly steatotic liver with a hemangioma (three findings)
+parrot-939|HP:0002250|wall oedema and thickening of the terminal ileum/ascending colon, target appearance ?
+parrot-742|HP:0006555|mild diffuse steatosis
+parrot-795|HP:0034931|lumbar spondyloarthrosis with bridging osteophytes
+parrot-751|HP:6000409|hypervascular solid lesion of the pancreatic tail ("likely" a PNEN: not stated)
+parrot-2016|HP:0012397,HP:0031313|fibro-calcific plaques of the abdominal aorta
+parrot-731|NONE|fluid between the loops and in the pelvis: peritoneal, not the bowel's
+parrot-310|HP:0012437|intraluminal hyperechoic formation of the gallbladder ("suggestive of" a polyp: not stated) ?
+parrot-782|HP:0032564,HP:0012848|inflammatory stenosis of the terminal ileum
+parrot-927|HP:0000126|pelvicalyceal dilation of the right kidney upstream of a probable stone
+parrot-726|NONE|clinical question
+parrot-917|NONE|small intestine collapsed (no abnormality stated)
+parrot-952|HP:0032177|small subpleural consolidation, unchanged
+parrot-752|HP:0012437|dense bile (sludge not named) ?
+parrot-2198|HP:0002244|ileal loops with enlarged lumen (5 cm) and air-fluid level upstream of a stenosis ?
+parrot-750|HP:0030992,HP:6000156|dilated Wirsung duct and atrophy of the parenchyma (chronic pancreatitis only "possible")
+parrot-924|HP:0041087|decreased height of the L4 body with retropulsion of the posterior wall ?
+parrot-778|HP:0033711|focal interstitial thickening in the middle lobe
+parrot-933|HP:0041087|compression fracture of L5
+parrot-2204|HP:0032177,HP:0033662|consolidation with air bronchogram
+parrot-796|HP:0008441|disc-osteophyte protrusion C3-C4 (protrusion = herniation of the nucleus, as in the development set)
+parrot-746|HP:0030992|moderate dilation of the Wirsung duct
+parrot-2014|NONE|prostate dimensions only
+parrot-176|HP:0005303,HP:0012397|calcified atheroma of the aortic arch
+parrot-804|NONE|prostatic hypertrophy protruding into the bladder; the finding is the prostate's
+parrot-762|HP:0011805|intramuscular formation of 5 x 3 cm ("indicative of" a hemangioma: not stated) ?
+parrot-308|NONE|normal pancreas
+parrot-963|HP:0002240|liver slightly enlarged
+parrot-817|HP:0030146|diffusely heterogeneous parenchymal echotexture
+parrot-2209|HP:6000931|tiny fibrocalcific nodule
+parrot-747|HP:0002246|the second and third portions of the duodenum infiltrated by a pancreatic mass ?
+parrot-322|NONE|no focal lesions
+parrot-946|HP:0025579|filling defect in the left atrial appendage ("suggestive of" thrombus: not stated) ?
+parrot-324|HP:0034880|adrenal mass of 25 mm ("consistent with" an adenoma: not stated) ?
+parrot-1738|HP:0001407|hepatic cysts
+parrot-2096|HP:0100750|linear hyperdensities related to subsegmental atelectasis ?
+parrot-1860|NONE|headers only
+parrot-1235|HP:0030891|multiple FLAIR hyperintensities, periventricular and subcortical white matter
+parrot-502|NONE|signal changes interpreted as artefacts
+parrot-1534|HP:0008480,HP:0008442|small osteophyte of C6 (osteophyte as vertebral hyperostosis: no osteophyte term) ?
+parrot-2112|NONE|gallbladder normal, homogeneous content
+parrot-2689|NONE|title
+parrot-2514|NONE|normal prostate
+parrot-2442|NONE|normal valves
+parrot-2688|NONE|title
+parrot-1700|HP:0005303|calcifications in the wall of the arch
+parrot-2491|HP:0005303,HP:0012397|elongated thoracic aorta, atherosclerotic calcification of the arch
+parrot-2093|HP:0002244|dilated small bowel loops (no dilatation term)
+parrot-1528|NONE|calcified structure in the common bile duct; the finding is the duct's, not the gallbladder's
+parrot-647|NONE|bladder minimally filled
+parrot-1656|NONE|thickening of the parietal pleura: the pleura's, not the lung lobe's ?
+parrot-2389|NONE|referral
+parrot-130|HP:6001083|temporal mass of 4.6 cm, necrotic, enhancing
+parrot-1327|HP:0034505|gallbladder wall thickened to 8 mm
+parrot-239|HP:0002036|large hiatal hernia with the whole stomach
+parrot-1395|NONE|referral
+parrot-1239|NONE|comparison line
+parrot-2324|HP:0002250|irregular circumferential enhancing wall thickening of the sigmoid (neoplasm not stated)
+parrot-505|HP:0001640|heart moderately enlarged
+parrot-1742|NONE|referral
+parrot-2216|NONE|clinical question
+parrot-1480|HP:0000107|cortical cyst of 9 mm
+parrot-1601|HP:0001747|accessory spleen
+parrot-499|HP:0030171|retroperitoneal blood around the right kidney ?
+parrot-1375|HP:0012090|pancreas uniformly hyperechoic ?
+parrot-1893|HP:0025179|ground-glass opacities
+parrot-112|NONE|normal spleen
+parrot-117|NONE|normal bladder
+parrot-990|HP:0000772|7th rib slightly tortuous
+parrot-1875|NONE|normal spleen
+parrot-1865|NONE|normal spleen
+parrot-1429|HP:0002250|cecal wall thickened with increased enhancement
+parrot-1405|NONE|echocardiographic measures
+parrot-1285|HP:0002797|lytic lesions of T9-T10 ("suggestive of" metastases: not stated) ?
+parrot-201|HP:0030950|pulmonary venous congestion (as in the development set)
+parrot-595|NONE|bladder minimally filled
+parrot-1378|HP:0100750|foci of atelectasis
+parrot-1108|HP:0100750|streaky atelectasis
+parrot-533|HP:0004610|severe spinal stenosis at L4-L5
+parrot-2550|NONE|indication
+parrot-2251|NONE|enlarged appendix; the appendix's, not the colon's ?
+parrot-1332|NONE|title
+parrot-1602|HP:0008441|bulging of the nucleus pulposus L4/L5
+parrot-2672|NONE|bladder partially filled
+parrot-1210|HP:0008775|enlarged prostate (91 cc) with protruding median lobe ("suggestive of" neoplasia: not stated)
+parrot-2337|NONE|the sentence is about the liver, the site is the lung lobe
+parrot-1011|HP:0008480,HP:0008442|osteophytic lipping of C5-6 ?
+parrot-2126|HP:0011867,HP:0002797|lytic lesion of the left iliac wing, 5 cm
+parrot-991|HP:0041144|disruption of the distal right clavicle at the fracture ends
+parrot-1863|NONE|kidney measures only
+parrot-1659|NONE|fluid around the spleen and along the colon: peritoneal, not the colon's
+parrot-270|HP:0033609|solid nodule of 6 mm in the lingula
+parrot-852|HP:0000107|large cortical renal cyst
+parrot-972|HP:0000787|tiny stone in the right kidney
+parrot-1767|NONE|nodular densities near the splenic flexure, not of the colon ?
+parrot-2235|HP:0025388|6 mm hypodense, peripherally calcified lesion of the thyroid lobe ?
+parrot-1746|NONE|lymph nodes near the adrenal; not the adrenal's
+parrot-1060|HP:0002244|dilated small bowel segments with fluid level ("suggesting" obstruction: not stated)
+parrot-977|HP:0033609|solid nodule of 5 x 4 mm
+parrot-1059|HP:0008775|enlarged prostate (no prostatomegaly term)
+parrot-1420|HP:0008419,HP:0034931|discopathy L5/S1 with posterior osteophytes
+parrot-1002|HP:0033662,HP:0032177|high-density area with air bronchograms in the left lower lobe
+parrot-2544|HP:0025179|subpleural ground-glass opacity
+parrot-1745|HP:0010454,HP:0008843|osteophyte at the edge of the right acetabulum, subchondral sclerosis
+parrot-1362|HP:0005562|cysts of the left kidney
+parrot-1017|HP:0033608|multiple small nodular densities in the left lower lobe
+parrot-1107|HP:0025179,HP:0032177|increase of ground-glass opacities with small consolidations
+parrot-978|HP:0033609|solid nodules
+parrot-1665|HP:0008441|disc protrusion L4-L5
+parrot-1047|HP:0003312|ring-like area of high T2 signal in the T10 body ?
+parrot-901|HP:0009726|irregular heterogeneously enhancing renal mass of 6 x 11 cm (solid enhancing mass = neoplasm, as in the development set)
+parrot-1205|HP:0410042|subcapsular collection of segment VIII ("suggestive of" an abscess: not stated) ?
+parrot-2605|NONE|kidney measures only
+parrot-1670|HP:0000772|8 mm shadow in the projection of the 2nd rib, stable ?
+parrot-1023|HP:6000931|calcified nodule
+parrot-639|HP:0003312|known lesion of the L1 body, T2/STIR hyperintense
+parrot-1912|NONE|post-surgical resection of the rib
+parrot-2104|NONE|normal portal vein
+parrot-2331|HP:0003312|sclerotic focus of bone-island nature in the T12 body ?
+parrot-1924|HP:0002797,HP:0000929|osteolytic foci in the skull bones
+parrot-1642|HP:0003468,HP:0002797|destruction of the L5 body and arch with soft tissue infiltration
+parrot-1465|HP:0000126|urinary stasis grade 2 in the collecting system
+parrot-2088|NONE|measures only
+parrot-889|HP:0030299,HP:0002797|multilocular lytic lesion of the distal femoral metaphysis
+parrot-1202|HP:0030871|advanced erosive facet joint osteoarthritis
+parrot-2516|NONE|normal prostate
+parrot-2221|HP:0034931|moderate degenerative changes of the lumbar spine ?
+parrot-568|NONE|lesion adjacent to the facet joint, "likely" a calcified ganglion; not the vertebra's ?
+parrot-981|HP:0033609|solid nodule, the largest of multiple nodules
+parrot-252|HP:0003302,HP:0008441|anterior positioning of L3 by 4 mm, disc bulging
+parrot-1569|HP:0004610,HP:0034931|degenerative changes with central stenosis at L2/L3
+parrot-2113|NONE|measures only
+parrot-238|HP:0025179,HP:0030879|ground-glass opacity with prominent interlobular septa ("may correspond" to an infarction: not stated)
+parrot-526|HP:6000917,HP:0005106|mild oedema of the upper endplate of C3
+parrot-791-it|HP:0031192|slightly hypertrabeculated free wall of the left ventricle, antero-apical
+parrot-323-it|HP:0012437|over-distended gallbladder with a T1-hypointense formation "riferibile a" a stone (not stated) ?
+parrot-806-it|HP:0008635|bladder walls slightly thickened
+parrot-804-it|HP:0008635|bladder walls slightly thickened, with pseudodiverticula
+parrot-939-it|HP:0002250|fatty infiltration of the colonic wall
+parrot-795-it|HP:0008441|modest disc protrusion L5-S1
+parrot-751-it|HP:6000409|small hypervascular focus of the pancreatic tail with restricted diffusion ?
+parrot-726-it|HP:0008775|T2-hypointense area of the peripheral prostate
+parrot-746-it|HP:0012090|conclusions: "strongly suspicious" of a primary pancreatic neoplasm (not stated) ?

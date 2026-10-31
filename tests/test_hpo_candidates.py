@@ -149,3 +149,61 @@ def test_the_probe_scores_and_the_model_chooses_among_real_terms(tmp_path, monke
     report = hp.run_probe(args)
     row = report["rows"][0]
     assert row["A"]["outcome"] == "exact" and row["gold_in_candidates"] and row["gold_in_shortlist"]
+
+
+def test_a_term_is_kept_only_where_the_sentence_states_it():
+    """"Stated, not inferred" (31 October 2026): a choice the sentence does not state climbs to the nearest
+    ancestor it states; a name that says only "abnormal, here" is what any abnormal finding at the site states."""
+    p = _phenotypes()
+    assert p.support("HP:0033609", LOBE, "solid nodule of 12 mm") == {"name"}
+    assert p.stated("HP:0033609", LOBE, "nodule of 12 mm in the right upper lobe") == ("HP:0033608", 1)
+    assert p.stated("HP:0033612", LOBE, "opacity in the right upper lobe")[0] == "HP:0002088"
+    assert "site_only" in p.support("HP:0002088", LOBE, "anything")
+    assert p.stated("HP:0002240", ["UBERON:0002107"], "the liver is enlarged") == ("HP:0002240", 0)
+
+
+def test_the_quality_of_the_logical_definition_is_evidence_too():
+    pato = '[Term]\nid: PATO:0000586\nname: increased size\nsynonym: "enlarged" RELATED []\n'
+    hpo = HPO + ('\n[Term]\nid: HP:0001744\nname: Splenomegaly\nis_a: HP:0000118 ! Phenotypic abnormality\n'
+                 'intersection_of: PATO:0000586 ! increased size\nintersection_of: inheres_in UBERON:0002106 ! spleen\n')
+    uberon = UBERON + '\n[Term]\nid: UBERON:0002106\nname: spleen\nsubset: organ_slim\n'
+    p = hc.Phenotypes.from_obo(hpo.splitlines(), hc.Anatomy.from_obo(uberon.splitlines()))
+    p.qualities = hc.read_qualities(pato.splitlines())
+    assert p.support("HP:0001744", ["UBERON:0002106"], "The spleen is enlarged (14 cm)") == {"quality"}
+    assert p.support("HP:0001744", ["UBERON:0002106"], "The spleen is normal") == set()
+
+
+def test_equivalent_terms_count_as_one_and_the_common_ancestor():
+    hpo = HPO + ('\n[Term]\nid: HP:0000001\nname: Rib fracture\nis_a: HP:0000118 ! Phenotypic abnormality\n'
+                 '\n[Term]\nid: HP:0000002\nname: Fractured rib\nis_a: HP:0000118 ! Phenotypic abnormality\n')
+    p = hc.Phenotypes.from_obo(hpo.splitlines(), hc.Anatomy.from_obo(UBERON.splitlines()))
+    assert p.equivalent("HP:0000001", "HP:0000002") and not p.equivalent("HP:0033609", "HP:0033612")
+    assert p.common_ancestor(["HP:0033609", "HP:0033612"]) == "HP:0033608"
+    assert p.common_ancestor(["HP:0033609"]) == "HP:0033609"
+
+
+def test_the_descent_goes_down_the_site_branches_and_the_integration_checks_it():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import hpo_probe as hp
+
+    p = _phenotypes()
+    assert "HP:0031983" in p.descent_roots(LOBE) or "HP:0002088" in p.descent_roots(LOBE)
+    wanted = ["Abnormal lung morphology", "Abnormal pulmonary thoracic imaging finding", "Pulmonary nodule",
+              "Solid pulmonary nodule"]
+
+    def chat(prompt):          # a reader that goes down to the solid nodule, then stops
+        options = [line for line in prompt.splitlines() if line[:2] in {f"{x}." for x in hp.LETTERS}]
+        for line in options:
+            if line[3:] in wanted and f'"{line[3:]}"' not in prompt:
+                return line[0]
+        return options[-1][0]
+
+    term, path = hp.descend(p, chat, LOBE, "Solid nodule of 12 mm", "Solid nodule of 12 mm", "lung", "en")
+    assert term == "HP:0033609" and path[-1] == "HP:0033609"
+    row = {"B:m": {"answer": "HP:0033612"}, "D:m": {"answer": "HP:0033609"},
+           "_english": {"m": "Solid nodule of 12 mm"}}
+    hp.integrate(p, row, LOBE, ["m"], "HP:0033608")
+    assert row["I"]["answer"] == "HP:0033608" and row["I"]["outcome"] == "exact"   # the common term, stated
+    row = {"B:m": {"answer": hp.NONE}, "D:m": {"answer": "HP:0033609"}, "_english": {"m": "x"}}
+    hp.integrate(p, row, LOBE, ["m"], "HP:0033608")
+    assert row["I"]["answer"] is None and row["I"]["why"] == "none_against_a_term"

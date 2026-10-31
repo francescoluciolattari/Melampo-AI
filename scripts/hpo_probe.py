@@ -22,6 +22,11 @@ Methods, on the same items:
   "Hepatomegaly"). (3) The model chooses among the shortlist built from the sentence and its name (letters, "none
   of these"), reading the original clause. Every answer is a real term of the site's candidates.
 * ``C:<model>`` -- A and B agree, otherwise a person.
+* ``S:<model>`` -- B, then the deterministic check that the sentence states the term (otherwise its nearest
+  stated ancestor). ``D:<model>`` -- the descent of the site's HPO tree, one choice per step.
+* ``I`` -- the integrated reading, the one that would write to the graph: the models (one stream) give the most
+  specific term common to all their choices; the sentence decides how far up it must go; a conflict goes to a
+  person (``--review``). Fixed before the third run, on the held-out labels (``data/gold/hpo_heldout_2026-10-31``).
 * ``first`` -- the baseline a model must beat: always the first term of the shortlist built from the English
   sentence alone.
 
@@ -59,6 +64,7 @@ SEED = 20261031
 NONE = "NONE"
 LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXY"
 SHORTLIST = 15
+DESCENT_STEPS = 8
 DEFAULT_MODELS = "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
 
 
@@ -77,11 +83,15 @@ def _findings(readers, text: str, report: str) -> list[dict]:
             and "procedure_site" not in (f.get("roles") or [])]
 
 
-def build_sample(parrot: Path, n_en: int, n_it: int, per_structure: int, seed: int = SEED) -> list[dict]:
+def build_sample(parrot: Path, n_en: int, n_it: int, per_structure: int, seed: int = SEED,
+                 exclude: set[str] | None = None) -> list[dict]:
+    """``exclude``: the pairs of an earlier sample ("parrot-935"); their reports are never drawn again, so a new
+    sample is held out from what the methods were developed on."""
     from melampo.data.report_reading import ReportReaders, build_linker
 
     readers = ReportReaders(build_linker()[0])
     rows = [json.loads(x) for x in parrot.read_text("utf-8").split("\n") if x.strip()]
+    rows = [r for r in rows if f"parrot-{r['no']}" not in (exclude or set())]
     rng = random.Random(seed)
     rng.shuffle(rows)
     items: list[dict] = []
@@ -183,6 +193,53 @@ def choice_prompt(clause: str, site: str, options: list[tuple[str, str]], langua
     return "\n".join(lines)
 
 
+def descent_prompt(clause: str, site: str, here: str | None, options: list[tuple[str, str]], language: str) -> str:
+    """One step down the site's HPO hierarchy, as a reader goes from the kind of finding to the finding."""
+    lines = [
+        "You map a finding of a radiology report to the Human Phenotype Ontology (HPO), going down its hierarchy.",
+        f"Sentence of the report ({'Italian' if language == 'it' else 'English'}): \"{clause}\"",
+        f"The anatomical site has already been identified: {site}.",
+    ]
+    if here is None:
+        lines += ["First step: which of these general terms does the sentence state about this site? If it states",
+                  "no abnormality here (measures alone, a normal finding, the technique, a clinical question), choose",
+                  "the last option."]
+    else:
+        lines += [f"So far: \"{here}\". These are its more specific terms. Choose one only if the sentence states",
+                  "it in its own words: a term that names what could be inferred from the finding (a diagnosis, a",
+                  "cause, a type the sentence does not name) is not stated. Otherwise choose the last option."]
+    lines.append("Options:")
+    for letter, (_, label) in zip(LETTERS, options):
+        lines.append(f"{letter}. {label}")
+    last = "none of these: no abnormality at this site" if here is None else f"stop here: \"{here}\""
+    lines.append(f"{LETTERS[len(options)]}. {last}")
+    lines.append("Answer with the letter only.")
+    return "\n".join(lines)
+
+
+def descend(ph: hc.Phenotypes, chat, anchors: list[str], clause: str, english: str, site: str,
+            language: str, max_steps: int = DESCENT_STEPS) -> tuple[str | None, list[str]]:
+    """The descent: from the site's general terms down the children that are candidates at the site, one choice
+    per step, until the model stops. Returns (term, NONE or None for an unreadable answer; the path)."""
+    level = ph.descent_roots(anchors)
+    here, path = None, []
+    for _ in range(max_steps):
+        if not level:
+            break
+        ranked = ph.rank(anchors, english, level)[: len(LETTERS) - 1]
+        options = [(h, ph.terms[h].name) for h in ranked]
+        k = parse_letter(chat(descent_prompt(clause, site, ph.terms[here].name if here else None, options,
+                                             language)), len(options))
+        if k is None:
+            return None, path
+        if k == len(options):
+            return (here if here else NONE), path
+        here = options[k][0]
+        path.append(here)
+        level = ph.children_at_site(here, anchors)
+    return here, path
+
+
 def name_prompt(text: str, site: str) -> str:
     return ("A sentence of a radiology report, about this anatomical site: " + site + ".\n\"" + text + "\"\n"
             "Name the abnormality the sentence states about this site as a short term in the style of the Human "
@@ -205,10 +262,22 @@ def parse_letter(answer: str, n: int) -> int | None:
 
 
 # -- scoring --------------------------------------------------------------------------------------------------
+RANK = ("exact", "too_general", "too_specific", "wrong", "none_for_term", "term_for_none", "abstained")
+
+
+def golds(gold: str | None) -> list[str]:
+    """A label may name several terms, one per finding the sentence states ("enlarged, steatotic liver with a
+    hemangioma"): declared before the third run (31 October 2026)."""
+    return [g.strip() for g in (gold or "").split(",") if g.strip()]
+
+
 def outcome(ph: hc.Phenotypes, answer: str | None, gold: str) -> str:
+    """Against a label of several terms, the best of the outcomes against each."""
+    if gold and "," in gold:
+        return min((outcome(ph, answer, g) for g in golds(gold)), key=RANK.index)
     if answer is None:
         return "abstained"
-    if answer == gold:
+    if answer == gold or (NONE not in (answer, gold) and ph.equivalent(answer, gold)):
         return "exact"
     if gold == NONE:
         return "term_for_none"
@@ -242,8 +311,50 @@ def read_labels(path: Path) -> dict[str, str]:
     return out
 
 
+def integrate(ph: hc.Phenotypes, row: dict, anchors: list[str], names: list[str], gold: str) -> None:
+    """Arm I, the reading that would write to the graph (31 October 2026, fixed before the third run).
+
+    The models are one stream: every choice they made (shortlist and descent, every model). The sentence is the
+    other: the deterministic check that the term is stated.
+    * all choices "none" -> none; some "none" and some term -> a person (the readings conflict);
+    * otherwise the most specific term all the choices are or descend from, if it is a candidate at the site;
+    * then the nearest term at or above it that the sentence states, in every model's English rendering;
+    * nothing stated, or an unreadable choice -> a person. The person's choice is what the system learns."""
+    if not names:
+        return
+    choices = [row.get(f"{arm}:{n}", {}).get("answer") for n in names for arm in ("B", "D")
+               if f"{arm}:{n}" in row]
+    texts = list((row.get("_english") or {}).values())
+    why, answer = "", None
+    if not choices or None in choices:
+        why = "a_reading_failed"
+    elif all(c == NONE for c in choices):
+        answer, why = NONE, "all_none"
+    elif NONE in choices:
+        why = "none_against_a_term"
+    else:
+        common = ph.common_ancestor(choices)
+        if common is None or common not in ph.candidates(anchors):
+            why = "no_common_term_at_the_site"
+        else:
+            stated = {ph.stated(common, anchors, t)[0] for t in texts}
+            if None in stated:
+                why = "nothing_stated"
+            elif len(stated) == 1:
+                answer = stated.pop()
+                why = "agreed" if answer == common and len(set(choices)) == 1 else "common_term_stated"
+            else:
+                c2 = ph.common_ancestor(sorted(stated))
+                if c2 and c2 in ph.candidates(anchors) and all(ph.support(c2, anchors, t) for t in texts):
+                    answer, why = c2, "common_term_stated"
+                else:
+                    why = "renderings_disagree"
+    row["I"] = {"answer": answer, "why": why, "choices": choices, "outcome": outcome(ph, answer, gold)}
+
+
 def run_probe(args) -> dict:
-    ph = hc.load(Path(args.hpo), Path(args.uberon))
+    ph = hc.load(Path(args.hpo), Path(args.uberon),
+                 Path(args.pato) if getattr(args, "pato", None) else None)
     it = italian_labels(Path(args.italian) if args.italian else None)
     items = [json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines() if x.strip()]
     labels = read_labels(Path(args.labels))
@@ -259,12 +370,14 @@ def run_probe(args) -> dict:
         probe_models(chats)
 
     def one(item: dict) -> dict:
-        gold = labels.get(item["pair"]) or labels.get(item["item_id"])
+        # an item's own label first: an Italian sentence that is not the one of its English translation
+        gold = labels.get(item["item_id"]) or labels.get(item["pair"])
         anchors = hc.site_anchors(item["structure"])
         site = ", ".join(ph.anatomy.labels.get(a, a) for a in ph.anatomy.site_classes(anchors))
         cands = ph.candidates(anchors)
         row = {"item_id": item["item_id"], "language": item["language"], "structure": item["structure"],
-               "gold": gold, "candidates": len(cands), "gold_in_candidates": gold in cands if gold != NONE else None}
+               "gold": gold, "candidates": len(cands),
+               "gold_in_candidates": any(g in cands for g in golds(gold)) if gold != NONE else None}
         if gold is None:
             row["unlabelled"] = True
             return row
@@ -276,11 +389,12 @@ def run_probe(args) -> dict:
         if item["language"] == "en":
             short = ph.shortlist(anchors, item["clause"], args.shortlist)
             if gold != NONE:
-                row["gold_in_shortlist"] = gold in short
+                row["gold_in_shortlist"] = any(g in short for g in golds(gold))
             # the baseline a model must beat: the first term of the shortlist, always
             first = short[0] if short else None
             row["first"] = {"answer": first, "why": "first_of_shortlist", "outcome": outcome(ph, first, gold)}
-        row["gold_italian_label"] = it.get(gold, ("", ""))[1] or "missing" if gold != NONE else None
+        row["gold_italian_label"] = (max((it.get(g, ("", ""))[1] for g in golds(gold)), default="") or "missing"
+                                     if gold != NONE else None)
         for name, chat in chats.items():
             text = item["clause"]
             if item["language"] == "it":
@@ -300,7 +414,7 @@ def run_probe(args) -> dict:
             short = ph.shortlist(anchors, f"{text} {proposed if proposed.lower() != 'none' else ''}",
                                  args.shortlist)
             row[f"proposed:{name}"] = proposed
-            row[f"gold_in_shortlist:{name}"] = gold in short if gold != NONE else None
+            row[f"gold_in_shortlist:{name}"] = any(g in short for g in golds(gold)) if gold != NONE else None
             options = [(h, ph.terms[h].name) for h in short]
             try:
                 reply = chat(choice_prompt(item["clause"], site, options, item["language"]))
@@ -316,6 +430,25 @@ def run_probe(args) -> dict:
                                 "outcome": outcome(ph, b, gold)}
             c = b if (b is not None and a == b) else None
             row[f"C:{name}"] = {"answer": c, "why": "agree" if c else "to_a_person", "outcome": outcome(ph, c, gold)}
+            row.setdefault("_english", {})[name] = text
+            # S: the choice, then the deterministic check "stated, not inferred" (climb to what the sentence states)
+            sb = b
+            if b not in (None, NONE):
+                sb, steps = ph.stated(b, anchors, text)
+                row[f"S:{name}"] = {"answer": sb, "why": f"climbed:{steps}" if sb else "nothing_stated",
+                                    "outcome": outcome(ph, sb, gold)}
+            else:
+                row[f"S:{name}"] = {"answer": b, "why": "as_B", "outcome": outcome(ph, b, gold)}
+            if getattr(args, "descent", True):
+                try:
+                    d, path = descend(ph, chat, anchors, item["clause"], text, site, item["language"])
+                except Exception as error:  # noqa: BLE001
+                    d, path = None, [f"error:{type(error).__name__}"]
+                row[f"D:{name}"] = {"answer": d, "why": "descended" if d else "unparsed", "path": path,
+                                    "outcome": outcome(ph, d, gold)}
+                row[f"gold_on_descent_path:{name}"] = (any(g in path for g in golds(gold))
+                                                       if gold != NONE else None)
+        integrate(ph, row, anchors, list(chats), gold)
         return row
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
@@ -333,7 +466,8 @@ def run_probe(args) -> dict:
                                    "outcome": outcome(ph, agreed, row["gold"])}
     labelled = [r for r in rows if not r.get("unlabelled")]
     arms = sorted({k for r in labelled for k in r
-                   if (k in ("A", "first", "models_agree") or k[:2] in ("B:", "C:")) and isinstance(r[k], dict)})
+                   if (k in ("A", "first", "models_agree", "I") or k[:2] in ("B:", "C:", "S:", "D:"))
+                   and isinstance(r[k], dict)})
     report = {"items": len(items), "labelled": len(labelled), "by_language": {}}
     for lang in ("en", "it"):
         rs = [r for r in labelled if r["language"] == lang]
@@ -348,8 +482,27 @@ def run_probe(args) -> dict:
                                            for k in sorted({k for r in rs for k in r
                                                             if k.startswith("gold_in_shortlist:")})},
             "gold_with_italian_label": dict(Counter(r.get("gold_italian_label") for r in with_term)),
+            "gold_on_descent_path_by_model": {k.split(":", 1)[1]: sum(1 for r in with_term if r.get(k))
+                                              for k in sorted({k for r in rs for k in r
+                                                               if k.startswith("gold_on_descent_path:")})},
             "arms": {arm: summarise(rs, arm) for arm in arms},
         }
+    if getattr(args, "review", None):
+        # what goes to a person: arm I gave no term. The radiologist's choice becomes a labelled phrase, the memory
+        # the deterministic reading consults first (the learning loop; nothing of it is used before it is reviewed)
+        by_id = {i["item_id"]: i for i in items}
+        with open(args.review, "w", encoding="utf-8") as fh:
+            for r in labelled:
+                i = r.get("I")
+                if i and i["answer"] is None:
+                    item = by_id[r["item_id"]]
+                    fh.write(json.dumps({"item_id": r["item_id"], "structure": r["structure"],
+                                         "clause": item["clause"], "why": i["why"],
+                                         "proposed": [{"id": c, "name": ph.terms[c].name if c in ph.terms else c}
+                                                      for c in dict.fromkeys(i["choices"]) if c]},
+                                        ensure_ascii=False) + "\n")
+    for r in rows:
+        r.pop("_english", None)
     report["rows"] = rows
     return report
 
@@ -373,6 +526,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--n-en", type=int, default=100)
     s.add_argument("--n-it", type=int, default=50)
     s.add_argument("--per-structure", type=int, default=6)
+    s.add_argument("--seed", type=int, default=SEED)
+    s.add_argument("--exclude", action="append", default=[],
+                   help="a labels file whose pairs (reports) are not drawn again")
     w = sub.add_parser("show")
     w.add_argument("--items", required=True)
     w.add_argument("--hpo")
@@ -383,6 +539,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--hpo", required=True)
     p.add_argument("--uberon", required=True)
     p.add_argument("--italian")
+    p.add_argument("--pato", help="pato.obo: the names of the qualities, for the check that a term is stated")
+    p.add_argument("--no-descent", dest="descent", action="store_false")
+    p.add_argument("--review", help="where to write what goes to a person (arm I gave no term)")
     p.add_argument("--models", default="")
     p.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     p.add_argument("--public-data", action="store_true")
@@ -394,7 +553,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", required=True)
     args = ap.parse_args(argv)
     if args.cmd == "sample":
-        items = build_sample(Path(args.parrot), args.n_en, args.n_it, args.per_structure)
+        exclude = {line.split("|")[0].strip() for f in args.exclude for line in Path(f).read_text("utf-8").splitlines()
+                   if line.strip() and not line.startswith("#")}
+        items = build_sample(Path(args.parrot), args.n_en, args.n_it, args.per_structure, args.seed, exclude)
         Path(args.out).write_text("\n".join(json.dumps(i, ensure_ascii=False) for i in items) + "\n", "utf-8")
         print(f"{len(items)} items ({Counter(i['language'] for i in items)}) -> {args.out}")
         return 0
