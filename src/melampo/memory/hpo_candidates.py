@@ -465,6 +465,31 @@ class Phenotypes:
         return bool(stems(ta.name)) and set(stems(ta.name)) == set(stems(tb.name))
 
 
+def _hedges() -> tuple[str, ...]:
+    from melampo.memory.assertion import ENGLISH_CUES
+
+    return tuple(dict.fromkeys(ENGLISH_CUES.possible + ENGLISH_CUES.hypothetical + (
+        "suggestive of", "suggesting", "suggests", "consistent with", "compatible with", "likely", "indicative of",
+        "may correspond", "in keeping with", "referable to", "attributable to", "concern for", "suspicious of",
+        "presumably", "probably", "possibly")))
+
+
+HEDGES = _hedges()
+
+
+def unhedged(text: str) -> str:
+    """The part of a sentence before its first hedge ("suggestive of", "consistent with", "likely"...): what follows
+    is the radiologist's hypothesis, not what is stated. Added after the third run (31 October 2026): "a small
+    hyperechoic intraluminal formation, suggestive of a cholesterol polyp" was kept as *Cholesterol gallbladder
+    polyp* because the hedged words were in the sentence."""
+    low, cut = text.lower(), len(text)
+    for h in HEDGES:
+        m = re.search(r"\b" + re.escape(h) + r"\b", low)
+        if m:
+            cut = min(cut, m.start())
+    return text[:cut]
+
+
 def _contains(seq: tuple[str, ...], sub: tuple[str, ...]) -> bool:
     n = len(sub)
     return any(seq[i:i + n] == sub for i in range(len(seq) - n + 1))
@@ -481,4 +506,4 @@ def load(hpo_path: Path, uberon_path: Path, pato_path: Path | None = None) -> Ph
     return ph
 
 
-__all__ = ["Anatomy", "Phenotypes", "Term", "load", "read_qualities", "site_anchors", "stem", "stems"]
+__all__ = ["Anatomy", "Phenotypes", "Term", "load", "read_qualities", "site_anchors", "stem", "stems", "unhedged"]
