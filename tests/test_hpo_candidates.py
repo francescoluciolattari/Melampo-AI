@@ -207,3 +207,13 @@ def test_the_descent_goes_down_the_site_branches_and_the_integration_checks_it()
     row = {"B:m": {"answer": hp.NONE}, "D:m": {"answer": "HP:0033609"}, "_english": {"m": "x"}}
     hp.integrate(p, row, LOBE, ["m"], "HP:0033608")
     assert row["I"]["answer"] is None and row["I"]["why"] == "none_against_a_term"
+
+
+def test_a_hedged_term_is_not_stated():
+    """After the third run: the radiologist's hypothesis ("suggestive of", "consistent with") is not what the
+    sentence states, even when its words are there."""
+    assert hc.unhedged("A 5 mm formation, suggestive of a cholesterol polyp") == "A 5 mm formation, "
+    assert hc.unhedged("Solid nodule of 12 mm") == "Solid nodule of 12 mm"
+    p = _phenotypes()
+    text = hc.unhedged("Opacity of 12 mm, likely a solid nodule")
+    assert p.stated("HP:0033609", LOBE, text)[0] == "HP:0002088"

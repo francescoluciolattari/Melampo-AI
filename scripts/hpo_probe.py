@@ -324,7 +324,8 @@ def integrate(ph: hc.Phenotypes, row: dict, anchors: list[str], names: list[str]
         return
     choices = [row.get(f"{arm}:{n}", {}).get("answer") for n in names for arm in ("B", "D")
                if f"{arm}:{n}" in row]
-    texts = list((row.get("_english") or {}).values())
+    # what the sentence states: the words before its first hedge (added after the third run)
+    texts = [hc.unhedged(t) for t in (row.get("_english") or {}).values()]
     why, answer = "", None
     if not choices or None in choices:
         why = "a_reading_failed"
@@ -434,7 +435,7 @@ def run_probe(args) -> dict:
             # S: the choice, then the deterministic check "stated, not inferred" (climb to what the sentence states)
             sb = b
             if b not in (None, NONE):
-                sb, steps = ph.stated(b, anchors, text)
+                sb, steps = ph.stated(b, anchors, hc.unhedged(text))
                 row[f"S:{name}"] = {"answer": sb, "why": f"climbed:{steps}" if sb else "nothing_stated",
                                     "outcome": outcome(ph, sb, gold)}
             else:

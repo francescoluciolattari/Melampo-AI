@@ -297,6 +297,72 @@ struttura, e a volte la frase italiana scelta non è la traduzione di quella ing
 Se I non passa, nessun reperto entra nel grafo. Gli item che vanno alla persona diventano la prima coda per il
 radiologo.
 
+## Terzo run, sul campione nuovo (31 ottobre, sera)
+
+Corsa da 71fd330 sul campione nuovo: 184 item, etichette scritte prima di qualunque metodo.
+
+| Inglese, 142 item | Risposte | Esatti | Più generali | **Troppo specifici** | Sbagliati | Termine dove serviva NONE | NONE dove serviva un termine | Sicuri sulle risposte |
+|---|---|---|---|---|---|---|---|---|
+| A | 44 | 23 | 2 | 4 | 12 | 3 | 0 | 57% |
+| Primo della shortlist | 141 | 30 | 10 | 18 | 35 | 48 | 0 | 28% |
+| B Gemma 4 | 141 | 87 | 5 | 11 | 16 | 12 | 10 | 65% |
+| B Nemotron 3 Ultra | 142 | 94 | 5 | 7 | 17 | 11 | 8 | 70% |
+| D Gemma (discesa) | 141 | 82 | 12 | 11 | 20 | 14 | 2 | 67% |
+| S Gemma (B + verifica) | 137 | 75 | 27 | 6 | 7 | 12 | 10 | 75% |
+| C Gemma | 23 | 17 | 0 | 4 | 2 | 0 | 0 | 74% |
+| **I (integrato)** | **91** | 54 | 28 | **4** | 2 | 3 | 0 | **90,1%** |
+
+**Italiano, 42 item.** B è sicuro nel 67% delle risposte (Gemma) e nel 64% (Nemotron). **I** risponde in 30 item ed
+è sicuro nel **90%** delle risposte, con il 3% di troppo specifici: come in inglese.
+
+**Esito rispetto ai criteri fissati prima.**
+- **I non passa:** è sicuro nel 90% delle risposte, contro una soglia del 95%. I troppo specifici sono il 4,4%,
+  sotto il massimo del 5%. Nessun reperto entra nel grafo.
+- **B non passa** (65–70%, soglia 80%) e **C non passa**.
+- **L'italiano passa:** B sta entro 10 punti dall'inglese (+1,5 per Gemma, −5,4 per Nemotron), e I è uguale.
+
+**Che cosa è cambiato davvero.** Rispetto alla scelta di un modello da solo, la lettura integrata passa da circa il
+70% al 90% di risposte sicure, su un campione mai visto. In cambio risponde nel 64% dei casi; il resto va alla
+persona. In italiano il distacco dall'inglese scompare. La discesa nell'albero, da sola, non è migliore della
+shortlist: il termine giusto è sul percorso di Gemma in 59 casi su 94. Il suo valore è dare al braccio I una seconda
+lettura di natura diversa.
+
+**I 12 errori di I, letti uno per uno** (9 inglesi, 3 italiani). È una lettura a posteriori, quindi non cambia il
+punteggio.
+
+| Causa | Item | Di chi è l'errore |
+|---|---|---|
+| Ipotesi presa per affermazione: "suggestive of a cholesterol polyp", "fortemente sospetto per neoformazione" | 310-en, 310-it, 746-it | **del sistema**: la verifica contava le parole dell'ipotesi |
+| L'etichetta è meno specifica del termine giusto: *Renal cortical cysts* per "cortical cyst" (due volte), *Abnormal cecum morphology* per il cieco | 852, 1480, 1429 | **mia**: avevo mancato il termine |
+| La sede del linker non è quella del reperto (dotto biliare, noduli vicino al colon) | 1528, 1767 | **del linker** |
+| Tenue "collassato": normale o anomalo? | 917-en, 917-it | da decidere con un radiologo |
+| Gerarchia di HPO: *Osteolysis* non è sotto la colonna; *Pulmonary venous hypertension* non è sotto le vene polmonari | 1285, 201 | dell'etichetta e di HPO; la risposta di I è più generale ma ragionevole |
+
+**Il costo nascosto: risposte troppo generali.** 45 delle 82 risposte sicure in inglese sono più generali
+dell'etichetta, e 41 di queste sono il termine dell'organo ("Abnormality of the kidney"). Il motivo è che la
+discesa si ferma presto, e il termine comune fra "Abnormality of the kidney" e "Kidney stone" è il primo.
+
+Ho provato, solo come esplorazione su questo campione, a prendere la scelta più specifica quando le scelte stanno
+su una stessa linea di discendenza. Non serve: gli esatti salgono da 54 a 55 e i troppo specifici dal 4,4% al 6,6%.
+Scartata.
+
+**Correzione per il prossimo run: il taglio dell'ipotesi** (`hpo_candidates.unhedged`). Le parole dopo la prima
+espressione di ipotesi non contano come affermate. Le espressioni sono quelle del lettore (`assertion`:
+*possible*, *suspected*, *may*…) più quelle della radiologia (*suggestive of*, *consistent with*, *likely*,
+*indicative of*…). È una regola generale, non legata ai casi.
+- In esplorazione su questo campione toglie i tre errori di ipotesi: I sale al 91,2% in inglese e al 96,7% in
+  italiano.
+- Il numero vale solo come indizio: questo campione ora è visto, e la regola va misurata su un campione nuovo.
+
+**Prossimi passi.**
+1. **Il radiologo**, cioè l'apprendimento umano in parallelo. Ci sono 63 item nella coda di I (`hpo_review.jsonl`)
+   e 28 etichette segnate "?". Le sue risposte diventano il primo gold vero e la prima memoria di frasi etichettate.
+   Senza questo passo la soglia del 95% non è verificabile sul serio: metà degli errori di I sono di etichetta o di
+   sede.
+2. **Un terzo campione**, solo inglese: i referti italiani di PARROT sono finiti. Su questo si misura il taglio
+   dell'ipotesi. Per l'italiano serve un'altra fonte pubblica, oppure i referti dei radiologi, con modelli locali.
+3. **Gli errori di sede del linker** (2 su 12) vanno al linker, non a HPO.
+
 ## Aggiornamenti dei modelli (verificati il 31 ottobre)
 
 - **Gemma**: la famiglia 4 (aprile 2026: E2B, E4B, 26B MoE, 31B denso; giugno: 12B) non ha un successore. Il 31B
