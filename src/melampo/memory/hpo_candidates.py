@@ -28,8 +28,13 @@ spiculati"). The diagnostic graph wants an HPO term (*Solid pulmonary nodule*). 
   is entirely made of the clause's words and the site's names (stems), with at least one word that is not a site
   name; two such terms neither of which is below the other is an abstention.
 
+* ``Phenotypes.stated(term, site, words)`` -- "stated, not inferred": the term if the sentence states it (all the
+  distinctive words of one of its names, or a name of its PATO quality), otherwise the nearest ancestor that it
+  states; ``descent_roots`` / ``children_at_site`` -- the site's HPO tree, for a descent from the kind of finding
+  to the finding; ``equivalent`` -- two terms counted as one (31 October 2026, before the third run).
+
 The ontologies are read from their OBO releases: ``hp-full.obo`` (with the logical definitions; ``hp.obo`` has
-none) and ``uberon.obo`` (the full one: ``uberon-basic.obo`` has no relational adjectives). Nothing is written by
+none), ``pato.obo`` (optional: the names of the qualities) and ``uberon.obo`` (the full one: ``uberon-basic.obo`` has no relational adjectives). Nothing is written by
 hand: no per-finding table.
 """
 
@@ -78,6 +83,8 @@ class Term:
     parents: list[str] = field(default_factory=list)
     anatomy: set[str] = field(default_factory=set)           # UBERON ids named by the logical definition
     other_names: list[str] = field(default_factory=list)     # layperson and related synonyms: for ranking only
+    qualities: set[str] = field(default_factory=set)         # PATO ids named by the logical definition
+    definition: frozenset = frozenset()                      # the logical definition, as a set of clauses
 
 
 def read_obo(lines: Iterable[str], prefix: str) -> dict[str, dict]:
@@ -173,11 +180,28 @@ def site_anchors(cid: str, path: Path = ANCHORS) -> list[str]:
     return list(dict.fromkeys(list((entry.get("uberon") or {}).keys()) + list((entry.get("family") or {}).keys())))
 
 
+# PATO qualities that say only "something about it" and are no evidence that a sentence states the quality
+GENERIC_QUALITIES = frozenset({"PATO:0000001", "PATO:0000051", "PATO:0001236", "PATO:0001509", "PATO:0000460",
+                               "PATO:0000070", "PATO:0000014"})
+GENERIC_WORDS = frozenset(stem(w) for w in ("abnormal", "abnormality", "abnormalities", "morphology", "anomaly",
+                                           "anomalies", "phenotype", "finding", "feature"))
+
+
+def read_qualities(lines: Iterable[str]) -> dict[str, list[str]]:
+    """PATO id -> its label and synonyms (all scopes): "increased size" -> enlarged, large, big..."""
+    out = {}
+    for pid, t in read_obo(lines, "PATO:").items():
+        names = [(t.get("name") or [""])[0]] + [_quoted(s) for s in t.get("synonym", [])]
+        out[pid] = [n for n in dict.fromkeys(names) if n]
+    return out
+
+
 @dataclass
 class Phenotypes:
     terms: dict[str, Term]
     anatomy: Anatomy
     children: dict[str, list[str]] = field(default_factory=dict)
+    qualities: dict[str, list[str]] = field(default_factory=dict)      # PATO names (optional: pato.obo)
     _cache: dict = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -191,6 +215,8 @@ class Phenotypes:
                 [p.split(" ")[0] for p in t.get("is_a", []) if p.startswith("HP:")],
                 {w for x in inter for w in x.split() if w.startswith("UBERON:")},
                 [_quoted(s) for s in t.get("synonym", []) if " EXACT" not in s or "layperson" in s],
+                {w for x in inter for w in x.split() if w.startswith("PATO:")},
+                frozenset(x.split(" !")[0].strip() for x in inter),
             )
         children: dict[str, list[str]] = defaultdict(list)
         for t in terms.values():
@@ -273,9 +299,7 @@ class Phenotypes:
             return None
         return max(direct, key=lambda h: (len(self.descendants(h) & set(cands)), -len(self.ancestors(h)), h))
 
-    def shortlist(self, uberon: list[str], text: str, k: int = 15) -> list[str]:
-        """The ``k`` candidates nearest to the words of ``text``, the general one always among them."""
-        cands = self.candidates(uberon)
+    def _score(self, uberon: list[str], text: str):
         words = set(stems(text))
         site = {w for s in self.site_words(uberon) for w in s}
 
@@ -291,6 +315,16 @@ class Phenotypes:
             # then the share of the term's own words that the sentence holds
             return (-best[0], -best[1], len(self.ancestors(h)), t.name)
 
+        return score
+
+    def rank(self, uberon: list[str], text: str, hids: Iterable[str]) -> list[str]:
+        """``hids`` ordered by the words they share with ``text`` (as the shortlist), all of them kept."""
+        return sorted(hids, key=self._score(uberon, text))
+
+    def shortlist(self, uberon: list[str], text: str, k: int = 15) -> list[str]:
+        """The ``k`` candidates nearest to the words of ``text``, the general one always among them."""
+        cands = self.candidates(uberon)
+        score = self._score(uberon, text)
         ranked = [h for h in sorted(cands, key=score) if score(h)[0] < 0][:k]
         for g in self.organ_terms(uberon, cands):
             if g not in ranked:
@@ -340,16 +374,111 @@ class Phenotypes:
         return top[0], "named"
 
 
+    # -- "stated, not inferred": the deterministic check on a model's choice (31 October 2026) -------------------
+    def distinctive(self, hid: str, uberon: list[str]) -> list[set[str]]:
+        """For each name of the term (label, exact and other synonyms), the words that are neither the site's names
+        nor the words of a general term: *Abdominal aortic aneurysm* at the aorta -> {abdominal, aneurysm}. An
+        empty set means the name says only "abnormal, at this site"."""
+        site = {w for s in self.site_words(uberon) for w in s}
+        t = self.terms[hid]
+        return [set(stems(n)) - site - GENERIC_WORDS for n in [t.name, *t.synonyms, *t.other_names] if stems(n)]
+
+    def support(self, hid: str, uberon: list[str], text: str) -> set[str]:
+        """The ways the sentence itself states the term, without a model:
+
+        * ``site_only`` -- one of its names says nothing but an abnormality at the site (*Abnormal adrenal
+          morphology*): what any abnormal finding there states;
+        * ``name`` -- every distinctive word of one of its names is in the sentence (stems);
+        * ``quality`` -- its logical definition names a PATO quality, and one of that quality's names is in the
+          sentence ("enlarged" for *increased size*), the site being given.
+
+        An empty set: the term says more than the sentence (it would be inferred, not read)."""
+        words = set(stems(text))
+        out = set()
+        for d in self.distinctive(hid, uberon):
+            if not d:
+                out.add("site_only")
+            elif d <= words:
+                out.add("name")
+        for q in self.terms[hid].qualities - GENERIC_QUALITIES:
+            if any(set(stems(n)) and set(stems(n)) <= words for n in self.qualities.get(q, [])):
+                out.add("quality")
+        return out
+
+    def stated(self, hid: str, uberon: list[str], text: str) -> tuple[str | None, int]:
+        """The term itself if the sentence states it, otherwise the nearest ancestor among the site's candidates
+        that the sentence states (breadth first), with the number of steps climbed; (None, -1) if there is none.
+        The fall-back to the parent of the anatomical linker, for phenotypes."""
+        cands = self.candidates(uberon)
+        frontier, seen, steps = [hid], {hid}, 0
+        while frontier:
+            ok = sorted(h for h in frontier if h in cands and self.support(h, uberon, text))
+            if ok:
+                # two ancestors at the same distance: the most specific one that both lead to is not known here;
+                # the one with more support, then the deeper one
+                return max(ok, key=lambda h: (len(self.support(h, uberon, text)), len(self.ancestors(h)))), steps
+            frontier = [p for h in frontier for p in self.terms.get(h, Term("", "")).parents if p not in seen]
+            seen.update(frontier)
+            steps += 1
+        return None, -1
+
+    def common_ancestor(self, hids: list[str]) -> str | None:
+        """The most specific term that every one of ``hids`` is or descends from."""
+        if not hids:
+            return None
+        common = set.intersection(*[{h} | self.ancestors(h) for h in hids])
+        common.discard(PHENOTYPE_ROOT)
+        return max(common, key=lambda h: (len(self.ancestors(h)), h)) if common else None
+
+    def descent_roots(self, uberon: list[str]) -> list[str]:
+        """Where the descent starts: the site's general terms, and every candidate with no parent among the
+        candidates that has children at the site (the tops of the site's branches: at the lung, *Abnormal lung
+        morphology* and also *Abnormal pulmonary thoracic imaging finding*, where the nodules are). Measured on
+        the development labels (31 October 2026): from the general terms alone the label was reachable in 80 of
+        114 items, the lung nodules never."""
+        cands = self.candidates(uberon)
+        out = list(self.organ_terms(uberon, cands))
+        g = self.general(cands)
+        if g and g not in out:
+            out.append(g)
+        tops = [h for h in cands if not (set(self.terms[h].parents) & set(cands)) and self.children_at_site(h, uberon)]
+        out += sorted((h for h in tops if h not in out),
+                      key=lambda h: (-len(self.descendants(h) & set(cands)), self.terms[h].name))
+        return out
+
+    def children_at_site(self, hid: str, uberon: list[str]) -> list[str]:
+        """The direct children of a term that are candidates at the site: one step of the descent."""
+        cands = self.candidates(uberon)
+        return sorted((c for c in self.children.get(hid, []) if c in cands), key=lambda h: self.terms[h].name)
+
+    def equivalent(self, a: str, b: str) -> bool:
+        """Declared before the third run (31 October 2026): two terms count as one when their logical definitions
+        are the same, or when their labels have the same words in another order or form ("Rib fracture",
+        "Fractured rib")."""
+        if a == b:
+            return True
+        ta, tb = self.terms.get(a), self.terms.get(b)
+        if ta is None or tb is None:
+            return False
+        if ta.definition and ta.definition == tb.definition:
+            return True
+        return bool(stems(ta.name)) and set(stems(ta.name)) == set(stems(tb.name))
+
+
 def _contains(seq: tuple[str, ...], sub: tuple[str, ...]) -> bool:
     n = len(sub)
     return any(seq[i:i + n] == sub for i in range(len(seq) - n + 1))
 
 
-def load(hpo_path: Path, uberon_path: Path) -> Phenotypes:
+def load(hpo_path: Path, uberon_path: Path, pato_path: Path | None = None) -> Phenotypes:
     with open(uberon_path, encoding="utf-8") as fh:
         anatomy = Anatomy.from_obo(fh)
     with open(hpo_path, encoding="utf-8") as fh:
-        return Phenotypes.from_obo(fh, anatomy)
+        ph = Phenotypes.from_obo(fh, anatomy)
+    if pato_path is not None and Path(pato_path).exists():
+        with open(pato_path, encoding="utf-8") as fh:
+            ph.qualities = read_qualities(fh)
+    return ph
 
 
-__all__ = ["Anatomy", "Phenotypes", "Term", "load", "site_anchors", "stem", "stems"]
+__all__ = ["Anatomy", "Phenotypes", "Term", "load", "read_qualities", "site_anchors", "stem", "stems"]

@@ -214,6 +214,89 @@ risposte rivede almeno i casi dubbi.
   contano come lo stesso termine.
 - **Criteri invariati**: 80% di risposte sicure, 5% di troppo specifici, 95% per C, italiano entro 10 punti.
 
+## Ripetizione del secondo run (31 ottobre, pomeriggio)
+
+Frank ha rilanciato il workflow da 5842e09, che cambia solo la nota: stesso codice, stessi item. È una misura della
+variabilità dei modelli.
+
+| Inglese | Secondo run | Ripetizione |
+|---|---|---|
+| B Gemma, sicuri sulle risposte | 74,0% | 74,7% |
+| B Nemotron | 69,3% | 68,0% |
+| Gemma e Nemotron d'accordo | 78,8% | 77,0% |
+| C Gemma | 85,3% | 87,9% |
+
+- **Le risposte sono stabili:** fra i due run cambiano 6 risposte di Gemma su 200 e 5 di Nemotron. Il margine dalle
+  soglie non è rumore.
+- **Ripetere la domanda non aiuta:** sui 115 item inglesi in cui le quattro risposte coincidono (due modelli per due
+  run), le risposte sicure sono il 79%.
+- **Gli errori dei modelli sono correlati, come il linker aveva già mostrato:** in 33 item le quattro risposte
+  coincidono e sono sbagliate. In 17 di questi il termine giusto non era fra le opzioni. Un secondo modello, o un
+  secondo tentativo, non è una seconda prova. Serve un meccanismo di natura diversa.
+
+## Il terzo passo: come legge il radiologo, con la precisione della macchina (fissato prima del run)
+
+Richiesta di Frank: il passo successivo va costruito con lo stesso metodo del linker anatomico
+(`architettura_parallela_predittiva_linker_2026-10-06.md`). Flussi paralleli di natura diversa che simulano la
+lettura umana, una scelta vincolata in cui il modello è preciso, una convergenza verificabile, l'astensione verso
+una persona, e la persona da cui il sistema impara.
+
+| Passo della lettura umana | Che cosa fa il sistema | Dove |
+|---|---|---|
+| Costruzione esaustiva (Kintsch): tutte le letture possibili, anche sbagliate | I candidati della sede per tre vie (definizione logica, nome, discendenti) | `Phenotypes.candidates` |
+| Riconoscimento dalla memoria, per parole | La shortlist; il metodo A | `shortlist`, `deterministic` |
+| **Dal genere alla specie**: il radiologo sa che è "un'anomalia del polmone", poi "un reperto di imaging", poi "un nodulo", poi "solido" | **Discesa nell'albero:** dalle cime dei rami della sede (*Abnormal lung morphology*, *Abnormal pulmonary thoracic imaging finding*…), una scelta per passo fra i figli che sono candidati alla sede, fino a "fermati qui" | `descent_roots`, `children_at_site`, `descend` |
+| Scelta fra alternative note (Sistema 2) | I modelli scelgono lettere fra termini veri, mai codici | `choice_prompt`, `descent_prompt` |
+| **"Detto, non dedotto"**: il radiologo non scrive "aneurisma" per un'ectasia di 3,2 cm | **Verifica deterministica:** un termine è affermato solo se la frase contiene tutte le parole distintive di un suo nome, oppure il nome della sua qualità PATO ("enlarged" per *increased size*). Altrimenti si risale al più vicino antenato affermato: il ripiego al padre del linker | `support`, `stated`; PATO da `pato.obo` |
+| Convergenza di meccanismi diversi; i due LLM contano **uno** | **Braccio I:** le scelte dei modelli (shortlist e discesa, entrambi i modelli) danno il termine comune più specifico. La frase decide fin dove salire | `integrate` |
+| Conflitto → deliberazione o domanda | "Nessuno" contro un termine, nessun termine comune alla sede, nulla di affermato → **a una persona** | `integrate`, `--review` |
+| **Apprendimento**: l'esperto impara dai casi rivisti | La coda per il radiologo (`hpo_review.jsonl`): frase, sede, termini proposti, motivo. La scelta del radiologo diventa una frase etichettata, cioè la memoria che la lettura deterministica consulterà per prima (come i nomi curati del linker). Nessuna regola nasce dal caso singolo e nulla entra nella memoria prima della revisione | coda pronta; la memoria si costruisce con le prime revisioni |
+
+**Che cosa promette la verifica, misurata sul campione di sviluppo.** Questa misura è *di sviluppo*: l'idea è nata
+guardando questi item, quindi i numeri pendono a favore.
+- Applicata alle risposte già date nel secondo run, la verifica porta i troppo specifici di Gemma dal 6,0% al 2,1%.
+  Le risposte sicure salgono dal 74% al 79%, ma gli esatti scendono da 98 a 88: una parte delle risposte giuste
+  usava parole che la frase non contiene.
+- Il braccio integrato, senza discesa, arriva all'82% di risposte sicure, con il 2,3% di troppo specifici, e
+  risponde in 129 item su 150.
+- Senza modelli, la discesa può raggiungere il termine giusto in 106 item su 114, cioè sempre quando il termine è
+  fra i candidati. Partendo solo dal termine generale dell'organo erano 80: i noduli polmonari stanno sotto *Abnormal
+  pulmonary thoracic imaging finding*, non sotto *Abnormal lung morphology*.
+
+**Il campione nuovo** (`data/gold/hpo_heldout_2026-10-31`):
+- seme 2026103102, nessun referto del campione di sviluppo;
+- 184 item (142 inglesi, 42 italiani), 47 strutture, 48 `NONE`;
+- etichette scritte **prima di qualunque metodo**, cercando in tutta HPO;
+- 28 etichette segnate "?" per un radiologo.
+
+Il generatore, senza modelli, trova il termine giusto fra i candidati in 92 casi su 94 e nella shortlist in 67 su
+94. La discesa può raggiungerlo in 92 su 94.
+
+Nel costruirlo è emerso un difetto anche del campione di sviluppo: l'appaiamento fra italiano e inglese è per
+struttura, e a volte la frase italiana scelta non è la traduzione di quella inglese.
+- Nel campione nuovo succede in 9 coppie su 21; queste hanno ora un'etichetta propria.
+- Nel campione di sviluppo succede in 5 coppie su 50, con un'etichetta sola per coppia. Escluse quelle, l'italiano
+  di Gemma passa dal 56% al 60% di risposte sicure. Spiega una parte piccola del distacco dall'inglese.
+
+**Regole dichiarate prima del run.**
+- **Termini equivalenti:** si contano come lo stesso termine se hanno la stessa definizione logica, oppure se le
+  loro etichette hanno le stesse parole in altro ordine o forma.
+- **Più reperti nella frase:** un'etichetta può elencare più termini, uno per reperto, e la risposta si confronta
+  con il più vicino.
+- **Etichetta propria** per l'item italiano non appaiato.
+
+**Bracci e criteri del terzo run**, invariati come chiesto:
+- **B** (scelta dei modelli dalla shortlist): almeno 80% di risposte sicure, al massimo 5% di troppo specifici,
+  meglio di A e del riferimento negli esatti;
+- **C** (A e B d'accordo): almeno 95% di risposte sicure;
+- **italiano:** B entro 10 punti dall'inglese;
+- **I** (integrato): è il braccio che scriverebbe nel grafo, quindi deve stare alla soglia di C, almeno 95% di
+  risposte sicure e al massimo 5% di troppo specifici, con la copertura dichiarata;
+- **S** (B più la verifica) e **D** (discesa) sono riportati per capire, non decidono.
+
+Se I non passa, nessun reperto entra nel grafo. Gli item che vanno alla persona diventano la prima coda per il
+radiologo.
+
 ## Aggiornamenti dei modelli (verificati il 31 ottobre)
 
 - **Gemma**: la famiglia 4 (aprile 2026: E2B, E4B, 26B MoE, 31B denso; giugno: 12B) non ha un successore. Il 31B
