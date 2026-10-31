@@ -1,0 +1,26 @@
+# "Of what is the finding said?" (31 October 2026): the items of the two HPO samples whose finding is not of
+# the structure the linker found. Taken from the notes of their labels, written before any reading of this
+# question was built (hpo_silver_2026-10-31: development; hpo_heldout_2026-10-31: written before any method).
+# Every other labelled item is "here" (the sentence is about the structure: a finding, or a normal statement).
+# Format: set|pair|what the sentence describes instead. One labeller (Claude): for a radiologist to review.
+dev|parrot-955|dilated ureters, up to their entry into the bladder
+dev|parrot-758|a fatty image dorsal to the sternum
+dev|parrot-763|the prostatic middle lobe (not the lung's)
+dev|parrot-1931|an object lodged in a bronchus
+dev|parrot-1810|a ureteral stone at the level of L4
+dev|parrot-1085|a soft-tissue haematoma near the femur
+dev|parrot-1707|free fluid around the spleen
+dev|parrot-2288|an apical opacity, not the subclavian artery
+dev|parrot-1772|a lung tumour at the level of the pulmonary veins
+heldout|parrot-2200|enlarged nodes along the aortic arch
+heldout|parrot-806|prostatic hypertrophy protruding into the bladder
+heldout|parrot-731|fluid between the bowel loops
+heldout|parrot-804|prostatic hypertrophy protruding into the bladder
+heldout|parrot-1528|a calcified structure in the common bile duct
+heldout|parrot-1656|thickening of the parietal pleura
+heldout|parrot-2251|an enlarged appendix lateral to the cecum
+heldout|parrot-2337|the liver (the lung lobe is a linker error)
+heldout|parrot-1659|fluid around the spleen and along the colon
+heldout|parrot-1767|nodular densities near the splenic flexure
+heldout|parrot-1746|lymph nodes near the adrenal
+heldout|parrot-568|a lesion adjacent to the facet joint

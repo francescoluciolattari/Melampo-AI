@@ -10,8 +10,9 @@ Inputs: the folder written by ``build_silver_gold.py`` (``items.jsonl``, ``sente
 
 Short codes: structure ``N`` = NONE_IN_CLASSES, ``X`` = NOT_ANATOMY, ``A`` = AMBIGUOUS; relation ``e`` equal,
 ``po`` part_of, ``co`` contour_of, ``ap`` approx; role ``s`` structure, ``p`` procedure_site, ``d``
-device_site, ``o`` source_of, ``il`` inherent_location, ``in`` inside_a_name, ``nb`` not_a_body_site,
-``ot`` other. Writes ``gold.jsonl`` for ``scripts/gold_set.py evaluate`` and fails on any label it cannot
+device_site, ``l`` landmark (31 October 2026: the structure only places something else), ``o`` source_of, ``il`` inherent_location, ``in`` inside_a_name, ``nb`` not_a_body_site,
+``ot`` other; several roles the sentence supports together are joined by "+" (``s+l``), the first is the main one.
+Writes ``gold.jsonl`` for ``scripts/gold_set.py evaluate`` and fails on any label it cannot
 place (a mention not in its sentence, an unknown class).
 
     python scripts/assemble_silver_gold.py --items silver/ --labels data/gold/silver_2026-10-12/labels \
@@ -28,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STRUCT = {"N": "NONE_IN_CLASSES", "X": "NOT_ANATOMY", "A": "AMBIGUOUS"}
 REL = {"e": "equal", "po": "part_of", "co": "contour_of", "ap": "approx", "": ""}
-ROLE = {"s": "structure", "p": "procedure_site", "d": "device_site", "o": "source_of", "il": "inherent_location",
+ROLE = {"s": "structure", "l": "landmark", "p": "procedure_site", "d": "device_site", "o": "source_of", "il": "inherent_location",
         "in": "inside_a_name", "nb": "not_a_body_site", "ot": "other", "": ""}
 
 
@@ -36,7 +37,7 @@ def _jsonl(path: Path):
     return [json.loads(x) for x in path.read_text("utf-8").split("\n") if x.strip()]
 
 
-def decode(structure: str, relation: str, role: str, classes: set[str]) -> tuple[str, str, str]:
+def decode(structure: str, relation: str, role: str, classes: set[str]) -> tuple[str, str, str, list[str]]:
     s = STRUCT.get(structure, structure)
     if s not in STRUCT.values() and s not in classes:
         raise ValueError(f"unknown class {structure!r}")
@@ -45,7 +46,8 @@ def decode(structure: str, relation: str, role: str, classes: set[str]) -> tuple
         rel = ""
     elif not rel:
         rel = "equal"
-    return s, rel, ROLE[role]
+    roles = [ROLE[r] for r in role.split("+")] if role else [""]
+    return s, rel, roles[0], [r for r in roles if r]
 
 
 def main(argv=None) -> int:
@@ -67,8 +69,8 @@ def main(argv=None) -> int:
                 if parts[0] in items:
                     item_id, structure, relation, role, span, note = (parts + [""] * 6)[:6]
                     it = items[item_id]
-                    s, rel, rl = decode(structure, relation, role, classes)
-                    row = {**it, "structure": s, "relation": rel, "role": rl, "span_text": span.strip(),
+                    s, rel, rl, rls = decode(structure, relation, role, classes)
+                    row = {**it, "structure": s, "relation": rel, "role": rl, "gold_roles": rls, "span_text": span.strip(),
                            "note": note.strip(), "labelled_by": "Claude (single labeller)"}
                 else:
                     rid, mention, structure, relation, role, span, note = (parts + [""] * 7)[:7]
@@ -76,11 +78,11 @@ def main(argv=None) -> int:
                     at = sent["sentence"].find(mention)
                     if at < 0:
                         raise ValueError(f"mention {mention!r} not in the sentence of {rid}")
-                    s, rel, rl = decode(structure, relation, role, classes)
+                    s, rel, rl, rls = decode(structure, relation, role, classes)
                     row = {"item_id": f"{rid}#{at}", "report_id": rid, "language": sent["language"],
                            "sentence": sent["sentence"], "mention": mention, "start": sent["offset"] + at,
                            "end": sent["offset"] + at + len(mention), "stratum": sent["stratum"],
-                           "structure": s, "relation": rel, "role": rl, "span_text": span.strip(),
+                           "structure": s, "relation": rel, "role": rl, "gold_roles": rls, "span_text": span.strip(),
                            "note": note.strip(), "span_by": "Claude", "labelled_by": "Claude (single labeller)"}
                 gold.append(row)
             except (KeyError, ValueError) as exc:

@@ -43,8 +43,8 @@ S0151|heart|po|s||piano valvolare
 S0152|X||ot||urine
 S0153|urinary_bladder|e|s||
 S0154|X||ot||tessuto infiammatorio
-S0155|aorta|po|s||aorta addominale
-S0156|aorta|po|s||carrefour aortico
+S0155|aorta|po|l||aorta addominale [landmark, relabelled 31 Oct 2026]
+S0156|aorta|po|l||carrefour aortico [landmark, relabelled 31 Oct 2026]
 S0157|X||ot||tessuto
 S0158|N|e|p||tac addome
 S0159|colon|e|s||
@@ -89,7 +89,7 @@ S0197|liver|e|s||
 S0198|pancreas|e|s||
 S0199|N|e|s||fossa iliaca
 S0200|stomach|e|s||
-S0201|N|e|s||ombelico
+S0201|N|e|l||ombelico [landmark, relabelled 31 Oct 2026]
 S0202|N|e|s||fossa iliaca
 S0203|lung_lower_lobe_right|ap|s||base polmonare destra
 S0204|X||ot||sangue

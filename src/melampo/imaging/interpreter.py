@@ -15,6 +15,7 @@ leaves the finding on the text with the reason written (``segmenter_unavailable`
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -35,10 +36,15 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                    sites: list[dict[str, Any]], language: str = "it", volume: np.ndarray | None = None,
                    affine=None, frame_of_reference: str = "", lesion_segmenter=None,
                    organ_segmenter=None, contrast: str = "unknown",
-                   structures: dict[str, np.ndarray] | None = None) -> list[Finding]:
+                   structures: dict[str, np.ndarray] | None = None, ownership=None,
+                   set_aside: list | None = None) -> list[Finding]:
     """The findings of one exam. ``sites``: rows with mention, start, end (offsets in ``report_text``), cid, roles.
     ``structures``: every anatomical mask of the exam (name -> mask), for the structures each lesion involves;
-    when not given and the organ segmenter can segment the whole body (``all_structures``), it is asked once."""
+    when not given and the organ segmenter can segment the whole body (``all_structures``), it is asked once.
+    ``ownership``: a ``finding_owner.FindingOwner`` (31 October 2026): is the clause about this structure, or does
+    the structure only place something else? When the reader and the model agree that it is not, no finding is
+    made at the site and the clause is appended to ``set_aside`` for a person; when they do not agree, the
+    finding is made and goes to a person."""
     findings: list[Finding] = []
     asked = structures is not None
     for site in sites:
@@ -47,11 +53,21 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
         start, end = int(site["start"]), int(site["end"])
         q = read_site_qualifiers(report_text, start, end, language)
         lo, hi = q.clause
-        clause = report_text[lo:hi].strip()
+        raw = report_text[lo:hi]
+        clause = raw.strip()
         sizes = sizes_in_text(clause)
         qd = q.as_dict()
         if not _describes(qd, sizes):
             continue
+        owner = None
+        if ownership is not None:
+            at = start - lo - (len(raw) - len(raw.lstrip()))
+            owner = ownership(site.get("mention", report_text[start:end]), clause, at, language)
+            if owner.verdict == "elsewhere":
+                if set_aside is not None:
+                    set_aside.append({"mention": site.get("mention", ""), "structure": site["cid"], "clause": clause,
+                                      "reason": "the_structure_only_places_something_else", **owner.as_dict()})
+                continue
         text = TextSide(report_id, clause, site.get("mention", report_text[start:end]), start, end, site["cid"],
                         tuple(site.get("roles") or ()), qd, sizes, language)
         image = ImageSide(NO_IMAGE)
@@ -78,6 +94,8 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                                        structures=structures)
             except SegmenterUnavailable as error:
                 image = ImageSide(NO_IMAGE, notes=(f"segmenter_unavailable:{error}",))
+        if owner is not None and owner.verdict == "unsure":
+            image = replace(image, review=(*image.review, f"is_the_finding_of_this_structure:{owner.reason}"))
         findings.append(build_finding(patient, study, study_date, modality, text, image))
     return findings
 

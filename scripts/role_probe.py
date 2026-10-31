@@ -381,7 +381,8 @@ def score(items: list[dict], arm: str) -> dict:
     if not said:
         return {}
     answered = [(it, r) for it, r in said if r != "uncertain"]
-    right = [r == it["role"] for it, r in answered]
+    # a gold row may hold several roles the sentence supports together ("structure+landmark", 31 Oct 2026)
+    right = [r in (it.get("gold_roles") or [it["role"]]) for it, r in answered]
     grouped = [group(r) == group(it["role"]) for it, r in answered]
     critical = [(group(r) == "not_a_site") != (group(it["role"]) == "not_a_site") for it, r in answered]
     wrong_structure = sum(r == "structure" and it["role"] != "structure" for it, r in answered)
