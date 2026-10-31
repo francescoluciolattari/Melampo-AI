@@ -45,7 +45,7 @@ S0371|N|e|s||chest
 S0372|trachea|e|s||
 S0373|X||ot||tumor
 S0374|N|e|p||skin graft
-S0375|N|e|s||rectus border
+S0375|N|e|l||rectus border [landmark, relabelled 31 Oct 2026]
 S0376|N|e|s||ovary
 S0377|X||il||bowel sounds
 S0378|X||ot||abscess cavities
@@ -115,9 +115,9 @@ S0441|N|e|s||eyelid
 S0442|N|e|s||knee joint
 S0443|liver|e|s||
 S0444|liver|e|s||
-S0445|N|e|s||adnexa
+S0445|N|e|s+l||adnexa [landmark, relabelled 31 Oct 2026]
 S0446|N|e|s||muscle
-S0447|N|e|s||umbilicus
+S0447|N|e|l||umbilicus [landmark, relabelled 31 Oct 2026]
 S0448|N|e|s||right coronary artery
 S0449|X||il||liver functions
 S0450|N|e|s||perineal soft tissue

@@ -77,8 +77,12 @@ from .chunk_lattice import (
 from .word_senses import _PHRASE_STOP, _fold
 
 STRUCTURE = "structure"
+# The structure only places something else ("nodes along the aortic arch"): a body site, of which the sentence says
+# nothing (31 October 2026; Rad-SpRL's landmark). It can go with "structure" when what is placed is in it.
+LANDMARK = "landmark"
 READINGS = (
     STRUCTURE,
+    LANDMARK,
     "procedure_site",
     "device_site",
     "inherent_location",
@@ -96,6 +100,10 @@ PROTOTYPE_KINDS = {
 }
 
 INHIBITION = 0.5  # among the readings of one string, as a share of a unit excitatory link
+# The relation read before the mention (``spatial_relation``), as a share of the lexical evidence for the
+# structure: a proximity as much as all of it, a direction half, a containment or the object of a verb half.
+LANDMARK_SHARE = 0.5   # of the lexical support for the structure that the landmark gets too
+RELATION_WEIGHT = {"proximity": 1.0, "direction": 0.5, "containment": 0.5, "affected": 0.5}
 STOP_CHANGE = 0.001  # Kintsch's stopping rule on the change of the activation vector
 MAX_CYCLES = 200
 MARGIN = 0.10  # share of the activation by which the best reading must beat the second
@@ -548,7 +556,12 @@ class CIReading:
 
     @property
     def p_not_structure(self) -> float:
-        return 1.0 - self.shares.get(STRUCTURE, 0.0)
+        """The share of the readings that are not a body site (a landmark is one: the link is kept)."""
+        return 1.0 - self.shares.get(STRUCTURE, 0.0) - self.shares.get(LANDMARK, 0.0)
+
+    def possible(self, share: float = 0.2) -> list[str]:
+        """The readings the evidence keeps possible (the rule of option b, 14 October 2026), best first."""
+        return [r for r, v in sorted(self.shares.items(), key=lambda kv: -kv[1]) if v >= share]
 
 
 class CIReader:
@@ -567,7 +580,8 @@ class CIReader:
         self.traces = traces
         self.inhibition = inhibition
         # which families of evidence are in the network (for the ablations of the probe)
-        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse"})
+        self.use = use or frozenset({"blocks", "head", "predication", "traces", "domain", "gist", "rules", "discourse",
+                                     "relation"})
         self.scale = self._calibrate()
 
     def _calibrate(self) -> float:
@@ -616,6 +630,12 @@ class CIReader:
     def construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None,
                   doc_key: str = "", discourse: Discourse | None = None, doc_at: int | None = None,
                   language: str = "en"):
+        """The evidence nodes of the first stage (see ``_construct``)."""
+        return self._construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at, language)[0]
+
+    def _construct(self, mention: str, sentence: str, start: int | None, doc: str | None = None, doc_vector=None,
+                   doc_key: str = "", discourse: Discourse | None = None, doc_at: int | None = None,
+                   language: str = "en"):
         """The evidence nodes: ``(label, activation, {reading: link weight})``. ``discourse`` is what the
         document has settled about its words and ``doc_at`` the offset of the mention in the document
         (so that it does not support itself)."""
@@ -633,6 +653,14 @@ class CIReader:
             if seen.outcome == "not_a_site" and seen.source == "of" and seen.role in READINGS:
                 # a rule that changes the sense overrules the sense it replaces: it also inhibits the structure
                 nodes.append((f"rule:{seen.why}", 1.0, {seen.role: 1.0, STRUCTURE: -1.0}))
+        relation = None
+        if "relation" in self.use and start is not None:
+            # what the sentence does with the structure: a finding in or of it, or a place for something else
+            # (Rad-SpRL's landmark). Read here, weighed below against the lexical evidence: it never decides alone
+            from .spatial_relation import read_relation
+
+            grammar = Grammar.for_language(language) if language in ("en", "it") else None
+            relation = read_relation(sentence, start, language, grammar.verbal if grammar else None)
         words = list(_WORD.finditer(mention))
         if "discourse" in self.use and discourse is not None and words:
             key = _singular(_fold(words[-1].group(0)))
@@ -720,7 +748,7 @@ class CIReader:
                 links = {r: max(0.0, g - mean) for r, g in gist.items() if r in READINGS}
                 if any(links.values()):
                     nodes.append(("gist", 1.0, links))
-        return nodes
+        return nodes, relation
 
     # -- integration --------------------------------------------------------------------------
 
@@ -757,8 +785,34 @@ class CIReader:
     def read(self, mention: str, sentence: str, start: int | None = None, doc: str | None = None,
              doc_vector=None, doc_key: str = "", discourse: Discourse | None = None,
              doc_at: int | None = None, language: str = "en") -> CIReading:
-        nodes = self.construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at, language)
+        nodes, relation = self._construct(mention, sentence, start, doc, doc_vector, doc_key, discourse, doc_at,
+                                          language)
         act, cycles = self.integrate(nodes)
+        if relation is not None and relation.kind and max(act, key=act.get) == STRUCTURE:
+            # Second stage, inside the body site the first one read: is the structure described, or does it
+            # place something else? Only the evidence that bears on that question is in this network, so that
+            # the readings of the first stage (a procedure, a name, a measure) are never moved by it.
+            # The lexical evidence says "a body structure": it supports the structure, and the landmark at half
+            # its weight (a report names a structure mostly to describe it). The relation weighs as much as all
+            # of it: the name says *what* the word is, the relation *how* the sentence uses it. A proximity
+            # tips the reading to the landmark, a direction ("into") leaves the two close, a containment or
+            # the object of a verb speaks against the landmark.
+            lexical = sum(a * links.get(STRUCTURE, 0.0) for label, a, links in nodes
+                          if label.split(":")[0] in ("name", "block", "head") and links.get(STRUCTURE, 0.0) > 0)
+            if lexical > 0:
+                second = [("site", 1.0, {STRUCTURE: lexical, LANDMARK: lexical * LANDMARK_SHARE})]
+                weight = RELATION_WEIGHT.get(relation.kind, 0.0) * lexical
+                label = f"relation:{relation.kind}:{relation.indicator}"
+                if relation.kind in ("proximity", "direction"):
+                    second.append((label, 1.0, {LANDMARK: weight}))
+                else:
+                    second.append((label, 1.0, {LANDMARK: -weight}))
+                inner, _ = self.integrate(second)
+                pair = inner[STRUCTURE] + inner[LANDMARK]
+                if pair > 0:
+                    site = act[STRUCTURE]
+                    act = {**act, STRUCTURE: site * inner[STRUCTURE] / pair, LANDMARK: site * inner[LANDMARK] / pair}
+                nodes = nodes + [(label, 1.0, {})]
         total = sum(act.values())
         shares = {r: (v / total if total > 0 else 0.0) for r, v in act.items()}
         ranked = sorted(shares.items(), key=lambda kv: -kv[1])
@@ -800,6 +854,7 @@ def role_to_reading(role: str) -> str:
 
 
 __all__ = [
+    "LANDMARK",
     "READINGS",
     "STRUCTURE",
     "BlockMemory",

@@ -1,6 +1,6 @@
 # Gold set del linker anatomico: guida per i radiologi
 
-Versione del 10 ottobre 2026. Due radiologi etichettano **da soli**, in cieco, le stesse menzioni; un terzo decide i disaccordi. Il sistema non è mai mostrato: se un suggerimento sbagliato precede la vostra lettura, la influenza (Dratsch 2023). Il protocollo completo è in `gold_set_protocollo.md`.
+Versione del 10 ottobre 2026, con il ruolo `landmark` e i ruoli multipli aggiunti il 31 ottobre 2026. Due radiologi etichettano **da soli**, in cieco, le stesse menzioni; un terzo decide i disaccordi. Il sistema non è mai mostrato: se un suggerimento sbagliato precede la vostra lettura, la influenza (Dratsch 2023). Il protocollo completo è in `gold_set_protocollo.md`.
 
 ## Che cosa si fa
 
@@ -29,6 +29,7 @@ Il ruolo dipende da `structure`.
 | `role` | quando | esempio |
 |---|---|---|
 | `structure` | la frase parla della struttura stessa | "fegato ingrossato", "the liver is enlarged" |
+| `landmark` (riferimento, novità del 31 ottobre) | la struttura serve solo a collocare un'altra cosa: la frase descrive un linfonodo, un liquido, una massa o un altro organo vicino, lungo, attorno, tra, fuori o verso di lei, e non dice nulla della struttura | "linfonodi lungo l'arco aortico", "liquido tra le anse del tenue", "appendice laterale al cieco", "linfonodi vicino al surrene" |
 | `procedure_site` | la struttura è il sito di una procedura | "biopsia epatica", "liver donation", "RM encefalo" |
 | `device_site` | è il sito di un dispositivo | "stent coronarico", "pacemaker atriale" |
 | `source_of` | è il luogo da cui vengono una sostanza o cellule | "liver extract", "cellule di milza" in un esperimento |
@@ -45,6 +46,10 @@ Il ruolo dipende da `structure`.
 **Se è `AMBIGUOUS`** la colonna `role` resta vuota.
 
 Nel dubbio fra `structure` e un altro ruolo: si chiede se **il lettore del referto penserebbe a quella parte del corpo del paziente**. "Biopsia epatica" nomina il fegato (`procedure_site`); "frequenza cardiaca" no (`inherent_location`).
+
+Nel dubbio fra `structure` e `landmark` si fa una seconda domanda: **la frase dice qualcosa di questa struttura, o la usa per dire dove sta un'altra cosa?** "Massa del surrene sinistro di 25 mm" → `structure`; "linfonodi vicino al surrene sinistro" → `landmark`. Il criterio è di che cosa sono la misura e il carattere della frase, non la preposizione: "placche lungo l'asse femoro-popliteo" sono nella parete dell'arteria (`structure`).
+
+**Più ruoli insieme.** Se la frase ne sostiene più d'uno, si scrivono tutti uniti da `+`, il principale per primo. Esempio: "ispessimento della parete del colon in prossimità della flessura splenica", per la menzione "flessura splenica" → `structure+landmark` (la flessura colloca l'ispessimento, che è nel colon). `check` accetta ogni ruolo dell'elenco della struttura.
 
 ## 4. `span_text`: il nome per intero (novità)
 

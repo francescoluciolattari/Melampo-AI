@@ -89,20 +89,20 @@ S0307|duodenum|e|s||
 S0308|duodenum|e|s||
 S0309|N|e|s||regione mesogastrica
 S0310|N|e|s||mesogastrio-ipocondrio
-S0311|N|e|s||linea emiclaveare
-S0312|N|e|s||linea ombelicale
+S0311|N|e|l||linea emiclaveare [landmark, relabelled 31 Oct 2026]
+S0312|N|e|l||linea ombelicale [landmark, relabelled 31 Oct 2026]
 S0313|N|e|s||legamento gastrocolico
-S0314|colon|po|s||colon trasverso
-S0315|colon|e|s||flessura del colon
+S0314|colon|po|l||colon trasverso [landmark, relabelled 31 Oct 2026]
+S0315|colon|e|s+l||flessura del colon [landmark, relabelled 31 Oct 2026]
 S0316|spleen|e|s||polo inferiore della milza
 S0317|spleen|e|s||
 S0318|portal_vein_and_splenic_vein|e|s||asse spleno-portale
 S0319|N|e|p||legamento gastrocolico, sezione
-S0320|pancreas|po|s||piano pancreatico
+S0320|pancreas|po|s+l||piano pancreatico [landmark, relabelled 31 Oct 2026]
 S0321|N|e|s||peduncolo mesenterico
 S0322|N|e|s||piano mesenterico
 S0323|pancreas|e|s||
-S0324|pancreas|po|s||istmo
+S0324|pancreas|po|s+l||istmo [landmark, relabelled 31 Oct 2026]
 S0325|pancreas|e|s||
 S0326|N|e|p||cavo addominale
 S0327|N|e|s||vasi sanguigni

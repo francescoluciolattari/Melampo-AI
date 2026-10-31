@@ -39,6 +39,7 @@ TYPES = (
 # The role of the word inside the phrase (the schema of the gold set, plus "uncertain").
 ROLES = {
     "structure": "the word names the body structure the text speaks of (a lesion IN it, its shape, the organ itself)",
+    "landmark": "the structure only places something else: the sentence describes a node, a fluid, a mass or another organ near, along, around, between, outside or towards it, and says nothing about the structure itself (nodes along the aortic arch, fluid between the bowel loops, the appendix lateral to the cecum, a gland protruding into the bladder); a finding IN or OF the structure is structure, and when what is placed is in the structure, both",
     "procedure_site": "the structure is the site of a procedure or exam named in the phrase or by the word that governs it, also outside the phrase (liver biopsy, CT of the chest, liberation of the caecum and of the appendix)",
     "device_site": "the structure is where a device is or goes (vena cava filter, biliary stent)",
     "inherent_location": "the phrase names a measure, property, function or process of the structure (brain weight, liver function)",
@@ -48,7 +49,7 @@ ROLES = {
     "other": "none of the above",
     "uncertain": "the sentence does not let you decide",
 }
-SITE_ROLES = frozenset({"structure", "procedure_site", "device_site", "inherent_location", "source_of"})
+SITE_ROLES = frozenset({"structure", "landmark", "procedure_site", "device_site", "inherent_location", "source_of"})
 OPEN, CLOSE = "<w>", "</w>"
 
 _SPACE = re.compile(r"\s+")
@@ -287,7 +288,8 @@ RULES = f"""Rules:
    an uncertain one.
 5. More than one role can be true at once, and the sentence decides which: a measure of an organ that is
    also a finding in it, the place of a collection that is also where it comes from, a site examined that
-   is also where a finding is. Give every role the sentence supports, the most important first."""
+   is also where a finding is, a part of an organ that places a finding in that organ. Give every role the
+   sentence supports, the most important first."""
 
 
 def example_lines(examples: Iterable[dict]) -> list[str]:
@@ -368,7 +370,9 @@ METHOD_STEPS = """Read the way the reading model of this project does, step by s
 2. The governor: the word the phrase depends on, also outside the phrase (across "and", after "of"/"di",
    the noun or verb that governs it), and what that word names: an exam, a procedure, a device, a finding or
    disease, a measure or property, or something else. Empty when nothing governs it.
-3. The predicate: what the sentence says about the structure.
+3. The predicate: what the sentence says about the structure. If it says nothing about it and uses it only to
+   place something else (a node, a fluid, a mass, another organ), say what that thing is: the structure is
+   then a landmark.
 4. The readings: every role that is possible here, each with the evidence for it and against it, taken
    from steps 1-3 and the sentence.
 5. The roles: those the evidence supports, the most important first (one or more)."""
@@ -377,6 +381,7 @@ METHOD_SCHEMA = (
     '{"phrase": "<copied exactly from the sentence>", "head": "<head noun>", "type": "<one of: %s>", '
     '"governor": {"word": "<the governing word, or empty>", "names": "<exam, procedure, device, finding or disease, '
     'measure or property, other, or empty>"}, "predicate": "<what the sentence says about the structure>", '
+    '"placed": "<what the structure places, when it is only a landmark; else empty>", '
     '"readings": [{"role": "<one of the roles>", "for": "<evidence for>", "against": "<evidence against>"}], '
     '"roles": ["<the roles the evidence supports, one or more of: %s>"]}'
 )

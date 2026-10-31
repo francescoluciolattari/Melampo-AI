@@ -51,7 +51,9 @@ RELATIONS = ("equal", "part_of", "contour_of", "approx")
 #  * NOT_ANATOMY: what the structure's word is doing instead: the thing a measure or function is about
 #    ("frequenza cardiaca"), a piece of the name of something else ("American Heart Association",
 #    "thyroid peroxidase"), or part of a thing that is not a body site ("heart of the cheese"), or other.
-ROLES_ON_STRUCTURE = ("structure", "procedure_site", "device_site", "source_of")
+# "landmark" (31 October 2026): the structure only places something else ("nodes along the aortic arch"). Several
+# roles the sentence supports together are written joined by "+" ("structure+landmark"), the main one first.
+ROLES_ON_STRUCTURE = ("structure", "landmark", "procedure_site", "device_site", "source_of")
 ROLES_ON_NOT_ANATOMY = ("inherent_location", "inside_a_name", "not_a_body_site", "other")
 ROLES = ROLES_ON_STRUCTURE + ROLES_ON_NOT_ANATOMY
 # The level an error belongs to (12 Oct 2026): one primary level, so that a rule cannot "fix" an error of
@@ -361,7 +363,7 @@ def validate_sheet(
                 else () if structure == AMBIGUOUS
                 else ROLES_ON_STRUCTURE
             )
-            if allowed and role not in allowed:
+            if allowed and not all(r in allowed for r in role.split("+")):
                 problems.append(f"{item_id}: role {role!r} is not one of {allowed} for {structure}")
             elif not allowed and role:
                 problems.append(f"{item_id}: an AMBIGUOUS item takes no role (found {role!r})")
@@ -520,7 +522,7 @@ def error_level(row: dict[str, Any], result: Any, outcome: str, said_role: str) 
         return "concept"
     if outcome == "wrong_relation":
         return "relation"
-    if outcome == "correct" and row.get("role") and said_role not in (row["role"], "none"):
+    if outcome == "correct" and row.get("role") and said_role not in (*row["role"].split("+"), "none"):
         return "role"
     return ""
 

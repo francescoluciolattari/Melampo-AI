@@ -108,6 +108,27 @@ def build_linker(uberon: str | None = None, ci_resources: str | None = None, cha
     return al.AnatomyLinker(lexicon, pool, equivalent, **kwargs), notes
 
 
+def finding_owner(linker: Any) -> tuple[Any, str]:
+    """The two readers of "is the clause about this structure" (``finding_owner``): the linker's Kintsch reader, or
+    one built on the chunk lattice alone (it needs no corpus), and the linker's local models if there are any."""
+    from ..memory.finding_owner import FindingOwner
+
+    reader = getattr(linker, "ci_reader", None)
+    if reader is None:
+        try:
+            from ..memory import chunk_lattice as cl
+            from ..memory.ci_reader import CIReader
+            from ..memory.longer_names import LongerNames
+
+            lattice = getattr(linker, "chunk_lattice", None) or cl.ChunkLattice(
+                cl.BlockMemory.load(cl.DEFAULT_PATH, LongerNames.load().names, cl.load_anatomy_names()))
+            reader = CIReader(lattice)
+        except Exception as error:  # noqa: BLE001 -- without the lattice's data the owner is not built
+            return None, f"finding_owner_unavailable:{type(error).__name__}"
+    chats = dict(getattr(linker, "chats", None) or {})
+    return FindingOwner(reader, chats), "finding_owner:reader" + ("+models" if chats else "")
+
+
 @dataclass
 class ReportReaders:
     """The two interpreters. ``linker``: an ``AnatomyLinker`` (None: the narrative is not read).
@@ -118,6 +139,7 @@ class ReportReaders:
     lesion_segmenter: Any = None
     organ_segmenter: Any = None
     notes: tuple[str, ...] = ()
+    owner: Any = None        # finding_owner.FindingOwner: is the clause about the structure (31 October 2026)
 
     @classmethod
     def from_env(cls) -> ReportReaders:
@@ -151,7 +173,11 @@ class ReportReaders:
             lesion = VoxTellSegmenter(device=device)
             organ = TotalSegmentatorSegmenter(fast=False, device="gpu" if device == "cuda" else "cpu")
             notes.append(f"segmenters:voxtell+totalsegmentator:{device}")
-        return cls(linker, lesion, organ, tuple(notes))
+        owner = None
+        if linker is not None and os.environ.get("MELAMPO_FINDING_OWNER", "on").lower() not in ("off", "0", "false", "no"):
+            owner, why = finding_owner(linker)
+            notes.append(why)
+        return cls(linker, lesion, organ, tuple(notes), owner)
 
     # -- the narrative ---------------------------------------------------------------------------------------
     def read_sites(self, text: str, report_id: str) -> dict[str, Any]:
@@ -185,7 +211,7 @@ class ReportReaders:
 
     # -- the exam --------------------------------------------------------------------------------------------
     def read_exam(self, case_key: str, report: dict[str, Any], text: str, volume: dict[str, Any] | None,
-                  why_no_image: str) -> list[dict[str, Any]]:
+                  why_no_image: str, set_aside: list | None = None) -> list[dict[str, Any]]:
         """The findings of one imaging report, with the image side when ``volume`` (array, affine, modality,
         study) is given and the segmenters are there."""
         from ..imaging.interpreter import interpret_exam
@@ -200,7 +226,8 @@ class ReportReaders:
         elif volume is not None:
             why_no_image = "segmenters_not_configured"
         findings = interpret_exam(case_key, (volume or {}).get("study") or report["report"], "", modality,
-                                  report["report"], text, report["sites"], language=report["language"], **kwargs)
+                                  report["report"], text, report["sites"], language=report["language"],
+                                  ownership=self.owner, set_aside=set_aside, **kwargs)
         rows = []
         for f in findings:
             row = f.as_row()
@@ -249,8 +276,11 @@ class ReportReaders:
                     volume = _load(paired[1])
                     if isinstance(volume, str):
                         reason, volume = volume, None
-            rows = self.read_exam(case_key, reading, text, volume, reason)
+            aside: list[dict[str, Any]] = []
+            rows = self.read_exam(case_key, reading, text, volume, reason, aside)
             out["findings"] += rows
+            out["to_a_person"] += [{"report": source_id, "mention": a["mention"], "reason": a["reason"],
+                                    "clause": a["clause"], "placed": a.get("placed", "")} for a in aside]
             out["to_a_person"] += [{"report": source_id, "mention": r["mention"],
                                     "reason": ",".join(r["review_reasons"])} for r in rows if r["needs_review"]]
         out["status"] = "read"

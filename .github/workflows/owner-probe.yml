@@ -1,0 +1,70 @@
+name: Owner probe (of what is the finding said?)
+
+# Manual trigger only (31 October 2026). For every item of the two HPO samples (PARROT), the Kintsch reader
+# alone and the reader with the models read whether the clause is about the structure the linker found or uses
+# it to place something else (scripts/owner_probe.py, src/melampo/memory/finding_owner.py). PARROT is public
+# (CC BY-NC-SA 4.0) and goes to OpenRouter only as such (--public-data); patients' reports never take this
+# road. Billed calls: one or two per item and model (the reader's method, with one follow-up when the phrase
+# is cut short). See docs/linker/di_che_cosa_parla_la_frase_2026-10-31.md.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "OpenRouter model ids, comma-separated (empty = the reader alone)"
+        required: false
+        default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked
+
+      - name: PARROT reports and the two samples (the seeds of the labels)
+        run: |
+          git clone --quiet --depth 1 https://github.com/PARROT-reports/PARROT_v1.0.git ext/PARROT
+          uv run --no-sync python scripts/hpo_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --out hpo_items.jsonl
+          uv run --no-sync python scripts/hpo_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --seed 2026103102 --exclude data/gold/hpo_silver_2026-10-31/labels.txt --out hpo_items_heldout.jsonl
+
+      - name: Run the probe
+        env:
+          MODELS: ${{ inputs.models }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          MODELS="${MODELS//[[:space:]]/}"
+          if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
+            echo "::error::models takes ids like org/name, comma-separated"; exit 2
+          fi
+          uv run --no-sync python -u scripts/owner_probe.py --items dev=hpo_items.jsonl \
+            --items heldout=hpo_items_heldout.jsonl --models "$MODELS" \
+            --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
+            --cache owner_probe_answers.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json
+
+      - name: Summarise
+        if: always()
+        run: |
+          { echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"; echo; echo '```json'
+            if [ -f owner_probe_summary.json ]; then head -c 60000 owner_probe_summary.json; fi; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      # The report holds sentences of a non-commercial corpus: the artifact is short-lived and is not committed.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-probe
+          retention-days: 7
+          path: |
+            owner_probe.json
+            owner_probe_summary.json
+            owner_probe.log
+            owner_probe_answers.jsonl

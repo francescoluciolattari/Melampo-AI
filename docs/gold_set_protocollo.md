@@ -34,6 +34,20 @@ Link accettati necessari per certificare ≤1% al 95% (esatto, Clopper-Pearson):
 - `sample ... --split 0.3` segna il 30% delle menzioni `calibration` e il resto `test`, per referto e con lo stesso seme. Pesi, soglie e politica dei conflitti si scelgono sulla calibrazione; il test si usa **una volta sola**, per il certificato: `evaluate gold.jsonl --items items.jsonl --split test`.
 - Pacchetto inglese pronto (seme 20261009): 518 menzioni di IU X-ray e 1.150 di MultiCaRe, da referti mai usati. Il pacchetto è diviso a metà per referto (`--split 0.5`): 259 + 259 menzioni IU X-ray, 575 + 575 MultiCaRe. Alle quote di accettazione misurate (circa 70% su IU X-ray, 48% su MultiCaRe), la metà di test dà circa 180 + 275 = 455 link accettati. Per certificare l'1% al 95% servono 299 link senza errori, 473 con un errore, 628 con due. Quindi: nessuna delle due fonti certifica da sola; insieme, come strato "inglese", certificano solo con 0 errori. È un primo giro: dice se l'obiettivo è vicino e dà gli errori veri da correggere. Per un certificato robusto restano le 2.000–2.300 menzioni del protocollo, su un campione nuovo. Il certificato vale per l'inglese di quelle due fonti, non per i referti italiani: per l'italiano serve un campione italiano.
 
+### Il ruolo `landmark` e i ruoli multipli (31 ottobre 2026, decisione di Frank: opzione A)
+
+Si aggiunge al ruolo di una struttura `landmark` (riferimento): la struttura serve solo a collocare un'altra
+cosa, e la frase non dice nulla di lei ("linfonodi lungo l'arco aortico"). Più ruoli che la frase sostiene
+insieme si scrivono uniti da `+` ("structure+landmark"), il principale per primo. Conta come sede del corpo:
+la misura "sede o no" resta confrontabile con le misure precedenti. Si aggiunge la domanda sull'esito "il
+reperto è di questa struttura?", che decidono insieme il lettore e il modello (`finding_owner`).
+
+Conseguenze:
+- la guida dei radiologi ha la riga nuova e la seconda domanda per il dubbio;
+- se la sessione di allineamento è già stata fatta, si ripete con frasi che contengono riferimenti;
+- il gold set silver è stato riletto: 12 righe sono cambiate e sono segnate nelle note;
+- le risposte in cache del role probe non valgono più, perché il prompt è cambiato.
+
 ### Ruolo e span, sessione di allineamento (10 ottobre 2026)
 
 Le schede hanno due colonne in più, oltre a `structure` e `relation`: **`role`** (che cosa fa la parola nella frase: la struttura stessa, sito di procedura o di dispositivo, origine di una sostanza; oppure, per `NOT_ANATOMY`, la cosa di cui parla una misura, un pezzo del nome di un'altra cosa, parte di qualcosa che non è un corpo) e **`span_text`** (il nome per intero quando la menzione è una sua parte). Servono perché il linker registra un ruolo accanto al collegamento (`LinkResult.role`) e i lettori automatici (reticolo dei blocchi, lettore di Kintsch) si sbagliano proprio lì; senza un'etichetta pulita del ruolo non si può né misurarli né certificare i ruoli. `check` verifica che il ruolo sia coerente con `structure` e che lo span contenga la menzione; `agree` dà accordo e kappa anche per ruolo e span, e le confusioni di ruolo più frequenti; la coda del terzo revisore comprende ogni disaccordo di struttura, relazione, ruolo o span; `evaluate` aggiunge la matrice ruolo vero / ruolo registrato dal sistema. Le schede senza colonna `role` (le vecchie) continuano a funzionare.

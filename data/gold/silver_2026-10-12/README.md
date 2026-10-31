@@ -21,9 +21,14 @@ Strati: `e3c_it` (328 span BODYPART annotati a mano da E3C, tutti), `e3c_en` (15
 
 Codici: struttura `N` NONE_IN_CLASSES, `X` NOT_ANATOMY, `A` AMBIGUOUS, altrimenti l'id della classe;
 relazione `e` equal, `po` part_of, `co` contour_of, `ap` approx; ruolo `s` structure, `p` procedure_site,
-`d` device_site, `o` source_of, `il` inherent_location, `in` inside_a_name, `nb` not_a_body_site, `ot` other.
+`d` device_site, `l` landmark, `o` source_of, `il` inherent_location, `in` inside_a_name, `nb` not_a_body_site, `ot` other.
 
 Convenzioni scelte (da far rivedere ai radiologi): regioni del corpo (torace, addome, arti) `N`; fluidi,
 cellule e lesioni `X/ot`; polmone intero o "i polmoni" `N` (non c'è una classe del polmone intero);
 strutture pari senza lato o coordinate (due strutture in una menzione) `A`; parenchima di un organo `po`;
 "cardiomediastinal silhouette" / "ombra cardiaca" `heart co`; "heart size" `X/il`; "TC cranio" `N` (la testa).
+
+**31 ottobre 2026: il ruolo `landmark`.** Le righe sono state rilette per il nuovo ruolo (la struttura serve
+solo a collocare un'altra cosa). Ne sono cambiate 12, segnate nella nota con "[landmark, relabelled 31 Oct
+2026]": 8 sono diventate `l` e 4 `s+l`. Più ruoli insieme si scrivono uniti da `+`, il principale per primo.
+Le righe di IU X-ray (`iu.txt`) non sono state rilette, perché i testi non sono raggiungibili da qui.
