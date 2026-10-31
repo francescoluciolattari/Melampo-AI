@@ -1,0 +1,95 @@
+name: HPO probe (from a report's finding to an HPO term)
+
+# Manual trigger only (31 October 2026). On the development ("silver") labels of
+# data/gold/hpo_silver_2026-10-31: the HPO candidates of each finding's site, the deterministic choice (A), each
+# chat model's choice among the shortlist (B) and their agreement (C). The texts are PARROT's (CC BY-NC-SA 4.0,
+# public radiologists' reports with their English translation) and go to OpenRouter only as such (--public-data);
+# patients' reports never take this road. Billed calls: about two per item and model (one more for the Italian
+# items, which the model first renders in English). See scripts/hpo_probe.py and
+# docs/linker/dal_reperto_al_termine_hpo_2026-10-31.md.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "OpenRouter model ids, comma-separated (empty = no model: candidates and method A only)"
+        required: false
+        default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
+      shortlist:
+        description: "Candidates shown to a model (plus the general one and 'none of these')"
+        required: false
+        default: "15"
+      limit:
+        description: "Items (empty = all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked
+
+      - name: Ontologies (HPO with logical definitions, UBERON with relational adjectives, HPO in Italian)
+        run: |
+          curl -sSL --fail -o hp-full.obo \
+            https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/hp-full.obo
+          curl -sSL --fail -o uberon.obo https://github.com/obophenotype/uberon/releases/latest/download/uberon.obo
+          curl -sSL --fail -o hp-it.babelon.tsv \
+            https://raw.githubusercontent.com/obophenotype/hpo-translations/main/babelon/hp-it.babelon.tsv
+          head -2 hp-full.obo | tail -1
+
+      - name: PARROT reports and the sample (same seed as the labels)
+        run: |
+          git clone --quiet --depth 1 https://github.com/PARROT-reports/PARROT_v1.0.git ext/PARROT
+          uv run --no-sync python scripts/hpo_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --out hpo_items.jsonl
+
+      - name: Run the probe
+        env:
+          MODELS: ${{ inputs.models }}
+          SHORTLIST: ${{ inputs.shortlist }}
+          LIMIT: ${{ inputs.limit }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        # Inputs go through the environment, never interpolated into the shell line.
+        run: |
+          MODELS="${MODELS//[[:space:]]/}"; SHORTLIST="${SHORTLIST//[[:space:]]/}"; LIMIT="${LIMIT//[[:space:]]/}"
+          if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
+            echo "::error::models takes ids like org/name, comma-separated"; exit 2
+          fi
+          if ! [[ "$SHORTLIST" =~ ^[0-9]+$ ]]; then echo "::error::shortlist takes a whole number"; exit 2; fi
+          set -- --items hpo_items.jsonl --labels data/gold/hpo_silver_2026-10-31/labels.txt \
+            --hpo hp-full.obo --uberon uberon.obo --italian hp-it.babelon.tsv \
+            --models "$MODELS" --shortlist "$SHORTLIST" \
+            --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
+            --cache hpo_probe_answers.jsonl --out hpo_probe.json
+          if [ -n "$LIMIT" ]; then
+            if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then echo "::error::limit takes a whole number"; exit 2; fi
+            set -- "$@" --limit "$LIMIT"
+          fi
+          uv run --no-sync python -u scripts/hpo_probe.py probe "$@" 2> >(tee hpo_probe.log >&2) | tee hpo_probe_summary.json
+
+      - name: Summarise
+        if: always()
+        run: |
+          { echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"; echo; echo '```json'
+            if [ -f hpo_probe_summary.json ]; then head -c 60000 hpo_probe_summary.json; fi; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      # The report holds sentences of a non-commercial corpus: the artifact is short-lived and is not committed.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hpo-probe
+          retention-days: 7
+          path: |
+            hpo_probe.json
+            hpo_probe_summary.json
+            hpo_probe.log
+            hpo_probe_answers.jsonl
