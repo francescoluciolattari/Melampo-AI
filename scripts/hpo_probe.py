@@ -172,7 +172,8 @@ def choice_prompt(clause: str, site: str, options: list[tuple[str, str]], langua
         f"The anatomical site has already been identified: {site}.",
         "Choose the HPO term the sentence states about this site: the most specific term the sentence supports,",
         "never more specific than what is written (a lesion not characterised is not a cyst). If the sentence",
-        "states no abnormality at this site, or no option fits, choose the last option.",
+        "states no abnormality at this site (measures alone, a normal finding, the technique, a clinical question),",
+        "or no option fits, choose the last option.",
         "Options:",
     ]
     for letter, (_, label) in zip(LETTERS, options):
@@ -309,6 +310,8 @@ def run_probe(args) -> dict:
                 continue
             k = parse_letter(reply, len(options))
             b = None if k is None else (NONE if k == len(options) else options[k][0])
+            if proposed.strip().lower().rstrip(".") == "none":
+                b = NONE      # the model itself said the sentence states no abnormality here: its choice must agree
             row[f"B:{name}"] = {"answer": b, "why": "unparsed" if k is None else "chosen", "reply": reply[:40],
                                 "outcome": outcome(ph, b, gold)}
             c = b if (b is not None and a == b) else None
@@ -317,9 +320,20 @@ def run_probe(args) -> dict:
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         rows = list(pool.map(one, items))
+    if len(chats) >= 2:
+        # two different models choosing the same term (otherwise a person): the agreement of two readings, as in
+        # the linker's rule; after the first run it was safe in 68% of the English items it accepted
+        names = list(chats)
+        for row in rows:
+            if row.get("unlabelled"):
+                continue
+            answers = {row.get(f"B:{n}", {}).get("answer") for n in names}
+            agreed = answers.pop() if len(answers) == 1 else None
+            row["models_agree"] = {"answer": agreed, "why": "agree" if agreed else "to_a_person",
+                                   "outcome": outcome(ph, agreed, row["gold"])}
     labelled = [r for r in rows if not r.get("unlabelled")]
     arms = sorted({k for r in labelled for k in r
-                   if (k in ("A", "first") or k[:2] in ("B:", "C:")) and isinstance(r[k], dict)})
+                   if (k in ("A", "first", "models_agree") or k[:2] in ("B:", "C:")) and isinstance(r[k], dict)})
     report = {"items": len(items), "labelled": len(labelled), "by_language": {}}
     for lang in ("en", "it"):
         rs = [r for r in labelled if r["language"] == lang]

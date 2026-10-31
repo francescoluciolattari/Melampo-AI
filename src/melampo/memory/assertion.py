@@ -449,9 +449,12 @@ class AssertionDetector:
     def _clause_bounds(
         self, text: str, char_start: int, char_end: int
     ) -> tuple[int, int]:
-        """Bound the scope at sentence edges and at adversative terminators."""
-        start = max(text.rfind(".", 0, char_start), text.rfind(";", 0, char_start)) + 1
-        end_candidates = [text.find(".", char_end), text.find(";", char_end)]
+        """Bound the scope at sentence edges and at adversative terminators.
+
+        A full stop between two digits is a decimal point ("1.1 cm"), not a sentence edge (31 October 2026: "Cyst
+        measuring 1.1 cm in the middle lobe" was read as "1 cm in the middle lobe", without the cyst)."""
+        start = max(_last_edge(text, 0, char_start), text.rfind(";", 0, char_start)) + 1
+        end_candidates = [_next_edge(text, char_end), text.find(";", char_end)]
         end = min([value for value in end_candidates if value >= 0], default=len(text))
 
         for terminator in self.cues.terminators:
@@ -463,6 +466,24 @@ class AssertionDetector:
             if position >= 0:
                 end = min(end, position)
         return (start, end)
+
+
+def _decimal_point(text: str, i: int) -> bool:
+    return 0 < i < len(text) - 1 and text[i - 1].isdigit() and text[i + 1].isdigit()
+
+
+def _last_edge(text: str, lo: int, hi: int) -> int:
+    i = text.rfind(".", lo, hi)
+    while i >= 0 and _decimal_point(text, i):
+        i = text.rfind(".", lo, i)
+    return i
+
+
+def _next_edge(text: str, lo: int) -> int:
+    i = text.find(".", lo)
+    while i >= 0 and _decimal_point(text, i):
+        i = text.find(".", i + 1)
+    return i
 
 
 DECIDED_BY_RULES = "rules"

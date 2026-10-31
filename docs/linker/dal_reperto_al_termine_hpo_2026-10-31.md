@@ -85,6 +85,68 @@ come per il linker. Altri id si passano dall'input `models` del workflow.
 Se questi criteri non tengono, nessun reperto entra nel grafo come termine HPO. I reperti restano nella lettura
 del referto, come oggi.
 
+## Primo run con i modelli (31 ottobre, mattina)
+
+Corsa `hpo-probe` su 200 item (150 inglesi, 50 italiani), Gemma 4 31B e Nemotron 3 Ultra, etichette della prima
+versione.
+
+| Inglese, 150 item | Risposte | Esatti | Più generali | **Troppo specifici** | Sbagliati | Termine dove serviva NONE | Sicuri sulle risposte |
+|---|---|---|---|---|---|---|---|
+| A (deterministico) | 49 | 24 | 5 | 6 | 11 | 3 | 59% |
+| Primo della shortlist | 148 | 41 | 13 | 14 | 38 | 42 | 37% |
+| **B Gemma 4 31B** | 149 | **86** | 11 | 10 | 22 | 13 | 65% |
+| **B Nemotron 3 Ultra** | 150 | **82** | 10 | 10 | 22 | 20 | 61% |
+| C (A e Gemma d'accordo) | 28 | 22 | 1 | 1 | 4 | 0 | 82% |
+| Gemma e Nemotron d'accordo | 121 | 73 | 9 | 9 | 15 | 11 | 68% |
+
+In italiano, su 50 item, B è esatto in 24 casi (Gemma) e 27 (Nemotron), sicuro nel 56% delle risposte; A risponde
+2 volte.
+
+**Esito rispetto ai criteri fissati prima: B non passa.** È molto meglio di A e del riferimento (57% di esatti sul
+totale contro 16% e 27%), ma è sicuro solo nel 61–65% delle risposte (soglia 80%) e troppo specifico nel 6,7%
+(soglia 5%). C è sicuro all'82% (soglia 95%). L'italiano sta entro 10 punti dall'inglese: quel criterio passa.
+Nessun reperto entra nel grafo come termine HPO.
+
+**Da dove vengono gli errori.**
+
+1. **Il termine giusto non è nella shortlist** (31 item su 107). Lì i modelli non rispondono "nessuno": scelgono un
+   termine generale (più generale: sicuro) o uno vicino ma sbagliato (18 su 31). Il nome proposto dal modello ha
+   portato pochissimo (shortlist da 75 a 76–77), perché la ricerca è per parole: "Adrenal nodule" non incontra
+   *Adrenal mass*, "Renal mass" non incontra *Renal neoplasm*.
+2. **Un termine dove non c'è un reperto** (13–20 item): tabelle di misure dell'ecocardiogramma, un quesito
+   clinico, frasi spezzate.
+3. **Frasi spezzate dalla lettura: un difetto vero, corretto.** Il punto decimale veniva letto come fine della
+   frase ("Cyst measuring 1.1 cm in the middle lobe" → "1 cm in the middle lobe"). Riguardava 27 item del
+   campione e, fuori dalla prova, la portata della negazione e i reperti di tutti i referti. Ora
+   (`assertion._clause_bounds`) un punto fra due cifre non chiude la frase. Con la correzione il campione è
+   cambiato: 27 coppie hanno una frase o una struttura diversa e sono state etichettate di nuovo.
+4. **Errori miei nelle etichette.**
+   - Tre sono chiari: HPO ha il termine esatto e io non l'avevo trovato (*Gallbladder biliary sludging*,
+     *Herniation of intervertebral nuclei*, *Short femoral neck*). Li ho corretti dopo aver visto le risposte dei
+     modelli, quindi la correzione pende verso di loro: è segnata riga per riga in `labels.txt`.
+   - Altri casi sono discutibili e li ho lasciati come erano. Esempi: *Complex renal cyst* per una cisti con un
+     setto; *Abnormal renal artery morphology* per un'arteria renale che nasce dal falso lume; *Vertebral
+     compression fracture* contro *Compression-fractured thoracic vertebra*, due termini paralleli di HPO.
+   - Con le tre correzioni, Gemma è sicuro nel 69% delle risposte, con il 4% di troppo specifici.
+
+**Che cosa è cambiato per il secondo run.**
+- Frasi: il punto decimale (sopra).
+- Radici: la "e" finale e "-ed" ("infiltrate" e *Pulmonary infiltrates*, "fracture" e *fractured*). Sul campione
+  ricostruito il termine giusto è fra i candidati in 106 casi su 114 e nella shortlist in 84 su 114.
+- Prompt: misure, normalità, tecnica e quesiti sono indicati esplicitamente come "nessuno". Se il modello ha già
+  detto che non c'è un'anomalia, la sua scelta è "nessuno".
+- Nuovo braccio `models_agree`: Gemma e Nemotron scelgono lo stesso termine, altrimenti il caso va a una persona.
+
+**Il limite che resta, e la proposta.** La ricerca per parole non supera il 74% di presenza nella shortlist. Il
+passo successivo che propongo è una **discesa nell'albero**:
+1. il modello parte dal termine generale dell'organo ("Abnormal adrenal morphology");
+2. sceglie fra i suoi figli diretti, poi fra i figli del figlio scelto;
+3. si ferma dove la frase non dice di più.
+
+Ogni passo è una scelta vincolata fra pochi termini reali. Non serve la sovrapposizione di parole: *Adrenal mass*
+è un figlio di *Abnormal adrenal morphology*. Lo propongo dopo il secondo run, che misura quanto valgono le
+correzioni di oggi da sole.
+
 ## Aggiornamenti dei modelli (verificati il 31 ottobre)
 
 - **Gemma**: la famiglia 4 (aprile 2026: E2B, E4B, 26B MoE, 31B denso; giugno: 12B) non ha un successore. Il 31B
