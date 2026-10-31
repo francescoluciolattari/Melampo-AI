@@ -147,6 +147,73 @@ Ogni passo è una scelta vincolata fra pochi termini reali. Non serve la sovrapp
 è un figlio di *Abnormal adrenal morphology*. Lo propongo dopo il secondo run, che misura quanto valgono le
 correzioni di oggi da sole.
 
+## Secondo run (31 ottobre, dopo le correzioni del primo)
+
+Corsa dal commit 88a42c1: stessi 200 item, etichette rifatte sul campione corretto, stessi modelli.
+
+| Inglese, 150 item | Risposte | Esatti | Più generali | **Troppo specifici** | Sbagliati | Termine dove serviva NONE | NONE dove serviva un termine | Sicuri sulle risposte |
+|---|---|---|---|---|---|---|---|---|
+| A (deterministico) | 57 | 32 | 4 | 5 | 13 | 3 | 0 | 63% |
+| Primo della shortlist | 149 | 47 | 15 | 16 | 35 | 36 | 0 | 42% |
+| **B Gemma 4 31B** | 150 | **98** | 13 | 9 | 19 | 4 | 7 | **74%** |
+| **B Nemotron 3 Ultra** | 150 | **94** | 10 | 10 | 21 | 11 | 4 | 69% |
+| C (A e Gemma d'accordo) | 34 | 29 | 0 | 2 | 3 | 0 | 0 | 85% |
+| Gemma e Nemotron d'accordo | 118 | 86 | 7 | 6 | 13 | 2 | 4 | 79% |
+
+In italiano, su 50 item, Gemma è esatto in 25 casi e Nemotron in 28; le risposte sicure sono il 58% e il 60%. Se
+Gemma e Nemotron devono essere d'accordo, le risposte sicure restano il 59%.
+
+**Esito rispetto ai criteri fissati prima: B non passa, ma migliora.**
+- **Sicurezza:** Gemma passa dal 65% al 74% di risposte sicure (soglia 80%).
+- **Specificità:** i troppo specifici sono il 6% (soglia 5%).
+- **C:** sicuro all'85% (soglia 95%).
+- **Italiano:** ora è 16 punti sotto l'inglese (massimo 10), quindi anche questo criterio, che prima passava, non
+  passa più.
+
+Nessun reperto entra nel grafo come termine HPO.
+
+**Dove sta il problema: diviso per la presenza del termine giusto nella shortlist (Gemma).**
+
+| | Item | Sicuri | Troppo specifici |
+|---|---|---|---|
+| Inglese, il termine giusto è nella shortlist | 87 | **82%** | 9% |
+| Inglese, il termine giusto non c'è | 27 | **30%** | 4% |
+| Inglese, nessun termine atteso | 36 | 89% | — |
+| Italiano, il termine giusto è nella shortlist | 31 | 71% | 6% |
+| Italiano, il termine giusto non c'è | 13 | 15% | — |
+
+1. **Quando il termine giusto è fra le opzioni, la scelta del modello quasi supera la soglia** (82%, e 87% quando i
+   due modelli sono d'accordo). Il limite è la **shortlist**, che contiene il termine giusto solo nel 76% dei casi.
+   Fuori dalla shortlist i modelli non dicono "nessuno": prendono il vicino.
+   - "Cerebral hemisphere mass lesion" diventa *Abnormal temporal lobe morphology*.
+   - "Renal neoplasm" diventa *Abnormal renal morphology*.
+   - "Bladder trabeculation" diventa *Urinary bladder wall hypertrophy*.
+   - "Multiple rib fractures" diventa *Fractured rib*.
+2. **I troppo specifici sono quasi tutti un'interpretazione al posto del reperto**: *Abdominal aortic aneurysm* per
+   un'ectasia di 3,2 cm, *Unilateral renal hypoplasia* per "rene sinistro più piccolo", *Prostatitis*, *Hepatic
+   hemangioma*. In alcuni casi è discutibile se a sbagliare sia il modello o l'etichetta (*Decreased renal
+   parenchymal thickness* per "parenchima assottigliato" è forse più giusto della mia *Abnormal renal morphology*).
+   Non ho cambiato le etichette dopo aver visto le risposte, perché le farebbe pendere verso i modelli.
+3. **Due termini HPO paralleli contano come errore**: *Vertebral compression fracture* e *Compression-fractured
+   thoracic vertebra*. È un difetto della misura, da decidere prima del prossimo run e non dopo.
+4. **L'italiano perde soprattutto nella shortlist.** A parità di presenza del termine giusto, l'italiano è vicino
+   all'inglese: Nemotron è sicuro all'81% quando il termine c'è.
+
+**Il campione è ormai consumato.** Lo abbiamo guardato due volte e il secondo run ha corretto ciò che il primo aveva
+mostrato. Un terzo giro di correzioni misurato su questi 200 item direbbe soprattutto quanto ci siamo adattati a
+loro. La prossima modifica va misurata su **un campione nuovo**: un altro seme, strutture non viste, etichette
+scritte prima di qualunque risposta dei modelli. Meglio ancora se un secondo etichettatore che non ha visto le
+risposte rivede almeno i casi dubbi.
+
+**Proposta per il terzo passo**, da fissare prima del run:
+- **Discesa nell'albero** dell'organo, accanto alla shortlist per parole: il modello parte dal termine generale e
+  scende fra i figli. Attacca il 24% di casi in cui oggi il termine giusto non è fra le opzioni.
+- **Regola "detto, non dedotto"**: il termine deve nominare ciò che il referto descrive, non la diagnosi che se ne
+  potrebbe ricavare. È una regola generale, non legata ai casi di questo campione.
+- **Equivalenza dichiarata prima**: due termini con la stessa definizione logica, o che si implicano a vicenda, si
+  contano come lo stesso termine.
+- **Criteri invariati**: 80% di risposte sicure, 5% di troppo specifici, 95% per C, italiano entro 10 punti.
+
 ## Aggiornamenti dei modelli (verificati il 31 ottobre)
 
 - **Gemma**: la famiglia 4 (aprile 2026: E2B, E4B, 26B MoE, 31B denso; giugno: 12B) non ha un successore. Il 31B
