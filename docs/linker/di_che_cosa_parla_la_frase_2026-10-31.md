@@ -175,3 +175,64 @@ e le risposte complete dei due modelli: frase, reggente, predicato, letture, ruo
 - La diagnosi differenziale fra le espressioni di ipotesi risolve l'arteria succlavia.
 
 Sono ipotesi tratte da questi 11 casi, quindi vanno misurate su un campione che non li contiene.
+
+## La lettura nuova: dal reperto, con il referto e l'anatomia (1 novembre 2026, fissata prima del run)
+
+Frank ha detto di procedere. Che cosa cambia:
+
+**La domanda al modello** (`llm_reading.owner_prompt`). Si chiede l'esito, nell'ordine del radiologo:
+1. che cosa la frase descrive;
+2. a quale struttura appartiene;
+3. come sta la struttura collegata rispetto a quella: la stessa, una sua parte, solo un riferimento, una struttura
+   diversa da quella che le parole nominano, o solo un'ipotesi;
+4. sì, no o non so.
+
+Il modello conosce l'esame, la sezione del referto e la struttura a cui il linker ha collegato le parole. Non
+vede la risposta del lettore. La definizione di `landmark` è riscritta senza il "anche", che spingeva i modelli
+a rispondere "structure".
+
+**Il lettore** porta la conoscenza del radiologo, ogni pezzo come prova contro l'attribuzione
+(`finding_owner`):
+- **la relazione spaziale e il secondo stadio**, come prima;
+- **l'organo**: il segmento della frase prima della menzione, o la testa che la segue, nomina una struttura
+  (lessico del linker e UBERON) che appartiene a un altro organo. Un esempio sono gli ureteri e la vescica. Una
+  struttura che UBERON non mette in nessun organo, come un corpo vertebrale o una parete, non conta;
+- **il campo di vista**: una struttura fuori dall'area dell'esame, letta dal nome dell'esame (`exam_area`). È il
+  caso del polmone in una RM della prostata;
+- **la diagnosi differenziale**: la struttura è nominata solo fra le spiegazioni possibili. Vale nella parentesi
+  della differenziale o fino alla fine della frase. "Diagnosi differenziale" è entrata anche fra le espressioni
+  di ipotesi del lettore (`assertion`).
+
+La decisione resta quella di prima:
+- il reperto viene tolto solo se il lettore e i modelli sono d'accordo;
+- se si contraddicono, decide una persona;
+- il lettore da solo non toglie mai un reperto.
+
+**Sui due campioni già visti**, con il solo lettore, i reperti di un'altra struttura mandati alla persona passano
+da 11 a 17 su 26. I reperti giusti mandati alla persona restano 4 su 358. È una misura di sviluppo.
+
+**Il campione nuovo** (`data/gold/finding_owner_2026-11-01/labels.txt`): 209 reperti di referti PARROT mai usati
+(seme 20261101), 200 inglesi e 9 italiani, 111 referti, 55 strutture. Le etichette sono state scritte prima di
+qualunque lettura: 24 `elsewhere` e 185 `here`; quelle con "?" sono per un radiologo. Gli italiani sono pochi
+perché il lettore trova pochi reperti nei referti italiani di PARROT che non sono già stati usati.
+
+**Criteri sul campione nuovo**, con il lettore e i due modelli (Gemma 4 31B e Nemotron 3 Ultra):
+1. nessuno dei 24 reperti di un'altra struttura resta attribuito alla struttura;
+2. al massimo 2 dei 185 reperti giusti vengono tolti;
+3. al massimo il 10% dei reperti giusti (18) va alla persona.
+
+Il role probe va rilanciato, perché la definizione di `landmark` è cambiata.
+
+**Il lettore da solo sul campione nuovo** (misurato dopo aver congelato le etichette e i criteri, senza
+correzioni successive):
+
+| | reperti di un'altra struttura | alla persona | ancora attribuiti | reperti giusti alla persona |
+|---|---|---|---|---|
+| inglese | 23 | 8 | 15 | 2 su 176 |
+| italiano | 1 | 0 | 1 | 0 su 8 |
+
+Sui casi già visti il lettore da solo ne prendeva 17 su 26; su quelli nuovi ne prende 8 su 24. La conoscenza
+aggiunta oggi pesa meno su casi che non ha visto, quindi gran parte del lavoro resta ai modelli: lo dirà il run.
+
+Il campione di sviluppo HPO si ricostruisce con gli stessi item. Cambia solo la certezza di un item
+(parrot-2288, ora `possible`), per via della "diagnosi differenziale" fra le espressioni di ipotesi.

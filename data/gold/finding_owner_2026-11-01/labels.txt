@@ -1,0 +1,217 @@
+# Of what is the finding said: labels of the fresh sample (1 November 2026). Labeller: Claude, one labeller.
+# Written BEFORE any reader or model was run on these items: the labeller saw the clause, the marked mention,
+# the linked structure and the exam (PARROT's modality and area), nothing else.
+# Items: scripts/owner_probe.py sample (PARROT v1.0, seed 20261101; no report of the two HPO samples).
+# "here": the clause states something about the linked structure (a finding, a normal statement, a measure,
+# a header, its history). "elsewhere": what it states is of another structure, or the structure only places
+# it, or the words name another structure than the linked one. "?" at the end of the note: for a radiologist.
+# Format: item|here or elsewhere|note
+parrot-779-it-0|here|bronchiectasis of the segmental airways of the right upper lobe
+parrot-2027-it-0|here|sacralization of L5
+parrot-2027-it-1|here|disc protrusion at L5-S1
+parrot-2027-it-2|here|disc protrusion at L5-S1
+parrot-925-it-0|here|liver enlarged
+parrot-960-it-0|here|dilated infrarenal abdominal aorta
+parrot-753-it-0|here|liver with regular margins
+parrot-2201-it-0|elsewhere|free air contiguous to the profile of the right iliopsoas
+parrot-757-it-0|here|thyroid enlarged on the left
+parrot-1397-en-0|here|calcifications of the arch
+parrot-514-en-0|here|dilated jejunum
+parrot-514-en-1|here|dilated small bowel
+parrot-514-en-2|here|small bowel loop herniated
+parrot-1243-en-0|here|lesion extending to the pons
+parrot-1243-en-1|here|lesion extending down to the cervical cord
+parrot-1925-en-0|here|structure in the parietal lobe
+parrot-1925-en-1|here|malacic changes in the frontal lobe
+parrot-1925-en-2|here|malacic changes in the parietal lobe
+parrot-1190-en-0|here|mass effect on the pons ?
+parrot-1190-en-1|here|mass effect on the midbrain ?
+parrot-2107-en-0|here|liver at the lower normal limit
+parrot-2107-en-1|here|sludge in the gallbladder
+parrot-2107-en-2|here|pancreas borders
+parrot-1597-en-0|here|heart not enlarged
+parrot-1448-en-0|elsewhere|pleural adhesions at the lingula: the pleura's
+parrot-1448-en-1|here|gallbladder without stones
+parrot-1448-en-2|here|prostate measures
+parrot-1722-en-0|here|IVC measures
+parrot-1722-en-1|here|IVC measures
+parrot-1722-en-2|here|LA/LAA measures header
+parrot-2447-en-0|here|trachea displaced
+parrot-2447-en-1|elsewhere|the overlapping silhouette of the heart places the shadowing of the lung
+parrot-2447-en-2|here|likely atelectasis of the left lower lobe
+parrot-1950-en-0|here|Modic changes of the L5-S1 endplates
+parrot-1950-en-1|here|Modic changes of the L5-S1 endplates
+parrot-1950-en-2|here|no stenosis at L1-L2
+parrot-1462-en-0|here|liver enlarged
+parrot-1462-en-1|here|portal vein enlarged
+parrot-1462-en-2|elsewhere|a lymph node in the liver hilum
+parrot-1488-en-0|here|liver enlarged, steatosis
+parrot-1488-en-1|elsewhere|hepatic foci in the area of the gallbladder ?
+parrot-1488-en-2|elsewhere|hepatic foci next to the gallbladder
+parrot-509-en-0|elsewhere|free fluid around the left kidney
+parrot-509-en-1|elsewhere|perirenal stranding around the kidney: the perirenal fat's ?
+parrot-509-en-2|here|stones in the left kidney
+parrot-2117-en-0|here|residual material in the colon
+parrot-2110-en-0|here|liver reduced, micronodular
+parrot-2110-en-1|here|portal vein measures
+parrot-2110-en-2|here|gallbladder normal
+parrot-1808-en-0|here|right kidney measures
+parrot-1808-en-1|here|left kidney measures
+parrot-1808-en-2|here|stones in the left kidney
+parrot-2502-en-0|here|title, brain CT
+parrot-2269-en-0|elsewhere|fluid level in the intestine at the level of L5
+parrot-1042-en-0|here|lesion of the left kidney
+parrot-2736-en-0|here|uptake of the medulla no longer visible
+parrot-2383-en-0|here|liver enlarged, steatosis
+parrot-2383-en-1|here|cyst in the renal pelvis
+parrot-2383-en-2|here|calcifications of the left kidney
+parrot-879-en-0|here|fracture of L4
+parrot-2250-en-0|here|anterolisthesis of L3
+parrot-2250-en-1|here|L3 slips over L4: the L3-L4 level ?
+parrot-2250-en-2|here|compression of L2
+parrot-2358-en-0|here|prosthetic valve in the cardiac silhouette
+parrot-2358-en-1|here|implanted aortic valve
+parrot-2358-en-2|here|aortic calcifications
+parrot-1832-en-0|here|gallbladder normal
+parrot-1832-en-3|here|right kidney measures
+parrot-1832-en-5|here|bladder normal
+parrot-854-en-0|here|wall thickening of the descending colon ("in the area of")
+parrot-1131-en-0|here|opacity in the right lower lobe
+parrot-2115-en-1|here|portal vein diameter
+parrot-2115-en-2|here|gallbladder normal
+parrot-2115-en-3|here|pancreas normal
+parrot-2577-en-0|elsewhere|"D1" is the first diagonal branch of a coronary artery, not the vertebra
+parrot-1009-en-0|here|gallbladder displaced
+parrot-1009-en-1|here|lesion of segment 7
+parrot-1831-en-2|here|lesion of the lower pole of the right kidney
+parrot-992-en-0|here|osteophytes at L4-5
+parrot-1504-en-0|here|calcifications of the arch
+parrot-2236-en-0|here|header, abdominal aorta
+parrot-2236-en-1|here|header, abdominal aorta
+parrot-1804-en-2|here|right kidney measures
+parrot-1804-en-3|here|spleen measures
+parrot-1804-en-4|here|adrenal prominent with calcifications
+parrot-1609-en-0|here|heart not enlarged
+parrot-1609-en-1|here|possible cyst of segment 7
+parrot-1609-en-4|here|plaques of the right common iliac artery
+parrot-1877-en-2|here|pancreas heterogeneous
+parrot-1877-en-5|elsewhere|free fluid near the spleen
+parrot-1748-en-0|here|ulceration of the duodenal bulb (clinical data)
+parrot-1748-en-1|here|diverticula of the sigmoid (clinical data)
+parrot-1748-en-4|here|walls of the duodenal bulb
+parrot-1447-en-0|here|heart silhouette wider
+parrot-1447-en-1|here|calcifications of the arch
+parrot-2533-en-0|here|wall thickening of the esophagus
+parrot-2533-en-1|here|stenosis of the esophagus
+parrot-2533-en-2|here|border of the esophagus blurred
+parrot-881-en-0|here|nodule of the left thyroid lobe
+parrot-115-en-0|here|bladder distension, thickened wall
+parrot-1130-en-0|here|fracture of the left femur
+parrot-2105-en-0|here|caudate lobe measures
+parrot-2105-en-1|here|portal vein diameter
+parrot-2105-en-2|here|spleen echogenicity
+parrot-2316-en-0|here|calcifications of the arch
+parrot-2233-en-2|here|granuloma in the right upper lobe
+parrot-2233-en-5|here|pancreas normal
+parrot-2233-en-6|here|bladder normal
+parrot-517-en-0|here|metastasis in the right upper lobe
+parrot-517-en-1|here|metastasis in the left lower lobe
+parrot-517-en-2|here|metastasis in the middle lobe
+parrot-1795-en-1|elsewhere|the aorta elongated at the level of L1/L2
+parrot-1795-en-4|elsewhere|the left kidney's collecting system, compared with the right kidney
+parrot-76-en-0|here|canal diameter at L2 ?
+parrot-76-en-1|here|header L4-L5
+parrot-76-en-2|here|header L4-L5
+parrot-1747-en-1|here|spleen normal
+parrot-1747-en-3|here|bladder normal
+parrot-1868-en-2|here|spleen measures
+parrot-1868-en-3|here|bladder normal
+parrot-1340-en-0|elsewhere|fluid at the lower pole of the spleen: perisplenic ?
+parrot-1774-en-0|here|stones in the right kidney
+parrot-1774-en-1|here|calyces of the right kidney dilated
+parrot-1774-en-3|here|bladder walls thickened at the trigone
+parrot-2418-en-0|here|narrowing of the trachea
+parrot-2418-en-1|elsewhere|the trachea narrowed at the level of C2
+parrot-229-en-0|here|fracture of T10
+parrot-229-en-1|here|fracture of T10 (T10/11)
+parrot-229-en-2|elsewhere|epidural fluid at the level of C2/3
+parrot-1019-en-1|elsewhere|the liver's density compared with the spleen's
+parrot-2522-en-0|here|heart rate
+parrot-1895-en-0|here|title, virtual colonoscopy
+parrot-1895-en-1|here|fundus of the stomach in a hiatal hernia
+parrot-1895-en-2|here|residual fluid in the cecum
+parrot-2334-en-0|here|cysts at the renal pelvis of the right kidney
+parrot-2617-en-1|here|small bowel normal
+parrot-2617-en-2|here|mass of the colon
+parrot-2617-en-3|here|mass of the descending colon
+parrot-2354-en-1|here|spleen enlarged
+parrot-998-en-0|here|fatty lesion of the right adrenal
+parrot-998-en-1|here|bladder normal
+parrot-998-en-2|here|possible adenoma of the right adrenal
+parrot-641-en-0|elsewhere|lesions at the insertion of the gluteus minimus tendon, adjacent to the trochanter ?
+parrot-1603-en-0|here|opacities in the lower lobes
+parrot-2606-en-0|here|header, right upper lobe
+parrot-2606-en-3|here|bladder wall thickening
+parrot-2606-en-4|here|prostate measures
+parrot-635-en-0|here|marrow oedema of the acetabulum
+parrot-635-en-1|here|effusion of the left hip joint
+parrot-2099-en-2|here|pancreas normal
+parrot-2099-en-3|here|small intestine dilated
+parrot-1282-en-1|here|possible infiltration of the liver at the caudate lobe ?
+parrot-1282-en-2|here|filling defect of the portal vein
+parrot-1889-en-0|here|hypodense area of segment 2
+parrot-1889-en-2|here|small bowel loops dilated
+parrot-1889-en-3|here|ileal loops dilated
+parrot-1888-en-0|here|history of thyroid cancer surgery
+parrot-1888-en-1|here|uncovertebral degeneration at C5/C6
+parrot-1888-en-2|here|uncovertebral degeneration at C6/C7
+parrot-1677-en-0|elsewhere|retroperitoneal haematoma along the left "hip axis" (the iliac arteries), not the hip bone
+parrot-1677-en-1|elsewhere|retroperitoneal haematoma along the psoas ?
+parrot-1677-en-2|elsewhere|the "hip axis" is the iliac arterial axis, not the hip bone
+parrot-1236-en-0|here|no foraminal stenosis at L5-S1
+parrot-1236-en-1|here|no foraminal stenosis at L5-S1
+parrot-1236-en-2|here|Modic changes of the L5-S1 endplates
+parrot-1487-en-0|here|thyroid normal
+parrot-1064-en-0|here|nodules in the left upper lobe
+parrot-1064-en-1|here|nodule in the right upper lobe
+parrot-1805-en-4|here|prostate calcifications
+parrot-1721-en-0|here|atelectasis of the right lower lobe
+parrot-1739-en-2|here|cyst of segment VI
+parrot-2328-en-6|here|nodular thickening of the left adrenal
+parrot-1106-en-0|here|heart failure
+parrot-2040-en-0|here|prostate normal
+parrot-1770-en-6|here|prostate calcifications
+parrot-251-en-0|here|tree-in-bud in the middle lobe
+parrot-251-en-1|here|scar of the right upper lobe
+parrot-251-en-2|here|lesion of the right thyroid lobe
+parrot-1523-en-2|here|nodule of the right adrenal
+parrot-1523-en-3|elsewhere|a lymph node posterior to the inferior vena cava
+parrot-1681-en-2|here|pancreas hyperechoic
+parrot-1292-en-0|here|lesion of the antral wall
+parrot-1292-en-1|here|nodule of the right adrenal
+parrot-1828-en-5|elsewhere|lymph nodes in the mesentery of the small intestine
+parrot-1411-en-0|here|spondylolisthesis at C4/C5
+parrot-1411-en-1|here|degenerative changes at C2/C3
+parrot-1917-en-0|here|thyroid measures
+parrot-1917-en-1|here|nodule of the right thyroid lobe
+parrot-1917-en-2|here|nodule of the thyroid
+parrot-989-en-0|here|bronchiectasis of the right upper lobe
+parrot-1896-en-0|here|atelectasis of the left lower lobe
+parrot-1896-en-1|here|atelectasis of the left lower lobe
+parrot-1588-en-0|here|degenerative changes of the left hip joint
+parrot-1588-en-1|here|flattening of the femoral head
+parrot-1199-en-0|here|spinal cord compression
+parrot-1199-en-1|here|spinal cord distress
+parrot-2449-en-0|here|osteolytic foci of the right femoral head ?
+parrot-1891-en-5|here|carotid diameter
+parrot-1891-en-6|here|carotid diameter
+parrot-872-en-0|here|skull vault normal
+parrot-1598-en-1|here|pancreas normal
+parrot-840-en-1|here|atrophy of the pancreas
+parrot-902-en-0|here|lesion of segment VI
+parrot-1822-en-2|here|a lesion possibly of the left adrenal ?
+parrot-2240-en-1|elsewhere|periaortic retroperitoneal infiltration extending to the left common iliac artery ?
+parrot-488-en-1|here|nodule in the right lower lobe
+parrot-488-en-3|here|nodule in the right lower lobe
+parrot-1574-en-0|here|degenerative changes of the left hip joint
+parrot-1946-en-0|here|bone island of C5
