@@ -156,12 +156,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--parrot", help="PARROT_v1_0.jsonl: the whole report, for the exam and the section")
     ap.add_argument("--uberon", help="uberon.obo: what is part of what")
+    ap.add_argument("--questions", help="where to write the questions for a person (review_question), one per line")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
 
     import hpo_probe as hp
     from melampo.data.report_reading import build_linker
-    from melampo.memory.finding_owner import FindingOwner
+    from melampo.memory.finding_owner import FindingOwner, Ownership
 
     linker = build_linker()[0]
     from melampo.data.report_reading import finding_owner
@@ -214,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
                 at_report = text.find(item["clause"])
                 context = report_context(text, max(at_report, 0))
             row["context"] = context
+            row["_item"] = item
             row["reader"] = reader_only(item["mention"], item["clause"], at, item["language"], item["structure"],
                                         context).as_dict()
             if with_models is not None:
@@ -227,6 +229,26 @@ def main(argv: list[str] | None = None) -> int:
     for name in sorted({r["set"] for r in rows}):
         rs = [r for r in rows if r["set"] == name]
         report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models") if any(arm in r for r in rs)}
+    if args.questions:
+        # the questions a person would be asked, complete in themselves: what the review mask shows
+        from melampo.memory.review_question import build_question
+
+        with open(args.questions, "w", encoding="utf-8") as fh:
+            for row in rows:
+                arm = "reader+models" if "reader+models" in row else "reader"
+                verdict = row[arm]["verdict"]
+                if verdict == "here":
+                    continue
+                item = row["_item"]
+                owner = Ownership(**row[arm])
+                q = build_question(owner, report=f"parrot-{item.get('report')}", language=item["language"],
+                                   sentence=item["clause"], mention=item["mention"],
+                                   start=item["clause"].find(item["mention"]), structure=item["structure"],
+                                   structure_name=FindingOwner.linked_name(item["structure"]),
+                                   context=row.get("context"))
+                fh.write(json.dumps({**q.as_dict(), "set": row["set"], "gold": row["gold"]}, ensure_ascii=False) + "\n")
+    for row in rows:
+        row.pop("_item", None)
     report["rows"] = rows
     Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1), "utf-8")
     print(json.dumps(report["by_set"], ensure_ascii=False, indent=1))

@@ -338,3 +338,35 @@ struttura collegata, su tutto ciò che la frase afferma.
 
 Il campione nuovo ora è visto. Queste correzioni vanno misurate su un altro campione di referti PARROT inglesi mai
 usati. Restano le etichette da far rivedere a un radiologo.
+
+## La domanda per la persona, completa in sé (1 novembre 2026)
+
+Decisione di Frank: la maschera interattiva si farà insieme a quella di immissione del caso. Intanto ogni voce
+mandata a una persona contiene già tutto ciò che la maschera deve mostrare (`memory/review_question.py`).
+
+| Campo | Che cosa contiene |
+|---|---|
+| `kind` | il tipo di domanda: `outside_the_exam`, `differential`, `other_organ`, `reference_or_finding`, `what_does_it_say` (il primo che vale, dalle prove del lettore e dalle risposte dei modelli) |
+| `sentence`, `mention`, `start` | il pezzo di frase e dove sono le parole |
+| `structure`, `structure_name` | la classe collegata; la domanda la nomina con il nome italiano del lessico |
+| `exam`, `section` | il nome dell'esame e la sezione del referto |
+| `question_it`, `question_en` | la domanda in parole: "Il reperto descritto riguarda la struttura «encefalo» (parole «PONS»), o «encefalo» serve solo a dire dove si trova?" |
+| `options` | le risposte chiuse, sempre le stesse e negli stessi tipi dei lettori: è un suo reperto · è coinvolta · solo una misura · un dato di storia · è normale · solo un riferimento (di che cosa) · le parole nominano un'altra struttura (quale) · solo un'ipotesi · non si può dire |
+| `system` | le letture del sistema: la prova del lettore e, per ogni modello, reperto, struttura, relazione, risposta e motivo. **Si mostrano solo dopo la risposta**: `for_the_person()` restituisce la domanda senza questo campo |
+
+Che cosa produce una risposta (`decide`):
+- **resta alla struttura**: un reperto, coinvolta, una misura, la storia, normale;
+- **niente a questa struttura**: un riferimento, un'altra struttura, un'ipotesi; l'altra struttura viene registrata;
+- **resta aperta**: non si può dire.
+
+`review_record` trasforma la risposta in un record di `review_feedback`. Diventa un'etichetta solo dopo la conferma
+di un secondo medico.
+
+Dove si trovano le domande:
+- l'interprete le scrive per ogni lettura che non resta alla struttura;
+- la lettura del caso (`ReportReaders.read`) le restituisce in `questions`, e le voci di `to_a_person` hanno l'id
+  della loro domanda;
+- il workflow `owner-probe` scrive `owner_questions.jsonl`.
+
+Dall'ultimo run escono 42 domande sul campione nuovo: 31 del tipo "riferimento o reperto", 11 del tipo "che cosa
+dice la frase".
