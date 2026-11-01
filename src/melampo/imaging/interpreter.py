@@ -61,8 +61,11 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
             continue
         owner = None
         if ownership is not None:
+            from ..memory.finding_owner import report_context
+
             at = start - lo - (len(raw) - len(raw.lstrip()))
-            owner = ownership(site.get("mention", report_text[start:end]), clause, at, language)
+            owner = ownership(site.get("mention", report_text[start:end]), clause, at, language,
+                              cid=site["cid"], context=report_context(report_text, lo))
             if owner.verdict == "elsewhere":
                 if set_aside is not None:
                     set_aside.append({"mention": site.get("mention", ""), "structure": site["cid"], "clause": clause,

@@ -39,7 +39,7 @@ TYPES = (
 # The role of the word inside the phrase (the schema of the gold set, plus "uncertain").
 ROLES = {
     "structure": "the word names the body structure the text speaks of (a lesion IN it, its shape, the organ itself)",
-    "landmark": "the structure only places something else: the sentence describes a node, a fluid, a mass or another organ near, along, around, between, outside or towards it, and says nothing about the structure itself (nodes along the aortic arch, fluid between the bowel loops, the appendix lateral to the cecum, a gland protruding into the bladder); a finding IN or OF the structure is structure, and when what is placed is in the structure, both",
+    "landmark": "the structure only places something else: what the sentence describes is a node, a fluid, a mass, a device or another organ, which is not this structure nor a part of it, and the structure says where it is (nodes along the aortic arch, fluid between the bowel loops, the appendix lateral to the cecum, the prostate protruding into the bladder, ureters dilated up to the bladder, the parietal pleura at the level of a lung lobe)",
     "procedure_site": "the structure is the site of a procedure or exam named in the phrase or by the word that governs it, also outside the phrase (liver biopsy, CT of the chest, liberation of the caecum and of the appendix)",
     "device_site": "the structure is where a device is or goes (vena cava filter, biliary stent)",
     "inherent_location": "the phrase names a measure, property, function or process of the structure (brain weight, liver function)",
@@ -424,7 +424,71 @@ def kind_of_type(kind: str) -> str:
     ), strict=True)).get(kind.lower(), "conceptual")
 
 
+# -- of what is the finding said: the question asked from the finding (1 November 2026) -----------------------
+# The radiologist starts from what is abnormal and asks what it belongs to; the model was asked the role of the
+# structure, and derived from two roles ("structure" and "landmark") an outcome it was never asked (owner probe,
+# 31 October 2026: 11 of 26 findings of another structure kept). Here the outcome is asked, from the finding, and
+# the model is told which structure the words were linked to, so that it can say when the link is wrong.
+OWNER_RELATIONS = ("same", "part", "reference", "wrong", "hypothesis", "uncertain")
+OWNER_STEPS = """Read it the way a radiologist does, in this order, and write each step:
+1. finding: what the sentence describes, measures or states as abnormal, with its head noun ("dilated
+   ureters", "hypertrophy of the transitional zone", "enlarged nodes", "a foreign body", "a cyst"); "none" if it
+   describes nothing.
+2. bearer: the body structure that finding is of or in, the one a radiologist would code it to, from the
+   words of the sentence, the exam and your knowledge of anatomy; "unknown" if the sentence does not say.
+3. linked: how the linked structure stands to the bearer:
+   - "same": it is the bearer;
+   - "part": it is a part of the bearer, or the bearer is a part of it (a lobe of the lung, the wall of the
+     bladder, a segment of the liver);
+   - "reference": it only says where the finding is, which belongs to another structure (nodes along the aorta,
+     ureters dilated up to the bladder, the prostate protruding into the bladder, the parietal pleura at the
+     level of a lung lobe, fluid around the spleen);
+   - "wrong": the marked words name another structure here, not the linked one (in a prostate MRI the "middle
+     lobe" is the prostate's, not the lung's);
+   - "hypothesis": it is named only as a possible explanation (a differential diagnosis, "suggestive of");
+   - "uncertain": you cannot tell.
+4. answer: "yes" if the finding is of the linked structure (same or part), "no" if it is not (reference, wrong,
+   hypothesis), "uncertain" otherwise."""
+OWNER_SCHEMA = ('{"finding": "<what is described>", "bearer": "<the structure it is of>", '
+                '"linked": "<one of: %s>", "answer": "<yes, no or uncertain>", "why": "<one sentence>"}')
+
+
+def owner_prompt(sentence: str, start: int, end: int, linked: str, *, exam: str = "", section: str = "",
+                 language: str = "") -> str:
+    """The question "is the finding of the linked structure?", asked from the finding."""
+    parts = ["You read sentences of radiology reports the way a radiologist does."]
+    if exam:
+        parts.append(f"Exam: {exam}")
+    if section:
+        parts.append(f"Section of the report: {section}")
+    parts.append(f"Sentence{f' ({language})' if language else ''}: {mark(sentence, start, end)}")
+    parts.append(f"An automatic reader linked the marked words to this body structure: {linked}.")
+    parts.append(OWNER_STEPS)
+    parts.append("Answer with JSON only, no other text:\n" + OWNER_SCHEMA % ", ".join(OWNER_RELATIONS))
+    return "\n\n".join(parts)
+
+
+def read_owner(text: str) -> dict:
+    """The answer of ``owner_prompt``: the last JSON object; the answer folded to yes, no or uncertain."""
+    found = re.findall(r"\{[^{}]*\}", text or "")
+    try:
+        answer = json.loads(found[-1])
+    except Exception:  # noqa: BLE001
+        return {"answer": "uncertain", "linked": "uncertain", "valid": False}
+    said = str(answer.get("answer", "")).strip().lower()
+    linked = str(answer.get("linked", "")).strip().lower()
+    answer["answer"] = said if said in ("yes", "no") else "uncertain"
+    answer["linked"] = linked if linked in OWNER_RELATIONS else "uncertain"
+    if answer["answer"] == "yes" and answer["linked"] in ("reference", "wrong", "hypothesis"):
+        answer["answer"] = "uncertain"      # the two steps contradict each other
+    if answer["answer"] == "no" and answer["linked"] in ("same", "part"):
+        answer["answer"] = "uncertain"
+    answer["valid"] = True
+    return answer
+
+
 __all__ = [
+    "OWNER_RELATIONS", "owner_prompt", "read_owner",
     "CLOSE", "METHOD_SCHEMA", "METHOD_STEPS", "OPEN", "ROLES", "method_prompt", "SITE_ROLES", "TYPES", "Asked", "Checked", "ask", "balanced", "check",
     "covering", "kind_of_type", "mark", "next_words", "parse", "prompt", "remark_example", "schema",
 ]

@@ -62,13 +62,10 @@ def test_the_reader_reads_a_landmark_in_its_second_stage_only(reader):
     assert CIReading(LANDMARK, LANDMARK, 1.0, {LANDMARK: 1.0}, 1).p_not_structure == 0.0   # still a body site
 
 
-def _chat(roles, placed=""):
+def _chat(answer, linked="same", finding=""):
+    """A model answering the owner question (``llm_reading.owner_prompt``)."""
     def chat(prompt):
-        sentence = prompt.rsplit("Sentence: ", 1)[1].split("\n")[0]
-        phrase = sentence.split("<w>")[1].split("</w>")[0]
-        return json.dumps({"phrase": phrase, "head": phrase.split()[-1], "type": "anatomical structure",
-                           "governor": {"word": "", "names": ""}, "predicate": "", "placed": placed,
-                           "readings": [], "roles": roles})
+        return json.dumps({"finding": finding, "bearer": "", "linked": linked, "answer": answer, "why": ""})
     return chat
 
 
@@ -76,16 +73,81 @@ def test_the_reader_and_the_model_decide_together(reader):
     s = "Some enlarged nodes are evident at the hila, along the aortic arch"
     at = s.index("aortic arch")
     # the reader alone never removes a finding
-    assert FindingOwner(reader)("aortic arch", s, at).verdict == UNSURE
-    got = FindingOwner(reader, {"m": _chat(["landmark"], "enlarged nodes")})("aortic arch", s, at)
+    assert FindingOwner(reader)("aortic arch", s, at, cid="aorta").verdict == UNSURE
+    got = FindingOwner(reader, {"m": _chat("no", "reference", "enlarged nodes")})("aortic arch", s, at, cid="aorta")
     assert got.verdict == ELSEWHERE and got.placed == "enlarged nodes"
     # the model reads it as the arch's: they contradict each other, a person decides
-    assert FindingOwner(reader, {"m": _chat(["structure"])})("aortic arch", s, at).verdict == UNSURE
+    assert FindingOwner(reader, {"m": _chat("yes")})("aortic arch", s, at, cid="aorta").verdict == UNSURE
     # two models are one stream: they must agree with each other first
-    two = {"a": _chat(["landmark"]), "b": _chat(["structure", "landmark"])}
-    assert FindingOwner(reader, two)("aortic arch", s, at).verdict == UNSURE
+    two = {"a": _chat("no", "reference"), "b": _chat("uncertain", "uncertain")}
+    assert FindingOwner(reader, two)("aortic arch", s, at, cid="aorta").verdict == UNSURE
     s = "Calcification of the aortic arch"
-    assert FindingOwner(reader, {"m": _chat(["structure"])})("aortic arch", s, s.index("aortic arch")).verdict == HERE
+    got = FindingOwner(reader, {"m": _chat("yes")})("aortic arch", s, s.index("aortic arch"), cid="aorta")
+    assert got.verdict == HERE
+
+
+def test_the_owner_answer_is_read_and_its_steps_must_agree():
+    from melampo.evaluation.llm_reading import owner_prompt, read_owner
+
+    p = owner_prompt("Minimal hypertrophy of the middle lobe", 27, 38, "middle lobe of right lung",
+                     exam="MRI of the prostate", section="TZ", language="English")
+    assert "middle lobe of right lung" in p and "MRI of the prostate" in p and "<w>middle lobe</w>" in p
+    assert read_owner('{"linked": "wrong", "answer": "no"}')["answer"] == "no"
+    assert read_owner('{"linked": "reference", "answer": "yes"}')["answer"] == "uncertain"   # steps contradict
+    assert read_owner("no JSON")["answer"] == "uncertain"
+
+
+def test_what_a_radiologist_knows_besides_the_words(reader):
+    from melampo.memory.finding_owner import Anatomy, report_context
+
+    owner = FindingOwner(reader, {}, Anatomy())
+    # the exam: a lobe of the lung in a prostate MRI is outside what the exam sees
+    report = "RM prostata multiparametrica. TZ: Apprezzabile minima ipertrofia del lobo medio che impronta il pavimento."
+    clause = "Apprezzabile minima ipertrofia del lobo medio che impronta il pavimento"
+    context = report_context(report, report.index(clause))
+    assert "pelvis" in context["areas"] and context["section"] == "TZ"
+    got = owner("lobo medio", clause, clause.index("lobo medio"), "it", "lung_middle_lobe_right", context)
+    assert got.verdict == UNSURE and "outside_the_exam" in got.reader
+    # a differential names a structure only as a possible explanation
+    clause = "Partial opacity of the left apex (differential diagnosis: inflammatory changes, shadow of the left subclavian artery)"
+    got = owner("left subclavian artery", clause, clause.index("left subclavian"), "en", "subclavian_artery_left")
+    assert "named_only_in_a_differential" in got.reader
+    # a hedge on the finding itself still speaks of the structure
+    clause = "Clinical question: suspected liver lesion"
+    assert owner("liver", clause, clause.index("liver"), "en", "liver").verdict == HERE
+
+
+def test_another_organ_described_first():
+    from melampo.memory import hpo_candidates as hc
+    from melampo.memory.finding_owner import Anatomy
+
+    obo = """[Term]
+id: UBERON:1
+name: ureter
+subset: organ_slim
+
+[Term]
+id: UBERON:2
+name: urinary bladder
+subset: organ_slim
+
+[Term]
+id: UBERON:3
+name: wall of urinary bladder
+relationship: part_of UBERON:2 ! urinary bladder
+
+[Term]
+id: UBERON:4
+name: compound organ
+subset: organ_slim
+"""
+    uberon = hc.Anatomy.from_obo(obo.splitlines())
+    anatomy = Anatomy(uberon, uberon_names={"UBERON:1": ["ureter"], "UBERON:2": ["urinary bladder"],
+                                            "UBERON:3": ["wall of urinary bladder"]})
+    assert anatomy.other_organ({"UBERON:1"}, {"UBERON:2"})
+    assert not anatomy.other_organ({"UBERON:3"}, {"UBERON:2"})          # a part of the same organ
+    assert "UBERON:4" not in anatomy.organs                             # a kind of organ is not an organ
+    assert anatomy.find("The ureters are dilated up to their entry into the")[0][0] == "ureter"
 
 
 def test_the_interpreter_sets_aside_a_clause_about_something_else(reader):
@@ -96,8 +158,8 @@ def test_the_interpreter_sets_aside_a_clause_about_something_else(reader):
     sites = [{"mention": "aortic arch", "start": a, "end": a + 11, "cid": "aorta"} for a in (first, second)]
     aside = []
     got = interpret_exam("p", "s", "", "CT", "r", report, sites, language="en",
-                         ownership=FindingOwner(reader, {"m": _chat(["landmark"], "nodes")}), set_aside=aside)
-    assert [f.text.start for f in got] == [] or all(f.text.start == second for f in got)
+                         ownership=FindingOwner(reader, {"m": _chat("no", "reference", "nodes")}), set_aside=aside)
+    assert all(f.text.start == second for f in got)
     assert aside and aside[0]["structure"] == "aorta" and aside[0]["placed"] == "nodes"
     # with the reader alone the finding is made and goes to a person
     got = interpret_exam("p", "s", "", "CT", "r", report, sites[:1], language="en",

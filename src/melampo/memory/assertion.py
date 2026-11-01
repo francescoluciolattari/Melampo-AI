@@ -126,6 +126,9 @@ ENGLISH_CUES = CueSet(
     possible=(
         "possible",
         "probable",
+        "differential diagnosis",   # a differential states nothing (1 November 2026)
+        "differential",
+        "ddx",
         "suspected",
         "suspicious for",
         "cannot be excluded",
@@ -221,6 +224,8 @@ ITALIAN_CUES = CueSet(
     possible=(
         "possibile",
         "probabile",
+        "diagnosi differenziale",
+        "in diagnostica differenziale",
         "sospetto",
         "non si puo escludere",
         "potrebbe",

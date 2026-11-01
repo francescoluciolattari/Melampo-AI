@@ -126,7 +126,16 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
         except Exception as error:  # noqa: BLE001 -- without the lattice's data the owner is not built
             return None, f"finding_owner_unavailable:{type(error).__name__}"
     chats = dict(getattr(linker, "chats", None) or {})
-    return FindingOwner(reader, chats), "finding_owner:reader" + ("+models" if chats else "")
+    anatomy, note = None, ""
+    uberon = os.environ.get("MELAMPO_UBERON")
+    if uberon and Path(uberon).exists():
+        from ..memory.finding_owner import Anatomy
+
+        try:
+            anatomy, note = Anatomy.from_uberon(Path(uberon)), "+uberon"
+        except Exception as error:  # noqa: BLE001 -- the owner reads without the organs
+            note = f"+uberon_unavailable:{type(error).__name__}"
+    return FindingOwner(reader, chats, anatomy), "finding_owner:reader" + ("+models" if chats else "") + note
 
 
 @dataclass
