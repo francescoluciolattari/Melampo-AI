@@ -79,3 +79,52 @@ Le risposte in cache del role probe non valgono più: il prompt è cambiato.
   previsione.
 - Le etichette sono di un solo etichettatore (Claude). La lista dei reperti di un'altra struttura va rivista da un
   radiologo.
+
+## Il run con i modelli (31 ottobre, sera)
+
+**Owner probe** (Gemma 4 31B e Nemotron 3 Ultra con il lettore), sui 26 reperti di un'altra struttura e sui 358
+reperti giusti:
+
+| | tolti (lettore e modelli d'accordo) | alla persona | ancora attribuiti alla struttura |
+|---|---|---|---|
+| reperti di un'altra struttura (26) | 2 | 13 | **11** |
+| reperti giusti (358) | **0** | 7 | 351 |
+
+Con il lettore da solo: 0, 11 e 15 per i reperti di un'altra struttura; 0, 4 e 354 per quelli giusti.
+
+**Esito rispetto ai criteri fissati prima.**
+- **Criterio 1, non passa**: 11 reperti di un'altra struttura restano attribuiti alla struttura, contro 26 prima.
+- **Criterio 2, passa**: nessun reperto giusto viene tolto.
+- **Criterio 3, passa per Gemma.** Il role probe è stato lanciato con i modelli predefiniti del suo workflow
+  (gpt-oss-120b, Gemma 4 31B, Mistral Small 4), quindi il confronto con Nemotron non c'è.
+  - Gemma, in inglese, manda alla persona lo 0,6% degli item con la domanda semplice e lo 0,8% con il metodo,
+    contro l'1,9% del 14 ottobre.
+  - Gli item su cui lettore e modello sono d'accordo con l'esito sbagliato restano 0 per tutti i modelli.
+
+**Perché ne restano 11.**
+1. **I modelli danno quasi sempre due ruoli.** Rispondono `["landmark", "structure"]` oppure
+   `["structure", "landmark"]`, e la regola "riferimento solo se *structure* non c'è" li legge come "il reperto è
+   qui".
+   - Prendere solo il primo ruolo è stato provato in esplorazione: restano 7 errori, ma 3 reperti giusti
+     vengono tolti.
+   - Basta un "landmark" fra i ruoli: restano 2 errori, ma 145 reperti giusti vanno alla persona.
+   - Il problema è la domanda: dai ruoli si ricava l'esito, invece di chiederlo.
+2. **Il modello non sa a quale struttura il linker ha collegato la parola.** "Ipertrofia del lobo medio" della
+   prostata: il modello dice "struttura", e ha ragione, ma il linker l'ha collegata al lobo medio del polmone. Lo
+   stesso vale per il lobo del fegato. Sono 3 degli 11.
+3. **Alcune etichette sono discutibili** e vanno date a un radiologo:
+   - gli ureteri dilatati "fino allo sbocco in vescica";
+   - la prostata che "sporge nella vescica";
+   - l'oggetto "alla biforcazione" del bronco del lobo;
+   - "ombra dell'arteria succlavia" in diagnosi differenziale.
+
+**Il gold del role probe.** Lo strato Rad-SpRL (300 item) ha il ruolo "structure" per costruzione. Con il ruolo
+nuovo una parte di quelle righe è un riferimento: "opacità fra la 7ª e l'8ª costa", "fluido lungo la scissura",
+"palpabile a 2 cm dall'arcata costale". Su quello strato il lettore e Gemma dicono "riferimento" in 23 item, 7
+volte tutti e due. Quelle righe vanno rilette con lo schema nuovo prima di contare questi casi come errori.
+
+**Proposta per il passo successivo**, da fissare prima del run:
+- chiedere al modello l'esito direttamente, nominando la struttura collegata dal linker: "il reperto è di
+  <struttura collegata>? sì / no / anche". I ruoli restano come lettura;
+- rileggere lo strato Rad-SpRL con lo schema nuovo;
+- far rivedere a un radiologo le 26 etichette.
