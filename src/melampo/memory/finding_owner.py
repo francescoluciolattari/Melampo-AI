@@ -198,10 +198,12 @@ def report_context(report: str, clause_start: int) -> dict[str, str]:
     areas = ExamAreas.load()
     exam = ""
     if areas.modality is not None:
-        for sentence in re.split(r"(?<=[.\n])\s+", report[:2000]):
-            if areas.modality.search(sentence):
-                exam = sentence.strip()[:160]
-                break
+        # the exam's name: the first sentence that names a modality and a region ("CT of the chest"), else the
+        # first that names a modality
+        sentences = [x.strip() for x in re.split(r"(?<=[.\n])\s+", report[:3000]) if x.strip()]
+        named = [x for x in sentences if areas.modality.search(x)]
+        exam = next((x for x in named if areas.of(x)), named[0] if named else "")
+        exam = " ".join(exam.split())[:120]
     sections = [m for m in _SECTION.finditer(report[:clause_start + 1])]
     section = sections[-1].group(1).strip() if sections and clause_start - sections[-1].end() < 400 else ""
     return {"exam": exam, "section": section, "areas": ",".join(sorted(areas.of(report)))}

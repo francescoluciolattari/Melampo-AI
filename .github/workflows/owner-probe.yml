@@ -54,7 +54,7 @@ jobs:
             --items dev=hpo_items.jsonl --items heldout=hpo_items_heldout.jsonl --models "$MODELS" \
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
-            --cache owner_probe_answers.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json
+            --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json
 
       - name: Summarise
         if: always()
@@ -74,3 +74,4 @@ jobs:
             owner_probe_summary.json
             owner_probe.log
             owner_probe_answers.jsonl
+            owner_questions.jsonl

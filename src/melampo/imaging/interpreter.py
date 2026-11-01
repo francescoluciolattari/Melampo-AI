@@ -37,14 +37,16 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                    affine=None, frame_of_reference: str = "", lesion_segmenter=None,
                    organ_segmenter=None, contrast: str = "unknown",
                    structures: dict[str, np.ndarray] | None = None, ownership=None,
-                   set_aside: list | None = None) -> list[Finding]:
+                   set_aside: list | None = None, questions: list | None = None) -> list[Finding]:
     """The findings of one exam. ``sites``: rows with mention, start, end (offsets in ``report_text``), cid, roles.
     ``structures``: every anatomical mask of the exam (name -> mask), for the structures each lesion involves;
     when not given and the organ segmenter can segment the whole body (``all_structures``), it is asked once.
     ``ownership``: a ``finding_owner.FindingOwner`` (31 October 2026): is the clause about this structure, or does
     the structure only place something else? When the reader and the model agree that it is not, no finding is
     made at the site and the clause is appended to ``set_aside`` for a person; when they do not agree, the
-    finding is made and goes to a person."""
+    finding is made and goes to a person. Either way the question for the person, complete in itself
+    (``review_question``: kind, sentence, structure, closed answers, the readings to show after the answer), is
+    appended to ``questions``."""
     findings: list[Finding] = []
     asked = structures is not None
     for site in sites:
@@ -62,14 +64,25 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
         owner = None
         if ownership is not None:
             from ..memory.finding_owner import report_context
+            from ..memory.review_question import build_question
 
             at = start - lo - (len(raw) - len(raw.lstrip()))
-            owner = ownership(site.get("mention", report_text[start:end]), clause, at, language,
-                              cid=site["cid"], context=report_context(report_text, lo))
+            mention = site.get("mention", report_text[start:end])
+            context = report_context(report_text, lo)
+            owner = ownership(mention, clause, at, language, cid=site["cid"], context=context)
+            question = None
+            if owner.verdict != "here":
+                name = getattr(ownership, "linked_name", lambda c: c.replace("_", " "))(site["cid"])
+                question = build_question(owner, report=report_id, language=language, sentence=clause,
+                                          mention=mention, start=at, structure=site["cid"], structure_name=name,
+                                          context=context).as_dict()
+                if questions is not None:
+                    questions.append(question)
             if owner.verdict == "elsewhere":
                 if set_aside is not None:
-                    set_aside.append({"mention": site.get("mention", ""), "structure": site["cid"], "clause": clause,
-                                      "reason": "the_structure_only_places_something_else", **owner.as_dict()})
+                    set_aside.append({"mention": mention, "structure": site["cid"], "clause": clause,
+                                      "reason": "the_structure_only_places_something_else", **owner.as_dict(),
+                                      "question": question["id"]})
                 continue
         text = TextSide(report_id, clause, site.get("mention", report_text[start:end]), start, end, site["cid"],
                         tuple(site.get("roles") or ()), qd, sizes, language)

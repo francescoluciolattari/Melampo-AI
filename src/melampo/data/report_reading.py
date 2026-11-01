@@ -220,7 +220,8 @@ class ReportReaders:
 
     # -- the exam --------------------------------------------------------------------------------------------
     def read_exam(self, case_key: str, report: dict[str, Any], text: str, volume: dict[str, Any] | None,
-                  why_no_image: str, set_aside: list | None = None) -> list[dict[str, Any]]:
+                  why_no_image: str, set_aside: list | None = None,
+                  questions: list | None = None) -> list[dict[str, Any]]:
         """The findings of one imaging report, with the image side when ``volume`` (array, affine, modality,
         study) is given and the segmenters are there."""
         from ..imaging.interpreter import interpret_exam
@@ -236,7 +237,7 @@ class ReportReaders:
             why_no_image = "segmenters_not_configured"
         findings = interpret_exam(case_key, (volume or {}).get("study") or report["report"], "", modality,
                                   report["report"], text, report["sites"], language=report["language"],
-                                  ownership=self.owner, set_aside=set_aside, **kwargs)
+                                  ownership=self.owner, set_aside=set_aside, questions=questions, **kwargs)
         rows = []
         for f in findings:
             row = f.as_row()
@@ -249,7 +250,9 @@ class ReportReaders:
         """The reading of the whole case: the physician's note and every attachment."""
         from .report_router import route
 
-        out: dict[str, Any] = {"readers": list(self.notes), "texts": [], "findings": [], "to_a_person": []}
+        # "questions": what the review mask shows a person, each complete in itself (``review_question``)
+        out: dict[str, Any] = {"readers": list(self.notes), "texts": [], "findings": [], "to_a_person": [],
+                               "questions": []}
         if self.linker is None:
             out["status"] = "narrative_reader_not_available"
             return out
@@ -286,12 +289,19 @@ class ReportReaders:
                     if isinstance(volume, str):
                         reason, volume = volume, None
             aside: list[dict[str, Any]] = []
-            rows = self.read_exam(case_key, reading, text, volume, reason, aside)
+            asked: list[dict[str, Any]] = []
+            rows = self.read_exam(case_key, reading, text, volume, reason, aside, asked)
+            out["questions"] += asked
             out["findings"] += rows
             out["to_a_person"] += [{"report": source_id, "mention": a["mention"], "reason": a["reason"],
-                                    "clause": a["clause"], "placed": a.get("placed", "")} for a in aside]
+                                    "clause": a["clause"], "placed": a.get("placed", ""),
+                                    "question": a.get("question", "")} for a in aside]
             out["to_a_person"] += [{"report": source_id, "mention": r["mention"],
-                                    "reason": ",".join(r["review_reasons"])} for r in rows if r["needs_review"]]
+                                    "reason": ",".join(r["review_reasons"]),
+                                    "question": next((q["id"] for q in asked if q["mention"] == r["mention"]
+                                                      and q["structure"] == r["structure"]
+                                                      and q["sentence"] == r["clause"]), "")}
+                                   for r in rows if r["needs_review"]]
         out["status"] = "read"
         return out
 
