@@ -104,7 +104,8 @@ def kind_of(evidence: str, models: dict[str, dict]) -> str:
         return "differential"
     if "describes:" in evidence:
         return "other_organ"
-    if "landmark" in evidence or any(a.get("linked") == "reference" for a in models.values()):
+    if "landmark" in evidence or any(a.get("linked") == "reference" or a.get("type") == "reference"
+                                     for a in models.values()):
         return "reference_or_finding"
     return "what_does_it_say"
 
@@ -128,7 +129,8 @@ def build_question(ownership, *, report: str, language: str, sentence: str, ment
         question_it=it.format(s=name_it, **fill), question_en=en.format(s=name_en, **fill),
         options=[{"code": code, "label_it": v[0], "label_en": v[1], "needs_text": v[4]} for code, v in STATEMENTS.items()],
         system={"verdict": ownership.verdict, "reason": ownership.reason, "reader": evidence,
-                "models": ownership.models, "placed": ownership.placed},
+                "models": ownership.models, "placed": ownership.placed,
+                "statement": getattr(ownership, "statement", ""), "piece": getattr(ownership, "piece", "")},
     )
 
 

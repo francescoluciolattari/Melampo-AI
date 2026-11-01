@@ -103,7 +103,8 @@ INHIBITION = 0.5  # among the readings of one string, as a share of a unit excit
 # The relation read before the mention (``spatial_relation``), as a share of the lexical evidence for the
 # structure: a proximity as much as all of it, a direction half, a containment or the object of a verb half.
 LANDMARK_SHARE = 0.5   # of the lexical support for the structure that the landmark gets too
-RELATION_WEIGHT = {"proximity": 1.0, "direction": 0.5, "containment": 0.5, "affected": 0.5}
+# a projection ("in the projection of", on a radiograph) says neither in nor out: a weak hint (1 November 2026)
+RELATION_WEIGHT = {"proximity": 1.0, "direction": 0.5, "projection": 0.25, "containment": 0.5, "affected": 0.5}
 STOP_CHANGE = 0.001  # Kintsch's stopping rule on the change of the activation vector
 MAX_CYCLES = 200
 MARGIN = 0.10  # share of the activation by which the best reading must beat the second
@@ -803,7 +804,7 @@ class CIReader:
                 second = [("site", 1.0, {STRUCTURE: lexical, LANDMARK: lexical * LANDMARK_SHARE})]
                 weight = RELATION_WEIGHT.get(relation.kind, 0.0) * lexical
                 label = f"relation:{relation.kind}:{relation.indicator}"
-                if relation.kind in ("proximity", "direction"):
+                if relation.kind in ("proximity", "direction", "projection"):
                     second.append((label, 1.0, {LANDMARK: weight}))
                 else:
                     second.append((label, 1.0, {LANDMARK: -weight}))

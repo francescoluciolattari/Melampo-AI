@@ -29,13 +29,14 @@ from dataclasses import dataclass
 CONTAINMENT = "containment"   # the finding is in or of the structure: the structure is described
 PROXIMITY = "proximity"       # the structure only places something else: a landmark
 DIRECTION = "direction"       # towards or into the structure: weaker evidence of a landmark
+PROJECTION = "projection"     # superimposed on it in a projection image: neither in nor out (1 November 2026)
 AFFECTED = "affected"         # the structure is the object of a verb ("infiltrates the duodenum")
 
 # Spatial indicators, longest first within a language. Multi-word ones are matched as written, and an
 # Italian one also with its articulated preposition ("vicino al", "in prossimità della").
 _EN = {
     PROXIMITY: (
-        "in the vicinity of", "in the region of", "in the area of", "in the projection of", "close to", "next to",
+        "in the vicinity of", "in the region of", "in the area of", "close to", "next to",
         "adjacent to", "lateral to", "laterally to", "medial to", "medially to", "internally to", "externally to", "dorsally to", "ventrally to", "cranially to",
         "caudally to", "anterior to", "posterior to", "superior to", "inferior to",
         "proximal to", "distal to", "outside of", "outside", "beyond", "near", "nearby", "along", "alongside",
@@ -43,6 +44,8 @@ _EN = {
         "in front of", "away from", "apart from",
     ),
     DIRECTION: ("into", "towards", "toward", "onto"),
+    PROJECTION: ("in the projection of", "projected over", "projecting over", "projected onto", "projecting onto",
+                 "projected on", "superimposed on", "overlying"),
     CONTAINMENT: ("within", "inside", "throughout", "involving", "affecting", "of", "in", "at", "on"),
 }
 _IT_ART = r"(?:a|al|allo|alla|ai|agli|alle|all'|di|del|dello|della|dei|degli|delle|dell'|da|dal|dalla|dai|dalle)?"
@@ -54,6 +57,8 @@ _IT = {
         "all'esterno", "al di fuori", "al di sopra", "al di sotto", "sopra", "sotto", "dietro", "davanti",
     ),
     DIRECTION: ("verso", "dentro"),
+    PROJECTION: ("in proiezione", "proiettato su", "proiettata su", "proiettati su", "proiettate su",
+                 "sovrapposto a", "sovrapposta a", "sovrapposti a", "sovrapposte a"),
     CONTAINMENT: (
         "a carico", "all'interno", "a livello", "in corrispondenza", "al", "allo", "alla", "ai", "agli", "alle",
         "all'", "nel", "nello", "nella", "nei", "negli", "nelle", "nell'", "in", "di", "del",
@@ -77,6 +82,13 @@ course lumen floor roof neck body tail head
 polo poli fianco fianchi parete pareti margine margini lato lati versante porzione porzioni parte parti segmento segmenti ansa
 anse base apice superficie bordo bordi area regione zona livello proiezione decorso lume pavimento tetto collo
 corpo coda testa
+""".split())
+# The parts a structure has of its own (its wall, its lumen, a loop of it): when what the clause places is such a
+# part, the region it is placed in is the structure it is a part of ("mild wall thickening in the area of the
+# descending colon": the colon's wall), and the relation is containment (1 November 2026).
+_OWN_PARTS = frozenset("""
+wall walls mucosa mucosal lumen loop loops segment segments cortex parenchyma capsule
+parete pareti parietale parietali mucosa lume ansa anse segmento segmenti corticale parenchima capsula
 """.split())
 _JUNCTIONS = frozenset("""
 confluence junction bifurcation transition border passage
@@ -155,6 +167,10 @@ def read_relation(sentence: str, start: int, language: str = "en", verbal=None) 
                 if before >= 0 and tokens[before] in _JUNCTIONS:
                     # "the confluence between the cephalic and the subclavian vein": a junction is part of both
                     return Relation(CONTAINMENT, tokens[before] + " " + words, _placed(tokens[:before], language))
+            if kind == PROXIMITY and words.split()[0] in ("in", "nell'area", "nella", "in regione") \
+                    and any(t in _OWN_PARTS for t in tokens[max(0, at - 4):at]):
+                # "wall thickening in the area of the colon": the region is the structure the part is of
+                return Relation(CONTAINMENT, words, _placed(tokens[:at], language))
             return Relation(kind, words, _placed(tokens[:at], language))
         if t in _COORD:
             after_coordination = True
@@ -176,4 +192,4 @@ def _placed(tokens: list[str], language: str) -> str:
     return " ".join(words[-8:])
 
 
-__all__ = ["AFFECTED", "CONTAINMENT", "DIRECTION", "PROXIMITY", "Relation", "read_relation"]
+__all__ = ["AFFECTED", "CONTAINMENT", "DIRECTION", "PROJECTION", "PROXIMITY", "Relation", "read_relation"]

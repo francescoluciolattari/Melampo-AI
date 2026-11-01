@@ -63,10 +63,12 @@ class Ownership:
     models: dict[str, dict] = field(default_factory=dict)   # what each model answered
     placed: str = ""                               # what the clause describes instead, for the person
     reason: str = ""
+    statement: str = ""                            # what the sentence says of the structure (STATEMENT_GROUPS)
+    piece: str = ""                                # the words that say it, copied from the sentence
 
     def as_dict(self) -> dict:
         return {"verdict": self.verdict, "reader": self.reader, "models": self.models, "placed": self.placed,
-                "reason": self.reason}
+                "reason": self.reason, "statement": self.statement, "piece": self.piece}
 
 
 def _singular(word: str) -> str:
@@ -209,13 +211,107 @@ def report_context(report: str, clause_start: int) -> dict[str, str]:
     return {"exam": exam, "section": section, "areas": ",".join(sorted(areas.of(report)))}
 
 
-class FindingOwner:
-    """``reader``: a ``CIReader``; ``chats``: model name -> chat function (local); ``anatomy``: ``Anatomy``."""
+# -- what the sentence says of the structure (1 November 2026) ------------------------------------------------
+# The types of statement, grouped by what the interpreter attaches to the structure: two types of one group
+# attach the same thing, so the readers agree when they agree on the group.
+FINDING, HISTORY, NORMAL, MEASURE, NOTHING, ASIDE = "finding", "history", "normal", "measure", "nothing", "aside"
+STATEMENT_GROUPS = {"finding": FINDING, "involved": FINDING, "history": HISTORY, "normal": NORMAL,
+                    "measure": MEASURE, "reference": ASIDE, "other_structure": ASIDE, "hypothesis": ASIDE,
+                    "nothing": NOTHING}
+# What the reader knows of the kinds of statement, to check the model's type (never to decide it): the words of
+# a past fact, of something abnormal, of something normal or absent, and of a measure.
+_HISTORY = re.compile(r"\b(history of|known history|status post|s/p|post[- ]?(?:operative|surgical)?\s*(?:resection|"
+                      r"surgery|removal)|operated|resected|removed|previous (?:surgery|resection)|in anamnesi|"
+                      r"anamnesi|pregress[oaie]|operat[oaie]|asportat[oaie]|resezion[ei] pregress)", re.I)
+_ABNORMAL = re.compile(r"\b(enlarg\w*|dilat\w*|thicken\w*|increas\w*|reduc\w*|decreas\w*|hyper\w+|hypo\w+|"
+                       r"mass\w*|lesion\w*|nodul\w*|nodes?|cyst\w*|stones?|calcul\w*|calcif\w*|stenos\w*|"
+                       r"narrow\w*|abnormal\w*|atroph\w*|hypertroph\w*|ectasi\w*|fractur\w*|effusion|"
+                       r"fluid|edema|oedema|opacit\w*|consolidat\w*|infiltrat\w*|herni\w*|tumou?r\w*|"
+                       r"ingrandit\w*|aumentat\w*|ridott\w*|ispessit\w*|dilatat\w*|lesion[ei]|nodul[oi]|"
+                       r"cist[ei]|calcol[oi]|calcific\w*|stenos[ie]|versamento|frattur\w*|ipo\w+|iper\w+)", re.I)
+_NEGATION = re.compile(r"\b(no|not|without|free of|absence of|negative for|non|senza|assenza di|privo di|priva di)"
+                       r"\s+(?:\w+\s+){0,3}$", re.I)
+_MEASURE_WORDS = frozenset("""
+measure measures measured measuring measurement size sized dimension dimensions diameter diameters length long
+width wide thickness thick depth deep height volume caliber calibre axis axial transverse longitudinal
+anteroposterior craniocaudal cranio caudal bipolar ap tr cc ll sd max maximum maximal approximately approx about
+up to of in its the a an is are and x by with mm cm ml cc m s mmhg cm2 mm2 v
+misura misurano misure dimensioni diametro diametri lunghezza spessore volume asse assi trasverso longitudinale
+anteroposteriore craniocaudale bipolare circa fino a di del della il lo la i gli le è sono e per
+""".split())
+WINDOW = 320          # characters: a longer sentence (a table of measures) is read in a window around the words
 
-    def __init__(self, reader, chats: dict[str, Callable[[str], str]] | None = None, anatomy: Anatomy | None = None):
+
+def _words(text: str) -> list[str]:
+    return [w.lower() for w in re.findall(r"[A-Za-zÀ-ÿ]+", text)]
+
+
+def _pure_measure(piece: str, mention: str) -> bool:
+    """Only numbers, units, the words of a measure and the structure's own words."""
+    if not re.search(r"\d", piece):
+        return False
+    own = set(_words(mention))
+    return all(w in _MEASURE_WORDS or w in own or w in _SKIP_SIDES for w in _words(piece))
+
+
+_SKIP_SIDES = frozenset("right left bilateral upper lower lobe pole segment destro destra sinistro sinistra".split())
+
+
+def _affirmed_abnormal(piece: str) -> bool:
+    for m in _ABNORMAL.finditer(piece):
+        if not _NEGATION.search(piece[:m.start()]):
+            return True
+    return False
+
+
+def type_check(group: str, piece: str, before: str, mention: str) -> str:
+    """Does the type agree with what the reader knows of the piece? Returns the reason it does not, or "".
+    ``before``: the few words of the sentence before the piece (a model may copy "thyroid cancer surgery"
+    without its "history of")."""
+    history = bool(_HISTORY.search(f"{before} {piece}"))
+    if group == HISTORY:
+        return ""                        # the reader cannot say that a past fact is not one
+    if history and group in (FINDING, MEASURE, NORMAL):
+        return "the_piece_states_a_past_fact"
+    if group == FINDING and _pure_measure(piece, mention):
+        return "the_piece_is_only_a_measure"
+    if group == MEASURE and _affirmed_abnormal(piece):
+        return "the_piece_states_more_than_a_measure"
+    if group == NORMAL and _affirmed_abnormal(piece):
+        return "the_piece_states_something_abnormal"
+    return ""
+
+
+def window(clause: str, at: int, length: int, size: int = WINDOW) -> tuple[str, int]:
+    """A long sentence read around the words: the separators (``;``, ``.``, a newline, a ``:`` of a table) closest
+    to ``size // 2`` characters on each side. Returns the window and the words' offset in it."""
+    if len(clause) <= size:
+        return clause, at
+    half = size // 2
+    lo = max(0, at - half)
+    cut = max(clause.rfind(c, lo, at) for c in ";.\n")
+    lo = cut + 1 if cut >= lo else lo
+    hi = min(len(clause), at + length + half)
+    ends = [i for i in (clause.find(c, at + length, hi) for c in ";.\n") if i >= 0]
+    hi = min(ends) if ends else hi
+    while lo < at and clause[lo].isspace():
+        lo += 1
+    return clause[lo:hi], at - lo
+
+
+class FindingOwner:
+    """``reader``: a ``CIReader``; ``chats``: model name -> chat function (local); ``anatomy``: ``Anatomy``.
+    ``question``: ``"owner"`` (is the finding of this structure? 1 November 2026) or ``"statement"`` (what does
+    the sentence say of this structure? 1 November 2026)."""
+
+    def __init__(self, reader, chats: dict[str, Callable[[str], str]] | None = None, anatomy: Anatomy | None = None,
+                 question: str = "owner"):
         self.reader = reader
         self.chats = dict(chats or {})
         self.anatomy = anatomy if anatomy is not None else Anatomy()
+        if question not in ("owner", "statement"):
+            raise ValueError("question must be 'owner' or 'statement'")
+        self.question = question
 
     # -- the reader ---------------------------------------------------------------------------------------
     def _reader(self, mention: str, clause: str, at: int, language: str, cid: str,
@@ -275,9 +371,67 @@ class FindingOwner:
         placed = next((str(a.get("finding") or "") for a in said.values() if a.get("answer") == "no"), "")
         return verdict, said, placed
 
+    def _statements(self, mention: str, clause: str, at: int, language: str, cid: str,
+                    context: dict) -> dict[str, dict]:
+        from ..evaluation.llm_reading import read_statement, statement_prompt
+
+        name = {"it": "Italian", "en": "English"}.get(language, "")
+        names = _class_names().get(cid, []) if cid else []
+        linked = names[0] if names else (cid.replace("_", " ") or mention)
+        prompt = statement_prompt(clause, at, at + len(mention), linked, linked_names=names,
+                                  exam=context.get("exam", ""), section=context.get("section", ""), language=name)
+        said: dict[str, dict] = {}
+        for model, chat in self.chats.items():
+            try:
+                said[model] = read_statement(chat(prompt), clause)
+            except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
+                said[model] = {"type": "uncertain", "piece": "", "of": "", "found": False, "valid": False,
+                               "error": type(error).__name__}
+        return said
+
+    def _by_statement(self, mention: str, clause: str, at: int, language: str, cid: str,
+                      context: dict) -> Ownership:
+        """What the sentence says of the structure. The models, one stream, must agree on the group of the type
+        (a "nothing" gives way to the other's type); the reader checks each piece against the sentence (in
+        ``read_statement``) and each type against what it knows (``type_check``), and brings its evidence that
+        the structure only places something else. The reader and the models must agree; when they do not, a
+        person decides, and the finding stays as it is. The reader alone, or the models alone, never set a
+        finding aside."""
+        text, where = window(clause, at, len(mention))
+        reader, evidence, placed = self._reader(mention, text, where, language, cid, context)
+        said = self._statements(mention, text, where, language, cid, context)
+        groups = [STATEMENT_GROUPS.get(a.get("type", ""), "") for a in said.values()]
+        stated = [g for g in groups if g and g != NOTHING]
+        if "" in groups or len(set(stated)) > 1:
+            return Ownership(UNSURE, evidence, said, placed, "the_models_cannot_say_or_disagree")
+        group = stated[0] if stated else NOTHING
+        pieces = [a.get("piece", "") for a in said.values() if STATEMENT_GROUPS.get(a.get("type", "")) == group]
+        piece = min(pieces, key=len) if pieces else ""
+        if group == ASIDE:
+            if reader != ELSEWHERE:
+                return Ownership(UNSURE, evidence, said, placed or next(
+                    (a.get("of", "") for a in said.values() if a.get("of")), ""), "reader_and_model_disagree")
+            of = next((a.get("of", "") for a in said.values() if a.get("of")), "")
+            return Ownership(ELSEWHERE, evidence, said, of or placed, "reader_and_model_agree", ASIDE, piece)
+        if reader == ELSEWHERE and group != NOTHING:
+            return Ownership(UNSURE, evidence, said, placed, "reader_and_model_disagree", group, piece)
+        for answer in said.values():
+            p = answer.get("piece", "")
+            if STATEMENT_GROUPS.get(answer.get("type", "")) != group or not p:
+                continue
+            at_piece = text.lower().find(p.lower())
+            before = " ".join(_words(text[:max(at_piece, 0)])[-4:]) if at_piece > 0 else ""
+            why = type_check(group, p, before, mention)
+            if why:
+                return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
+                                 group, piece)
+        return Ownership(HERE, evidence, said, "", "reader_and_model_agree", group, piece)
+
     def __call__(self, mention: str, clause: str, at: int, language: str = "en", cid: str = "",
                  context: dict | None = None) -> Ownership:
         context = context or {}
+        if self.question == "statement" and self.chats:
+            return self._by_statement(mention, clause, at, language, cid, context)
         reader, evidence, placed = self._reader(mention, clause, at, language, cid, context)
         if not self.chats:
             if reader == ELSEWHERE:
@@ -310,4 +464,5 @@ def _class_names() -> dict[str, list[str]]:
     return _NAMES
 
 
-__all__ = ["ELSEWHERE", "HERE", "UNSURE", "Anatomy", "FindingOwner", "Ownership", "report_context"]
+__all__ = ["ASIDE", "ELSEWHERE", "FINDING", "HERE", "HISTORY", "MEASURE", "NORMAL", "NOTHING", "STATEMENT_GROUPS",
+           "UNSURE", "Anatomy", "FindingOwner", "Ownership", "report_context", "type_check", "window"]

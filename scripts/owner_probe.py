@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +38,10 @@ LABELS = {"dev": ROOT / "data/gold/hpo_silver_2026-10-31/labels.txt",
           "heldout": ROOT / "data/gold/hpo_heldout_2026-10-31/labels.txt"}
 # the sample built for this question (1 November 2026): its own labels, here/elsewhere, written before any run
 OWNER_LABELS = ROOT / "data/gold/finding_owner_2026-11-01/labels.txt"
+# the sample of the statement reading (1 November 2026): what the sentence says of the structure, by type
+STATEMENT_LABELS = ROOT / "data/gold/statement_2026-11-01/labels.txt"
+SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS}
+STATEMENT_SEED = 20261102
 
 
 def owner_labels() -> dict[str, str]:
@@ -59,8 +64,24 @@ def elsewhere_pairs() -> dict[str, set[str]]:
     return out
 
 
+def statement_labels() -> dict[str, tuple[str, bool]]:
+    """item -> (type, for a radiologist)."""
+    out = {}
+    if STATEMENT_LABELS.exists():
+        for line in STATEMENT_LABELS.read_text("utf-8").splitlines():
+            if line.strip() and not line.startswith("#"):
+                item, kind, note = (line.split("|") + ["", ""])[:3]
+                out[item.strip()] = (kind.strip(), note.rstrip().endswith("?"))
+    return out
+
+
 def gold_of(item: dict, name: str, own_labels: dict[str, str], away: dict[str, set[str]]) -> str:
     """An Italian item with its own label is not the sentence of the English one: it is "here" unless listed."""
+    if name == "statement":
+        from melampo.memory.finding_owner import ASIDE, STATEMENT_GROUPS
+
+        kind = statement_labels().get(item["item_id"], ("", False))[0]
+        return "" if not kind else "elsewhere" if STATEMENT_GROUPS.get(kind) == ASIDE else "here"
     if name == "fresh":
         return owner_labels().get(item["item_id"], "")
     if item["item_id"] in own_labels:
@@ -82,6 +103,46 @@ def table(rows: list[dict], arm: str) -> dict:
             "here_kept": c[("here", "here")], "here_to_a_person": c[("here", "unsure")],
             "here_set_aside_wrongly": c[("here", "elsewhere")], "gold_here": len(here),
         }
+    return out
+
+
+def statement_table(rows: list[dict], arm: str) -> dict:
+    """The statement reading against the types of the labels (criteria of 1 November 2026): what was attached,
+    and whether it is the statement the label says."""
+    from melampo.memory.finding_owner import ASIDE, NOTHING, STATEMENT_GROUPS
+
+    rs = [r for r in rows if arm in r and r.get("gold_type")]
+    out: dict = {"items": len(rs), "confusion": {}, "pieces_not_in_the_sentence": 0, "answers": 0,
+                 "for_a_radiologist": []}
+    c = Counter()
+    for r in rs:
+        gold = STATEMENT_GROUPS.get(r["gold_type"], "")
+        got = r[arm]
+        verdict, group = got["verdict"], got.get("statement", "")
+        side = "aside" if gold == ASIDE else "keep"
+        c[f"{side}_items"] += 1
+        if verdict == "unsure":
+            c[f"{side}_to_a_person"] += 1
+        elif verdict == "elsewhere":
+            c[f"{side}_set_aside"] += 1
+        else:
+            c[f"{side}_attached"] += 1
+            if side == "keep" and gold != NOTHING and group != NOTHING:
+                c["keep_attached_as_its_statement" if group == gold else "keep_attached_as_another_statement"] += 1
+        out["confusion"].setdefault(gold, Counter())[group if verdict != "unsure" else "person"] += 1
+        for a in (got.get("models") or {}).values():
+            out["answers"] += 1
+            if a.get("piece") and not a.get("found", True):
+                out["pieces_not_in_the_sentence"] += 1
+        if r.get("gold_doubt"):
+            out["for_a_radiologist"].append({"item": r["item_id"], "gold": r["gold_type"], "verdict": verdict,
+                                             "statement": group})
+    out.update(c)
+    out["confusion"] = {k: dict(v) for k, v in out["confusion"].items()}
+    keep = c["keep_items"] or 1
+    out["keep_to_a_person_share"] = round(c["keep_to_a_person"] / keep, 4)
+    attached = (c["keep_attached_as_its_statement"] + c["keep_attached_as_another_statement"]) or 1
+    out["keep_attached_as_another_statement_share"] = round(c["keep_attached_as_another_statement"] / attached, 4)
     return out
 
 
@@ -136,13 +197,18 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--n-it", type=int, default=60)
         sp.add_argument("--per-report", type=int, default=3)
         sp.add_argument("--per-structure", type=int, default=8)
+        sp.add_argument("--seed", type=int, default=FRESH_SEED)
         a = sp.parse_args()
         exclude = set()
-        for path in LABELS.values():
-            exclude |= {line.split("|")[0].strip().rsplit("-", 1)[0] if line.split("|")[0].strip().endswith(("-it", "-en"))
-                        else line.split("|")[0].strip()
-                        for line in path.read_text("utf-8").splitlines() if line.strip() and not line.startswith("#")}
-        items = build_fresh(Path(a.parrot), a.n_en, a.n_it, a.per_report, a.per_structure, exclude)
+        # every report already used when the sample was drawn: the two HPO samples, and for the statement sample
+        # also the owner sample (so that each seed draws again the items its labels were written on)
+        before = {FRESH_SEED: [*LABELS.values()], STATEMENT_SEED: [*LABELS.values(), OWNER_LABELS]}
+        for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
+            if path.exists():
+                exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
+                            if line.strip() and not line.startswith("#")
+                            for m in [re.match(r"parrot-\d+", line.strip())] if m}
+        items = build_fresh(Path(a.parrot), a.n_en, a.n_it, a.per_report, a.per_structure, exclude, a.seed)
         Path(a.out).write_text("\n".join(json.dumps(i, ensure_ascii=False) for i in items) + "\n", "utf-8")
         print(f"{len(items)} items ({Counter(i['language'] for i in items)}) -> {a.out}")
         return 0
@@ -157,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--parrot", help="PARROT_v1_0.jsonl: the whole report, for the exam and the section")
     ap.add_argument("--uberon", help="uberon.obo: what is part of what")
     ap.add_argument("--questions", help="where to write the questions for a person (review_question), one per line")
+    ap.add_argument("--skip", default="", help="arms not to run: statement")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
 
@@ -189,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
         chats = make_chats(models, args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)
         probe_models(chats)
     with_models = FindingOwner(reader_only.reader, chats, reader_only.anatomy) if chats else None
+    # the statement reading (1 November 2026): what the sentence says of the structure
+    statement = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="statement") if chats else None
     from melampo.memory.finding_owner import report_context
     away = elsewhere_pairs()
 
@@ -208,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
                 return None
             row = {"set": name, "item_id": item["item_id"], "language": item["language"],
                    "structure": item["structure"], "gold": gold}
+            if name == "statement":
+                row["gold_type"], row["gold_doubt"] = statement_labels()[item["item_id"]]
             report = reports.get(item.get("report"))
             context = {}
             if report is not None:
@@ -221,6 +292,9 @@ def main(argv: list[str] | None = None) -> int:
             if with_models is not None:
                 row["reader+models"] = with_models(item["mention"], item["clause"], at, item["language"],
                                                    item["structure"], context).as_dict()
+            if statement is not None and "statement" not in args.skip:
+                row["statement"] = statement(item["mention"], item["clause"], at, item["language"],
+                                             item["structure"], context).as_dict()
             return row
 
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
@@ -228,14 +302,17 @@ def main(argv: list[str] | None = None) -> int:
     report = {"by_set": {}}
     for name in sorted({r["set"] for r in rows}):
         rs = [r for r in rows if r["set"] == name]
-        report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models") if any(arm in r for r in rs)}
+        report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models", "statement")
+                                  if any(arm in r for r in rs)}
+        if name == "statement" and any("statement" in r for r in rs):
+            report["by_set"][name]["statement_types"] = statement_table(rs, "statement")
     if args.questions:
         # the questions a person would be asked, complete in themselves: what the review mask shows
         from melampo.memory.review_question import build_question
 
         with open(args.questions, "w", encoding="utf-8") as fh:
             for row in rows:
-                arm = "reader+models" if "reader+models" in row else "reader"
+                arm = "statement" if "statement" in row else "reader+models" if "reader+models" in row else "reader"
                 verdict = row[arm]["verdict"]
                 if verdict == "here":
                     continue

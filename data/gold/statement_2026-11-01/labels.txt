@@ -1,0 +1,210 @@
+# What the sentence says of the linked structure: labels of the statement sample (1 November 2026).
+# Labeller: Claude, one labeller. Written BEFORE any reader or model was run on these items: the labeller saw
+# the clause, the marked mention, the linked class and the exam (PARROT's modality and area), nothing else.
+# Items: scripts/owner_probe.py sample --seed 20261102 (PARROT v1.0; no report of the HPO samples nor of the
+# owner sample of 1 November). 200 English items from 111 reports; no Italian report was left unused.
+# Types (llm_reading.STATEMENT_TYPES): finding, involved, measure, history, normal, reference, other_structure,
+# hypothesis, nothing. Several at once: the first in this order: finding, involved, history, normal, measure.
+# A finding stated as probable of the structure ("likely calcified costal cartilages") is a finding; hypothesis
+# is a structure named only as one possible explanation, or to be excluded.
+# "?" at the end of the note: for a radiologist. Format: item|type|note
+parrot-2247-en-0|nothing|exam title
+parrot-2247-en-1|normal|no significant abnormalities
+parrot-2041-en-0|finding|atelectasis of the lobe
+parrot-2041-en-1|finding|atelectasis of the middle lobe
+parrot-2041-en-2|finding|nodule in the lobe
+parrot-1717-en-0|normal|no calcified stones
+parrot-1717-en-1|finding|stone in a calyx
+parrot-1717-en-2|normal|no calcified stones
+parrot-2576-en-0|finding|liver dysmorphia
+parrot-2576-en-1|finding|heterogeneous enhancement, fibrosis
+parrot-1758-en-0|finding|calcified walls, plaques
+parrot-1758-en-1|finding|intramural calcifications
+parrot-1829-en-0|measure|80.5 x 39 mm
+parrot-1829-en-1|measure|93 x 31.5 mm
+parrot-1829-en-2|finding|mass of the kidney
+parrot-2133-en-0|nothing|section header
+parrot-2133-en-1|reference|hemoperitoneum beneath the bladder
+parrot-2133-en-2|finding|incomplete opacification, injury not excluded ?
+parrot-1415-en-0|finding|calcifications of the arch wall
+parrot-107-en-0|normal|thin regular wall
+parrot-1469-en-0|finding|calcifications projected over the arch (radiograph) ?
+parrot-2673-en-0|finding|enlargement
+parrot-1457-en-0|finding|hypodense area in the frontal lobe
+parrot-1457-en-1|finding|atrophy
+parrot-1457-en-2|normal|age-appropriate
+parrot-1958-en-0|nothing|comparison exam
+parrot-1825-en-0|normal|free of stones
+parrot-1825-en-1|normal|7.2x3.5 cm, no focal lesions
+parrot-1825-en-2|measure|renal pelvis 0.8 cm
+parrot-2678-en-0|finding|shape abnormalities
+parrot-2678-en-1|finding|fatty enlargement
+parrot-2678-en-2|finding|right lobe 21 cm, of the enlarged liver ?
+parrot-1406-en-0|finding|cysts in both lobes
+parrot-1406-en-1|finding|polyp
+parrot-1406-en-2|finding|cortical cyst
+parrot-2480-en-0|finding|hypodense foci in the frontal lobe
+parrot-1573-en-0|other_structure|pertrochanteric fracture is of the femur; hip names the exam ?
+parrot-1719-en-0|finding|calcifications of the arch wall
+parrot-1653-en-0|reference|the renal arteries arise from the aorta
+parrot-1704-en-0|finding|diverticulitis
+parrot-1704-en-1|finding|fluid in the cecum
+parrot-1506-en-0|finding|calcifications of the arch wall
+parrot-1815-en-0|nothing|exam name
+parrot-1815-en-1|normal|contrast reached the small intestine ?
+parrot-1815-en-2|normal|stomach emptied ?
+parrot-2244-en-0|involved|mass effect on the parenchyma
+parrot-2091-en-0|normal|normal morphology and size
+parrot-2091-en-1|normal|normal morphology and size
+parrot-2415-en-0|finding|fatty liver
+parrot-2415-en-1|finding|hyperechogenic grainy
+parrot-2415-en-2|measure|bipolar 119 mm
+parrot-1669-en-0|finding|calcified plaques
+parrot-1724-en-0|finding|calcifications of the arch wall
+parrot-262-en-0|finding|mass of the bladder
+parrot-262-en-1|finding|mass of the bladder
+parrot-262-en-2|finding|mass involving the wall
+parrot-561-en-0|nothing|names a previous exam
+parrot-1409-en-0|involved|ileal loop in the hernia
+parrot-1409-en-1|involved|cecum in the hernia
+parrot-1409-en-2|finding|steatosis
+parrot-2100-en-0|finding|hypodense halo around it
+parrot-2100-en-1|finding|increased size
+parrot-2100-en-2|finding|hypodense images in the kidney
+parrot-1530-en-2|finding|contracted around the stone
+parrot-1530-en-3|finding|contracted around the stone
+parrot-268-en-1|finding|distended, sludge, stones
+parrot-268-en-2|finding|wall thickened
+parrot-268-en-3|finding|enlarged
+parrot-968-en-1|finding|narrowing of the lobe bronchus ?
+parrot-2124-en-0|finding|spiculated lesion
+parrot-1648-en-1|finding|mass in the pancreas
+parrot-2271-en-0|finding|accentuated waist ?
+parrot-1003-en-0|finding|mass of the prostate
+parrot-1003-en-1|involved|margin indistinct from the bladder
+parrot-1003-en-2|finding|high signal in the muscle
+parrot-899-en-0|finding|lytic lesion
+parrot-1446-en-0|finding|slightly wider
+parrot-1360-en-1|normal|not enlarged, no lesions
+parrot-1360-en-2|measure|measuring approx
+parrot-1360-en-3|finding|cortical cysts
+parrot-987-en-0|normal|no filling defects in the pulmonary veins
+parrot-987-en-1|measure|left atrium diameters
+parrot-987-en-2|measure|appendage width and depth
+parrot-1765-en-0|finding|hypoperfusion
+parrot-1765-en-2|finding|dilated to 15.5 mm
+parrot-1765-en-3|finding|marked collecting system
+parrot-2323-en-0|finding|enlarged, nodular
+parrot-1343-en-0|finding|likely calcified rib cartilages
+parrot-1876-en-2|finding|hyperechoic
+parrot-1876-en-3|normal|homogeneous, 7.5 cm
+parrot-1876-en-5|normal|smooth walls
+parrot-1337-en-0|finding|lesion in the body
+parrot-1337-en-1|reference|nodes around the pancreas
+parrot-1176-en-0|finding|fecal impaction
+parrot-108-en-0|finding|enlarged
+parrot-108-en-2|finding|cysts at the upper pole
+parrot-2122-en-1|measure|16 mm
+parrot-2122-en-2|finding|thickened walls
+parrot-2122-en-3|normal|normal course and caliber
+parrot-2489-en-0|finding|mitral valve regurgitation
+parrot-2489-en-1|measure|IVC 18 mm
+parrot-2489-en-2|finding|hypokinesis
+parrot-2089-en-0|normal|normal morphology
+parrot-2089-en-2|measure|9.9 mm
+parrot-1283-en-0|finding|accessory spleens ?
+parrot-1283-en-1|finding|accessory spleens ?
+parrot-1283-en-2|finding|cortical cysts
+parrot-1109-en-0|finding|cavity in the lobe
+parrot-1109-en-1|finding|lesions regressed
+parrot-1109-en-2|finding|cavity in the lobe
+parrot-1100-en-0|finding|enlargement of the lateral limb
+parrot-1100-en-2|finding|cyst in segment VI
+parrot-1100-en-3|reference|imbibition of the fat adjacent to the uncinate process
+parrot-574-en-0|nothing|exam name and date
+parrot-1032-en-0|finding|nodule
+parrot-1032-en-1|finding|linear opacities
+parrot-74-en-0|nothing|level header
+parrot-74-en-1|nothing|level header
+parrot-1421-en-0|finding|disproportion of the pancreas
+parrot-1421-en-3|finding|osteophytes of the vertebral bodies
+parrot-1421-en-4|finding|osteophytes of the vertebral bodies
+parrot-2443-en-0|finding|blurred outline, reduced echogenicity
+parrot-1903-en-0|finding|accessory spleens ?
+parrot-61-en-0|finding|signal anomaly
+parrot-61-en-1|nothing|level header
+parrot-61-en-2|nothing|level header
+parrot-2587-en-0|normal|no thickening or calcification
+parrot-2587-en-1|normal|trileaflet, no thickening
+parrot-2087-en-0|normal|normal in size, slightly distended ?
+parrot-2087-en-1|finding|distended with liquid ?
+parrot-1460-en-0|finding|consolidation
+parrot-2296-en-0|finding|periseptal emphysema of the lobe
+parrot-2296-en-1|reference|node near the lesser curvature
+parrot-2296-en-8|finding|calcifications
+parrot-2338-en-1|other_structure|right lobe of the liver
+parrot-1626-en-0|nothing|cannot be assessed ?
+parrot-515-en-0|finding|catheter tip in the portal branch ?
+parrot-617-en-0|involved|narrowing of the trachea by the mass
+parrot-1624-en-0|finding|probably calcified costal cartilages
+parrot-1104-en-3|measure|4.8 cm
+parrot-1497-en-0|finding|fracture
+parrot-1328-en-0|finding|hypertrophic
+parrot-982-en-0|finding|nodules
+parrot-982-en-1|finding|nodules
+parrot-982-en-2|finding|wall calcification
+parrot-591-en-0|finding|mass
+parrot-858-en-0|finding|hypodense lesion
+parrot-1779-en-0|finding|bone islands
+parrot-1386-en-0|finding|hypodense focus
+parrot-1386-en-1|measure|dimensions, volume
+parrot-1901-en-0|finding|focal lesion
+parrot-1901-en-1|finding|diverticulum
+parrot-1699-en-1|measure|8.4 mm
+parrot-1699-en-3|measure|7.4 mm
+parrot-1699-en-4|measure|8.6 mm
+parrot-550-en-0|nothing|exam name and date
+parrot-1907-en-3|measure|dimensions
+parrot-1368-en-0|reference|the arteries to the lobe are narrowed ?
+parrot-1368-en-1|finding|frothy fluid
+parrot-1368-en-2|finding|atelectatic changes
+parrot-1324-en-0|finding|nodule
+parrot-1694-en-0|finding|tube in the trachea ?
+parrot-1694-en-1|finding|mucus
+parrot-2343-en-1|finding|vascular malformation
+parrot-2343-en-2|finding|reduced flow
+parrot-2343-en-3|finding|reduced flow
+parrot-532-en-0|finding|fracture
+parrot-1676-en-0|reference|collection between the flank and the psoas
+parrot-194-en-0|reference|the level places the feeder
+parrot-856-en-0|finding|mass
+parrot-856-en-1|involved|infiltration of the vein
+parrot-2067-en-1|nothing|images were obtained
+parrot-1867-en-3|reference|nodes around the portal vein
+parrot-1513-en-0|measure|IMT 0.5 mm
+parrot-1513-en-1|measure|IMT 0.5 mm
+parrot-1322-en-3|finding|dilated loops
+parrot-1291-en-0|finding|parenchymal band
+parrot-1898-en-0|reference|calcified lymph nodes in the lobe ?
+parrot-1898-en-1|finding|bone island
+parrot-1898-en-2|finding|bone island in the acetabulum
+parrot-1899-en-0|finding|consolidation
+parrot-1899-en-1|reference|consolidation near the vein
+parrot-1899-en-2|finding|fundus in the thoracic cavity
+parrot-1910-en-0|finding|focal lesion
+parrot-1116-en-2|finding|bulla
+parrot-544-en-0|involved|disc bulge at the level
+parrot-544-en-1|involved|disc bulge at the level
+parrot-544-en-2|involved|disc herniation at the level
+parrot-1234-en-0|normal|no signal abnormalities
+parrot-1817-en-0|nothing|assessment possible with MRI
+parrot-1394-en-0|hypothesis|possible calcification of a thyroid lesion ?
+parrot-1344-en-0|finding|displaced, shortened
+parrot-2344-en-2|measure|1.4 cm
+parrot-2228-en-0|finding|borderline enlarged
+parrot-2228-en-1|normal|normal width, antegrade flow
+parrot-2228-en-6|finding|cortical cyst
+parrot-1734-en-2|finding|nodule
+parrot-534-en-0|finding|anterior displacement of C4
+parrot-534-en-1|reference|displacement relative to C5 ?
+parrot-837-en-0|finding|opacity, pneumonic infiltrate
