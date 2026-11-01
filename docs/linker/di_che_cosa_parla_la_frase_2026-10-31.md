@@ -290,3 +290,51 @@ su 24, mentre sui casi già visti erano 11 su 26.
 1. un radiologo rivede le etichette discusse sopra e le 24 + 26 dei due elenchi;
 2. lo strato Rad-SpRL del role probe va riletto;
 3. il role probe va rilanciato con la definizione corretta.
+
+## Perché i modelli non sono d'accordo, e perché sbaglia il lettore (1 novembre 2026)
+
+Ho riletto i 19 reperti giusti mandati alla persona e il caso mancato, con le risposte complete dei due modelli
+(reperto, struttura che lo porta, relazione, risposta, motivo).
+
+| Che cosa succede | Casi | Esempio | Che cosa dicono i modelli |
+|---|---|---|---|
+| **La frase non ha un reperto**: un titolo o un'intestazione | 5 | "BRAIN CT SCAN", "Abdominal Aorta:", "At L4-L5," | tutti e due scrivono "finding: none"; poi Gemma risponde "uncertain" e Nemotron "yes". La domanda non ha senso, perché non c'è niente da attribuire |
+| **La struttura è coinvolta, ma non porta il reperto**: il reperto si estende fino a lei, la comprime, o sta al livello che lei forma | 5 | "lesion … extending down to the cervical cord"; "mass effect on the pons, midbrain"; "uncovertebral joints at C5/C6"; "Level L5-S1: no foraminal stenosis" | Gemma dice "part", sì; Nemotron "reference", no. Fra le relazioni che offriamo manca "coinvolta" |
+| **Che cosa vuol dire la classe del linker** | 2 | versamento e artrosi dell'articolazione dell'anca, collegati a `hip_left` | abbiamo mostrato al modello il nome "left innominate bone", l'osso dell'anca. Nemotron: "il reperto è dell'articolazione, non dell'osso", quindi no. Gemma: "l'articolazione comprende l'acetabolo", quindi sì |
+| **Una tabella di misure molto lunga** | 1 | "LA / LAA" in mezzo ai numeri dell'ecocardiogramma | Nemotron prende come reperto una frase sulla valvola mitrale, molto più avanti |
+| **Conoscenza anatomica sbagliata di un modello** | 1 | "the cardiac silhouette shows the shadow of an implanted aortic valve" | Gemma: "la valvola aortica fa parte dell'aorta, non del cuore" (sbagliato) |
+| **I due modelli dicono no e la mia etichetta dice sì** | 3 | "L3 over L4"; "history of thyroid cancer surgery … spinal pain"; "left kidney longer (… right kidney 10.5 cm)" | tutti e due: il reperto è di L3, del dolore spinale, del rene sinistro; la struttura marcata è solo riferimento, storia o confronto |
+| **Mancato** | 1 | "In the mesentery of the small intestine, … lymph nodes" | tutti e due: il mesentere fa parte dell'intestino |
+
+**Gli ultimi tre casi della tabella vengono dalla domanda.** Chiediamo "il reperto è di questa struttura?", e il
+modello sceglie il reperto principale: lo scivolamento di L3, il dolore, il rene sinistro più lungo. Ma la frase dice
+anche qualcosa della struttura marcata:
+- la tiroide è stata operata;
+- il rene destro misura 10,5 cm;
+- L4 è la vertebra sotto lo scivolamento.
+
+Il radiologo, per ogni struttura nominata, si chiede che cosa la frase dice di lei. La domanda va ancorata alla
+struttura collegata, su tutto ciò che la frase afferma.
+
+**Perché sbaglia il lettore (2 casi).**
+- "mild **wall** thickening *in the area of* the descending colon". "In the area of" è fra gli indicatori di
+  vicinanza, ma ciò che la frase colloca è una *parete*, cioè una parte della struttura stessa. Quando la cosa
+  collocata è una parte (parete, segmento, ansa), la relazione è di contenimento.
+- "*In the projection of* the head of the right femur, osteolytic foci". In una radiografia "in proiezione di"
+  vuol dire sovrapposto nell'immagine a due dimensioni: non dice né dentro né fuori. Va trattato come un indizio
+  debole, non come vicinanza.
+
+**Correzioni proposte**, tutte generali:
+1. la domanda ancorata alla struttura collegata: "che cosa dice la frase di <struttura>? Uno dei reperti, una
+   misura, la storia, un'affermazione normale le appartiene?";
+2. una relazione in più, "coinvolta": il reperto si estende fino a lei, la comprime, o sta al livello o alla
+   giunzione che lei forma. Vale come sì;
+3. senza reperto, cioè in un titolo o in un'intestazione, non c'è niente da attribuire: il reperto resta, senza
+   persona;
+4. la classe mostrata come la intende il linker: il nome che le parole hanno trovato e il significato della
+   classe ("left hip: la classe è l'osso dell'anca; il testo nomina l'anca");
+5. nelle tabelle lunghe, una finestra attorno alla menzione;
+6. nel lettore, la parte collocata come contenimento e "in proiezione di" come indizio debole.
+
+Il campione nuovo ora è visto. Queste correzioni vanno misurate su un altro campione di referti PARROT inglesi mai
+usati. Restano le etichette da far rivedere a un radiologo.
