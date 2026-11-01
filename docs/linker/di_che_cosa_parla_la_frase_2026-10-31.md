@@ -128,3 +128,50 @@ volte tutti e due. Quelle righe vanno rilette con lo schema nuovo prima di conta
   <struttura collegata>? sì / no / anche". I ruoli restano come lettura;
 - rileggere lo strato Rad-SpRL con lo schema nuovo;
 - far rivedere a un radiologo le 26 etichette.
+
+## Perché il radiologo vede gli 11 casi e noi no (1 novembre 2026)
+
+Ho riletto gli 11 casi uno per uno. Per ciascuno ho guardato il referto intero (PARROT), la classe scelta dal linker
+e le risposte complete dei due modelli: frase, reggente, predicato, letture, ruoli.
+
+| Caso | Che cosa vede il radiologo | Che cosa facciamo noi |
+|---|---|---|
+| "Minimal hypertrophy of the **middle lobe**, indenting the bladder floor" (RM prostatica, sezione "TZ:"), in inglese e in italiano | è il lobo medio della **prostata**: l'esame è una RM della prostata, la frase sta nella sezione della zona di transizione, e il polmone non è nemmeno nel campo di vista | il linker lo collega al lobo medio del polmone (fra le classi non ci sono i lobi della prostata). Il modello risponde bene: Gemma scrive "this specific part of the prostate". Ma nessuno gli ha detto a che cosa il linker ha collegato la parola |
+| "The liver is slightly enlarged (**right lobe** in the mid-clavicular line 146 mm)" (ecografia dell'addome) | il lobo destro **del fegato**: il fegato è il soggetto della frase | il linker compone "right lobe … mid" nel lobo medio del polmone destro. Il modello risponde "struttura" pensando al fegato (Nemotron: "an anatomical part of the liver"), quindi risponde a un'altra domanda |
+| "The ureters are dilated … up to their entry into the **bladder**", in inglese e in italiano | il reperto è degli **ureteri**: la vescica dice solo fin dove arriva la dilatazione. Della vescica il referto parla in un'altra frase ("The bladder is empty… walls diffusely thickened") | i modelli dicono "structure" e "landmark": la vescica è "il punto d'arrivo" del reperto |
+| "hypertrophy of the transitional zone partially protruding into the **bladder**" (due referti) | il reperto è della **prostata**; anche qui la vescica ha la sua frase ("Bladder is moderately distended, with slightly thickened walls") | i modelli dicono tutti e due i ruoli. Nemotron scrive "the bladder itself is not described as having any intrinsic pathology" e mette comunque "structure" per primo |
+| "thickening of the **parietal pleura** in the lower lobe" | la pleura parietale non fa parte del polmone: riveste la parete toracica, e "nel lobo" vuol dire "all'altezza del lobo" | i modelli dicono "structure", perché il reperto è "IN" il lobo. È la *nostra* definizione a dirglielo: "a finding IN or OF the structure is structure" |
+| "a foreign body lodged at the bifurcation of the left main bronchus and the left **upper lobe** bronchus" | il reperto è un **corpo estraneo nel bronco**, non un'anomalia del lobo | il linker ha preso "left upper lobe" dentro il nome del bronco. Tutti e due i modelli rispondono "landmark", poi "structure", e la regola legge "qui" |
+| "Partial opacity of the left apex (differential diagnosis: … **shadow of the left subclavian artery**)" | in radiografia l'"ombra dell'arteria" è l'anatomia normale che imita una lesione, ed è un'**ipotesi** di diagnosi differenziale | "differential diagnosis" non è fra le espressioni di ipotesi; "shadow of" viene letto come un reperto dell'arteria |
+| "immagine adiposa **dorsalmente al** III medio del corpo sternale" | sta **dietro** lo sterno, nel mediastino | il lettore legge "del" dopo "III medio" come contenimento ("terzo" non è fra le parole di parte); i modelli dicono "landmark" e poi "structure", e la regola legge "qui" |
+
+**Che cosa fa il radiologo che noi non facciamo.**
+
+1. **Parte dal reperto, non dalla struttura.** Prima si chiede che cosa c'è di anomalo (gli ureteri dilatati, la
+   zona di transizione ipertrofica, la pleura ispessita, un corpo estraneo) e solo dopo dove sta e di che organo
+   fa parte. Noi chiediamo il contrario: "che ruolo ha *vescica*?". Così una struttura che compare nella frase
+   sembra sempre coinvolta.
+2. **Sa che cosa appartiene a che cosa.** La pleura parietale non è del polmone. Il bronco lobare non è il lobo. Il
+   lobo medio in una RM della prostata è della prostata. È conoscenza anatomica (UBERON ha le relazioni *parte
+   di*), e nella nostra lettura non entra.
+3. **Legge il referto intero.** Conosce l'esame e il suo campo di vista (il polmone non è in una RM pelvica), la
+   sezione ("TZ:"), il soggetto della frase ("The liver…"), e sa che ogni organo ha la sua frase: della vescica il
+   referto parla altrove. Noi leggiamo una frase isolata.
+4. **Distingue l'ipotesi dal reperto.** Una diagnosi differenziale non afferma nulla. "Ombra di" in radiografia è
+   anatomia normale.
+
+**Che cosa sbagliamo noi, oltre ai limiti dei lettori.**
+- **La nostra definizione ha spinto i modelli.** Ho scritto che "landmark" vale "anche" quando ciò che è collocato
+  sta nella struttura, e che un reperto "IN" la struttura è "structure". Quindi "sporge *nella* vescica" e
+  "ispessimento della pleura *nel* lobo" sono diventati "structure", come la definizione chiedeva.
+- **Al modello non diciamo a quale struttura il linker ha collegato la parola**, quindi non può accorgersi di un
+  errore del linker.
+- **Dai ruoli ricaviamo l'esito, invece di chiederlo**, e un "structure" in seconda posizione basta a dire "qui".
+
+**Che cosa ne segue, caso per caso.**
+- Partire dal reperto, e chiedere l'esito nominando la struttura collegata, risolve i 7 casi di ureteri, prostata,
+  pleura, bronco e sterno.
+- Il campo di vista dell'esame e il soggetto della frase, come previsione del linker, risolvono i 3 casi del lobo.
+- La diagnosi differenziale fra le espressioni di ipotesi risolve l'arteria succlavia.
+
+Sono ipotesi tratte da questi 11 casi, quindi vanno misurate su un campione che non li contiene.
