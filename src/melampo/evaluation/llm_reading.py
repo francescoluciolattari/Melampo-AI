@@ -39,7 +39,7 @@ TYPES = (
 # The role of the word inside the phrase (the schema of the gold set, plus "uncertain").
 ROLES = {
     "structure": "the word names the body structure the text speaks of (a lesion IN it, its shape, the organ itself)",
-    "landmark": "the structure only places something else: what the sentence describes is a node, a fluid, a mass, a device or another organ, which is not this structure nor a part of it, and the structure says where it is (nodes along the aortic arch, fluid between the bowel loops, the appendix lateral to the cecum, the prostate protruding into the bladder, ureters dilated up to the bladder, the parietal pleura at the level of a lung lobe)",
+    "landmark": "the structure only places something else: what the sentence describes is a node, a fluid, a mass, a device or another organ, which is not this structure nor a part of it, and the structure says where it is (nodes along the aortic arch, fluid between the bowel loops, the appendix lateral to the cecum, the prostate protruding into the bladder, ureters dilated up to the bladder, the parietal pleura at the level of a lung lobe); a finding IN or OF the structure (a nodule in the lobe, a granuloma in the lower lobe, calcification of the arch) is structure, not landmark",
     "procedure_site": "the structure is the site of a procedure or exam named in the phrase or by the word that governs it, also outside the phrase (liver biopsy, CT of the chest, liberation of the caecum and of the appendix)",
     "device_site": "the structure is where a device is or goes (vena cava filter, biliary stent)",
     "inherent_location": "the phrase names a measure, property, function or process of the structure (brain weight, liver function)",

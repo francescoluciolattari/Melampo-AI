@@ -236,3 +236,57 @@ aggiunta oggi pesa meno su casi che non ha visto, quindi gran parte del lavoro r
 
 Il campione di sviluppo HPO si ricostruisce con gli stessi item. Cambia solo la certezza di un item
 (parrot-2288, ora `possible`), per via della "diagnosi differenziale" fra le espressioni di ipotesi.
+
+## Il run con i modelli sul campione nuovo (1 novembre 2026)
+
+**Owner probe, lettore con Gemma 4 31B e Nemotron 3 Ultra.**
+
+| | reperti di un'altra struttura: tolti / alla persona / **ancora attribuiti** | reperti giusti: **tolti** / alla persona |
+|---|---|---|
+| **campione nuovo**, inglese (23 + 176) | 5 / 17 / **1** | **0** / 19 |
+| campione nuovo, italiano (1 + 8) | 0 / 1 / 0 | 0 / 0 |
+| campione HPO di sviluppo, già visto (12 + 188) | 5 / 7 / 0 | 0 / 13 |
+| campione HPO di verifica, già visto (14 + 170) | 9 / 5 / 0 | **2** / 11 |
+
+**Esito rispetto ai criteri fissati prima, sul campione nuovo.**
+- **Criterio 1, non passa per un caso.** Resta attribuito "In the mesentery of the small intestine, …
+  lymph nodes": i modelli dicono che il mesentere è una parte dell'intestino. L'etichetta è mia e va fatta
+  rivedere.
+- **Criterio 2, passa:** nessun reperto giusto viene tolto.
+- **Criterio 3, non passa per un caso:** vanno alla persona 19 reperti giusti su 184, il 10,3% contro il 10%
+  ammesso.
+
+Rispetto a prima il cambio è grande: sui casi nuovi i reperti di un'altra struttura attribuiti in silenzio sono 1
+su 24, mentre sui casi già visti erano 11 su 26.
+
+**I 19 reperti giusti mandati alla persona.**
+- In 17 casi Gemma e Nemotron non sono d'accordo, o uno dei due non sa, e la regola li tratta come un flusso
+  solo.
+- In 2 casi il lettore legge un riferimento: "wall thickening *in the area of* the descending colon" e
+  "osteolytic foci *in the projection of* the femoral head". Qui i modelli hanno ragione.
+- Diversi di questi casi dipendono dalla mia etichetta, e la lettura dei modelli è difendibile:
+  - versamento dell'**articolazione** dell'anca, mentre la classe del linker è l'**osso** dell'anca;
+  - "L3 over L4": la vertebra L4 fa da riferimento;
+  - "history of thyroid cancer surgery", dove il reperto è il dolore spinale;
+  - il rene destro nominato solo come confronto ("the left kidney is longer").
+- I 2 reperti tolti nel campione di verifica sono anch'essi casi discutibili: "blood … extending around the right
+  kidney" e "a shadow in the projection of the second rib". Lì lettore e modelli concordano che si tratta di un
+  riferimento, contro la mia etichetta.
+
+**Il role probe** (gpt-oss-120b, Gemma 4, Mistral Small 4).
+- **"Sede o no" non cambia:** gli item su cui lettore e modello sono d'accordo con l'esito sbagliato sono 0 per
+  tutti i modelli, e Gemma manda alla persona lo 0,2–0,8% degli item.
+- **I ruoli fini peggiorano.** Gemma passa dall'89% al 77% di ruoli giusti con la domanda semplice, e dal 91% all'80%
+  con il metodo.
+  - La causa è un mio errore: riscrivendo la definizione di `landmark` ho tolto anche la frase "un reperto IN o
+    DI la struttura è structure". I modelli leggono ora come riferimento anche "opacità *nel* lobo superiore" e
+    "granuloma *nel* lobo inferiore".
+  - La frase è rimessa, senza l'"anche" che l'aveva causata.
+- **Una parte dei 125–142 "riferimento" è vera**, ed è un difetto del gold dello strato Rad-SpRL: "lucency under
+  the hemidiaphragm", "density overlying the first rib", "linfonodi all'ilo epatico". Quelle righe vanno ancora
+  rilette con lo schema nuovo.
+
+**Proposta.** Tenere la lettura: sui casi nuovi non toglie nessun reperto giusto. Prima di un altro run:
+1. un radiologo rivede le etichette discusse sopra e le 24 + 26 dei due elenchi;
+2. lo strato Rad-SpRL del role probe va riletto;
+3. il role probe va rilanciato con la definizione corretta.
