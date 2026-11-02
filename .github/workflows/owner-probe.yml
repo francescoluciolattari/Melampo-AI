@@ -1,6 +1,6 @@
 name: Owner probe (of what is the finding said?)
 
-# Manual trigger only (31 October 2026). For every item of the two HPO samples (PARROT), the Kintsch reader
+# Manual trigger only (31 October 2026; the statement reading and its sample, 1 November 2026). For every item of the two HPO samples (PARROT), the Kintsch reader
 # alone and the reader with the models read whether the clause is about the structure the linker found or uses
 # it to place something else (scripts/owner_probe.py, src/melampo/memory/finding_owner.py). PARROT is public
 # (CC BY-NC-SA 4.0) and goes to OpenRouter only as such (--public-data); patients' reports never take this
@@ -13,6 +13,10 @@ on:
         description: "OpenRouter model ids, comma-separated (empty = the reader alone)"
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
+      sets:
+        description: "samples to read: statement (2 Nov, labelled by type), fresh (1 Nov), dev, heldout (HPO)"
+        required: false
+        default: "statement,fresh"
 
 permissions:
   contents: read
@@ -39,10 +43,13 @@ jobs:
             --seed 2026103102 --exclude data/gold/hpo_silver_2026-10-31/labels.txt --out hpo_items_heldout.jsonl
           uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
             --out owner_items_fresh.jsonl
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --seed 20261102 --out owner_items_statement.jsonl
 
       - name: Run the probe
         env:
           MODELS: ${{ inputs.models }}
+          SETS: ${{ inputs.sets }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
@@ -50,8 +57,17 @@ jobs:
           if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
             echo "::error::models takes ids like org/name, comma-separated"; exit 2
           fi
-          uv run --no-sync python -u scripts/owner_probe.py --items fresh=owner_items_fresh.jsonl \
-            --items dev=hpo_items.jsonl --items heldout=hpo_items_heldout.jsonl --models "$MODELS" \
+          ITEMS=()
+          for name in ${SETS//,/ }; do
+            case "$name" in
+              statement) ITEMS+=(--items statement=owner_items_statement.jsonl) ;;
+              fresh) ITEMS+=(--items fresh=owner_items_fresh.jsonl) ;;
+              dev) ITEMS+=(--items dev=hpo_items.jsonl) ;;
+              heldout) ITEMS+=(--items heldout=hpo_items_heldout.jsonl) ;;
+              *) echo "::error::unknown set $name"; exit 2 ;;
+            esac
+          done
+          uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" \
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
             --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json

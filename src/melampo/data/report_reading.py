@@ -135,7 +135,12 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
             anatomy, note = Anatomy.from_uberon(Path(uberon)), "+uberon"
         except Exception as error:  # noqa: BLE001 -- the owner reads without the organs
             note = f"+uberon_unavailable:{type(error).__name__}"
-    return FindingOwner(reader, chats, anatomy), "finding_owner:reader" + ("+models" if chats else "") + note
+    # the question asked of the models: "is the finding of this structure?" (default) or, once measured, "what
+    # does the sentence say of this structure?" (MELAMPO_OWNER_QUESTION=statement, 1 November 2026)
+    question = os.environ.get("MELAMPO_OWNER_QUESTION", "owner")
+    question = question if question in ("owner", "statement") else "owner"
+    return (FindingOwner(reader, chats, anatomy, question=question),
+            "finding_owner:reader" + ("+models" if chats else "") + note + (":statement" if question == "statement" else ""))
 
 
 @dataclass
@@ -221,7 +226,7 @@ class ReportReaders:
     # -- the exam --------------------------------------------------------------------------------------------
     def read_exam(self, case_key: str, report: dict[str, Any], text: str, volume: dict[str, Any] | None,
                   why_no_image: str, set_aside: list | None = None,
-                  questions: list | None = None) -> list[dict[str, Any]]:
+                  questions: list | None = None, statements: list | None = None) -> list[dict[str, Any]]:
         """The findings of one imaging report, with the image side when ``volume`` (array, affine, modality,
         study) is given and the segmenters are there."""
         from ..imaging.interpreter import interpret_exam
@@ -237,7 +242,8 @@ class ReportReaders:
             why_no_image = "segmenters_not_configured"
         findings = interpret_exam(case_key, (volume or {}).get("study") or report["report"], "", modality,
                                   report["report"], text, report["sites"], language=report["language"],
-                                  ownership=self.owner, set_aside=set_aside, questions=questions, **kwargs)
+                                  ownership=self.owner, set_aside=set_aside, questions=questions,
+                                  statements=statements, **kwargs)
         rows = []
         for f in findings:
             row = f.as_row()
@@ -251,8 +257,10 @@ class ReportReaders:
         from .report_router import route
 
         # "questions": what the review mask shows a person, each complete in itself (``review_question``)
+        # "statements": what a sentence says of a structure that is not a current finding (its history, that it
+        # is normal), when the owner reads the statement (1 November 2026)
         out: dict[str, Any] = {"readers": list(self.notes), "texts": [], "findings": [], "to_a_person": [],
-                               "questions": []}
+                               "questions": [], "statements": []}
         if self.linker is None:
             out["status"] = "narrative_reader_not_available"
             return out
@@ -290,8 +298,10 @@ class ReportReaders:
                         reason, volume = volume, None
             aside: list[dict[str, Any]] = []
             asked: list[dict[str, Any]] = []
-            rows = self.read_exam(case_key, reading, text, volume, reason, aside, asked)
+            stated: list[dict[str, Any]] = []
+            rows = self.read_exam(case_key, reading, text, volume, reason, aside, asked, stated)
             out["questions"] += asked
+            out["statements"] += [{**x, "report": source_id} for x in stated]
             out["findings"] += rows
             out["to_a_person"] += [{"report": source_id, "mention": a["mention"], "reason": a["reason"],
                                     "clause": a["clause"], "placed": a.get("placed", ""),

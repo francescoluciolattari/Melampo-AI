@@ -37,7 +37,8 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                    affine=None, frame_of_reference: str = "", lesion_segmenter=None,
                    organ_segmenter=None, contrast: str = "unknown",
                    structures: dict[str, np.ndarray] | None = None, ownership=None,
-                   set_aside: list | None = None, questions: list | None = None) -> list[Finding]:
+                   set_aside: list | None = None, questions: list | None = None,
+                   statements: list | None = None) -> list[Finding]:
     """The findings of one exam. ``sites``: rows with mention, start, end (offsets in ``report_text``), cid, roles.
     ``structures``: every anatomical mask of the exam (name -> mask), for the structures each lesion involves;
     when not given and the organ segmenter can segment the whole body (``all_structures``), it is asked once.
@@ -46,7 +47,13 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
     made at the site and the clause is appended to ``set_aside`` for a person; when they do not agree, the
     finding is made and goes to a person. Either way the question for the person, complete in itself
     (``review_question``: kind, sentence, structure, closed answers, the readings to show after the answer), is
-    appended to ``questions``."""
+    appended to ``questions``.
+
+    When the owner reads what the sentence says of the structure (``question="statement"``, 1 November 2026),
+    what is attached is that statement, with its piece of the sentence: a finding (or an involvement) is a
+    finding made from the piece, not the whole sentence; a measure is a finding that is only a measure (no
+    phenotype is looked for in it); a fact of history and a normal statement are not current findings and are
+    appended to ``statements``; "nothing" leaves the finding as it was."""
     findings: list[Finding] = []
     asked = structures is not None
     for site in sites:
@@ -84,8 +91,19 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                                       "reason": "the_structure_only_places_something_else", **owner.as_dict(),
                                       "question": question["id"]})
                 continue
+        statement = owner.statement if owner is not None and owner.verdict == "here" else ""
+        if statement in ("history", "normal"):
+            if statements is not None:
+                statements.append({"mention": site.get("mention", report_text[start:end]), "structure": site["cid"],
+                                   "statement": statement, "piece": owner.piece, "clause": clause,
+                                   "report": report_id})
+            continue
+        if statement in ("finding", "measure") and owner.piece:
+            clause, sizes = owner.piece, sizes_in_text(owner.piece)
+            if statement == "measure":
+                qd = {**qd, "character": [], "degree": ""}
         text = TextSide(report_id, clause, site.get("mention", report_text[start:end]), start, end, site["cid"],
-                        tuple(site.get("roles") or ()), qd, sizes, language)
+                        tuple(site.get("roles") or ()), qd, sizes, language, statement)
         image = ImageSide(NO_IMAGE)
         if volume is not None and affine is not None and lesion_segmenter is not None:
             try:

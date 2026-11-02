@@ -487,7 +487,91 @@ def read_owner(text: str) -> dict:
     return answer
 
 
+# -- what the sentence says of the structure (1 November 2026) ------------------------------------------------
+# The question "is the finding of this structure?" makes the model pick the main finding of the sentence (the
+# slipped L3, the spinal pain, the longer left kidney) and lose what the sentence says of the linked structure
+# (L4 is the level below, the thyroid was operated, the right kidney is 10.5 cm). A radiologist asks, of every
+# structure named, what the sentence says of it. The model copies that piece from the sentence and says its
+# type; the reader checks that the piece is in the sentence and that the type agrees with what it knows.
+STATEMENT_TYPES = ("finding", "involved", "history", "normal", "measure", "reference", "other_structure",
+                   "hypothesis", "nothing", "uncertain")
+STATEMENT_STEPS = """Read it the way a radiologist does: what does the sentence say of the linked structure?
+1. piece: copy from the sentence, exactly as written, the words that say it (the fewest that carry the
+   statement; include the structure's own words when they are part of it). "" if it says nothing of it.
+2. type, the first that applies in this order:
+   - "finding": something abnormal of it or in it, or of one of its parts (a lesion in it, a thickened wall,
+     an enlarged organ); a finding stated as probable of it ("a suspicious lesion of it", "probably a cyst of
+     it") is still a finding;
+   - "involved": the abnormality is of another structure but reaches it: extends to it or into it, presses on
+     it, narrows it, displaces it, or is at the level or the joint it forms (a disc bulge at the level two
+     vertebrae form, a tumour of a neighbour invading it);
+   - "history": a fact of its past: a past disease or a surgery ("status post resection of it", "history of
+     surgery of it");
+   - "normal": it is normal, or something abnormal is said to be absent from it ("no lesions", "not enlarged"),
+     also when measures go with it;
+   - "measure": only a measure of it, with no judgement ("it measures 11 cm");
+   - "reference": it only says where something of another structure is (enlarged nodes along the aortic arch,
+     fluid around an organ): the finding is of that other structure;
+   - "other_structure": the marked words name a different structure from the linked one here (in a prostate
+     MRI the "middle lobe" is the prostate's, not the lung's);
+   - "hypothesis": it is named only as one possible explanation, or as something to be excluded ("differential
+     diagnosis: ...", "possibly arising from it");
+   - "nothing": it is named without anything said of it: a title, a heading, the name of the exam, an earlier
+     exam it is compared with;
+   - "uncertain": you cannot tell.
+3. of: for "reference" and "other_structure", the structure the finding is of, or the one the words name."""
+STATEMENT_SCHEMA = ('{"piece": "<copied exactly from the sentence>", "type": "<one of: %s>", '
+                    '"of": "<the other structure, or empty>", "why": "<one sentence>"}')
+
+
+def statement_prompt(sentence: str, start: int, end: int, linked: str, *, linked_names: list[str] | None = None,
+                     exam: str = "", section: str = "", language: str = "") -> str:
+    """The question "what does the sentence say of the linked structure?". ``linked``: the class as the linker
+    means it (its usual name); ``linked_names``: its other names, so that the model knows what the class is
+    (the left hip of the atlas is the hip bone, not the joint)."""
+    parts = ["You read sentences of radiology reports the way a radiologist does."]
+    if exam:
+        parts.append(f"Exam: {exam}")
+    if section:
+        parts.append(f"Section of the report: {section}")
+    parts.append(f"Sentence{f' ({language})' if language else ''}: {mark(sentence, start, end)}")
+    names = [n for n in (linked_names or []) if n and n != linked]
+    also = f" (also called: {', '.join(names[:4])})" if names else ""
+    parts.append(f"An automatic reader linked the marked words to this structure of an anatomical atlas: "
+                 f"{linked}{also}. Read the sentence about that structure as the atlas means it.")
+    parts.append(STATEMENT_STEPS)
+    parts.append("Answer with JSON only, no other text:\n" + STATEMENT_SCHEMA % ", ".join(STATEMENT_TYPES))
+    return "\n\n".join(parts)
+
+
+def in_sentence(sentence: str, piece: str) -> bool:
+    """Is the piece in the sentence, as written (spaces, case and the mark folded)? A piece that is not there
+    was not read from the sentence."""
+    want = _norm(piece.replace(OPEN, "").replace(CLOSE, ""))
+    return bool(want) and want in _norm(sentence)
+
+
+def read_statement(text: str, sentence: str) -> dict:
+    """The answer of ``statement_prompt``: the last JSON object, its type one of ``STATEMENT_TYPES``, and whether
+    its piece is in the sentence (``found``). A type that needs a piece without one found is ``uncertain``."""
+    found = re.findall(r"\{[^{}]*\}", text or "")
+    try:
+        answer = json.loads(found[-1])
+    except Exception:  # noqa: BLE001
+        return {"type": "uncertain", "piece": "", "of": "", "found": False, "valid": False}
+    kind = str(answer.get("type", "")).strip().lower().replace(" ", "_")
+    answer["type"] = kind if kind in STATEMENT_TYPES else "uncertain"
+    answer["piece"] = str(answer.get("piece") or "").strip()
+    answer["of"] = str(answer.get("of") or "").strip()
+    answer["found"] = in_sentence(sentence, answer["piece"])
+    if answer["type"] not in ("nothing", "uncertain") and not answer["found"]:
+        answer["type"] = "uncertain"      # the piece was not read from the sentence
+    answer["valid"] = True
+    return answer
+
+
 __all__ = [
+    "STATEMENT_TYPES", "in_sentence", "read_statement", "statement_prompt",
     "OWNER_RELATIONS", "owner_prompt", "read_owner",
     "CLOSE", "METHOD_SCHEMA", "METHOD_STEPS", "OPEN", "ROLES", "method_prompt", "SITE_ROLES", "TYPES", "Asked", "Checked", "ask", "balanced", "check",
     "covering", "kind_of_type", "mark", "next_words", "parse", "prompt", "remark_example", "schema",

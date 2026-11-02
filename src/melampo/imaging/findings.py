@@ -93,6 +93,7 @@ class TextSide:
     qualifiers: dict[str, Any] = field(default_factory=dict)
     sizes: list[dict[str, Any]] = field(default_factory=list)
     language: str = "it"
+    statement: str = ""              # what the sentence says of the structure (finding_owner.STATEMENT_GROUPS)
 
     @property
     def largest_size_mm(self) -> float | None:
@@ -148,7 +149,7 @@ class Finding:
             "id": self.id, "patient": self.patient, "study": self.study, "study_date": self.study_date,
             "modality": self.modality, "report": self.text.report_id, "structure": self.text.structure,
             "mention": self.text.mention, "clause": self.text.clause, "roles": list(self.text.roles),
-            "language": self.text.language,
+            "language": self.text.language, "statement": self.text.statement,
             "location": q.get("location", ""), "degree": q.get("degree", ""), "character": list(q.get("character", [])),
             "certainty": q.get("certainty", ""), "polarity": q.get("polarity", ""),
             "text_sizes_mm": [s["largest_mm"] for s in self.text.sizes],
