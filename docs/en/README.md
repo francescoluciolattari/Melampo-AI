@@ -4,8 +4,8 @@
 
 Melampo reads a clinical case (the physician's note, reports, laboratory tables, images) and proposes a
 structured differential diagnosis, with the evidence for and against each hypothesis and an explicit
-"I cannot say" when the evidence does not hold. It is a **research system**: it is not a medical device and
-gives no diagnosis to patients.
+"I cannot say now" when the evidence does not hold and requires more investigation. It is a **research
+system**: it is not a medical device and gives no diagnosis to patients.
 
 ## Intended use
 
