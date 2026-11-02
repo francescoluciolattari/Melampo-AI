@@ -102,7 +102,7 @@ class RootModelCandidate:
 # (oneprovider.dev) was evaluated and rejected first, because a public review
 # of that service states the model actually served behind it is not Claude at
 # all -- the exact failure this bench exists to avoid propagating. See
-# docs/recursive_engine_decision_record.md for the full reasoning.
+# docs-archive-2026-11:docs/recursive_engine_decision_record.md for the full reasoning.
 DEFAULT_CANDIDATES = (
     RootModelCandidate(
         name="mistral-small-3.1",

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """From a report's finding to an HPO term: the candidates of the site, a deterministic choice, a model's choice
-(31 October 2026). See ``docs/linker/dal_reperto_al_termine_hpo_2026-10-31.md``.
+(31 October 2026). See ``docs-archive-2026-11:docs/linker/dal_reperto_al_termine_hpo_2026-10-31.md``.
 
 The findings come from PARROT (radiologists' reports in 14 languages with their English translation; CC BY-NC-SA
 4.0): the English translations, read by the narrative reader (``data/report_reading``: linker sites, findings of

@@ -1,7 +1,7 @@
 # Gold set di sviluppo ("silver"), 12 ottobre 2026
 
 Etichette di **un solo etichettatore (Claude)**, non di radiologi. Servono a sviluppare e misurare in modo
-ripetibile; **non certificano** nulla (vedi `docs/linker/valutazione_proposte_e_gold_set_silver_2026-10-12.md`).
+ripetibile; **non certificano** nulla (vedi `docs-archive-2026-11:docs/linker/valutazione_proposte_e_gold_set_silver_2026-10-12.md`).
 
 Contenuto: solo le etichette (`labels/*.txt`); i testi non sono nel repository (licenze non commerciali).
 Si ricostruiscono dalle fonti:

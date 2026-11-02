@@ -50,7 +50,7 @@ VECTOR_KIND_SIGNATURE = "hashed_signature"
 def _numeric_vector(value: Any) -> list[float] | None:
     """A flat sequence of finite numbers, kept exactly; anything else is None.
 
-    Background (docs/imaging_decision_record.md, 2026-09-26): every vector
+    Background (docs-archive-2026-11:docs/imaging_decision_record.md, 2026-09-26): every vector
     used to go through _matrix_to_vector, which keeps only the first 256
     values, folds them into 64 buckets and applies tanh. Two 1152-value
     embeddings differing only after position 256 came out identical, and a
@@ -469,7 +469,7 @@ class VisualImprintMorpher:
     compared; the rest are counted in ``incomparable_pair_count``. This is a
     morphing of vectors, not of shapes: it cannot compare lesion geometry,
     and the "bridge" term added to each morph is a hash of the concept names,
-    not a learned direction (open item in docs/imaging_decision_record.md).
+    not a learned direction (open item in docs-archive-2026-11:docs/imaging_decision_record.md).
     """
 
     interpolation_alpha: float = 0.5

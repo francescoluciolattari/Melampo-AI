@@ -75,7 +75,7 @@ src/melampo/
 ## Current enterprise modules
 
 - `orchestration/model_capability_registry.py`: records Pillar-0, Gemma 4, Claude, Weaviate and Nemotron-Parse roles.
-- `orchestration/model_router.py` (`ModelRouter`, D1): decides how many reasoning paths a case needs, per `docs/rlm_on_memory_decision_record.md`'s table -- two steps, `pick_pending_case()` (early, reuses `training/pending_case_router.py`) and `pick_mode()` (later, once real signals exist). Replaces a 12-line stub that routed on a task name string, never called by anything.
+- `orchestration/model_router.py` (`ModelRouter`, D1): decides how many reasoning paths a case needs, per `docs-archive-2026-11:docs/rlm_on_memory_decision_record.md`'s table -- two steps, `pick_pending_case()` (early, reuses `training/pending_case_router.py`) and `pick_mode()` (later, once real signals exist). Replaces a 12-line stub that routed on a task name string, never called by anything.
 - `orchestration/task_protocol_router.py` (`TaskProtocolRouter`): the task-name-to-transport-protocol routing split out of the old `ModelRouter` stub when it was rebuilt into D1 -- a genuinely different concern (transport protocol vs. clinical complexity) that happened to share a class name; still used by `RuntimeServices.resolve()`, unchanged behaviour.
 - `reasoning/diagnostic_orchestrator.py`: final audit-first research diagnostic controller.
 - `memory/weaviate_schema.py`: object-property clinical memory schema contract.
@@ -89,7 +89,7 @@ src/melampo/
 ## Retrieval strategy modules
 
 Foundation for the RLM-on-Memory migration recorded in
-`docs/rlm_on_memory_decision_record.md`. Recursive retrieval replaces the
+`docs-archive-2026-11:docs/rlm_on_memory_decision_record.md`. Recursive retrieval replaces the
 retrieval strategy only; the Weaviate memory substrate is unchanged and becomes
 more central, since typed relations are what give a recursive strategy its
 navigation affordances.
@@ -121,7 +121,7 @@ navigation affordances.
 - `memory/tracked_concepts.py`: the refresh queue literature updates work through -- Nexus-Engine style (bounded, nightly, grown from real use), prioritised by longest-since-refreshed, never a crawl of the graph's full concept set.
 - `memory/description_population.py`: bulk-populates the concept description store from `hp.obo`'s 17,441 curated definitions (already downloaded, previously unparsed), and defines the canonical structure format shared by the extractor and any vetting model prompted to emit its own -- generated from the `ExtractedStructure` shape itself so the two cannot silently desynchronise.
 - `memory/structural_extraction.py`: the real (HTTP-backed) extractor for tier 3 of the normalisation cascade -- entities and relations out of free text, transport left to the deployment, degrading gracefully throughout.
-- `memory/falkordb_connection.py` + `memory/falkordb_graph.py`: a second `ConceptGraphView` implementation, backed by FalkorDB (embedded FalkorDBLite or a remote service, switchable via `data/falkordb_config.toml` only -- no code change), verified identical to `InMemoryConceptGraph` and 0.9-4.3x faster on real cases after two rejected optimisation attempts and a rejected native procedure (FalkorDB's `algo.BFS`, found unreliable in the Rust engine via two open upstream issues and a second real project's own bug catalogue) -- see `docs/recursive_engine_decision_record.md` for the full investigation.
+- `memory/falkordb_connection.py` + `memory/falkordb_graph.py`: a second `ConceptGraphView` implementation, backed by FalkorDB (embedded FalkorDBLite or a remote service, switchable via `data/falkordb_config.toml` only -- no code change), verified identical to `InMemoryConceptGraph` and 0.9-4.3x faster on real cases after two rejected optimisation attempts and a rejected native procedure (FalkorDB's `algo.BFS`, found unreliable in the Rust engine via two open upstream issues and a second real project's own bug catalogue) -- see `docs-archive-2026-11:docs/recursive_engine_decision_record.md` for the full investigation.
 - `training/vector_evolution_engine.py`: evolves diagnostic hypothesis vectors continuously over time (a leaky integrator, Dayan & Abbott 2001) and surfaces non-obvious correlations between different cases by real cosine overlap, with Hebbian reinforcement (Hebb 1949) on clinically confirmed correlations -- the honest, mathematically real replacement for a proposed "neuro-quantum" layer that would have added nothing beyond ordinary real-vector similarity while misusing a physical constant.
 - `training/quantum_cognition_order_model.py`: the real Busemeyer & Bruza (2012) formalism -- complex Hilbert space, verified Hermitian/idempotent projectors, Lüders sequential collapse -- for predicting order effects in a HUMAN reader's diagnostic judgment. Never connected to the system's own reasoning, which stays order-invariant by construction (`tests/test_order_invariance.py`). Stage A of an agreed three-stage validation plan: verifies the mathematics itself, not yet validated against clinical behavioural data.
 - `memory/graph_sources.py`: loads the verification graph AND the hp.obo synonym index from real HPO files, always reporting which source it used -- refusing to fall back to a fixture when `require_real_data=True`, because an audit found three live bench runs scoring candidates against a 33-edge hand-written fixture while reporting it as grounding against the concept graph. loads the verification graph from a real HPO release and always reports which source it used -- refusing to fall back to a fixture when `require_real_data=True`, because an audit found three live bench runs scoring candidates against a 33-edge hand-written fixture while reporting it as grounding against the concept graph.
@@ -159,7 +159,7 @@ melampo-weaviate-schema
 ## Model strategy
 
 - **Pillar-0**: primary radiology / volumetric imaging signal provider for `visual_diagnostic_area`.
-- **Gemma 4**: grounded clinical text and agentic reasoning provider for language/context tasks. **Open item:** no verifiable downloadable artefact carries this name, which is a traceability defect for the model card. Replacement candidates are Gemma-3-27B-MeditronFO (fully open pipeline, an audit advantage) and MedGemma 1.5 27B. Identifiers in code are unchanged pending that decision; see `docs/rlm_on_memory_decision_record.md`.
+- **Gemma 4**: grounded clinical text and agentic reasoning provider for language/context tasks. **Open item:** no verifiable downloadable artefact carries this name, which is a traceability defect for the model card. Replacement candidates are Gemma-3-27B-MeditronFO (fully open pipeline, an audit advantage) and MedGemma 1.5 27B. Identifiers in code are unchanged pending that decision; see `docs-archive-2026-11:docs/rlm_on_memory_decision_record.md`.
 - **Claude Healthcare / Life Sciences style critic**: optional external second-opinion, literature and regulatory critic.
 - **Weaviate**: semantic object-property memory and ontology-aware RAG backend.
 - **Nemotron-Parse**: document intelligence parser for clinical/literature ingestion.
@@ -176,4 +176,4 @@ Validation is split into:
 4. safety and abstention analysis;
 5. clinical/regulatory review outside this scaffold.
 
-See `docs/validation/clinical_benchmarking_and_prospective_validation.md`.
+See `docs-archive-2026-11:docs/validation/clinical_benchmarking_and_prospective_validation.md`.

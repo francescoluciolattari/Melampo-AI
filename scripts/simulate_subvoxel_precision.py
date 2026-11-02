@@ -1,7 +1,7 @@
 """How precisely can a high-contrast lesion's centre and volume be estimated, as a function of slice thickness?
 
 Evidence behind the precision thresholds in data/dicom_volume.py
-(docs/imaging_decision_record.md). No published source gave a number for
+(docs-archive-2026-11:docs/imaging_decision_record.md). No published source gave a number for
 localising a lesion's centre along z, so this measures it under IDEAL
 conditions -- an upper bound on what real exams allow:
 

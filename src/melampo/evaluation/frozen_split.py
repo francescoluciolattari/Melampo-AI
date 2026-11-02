@@ -14,7 +14,7 @@ property of the code and not of anyone's memory:
 What the freeze does *not* do: it cannot undo what was already seen. ``seen_before_freeze`` in the
 manifest records it (the external check judged links of these documents and their errors were read
 before the freeze), so that nobody later takes the split for a virgin test. The test that certifies is
-the radiologists' gold set (``docs/gold_set_protocollo.md``), drawn from reports no development step saw.
+the radiologists' gold set (``docs-archive-2026-11:docs/gold_set_protocollo.md``), drawn from reports no development step saw.
 """
 
 from __future__ import annotations

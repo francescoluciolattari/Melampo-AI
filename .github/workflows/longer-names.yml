@@ -5,7 +5,7 @@ name: Longer names (NCIt, Protein Ontology)
 # "International Prostate Symptom Score"). Downloads open ontologies, builds the file with
 # scripts/build_longer_names.py and uploads it as an artifact; nothing is committed by the workflow.
 # To adopt it: download the artifact, replace data/linking/longer_names.json, run the tests and
-# external-check, and commit. See docs/linker/analisi_errori_controllo_esterno_2026-10-08.md.
+# external-check, and commit. See docs-archive-2026-11:docs/linker/analisi_errori_controllo_esterno_2026-10-08.md.
 on:
   workflow_dispatch:
     inputs:

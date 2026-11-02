@@ -294,7 +294,7 @@ def select_cues(language: str) -> CueSet:
 
 
 # Category to interval. Deterministic and versioned in
-# docs/semantic_extraction_decision_record.md, so the numbers are a documented
+# docs-archive-2026-11:docs/semantic_extraction_decision_record.md, so the numbers are a documented
 # decision rather than a model's opinion.
 ASSERTION_INTERVALS: dict[tuple[str, str], tuple[float, float, str]] = {
     (POLARITY_AFFIRMED, SOURCE_OBJECTIVE): (0.90, 1.00, STATE_DOCUMENTED),

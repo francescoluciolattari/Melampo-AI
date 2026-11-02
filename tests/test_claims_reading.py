@@ -177,16 +177,16 @@ def test_an_absence_listed_as_an_observation_is_an_absence():
     assert got.verdict == HERE and got.statement == KEEP
 
 
-def test_as_far_as_is_not_reaching():
-    from melampo.memory.spatial_relation import EXTENT, read_relation
-
+def test_words_that_can_say_either_are_the_model_s_to_read():
     s = "fluid in the right pleural cavity reaching the seventh right rib"
-    assert read_relation(s, s.index("seventh")).kind == EXTENT
     said = _answer(marked="seventh right rib", observed=[{"words": "fluid in the right pleural cavity",
                                                          "of": "right pleural cavity", "relation": "reaching",
-                                                         "reaches": "yes"}])
+                                                         "reaches": "no"}])
+    # the models read "reaching" as how far the fluid goes: aside, but the reader has no evidence of its own
     got = _owner(said, said)("seventh right rib", s, s.index("seventh"), "en", "rib_right_7")
-    assert got.verdict == UNSURE and "the_relation_words_say_near_not_reaching" in got.reader
+    assert got.verdict == UNSURE
+    p = claims_prompt(s, s.index("seventh"), len(s), "rib")
+    assert "itself is" in p and "how far it" in p
 
 
 def test_the_question_asks_about_the_marked_words_not_the_findings():

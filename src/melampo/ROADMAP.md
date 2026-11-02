@@ -2,7 +2,7 @@
 
 **Sostituisce** la precedente versione a 4 fasi di questo file e il Report
 EG #10 come unica fonte operativa — questa è **l'unica roadmap**.
-`docs/ROADMAP_VERIFICATION_LOG.md` non è una seconda roadmap: è il
+`docs-archive-2026-11:docs/ROADMAP_VERIFICATION_LOG.md` non è una seconda roadmap: è il
 registro delle verifiche contro il codice reale che ha prodotto questa
 versione, utile solo a chi voglia capire perché una voce è segnata chiusa
 o aperta.
@@ -35,7 +35,7 @@ l'urgenza.
 
 ### ~~H1~~ — Riconciliare `diagnostic_assembly.py` con `clinical_pipeline.py`
 **Riformulata, non "chiusa" nel senso semplice.** Un'indagine più
-approfondita (`docs/rlm_on_memory_decision_record.md`, 1-6 settembre,
+approfondita (`docs-archive-2026-11:docs/rlm_on_memory_decision_record.md`, 1-6 settembre,
 mai letto prima di questa settimana) ha mostrato che H1 era una domanda
 mal posta: non "quale pipeline tenere", ma la ricostruzione di un piano
 già esistente — `IntuitionEngine` (veloce, associativo) e
@@ -222,7 +222,7 @@ scritta in origine. **Sforzo**: 1 settimana.
 
 ### ~~H3~~ — Prestazioni sul grafo reale
 **Chiusa, dopo tre tentativi, due respinti con prove.** Riassunto del
-percorso completo (dettagli verificabili in `docs/recursive_engine_decision_record.md`):
+percorso completo (dettagli verificabili in `docs-archive-2026-11:docs/recursive_engine_decision_record.md`):
 
 1. Raggruppamento per livello (`edges_from_many`) — **respinto**: peggio
    su tutti e tre i casi reali testati, causa trovata (volume di dati su
@@ -414,7 +414,7 @@ equivalente — vedi H3), B0c/B0d, B2, B3, C1 (`rlm_engine.py`, letteralmente et
 Questa versione sostituisce sia le 4 fasi precedenti di questo file sia il
 Report EG #10 — è l'unica roadmap. Il registro di verifica che l'ha
 prodotta, con ogni controllo documentato singolarmente, resta in
-`docs/ROADMAP_VERIFICATION_LOG.md`. Non è definitiva: le
+`docs-archive-2026-11:docs/ROADMAP_VERIFICATION_LOG.md`. Non è definitiva: le
 voci del blocco E non riverificate (E1, E3, E4) e l'intero blocco F
 andrebbero controllate con la stessa disciplina di verifica diretta contro
 il codice prima di pianificarle con fiducia.

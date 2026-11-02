@@ -5,7 +5,7 @@ Replaces a 12-line stub that routed on a task NAME string
 to clinical complexity, never called by anything, verified before this
 rewrite (grep found zero callers). This is the router the September RLM
 decision record specifies: it decides *how many* reasoning paths run, not
-which one, per the table reproduced below (docs/rlm_on_memory_decision_record.md,
+which one, per the table reproduced below (docs-archive-2026-11:docs/rlm_on_memory_decision_record.md,
 "Authority boundary", CONSTRAINT, accepted):
 
 | Case profile              | Mode                                     |

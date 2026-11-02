@@ -1,135 +1,25 @@
 # Project Melampo
 
-**From Attention to Intuition**  
-**Enterprise-grade research scaffold for multimodal, multimodel clinical cognitive diagnosis**
+Melampo reads the documents of a clinical case (notes, reports, laboratory tables, images) and proposes a
+structured differential diagnosis with its evidence, sending to a person every reading it cannot confirm.
 
-![Status](https://img.shields.io/badge/Status-Research_Scaffold-blue)
-![Focus](https://img.shields.io/badge/Focus-Medical_AI_%7C_RAG/RLM_%7C_Intuition-purple)
+> **Research software, not a medical device.** It must not be used to diagnose or treat patients.
 
-Project Melampo is an experimental open-source research framework designed to evolve Computer-Aided Diagnosis (CAD) into **Computer-Aided Intuition (CAI)**.
+**Documentation:** [English](docs/en/README.md) · [Italiano](docs/it/README.md)
 
-Melampo is **not** a single-model diagnostic assistant and **not** a simple RAG/RLM wrapper. It is a multimodal, multimodel, neuro-symbolic and neuro-inspired architecture where specialist models produce governed signals, simulated functional areas compare and integrate them, and a Melampo-owned orchestrator produces a structured research diagnostic result with abstention, escalation, provenance and audit trace.
-
-> **Clinical safety boundary:** Melampo is a research scaffold. It is not a validated medical device and must not be used for autonomous clinical diagnosis or patient-care decisions without formal clinical validation, regulatory review, monitoring and human specialist oversight.
-
-## Current architectural decisions
-
-The project now records these decisions in `docs/final_treatise_decision_record.md`:
-
-- **Final diagnostic authority:** `MelampoDiagnosticOrchestrator`, not a single external LLM or imaging model.
-- **Primary radiology / volumetric imaging candidate:** Pillar-0, used as a signal provider for `visual_diagnostic_area`.
-- **Clinical text and agentic rcandidate:** Nemotron/Gemma , used for document Reading grounded language and workflow.
-- **External critique candidate:** Claude and or OpenAI Healthcare / Life Sciences style capability, used as optional second-opinion and scientific/regulatory critic.
-- **Semantic memory / ontology backend:** FalkorDB, selected for object-property clinical memory and concept relationships.
-- **Document intelligence parser:**  for layout-aware ingestion of PDFs, DOCX, PPTX, tables, formulas and clinical literature.
-
-External models are specialist signal providers, critics, parsers, retrievers or explainers. They are not sole final diagnostic arbiters.
-
-## Core architecture
-
-```text
-specialist models
-  -> Melampo functional areas
-  -> coherence / mismatch / neuro-dynamic metrics
-  -> intuition engine
-  -> differential reasoning
-  -> policy, abstention and critique
-  -> diagnostic orchestrator
-  -> governed memory and validation loop
-```
-
-### Functional areas
-
-- `visual_diagnostic_area`: imaging and radiology signals/ volumetric backend integration.
-- `language_listening_area`: reports, EHR text, symptoms and narrative reasoning, future Gemma 4 integration.
-- `case_context_area`: demographics, provenance and structured context.
-- `epidemiology_area`: exposures, prevalence and risk-factor context.
-- semantic memory: FalkorDB object-property RAG/RLM inference for symptoms, pathologies, cases, imaging studies, documents and epidemiological factors.
-- dream / replay branch: counterfactual, rare-case and mismatch-resolution candidates under strict governance.
-
-### Melampo intuition
-
-In Melampo, intuition is not an LLM guess. It is an emergent diagnostic candidate produced by multimodal convergence, semantic memory, coherence between simulated areas, controlled mismatch resolution, inhibition of noisy or bias-prone signals, dream replay and contextual belief update.
-
-## Implemented scaffold
-
-The repository currently includes:
-
-- Python package scaffold under `src/melampo/`.
-- End-to-end `ClinicalInferencePipeline`.
-- `MelampoDiagnosticOrchestrator` final controller.
-- `ModelCapabilityRegistry` for Pillar-0, Gemma, Claude/OpenAI, FalkorDB and Document processing roles.
-- FalkorDB schema and adapter contracts, including visual recognition imprint objects linked to semantic concepts.
-- Specialist adapter contracts 
-- Document processing contract with plain-text fallback.
-- Neuro-dynamic metrics, `pi_score`, convergence, mismatch, prediction error and belief-update signals.
-- Branch auto-evolution guardrails and candidate-only inferential visual imprint morphing over total or partial semantic concept overlap.
-- Retrospective clinical benchmark primitives.
-- Prospective validation registry primitives.
-- Confidence calibration evaluator.
-- CLI commands and CI workflow.
-
-## Installation profiles
-
-Melampo keeps the core scaffold lightweight and moves heavy research/enterprise dependencies into optional extras. Three requirements files are provided:
+| | English | Italiano |
+|---|---|---|
+| What it is, where it stands | [README](docs/en/README.md) | [README](docs/it/README.md) |
+| Architecture and data | [ARCHITECTURE](docs/en/ARCHITECTURE.md) | [ARCHITECTURE](docs/it/ARCHITECTURE.md) |
+| Validation and data lineage | [VALIDATION](docs/en/VALIDATION.md) | [VALIDATION](docs/it/VALIDATION.md) |
+| Compliance and risk | [COMPLIANCE_RISK](docs/en/COMPLIANCE_RISK.md) | [COMPLIANCE_RISK](docs/it/COMPLIANCE_RISK.md) |
+| Contributing | [CONTRIBUTING](docs/en/CONTRIBUTING.md) | [CONTRIBUTING](docs/it/CONTRIBUTING.md) |
+| Radiologists' guide | [RADIOLOGIST_GUIDE](docs/en/RADIOLOGIST_GUIDE.md) | [RADIOLOGIST_GUIDE](docs/it/RADIOLOGIST_GUIDE.md) |
+| Security policy | [SECURITY](docs/SECURITY.md) | |
 
 ```bash
-# Baseline development and CI profile
-python -m pip install -r requirements.txt
-
-# Research profile: dev + clinical 
-python -m pip install -r requirements-research.txt
-
-# Full enterprise profile: all optional research, imaging, ML, API, cognitive, intuitive and comprehension and visualization extras
-python -m pip install -r requirements-enterprise.txt
+uv sync --extra dev --extra data && uv run dvc update -R data && uv run pytest -q
 ```
-
-
-The enterprise profile may require platform-specific CPU/GPU choices for Python, imaging and scientific-computing wheels.
-
-## CLI commands
-
-```bash
-pip install -r requirements.txt
-pytest -q
-
-melampo-prototype examples/
-```
-
-## Documentation map start reference
-
-- `docs/final_treatise_decision_record.md` - canonical decisions for the final treatise.
-- `docs/enterprise_ai_rag_evolution.md` - enterprise AI/RAG/RLM evolution plan.
-- `docs/architecture.md` - current architecture overview.
-- `docs/architecture_consistency_matrix.md` - theory/document/code alignment and enterprise constraints.
-- `docs/core_consolidation_map.md` - canonical core module map.
-- `docs/validation/clinical_benchmarking_and_prospective_validation.md` - benchmark, prospective validation and calibration plan.
-- `docs/model_cards/melampo_model_stack_card.md` - model stack card.
-- `docs/dataset_cards/clinical_memory_dataset_card.md` - clinical memory dataset card.
-
-
-## Roadmap
-
-- [x] Research architecture and theoretical direction.
-- [x] Python research scaffold.
-- [x] Multimodal pipeline spine.
-- [x] Melampo-owned diagnostic orchestrator.
-- [x] FalkorDB semantic schema contract.
-- [x] Model capability registry.
-- [x] Benchmark, prospective validation and calibration primitives.
-- [ ] FalkorDB deployment adapter subclass.
-- [ ] Evaluate Pillar-0 inference adapter.
-- [ ] Real Gemma 4 local/private backend adapter.
-- [ ] Optional Claude critique adapter.
-- [ ] Real Docling ingestion pipeline with governed source catalogs.
-- [ ] Dataset-specific benchmark suites.
-- [ ] Prospective clinical validation under ethics/regulatory governance.
-
-## Contributing
-
-We welcome contributors in medical imaging, clinical NLP, RAG/RLM, ontologies, validation, computational neuroscience, medical doctors, cognitive researcher, neuroscientists, safety engineering and research infrastructure, pedagogists, cognitive philosophy expert.
-
-See `CONTRIBUTING.md`.
 
 ## ⚖️ License and Terms of Use
 

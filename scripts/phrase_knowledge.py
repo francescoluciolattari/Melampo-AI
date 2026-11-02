@@ -1,6 +1,6 @@
 """Knowledge for reading a phrase the way an expert does: E2 (informed reader) and E4a (memory arm).
 
-Why this exists (``docs/linker/perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md``): of the 33
+Why this exists (``docs-archive-2026-11:docs/linker/perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md``): of the 33
 errors of the external check, the largest group are compound names that a bigger vocabulary knows
 ("inferior vena cava filter placement", "Living-Related Liver Donation") and the LLM segmenter,
 asked without help, found 10 of 22 MedMentions errors while flagging 29 % of the right links. The

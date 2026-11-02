@@ -1,6 +1,6 @@
 """Regression tests for the visual imprint vector input (memory/visual_imprint.py).
 
-Defect found on 2026-09-26 (docs/imaging_decision_record.md): every vector went
+Defect found on 2026-09-26 (docs-archive-2026-11:docs/imaging_decision_record.md): every vector went
 through _matrix_to_vector -- first 256 values only, folded into 64 buckets,
 squashed by tanh -- so two different 1152-value embeddings, and a 1,000 mm3 and
 a 30,000 mm3 lesion, all scored cosine 1.000. Each test below reproduces one

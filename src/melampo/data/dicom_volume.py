@@ -70,7 +70,7 @@ it (PS3.3 C.7.6.2) and nothing it calls nominal:
 `measurement_precision` turns this into a declared level, so a precision
 is never claimed that the acquisition cannot support. The thresholds are
 QIBA's (<= 1.25 mm, no gaps) and those of a sub-voxel simulation recorded
-in docs/imaging_decision_record.md.
+in docs-archive-2026-11:docs/imaging_decision_record.md.
 
 **Not done here:** calling Pillar-0. The adapter stays disabled until a
 deployment exists. `export_series_directory` writes the de-identified
@@ -183,7 +183,7 @@ PRECISION_NONE = "none"
 # QIBA CT small-nodule volumetry profile (2023): reconstructed slice
 # thickness <= 1.25 mm, slice interval <= thickness.
 QIBA_MAX_SLICE_THICKNESS_MM = 1.25
-# Sub-voxel simulation (docs/imaging_decision_record.md): up to 2.5 mm the
+# Sub-voxel simulation (docs-archive-2026-11:docs/imaging_decision_record.md): up to 2.5 mm the
 # centre of a 4-10 mm high-contrast lesion is still located to <0.06 mm
 # along z; at 5 mm the error reaches ~1.1 mm and small-lesion volume +-43%.
 REDUCED_MAX_SLICE_THICKNESS_MM = 2.5
