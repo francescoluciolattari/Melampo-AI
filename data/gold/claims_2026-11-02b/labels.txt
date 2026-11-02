@@ -1,0 +1,207 @@
+# What the sentence states of the linked structure, claim by claim: labels of the second claims sample
+# (2 November 2026, after the corrections of the first claims run). Labeller: Claude, one labeller. Written
+# BEFORE any reader or model was run on these items: the labeller saw the clause, the marked mention, the
+# linked class and the exam (PARROT's modality and area), nothing else.
+# Items: scripts/owner_probe.py sample --seed 20261104 (PARROT v1.0; no report of any earlier sample).
+# 200 English items from 107 reports. Claims as in data/gold/claims_2026-11-02/labels.txt.
+# "?" at the end of the note: for a radiologist. Format: item|claims|note
+parrot-1960-en-0|nothing|exam name
+parrot-1960-en-1|nothing|exam name
+parrot-980-en-0|finding|nodules
+parrot-980-en-1|finding|calcifications of the valve
+parrot-980-en-2|finding|low-density lesions
+parrot-900-en-0|finding|loop protruding through the inguinal ring
+parrot-1820-en-0|aside|lucency at the base of the heart, pneumothorax?
+parrot-1110-en-0|finding+history|angulation, old post-traumatic
+parrot-2339-en-0|finding|calcifications, broader outline
+parrot-113-en-0|normal+measure|normal size, regular, homogeneous; 147 mm
+parrot-113-en-1|normal|normal size, no stones, thin wall
+parrot-113-en-2|normal+measure|normal size; 98 mm
+parrot-1498-en-0|normal|normal
+parrot-1684-en-0|finding|calcifications of the arch wall
+parrot-1373-en-0|finding|calcifications of the arch wall
+parrot-1646-en-0|finding|mass
+parrot-1646-en-1|finding|mass
+parrot-1033-en-0|finding|calcifications of the walls
+parrot-2254-en-0|finding+normal+measure|enlarged, hyperechoic; homogeneous, regular; CRL 170 mm
+parrot-2254-en-1|normal|partially filled, anechoic
+parrot-2552-en-0|normal|not distended, thin wall, no calculi
+parrot-2260-en-0|finding|hyperdense area, possibly an artifact
+parrot-1274-en-0|nothing|exam name
+parrot-2401-en-0|finding|mild regurgitation
+parrot-2401-en-1|finding|mild regurgitation
+parrot-1866-en-0|finding+normal+measure|elongated left lobe; homogeneous, no lesions; 9.7 cm ?
+parrot-1866-en-1|normal+measure|preserved differentiation, no stasis or stones; 9 cm
+parrot-1866-en-2|finding+normal+measure|enlarged; homogeneous; 12.5x7.5 cm
+parrot-1347-en-0|finding|calcifications
+parrot-1387-en-0|finding|atrophy
+parrot-1387-en-1|normal|normal
+parrot-2493-en-0|finding|increased inclination of the acetabulum; prostheses ?
+parrot-2493-en-1|aside|bone overgrowths in the soft tissues around the trochanter ?
+parrot-2493-en-2|aside|bone overgrowths between trochanter and acetabulum
+parrot-1862-en-0|aside|fluid around the liver
+parrot-1862-en-1|aside|fluid around the spleen
+parrot-1862-en-2|finding|focal lesion
+parrot-1580-en-0|measure|IVC 9.4 mm
+parrot-1580-en-1|measure|IVC 9.4 mm
+parrot-1580-en-2|nothing|heading of the atrial measures ?
+parrot-971-en-0|finding|bronchial dilation
+parrot-971-en-1|finding|bronchial dilation in the lingular segment
+parrot-971-en-2|finding|bronchial dilation
+parrot-983-en-0|finding+normal|irregular wall at the fundus; acceptable position and size
+parrot-983-en-1|finding|enlarged
+parrot-983-en-2|finding|enlarged
+parrot-2123-en-1|normal+measure|partially distended, anechoic; wall 5.4 mm
+parrot-2123-en-2|measure|117.2 mm, 347 cc
+parrot-1473-en-0|normal|normal
+parrot-1784-en-0|finding|calcified plaque
+parrot-1911-en-1|normal+measure|homogeneous, not enlarged; 10.8 cm
+parrot-1911-en-5|aside|free fluid near the bladder
+parrot-2465-en-0|normal|normal
+parrot-2676-en-0|finding|atrophy
+parrot-2542-en-0|finding|wall thickening, stenosis
+parrot-2542-en-1|finding|wall thickening, stenosis
+parrot-1834-en-0|normal|anechoic, thin walls
+parrot-1834-en-1|finding|accessory spleen ?
+parrot-1834-en-2|normal|thin walls, anechoic
+parrot-2428-en-0|finding|cancer
+parrot-2428-en-1|finding|cancer
+parrot-2428-en-3|finding+measure|dilated; 3.5 cm
+parrot-867-en-0|finding+measure|aneurysmal dilation; 4.7 cm
+parrot-867-en-1|finding|calcified plaques
+parrot-867-en-2|finding|valve sclerosis
+parrot-1864-en-1|finding+normal|stones; thin walls, not enlarged
+parrot-1864-en-2|normal+measure|homogeneous, not enlarged; 8.8 cm
+parrot-1864-en-3|finding+measure|irregular contours, increased echogenicity; 9.3 x 4.6 cm
+parrot-2440-en-0|aside|nodes along the curvatures
+parrot-2440-en-1|finding+measure|enlarged, heterogeneous; 6.3 x 4.3 x 4.1 cm
+parrot-2440-en-2|finding|diverticulosis
+parrot-857-en-0|finding|tumour-atelectasis complex
+parrot-1727-en-0|aside|a shadow in the area of the apex, alternatives listed ?
+parrot-1727-en-1|finding|enlarged
+parrot-1145-en-0|finding+measure|enlarged; 15 cm
+parrot-1122-en-1|finding+normal|hypoechoic; homogeneous ?
+parrot-652-en-0|measure|10.5 x 4 cm
+parrot-652-en-1|measure|11 x 4 cm
+parrot-1599-en-1|finding+normal|stones; thin-walled
+parrot-1599-en-2|finding|anechoic space, likely a cyst
+parrot-2547-en-0|finding|cortical thinning
+parrot-2547-en-1|finding|thinning, non-functional
+parrot-2547-en-2|measure|158 x 89 mm
+parrot-2305-en-1|normal|typical size, homogeneous, no lesions
+parrot-1057-en-0|finding|low-density shadow
+parrot-1057-en-1|finding|nodular thickening
+parrot-566-en-1|nothing|names a previous exam
+parrot-2574-en-0|finding|nodular lesion
+parrot-118-en-1|normal|normal
+parrot-118-en-3|normal|normal
+parrot-1733-en-0|finding|consolidation
+parrot-1733-en-2|finding|nodules
+parrot-1733-en-3|finding|nodule
+parrot-1536-en-0|normal|not enlarged, no pericardial fluid
+parrot-217-en-0|finding|atelectasis
+parrot-217-en-1|finding|nodules
+parrot-1111-en-0|finding|nodule
+parrot-1111-en-2|finding|nodule
+parrot-2433-en-2|aside|a focus in the region of the head, may be a lymph node ?
+parrot-2433-en-3|finding+measure|multilocular cyst; 37 x 29 mm
+parrot-2433-en-4|finding+measure|cyst; 79 x 49 mm
+parrot-1847-en-0|finding+normal|plaques; no narrowing
+parrot-1936-en-5|finding|two renal arteries ?
+parrot-2279-en-0|involved|displacement at the level
+parrot-2279-en-1|involved|displacement at the level
+parrot-2279-en-2|finding|elongated transverse processes
+parrot-1094-en-0|finding|endplate impression
+parrot-1760-en-1|finding|enhancement, hemangioma
+parrot-1760-en-2|measure|16 mm
+parrot-1760-en-4|nothing|an assessment possible with colonoscopy
+parrot-855-en-0|device|endotracheal tube above the carina
+parrot-855-en-2|finding|venous congestion
+parrot-1091-en-0|involved+normal|disc protrusion at the level; no narrowing, no compression
+parrot-1036-en-0|involved|ligament thickening at the level ?
+parrot-1036-en-1|normal|normal
+parrot-1036-en-2|finding|abnormal signal
+parrot-2548-en-0|finding|distension
+parrot-2548-en-1|finding|distension
+parrot-2548-en-2|finding|stenosing tumour
+parrot-1369-en-0|finding|thickening, possible metastasis
+parrot-1743-en-2|normal|no significant changes
+parrot-1807-en-0|finding|stone
+parrot-1807-en-1|finding|cysts
+parrot-1807-en-2|finding|diverticula
+parrot-1583-en-0|finding|flattening of the head
+parrot-1583-en-1|finding|osteophytes of the acetabulum, narrowed joint
+parrot-848-en-0|finding|cystic mass
+parrot-848-en-3|finding|cystic mass
+parrot-2274-en-1|aside|a shadow at the level
+parrot-2274-en-2|aside|a shadow at the level
+parrot-2220-en-2|normal|typically lobulated, no dilation of the duct
+parrot-2220-en-3|normal|no wall thickening
+parrot-2220-en-4|finding|calcifications
+parrot-1149-en-0|finding|nodule
+parrot-1577-en-0|measure|loops of 56 mm, likely the colon ?
+parrot-109-en-0|normal|normal size
+parrot-109-en-1|normal|good capacity, no stones, thin wall
+parrot-2530-en-0|normal|full, non-lithiasic fluid
+parrot-845-en-0|finding|venous congestion
+parrot-1947-en-0|involved|kyphosis centred at the level
+parrot-1947-en-1|finding|anterolisthesis of C4
+parrot-1947-en-2|finding|anterolisthesis of C5 on C6
+parrot-648-en-0|normal|minimally filled ?
+parrot-1525-en-4|normal|not enlarged, no focal changes
+parrot-1525-en-5|finding|fatty nodule
+parrot-543-en-0|involved|stenosis at the level
+parrot-543-en-1|involved|stenosis at the level
+parrot-543-en-2|involved|stenosis at the level
+parrot-1870-en-4|finding|dilated collecting system
+parrot-1923-en-2|finding|thickening, nodule
+parrot-1923-en-3|finding|calcification
+parrot-979-en-0|finding|nodules
+parrot-979-en-1|finding|nodules
+parrot-979-en-5|finding|cystic lesions
+parrot-1854-en-0|finding|cortical cyst
+parrot-1854-en-1|finding+measure|constricted calyx; pelvis 14 mm
+parrot-1571-en-0|aside|the fracture is of the femur; hip names the exam ?
+parrot-1571-en-1|aside|loose bodies in the region of the femoral head ?
+parrot-1571-en-2|finding|degenerative changes, sclerosis of the iliac bone
+parrot-1041-en-0|finding|step-like change
+parrot-1041-en-1|finding|wedge deformity
+parrot-849-en-0|finding|suspected fracture
+parrot-1416-en-0|finding|nodules
+parrot-1416-en-1|not_assessable|unsuitable for evaluation
+parrot-1416-en-9|finding+measure|enlarged; 53 x 65 mm
+parrot-2101-en-0|normal|normal
+parrot-2042-en-0|finding|nodule
+parrot-2042-en-1|finding|nodule
+parrot-1878-en-0|aside|the thyroid places the level of the tracheal narrowing
+parrot-1878-en-1|finding|irregular, narrowed
+parrot-1878-en-2|aside|the isthmus places the level of the narrowing
+parrot-1768-en-5|aside|node between the aorta and the cava
+parrot-1768-en-6|finding|flattening
+parrot-2413-en-0|measure|IVC 7.2 mm
+parrot-2413-en-1|measure|IVC 7.2 mm
+parrot-2413-en-2|nothing|heading of the atrial measures ?
+parrot-261-en-0|finding|tree-in-bud
+parrot-594-en-0|finding|hypervascularization
+parrot-67-en-0|finding|lytic lesion
+parrot-67-en-1|finding|lytic lesion
+parrot-2090-en-0|measure|9.8 mm
+parrot-1268-en-0|involved|epidural lipomatosis at the level
+parrot-1268-en-1|involved|epidural lipomatosis at the level
+parrot-519-en-0|involved|stenosis at the level
+parrot-519-en-1|involved|stenosis at the level
+parrot-1026-en-2|involved|lesion poorly demarcated from it
+parrot-1026-en-9|involved|lesion poorly demarcated from it
+parrot-1026-en-13|finding|cyst
+parrot-209-en-0|finding+normal+measure|borderline low flow; normal width, antegrade; 14 cm/s
+parrot-1757-en-0|finding|tree-in-bud
+parrot-1757-en-1|finding|bronchiectasis
+parrot-1040-en-0|aside|a nodule beneath the skull plate ?
+parrot-1034-en-0|finding|traction bronchiectasis
+parrot-1034-en-1|finding|opacities
+parrot-1034-en-2|finding|ground-glass nodule
+parrot-1951-en-0|finding|lesions
+parrot-1951-en-2|finding|lesion, fracture
+parrot-1697-en-4|finding|the ureters drain into the loop ?
+parrot-882-en-0|finding|mass
+parrot-1589-en-4|finding+measure|calcifications; 29x44 mm

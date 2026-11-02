@@ -135,3 +135,81 @@ come sviluppo e per confronto con la lettura per tipi.
 Workflow `owner-probe`: input `sets` = `claims,statement` (default), modelli come prima. Scarica HPO e PATO. La
 tabella è in `by_set.claims.claims_kinds`; ogni riga ha il campo `claims` (verdetto, affermazioni concordate,
 risposte dei modelli, `review`).
+
+## Il run (2 novembre 2026, pomeriggio): non vale per i criteri
+
+**Molte risposte sono andate perse.** Le chiamate a OpenRouter sono fallite dopo i tentativi (`EncoderError`):
+- sul campione `claims`: Nemotron 47 risposte su 200 nella lettura per affermazioni, Gemma nessuna;
+- sul campione `statement`, che girava dopo: Nemotron circa il 93%, Gemma circa il 31%.
+
+Il numero degli errori cresce mentre il run va avanti, quindi è probabile che sia finito il credito o che il
+servizio limiti le chiamate. Il messaggio non era registrato, solo il tipo; ora lo è (`error_text`). Una risposta
+persa vale "non so" e manda la frase alla persona. **Il campione `statement` di questo run è da buttare**, e i
+numeri del campione `claims` si possono leggere solo sugli item a cui hanno risposto tutti e due i modelli.
+
+**Sul campione `claims`, sui 153 item con le due risposte:**
+
+| | da non attribuire (5): attribuiti | da tenere (148): tolti / alla persona |
+|---|---|---|
+| domanda vecchia (167 item con le due risposte) | 0 | **2** / 15 |
+| affermazione per affermazione | **2** | 0 / **31 (21%)** |
+
+- **Criterio 1, non passa:** 2 item attribuiti. "Fluid in the right pleural cavity reaching the seventh right
+  rib": tutti e due i modelli dicono che arriva alla costola, mentre su una radiografia è il livello. L'altro è la
+  calcificazione al livello del legamento sul bordo di L5, un'etichetta segnata "?".
+- **Criterio 2, passa.**
+- **Criterio 3, non passa:** 21% alla persona.
+- **Criterio 4, passa:** 4,3%.
+
+**La causa principale (20 dei 31): i modelli chiamano "altra struttura" una parte della struttura.** Il ponte
+del cervello, la parete dell'arco aortico, il collo del femore, la valvola mitrale del cuore, l'ileo terminale
+dell'intestino tenue: alla domanda «le parole nominano la struttura collegata?» un modello risponde "no", perché il
+nome è diverso. Ma se un nome indica la struttura o una sua parte, lo dice l'anatomia, ed è conoscenza del lettore.
+Ora il lettore legge con UBERON (`part_of`, `is_a`) se ciò che il modello nomina è la struttura, una sua parte o il
+tutto di cui è parte (`FindingOwner.same_structure`). **Riletto sulle stesse risposte, già viste, quindi come
+sviluppo e non come criterio:** alla persona 18 su 149 (12,1%), nessun reperto tolto, 4,6% attaccati in modo
+diverso.
+
+**Che cosa resta (i 18):**
+- 3 casi "the wall of the arch": il lettore non sa che l'arco è dell'aorta;
+- 4 casi in cui Nemotron mette fra le osservazioni "homogeneous", "not enlarged", "smooth wall";
+- 2 casi in cui un modello risponde "no" alla domanda «nominano la struttura?» pensando ai reperti della frase,
+  non alle parole (L5 nell'ernia);
+- 1 caso in cui il lettore legge una struttura della frase precedente (la riga di PARROT contiene due frasi);
+- 2 dell'anca: l'articolazione e l'osso della classe;
+- gli altri sono disaccordi veri.
+
+## Le correzioni e il secondo campione (2 novembre 2026, sera, fissati prima del run)
+
+**Le correzioni**, tutte generali:
+- **anatomia del lettore.** Se ciò che il modello nomina è la struttura, una sua parte o il tutto di cui è parte,
+  lo legge il lettore con UBERON (`FindingOwner.same_structure`), anche i nomi brevi come "pons". Se il modello
+  indica "di chi è" con una parte (parete, lume, segmento) e il lettore non trova nessun'altra struttura in quelle
+  parole ("the wall of the arch"), è una parte di questa struttura;
+- **la domanda «nominano la struttura?»** ora dice: «rispondi solo sulle parole marcate, non su ciò che la frase
+  descrive; sì se nominano la struttura o una sua parte»;
+- **fin dove arriva un reperto** ("up to", "reaching", "as far as", "until", "fino a") è una relazione a parte,
+  `extent`. Dice un limite, non un contatto. Per il lettore Kintsch pesa zero, quindi la lettura dei ruoli non
+  cambia. Se i modelli dicono che il reperto arriva alla struttura e le parole della relazione sono di vicinanza,
+  sovrapposizione o limite, decide una persona;
+- **un'assenza fra le osservazioni.** Il lettore legge la negazione: "not enlarged" passa fra le affermazioni
+  normali;
+- **la frase della menzione.** Chi porta il reperto si cerca solo nella frase della menzione (ci si ferma anche a
+  ".", "?" e "!");
+- **il run conta solo se ha le risposte.** Se va persa più del 5% delle risposte di una lettura, il run non conta
+  per i criteri (`valid_for_criteria`, `lost_answers` con i messaggi d'errore);
+- **meno chiamate.** Il workflow ha l'input `arms` (default `claims`): la domanda vecchia e la lettura per tipi
+  sono già misurate e girano solo se richieste.
+
+**Il secondo campione** (`data/gold/claims_2026-11-02b/labels.txt`):
+- 200 item inglesi da 107 referti PARROT mai usati (seed 20261104), con etichette scritte prima di ogni lettura;
+- che cosa si attacca: un reperto in 134 item, solo le altre affermazioni in 49, niente alla struttura in 17;
+- 18 etichette sono segnate "?".
+
+**Criteri, gli stessi**, sul campione `claims2` (lettore + Gemma 4 + Nemotron 3 Ultra, solo la lettura per
+affermazioni):
+1. dei 17 item da non attribuire, nessuno attaccato senza passare da una persona;
+2. dei 134 item con un reperto, nessuno messo da parte (al massimo due, dichiarati);
+3. alla persona al massimo il 10% dei 183 item da tenere (18), contando anche le domande di lateralità;
+4. fra gli accettati, al massimo il 5% con un reperto dove l'etichetta non lo ha, o il contrario;
+5. il run vale solo se si perde al massimo il 5% delle risposte.

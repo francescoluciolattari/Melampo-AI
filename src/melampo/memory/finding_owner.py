@@ -103,6 +103,7 @@ class Anatomy:
     def __init__(self, uberon: Any = None, lexicon_path: Path = LEXICON, uberon_names: dict | None = None):
         self.uberon = uberon            # hpo_candidates.Anatomy, or None
         self.names: dict[tuple[str, ...], set[str]] = {}
+        self.short: dict[tuple[str, ...], set[str]] = {}
         classes = json.loads(Path(lexicon_path).read_text("utf-8"))["classes"]
         self.regions = {cid: c.get("region", "") for cid, c in classes.items()}
         from .hpo_candidates import site_anchors
@@ -135,17 +136,25 @@ class Anatomy:
 
     def _add(self, name: str, ids: set[str]) -> None:
         key = tuple(_singular(w) for w in _WORD.findall(name.lower()))
-        if not key or (len(key) == 1 and (key[0] in _GENERIC or len(key[0]) < 5)):
+        if not key or (len(key) == 1 and key[0] in _GENERIC):
+            return
+        if len(key) == 1 and len(key[0]) < 5:
+            # a short single name ("pons", "arch") is too often a word of something else to say what a clause
+            # describes; it is used only to read a name a model gives (``find(..., short=True)``)
+            if len(key[0]) >= 4:
+                self.short.setdefault(key, set()).update(ids)
             return
         self.names.setdefault(key, set()).update(ids)
 
-    def find(self, text: str) -> list[tuple[str, set[str]]]:
-        """Every body structure named in ``text``, longest names first, in order."""
+    def find(self, text: str, short: bool = False) -> list[tuple[str, set[str]]]:
+        """Every body structure named in ``text``, longest names first, in order (``short``: also the short
+        single names, for a name a model gives)."""
         words = [_singular(w) for w in _WORD.findall(text.lower())]
         out, i = [], 0
         while i < len(words):
             for n in range(min(5, len(words) - i), 0, -1):
-                ids = self.names.get(tuple(words[i:i + n]))
+                ids = self.names.get(tuple(words[i:i + n])) or (
+                    self.short.get(tuple(words[i:i + n])) if short and n == 1 else None)
                 if ids:
                     out.append((" ".join(words[i:i + n]), ids))
                     i += n
@@ -435,7 +444,8 @@ class FindingOwner:
             linked = set(site_anchors(cid)) | {f"class:{cid}"}
             # the words of the mention's own segment: a list ("the liver, the pancreas") or a coordinated clause
             # ("the duct measures 2 mm, and the portal vein") names other structures beside it, not its bearer
-            before = re.split(r"[,;/]", clause[:at])[-1]
+            # ... and only in the mention's own sentence (a line of a report can hold two)
+            before = re.split(r"[,;/]|[.?!](?=\s)", clause[:at])[-1]
             base = at - len(before)
             after = clause[at + len(mention): at + len(mention) + 30]
             named = self.anatomy.find(before)
@@ -476,7 +486,8 @@ class FindingOwner:
                 said[model] = read_owner(chat(prompt))
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
                 said[model] = {"answer": "uncertain", "linked": "uncertain", "valid": False,
-                               "error": type(error).__name__}
+                               "error": type(error).__name__,
+                               "error_text": str(error)[:160]}
         verdicts = {{"yes": HERE, "no": ELSEWHERE}.get(a.get("answer"), UNSURE) for a in said.values()}
         verdict = verdicts.pop() if len(verdicts) == 1 else UNSURE      # two models are one stream
         placed = next((str(a.get("finding") or "") for a in said.values() if a.get("answer") == "no"), "")
@@ -497,7 +508,8 @@ class FindingOwner:
                 said[model] = read_statement(chat(prompt), clause)
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
                 said[model] = {"type": "uncertain", "piece": "", "of": "", "found": False, "valid": False,
-                               "error": type(error).__name__}
+                               "error": type(error).__name__,
+                               "error_text": str(error)[:160]}
         return said
 
     def _by_statement(self, mention: str, clause: str, at: int, language: str, cid: str,
@@ -553,8 +565,67 @@ class FindingOwner:
             try:
                 said[model] = read_claims(chat(prompt), clause, mention)
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
-                said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__}
+                said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
+                               "error_text": str(error)[:160]}
+        return self._with_anatomy(said, mention, cid)
+
+    def _with_anatomy(self, said: dict[str, dict], mention: str, cid: str) -> dict[str, dict]:
+        """Whether a structure the model names is the linked one is anatomy, and anatomy is the reader's: a
+        part of the linked structure is the linked structure ("the wall of the arch" of the aorta, the pons of
+        the brain, the neck of the femur), and so is the whole it is a part of (2 November 2026: the models
+        answered "another structure" for the parts, 20 of the 31 findings sent to a person). The model's words
+        are kept; ``of_by_the_reader`` and ``same_by_the_reader`` say where the reader read them."""
+        if not cid:
+            return said
+        from .hpo_candidates import site_anchors
+
+        linked = set(site_anchors(cid)) | {f"class:{cid}"}
+        from .spatial_relation import _OWN_PARTS
+        from .what_is_said import negated
+
+        for answer in said.values():
+            if not answer.get("valid"):
+                continue
+            kept = []
+            for o in answer.get("observed", []):
+                if negated(o.get("words", "")):
+                    # "not enlarged" is not an observation but an absence: the reader reads the negation
+                    answer.setdefault("normal", []).append(o["words"])
+                    answer.setdefault("moved_by_the_reader", []).append(o["words"])
+                    continue
+                kept.append(o)
+                if o.get("of") in ("it", "?", ""):
+                    continue
+                if self.same_structure(o["of"], linked):
+                    o["of_by_the_reader"], o["of"] = o["of"], "it"
+                elif (set(re.findall(r"[a-zà-ÿ]+", o["of"].lower())) & _OWN_PARTS
+                      and not self.anatomy.find(o["of"], short=True)):
+                    # "the wall of the arch": a part, and no other structure named, is a part of this one
+                    o["of_by_the_reader"], o["of"] = o["of"], "it"
+            answer["observed"] = kept
+            if answer.get("same") == "no":
+                named = answer.get("named") or answer.get("marked") or mention
+                if self.same_structure(named, linked) or self.same_structure(mention, linked):
+                    answer["same_by_the_reader"], answer["same"] = "no", "yes"
         return said
+
+    def same_structure(self, words: str, linked: set[str]) -> bool:
+        """Do the words name the linked structure, a part of it, or a whole it is a part of (UBERON
+        ``part_of``/``is_a``, or the linker's lexicon)? Unknown words: no."""
+        found = self.anatomy.find(words, short=True)
+        if not found:
+            return False
+        for _, ids in found:
+            if ids & linked:
+                return True
+            uber = {u for u in ids if u.startswith("UBERON:")}
+            for u in uber:
+                if self.anatomy.up(u) & linked:
+                    return True          # a part (or a kind) of the linked structure
+            for l in (x for x in linked if x.startswith("UBERON:")):
+                if self.anatomy.up(l) & uber:
+                    return True          # the linked structure is a part of it
+        return False
 
     def _by_claims(self, mention: str, clause: str, at: int, language: str, cid: str, context: dict) -> Ownership:
         """What the sentence states of the structure, claim by claim, each with its words (``read_claims``).
@@ -605,7 +676,9 @@ class FindingOwner:
                 return "the_reader_reads_a_differential"
             for o in findings:
                 if o.get("relation") and o.get("of") != "it" and _relation_kind(o["relation"], language) in (
-                        "proximity", "projection"):
+                        "proximity", "projection", "extent"):
+                    # near it, superimposed on it, or as far as it ("reaching the seventh rib" on a radiograph:
+                    # a level): the words do not say that it reaches the structure
                     return "the_relation_words_say_near_not_reaching"
             words = [o["words"] for o in findings]
             if words and all(_pure_measure(w, mention) for w in words):

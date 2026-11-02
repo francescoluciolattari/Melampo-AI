@@ -14,9 +14,13 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
       sets:
-        description: "samples to read: claims (2 Nov, labelled by claims), statement (1 Nov, by type), fresh, dev, heldout"
+        description: "samples: claims2 (2 Nov, second), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
         required: false
-        default: "claims,statement"
+        default: "claims2"
+      arms:
+        description: "readings with the models: claims, statement, owner (each costs two calls per item)"
+        required: false
+        default: "claims"
 
 permissions:
   contents: read
@@ -51,11 +55,14 @@ jobs:
             --seed 20261102 --out owner_items_statement.jsonl
           uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
             --seed 20261103 --out owner_items_claims.jsonl
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --seed 20261104 --out owner_items_claims2.jsonl
 
       - name: Run the probe
         env:
           MODELS: ${{ inputs.models }}
           SETS: ${{ inputs.sets }}
+          ARMS: ${{ inputs.arms }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
@@ -66,6 +73,7 @@ jobs:
           ITEMS=()
           for name in ${SETS//,/ }; do
             case "$name" in
+              claims2) ITEMS+=(--items claims2=owner_items_claims2.jsonl) ;;
               claims) ITEMS+=(--items claims=owner_items_claims.jsonl) ;;
               statement) ITEMS+=(--items statement=owner_items_statement.jsonl) ;;
               fresh) ITEMS+=(--items fresh=owner_items_fresh.jsonl) ;;
@@ -74,7 +82,11 @@ jobs:
               *) echo "::error::unknown set $name"; exit 2 ;;
             esac
           done
-          uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" \
+          SKIP=""
+          for arm in owner statement claims; do
+            [[ ",${ARMS// /}," == *",$arm,"* ]] || SKIP="$SKIP,$arm"
+          done
+          uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" --skip "${SKIP#,}" \
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo --hpo hp-full.obo --pato pato.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
             --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json

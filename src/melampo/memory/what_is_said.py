@@ -259,6 +259,18 @@ def _radiological(word: str, language: str) -> bool:
     return bool(_RADIOLOGICAL.match(word))
 
 
+def negated(text: str, language: str = "en") -> bool:
+    """Does the assertion detector read the last word of ``text`` as negated ("not enlarged", "no stones")?"""
+    from .assertion import POLARITY_NEGATED, AssertionDetector, select_cues
+
+    words = list(re.finditer(r"[A-Za-zÀ-ÿ]+", text or ""))
+    if len(words) < 2:
+        return False
+    detector = AssertionDetector(cues=select_cues(language if language in ("en", "it") else "en"))
+    last = words[-1]
+    return detector.detect(text, last.start(), last.end()).polarity == POLARITY_NEGATED
+
+
 def past(text: str, language: str = "en") -> bool:
     """Does the assertion detector read ``text`` as a fact of the past (its historical cues)?"""
     from .assertion import TEMPORALITY_HISTORICAL, AssertionDetector, select_cues
@@ -287,4 +299,4 @@ def conjuncts(sentence: str, a: tuple[int, int], b: tuple[int, int]) -> bool:
     return False
 
 
-__all__ = ["AnomalyWords", "conjuncts", "past", "phrases", "stated_anomalies"]
+__all__ = ["AnomalyWords", "conjuncts", "negated", "past", "phrases", "stated_anomalies"]

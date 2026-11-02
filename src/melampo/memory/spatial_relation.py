@@ -30,6 +30,7 @@ CONTAINMENT = "containment"   # the finding is in or of the structure: the struc
 PROXIMITY = "proximity"       # the structure only places something else: a landmark
 DIRECTION = "direction"       # towards or into the structure: weaker evidence of a landmark
 PROJECTION = "projection"     # superimposed on it in a projection image: neither in nor out (1 November 2026)
+EXTENT = "extent"             # as far as it ("up to", "reaching", "fino a"): a limit, in contact or not (2 November)
 AFFECTED = "affected"         # the structure is the object of a verb ("infiltrates the duodenum")
 
 # Spatial indicators, longest first within a language. Multi-word ones are matched as written, and an
@@ -44,6 +45,7 @@ _EN = {
         "in front of", "away from", "apart from",
     ),
     DIRECTION: ("into", "towards", "toward", "onto"),
+    EXTENT: ("as far as", "up to", "reaching", "reaches", "until"),
     PROJECTION: ("in the projection of", "projected over", "projecting over", "projected onto", "projecting onto",
                  "projected on", "superimposed on", "overlying"),
     CONTAINMENT: ("within", "inside", "throughout", "involving", "affecting", "of", "in", "at", "on"),
@@ -57,6 +59,7 @@ _IT = {
         "all'esterno", "al di fuori", "al di sopra", "al di sotto", "sopra", "sotto", "dietro", "davanti",
     ),
     DIRECTION: ("verso", "dentro"),
+    EXTENT: ("fino", "sino"),
     PROJECTION: ("in proiezione", "proiettato su", "proiettata su", "proiettati su", "proiettate su",
                  "sovrapposto a", "sovrapposta a", "sovrapposti a", "sovrapposte a"),
     CONTAINMENT: (
@@ -192,4 +195,4 @@ def _placed(tokens: list[str], language: str) -> str:
     return " ".join(words[-8:])
 
 
-__all__ = ["AFFECTED", "CONTAINMENT", "DIRECTION", "PROJECTION", "PROXIMITY", "Relation", "read_relation"]
+__all__ = ["AFFECTED", "CONTAINMENT", "DIRECTION", "EXTENT", "PROJECTION", "PROXIMITY", "Relation", "read_relation"]

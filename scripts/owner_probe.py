@@ -42,9 +42,13 @@ OWNER_LABELS = ROOT / "data/gold/finding_owner_2026-11-01/labels.txt"
 STATEMENT_LABELS = ROOT / "data/gold/statement_2026-11-01/labels.txt"
 # the sample of the claim-by-claim reading (2 November 2026): what the sentence states of the structure
 CLAIMS_LABELS = ROOT / "data/gold/claims_2026-11-02/labels.txt"
-SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS}
+# the second claims sample (2 November 2026, after the corrections of the claims run)
+CLAIMS2_LABELS = ROOT / "data/gold/claims_2026-11-02b/labels.txt"
+SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS}
+CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
+CLAIMS2_SEED = 20261104
 
 
 def owner_labels() -> dict[str, str]:
@@ -78,11 +82,12 @@ def statement_labels() -> dict[str, tuple[str, bool]]:
     return out
 
 
-def claims_labels() -> dict[str, tuple[set[str], bool]]:
+def claims_labels(name: str = "claims") -> dict[str, tuple[set[str], bool]]:
     """item -> (the claims of the label, for a radiologist)."""
     out = {}
-    if CLAIMS_LABELS.exists():
-        for line in CLAIMS_LABELS.read_text("utf-8").splitlines():
+    path = CLAIMS_FILES.get(name, CLAIMS_LABELS)
+    if path.exists():
+        for line in path.read_text("utf-8").splitlines():
             if line.strip() and not line.startswith("#"):
                 item, kinds, note = (line.split("|") + ["", ""])[:3]
                 out[item.strip()] = (set(kinds.strip().split("+")), note.rstrip().endswith("?"))
@@ -155,8 +160,8 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
 
 def gold_of(item: dict, name: str, own_labels: dict[str, str], away: dict[str, set[str]]) -> str:
     """An Italian item with its own label is not the sentence of the English one: it is "here" unless listed."""
-    if name == "claims":
-        kinds = claims_labels().get(item["item_id"], (set(), False))[0]
+    if name in CLAIMS_FILES:
+        kinds = claims_labels(name).get(item["item_id"], (set(), False))[0]
         return "" if not kinds else "elsewhere" if outcome_of_claims(kinds) == "aside" else "here"
     if name == "statement":
         from melampo.memory.finding_owner import ASIDE, STATEMENT_GROUPS
@@ -228,6 +233,7 @@ def statement_table(rows: list[dict], arm: str) -> dict:
 
 
 FRESH_SEED = 20261101
+LOST_LIMIT = 0.05
 
 
 def build_fresh(parrot: Path, n_en: int, n_it: int, per_report: int, per_structure: int,
@@ -284,7 +290,8 @@ def main(argv: list[str] | None = None) -> int:
         # every report already used when the sample was drawn: the two HPO samples, and for the statement sample
         # also the owner sample (so that each seed draws again the items its labels were written on)
         before = {FRESH_SEED: [*LABELS.values()], STATEMENT_SEED: [*LABELS.values(), OWNER_LABELS],
-                  CLAIMS_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS]}
+                  CLAIMS_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS],
+                  CLAIMS2_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
@@ -305,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--parrot", help="PARROT_v1_0.jsonl: the whole report, for the exam and the section")
     ap.add_argument("--uberon", help="uberon.obo: what is part of what")
     ap.add_argument("--questions", help="where to write the questions for a person (review_question), one per line")
-    ap.add_argument("--skip", default="", help="arms not to run: statement, claims")
+    ap.add_argument("--skip", default="", help="arms not to run: owner, statement, claims")
     ap.add_argument("--hpo", help="hp-full.obo: what the reader knows of abnormalities (the claims arm)")
     ap.add_argument("--pato", help="pato.obo: the qualities of the abnormalities")
     ap.add_argument("--out", required=True)
@@ -370,8 +377,8 @@ def main(argv: list[str] | None = None) -> int:
                    "structure": item["structure"], "gold": gold}
             if name == "statement":
                 row["gold_type"], row["gold_doubt"] = statement_labels()[item["item_id"]]
-            if name == "claims":
-                kinds, row["gold_doubt"] = claims_labels()[item["item_id"]]
+            if name in CLAIMS_FILES:
+                kinds, row["gold_doubt"] = claims_labels(name)[item["item_id"]]
                 row["gold_claims"] = sorted(kinds)
             report = reports.get(item.get("report"))
             context = {}
@@ -383,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
             row["_item"] = item
             row["reader"] = reader_only(item["mention"], item["clause"], at, item["language"], item["structure"],
                                         context).as_dict()
-            if with_models is not None:
+            if with_models is not None and "owner" not in args.skip:
                 row["reader+models"] = with_models(item["mention"], item["clause"], at, item["language"],
                                                    item["structure"], context).as_dict()
             if statement is not None and "statement" not in args.skip:
@@ -401,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         rs = [r for r in rows if r["set"] == name]
         report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models", "statement", "claims")
                                   if any(arm in r for r in rs)}
-        if name == "claims" and any("claims" in r for r in rs):
+        if name in CLAIMS_FILES and any("claims" in r for r in rs):
             report["by_set"][name]["claims_kinds"] = claims_table(rs, "claims")
         if name == "statement" and any("statement" in r for r in rs):
             report["by_set"][name]["statement_types"] = statement_table(rs, "statement")
@@ -423,11 +430,26 @@ def main(argv: list[str] | None = None) -> int:
                                    structure_name=FindingOwner.linked_name(item["structure"]),
                                    context=row.get("context"))
                 fh.write(json.dumps({**q.as_dict(), "set": row["set"], "gold": row["gold"]}, ensure_ascii=False) + "\n")
+    # a run whose lost answers (a call that failed after its retries) are more than LOST_LIMIT of an arm's does
+    # not count for the criteria (2 November 2026: the credit ran out during a run)
+    report["lost_answers"] = {}
+    for arm in ("reader+models", "statement", "claims"):
+        answers = [a for r in rows if arm in r for a in (r[arm].get("models") or {}).values()]
+        if answers:
+            lost = [a for a in answers if a.get("error")]
+            report["lost_answers"][arm] = {
+                "answers": len(answers), "lost": len(lost), "share": round(len(lost) / len(answers), 4),
+                "messages": dict(Counter(a.get("error_text") or a.get("error") for a in lost).most_common(5))}
+    report["valid_for_criteria"] = all(v["share"] <= LOST_LIMIT for v in report["lost_answers"].values())
+    if not report["valid_for_criteria"]:
+        print(f"WARNING: more than {LOST_LIMIT:.0%} of the answers were lost: the run does not count for the "
+              f"criteria {json.dumps(report['lost_answers'])}", file=sys.stderr)
     for row in rows:
         row.pop("_item", None)
     report["rows"] = rows
     Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1), "utf-8")
-    print(json.dumps(report["by_set"], ensure_ascii=False, indent=1))
+    print(json.dumps({"valid_for_criteria": report["valid_for_criteria"], "lost_answers": report["lost_answers"],
+                      **report["by_set"]}, ensure_ascii=False, indent=1))
     return 0
 
 

@@ -160,3 +160,43 @@ def test_agreed_claims_keep_what_every_model_fills():
     b = _answer(observed=[{"words": "x", "of": "it"}], normal=["n"])
     got = agreed_claims([a, b])
     assert got["normal"] == ["n"] and "device" not in got and got["findings"][0]["words"] == "x"
+
+
+def test_a_part_the_model_names_is_the_structure_when_the_reader_reads_it_so():
+    s = "The aorta shows calcifications in the wall of the arch"
+    said = _answer(marked="aorta", observed=[{"words": "calcifications", "of": "wall of the arch", "relation": "in"}])
+    got = _owner(said, said)("aorta", s, 4, "en", "aorta")
+    assert got.verdict == HERE and got.claims["findings"][0]["of"] == "it"
+
+
+def test_an_absence_listed_as_an_observation_is_an_absence():
+    s = "The spleen is not enlarged, homogeneous"
+    a = _answer(marked="spleen", normal=["not enlarged"])
+    b = _answer(marked="spleen", observed=[{"words": "not enlarged", "of": "it"}])
+    got = _owner(a, b)("spleen", s, 4, "en", "spleen")
+    assert got.verdict == HERE and got.statement == KEEP
+
+
+def test_as_far_as_is_not_reaching():
+    from melampo.memory.spatial_relation import EXTENT, read_relation
+
+    s = "fluid in the right pleural cavity reaching the seventh right rib"
+    assert read_relation(s, s.index("seventh")).kind == EXTENT
+    said = _answer(marked="seventh right rib", observed=[{"words": "fluid in the right pleural cavity",
+                                                         "of": "right pleural cavity", "relation": "reaching",
+                                                         "reaches": "yes"}])
+    got = _owner(said, said)("seventh right rib", s, s.index("seventh"), "en", "rib_right_7")
+    assert got.verdict == UNSURE and "the_relation_words_say_near_not_reaching" in got.reader
+
+
+def test_the_question_asks_about_the_marked_words_not_the_findings():
+    p = claims_prompt("At the L5-S1 level, a disc herniation", 7, 9, "lumbar vertebra 5")
+    assert "about the marked words only" in p and "or a part of it" in p
+
+
+def test_the_bearer_is_read_in_the_mention_s_own_sentence():
+    from melampo.memory.finding_owner import FindingOwner as Owner
+
+    owner = Owner(None, {})
+    s = "1.1 cm, and to the terminal part of the duodenum - invasion? The gallbladder is contracted after a meal"
+    assert owner._reader("gallbladder", s, s.index("gallbladder"), "en", "gallbladder", {})[0] == "here"
