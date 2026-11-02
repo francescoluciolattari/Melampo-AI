@@ -582,8 +582,9 @@ exactly from the sentence (you may shorten a long piece with "..." between copie
 a value you know to be normal is not "normal" unless the sentence says so; a finding the sentence does not state
 is not there. Leave a list empty when the sentence says nothing of that kind.
 - marked: the marked words, copied.
-- same: "yes" if the marked words name the linked structure here, "no" if they name another one (then named:
-  the structure they name), "unsure".
+- same: about the marked words only, not about what the sentence describes: "yes" if here they name the linked
+  structure or a part of it, "no" if they name a different structure (then named: the structure they name),
+  "unsure".
 - observed: everything the sentence observes that differs from the usual: a lesion, a change of size, shape,
   density, signal, position or content, even if mild. For each: words; of: "it" if it is of the linked structure or
   one of its parts, otherwise the structure it is of, copied from the sentence; relation: the words that relate it

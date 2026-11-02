@@ -444,7 +444,8 @@ class FindingOwner:
             linked = set(site_anchors(cid)) | {f"class:{cid}"}
             # the words of the mention's own segment: a list ("the liver, the pancreas") or a coordinated clause
             # ("the duct measures 2 mm, and the portal vein") names other structures beside it, not its bearer
-            before = re.split(r"[,;/]", clause[:at])[-1]
+            # ... and only in the mention's own sentence (a line of a report can hold two)
+            before = re.split(r"[,;/]|[.?!](?=\s)", clause[:at])[-1]
             base = at - len(before)
             after = clause[at + len(mention): at + len(mention) + 30]
             named = self.anatomy.find(before)
@@ -579,12 +580,29 @@ class FindingOwner:
         from .hpo_candidates import site_anchors
 
         linked = set(site_anchors(cid)) | {f"class:{cid}"}
+        from .spatial_relation import _OWN_PARTS
+        from .what_is_said import negated
+
         for answer in said.values():
             if not answer.get("valid"):
                 continue
+            kept = []
             for o in answer.get("observed", []):
-                if o.get("of") not in ("it", "?", "") and self.same_structure(o["of"], linked):
+                if negated(o.get("words", "")):
+                    # "not enlarged" is not an observation but an absence: the reader reads the negation
+                    answer.setdefault("normal", []).append(o["words"])
+                    answer.setdefault("moved_by_the_reader", []).append(o["words"])
+                    continue
+                kept.append(o)
+                if o.get("of") in ("it", "?", ""):
+                    continue
+                if self.same_structure(o["of"], linked):
                     o["of_by_the_reader"], o["of"] = o["of"], "it"
+                elif (set(re.findall(r"[a-zà-ÿ]+", o["of"].lower())) & _OWN_PARTS
+                      and not self.anatomy.find(o["of"], short=True)):
+                    # "the wall of the arch": a part, and no other structure named, is a part of this one
+                    o["of_by_the_reader"], o["of"] = o["of"], "it"
+            answer["observed"] = kept
             if answer.get("same") == "no":
                 named = answer.get("named") or answer.get("marked") or mention
                 if self.same_structure(named, linked) or self.same_structure(mention, linked):
@@ -658,7 +676,9 @@ class FindingOwner:
                 return "the_reader_reads_a_differential"
             for o in findings:
                 if o.get("relation") and o.get("of") != "it" and _relation_kind(o["relation"], language) in (
-                        "proximity", "projection"):
+                        "proximity", "projection", "extent"):
+                    # near it, superimposed on it, or as far as it ("reaching the seventh rib" on a radiograph:
+                    # a level): the words do not say that it reaches the structure
                     return "the_relation_words_say_near_not_reaching"
             words = [o["words"] for o in findings]
             if words and all(_pure_measure(w, mention) for w in words):

@@ -178,3 +178,38 @@ diverso.
 - 1 caso in cui il lettore legge una struttura della frase precedente (la riga di PARROT contiene due frasi);
 - 2 dell'anca: l'articolazione e l'osso della classe;
 - gli altri sono disaccordi veri.
+
+## Le correzioni e il secondo campione (2 novembre 2026, sera, fissati prima del run)
+
+**Le correzioni**, tutte generali:
+- **anatomia del lettore.** Se ciò che il modello nomina è la struttura, una sua parte o il tutto di cui è parte,
+  lo legge il lettore con UBERON (`FindingOwner.same_structure`), anche i nomi brevi come "pons". Se il modello
+  indica "di chi è" con una parte (parete, lume, segmento) e il lettore non trova nessun'altra struttura in quelle
+  parole ("the wall of the arch"), è una parte di questa struttura;
+- **la domanda «nominano la struttura?»** ora dice: «rispondi solo sulle parole marcate, non su ciò che la frase
+  descrive; sì se nominano la struttura o una sua parte»;
+- **fin dove arriva un reperto** ("up to", "reaching", "as far as", "until", "fino a") è una relazione a parte,
+  `extent`. Dice un limite, non un contatto. Per il lettore Kintsch pesa zero, quindi la lettura dei ruoli non
+  cambia. Se i modelli dicono che il reperto arriva alla struttura e le parole della relazione sono di vicinanza,
+  sovrapposizione o limite, decide una persona;
+- **un'assenza fra le osservazioni.** Il lettore legge la negazione: "not enlarged" passa fra le affermazioni
+  normali;
+- **la frase della menzione.** Chi porta il reperto si cerca solo nella frase della menzione (ci si ferma anche a
+  ".", "?" e "!");
+- **il run conta solo se ha le risposte.** Se va persa più del 5% delle risposte di una lettura, il run non conta
+  per i criteri (`valid_for_criteria`, `lost_answers` con i messaggi d'errore);
+- **meno chiamate.** Il workflow ha l'input `arms` (default `claims`): la domanda vecchia e la lettura per tipi
+  sono già misurate e girano solo se richieste.
+
+**Il secondo campione** (`data/gold/claims_2026-11-02b/labels.txt`):
+- 200 item inglesi da 107 referti PARROT mai usati (seed 20261104), con etichette scritte prima di ogni lettura;
+- che cosa si attacca: un reperto in 134 item, solo le altre affermazioni in 49, niente alla struttura in 17;
+- 18 etichette sono segnate "?".
+
+**Criteri, gli stessi**, sul campione `claims2` (lettore + Gemma 4 + Nemotron 3 Ultra, solo la lettura per
+affermazioni):
+1. dei 17 item da non attribuire, nessuno attaccato senza passare da una persona;
+2. dei 134 item con un reperto, nessuno messo da parte (al massimo due, dichiarati);
+3. alla persona al massimo il 10% dei 183 item da tenere (18), contando anche le domande di lateralità;
+4. fra gli accettati, al massimo il 5% con un reperto dove l'etichetta non lo ha, o il contrario;
+5. il run vale solo se si perde al massimo il 5% delle risposte.
