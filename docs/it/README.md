@@ -3,9 +3,9 @@
 *[English](../en/README.md) · Italiano · aggiornato al 2 novembre 2026*
 
 Melampo legge un caso clinico (la nota del medico, i referti, le tabelle di laboratorio, le immagini) e propone
-una diagnosi differenziale strutturata, con le prove a favore e contro ogni ipotesi e un «non posso dirlo»
-esplicito quando le prove non reggono. È un **sistema di ricerca**: non è un dispositivo medico e non dà diagnosi
-ai pazienti.
+una diagnosi differenziale strutturata, con le prove a favore e contro ogni ipotesi e un «per ora non posso
+dirlo» esplicito quando le prove non reggono e servono altri accertamenti. È un **sistema di ricerca**: non è un
+dispositivo medico e non dà diagnosi ai pazienti.
 
 ## Uso previsto
 
