@@ -1,0 +1,179 @@
+# Risk register (ISO 14971), the source of the table in docs/en/COMPLIANCE_RISK.md and docs/it/COMPLIANCE_RISK.md.
+# Every control names the tests that verify it (tests/<file>.py::<test>); scripts/docs_check.py check fails when a
+# test does not exist, or when a risk has neither a control nor a reason. Severity and probability are the
+# project's first estimate (1 low - 5 high), to be reviewed with a physician; residual risk after the controls.
+# Status: controlled | partial (controlled, criterion not yet met) | open (no control yet).
+risks:
+  - id: R01
+    hazard: A finding is attached to the wrong anatomical structure
+    situation: The differential and the graph rest on a site the report does not state
+    harm: Wrong or missed diagnosis
+    severity: 4
+    probability: 3
+    controls:
+      - control: The deterministic reader and the models must agree; a person decides on contradiction
+        tests:
+          - tests/test_finding_owner.py::test_the_reader_and_the_model_decide_together
+          - tests/test_claims_reading.py::test_the_models_one_stream_must_agree
+      - control: A structure the model names is read as the linked one, a part or another with UBERON
+        tests:
+          - tests/test_claims_reading.py::test_a_part_the_model_names_is_the_structure_when_the_reader_reads_it_so
+    measured_by: owner-probe, criterion 1 (VALIDATION.md)
+    status: partial
+  - id: R02
+    hazard: A right finding is removed from its structure
+    situation: A real abnormality never reaches the differential
+    harm: Missed diagnosis
+    severity: 4
+    probability: 2
+    controls:
+      - control: Neither the reader alone nor the models alone set a finding aside
+        tests:
+          - tests/test_claims_reading.py::test_what_is_of_another_structure_is_set_aside_only_with_the_reader_or_its_relation_words
+          - tests/test_statement_reading.py::test_a_type_the_reader_contradicts_goes_to_a_person_and_the_models_alone_set_nothing_aside
+    measured_by: owner-probe, criterion 2
+    status: controlled
+  - id: R03
+    hazard: A language model states something the sentence does not say
+    situation: An invented finding, measure or structure enters the case
+    harm: Wrong diagnosis
+    severity: 4
+    probability: 3
+    controls:
+      - control: Every claim must be words copied from the sentence; an answer about other words is not valid
+        tests:
+          - tests/test_claims_reading.py::test_words_not_in_the_sentence_are_dropped_and_other_marked_words_make_the_answer_invalid
+          - tests/test_claims_reading.py::test_a_piece_shortened_with_dots_is_copied_when_every_part_is_there_in_order
+          - tests/test_statement_reading.py::test_the_piece_must_be_in_the_sentence
+    status: controlled
+  - id: R04
+    hazard: An absent or negated finding is read as present
+    situation: "\"no stones\", \"not enlarged\" become findings"
+    harm: Wrong diagnosis, unnecessary tests
+    severity: 3
+    probability: 2
+    controls:
+      - control: Assertion detection (negation, possibility, time) on every finding
+        tests:
+          - tests/test_layered_assertion.py::test_a_paraphrase_of_absence_negates_without_a_negation_word
+          - tests/test_claims_reading.py::test_an_absence_listed_as_an_observation_is_an_absence
+    status: controlled
+  - id: R05
+    hazard: A fact of the past is read as a current finding
+    situation: "\"history of thyroid surgery\" becomes a current thyroid finding"
+    harm: Wrong diagnosis
+    severity: 3
+    probability: 2
+    controls:
+      - control: Past facts are attached as history, not as findings
+        tests:
+          - tests/test_statement_reading.py::test_the_thyroid_gets_its_history_and_the_kidney_its_measure
+    status: controlled
+  - id: R06
+    hazard: A patient's report is sent to a service outside the hospital
+    situation: Health data leave the controller's systems
+    harm: Breach of confidentiality (GDPR art. 9)
+    severity: 5
+    probability: 1
+    controls:
+      - control: The report router refuses an external model for patients' texts
+        tests:
+          - tests/test_report_router.py::test_an_external_model_is_refused
+      - control: Probes reach an external endpoint only for public corpora
+        tests:
+          - tests/test_role_probe.py::test_an_external_endpoint_needs_public_texts
+    status: controlled
+  - id: R07
+    hazard: Text that is not pseudonymised enters review or training data
+    situation: Identifiers are stored or learned
+    harm: Breach of confidentiality
+    severity: 5
+    probability: 1
+    controls:
+      - control: Review records refuse text that is not pseudonymised
+        tests:
+          - tests/test_review_feedback.py::test_text_that_is_not_pseudonymised_is_refused
+    status: controlled
+  - id: R08
+    hazard: The system learns from unconfirmed or unfounded labels
+    situation: A wrong diagnosis is trained in
+    harm: Systematic wrong diagnoses
+    severity: 4
+    probability: 2
+    controls:
+      - control: A confirmation without a clinical basis is kept out of training
+        tests:
+          - tests/test_confirmation_and_merge.py::test_without_a_clinical_basis_the_case_is_kept_but_waits_to_be_declared
+      - control: A review answer becomes a label only after a second person confirms it
+        tests:
+          - tests/test_review_feedback.py::test_only_confirmed_records_train
+    status: controlled
+  - id: R09
+    hazard: Records of another patient are merged or closed with a case
+    situation: Findings of two patients mixed
+    harm: Wrong diagnosis
+    severity: 5
+    probability: 1
+    controls:
+      - control: Matching by exact identifiers; an unrelated patient's record is never swept in
+        tests:
+          - tests/test_case_confirmation.py::test_an_unrelated_patients_pending_record_is_never_swept_in
+          - tests/test_clinical_pipeline_smoke.py::test_a_different_patient_same_date_is_treated_as_a_new_case
+    status: controlled
+  - id: R10
+    hazard: A hypothesis is promoted to knowledge without enough confirmation
+    situation: A conjecture becomes a traversable edge of the graph
+    harm: Systematic wrong reasoning
+    severity: 3
+    probability: 2
+    controls:
+      - control: Too few confirmations do not promote; promotion asks a person
+        tests:
+          - tests/test_conjecture_ledger.py::test_too_few_confirmations_do_not_promote
+          - tests/test_conjecture_ledger.py::test_a_leap_is_not_traversable_before_promotion
+    status: controlled
+  - id: R11
+    hazard: The memory retriever reports evidence when the memory is empty
+    situation: Three invented items of evidence support a hypothesis
+    harm: Overconfident or wrong diagnosis
+    severity: 4
+    probability: 4
+    controls: []
+    no_control_because: Known defect, to fix by an explicit abstention of the retriever (next steps)
+    status: open
+  - id: R12
+    hazard: The exam names one side and the sentence the other
+    situation: A finding attached to the wrong side, or a dictation error unnoticed
+    harm: Wrong-site diagnosis or procedure
+    severity: 4
+    probability: 2
+    controls:
+      - control: A laterality conflict goes to a person, the finding stays where the sentence puts it
+        tests:
+          - tests/test_claims_reading.py::test_the_exam_on_one_side_and_the_sentence_on_the_other_goes_to_a_person
+    status: controlled
+  - id: R13
+    hazard: A performance figure is measured on data the system was tuned on
+    situation: The figure overstates the real performance
+    harm: The system is trusted beyond what it can do
+    severity: 4
+    probability: 3
+    controls:
+      - control: Frozen test splits and fresh samples with labels written before the run
+        tests:
+          - tests/test_frozen_split.py::test_development_rows_hold_back_frozen_documents_unless_final
+      - control: A probe run that loses more than 5% of the answers does not count
+        verified_by: scripts/owner_probe.py (lost_answers, valid_for_criteria)
+    status: controlled
+  - id: R14
+    hazard: A language model does not answer, or answers out of format
+    situation: A missing answer is read as agreement
+    harm: A wrong reading passes unchecked
+    severity: 3
+    probability: 3
+    controls:
+      - control: A lost or unreadable answer is "cannot say" and sends the item to a person
+        tests:
+          - tests/test_statement_reading.py::test_the_models_are_one_stream_and_nothing_gives_way
+          - tests/test_form_ambiguity.py::test_a_model_that_does_not_answer_makes_the_verify_check_abstain
+    status: controlled

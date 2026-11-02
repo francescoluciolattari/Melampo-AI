@@ -1,0 +1,23 @@
+name: Documentation check
+
+# The documentation's own checks (2 November 2026): the SOUP list is current, every risk control names tests that
+# exist, docs/en and docs/it hold the same files with the same sections and tables, links resolve.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pyyaml
+      - run: python scripts/docs_check.py check

@@ -77,7 +77,7 @@ def _default_claims() -> list[FalsifiableClaim]:
     None of these is settled by the decision to implement the architecture. Each
     is stated with the observation that would refute it.
     """
-    record = "docs/rlm_on_memory_decision_record.md"
+    record = "docs-archive-2026-11:docs/rlm_on_memory_decision_record.md"
     return [
         FalsifiableClaim(
             claim_id="rlm.dual_path_beats_single_path",

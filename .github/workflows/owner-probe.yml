@@ -5,7 +5,7 @@ name: Owner probe (of what is the finding said?)
 # it to place something else (scripts/owner_probe.py, src/melampo/memory/finding_owner.py). PARROT is public
 # (CC BY-NC-SA 4.0) and goes to OpenRouter only as such (--public-data); patients' reports never take this
 # road. Billed calls: one or two per item and model (the reader's method, with one follow-up when the phrase
-# is cut short). See docs/linker/di_che_cosa_parla_la_frase_2026-10-31.md.
+# is cut short). See docs-archive-2026-11:docs/linker/di_che_cosa_parla_la_frase_2026-10-31.md.
 on:
   workflow_dispatch:
     inputs:

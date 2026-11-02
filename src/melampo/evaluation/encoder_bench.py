@@ -1,6 +1,6 @@
 """Which text encoder should Melampo pin for normalised clinical terms?
 
-The decision (D17/D21 in docs/imaging_decision_record.md) is made by
+The decision (D17/D21 in docs-archive-2026-11:docs/imaging_decision_record.md) is made by
 measuring, not by reading leaderboards. General multilingual benchmarks say
 little about the failure that matters here: an encoder that places "rene
 destro" next to "rene sinistro", or "nodulo presente" next to "assenza di

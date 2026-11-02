@@ -57,7 +57,7 @@ decisions_pending:
       the volume), in one shared space as VL-JEPA does? Meta's VL-JEPA
       weights are non-commercial (see vl-jepa-weights); options are an own
       VL-JEPA-style model or interim encoders whose vectors are re-computed
-      later (docs/imaging_decision_record.md, 2026-09-26).
+      later (docs-archive-2026-11:docs/imaging_decision_record.md, 2026-09-26).
     how_it_is_decided: >-
       Licence of each component, a 3D visual encoder available for CT/MRI,
       and paired (visual object, textual object) data to train the shared
@@ -96,7 +96,7 @@ decisions_pending:
       (LICENSE_COMMERCIAL vs LICENSE_NONCOMMERCIAL)?
     why_it_matters: >-
       The connector is already fully built and reads NCBI_API_KEY (see
-      docs/pmc_connector_guide.md) -- nothing currently calls it
+      docs-archive-2026-11:docs/pmc_connector_guide.md) -- nothing currently calls it
       automatically, unlike the literature refresh's four connectors.
       Wiring it into a workflow without a stated scope risks silently
       growing an uncurated evaluation corpus, the same reason the literature
@@ -560,7 +560,7 @@ assets:
     consumers: [connectors/pmc_case_reports.py, evaluation/nexus_capture_benchmark.py]
     notes: >-
       Real clinical case reports for the B4 evaluation protocol. Already
-      fully built and reads NCBI_API_KEY (docs/pmc_connector_guide.md);
+      fully built and reads NCBI_API_KEY (docs-archive-2026-11:docs/pmc_connector_guide.md);
       blocked only on deciding whether/how to automate it (see
       decisions_pending: ncbi-case-corpus) -- nothing calls it yet.
 
@@ -635,7 +635,7 @@ assets:
       ReXGroundingCT. The Apache code could be re-trained on data Melampo is
       licensed to use; the released weights cannot be used commercially.
       2026-10-02: chosen by the owner for lesion isolation
-      (docs/imaging_decision_record.md, new imaging architecture). Melampo's
+      (docs-archive-2026-11:docs/imaging_decision_record.md, new imaging architecture). Melampo's
       own licence is now CC BY-NC 4.0, so the weights fit its declared
       non-commercial use in our reading. 2026-10-03: the owner closed D15 for
       these weights -- they may be used (status moved from blocked_licence to

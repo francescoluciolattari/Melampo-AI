@@ -426,7 +426,7 @@ class ClinicalDocumentProcessor:
     a reference to a decision this project no longer holds.
 
     Two parsers are supported instead, matching the deployment-mode decision
-    already made for the vetting engine (see docs/recursive_engine_decision_record.md):
+    already made for the vetting engine (see docs-archive-2026-11:docs/recursive_engine_decision_record.md):
     Nemotron-Parse is the default because it is the one genuinely on-premise
     option -- open weights, no vendor API dependency -- while a hosted
     alternative (LlamaParse) is checked separately, since its own vendor

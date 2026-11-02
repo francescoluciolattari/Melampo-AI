@@ -7,7 +7,7 @@ name: HPO probe (from a report's finding to an HPO term)
 # patients' reports never take this road. Billed calls: about two per item and model (one more for the Italian
 # items, which the model first renders in English), plus the descent of the site's HPO tree (one call per step,
 # usually 2-4). See scripts/hpo_probe.py and
-# docs/linker/dal_reperto_al_termine_hpo_2026-10-31.md.
+# docs-archive-2026-11:docs/linker/dal_reperto_al_termine_hpo_2026-10-31.md.
 on:
   workflow_dispatch:
     inputs:

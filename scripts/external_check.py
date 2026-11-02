@@ -36,7 +36,7 @@ Limits, written where the numbers are. The texts are mouse genetics and biomedic
 radiology reports; the labels follow those projects' guidelines (CRAFT annotates "renal" as kidney;
 MedMentions annotates the longest concept). The numbers are an external check of the lexicon and of
 the deterministic stages, **not** a certification: that needs a fresh sample of the population of
-use, labelled by radiologists (``docs/gold_set_protocollo.md``).
+use, labelled by radiologists (``docs-archive-2026-11:docs/gold_set_protocollo.md``).
 
     python scripts/external_check.py --craft PATH/craft --medmentions PATH/MedMentions \
         --out external_check.json --markdown external_check.md
@@ -402,7 +402,7 @@ def verify_summary(rows):
 
 
 # What the project's labelling rule says where MedMentions labels another concept than the structure
-# (docs/gold_set_protocollo.md): the structure is named when it is the origin of cells or tissue
+# (docs-archive-2026-11:docs/gold_set_protocollo.md): the structure is named when it is the origin of cells or tissue
 # ("liver cells", "brain parenchyma"), the site of a device or a procedure ("IVC filter", "C2
 # pedicle screw"), the subject of a disease ("liver disease") or of an imaging measure ("brain
 # volume", "heart size"). These are differences of convention, not errors of the linker; they are

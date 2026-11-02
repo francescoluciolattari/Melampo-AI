@@ -253,7 +253,7 @@ class NexusCandidateStore:
 
         Not a status transition: a deleted record is gone, not moved to a
         terminal status, because the whole point of calling this is that
-        nothing about the case should remain (see docs/recursive_engine_decision_record.md
+        nothing about the case should remain (see docs-archive-2026-11:docs/recursive_engine_decision_record.md
         on why raw clinical narrative is not kept once its training use is
         served).
         """

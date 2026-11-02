@@ -51,7 +51,7 @@ def test_pick_pending_case_finds_a_case_already_pending():
 
 
 # --------------------------------------------------------------------------
-# pick_mode: the four-row table from docs/rlm_on_memory_decision_record.md
+# pick_mode: the four-row table from docs-archive-2026-11:docs/rlm_on_memory_decision_record.md
 # --------------------------------------------------------------------------
 
 

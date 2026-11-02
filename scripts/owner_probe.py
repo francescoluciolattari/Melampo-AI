@@ -7,7 +7,7 @@ linker found (``here``) or uses it to place something else (``elsewhere``), with
 the reader and the models (the reader's method, ``llm_reading.method_prompt``). The gold: the items of
 ``data/gold/finding_owner_2026-10-31/elsewhere.txt`` are ``elsewhere``, every other labelled item ``here``.
 
-Criteria fixed before the run (``docs/linker/di_che_cosa_parla_la_frase_2026-10-31.md``):
+Criteria fixed before the run (``docs-archive-2026-11:docs/linker/di_che_cosa_parla_la_frase_2026-10-31.md``):
 * every ``elsewhere`` item goes to a person or is set aside (no finding at the structure): none stays ``here``;
 * among the ``here`` items no finding is set aside, or at most two, said;
 * the role probe (separate workflow) keeps "site or not" where it was.

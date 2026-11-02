@@ -1360,12 +1360,12 @@ class AnatomyLinker:
     # The phrase around the mention read as blocks (chunk_lattice.py). Off by default: when given, the
     # reading is written in the trace (stream "blocks") and in ``LinkResult.block``; it decides nothing
     # until its roles have been checked on the radiologists' gold set (roles right in 60-80% of a
-    # reading of real reports, docs/linker/lettura_del_sintagma_cervello_e_modelli_2026-10-09.md §8).
+    # reading of real reports, docs-archive-2026-11:docs/linker/lettura_del_sintagma_cervello_e_modelli_2026-10-09.md §8).
     chunk_lattice: ChunkLattice | None = None
     # The construction-integration reader (ci_reader.CIReader, a Kintsch-style integrator over the
     # readings of the mention). Off by default and, when given, trace only: its reading goes to the
     # stream "reader" and to ``LinkResult.reading``, silent, and decides nothing. It did not meet the
-    # pre-registered criteria on the external check (docs/linker/perche_il_medico_legge_e_noi_sbagliamo_
+    # pre-registered criteria on the external check (docs-archive-2026-11:docs/linker/perche_il_medico_legge_e_noi_sbagliamo_
     # 2026-10-09.md §6.1); it is here so the radiologists' gold set can measure it on real reports.
     ci_reader: Any = None
     # What the reader may do, from the least to the most:

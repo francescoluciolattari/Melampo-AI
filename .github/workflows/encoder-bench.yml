@@ -4,7 +4,7 @@ name: Text encoder bench (synthetic Italian anatomical phrases)
 # real, billed calls to OpenRouter (embeddings, a few hundred short phrases per
 # candidate, cents in total) and must never fire on every commit.
 #
-# It answers D17/D21 in docs/imaging_decision_record.md: which text encoder to
+# It answers D17/D21 in docs-archive-2026-11:docs/imaging_decision_record.md: which text encoder to
 # pin for normalised clinical terms. The phrases are synthetic and hand
 # written, so no patient data is sent anywhere. What is measured, and what the
 # result does and does not establish, is in

@@ -735,7 +735,7 @@ def summarise(cases, failures, args) -> dict:
     return report
 
 
-# Fixed before the runs (docs/linker/perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md, section 6):
+# Fixed before the runs (docs-archive-2026-11:docs/linker/perche_il_medico_legge_e_noi_sbagliamo_2026-10-09.md, section 6):
 # a reader passes if it finds at least 12 of the 22 MedMentions errors while flagging at most 3 % of
 # the right links it read, or if the kind it reads gives the gold label's role in at least 70 % of
 # the MedMentions errors it types.

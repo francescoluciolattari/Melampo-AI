@@ -40,7 +40,7 @@ dev = [
   # `pip install -e .[dev]` could not run the full suite.
   "PyYAML>=6.0",
 ]
-# Data and model-weight management (see docs/environment_and_data.md):
+# Data and model-weight management (see docs-archive-2026-11:docs/environment_and_data.md):
 # reference data is tracked by DVC, pinned to versioned upstream release
 # URLs, and fetched with `uv run dvc update -R data` -- no storage remote is
 # needed for public sources. A storage-remote plugin (dvc-s3, dvc-azure,
@@ -62,7 +62,7 @@ clinical = [
   "PyYAML>=6.0",
 ]
 # document extra removed: Docling was replaced by Nemotron-Parse/LlamaParse
-# (see docs/recursive_engine_decision_record.md); this declaration was left
+# (see docs-archive-2026-11:docs/recursive_engine_decision_record.md); this declaration was left
 # behind when the code was removed and is corrected here.
 retrieval = [
   "weaviate-client>=4.5",
