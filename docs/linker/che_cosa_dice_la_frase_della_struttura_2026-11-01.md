@@ -105,3 +105,60 @@ modello concordano con l'esito sbagliato.
 Workflow `owner-probe`: input `sets` = `statement,fresh` (default), modelli come prima. Le risposte stanno in
 `owner_probe.json`: per ogni riga i campi `statement` (verdetto, gruppo, pezzo, risposte dei modelli) e
 `reader+models` (la domanda di prima). La tabella per tipo è in `by_set.statement.statement_types`.
+
+## Il run (2 novembre 2026): la lettura resta spenta
+
+Owner probe con il lettore, Gemma 4 31B e Nemotron 3 Ultra, sul campione `statement` (200 item inglesi).
+
+| | da non attribuire (15): messi da parte / alla persona / **attribuiti** | da tenere (185): **tolti** / alla persona |
+|---|---|---|
+| domanda vecchia («il reperto è suo?») | 3 / 11 / **1** | **0** / 27 (14,6%) |
+| **lettura per tipi** | 1 / 11 / **3** | **0** / 37 (**20%**) |
+
+**I criteri.**
+1. **Non passa.** Restano attribuiti 3 item, tutti con l'etichetta segnata "?":
+   - la frattura pertrocanterica (del femore) attaccata all'osso dell'anca: è un errore dei modelli;
+   - lo scivolamento di C4 su C5 letto come "coinvolta": secondo la nostra stessa definizione (il livello che C5
+     forma) i modelli hanno ragione, e l'etichetta "riferimento" è incoerente con quella delle ernie al livello;
+   - le arterie del lobo superiore ristrette, lette come "coinvolta": discutibile.
+2. **Passa:** nessun reperto giusto tolto.
+3. **Non passa:** va alla persona il 20% dei reperti giusti, contro il 10% ammesso. La domanda vecchia ci manda
+   il 14,6%.
+4. **Passa:** fra i 137 item accettati, quelli attaccati con il tipo sbagliato sono **0**. Quando la lettura
+   accetta, il tipo è sempre quello dell'etichetta: reperto, normale, misura, niente.
+5. 20 risposte su 816 avevano un pezzo che non è nella frase: 19 di Gemma, 1 di Nemotron.
+
+Per la regola fissata prima, la lettura resta spenta nell'ingestione.
+
+**Perché vanno alla persona i 37.**
+
+| Causa | Casi | Esempio |
+|---|---|---|
+| **Gemma abbrevia il pezzo con "…"**, che quindi non si trova nella frase; la sua risposta vale "non so" | 12 | "Multiple nodules are observed in the ... right upper lobe" |
+| **Difetti del lettore nel controllo del tipo** | 3 | "S1" preso per una misura (la "s" dei secondi); "intracranial fluid spaces" preso per un liquido anormale |
+| **Il lettore legge l'altra struttura di una coordinazione come portatrice** (`describes:`) | 4 | "masses in the liver … and in the pancreas"; "blood flow through the stomach and duodenum" |
+| **Il lettore ha ragione**, o il caso è difficile | 4 | "hypodense halo around it" detto "normale" dai modelli; "right upper lobe bronchus" |
+| **Riferimento letto dal lettore contro i modelli** | 1 | "emphysema *surrounding* the upper lobe": l'enfisema è del polmone |
+| **Disaccordo vero fra i due modelli** | 11 | reperto o normale ("hyperechoic and not enlarged"); normale o misura (IMT 0,5 mm); niente o riferimento ("At L5-S1:"); un modello dice "altra struttura" per la valvola mitrale o il femore |
+| **I modelli concordi su "riferimento", il lettore senza prove** | 2 | il tubo in trachea, il catetere nel ramo portale: dispositivi, che fra i tipi non ci sono |
+
+**Che cosa si correggerebbe, in generale e non per caso:**
+- un pezzo con "…" vale se ogni sua parte è nella frase, nell'ordine: è sempre copiato e non inventato;
+- nel lettore, una misura vuole un numero con un'unità vera (`sizes_in_text`). "Fluid" esce dalle parole di
+  anormalità, perché nomina anche spazi anatomici. La portatrice si legge dopo l'ultima coordinazione ("e", "and"),
+  non solo dopo la virgola;
+- un tipo per i dispositivi (tubo, catetere, stent nella struttura) che li tenga come stato della struttura.
+
+Restano gli 11 disaccordi veri fra i modelli, che sono già sotto il 10% del totale. Le correzioni vanno misurate
+su un altro campione nuovo: restano 2038 referti PARROT inglesi mai usati. Questo campione ormai è visto, e le
+etichette "?" vanno al radiologo.
+
+**Role probe** (gpt-oss-120b, Gemma 4, Mistral Small 4), dopo la correzione della definizione di `landmark` e del
+lettore:
+- "sede o no": 0 item su cui lettore e modello concordano con l'esito sbagliato, per tutti i modelli;
+- Gemma: ruoli giusti 86,0% con la domanda semplice e 87,6% con il metodo. Prima dell'errore erano 89,4% e 91,5%,
+  dopo l'errore 76,8% e 80,4%;
+- i "landmark" detti da Gemma dove il gold dice struttura: 39 prima dell'errore, poi 142, ora 66. Una parte è
+  un difetto del gold dello strato Rad-SpRL, che va ancora riletto;
+- il lettore da solo è invariato (90,7%): le correzioni della relazione spaziale non cambiano nulla di questo
+  gold.
