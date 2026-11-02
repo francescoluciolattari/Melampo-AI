@@ -14,9 +14,9 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
       sets:
-        description: "samples to read: statement (2 Nov, labelled by type), fresh (1 Nov), dev, heldout (HPO)"
+        description: "samples to read: claims (2 Nov, labelled by claims), statement (1 Nov, by type), fresh, dev, heldout"
         required: false
-        default: "statement,fresh"
+        default: "claims,statement"
 
 permissions:
   contents: read
@@ -31,8 +31,12 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - run: uv sync --locked
 
-      - name: UBERON (what is part of what)
-        run: curl -sSL --fail -o uberon.obo https://github.com/obophenotype/uberon/releases/latest/download/uberon.obo
+      - name: UBERON (what is part of what), HPO and PATO (what is an abnormality)
+        run: |
+          curl -sSL --fail -o uberon.obo https://github.com/obophenotype/uberon/releases/latest/download/uberon.obo
+          curl -sSL --fail -o hp-full.obo \
+            https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/hp-full.obo
+          curl -sSL --fail -o pato.obo https://raw.githubusercontent.com/pato-ontology/pato/master/pato.obo
 
       - name: PARROT reports and the three samples (the seeds of the labels)
         run: |
@@ -45,6 +49,8 @@ jobs:
             --out owner_items_fresh.jsonl
           uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
             --seed 20261102 --out owner_items_statement.jsonl
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --seed 20261103 --out owner_items_claims.jsonl
 
       - name: Run the probe
         env:
@@ -60,6 +66,7 @@ jobs:
           ITEMS=()
           for name in ${SETS//,/ }; do
             case "$name" in
+              claims) ITEMS+=(--items claims=owner_items_claims.jsonl) ;;
               statement) ITEMS+=(--items statement=owner_items_statement.jsonl) ;;
               fresh) ITEMS+=(--items fresh=owner_items_fresh.jsonl) ;;
               dev) ITEMS+=(--items dev=hpo_items.jsonl) ;;
@@ -68,7 +75,7 @@ jobs:
             esac
           done
           uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" \
-            --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo \
+            --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo --hpo hp-full.obo --pato pato.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
             --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json
 

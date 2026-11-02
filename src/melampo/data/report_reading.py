@@ -137,10 +137,20 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
             note = f"+uberon_unavailable:{type(error).__name__}"
     # the question asked of the models: "is the finding of this structure?" (default) or, once measured, "what
     # does the sentence say of this structure?" (MELAMPO_OWNER_QUESTION=statement, 1 November 2026)
+    # ... or claim by claim (MELAMPO_OWNER_QUESTION=claims, 2 November 2026), with what the reader knows of
+    # abnormalities from HPO and PATO (MELAMPO_HPO, MELAMPO_PATO)
     question = os.environ.get("MELAMPO_OWNER_QUESTION", "owner")
-    question = question if question in ("owner", "statement") else "owner"
-    return (FindingOwner(reader, chats, anatomy, question=question),
-            "finding_owner:reader" + ("+models" if chats else "") + note + (":statement" if question == "statement" else ""))
+    question = question if question in ("owner", "statement", "claims") else "owner"
+    anomalies = None
+    if question == "claims":
+        from ..memory.what_is_said import AnomalyWords
+
+        try:
+            anomalies = AnomalyWords.from_env()
+        except Exception as error:  # noqa: BLE001 -- the reader checks less without the ontologies
+            note += f"+anomalies_unavailable:{type(error).__name__}"
+    return (FindingOwner(reader, chats, anatomy, question=question, anomalies=anomalies),
+            "finding_owner:reader" + ("+models" if chats else "") + note + (f":{question}" if question != "owner" else ""))
 
 
 @dataclass

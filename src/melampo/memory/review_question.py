@@ -44,6 +44,10 @@ STATEMENTS: dict[str, tuple[str, str, str, str, bool]] = {
                         ASIDE, "other_structure", True),
     "hypothesis": ("È nominata solo come ipotesi o diagnosi differenziale",
                    "It is named only as a hypothesis or in a differential diagnosis", ASIDE, "hypothesis", False),
+    "device": ("C'è un dispositivo in lei (tubo, catetere, stent, protesi)",
+               "There is a device in it (a tube, a catheter, a stent, a prosthesis)", KEEP, "device", False),
+    "not_assessable": ("La frase dice che non si può valutare", "The sentence says it cannot be assessed", KEEP,
+                       "not_assessable", False),
     "cannot_say": ("Dalla frase non si può dire", "The sentence does not let one say", OPEN, "", False),
 }
 
@@ -62,6 +66,10 @@ KINDS: dict[str, tuple[str, str]] = {
     "reference_or_finding": ("Il reperto descritto riguarda la struttura «{s}» (parole «{m}»), "
                              "o «{s}» serve solo a dire dove si trova?",
                              "Is the finding of \"{s}\" (words \"{m}\"), or does \"{s}\" only say where it is?"),
+    "laterality": ("L'esame «{e}» è di un lato, la frase parla della struttura «{s}» (parole «{m}») dell'altro. "
+                   "È un errore di lato, o l'esame comprende anche questo lato? Che cosa dice la frase di «{s}»?",
+                   "The exam \"{e}\" is of one side, the sentence speaks of \"{s}\" (words \"{m}\") of the other. "
+                   "Is the side wrong, or does the exam include this side too? What does the sentence say of \"{s}\"?"),
     "what_does_it_say": ("Che cosa dice questa frase della struttura «{s}» (parole «{m}»)?",
                          "What does this sentence say of \"{s}\" (words \"{m}\")?"),
 }
@@ -96,8 +104,10 @@ class Question:
         return out
 
 
-def kind_of(evidence: str, models: dict[str, dict]) -> str:
+def kind_of(evidence: str, models: dict[str, dict], review: str = "") -> str:
     """The question to ask, from the reader's evidence and the models' answers (the first that applies)."""
+    if review.startswith("the_exam_is_of_the_"):
+        return "laterality"
     if "outside_the_exam" in evidence:
         return "outside_the_exam"
     if "named_only_in_a_differential" in evidence:
@@ -105,6 +115,7 @@ def kind_of(evidence: str, models: dict[str, dict]) -> str:
     if "describes:" in evidence:
         return "other_organ"
     if "landmark" in evidence or any(a.get("linked") == "reference" or a.get("type") == "reference"
+                                     or any(o.get("of") not in (None, "it") for o in a.get("observed", []) or [])
                                      for a in models.values()):
         return "reference_or_finding"
     return "what_does_it_say"
@@ -115,7 +126,7 @@ def build_question(ownership, *, report: str, language: str, sentence: str, ment
     """The question for one reading sent to a person (``finding_owner.Ownership``)."""
     context = context or {}
     evidence = ownership.reader or ""
-    kind = kind_of(evidence, ownership.models or {})
+    kind = kind_of(evidence, ownership.models or {}, getattr(ownership, "review", ""))
     described = ownership.placed or next((e.split(":", 1)[1] for e in evidence.split(",") if e.startswith("describes:")), "")
     name_it = _class_name(structure, "it") or structure_name
     name_en = structure_name or _class_name(structure, "en")
@@ -130,7 +141,8 @@ def build_question(ownership, *, report: str, language: str, sentence: str, ment
         options=[{"code": code, "label_it": v[0], "label_en": v[1], "needs_text": v[4]} for code, v in STATEMENTS.items()],
         system={"verdict": ownership.verdict, "reason": ownership.reason, "reader": evidence,
                 "models": ownership.models, "placed": ownership.placed,
-                "statement": getattr(ownership, "statement", ""), "piece": getattr(ownership, "piece", "")},
+                "statement": getattr(ownership, "statement", ""), "piece": getattr(ownership, "piece", ""),
+                "claims": getattr(ownership, "claims", {}), "review": getattr(ownership, "review", "")},
     )
 
 
@@ -169,7 +181,8 @@ def decide(question: Question | dict, code: str, text: str = "") -> dict[str, An
 ROLES_OF_ANSWER = {
     "finding": ["structure"], "involved": ["structure", "landmark"], "measure": ["inherent_location"],
     "history": ["structure"], "normal": ["structure"], "reference": ["landmark"],
-    "other_structure": ["structure"], "hypothesis": ["structure"], "cannot_say": ["uncertain"],
+    "other_structure": ["structure"], "hypothesis": ["structure"], "device": ["device_site"],
+    "not_assessable": ["structure"], "cannot_say": ["uncertain"],
 }
 
 

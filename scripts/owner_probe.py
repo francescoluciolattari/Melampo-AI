@@ -40,8 +40,11 @@ LABELS = {"dev": ROOT / "data/gold/hpo_silver_2026-10-31/labels.txt",
 OWNER_LABELS = ROOT / "data/gold/finding_owner_2026-11-01/labels.txt"
 # the sample of the statement reading (1 November 2026): what the sentence says of the structure, by type
 STATEMENT_LABELS = ROOT / "data/gold/statement_2026-11-01/labels.txt"
-SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS}
+# the sample of the claim-by-claim reading (2 November 2026): what the sentence states of the structure
+CLAIMS_LABELS = ROOT / "data/gold/claims_2026-11-02/labels.txt"
+SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS}
 STATEMENT_SEED = 20261102
+CLAIMS_SEED = 20261103
 
 
 def owner_labels() -> dict[str, str]:
@@ -75,8 +78,86 @@ def statement_labels() -> dict[str, tuple[str, bool]]:
     return out
 
 
+def claims_labels() -> dict[str, tuple[set[str], bool]]:
+    """item -> (the claims of the label, for a radiologist)."""
+    out = {}
+    if CLAIMS_LABELS.exists():
+        for line in CLAIMS_LABELS.read_text("utf-8").splitlines():
+            if line.strip() and not line.startswith("#"):
+                item, kinds, note = (line.split("|") + ["", ""])[:3]
+                out[item.strip()] = (set(kinds.strip().split("+")), note.rstrip().endswith("?"))
+    return out
+
+
+def outcome_of_claims(kinds: set[str]) -> str:
+    """What the label attaches: a finding, nothing at the structure (aside), or only the other claims (keep)."""
+    if kinds & {"finding", "involved"}:
+        return "finding"
+    if kinds & {"aside", "other_structure"}:
+        return "aside"
+    return "keep"
+
+
+def attached_kinds(owner: dict) -> set[str]:
+    """The claims an accepted reading attaches, in the labels' words."""
+    claims = owner.get("claims") or {}
+    out = set()
+    for o in claims.get("findings", []):
+        out.add("finding" if o.get("of") == "it" else "involved")
+    for key, kind in (("normal", "normal"), ("measure", "measure"), ("past", "history"), ("device", "device"),
+                      ("not_assessable", "not_assessable")):
+        if claims.get(key):
+            out.add(kind)
+    return out or {"nothing"}
+
+
+def claims_table(rows: list[dict], arm: str = "claims") -> dict:
+    """The claim-by-claim reading against the labels (criteria fixed on 2 November 2026)."""
+    rs = [r for r in rows if arm in r and r.get("gold_claims")]
+    c: Counter = Counter()
+    out: dict = {"items": len(rs), "for_a_radiologist": [], "kinds_attached_not_in_the_label": Counter(),
+                 "kinds_of_the_label_not_attached": Counter(), "dropped_words": 0, "laterality": 0}
+    for r in rs:
+        gold = set(r["gold_claims"])
+        want = outcome_of_claims(gold)
+        got = r[arm]
+        verdict = got["verdict"]
+        c[f"{want}_items"] += 1
+        if got.get("review"):
+            c[f"{want}_review"] += 1
+        if verdict == "unsure":
+            c[f"{want}_to_a_person"] += 1
+        elif verdict == "elsewhere":
+            c[f"{want}_set_aside"] += 1
+        else:
+            have = got.get("statement", "")
+            c[f"{want}_attached"] += 1
+            have_outcome = "finding" if have == "finding" else "keep"
+            if want != "aside":
+                c["attached_as_its_outcome" if have_outcome == want else "attached_as_another_outcome"] += 1
+                kinds = attached_kinds(got)
+                out["kinds_attached_not_in_the_label"].update(kinds - gold - {"nothing"})
+                out["kinds_of_the_label_not_attached"].update(gold - kinds - {"nothing"})
+        for a in (got.get("models") or {}).values():
+            out["dropped_words"] += int(a.get("dropped") or 0)
+        if r.get("gold_doubt"):
+            out["for_a_radiologist"].append({"item": r["item_id"], "gold": "+".join(sorted(gold)),
+                                             "verdict": verdict, "statement": got.get("statement", "")})
+    out.update(c)
+    keep = (c["finding_items"] + c["keep_items"]) or 1
+    out["not_aside_to_a_person_share"] = round((c["finding_to_a_person"] + c["keep_to_a_person"]) / keep, 4)
+    attached = (c["attached_as_its_outcome"] + c["attached_as_another_outcome"]) or 1
+    out["attached_as_another_outcome_share"] = round(c["attached_as_another_outcome"] / attached, 4)
+    out["kinds_attached_not_in_the_label"] = dict(out["kinds_attached_not_in_the_label"])
+    out["kinds_of_the_label_not_attached"] = dict(out["kinds_of_the_label_not_attached"])
+    return out
+
+
 def gold_of(item: dict, name: str, own_labels: dict[str, str], away: dict[str, set[str]]) -> str:
     """An Italian item with its own label is not the sentence of the English one: it is "here" unless listed."""
+    if name == "claims":
+        kinds = claims_labels().get(item["item_id"], (set(), False))[0]
+        return "" if not kinds else "elsewhere" if outcome_of_claims(kinds) == "aside" else "here"
     if name == "statement":
         from melampo.memory.finding_owner import ASIDE, STATEMENT_GROUPS
 
@@ -202,7 +283,8 @@ def main(argv: list[str] | None = None) -> int:
         exclude = set()
         # every report already used when the sample was drawn: the two HPO samples, and for the statement sample
         # also the owner sample (so that each seed draws again the items its labels were written on)
-        before = {FRESH_SEED: [*LABELS.values()], STATEMENT_SEED: [*LABELS.values(), OWNER_LABELS]}
+        before = {FRESH_SEED: [*LABELS.values()], STATEMENT_SEED: [*LABELS.values(), OWNER_LABELS],
+                  CLAIMS_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
@@ -223,7 +305,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--parrot", help="PARROT_v1_0.jsonl: the whole report, for the exam and the section")
     ap.add_argument("--uberon", help="uberon.obo: what is part of what")
     ap.add_argument("--questions", help="where to write the questions for a person (review_question), one per line")
-    ap.add_argument("--skip", default="", help="arms not to run: statement")
+    ap.add_argument("--skip", default="", help="arms not to run: statement, claims")
+    ap.add_argument("--hpo", help="hp-full.obo: what the reader knows of abnormalities (the claims arm)")
+    ap.add_argument("--pato", help="pato.obo: the qualities of the abnormalities")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
 
@@ -258,6 +342,13 @@ def main(argv: list[str] | None = None) -> int:
     with_models = FindingOwner(reader_only.reader, chats, reader_only.anatomy) if chats else None
     # the statement reading (1 November 2026): what the sentence says of the structure
     statement = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="statement") if chats else None
+    # claim by claim (2 November 2026), with what the reader knows of abnormalities (HPO, PATO)
+    from melampo.memory.what_is_said import AnomalyWords
+
+    anomalies = AnomalyWords.from_files(Path(args.hpo), Path(args.pato) if args.pato else None,
+                                        Path(args.uberon) if args.uberon else None) if args.hpo else AnomalyWords()
+    claims = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="claims",
+                          anomalies=anomalies) if chats else None
     from melampo.memory.finding_owner import report_context
     away = elsewhere_pairs()
 
@@ -279,6 +370,9 @@ def main(argv: list[str] | None = None) -> int:
                    "structure": item["structure"], "gold": gold}
             if name == "statement":
                 row["gold_type"], row["gold_doubt"] = statement_labels()[item["item_id"]]
+            if name == "claims":
+                kinds, row["gold_doubt"] = claims_labels()[item["item_id"]]
+                row["gold_claims"] = sorted(kinds)
             report = reports.get(item.get("report"))
             context = {}
             if report is not None:
@@ -295,6 +389,9 @@ def main(argv: list[str] | None = None) -> int:
             if statement is not None and "statement" not in args.skip:
                 row["statement"] = statement(item["mention"], item["clause"], at, item["language"],
                                              item["structure"], context).as_dict()
+            if claims is not None and "claims" not in args.skip:
+                row["claims"] = claims(item["mention"], item["clause"], at, item["language"], item["structure"],
+                                       context).as_dict()
             return row
 
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
@@ -302,8 +399,10 @@ def main(argv: list[str] | None = None) -> int:
     report = {"by_set": {}}
     for name in sorted({r["set"] for r in rows}):
         rs = [r for r in rows if r["set"] == name]
-        report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models", "statement")
+        report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models", "statement", "claims")
                                   if any(arm in r for r in rs)}
+        if name == "claims" and any("claims" in r for r in rs):
+            report["by_set"][name]["claims_kinds"] = claims_table(rs, "claims")
         if name == "statement" and any("statement" in r for r in rs):
             report["by_set"][name]["statement_types"] = statement_table(rs, "statement")
     if args.questions:
@@ -312,9 +411,9 @@ def main(argv: list[str] | None = None) -> int:
 
         with open(args.questions, "w", encoding="utf-8") as fh:
             for row in rows:
-                arm = "statement" if "statement" in row else "reader+models" if "reader+models" in row else "reader"
+                arm = next(a for a in ("claims", "statement", "reader+models", "reader") if a in row)
                 verdict = row[arm]["verdict"]
-                if verdict == "here":
+                if verdict == "here" and not row[arm].get("review"):
                     continue
                 item = row["_item"]
                 owner = Ownership(**row[arm])

@@ -570,7 +570,118 @@ def read_statement(text: str, sentence: str) -> dict:
     return answer
 
 
+# -- what the sentence says of the structure, claim by claim (2 November 2026) --------------------------------
+# One label from an ordered list made the models disagree wherever a sentence says two things ("hyperechoic and
+# not enlarged") or something between two labels ("likely calcified cartilages"): the boundaries were set in the
+# question, before reading. Here nothing is chosen: the model says what the sentence states of the structure,
+# claim by claim, each with the words copied from the sentence, and the interpreter attaches every claim the
+# readers agree on. What is not in the words is not a claim ("said, not inferred").
+CLAIM_LISTS = ("observed", "normal", "measure", "past", "certainty", "alternatives", "device", "not_assessable")
+CLAIM_STEPS = """Say what the sentence states of the linked structure, using only its words: every entry is copied
+exactly from the sentence (you may shorten a long piece with "..." between copied parts). Do not add what you know:
+a value you know to be normal is not "normal" unless the sentence says so; a finding the sentence does not state
+is not there. Leave a list empty when the sentence says nothing of that kind.
+- marked: the marked words, copied.
+- same: "yes" if the marked words name the linked structure here, "no" if they name another one (then named:
+  the structure they name), "unsure".
+- observed: everything the sentence observes that differs from the usual: a lesion, a change of size, shape,
+  density, signal, position or content, even if mild. For each: words; of: "it" if it is of the linked structure or
+  one of its parts, otherwise the structure it is of, copied from the sentence; relation: the words that relate it
+  to the linked structure ("in", "of", "between", "adjacent to", "extends into", "compresses"), copied, or "";
+  reaches: "yes" if what is of another structure reaches the linked one (extends into it, infiltrates, compresses
+  or narrows it, is at the level it forms), "no" if it is only near it or placed by it.
+- normal: words saying that it, or something of it, is normal or that something is absent from it.
+- measure: words giving a measure of it.
+- past: words of a fact of its past (a past disease, a surgery).
+- certainty: words saying that what is observed is only probable or possible.
+- alternatives: words listing other possible explanations, or something to be excluded.
+- device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis).
+- not_assessable: words saying it cannot be assessed."""
+CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
+                '"observed": [{"words": "...", "of": "it", "relation": "", "reaches": "no"}], "normal": [], '
+                '"measure": [], "past": [], "certainty": [], "alternatives": [], "device": [], "not_assessable": [], '
+                '"why": "<one sentence>"}')
+_ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
+
+
+def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_names: list[str] | None = None,
+                  exam: str = "", section: str = "", language: str = "") -> str:
+    """The question "what does the sentence state of the linked structure?", claim by claim."""
+    parts = ["You read sentences of radiology reports the way a radiologist does."]
+    if exam:
+        parts.append(f"Exam (context only: the sentence prevails): {exam}")
+    if section:
+        parts.append(f"Section of the report: {section}")
+    parts.append(f"Sentence{f' ({language})' if language else ''}: {mark(sentence, start, end)}")
+    names = [n for n in (linked_names or []) if n and n != linked]
+    also = f" (also called: {', '.join(names[:4])})" if names else ""
+    parts.append(f"An automatic reader linked the marked words to this structure of an anatomical atlas: "
+                 f"{linked}{also}.")
+    parts.append(CLAIM_STEPS)
+    parts.append("Answer with JSON only, no other text:\n" + CLAIM_SCHEMA)
+    return "\n\n".join(parts)
+
+
+def copied(sentence: str, words: str) -> bool:
+    """Are the words copied from the sentence? A piece shortened with "..." is copied when every part is in the
+    sentence, in order."""
+    words = str(words or "").replace(OPEN, "").replace(CLOSE, "")
+    parts = [p for p in _ELLIPSIS.split(words) if p.strip()]
+    if not parts:
+        return False
+    text, at = _norm(sentence), 0
+    for part in parts:
+        found = text.find(_norm(part), at)
+        if found < 0:
+            return False
+        at = found + len(_norm(part))
+    return True
+
+
+def read_claims(text: str, sentence: str, mention: str) -> dict:
+    """The answer of ``claims_prompt``, checked against the sentence: entries whose words are not in it are
+    dropped (``dropped`` counts them); an answer about other words than the marked ones is not valid."""
+    found = re.findall(r"\{(?:[^{}]|\{[^{}]*\})*\}", text or "", re.S)
+    try:
+        answer = json.loads(found[-1])
+    except Exception:  # noqa: BLE001
+        return {"valid": False, "same": "unsure", "dropped": 0, **{k: [] for k in CLAIM_LISTS}}
+    out: dict = {"valid": True, "dropped": 0, "why": str(answer.get("why") or "")}
+    marked = str(answer.get("marked") or "").replace(OPEN, "").replace(CLOSE, "")
+    out["marked"] = marked
+    if marked and _norm(marked) != _norm(mention) and _norm(mention) not in _norm(marked):
+        out["valid"] = False            # it read other words than the marked ones
+    same = str(answer.get("same") or "").strip().lower()
+    out["same"] = same if same in ("yes", "no", "unsure") else "unsure"
+    out["named"] = str(answer.get("named") or "")
+    observed = []
+    for entry in answer.get("observed") or []:
+        if not isinstance(entry, dict) or not copied(sentence, entry.get("words", "")):
+            out["dropped"] += 1
+            continue
+        of = str(entry.get("of") or "it").strip()
+        if of.lower() not in ("it", "") and not copied(sentence, of):
+            of = "?"                    # of another structure, not named in the sentence: unknown
+        relation = str(entry.get("relation") or "")
+        reaches = str(entry.get("reaches") or "").strip().lower()
+        observed.append({"words": str(entry["words"]), "of": "it" if of.lower() in ("it", "") else of,
+                         "relation": relation if copied(sentence, relation) else "",
+                         "reaches": reaches if reaches in ("yes", "no") else "no"})
+    out["observed"] = observed
+    for key in CLAIM_LISTS[1:]:
+        kept = []
+        for words in answer.get(key) or []:
+            words = words.get("words", "") if isinstance(words, dict) else str(words)
+            if copied(sentence, words):
+                kept.append(words)
+            else:
+                out["dropped"] += 1
+        out[key] = kept
+    return out
+
+
 __all__ = [
+    "CLAIM_LISTS", "claims_prompt", "copied", "read_claims",
     "STATEMENT_TYPES", "in_sentence", "read_statement", "statement_prompt",
     "OWNER_RELATIONS", "owner_prompt", "read_owner",
     "CLOSE", "METHOD_SCHEMA", "METHOD_STEPS", "OPEN", "ROLES", "method_prompt", "SITE_ROLES", "TYPES", "Asked", "Checked", "ask", "balanced", "check",

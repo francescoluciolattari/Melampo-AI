@@ -65,10 +65,26 @@ class Ownership:
     reason: str = ""
     statement: str = ""                            # what the sentence says of the structure (STATEMENT_GROUPS)
     piece: str = ""                                # the words that say it, copied from the sentence
+    claims: dict = field(default_factory=dict)     # the claims the readers agree on (question="claims")
+    review: str = ""                               # what a person should look at even when the readers agree
 
     def as_dict(self) -> dict:
         return {"verdict": self.verdict, "reader": self.reader, "models": self.models, "placed": self.placed,
-                "reason": self.reason, "statement": self.statement, "piece": self.piece}
+                "reason": self.reason, "statement": self.statement, "piece": self.piece, "claims": self.claims,
+                "review": self.review}
+
+
+_COORDINATORS = frozenset("and or e ed o oppure".split())
+
+
+def _find_name(text: str, name: str) -> tuple[int, int] | None:
+    """Where a name found by ``Anatomy.find`` (singular, lower case) is in ``text``: its first word to its last."""
+    words = name.split()
+    spans = [(m.start(), m.end(), _singular(m.group(0))) for m in _WORD.finditer(text)]
+    for i in range(len(spans) - len(words) + 1):
+        if [w for _, _, w in spans[i:i + len(words)]] == words:
+            return spans[i][0], spans[i + len(words) - 1][1]
+    return None
 
 
 def _singular(word: str) -> str:
@@ -194,7 +210,12 @@ def _in_a_differential(clause: str, at: int) -> bool:
 
 def report_context(report: str, clause_start: int) -> dict[str, str]:
     """What a radiologist knows of the report before the sentence: the exam (its first sentence that names a
-    modality) and the section the sentence is in ("TZ:", "Bladder:")."""
+    modality) and the section the sentence is in ("TZ:", "Bladder:").
+
+    A table of measures is neither (2 November 2026: an echocardiogram's "LA: 38 mm; Ao: 33 mm; ..." was given
+    to the models as the exam, and "Ao" as the section, and a model read the mitral valve as the aorta): a
+    sentence is split at ";" too, one with three numbers or more is a table, not the name of an exam, and a
+    label followed by a number ("Ao: 33 mm") is a measure, not a section."""
     from .exam_area import ExamAreas
 
     areas = ExamAreas.load()
@@ -202,13 +223,18 @@ def report_context(report: str, clause_start: int) -> dict[str, str]:
     if areas.modality is not None:
         # the exam's name: the first sentence that names a modality and a region ("CT of the chest"), else the
         # first that names a modality
-        sentences = [x.strip() for x in re.split(r"(?<=[.\n])\s+", report[:3000]) if x.strip()]
+        sentences = [x.strip() for x in re.split(r"(?<=[.\n;])\s+", report[:3000]) if x.strip()]
+        sentences = [x for x in sentences if len(_NUMBER.findall(x)) < 3]
         named = [x for x in sentences if areas.modality.search(x)]
         exam = next((x for x in named if areas.of(x)), named[0] if named else "")
         exam = " ".join(exam.split())[:120]
-    sections = [m for m in _SECTION.finditer(report[:clause_start + 1])]
+    sections = [m for m in _SECTION.finditer(report[:clause_start + 1])
+                if not re.match(r"\s*[\d<>~≈]", report[m.end():m.end() + 6])]
     section = sections[-1].group(1).strip() if sections and clause_start - sections[-1].end() < 400 else ""
     return {"exam": exam, "section": section, "areas": ",".join(sorted(areas.of(report)))}
+
+
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 
 
 # -- what the sentence says of the structure (1 November 2026) ------------------------------------------------
@@ -247,8 +273,11 @@ def _words(text: str) -> list[str]:
 
 
 def _pure_measure(piece: str, mention: str) -> bool:
-    """Only numbers, units, the words of a measure and the structure's own words."""
-    if not re.search(r"\d", piece):
+    """Only numbers, units, the words of a measure and the structure's own words. A measure has a number with a
+    unit (``sizes_in_text``): "S1" or "L5" is the name of a vertebra, not a measure (2 November 2026)."""
+    from ..imaging.findings import sizes_in_text
+
+    if not sizes_in_text(piece):
         return False
     own = set(_words(mention))
     return all(w in _MEASURE_WORDS or w in own or w in _SKIP_SIDES for w in _words(piece))
@@ -299,19 +328,87 @@ def window(clause: str, at: int, length: int, size: int = WINDOW) -> tuple[str, 
     return clause[lo:hi], at - lo
 
 
+KEEP = "keep"     # only other claims: normal, a measure, its past, a device, not assessable (or nothing)
+
+
+def claims_outcome(answer: dict) -> str:
+    """What one model's claims attach: FINDING (a current finding of the structure, or of another structure
+    that reaches it), ASIDE (what is observed is of other structures, or the words name another one), KEEP, or
+    "unsure"."""
+    if not answer.get("valid"):
+        return "unsure"
+    if answer.get("same") == "no":
+        return ASIDE
+    if answer.get("same") != "yes":
+        return "unsure"
+    observed = answer.get("observed") or []
+    if any(o.get("of") == "it" or o.get("reaches") == "yes" for o in observed):
+        return FINDING
+    if observed:
+        return ASIDE
+    return KEEP
+
+
+def agreed_claims(answers: list[dict]) -> dict:
+    """The claims every model makes, with the first model's words: its findings (of the structure or reaching
+    it), and each other kind that every model fills."""
+    from ..evaluation.llm_reading import CLAIM_LISTS
+
+    first = answers[0]
+    out: dict = {"findings": [o for o in first.get("observed", []) if o.get("of") == "it" or o.get("reaches") == "yes"]}
+    others = [o for o in first.get("observed", []) if o not in out["findings"]]
+    if others:
+        out["of"] = next((o["of"] for o in others if o.get("of") not in ("it", "?")), "")
+    for key in CLAIM_LISTS[1:]:
+        if all(a.get(key) for a in answers):
+            out[key] = list(first.get(key, []))
+    if first.get("same") == "no":
+        out["of"] = first.get("named", "")
+    return out
+
+
+def _relation_kind(words: str, language: str) -> str:
+    """The kind of the relation the words express (``spatial_relation``): proximity, projection, direction,
+    containment, or ""."""
+    from .spatial_relation import read_relation
+
+    text = f"{words.strip()} X"
+    return read_relation(text, len(text) - 1, language).kind
+
+
+_SIDE = re.compile(r"\b(left|right|sinistr[oaie]|destr[oaie]|sx|dx)\b", re.I)
+
+
+def _side(text: str) -> str:
+    sides = {("left" if m.group(1).lower() in ("left", "sx") or m.group(1).lower().startswith("sinistr") else "right")
+             for m in _SIDE.finditer(text or "")}
+    return sides.pop() if len(sides) == 1 else ""
+
+
+def laterality_conflict(exam: str, cid: str, mention: str) -> str:
+    """The exam names one side and the structure is of the other ("CT of the left femur", "right femur"): an
+    inconsistency of the report a person should see, whatever the readers agree on (2 November 2026)."""
+    exam_side = _side(exam)
+    side = "left" if cid.endswith("_left") else "right" if cid.endswith("_right") else _side(mention)
+    if exam_side and side and exam_side != side:
+        return f"the_exam_is_of_the_{exam_side}_side_the_sentence_of_the_{side}"
+    return ""
+
+
 class FindingOwner:
     """``reader``: a ``CIReader``; ``chats``: model name -> chat function (local); ``anatomy``: ``Anatomy``.
     ``question``: ``"owner"`` (is the finding of this structure? 1 November 2026) or ``"statement"`` (what does
     the sentence say of this structure? 1 November 2026)."""
 
     def __init__(self, reader, chats: dict[str, Callable[[str], str]] | None = None, anatomy: Anatomy | None = None,
-                 question: str = "owner"):
+                 question: str = "owner", anomalies=None):
         self.reader = reader
         self.chats = dict(chats or {})
         self.anatomy = anatomy if anatomy is not None else Anatomy()
-        if question not in ("owner", "statement"):
-            raise ValueError("question must be 'owner' or 'statement'")
+        if question not in ("owner", "statement", "claims"):
+            raise ValueError("question must be 'owner', 'statement' or 'claims'")
         self.question = question
+        self.anomalies = anomalies          # what_is_said.AnomalyWords: what the reader knows of abnormalities
 
     # -- the reader ---------------------------------------------------------------------------------------
     def _reader(self, mention: str, clause: str, at: int, language: str, cid: str,
@@ -339,10 +436,24 @@ class FindingOwner:
             # the words of the mention's own segment: a list ("the liver, the pancreas") or a coordinated clause
             # ("the duct measures 2 mm, and the portal vein") names other structures beside it, not its bearer
             before = re.split(r"[,;/]", clause[:at])[-1]
+            base = at - len(before)
             after = clause[at + len(mention): at + len(mention) + 30]
             named = self.anatomy.find(before)
-            head = self.anatomy.find(" ".join(_WORD.findall(after)[:2]))
-            for name, ids in ([head[0]] if head and after[:1] == " " else []) + named[:1]:
+            after_words = _WORD.findall(after)[:2]
+            # a structure coordinated with the mention ("the stomach and the duodenum", "in the liver ... and in
+            # the pancreas") shares what the sentence says of it: it is not the bearer of the mention's finding
+            # (``what_is_said.conjuncts``, 2 November 2026)
+            head = [] if after_words[:1] and after_words[0].lower() in _COORDINATORS else \
+                self.anatomy.find(" ".join(after_words))
+            first = []
+            if named:
+                from .what_is_said import conjuncts
+
+                name = named[0][0]
+                where = _find_name(before, name)
+                if where is None or not conjuncts(clause, (base + where[0], base + where[1]), (at, at + len(mention))):
+                    first = named[:1]
+            for name, ids in ([head[0]] if head and after[:1] == " " else []) + first:
                 if self.anatomy.other_organ(ids, linked):
                     against.append(f"describes:{name}")
                     placed = placed or name
@@ -427,11 +538,95 @@ class FindingOwner:
                                  group, piece)
         return Ownership(HERE, evidence, said, "", "reader_and_model_agree", group, piece)
 
+    # -- claim by claim (2 November 2026) ------------------------------------------------------------------
+    def _claim_answers(self, mention: str, clause: str, at: int, language: str, cid: str,
+                       context: dict) -> dict[str, dict]:
+        from ..evaluation.llm_reading import claims_prompt, read_claims
+
+        name = {"it": "Italian", "en": "English"}.get(language, "")
+        names = _class_names().get(cid, []) if cid else []
+        linked = names[0] if names else (cid.replace("_", " ") or mention)
+        prompt = claims_prompt(clause, at, at + len(mention), linked, linked_names=names,
+                               exam=context.get("exam", ""), section=context.get("section", ""), language=name)
+        said: dict[str, dict] = {}
+        for model, chat in self.chats.items():
+            try:
+                said[model] = read_claims(chat(prompt), clause, mention)
+            except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
+                said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__}
+        return said
+
+    def _by_claims(self, mention: str, clause: str, at: int, language: str, cid: str, context: dict) -> Ownership:
+        """What the sentence states of the structure, claim by claim, each with its words (``read_claims``).
+        Nothing is chosen from a list: the readers agree when they would attach the same thing (a current
+        finding at the structure, nothing at it because the finding is of another structure, or only other
+        claims: normal, a measure, its past, a device, not assessable). The models, one stream, must agree; the
+        reader checks the claims with what it knows (``_contradiction``); when they do not agree a person
+        decides and the finding stays. The claims both models make are attached."""
+        text, where = window(clause, at, len(mention))
+        reader, evidence, placed = self._reader(mention, text, where, language, cid, context)
+        said = self._claim_answers(mention, text, where, language, cid, context)
+        outcomes = [claims_outcome(a) for a in said.values()]
+        review = laterality_conflict(context.get("exam", ""), cid, mention)
+        if "unsure" in outcomes or len(set(outcomes)) != 1:
+            return Ownership(UNSURE, evidence, said, placed, "the_models_cannot_say_or_disagree", review=review)
+        outcome = outcomes[0]
+        claims = agreed_claims(list(said.values()))
+        piece = " … ".join(o["words"] for o in claims.get("findings", []))
+        if outcome == ASIDE:
+            relations = [o.get("relation", "") for a in said.values() for o in a.get("observed", [])
+                         if o.get("of") != "it"]
+            near = any(_relation_kind(r, language) in ("proximity", "projection") for r in relations if r)
+            if reader != ELSEWHERE and not near:
+                return Ownership(UNSURE, evidence, said, placed or claims.get("of", ""), "reader_and_model_disagree",
+                                 ASIDE, piece, claims, review)
+            why = evidence or "the_relation_words_place_it"
+            return Ownership(ELSEWHERE, why, said, claims.get("of", "") or placed, "reader_and_model_agree", ASIDE,
+                             piece, claims, review)
+        why = self._contradiction(outcome, claims, evidence, text, language, cid, mention)
+        if why:
+            return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
+                             outcome, piece, claims, review)
+        return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review)
+
+    def _contradiction(self, outcome: str, claims: dict, evidence: str, text: str, language: str, cid: str,
+                       mention: str) -> str:
+        """Does what the reader knows contradict the claims? The reason, or "". It never decides a claim: a
+        contradiction sends the sentence to a person."""
+        from .what_is_said import past, stated_anomalies
+
+        sites = self.anomalies.sites_of(cid) if self.anomalies else set()
+        if outcome == FINDING:
+            findings = claims.get("findings", [])
+            own = [o for o in findings if o.get("of") == "it"]
+            if own and any(e.startswith(("landmark", "describes:", "outside_the_exam")) for e in evidence.split(",")):
+                return "the_reader_reads_another_owner"
+            if own and "named_only_in_a_differential" in evidence and not claims.get("alternatives"):
+                return "the_reader_reads_a_differential"
+            for o in findings:
+                if o.get("relation") and o.get("of") != "it" and _relation_kind(o["relation"], language) in (
+                        "proximity", "projection"):
+                    return "the_relation_words_say_near_not_reaching"
+            words = [o["words"] for o in findings]
+            if words and all(_pure_measure(w, mention) for w in words):
+                return "the_finding_is_only_a_measure"
+            if words and all(past(w, language) for w in words):
+                return "the_finding_is_a_past_fact"
+            return ""
+        # only other claims: the reader looks for an abnormality they state
+        for key in ("normal", "measure"):
+            for w in claims.get(key, []):
+                if stated_anomalies(w, language, self.anomalies, sites):
+                    return f"the_{key}_words_state_an_abnormality"
+        return ""
+
     def __call__(self, mention: str, clause: str, at: int, language: str = "en", cid: str = "",
                  context: dict | None = None) -> Ownership:
         context = context or {}
         if self.question == "statement" and self.chats:
             return self._by_statement(mention, clause, at, language, cid, context)
+        if self.question == "claims" and self.chats:
+            return self._by_claims(mention, clause, at, language, cid, context)
         reader, evidence, placed = self._reader(mention, clause, at, language, cid, context)
         if not self.chats:
             if reader == ELSEWHERE:
@@ -464,5 +659,5 @@ def _class_names() -> dict[str, list[str]]:
     return _NAMES
 
 
-__all__ = ["ASIDE", "ELSEWHERE", "FINDING", "HERE", "HISTORY", "MEASURE", "NORMAL", "NOTHING", "STATEMENT_GROUPS",
+__all__ = ["KEEP", "agreed_claims", "claims_outcome", "laterality_conflict", "ASIDE", "ELSEWHERE", "FINDING", "HERE", "HISTORY", "MEASURE", "NORMAL", "NOTHING", "STATEMENT_GROUPS",
            "UNSURE", "Anatomy", "FindingOwner", "Ownership", "report_context", "type_check", "window"]
