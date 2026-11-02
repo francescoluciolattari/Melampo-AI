@@ -676,9 +676,11 @@ class FindingOwner:
                 return "the_reader_reads_a_differential"
             for o in findings:
                 if o.get("relation") and o.get("of") != "it" and _relation_kind(o["relation"], language) in (
-                        "proximity", "projection", "extent"):
-                    # near it, superimposed on it, or as far as it ("reaching the seventh rib" on a radiograph:
-                    # a level): the words do not say that it reaches the structure
+                        "proximity", "projection"):
+                    # near it or superimposed on it: the words say that it does not reach the structure. Words
+                    # that can say either ("up to", "reaching": a lesion extending up to the cord touches it,
+                    # fluid reaching the seventh rib on a radiograph gives a height) are the model's to read
+                    # in the sentence; the reader knows nothing of them and does not contradict
                     return "the_relation_words_say_near_not_reaching"
             words = [o["words"] for o in findings]
             if words and all(_pure_measure(w, mention) for w in words):

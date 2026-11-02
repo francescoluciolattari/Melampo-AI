@@ -188,10 +188,13 @@ diverso.
   parole ("the wall of the arch"), è una parte di questa struttura;
 - **la domanda «nominano la struttura?»** ora dice: «rispondi solo sulle parole marcate, non su ciò che la frase
   descrive; sì se nominano la struttura o una sua parte»;
-- **fin dove arriva un reperto** ("up to", "reaching", "as far as", "until", "fino a") è una relazione a parte,
-  `extent`. Dice un limite, non un contatto. Per il lettore Kintsch pesa zero, quindi la lettura dei ruoli non
-  cambia. Se i modelli dicono che il reperto arriva alla struttura e le parole della relazione sono di vicinanza,
-  sovrapposizione o limite, decide una persona;
+- **"up to", "reaching" e "fino a" non sono una regola del lettore.** Nella prima stesura li avevo fissati come
+  "limite, non contatto". Era un confine deciso prima di leggere, e sbagliato: "a lesion extending up to the
+  cervical cord" la tocca, mentre "fluid reaching the seventh rib" su una radiografia dà un'altezza. Il lettore non
+  sa leggere queste parole e quindi non contraddice. Le legge il modello, nella frase: la domanda gli chiede se la
+  struttura stessa è toccata (infiltrata, compressa, ristretta, spostata, deformata) o se il reperto sta al livello
+  o nell'articolazione che lei forma; "no" se la frase dice solo dove sta o fin dove arriva. Se i modelli dicono
+  "no" e il lettore non ha prove, decide una persona;
 - **un'assenza fra le osservazioni.** Il lettore legge la negazione: "not enlarged" passa fra le affermazioni
   normali;
 - **la frase della menzione.** Chi porta il reperto si cerca solo nella frase della menzione (ci si ferma anche a
