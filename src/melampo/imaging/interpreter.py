@@ -78,7 +78,7 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
             context = report_context(report_text, lo)
             owner = ownership(mention, clause, at, language, cid=site["cid"], context=context)
             question = None
-            if owner.verdict != "here":
+            if owner.verdict != "here" or getattr(owner, "review", ""):
                 name = getattr(ownership, "linked_name", lambda c: c.replace("_", " "))(site["cid"])
                 question = build_question(owner, report=report_id, language=language, sentence=clause,
                                           mention=mention, start=at, structure=site["cid"], structure_name=name,
@@ -92,6 +92,33 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                                       "question": question["id"]})
                 continue
         statement = owner.statement if owner is not None and owner.verdict == "here" else ""
+        if owner is not None and owner.claims and owner.verdict == "here":
+            # claim by claim (2 November 2026): the claims that are not a current finding go to ``statements``;
+            # a finding is made from its own words, with the certainty the sentence gives it
+            mention = site.get("mention", report_text[start:end])
+            other = {k: owner.claims[k] for k in ("normal", "past", "device", "not_assessable") if owner.claims.get(k)}
+            if statements is not None:
+                for kind, words in other.items():
+                    statements.append({"mention": mention, "structure": site["cid"], "statement":
+                                       {"past": "history"}.get(kind, kind), "piece": " … ".join(words),
+                                       "clause": clause, "report": report_id})
+            claimed = owner.claims.get("findings", [])
+            measures = owner.claims.get("measure", [])
+            if claimed:
+                words = [o["words"] for o in claimed]
+                clause, sizes = " … ".join(words), sizes_in_text(" ".join(words + measures))
+                statement = "finding" if any(o.get("of") == "it" for o in claimed) else "involved"
+                if owner.claims.get("alternatives"):
+                    qd = {**qd, "certainty": "hypothetical"}
+                elif owner.claims.get("certainty"):
+                    qd = {**qd, "certainty": "possible"}
+            elif measures:
+                clause, sizes, statement = " … ".join(measures), sizes_in_text(" ".join(measures)), "measure"
+                qd = {**qd, "character": [], "degree": ""}
+            elif other:
+                continue            # only what is not a current finding: it is in ``statements``
+            else:
+                statement = "nothing"   # the sentence states nothing of it: the finding stays as it was
         if statement in ("history", "normal"):
             if statements is not None:
                 statements.append({"mention": site.get("mention", report_text[start:end]), "structure": site["cid"],
@@ -130,6 +157,8 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                 image = ImageSide(NO_IMAGE, notes=(f"segmenter_unavailable:{error}",))
         if owner is not None and owner.verdict == "unsure":
             image = replace(image, review=(*image.review, f"is_the_finding_of_this_structure:{owner.reason}"))
+        if owner is not None and getattr(owner, "review", ""):
+            image = replace(image, review=(*image.review, owner.review))
         findings.append(build_finding(patient, study, study_date, modality, text, image))
     return findings
 

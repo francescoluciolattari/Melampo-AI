@@ -1,0 +1,211 @@
+# What the sentence states of the linked structure, claim by claim: labels of the claims sample (2 November 2026).
+# Labeller: Claude, one labeller. Written BEFORE any reader or model was run on these items: the labeller saw
+# the clause, the marked mention, the linked class and the exam (PARROT's modality and area), nothing else.
+# Items: scripts/owner_probe.py sample --seed 20261103 (PARROT v1.0; no report of the HPO samples, of the owner
+# sample of 1 November nor of the statement sample). 200 English items from 102 reports.
+# Claims, joined by "+": finding (something observed of it or of a part of it), involved (something of another
+# structure that reaches it: extends to it, presses on it, at the level or the joint it forms), normal, measure,
+# history, device, not_assessable, nothing (the sentence states nothing of it), aside (what is observed is of
+# another structure and only placed by it). What is attached follows: a finding if finding or involved; nothing
+# at the structure if aside; otherwise only the other claims.
+# "?" at the end of the note: for a radiologist. Format: item|claims|note
+parrot-2624-en-0|nothing|scan range in the technique
+parrot-2624-en-1|finding+measure|enlarged, formations; CRL 152 mm
+parrot-1414-en-0|finding|calcifications of the arch wall
+parrot-1916-en-0|aside|lipoma adjacent to the aorta
+parrot-1771-en-0|finding|tumour in the lobe
+parrot-1771-en-1|finding|lysis of the rib
+parrot-1771-en-2|finding|osteolysis, expanded
+parrot-632-en-0|involved|herniation at the level
+parrot-632-en-1|involved|herniation at the level
+parrot-632-en-2|involved|herniation at the level
+parrot-1630-en-0|finding|calcifications of the arch wall
+parrot-1723-en-0|finding|calcifications of the arch wall
+parrot-2071-en-0|nothing|technique, exam name
+parrot-2071-en-1|finding|prominent cortical volume ?
+parrot-1956-en-0|finding|lytic lesion, fracture of the neck
+parrot-1956-en-1|involved|effusion of the joint the hip bone forms ?
+parrot-1956-en-2|finding|lytic lesion of the sacral ala
+parrot-2057-en-0|finding|cord deformed
+parrot-2057-en-1|involved|protrusions deform the cord
+parrot-281-en-0|finding+normal|appropriate size; hypertrophic caudate lobe
+parrot-281-en-1|finding|hypertrophic
+parrot-281-en-2|finding|adenoma
+parrot-41-en-0|finding|hyperintensities
+parrot-41-en-1|finding|hyperintensities in the pons
+parrot-1799-en-0|finding|demyelinating changes
+parrot-1799-en-1|finding|demyelinating changes
+parrot-2731-en-0|finding|atrophy, enlarged fluid spaces
+parrot-1407-en-0|finding|calcifications of the arch wall
+parrot-986-en-0|involved|compression of the parenchyma by the collection
+parrot-2410-en-0|history|treated for diverticulitis in 2015
+parrot-2410-en-1|history|previous surgery, partial resection
+parrot-2410-en-2|finding+history|cast stone; history of renal tuberculosis
+parrot-1427-en-0|normal|anechoic urine, thin-walled
+parrot-1055-en-0|finding|step-like change of the edges
+parrot-1055-en-1|finding|step-like change of the edges
+parrot-1055-en-2|aside|calcification of the ligament placed by the vertebral body ?
+parrot-1819-en-0|finding|fatty liver
+parrot-2108-en-0|finding|granulomas
+parrot-2119-en-0|finding+normal|increased echogenicity; smooth borders
+parrot-2119-en-1|measure|14.1 cm
+parrot-2119-en-2|normal+measure|hepatopetal flow; 15.5 cm/sec
+parrot-1393-en-0|finding|possible calcification of a thyroid lesion ?
+parrot-1393-en-1|finding|calcifications
+parrot-1393-en-2|finding|narrowed by plaques
+parrot-2114-en-0|normal|expanded, anechoic, thin walls ?
+parrot-1792-en-0|finding|osteophytes of the bodies
+parrot-1792-en-1|finding|osteophytes of the bodies
+parrot-1792-en-2|involved|osteophytes of the uncovertebral joints at the level
+parrot-1531-en-0|normal|no stones
+parrot-1531-en-1|finding|stone in the calyx
+parrot-1531-en-2|finding|low-density focus, likely AML
+parrot-258-en-0|finding+normal|hyperechoic area; normal size
+parrot-1728-en-0|measure|IVC 28.3 mm
+parrot-1728-en-1|measure|IVC 28.3 mm
+parrot-1728-en-2|nothing|heading of the atrial measures ?
+parrot-2086-en-0|finding+normal|irregular margins; no focal lesions
+parrot-2086-en-1|not_assessable|not observed ?
+parrot-2086-en-2|finding+measure|increase in caliber, heterogeneous filling; 14 mm
+parrot-1209-en-0|normal|homogeneous, normal size
+parrot-1209-en-1|normal+measure|homogeneous; 106.1 mm
+parrot-1209-en-2|finding|nodule
+parrot-887-en-0|finding|lytic lesion
+parrot-1544-en-0|finding|calcifications of the arch wall
+parrot-1902-en-0|aside|cystic changes near the pylorus ?
+parrot-1902-en-1|normal+measure|normal density, no lesions; 14.1 x 16.9 cm
+parrot-1902-en-2|finding|atrophic, dilated duct
+parrot-1614-en-0|finding|calcifications of the arch wall
+parrot-1827-en-0|finding|suspected tumour
+parrot-1827-en-1|finding+measure|distended; 91 x 39 x 34 mm
+parrot-1827-en-2|normal|no signs of infiltration of the liver ?
+parrot-2303-en-0|aside|the rib places the level of the effusion
+parrot-2303-en-2|finding|uneven, flattened, suspected fracture
+parrot-37-en-0|finding|reduction of the lesion of the cord
+parrot-37-en-1|involved|hyperintensity at the level ?
+parrot-37-en-2|involved|hyperintensity at the level ?
+parrot-2382-en-0|finding|echogenic leaflets, annular calcification
+parrot-2382-en-1|normal|aortic valve normal
+parrot-2382-en-2|normal|normokinetic
+parrot-1826-en-1|normal+measure|homogeneous; 46 mm
+parrot-1826-en-2|measure|61x34 mm
+parrot-1884-en-1|normal+measure|homogeneous, not enlarged; 9.3 cm
+parrot-1884-en-2|finding+measure|cysts, calculus; 11 cm
+parrot-1884-en-3|finding+measure|thinned parenchyma; 11.7 cm
+parrot-2102-en-0|finding+measure|distended, phrygian cap; 6.0 x 2.6 x 3.5 cm
+parrot-2102-en-1|normal+measure|homogeneous; 8.1 cm
+parrot-1781-en-0|finding|calcification of the parenchyma
+parrot-996-en-0|finding|enlarged silhouette, pericardial fluid
+parrot-1957-en-0|involved|effusion of the joint the hip bone forms ?
+parrot-700-en-0|measure|5.7 cm
+parrot-700-en-1|measure|7 cm
+parrot-1051-en-0|normal|smooth wall, no abnormal signal
+parrot-1051-en-1|normal+measure|normal shape; 46x29x34 mm
+parrot-1687-en-0|normal|no stones
+parrot-1687-en-1|measure|3.9 x 4.0 x 5.0 cm
+parrot-1725-en-0|aside|a shadow in the area of the apex, alternatives listed ?
+parrot-1725-en-1|finding|significantly enlarged
+parrot-967-en-0|finding|mass
+parrot-2363-en-0|finding+device|enlarged; implanted valve
+parrot-2363-en-1|device|implanted aortic valve
+parrot-1809-en-0|normal|thin-walled, free of stones ?
+parrot-1809-en-1|measure|11.3 x 4.5 cm
+parrot-1809-en-2|measure|11.1 x 6 cm
+parrot-1664-en-1|measure|9 x 5 x 4 cm
+parrot-1664-en-2|finding|hypodense lesion
+parrot-1622-en-0|finding|fusion, osteophytes
+parrot-1622-en-1|finding|fusion, osteophytes
+parrot-1622-en-2|nothing|an assessment recommended ?
+parrot-1492-en-0|involved|extends to the duodenum, invasion? ?
+parrot-1492-en-1|normal|contracted after a meal
+parrot-1492-en-3|normal|no significant changes
+parrot-2408-en-0|finding|suspected inflammation of the diverticulum
+parrot-2408-en-2|not_assessable|wall not assessable
+parrot-2408-en-3|not_assessable|not assessable
+parrot-997-en-0|finding|high-density shadows in the region of the head ?
+parrot-997-en-2|finding|high-density shadow
+parrot-997-en-3|finding|possible adenoma
+parrot-254-en-0|finding|mineral shadows, may be nephroliths
+parrot-2309-en-3|measure|21 cm2
+parrot-1063-en-4|normal|smooth wall
+parrot-1063-en-5|normal|smooth
+parrot-897-en-0|finding|distended, thickened wall, stones
+parrot-897-en-2|normal|no significant findings
+parrot-494-en-0|finding|extends into the mediastinum
+parrot-494-en-1|involved|displaced by the thyroid lobe
+parrot-494-en-2|finding|nodules
+parrot-1352-en-0|measure|0.8 mm
+parrot-1352-en-1|measure|0.7 mm
+parrot-1300-en-0|finding|ground-glass opacity
+parrot-1300-en-1|finding|consolidative elements
+parrot-1503-en-0|normal|moderately filled, anechoic
+parrot-2346-en-0|finding+not_assessable|stone; neck poorly visible, fundus inaccessible
+parrot-2346-en-1|finding+not_assessable|hyperechoic; other parts unreadable
+parrot-684-en-0|finding|accessory spleen ?
+parrot-690-en-0|finding|consolidation
+parrot-2505-en-0|involved|abscess extending from T8
+parrot-2505-en-1|involved|abscess extending to T11
+parrot-2505-en-2|finding|destruction
+parrot-697-en-0|measure|17.8 cm
+parrot-2301-en-0|finding+history|irregular outline; remote fracture?
+parrot-2468-en-2|normal+measure|not enlarged, homogeneous; 10.6 cm
+parrot-2549-en-0|finding|wall thickening, stenosis
+parrot-1150-en-0|finding|wall thickening
+parrot-1150-en-1|finding|most likely in the ileum
+parrot-1150-en-2|finding|inflammatory changes
+parrot-234-en-0|finding|thickened wall, diverticula
+parrot-234-en-3|finding|diverticulum
+parrot-234-en-4|finding|rarefaction
+parrot-271-en-0|finding|marrow edema
+parrot-271-en-1|finding|fatty degeneration
+parrot-1124-en-0|involved|degenerative changes at the levels
+parrot-1124-en-1|involved|degenerative changes at the levels
+parrot-1124-en-2|involved|degenerative changes at the levels
+parrot-1527-en-0|finding+normal|hyperechoic; no focal lesions
+parrot-2239-en-0|finding|severe stenosis
+parrot-1053-en-0|finding|full head, possible pancreatitis
+parrot-1053-en-1|finding|dense spot, possibly calcification
+parrot-1643-en-0|involved|mass extending along the tracheal wall
+parrot-1643-en-1|aside|nodes on both sides of the trachea
+parrot-1643-en-2|finding|bone destruction
+parrot-1823-en-2|involved|the mass molds the pancreas
+parrot-903-en-0|finding|hypodense lesion
+parrot-2345-en-1|finding|vascular malformation
+parrot-2414-en-1|history|suspicion at a previous ultrasound ?
+parrot-1538-en-0|nothing|heading of the atrial measure ?
+parrot-218-en-4|finding|distended loops
+parrot-218-en-5|finding|distended loops
+parrot-1591-en-0|finding|anterolisthesis of L3
+parrot-1591-en-1|involved|the level L4 forms
+parrot-1591-en-2|finding|retrolisthesis of L2
+parrot-878-en-0|finding|loss of joint space, acetabular cysts
+parrot-1025-en-0|finding|nodule
+parrot-2252-en-0|nothing|exam name
+parrot-2252-en-1|finding|nodules
+parrot-2252-en-2|finding|nodules
+parrot-1297-en-0|finding|nodules
+parrot-1297-en-1|finding|nodules
+parrot-1773-en-0|finding|protrusion into the bladder
+parrot-1773-en-2|finding|nodule
+parrot-1773-en-3|involved|herniation at the level, along the edge of L1
+parrot-2357-en-2|finding|adenomas
+parrot-661-en-0|normal+measure|hepatopetal flow; 40 cm/s
+parrot-970-en-0|finding|step-like change
+parrot-970-en-1|involved|instability at the level
+parrot-1751-en-3|finding|intramural fat lesion
+parrot-1751-en-4|finding|intramural fat lesion
+parrot-1751-en-6|measure|43 x 45 mm
+parrot-2626-en-1|normal|normal diameter and wall
+parrot-2626-en-2|finding|mass
+parrot-2626-en-3|finding|mass
+parrot-1050-en-1|finding|reduced signal, mass-like
+parrot-1050-en-9|finding|fatty change most prominent there
+parrot-1050-en-10|involved|compression by the liver
+parrot-1578-en-0|finding|atelectatic changes
+parrot-1578-en-1|finding|reduced height
+parrot-1948-en-0|finding|retrolisthesis of C4
+parrot-1948-en-1|finding|retrolisthesis of C5 on C6
+parrot-1948-en-2|finding|retrolisthesis of C5 on C6
+parrot-1662-en-2|finding|narrowed
+parrot-2435-en-0|finding|suspected malignancy in the clinical data ?
+parrot-2435-en-3|finding+measure|dilated; 18 mm

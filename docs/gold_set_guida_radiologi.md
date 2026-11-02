@@ -55,6 +55,29 @@ Nel dubbio fra `structure` e `landmark` si fa una seconda domanda: **la frase di
 
 Di solito vuota: la menzione è già il nome intero. Si compila **solo** quando la menzione è una parte di un nome più lungo che la contiene, scrivendo il nome per intero com'è nel testo: menzione "Heart" → `span_text` "Dallas Heart Study"; menzione "liver" → "liver fatty acid binding protein". Deve contenere la menzione (lo controlla `check`). Se non si è sicuri dove finisce il nome, lasciare vuoto e scrivere in `note`.
 
+## 5. `claims`: che cosa la frase afferma della struttura (novità, 2 novembre 2026)
+
+Per ogni struttura collegata si scrive che cosa la frase afferma **di lei**, usando solo le parole della frase,
+senza aggiungere ciò che si sa. Non si sceglie un'etichetta sola: si segnano **tutte** le affermazioni presenti,
+unite da "+".
+
+| Affermazione | Quando | Esempio |
+|---|---|---|
+| `finding` | la frase osserva qualcosa di diverso dal solito in lei o in una sua parte, anche se lieve o solo probabile | "pancreas **hyperechoic**", "**likely** calcified cartilages" |
+| `involved` | un reperto di un'altra struttura arriva a lei: si estende fino a lei, la comprime, la restringe, o sta al livello o all'articolazione che lei forma | "disc herniation **at the L5-S1 level**", "the mass **molds** the pancreas" |
+| `normal` | la frase dice che è normale, o che un'anomalia è assente | "**not enlarged**", "**no stones**" |
+| `measure` | la frase dà una sua misura | "measures **10.5 cm**" |
+| `history` | un fatto del suo passato | "**history of** thyroid surgery" |
+| `device` | un dispositivo in lei | "**intubation tube** in the trachea" |
+| `not_assessable` | la frase dice che non si può valutare | "the wall **is not assessable**" |
+| `aside` | ciò che si osserva è di un'altra struttura e lei serve solo a dire dove sta | "nodes **along** the aorta", "a collection **between** the flank and the psoas" |
+| `nothing` | la frase la nomina senza affermarne nulla: un titolo, il nome dell'esame | "THYROID ULTRASOUND" |
+
+**Detto, non dedotto.** Un valore che si sa normale ("IMT 0,5 mm") è solo una misura se la frase non dice
+"normale". "Hyperechoic and not enlarged" sono due affermazioni: `finding+normal`. **Vicino non è contatto:**
+"between", "adjacent", "along" dicono dove sta, quindi `aside`; "extends into", "infiltrates", "compresses"
+dicono che arriva a lei, quindi `involved`.
+
 ## Regole che non cambiano
 
 Le regole del protocollo valgono tutte: si etichetta la struttura *nominata*, non la patologia; il lato si legge dal testo e non dal resto del referto; "anca" senza "osso" è una regione; un lume non è l'organo. **Se non si è sicuri: `AMBIGUOUS`**. L'astensione del sistema su quei casi è corretta e viene misurata come tale.
