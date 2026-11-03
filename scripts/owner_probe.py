@@ -44,11 +44,15 @@ STATEMENT_LABELS = ROOT / "data/gold/statement_2026-11-01/labels.txt"
 CLAIMS_LABELS = ROOT / "data/gold/claims_2026-11-02/labels.txt"
 # the second claims sample (2 November 2026, after the corrections of the claims run)
 CLAIMS2_LABELS = ROOT / "data/gold/claims_2026-11-02b/labels.txt"
-SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS}
-CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS}
+# the third claims sample (3 November 2026, after the corrections of the second claims run)
+CLAIMS3_LABELS = ROOT / "data/gold/claims_2026-11-03/labels.txt"
+SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
+           "claims3": CLAIMS3_LABELS}
+CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
+CLAIMS3_SEED = 20261105
 
 
 def owner_labels() -> dict[str, str]:
@@ -291,7 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         # also the owner sample (so that each seed draws again the items its labels were written on)
         before = {FRESH_SEED: [*LABELS.values()], STATEMENT_SEED: [*LABELS.values(), OWNER_LABELS],
                   CLAIMS_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS],
-                  CLAIMS2_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS]}
+                  CLAIMS2_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS],
+                  CLAIMS3_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()

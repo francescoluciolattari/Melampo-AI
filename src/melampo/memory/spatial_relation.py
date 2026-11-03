@@ -36,11 +36,11 @@ AFFECTED = "affected"         # the structure is the object of a verb ("infiltra
 # Italian one also with its articulated preposition ("vicino al", "in prossimità della").
 _EN = {
     PROXIMITY: (
-        "in the vicinity of", "in the region of", "in the area of", "close to", "next to",
+        "in the vicinity of", "in the region of", "in the area of", "in the topography of", "close to", "next to",
         "adjacent to", "lateral to", "laterally to", "medial to", "medially to", "internally to", "externally to", "dorsally to", "ventrally to", "cranially to",
         "caudally to", "anterior to", "posterior to", "superior to", "inferior to",
         "proximal to", "distal to", "outside of", "outside", "beyond", "near", "nearby", "along", "alongside",
-        "around", "surrounding", "between", "among", "beside", "abutting", "above", "below", "behind",
+        "around", "surrounding", "between", "among", "beside", "abutting", "above", "below", "beneath", "underneath", "behind",
         "in front of", "away from", "apart from",
     ),
     DIRECTION: ("into", "towards", "toward", "onto"),

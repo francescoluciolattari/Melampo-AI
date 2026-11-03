@@ -654,14 +654,14 @@ class FindingOwner:
             why = evidence or "the_relation_words_place_it"
             return Ownership(ELSEWHERE, why, said, claims.get("of", "") or placed, "reader_and_model_agree", ASIDE,
                              piece, claims, review)
-        why = self._contradiction(outcome, claims, evidence, text, language, cid, mention)
+        why = self._contradiction(outcome, claims, evidence, text, language, cid, mention, list(said.values()))
         if why:
             return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
                              outcome, piece, claims, review)
         return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review)
 
     def _contradiction(self, outcome: str, claims: dict, evidence: str, text: str, language: str, cid: str,
-                       mention: str) -> str:
+                       mention: str, answers: list[dict] | None = None) -> str:
         """Does what the reader knows contradict the claims? The reason, or "". It never decides a claim: a
         contradiction sends the sentence to a person."""
         from .what_is_said import past, stated_anomalies
@@ -674,6 +674,16 @@ class FindingOwner:
                 return "the_reader_reads_another_owner"
             if own and "named_only_in_a_differential" in evidence and not claims.get("alternatives"):
                 return "the_reader_reads_a_differential"
+            for a in answers or [claims]:
+                mine = [o for o in a.get("observed", a.get("findings", [])) if o.get("of") == "it"]
+                if mine and all(o.get("relation") and _relation_kind(o["relation"], language) in (
+                        "proximity", "projection") for o in mine):
+                    # "a nodule beneath the skull plate", "a focus in the topography of the pancreatic head": the
+                    # model says the finding is the structure's own, and its own words only place it there. Each
+                    # model's answer is checked, because one that contradicts itself is not agreement; one placed
+                    # observation beside a finding of the structure ("enlarged, with blurred fat planes around
+                    # it") changes nothing that is attached (3 November 2026)
+                    return "the_relation_words_only_place_what_is_said_its_own"
             for o in findings:
                 if o.get("relation") and o.get("of") != "it" and _relation_kind(o["relation"], language) in (
                         "proximity", "projection"):

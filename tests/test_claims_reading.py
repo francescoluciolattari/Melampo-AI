@@ -200,3 +200,33 @@ def test_the_bearer_is_read_in_the_mention_s_own_sentence():
     owner = Owner(None, {})
     s = "1.1 cm, and to the terminal part of the duodenum - invasion? The gallbladder is contracted after a meal"
     assert owner._reader("gallbladder", s, s.index("gallbladder"), "en", "gallbladder", {})[0] == "here"
+
+
+def test_a_finding_said_its_own_but_only_placed_by_its_own_words_goes_to_a_person():
+    s = "A semi-circular nodule is observed beneath the right frontal skull plate"
+    beneath = _answer(marked="skull", observed=[{"words": "semi-circular nodule", "of": "it", "relation": "beneath",
+                                                 "reaches": "no"}])
+    inside = _answer(marked="skull", observed=[{"words": "semi-circular nodule", "of": "it", "relation": "in",
+                                                "reaches": "no"}])
+    at = s.index("skull")
+    # one model contradicting itself is not agreement: a person decides, nothing is set aside
+    got = _owner(inside, beneath)("skull", s, at, "en", "skull")
+    assert got.verdict == UNSURE and "the_relation_words_only_place_what_is_said_its_own" in got.reader
+    assert _owner(inside, inside)("skull", s, at, "en", "skull").verdict == HERE
+    # a placed observation beside a finding of the structure changes nothing that is attached
+    s = "The pancreas is enlarged, with blurred fat planes around the pancreas"
+    both = _answer(marked="pancreas", observed=[{"words": "enlarged", "of": "it", "relation": "", "reaches": "no"},
+                                                {"words": "blurred fat planes", "of": "it", "relation": "around",
+                                                 "reaches": "no"}])
+    assert _owner(both, both)("pancreas", s, 4, "en", "pancreas").verdict == HERE
+
+
+def test_the_spatial_indicators_that_only_place():
+    from melampo.memory.spatial_relation import PROXIMITY, read_relation
+
+    for s in ("a nodule beneath the skull", "a focus in the topography of the pancreatic head",
+              "a collection underneath the liver"):
+        name = s.split(" the ")[-1]
+        assert read_relation(s, s.index(name), "en").kind == PROXIMITY, s
+    p = claims_prompt("a shadow at the level of L2-L3", 26, 28, "lumbar vertebra 2")
+    assert "a joint or a space" in p and "how high" in p

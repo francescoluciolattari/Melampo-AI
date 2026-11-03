@@ -1,6 +1,6 @@
 # Melampo — what it is and what it is for
 
-*English · [Italiano](../it/README.md) · as of 2 November 2026*
+*English · [Italiano](../it/README.md) · as of 3 November 2026*
 
 Melampo reads a clinical case (the physician's note, reports, laboratory tables, images) and proposes a
 structured differential diagnosis, with the evidence for and against each hypothesis and an explicit
@@ -25,7 +25,7 @@ Verified on the code of `main`; the full map is in [ARCHITECTURE](ARCHITECTURE.m
 | Ingestion of documents (PDF, DOCX, images, DICOM) and report router | working | the model says only the kind of document; deterministic cues decide with it |
 | Anatomical linker with the Kintsch reader and local models | working | patients' reports are read only by local models |
 | "Whose is the finding?" (finding owner) | working, question v1 | 1 of 24 findings of another structure attributed silently; 0 of 184 right findings removed |
-| Claim-by-claim reading | built, **off** | first runs did not pass their criteria; second sample ready |
+| Claim-by-claim reading | built, **off** | no run has passed its criteria yet: the last valid one missed only the first (5 of 17 attributed silently); third sample ready |
 | From finding to HPO term | in probes only | 90% safe against a 95% threshold: not in the graph |
 | Concept graph (FalkorDB) and nexus branch | working | 636,733 verified edges |
 | Case confirmation and merge | working | a confirmation without a clinical basis is kept out of training |
