@@ -15,6 +15,7 @@ risks:
         tests:
           - tests/test_finding_owner.py::test_the_reader_and_the_model_decide_together
           - tests/test_claims_reading.py::test_the_models_one_stream_must_agree
+          - tests/test_claims_reading.py::test_a_finding_said_its_own_but_only_placed_by_its_own_words_goes_to_a_person
       - control: A structure the model names is read as the linked one, a part or another with UBERON
         tests:
           - tests/test_claims_reading.py::test_a_part_the_model_names_is_the_structure_when_the_reader_reads_it_so

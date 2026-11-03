@@ -1,6 +1,6 @@
 # Validazione e provenienza dei dati
 
-*[English](../en/VALIDATION.md) · Italiano · aggiornato al 2 novembre 2026*
+*[English](../en/VALIDATION.md) · Italiano · aggiornato al 3 novembre 2026*
 
 Melampo afferma soltanto ciò che le sue probe hanno misurato, su campioni su cui nessuno ha tarato il sistema e
 con criteri scritti prima del run. Oggi niente è certificato: il gold set dei radiologi non è ancora etichettato,
@@ -47,7 +47,8 @@ nell'[elenco SOUP](../registers/soup.md) generato.
 | owner (209 item, 9 italiani) | 20261101 | entrambi gli HPO | `data/gold/finding_owner_2026-11-01` | visto |
 | statement | 20261102 | i precedenti | `data/gold/statement_2026-11-01` | visto |
 | claims | 20261103 | i precedenti | `data/gold/claims_2026-11-02` | visto |
-| claims2 | 20261104 | i precedenti | `data/gold/claims_2026-11-02b` | **nuovo, etichettato, non ancora lanciato** |
+| claims2 | 20261104 | i precedenti | `data/gold/claims_2026-11-02b` | visto |
+| claims3 (174 item) | 20261105 | i precedenti | `data/gold/claims_2026-11-03` | **nuovo, etichettato, non ancora lanciato** |
 
 ## 3. Il gold set dei radiologi
 
@@ -65,6 +66,7 @@ Dal più recente. Il dettaglio di ogni run è nel documento indicato nell'ultima
 
 | Data | Domanda | Risultato | Decisione | Dettaglio |
 |---|---|---|---|---|
+| 2026-11-03 | Affermazione per affermazione, campione `claims2` | valido (0 risposte perse). 5 su 17 attribuiti in silenzio (criterio 1 mancato), 0 su 134 reperti messi da parte, 13 su 182 alla persona (7,1%), 3,0% attaccati diversamente. Dei 5: due in cui il modello diceva «è suo» mentre le sue stesse parole collocavano soltanto il reperto («beneath», «in the topography of»); due in cui la domanda diceva ai modelli che «at the level of» raggiunge la vertebra; un'etichetta "?" («lucency at the base of the heart - pneumothorax?») | **spenta**; correzioni: un modello le cui parole collocano soltanto ciò che dice proprio della struttura si contraddice e va alla persona, «beneath», «underneath» e «in the topography of» letti come parole che collocano, la domanda non dice più che un livello raggiunge la struttura. Sullo stesso run, già visto: 3 su 17 in silenzio, 0 tolti, 13 alla persona. Campione `claims3` | questa pull request |
 | 2026-11-02 | Affermazione per affermazione, campione `claims` | run non valido: credito finito (Nemotron ha perso 47 risposte su 200). Sui 153 item con le due risposte: 2 su 5 attribuiti in silenzio, 0 reperti giusti tolti, 21% alla persona, 4,3% attaccati diversamente | **spenta**; correzioni (parti lette con UBERON, domanda sulle parole marcate); campione `claims2` | `affermazione_per_affermazione_2026-11-02` |
 | 2026-11-02 | Role probe dopo la correzione del riferimento | «sede o no»: 0 item con lettore e modello d'accordo su un esito sbagliato; ruoli fini di Gemma 86,0% (semplice) e 87,6% (metodo), erano 89,4% e 91,5% | tenuta; lo strato Rad-SpRL va rietichettato | `che_cosa_dice_la_frase_della_struttura_2026-11-01` |
 | 2026-11-02 | Tipi di affermazione, campione `statement` | 3 su 15 attribuiti in silenzio, 0 tolti, 20% alla persona; quando accettato il tipo era sempre giusto (0 su 137) | **spenta** | `che_cosa_dice_la_frase_della_struttura_2026-11-01` |
@@ -76,14 +78,14 @@ Dal più recente. Il dettaglio di ogni run è nel documento indicato nell'ultima
 | 2026-10-13 | Role probe, run completo | 963 item, cinque strati, tre modelli | metodo tenuto | `role_probe_run_completo_2026-10-13` |
 | 2026-10-08 | Controllo esterno del linker | CRAFT 1.352 giudicati, 13 errori (99,04%); MedMentions 768 giudicati, 51 errori | analisi degli errori | `analisi_errori_controllo_esterno_2026-10-08` |
 
-## 5. Prossima misura: `claims2`
+## 5. Prossima misura: `claims3`
 
-Workflow `owner-probe`, input `sets = claims2`, `arms = claims`; lettore + Gemma 4 + Nemotron 3 Ultra. Criteri,
-fissati prima del run:
+Workflow `owner-probe`, input `sets = claims3`, `arms = claims`; lettore + Gemma 4 + Nemotron 3 Ultra. Criteri,
+fissati prima del run, gli stessi di `claims2`:
 
 1. nessuno dei 17 item da non attribuire viene attaccato senza passare da una persona;
-2. nessuno dei 134 item con un reperto viene messo da parte (al massimo due, dichiarati);
-3. va alla persona al massimo il 10% dei 183 item da tenere, comprese le domande sul lato;
+2. nessuno dei 110 item con un reperto viene messo da parte (al massimo due, dichiarati);
+3. va alla persona al massimo il 10% dei 157 item da tenere, comprese le domande sul lato;
 4. fra gli item accettati, al massimo il 5% attaccati diversamente dall'etichetta (un reperto dove l'etichetta non
    lo ha, o il contrario);
 5. il run conta solo se si perde al massimo il 5% delle risposte.

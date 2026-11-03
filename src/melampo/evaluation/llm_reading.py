@@ -590,9 +590,9 @@ is not there. Leave a list empty when the sentence says nothing of that kind.
   one of its parts, otherwise the structure it is of, copied from the sentence; relation: the words that relate it
   to the linked structure ("in", "of", "between", "adjacent to", "extends into", "compresses"), copied, or "";
   reaches: for what is of another structure, "yes" if the sentence says that the linked structure itself is
-  touched by it (it extends into it, infiltrates, compresses, narrows, displaces or deforms it) or that it is at
-  the level or in the joint the linked structure forms; "no" if the sentence says only where it is or how far it
-  goes, without the linked structure being touched.
+  touched by it (it extends into it, infiltrates, compresses, narrows, displaces or deforms it) or that it is of
+  a joint or a space the linked structure forms with another (a disc between two vertebrae); "no" if the
+  sentence says only where it is, how high or how far it goes, without the linked structure being touched.
 - normal: words saying that it, or something of it, is normal or that something is absent from it.
 - measure: words giving a measure of it.
 - past: words of a fact of its past (a past disease, a surgery).

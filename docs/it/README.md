@@ -1,6 +1,6 @@
 # Melampo: che cos'è e a che cosa serve
 
-*[English](../en/README.md) · Italiano · aggiornato al 2 novembre 2026*
+*[English](../en/README.md) · Italiano · aggiornato al 3 novembre 2026*
 
 Melampo legge un caso clinico (la nota del medico, i referti, le tabelle di laboratorio, le immagini) e propone
 una diagnosi differenziale strutturata, con le prove a favore e contro ogni ipotesi e un «per ora non posso
@@ -25,7 +25,7 @@ Verificato sul codice di `main`; la mappa completa è in [ARCHITECTURE](ARCHITEC
 | Acquisizione dei documenti (PDF, DOCX, immagini, DICOM) e orchestratore dei referti | funziona | il modello dice solo il tipo di documento; indizi deterministici decidono insieme a lui |
 | Linker anatomico con il lettore Kintsch e i modelli locali | funziona | i referti dei pazienti li leggono solo modelli locali |
 | «Di chi è il reperto?» (finding owner) | funziona, domanda v1 | 1 reperto su 24 di un'altra struttura attribuito in silenzio; 0 su 184 reperti giusti tolti |
-| Lettura affermazione per affermazione | costruita, **spenta** | i primi run non hanno passato i criteri; secondo campione pronto |
+| Lettura affermazione per affermazione | costruita, **spenta** | nessun run ha ancora passato i criteri: l'ultimo valido ha mancato solo il primo (5 su 17 attribuiti in silenzio); terzo campione pronto |
 | Dal reperto al termine HPO | solo nelle prove | 90% di risposte sicure contro una soglia del 95%: non entra nel grafo |
 | Grafo dei concetti (FalkorDB) e ramo nexus | funziona | 636.733 archi verificati |
 | Conferma e unione dei casi | funziona | una conferma senza base clinica resta fuori dall'addestramento |
