@@ -3,8 +3,8 @@
 *[English](../en/COMPLIANCE_RISK.md) · Italiano · aggiornato al 4 novembre 2026*
 
 Oggi Melampo è software di ricerca, ma è costruito come se dovesse diventare un dispositivo medico: classe IIa
-dell'MDR, classe C della IEC 62304, sistema di IA ad alto rischio per l'AI Act. Dei quindici pericoli
-registrati, quattordici hanno un controllo verificato da test; uno è aperto.
+dell'MDR, classe C della IEC 62304, sistema di IA ad alto rischio per l'AI Act. Dei sedici pericoli
+registrati, quindici hanno un controllo verificato da test; uno è aperto.
 
 ## 1. Classificazione
 
@@ -41,6 +41,7 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | R13 | misure fatte su dati usati per tarare | split congelati, campioni nuovi, regola delle risposte perse | controllato |
 | R14 | il modello non risponde | una risposta persa vale «non so» e va a una persona | controllato |
 | R15 | stato normale o fisiologico letto come reperto | i modelli confrontano ogni aspetto con quello abituale; il lettore controlla con HPO e PATO | parziale: 4 su 169 nel run claims2, prima del controllo |
+| R16 | misura giudicata con un valore ricordato | solo una riga di riferimento citata, ricalcolata dal lettore | parziale: le righe sono da verificare |
 
 ## 3. Software di terze parti e modelli esterni
 

@@ -47,7 +47,7 @@ generated [SOUP list](../registers/soup.md).
 | statement | 20261102 | the above | `data/gold/statement_2026-11-01` | seen |
 | claims | 20261103 | the above | `data/gold/claims_2026-11-02` | seen |
 | claims2 | 20261104 | the above | `data/gold/claims_2026-11-02b` | seen |
-| claims3 (174 items) | 20261105 | the above | `data/gold/claims_2026-11-03` | **fresh, labelled, not yet run** |
+| claims3 (174 items) | 20261105 | the above | `data/gold/claims_2026-11-03` | seen |
 
 ## 3. The gold set of the radiologists
 
@@ -65,6 +65,7 @@ Newest first. Detail of each run: the document named in the last column, in the 
 
 | Date | Question | Result | Decision | Detail |
 |---|---|---|---|---|
+| 2026-11-04 | Claim by claim, sample `claims3` | valid (0 answers lost). 4 of 17 attributed silently (criterion 1 failed), 0 of 110 findings set aside, 33 of 157 to a person (21%, criterion 3 failed), 2.4% attached otherwise, none a normal state (claims2: 4 of 5). To a person: 13 measures and tables, compared by the models with values they remember; 2 rib fractures read as absences (the negation was read on the last word); 1 from extending the reader's check; 5 "?" labels; the rest older reader readings and model disagreements | **off**; negation read on the head of the observation; the reference library: a measure is compared only with a cited reference value, recomputed by the reader | this pull request |
 | 2026-11-03 | Claim by claim, sample `claims2` | valid (0 answers lost). 5 of 17 attributed silently (criterion 1 failed), 0 of 134 findings set aside, 13 of 182 to a person (7.1%), 3.0% attached otherwise. Of the 5: two where the model said "its own" while its own words only placed the finding ("beneath", "in the topography of"); two where the question told the models that "at the level of" reaches the vertebra; one "?" label ("lucency at the base of the heart - pneumothorax?") | **off**; corrections: a model whose own words only place what it calls the structure's own contradicts itself and goes to a person, "beneath", "underneath" and "in the topography of" read as placing, the question no longer says that a level reaches the structure. On the same, already seen run: 3 of 17 silently, 0 removed, 13 to a person. Sample `claims3` | this pull request |
 | 2026-11-02 | Claim by claim, sample `claims` | run not valid: credit ran out (Nemotron lost 47 of 200 answers). On the 153 items with both answers: 2 of 5 attributed silently, 0 right findings removed, 21% to a person, 4.3% attached otherwise | **off**; corrections (parts read with UBERON, question on the marked words); sample `claims2` | `affermazione_per_affermazione_2026-11-02` |
 | 2026-11-02 | Role probe after the landmark fix | "site or not": 0 items with reader and model agreeing on a wrong outcome; Gemma fine roles 86.0% (simple) and 87.6% (method), was 89.4% and 91.5% | kept; the Rad-SpRL stratum must be relabelled | `che_cosa_dice_la_frase_della_struttura_2026-11-01` |
@@ -77,22 +78,12 @@ Newest first. Detail of each run: the document named in the last column, in the 
 | 2026-10-13 | Role probe, complete run | 963 items, five strata, three models | method kept | `role_probe_run_completo_2026-10-13` |
 | 2026-10-08 | External check of the linker | CRAFT 1,352 judged, 13 errors (99.04%); MedMentions 768 judged, 51 errors | error analysis | `analisi_errori_controllo_esterno_2026-10-08` |
 
-## 5. Next measure: `claims3`
+## 5. Next measure: a new sample, after the reference library
 
-Workflow `owner-probe`, inputs `sets = claims3`, `arms = claims`; reader + Gemma 4 + Nemotron 3 Ultra. Criteria,
-fixed before the run, the same as for `claims2`. Before this run, two more corrections (4 November 2026): the
-models compare each aspect the sentence describes (filling, content, wall, size, density…) with how it is in a
-healthy person in that exam, and what they find usual is a normal claim, checked by the reader with HPO and PATO;
-when a model says the marked words name another structure, what it reads as reaching the linked one is still a
-finding that involves it. On the claims2 answers (already seen) the second moves the two hip sentences from the
-person to the right finding; the first changes the question and is measured only here.
-
-1. none of the 17 items to set aside is attached without going to a person;
-2. none of the 110 items with a finding is set aside (at most two, stated);
-3. at most 10% of the 157 items to keep go to a person, laterality questions included;
-4. among accepted items, at most 5% attached otherwise than the label (a finding where the label has none, or
-   the opposite);
-5. the run counts only if at most 5% of the answers are lost.
+The library changes the question, so it is measured only on a sample no reader has seen, drawn and labelled
+before the run, with the same five criteria and two more counts: the measures compared with a cited reference,
+and those the reader's recomputation sends to a person. The rows of the table are to verify against their pages
+before that run; a row a person has not checked is not trusted in clinical use.
 
 ## 6. Known limits
 

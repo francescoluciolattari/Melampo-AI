@@ -60,6 +60,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Kintsch reader | `memory/ci_reader.py`, `memory/spatial_relation.py` | working; second stage reads the landmark role |
 | Finding owner | `memory/finding_owner.py` | working with question v1; claim-by-claim reading built, off (`MELAMPO_OWNER_QUESTION=claims`) |
 | What the reader knows | `memory/what_is_said.py` | abnormalities from HPO and PATO, phrase heads, negation, coordination |
+| Reference library | `memory/reference_values.py`, `data/reference/` | built: reference values with their sources (to verify), paragraphs in a local copy; the models compare a measure only with a cited row, the reader recomputes it |
 | Question for a person | `memory/review_question.py` | working; shown in the case reading as `questions` |
 | Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | working when a volume and the segmenters are configured |
 | Finding → HPO term | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | probes only (90% safe, threshold 95%) |
@@ -127,3 +128,4 @@ Short form; the full records are in the tag `docs-archive-2026-11`.
 | 2026-10-30 | Narrative reader and image interpreter run in ingestion | yes |
 | 2026-10-31 | The landmark role; the finding owner decided by reader and models together | yes |
 | 2026-11-02 | No label chosen from an ordered list: claims with copied words; the reader checks with ontologies and grammar, never with word lists made for cases | yes |
+| 2026-11-04 | A measure is compared with a reference value from a cited source, never with what a model remembers; paragraphs, not chapters, of the sources; for research open literature and Radiopaedia | yes |

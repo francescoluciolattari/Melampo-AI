@@ -169,6 +169,22 @@ risks:
           - tests/test_claims_reading.py::test_what_the_models_call_usual_and_the_reader_knows_as_a_deviation_goes_to_a_person
     measured_by: owner-probe, criterion 4 (VALIDATION.md)
     status: partial
+  - id: R16
+    hazard: A measure is judged against a value the model remembers
+    situation: "\"the portal vein measures 16 mm\" judged enlarged or normal from memory, with no source"
+    harm: An unfounded abnormality, or a missed one
+    severity: 3
+    probability: 3
+    controls:
+      - control: The models compare a measure only with a reference row they are given and cite; the reader recomputes the comparison
+        tests:
+          - tests/test_reference_values.py::test_a_comparison_the_cited_row_does_not_support_goes_to_a_person
+          - tests/test_reference_values.py::test_the_reader_recomputes_the_comparison_of_the_cited_row
+      - control: Every reference row has its source, licence and status; only reviewed rows are for clinical use
+        tests:
+          - tests/test_reference_values.py::test_every_row_of_the_table_has_its_source_and_a_status
+    measured_by: owner-probe, measures compared with a reference (VALIDATION.md)
+    status: partial
   - id: R13
     hazard: A performance figure is measured on data the system was tuned on
     situation: The figure overstates the real performance

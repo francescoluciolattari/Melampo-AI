@@ -149,7 +149,17 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
             anomalies = AnomalyWords.from_env()
         except Exception as error:  # noqa: BLE001 -- the reader checks less without the ontologies
             note += f"+anomalies_unavailable:{type(error).__name__}"
-    return (FindingOwner(reader, chats, anatomy, question=question, anomalies=anomalies),
+    references = None
+    if question == "claims":
+        # the reference library (4 November 2026): the table, and the local paragraphs of its sources
+        # (MELAMPO_REFERENCE_PASSAGES); without it a measure is only a measure
+        from ..memory.reference_values import ReferenceValues
+
+        try:
+            references = ReferenceValues.load()
+        except Exception as error:  # noqa: BLE001
+            note += f"+references_unavailable:{type(error).__name__}"
+    return (FindingOwner(reader, chats, anatomy, question=question, anomalies=anomalies, references=references),
             "finding_owner:reader" + ("+models" if chats else "") + note + (f":{question}" if question != "owner" else ""))
 
 

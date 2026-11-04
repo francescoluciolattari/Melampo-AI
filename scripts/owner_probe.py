@@ -149,6 +149,11 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
                 out["kinds_of_the_label_not_attached"].update(gold - kinds - {"nothing"})
         for a in (got.get("models") or {}).values():
             out["dropped_words"] += int(a.get("dropped") or 0)
+            refs = a.get("measure_refs") or []
+            c["measures_compared_with_a_reference"] += len(refs)
+            c["measures_without_a_reference"] += max(len(a.get("measure") or []) - len(refs), 0)
+        if "measure_" in (got.get("reader") or ""):
+            c["reference_check_to_a_person"] += 1   # a comparison the cited row does not support
         if r.get("gold_doubt"):
             out["for_a_radiologist"].append({"item": r["item_id"], "gold": "+".join(sorted(gold)),
                                              "verdict": verdict, "statement": got.get("statement", "")})
@@ -320,6 +325,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--skip", default="", help="arms not to run: owner, statement, claims")
     ap.add_argument("--hpo", help="hp-full.obo: what the reader knows of abnormalities (the claims arm)")
     ap.add_argument("--pato", help="pato.obo: the qualities of the abnormalities")
+    ap.add_argument("--references", help="the table of reference values (default data/reference/values.yml)")
+    ap.add_argument("--passages", help="the local copy of the paragraphs of their sources (jsonl), if any")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
 
@@ -359,8 +366,13 @@ def main(argv: list[str] | None = None) -> int:
 
     anomalies = AnomalyWords.from_files(Path(args.hpo), Path(args.pato) if args.pato else None,
                                         Path(args.uberon) if args.uberon else None) if args.hpo else AnomalyWords()
+    # the reference library (4 November 2026): what a measure is compared with, cited by the models
+    from melampo.memory.reference_values import ReferenceValues
+
+    references = ReferenceValues.load(Path(args.references) if args.references else None,
+                                      Path(args.passages) if args.passages else None)
     claims = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="claims",
-                          anomalies=anomalies) if chats else None
+                          anomalies=anomalies, references=references) if chats else None
     from melampo.memory.finding_owner import report_context
     away = elsewhere_pairs()
 
@@ -391,6 +403,8 @@ def main(argv: list[str] | None = None) -> int:
                 text = report["translation"] if item["language"] == "en" else report["report"]
                 at_report = text.find(item["clause"])
                 context = report_context(text, max(at_report, 0))
+            if item.get("modality"):
+                context["modality"] = str(item["modality"]).upper()   # the technique the reference values hold for
             row["context"] = context
             row["_item"] = item
             row["reader"] = reader_only(item["mention"], item["clause"], at, item["language"], item["structure"],

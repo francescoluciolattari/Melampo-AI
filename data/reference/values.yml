@@ -1,0 +1,269 @@
+# Reference values (4 November 2026): what the models compare a measure with, instead of what they remember.
+#
+# Every row is knowledge with its source, not a boundary set by the project: the value, the population and the
+# technique it holds for, where it is written (URL, section, reference number of the source), the licence of
+# the source, and who checked it. Only the row's facts are here; the paragraphs of the sources are not
+# committed (data/reference/README.md): a number with its citation is a fact, a paragraph is the author's work.
+#
+# status:
+#   to_verify  read by Claude through a web reading of the page (a summarising fetch), not yet checked by a
+#              person against the page itself: usable in the probes, not in clinical use
+#   verified   checked against the page by a person (name, date)
+#   reviewed   reviewed by a radiologist (name, date): the only status for clinical use
+#
+# Fields: id; structures (linker classes); aspect (length, diameter, thickness, volume, volume_index); detail
+# (how it is measured); techniques (US, CT, MR, RX, XA, any); population (age, sex: male, female, any);
+# normal (low, high: the normal range, either may be absent) or above (a value above it is abnormal); unit;
+# above_means / below_means (the deviation, in the words of the source); source; status; checked_by.
+version: 2026-11-04
+rows:
+  - id: spleen-length-us
+    structures: [spleen]
+    aspect: length
+    detail: "length on sonographic assessment"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    normal: {high: 120}
+    unit: mm
+    above_means: splenomegaly
+    note: "the source adds that lengths upwards of 14 cm can be seen in normal, taller males; men and taller or heavier individuals have longer spleens"
+    source: {title: "Splenomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/splenomegaly",
+             section: "sonographic assessment", ref: "15", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: spleen-length-ct-massive
+    structures: [spleen]
+    aspect: length
+    detail: "true craniocaudal measurement on coronal CT; one of the definitions of massive splenomegaly"
+    techniques: [CT]
+    population: {age: adult, sex: any}
+    above: 145
+    unit: mm
+    above_means: massive splenomegaly
+    source: {title: "Splenomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/splenomegaly",
+             section: "massive splenomegaly", ref: "4", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: kidney-length-male
+    structures: [kidney_right, kidney_left]
+    aspect: length
+    detail: "normal adult kidney length (gross anatomy)"
+    techniques: [any]
+    population: {age: adult, sex: male}
+    normal: {low: 100, high: 140}
+    unit: mm
+    source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
+             section: "gross anatomy: size", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: kidney-length-female
+    structures: [kidney_right, kidney_left]
+    aspect: length
+    detail: "normal adult kidney length (gross anatomy)"
+    techniques: [any]
+    population: {age: adult, sex: female}
+    normal: {low: 90, high: 130}
+    unit: mm
+    source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
+             section: "gross anatomy: size", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: kidney-parenchyma-us
+    structures: [kidney_right, kidney_left]
+    aspect: thickness
+    detail: "parenchymal thickness, when the pyramids are difficult to differentiate"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    normal: {low: 15, high: 20}
+    unit: mm
+    source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
+             section: "radiographic features: ultrasound", ref: "11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: kidney-cortex-us
+    structures: [kidney_right, kidney_left]
+    aspect: thickness
+    detail: "cortical thickness"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    normal: {low: 6}
+    unit: mm
+    source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
+             section: "radiographic features: ultrasound", ref: "14", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: liver-length-mcl
+    structures: [liver]
+    aspect: length
+    detail: "craniocaudal length in the midclavicular line; the average is 10-12.5 cm"
+    techniques: [US, CT]
+    population: {age: adult, sex: any}
+    above: 155
+    unit: mm
+    above_means: enlarged (hepatomegaly); the source gives 15.5-16 cm
+    note: "the range of normal liver volume depends on patient population and demographics"
+    source: {title: "Hepatomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/hepatomegaly",
+             section: "for the adult liver", ref: "2", revised: "2024-03-29", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: portal-vein-diameter
+    structures: [portal_vein_and_splenic_vein]
+    aspect: diameter
+    detail: "main portal vein; the source adds that it may vary up to 15 mm"
+    techniques: [any]
+    population: {age: adult, sex: any}
+    normal: {low: 7, high: 13}
+    unit: mm
+    source: {title: "Portal vein", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/portal-vein",
+             section: "gross anatomy: origin and course", ref: "2, 11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: portal-vein-diameter-ct
+    structures: [portal_vein_and_splenic_vein]
+    aspect: diameter
+    detail: "mean portal vein diameter is typically larger on CT"
+    techniques: [CT]
+    population: {age: adult, sex: any}
+    normal: {high: 15.5}
+    unit: mm
+    source: {title: "Portal vein", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/portal-vein",
+             section: "radiographic features: CT", ref: "13", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: aorta-infrarenal-diameter
+    structures: [aorta]
+    aspect: diameter
+    detail: "below the kidneys (the diameter decreases from 28 mm in the thorax to less than 20 mm below the kidneys)"
+    techniques: [any]
+    population: {age: adult, sex: any}
+    normal: {high: 20}
+    unit: mm
+    source: {title: "Abdominal aorta", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/abdominal-aorta-1",
+             section: "gross anatomy: course", ref: "5", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: gallbladder-wall-us
+    structures: [gallbladder]
+    aspect: thickness
+    detail: "gallbladder wall"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    above: 3
+    unit: mm
+    above_means: gallbladder wall thickening
+    source: {title: "Acute cholecystitis", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/acute-cholecystitis",
+             section: "radiographic features: ultrasound", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: small-bowel-diameter-ct
+    structures: [small_bowel]
+    aspect: diameter
+    detail: "small bowel loops, from outer wall to outer wall"
+    techniques: [CT]
+    population: {age: adult, sex: any}
+    above: 25
+    unit: mm
+    above_means: dilated small bowel
+    source: {title: "Small bowel obstruction", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/small-bowel-obstruction",
+             section: "radiographic features: CT", ref: "", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: small-bowel-diameter-us
+    structures: [small_bowel]
+    aspect: diameter
+    detail: "bowel loop"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    above: 30
+    unit: mm
+    above_means: dilated bowel loop
+    source: {title: "Small bowel obstruction", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/small-bowel-obstruction",
+             section: "radiographic features: bedside ultrasound", ref: "7", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
+    status: to_verify
+    checked_by: ""
+  - id: left-atrium-volume-index
+    structures: [heart, atrial_appendage_left]
+    aspect: volume_index
+    detail: "maximum left atrial volume indexed to body surface area, 2D echocardiography"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    normal: {low: 16, high: 34}
+    unit: mL/m2
+    above_means: left atrial enlargement
+    source: {title: "Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al.)",
+             publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
+             url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
+             section: "table 4", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
+    status: to_verify
+    checked_by: ""
+  - id: lv-diastolic-dimension-male
+    structures: [heart]
+    aspect: diameter
+    detail: "left ventricular internal dimension in diastole, 2-SD range"
+    techniques: [US]
+    population: {age: adult, sex: male}
+    normal: {low: 42.0, high: 58.4}
+    unit: mm
+    source: {title: "Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al.)",
+             publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
+             url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
+             section: "table 2", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
+    status: to_verify
+    checked_by: ""
+  - id: lv-diastolic-dimension-female
+    structures: [heart]
+    aspect: diameter
+    detail: "left ventricular internal dimension in diastole, 2-SD range"
+    techniques: [US]
+    population: {age: adult, sex: female}
+    normal: {low: 37.8, high: 52.2}
+    unit: mm
+    source: {title: "Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al.)",
+             publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
+             url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
+             section: "table 2", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
+    status: to_verify
+    checked_by: ""
+  - id: septal-thickness-male
+    structures: [heart]
+    aspect: thickness
+    detail: "interventricular septal thickness, linear method"
+    techniques: [US]
+    population: {age: adult, sex: male}
+    normal: {low: 6, high: 10}
+    unit: mm
+    source: {title: "Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al.)",
+             publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
+             url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
+             section: "table 6", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
+    status: to_verify
+    checked_by: ""
+  - id: septal-thickness-female
+    structures: [heart]
+    aspect: thickness
+    detail: "interventricular septal thickness, linear method"
+    techniques: [US]
+    population: {age: adult, sex: female}
+    normal: {low: 6, high: 9}
+    unit: mm
+    source: {title: "Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al.)",
+             publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
+             url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
+             section: "table 6", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
+    status: to_verify
+    checked_by: ""
+  - id: ivc-high-right-atrial-pressure
+    structures: [inferior_vena_cava]
+    aspect: diameter
+    detail: "IVC diameter > 2.1 cm with < 50% collapse on sniff suggests high right atrial pressure (mean 15 mmHg, range 10-20); the collapse is not compared here"
+    techniques: [US]
+    population: {age: adult, sex: any}
+    above: 21
+    unit: mm
+    above_means: "with < 50% collapse on sniff, high right atrial pressure"
+    source: {title: "Role of inferior vena cava dynamics for estimating right atrial pressure in congenital heart disease (Egbe et al.), citing the ASE guideline (Rudski et al., J Am Soc Echocardiogr 2010)",
+             publisher: "Circulation: Cardiovascular Imaging 2022;15(9):e014308",
+             url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC9504388", section: "methods: study objectives", ref: "4",
+             revised: "2022", licence: "PMC copyright notice: the value with its citation only"}
+    status: to_verify
+    checked_by: ""
