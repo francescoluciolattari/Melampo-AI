@@ -228,5 +228,51 @@ def test_the_spatial_indicators_that_only_place():
               "a collection underneath the liver"):
         name = s.split(" the ")[-1]
         assert read_relation(s, s.index(name), "en").kind == PROXIMITY, s
-    p = claims_prompt("a shadow at the level of L2-L3", 26, 28, "lumbar vertebra 2")
+    p = " ".join(claims_prompt("a shadow at the level of L2-L3", 26, 28, "lumbar vertebra 2").split())
     assert "a joint or a space" in p and "how high" in p
+
+
+def test_each_aspect_is_compared_with_the_usual_and_the_same_is_normal():
+    s = "The bladder is partially filled, with an anechoic content"
+    p = " ".join(claims_prompt(s, 4, 11, "urinary bladder").split())
+    assert "usual" in p and "healthy person in this exam" in p and '"differs"' in p
+    said = _answer(marked="bladder", observed=[
+        {"words": "partially filled", "aspect": "filling", "usual": "variable", "differs": "no", "of": "it"},
+        {"words": "anechoic content", "aspect": "content", "usual": "anechoic urine", "differs": "no", "of": "it"}])
+    read = read_claims(json.dumps(said), s, "bladder")
+    assert read["observed"] == [] and read["normal"] == ["partially filled", "anechoic content"]
+    assert claims_outcome(read) == KEEP
+    got = _owner(said, said)("bladder", s, 4, "en", "urinary_bladder")
+    assert got.verdict == HERE and got.statement == KEEP
+    # a model that cannot tell the state from the usual sends the sentence to a person
+    unsure = _answer(marked="bladder", observed=[{"words": "partially filled", "differs": "unsure", "of": "it"}])
+    assert _owner(said, unsure)("bladder", s, 4, "en", "urinary_bladder").verdict == UNSURE
+
+
+def test_what_the_models_call_usual_and_the_reader_knows_as_a_deviation_goes_to_a_person():
+    s = "The gallbladder is distended, with a hypodense halo of the wall"
+    said = _answer(marked="gallbladder", observed=[
+        {"words": "distended", "differs": "yes", "of": "it"},
+        {"words": "hypodense halo of the wall", "differs": "no", "of": "it"}])
+    got = _owner(said, said)("gallbladder", s, 4, "en", "gallbladder")
+    assert got.verdict == UNSURE and "the_normal_words_state_an_abnormality" in got.reader
+
+
+def test_another_structure_that_reaches_it_is_a_finding_that_involves_it():
+    joint = _answer(marked="left hip", same="no", named="left hip joint", observed=[
+        {"words": "the gap is narrowed", "of": "left hip joint", "relation": "of", "reaches": "yes"}])
+    assert claims_outcome({**joint, "valid": True}) == FINDING
+    apart = _answer(marked="left hip", same="no", named="left hip joint", observed=[
+        {"words": "the gap is narrowed", "of": "left hip joint", "relation": "of", "reaches": "no"}])
+    assert claims_outcome({**apart, "valid": True}) == ASIDE
+
+
+def test_a_model_that_reads_nothing_and_one_that_reads_another_structure_disagree():
+    # "nothing" leaves the finding the linker built where it was; "another structure" sets it aside: they would
+    # attach different things, so a person decides ("a node between the aorta and the inferior vena cava")
+    s = "Another node is located between the aorta and the inferior vena cava"
+    at = s.index("inferior vena cava")
+    nothing = _answer(marked="inferior vena cava")
+    other = _answer(marked="inferior vena cava", observed=[{"words": "Another node", "of": "Another node",
+                                                            "relation": "between", "reaches": "no"}])
+    assert _owner(nothing, other)("inferior vena cava", s, at, "en", "inferior_vena_cava").verdict == UNSURE

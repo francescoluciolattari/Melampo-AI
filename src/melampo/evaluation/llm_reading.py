@@ -578,21 +578,27 @@ def read_statement(text: str, sentence: str) -> dict:
 # readers agree on. What is not in the words is not a claim ("said, not inferred").
 CLAIM_LISTS = ("observed", "normal", "measure", "past", "certainty", "alternatives", "device", "not_assessable")
 CLAIM_STEPS = """Say what the sentence states of the linked structure, using only its words: every entry is copied
-exactly from the sentence (you may shorten a long piece with "..." between copied parts). Do not add what you know:
-a value you know to be normal is not "normal" unless the sentence says so; a finding the sentence does not state
-is not there. Leave a list empty when the sentence says nothing of that kind.
+exactly from the sentence (you may shorten a long piece with "..." between copied parts). Do not add what the
+sentence does not say: a finding it does not state is not there. What you know of the structure serves only to
+compare what the sentence says with the usual (observed, below). Leave a list empty when the sentence says nothing
+of that kind.
 - marked: the marked words, copied.
 - same: about the marked words only, not about what the sentence describes: "yes" if here they name the linked
   structure or a part of it, "no" if they name a different structure (then named: the structure they name),
   "unsure".
-- observed: everything the sentence observes that differs from the usual: a lesion, a change of size, shape,
-  density, signal, position or content, even if mild. For each: words; of: "it" if it is of the linked structure or
-  one of its parts, otherwise the structure it is of, copied from the sentence; relation: the words that relate it
-  to the linked structure ("in", "of", "between", "adjacent to", "extends into", "compresses"), copied, or "";
-  reaches: for what is of another structure, "yes" if the sentence says that the linked structure itself is
-  touched by it (it extends into it, infiltrates, compresses, narrows, displaces or deforms it) or that it is of
-  a joint or a space the linked structure forms with another (a disc between two vertebrae); "no" if the
-  sentence says only where it is, how high or how far it goes, without the linked structure being touched.
+- observed: everything the sentence says of an aspect of it or of what it contains (its state of filling or
+  distension, its content, its wall, size, shape, density, echogenicity, signal, position, a lesion), each compared
+  as a radiologist does with how that aspect of this structure is in a healthy person in this exam. For each:
+  words; aspect: the aspect, in a few words; usual: how that aspect is in a healthy person in this exam, in a few
+  words of your own (a physiological state, such as a hollow organ more or less filled, is usual); differs: "yes"
+  if the words describe something different from the usual, even if mild, "no" if they describe the usual,
+  "unsure" if it cannot be told; of: "it" if it is of the linked structure or one of its parts, otherwise the
+  structure it is of, copied from the sentence; relation: the words that relate it to the linked structure ("in",
+  "of", "between", "adjacent to", "extends into", "compresses"), copied, or ""; reaches: for what is of another
+  structure, "yes" if the sentence says that the linked structure itself is touched by it (it extends into it,
+  infiltrates, compresses, narrows, displaces or deforms it) or that it is of a joint or a space the linked
+  structure forms with another (a disc between two vertebrae); "no" if the sentence says only where it is, how
+  high or how far it goes, without the linked structure being touched.
 - normal: words saying that it, or something of it, is normal or that something is absent from it.
 - measure: words giving a measure of it.
 - past: words of a fact of its past (a past disease, a surgery).
@@ -601,7 +607,8 @@ is not there. Leave a list empty when the sentence says nothing of that kind.
 - device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis).
 - not_assessable: words saying it cannot be assessed."""
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
-                '"observed": [{"words": "...", "of": "it", "relation": "", "reaches": "no"}], "normal": [], '
+                '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", "of": "it", '
+                '"relation": "", "reaches": "no"}], "normal": [], '
                 '"measure": [], "past": [], "certainty": [], "alternatives": [], "device": [], "not_assessable": [], '
                 '"why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
@@ -657,7 +664,7 @@ def read_claims(text: str, sentence: str, mention: str) -> dict:
     same = str(answer.get("same") or "").strip().lower()
     out["same"] = same if same in ("yes", "no", "unsure") else "unsure"
     out["named"] = str(answer.get("named") or "")
-    observed = []
+    observed, usual = [], []
     for entry in answer.get("observed") or []:
         if not isinstance(entry, dict) or not copied(sentence, entry.get("words", "")):
             out["dropped"] += 1
@@ -667,9 +674,16 @@ def read_claims(text: str, sentence: str, mention: str) -> dict:
             of = "?"                    # of another structure, not named in the sentence: unknown
         relation = str(entry.get("relation") or "")
         reaches = str(entry.get("reaches") or "").strip().lower()
+        differs = str(entry.get("differs") or "yes").strip().lower()
+        if differs == "no":
+            usual.append(str(entry["words"]))   # compared with the usual and found the same: a normal claim
+            continue
+        if differs != "yes":
+            out["state_unsure"] = True          # the model cannot tell it from the usual: a person decides
         observed.append({"words": str(entry["words"]), "of": "it" if of.lower() in ("it", "") else of,
                          "relation": relation if copied(sentence, relation) else "",
-                         "reaches": reaches if reaches in ("yes", "no") else "no"})
+                         "reaches": reaches if reaches in ("yes", "no") else "no",
+                         "aspect": str(entry.get("aspect") or ""), "usual": str(entry.get("usual") or "")})
     out["observed"] = observed
     for key in CLAIM_LISTS[1:]:
         kept = []
@@ -680,6 +694,7 @@ def read_claims(text: str, sentence: str, mention: str) -> dict:
             else:
                 out["dropped"] += 1
         out[key] = kept
+    out["normal"] = usual + [w for w in out["normal"] if w not in usual]
     return out
 
 

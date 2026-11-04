@@ -344,13 +344,15 @@ def claims_outcome(answer: dict) -> str:
     """What one model's claims attach: FINDING (a current finding of the structure, or of another structure
     that reaches it), ASIDE (what is observed is of other structures, or the words name another one), KEEP, or
     "unsure"."""
-    if not answer.get("valid"):
-        return "unsure"
-    if answer.get("same") == "no":
-        return ASIDE
-    if answer.get("same") != "yes":
+    if not answer.get("valid") or answer.get("state_unsure"):
         return "unsure"
     observed = answer.get("observed") or []
+    if answer.get("same") == "no":
+        # the marked words name another structure; what the model read of the linked one still counts: what it
+        # says reaches it is a finding that involves it (4 November 2026)
+        return FINDING if any(o.get("reaches") == "yes" for o in observed) else ASIDE
+    if answer.get("same") != "yes":
+        return "unsure"
     if any(o.get("of") == "it" or o.get("reaches") == "yes" for o in observed):
         return FINDING
     if observed:
@@ -667,6 +669,12 @@ class FindingOwner:
         from .what_is_said import past, stated_anomalies
 
         sites = self.anomalies.sites_of(cid) if self.anomalies else set()
+        for w in claims.get("normal", []):
+            # what the models compared with the usual and found the same, or call normal, while the reader knows
+            # the words as a deviation of this tissue (HPO, PATO): the two readings do not correspond (4 November
+            # 2026). The reader knows fewer deviations than a radiologist, so it never confirms a finding alone
+            if stated_anomalies(w, language, self.anomalies, sites):
+                return "the_normal_words_state_an_abnormality"
         if outcome == FINDING:
             findings = claims.get("findings", [])
             own = [o for o in findings if o.get("of") == "it"]
