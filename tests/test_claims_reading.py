@@ -276,3 +276,12 @@ def test_a_model_that_reads_nothing_and_one_that_reads_another_structure_disagre
     other = _answer(marked="inferior vena cava", observed=[{"words": "Another node", "of": "Another node",
                                                             "relation": "between", "reaches": "no"}])
     assert _owner(nothing, other)("inferior vena cava", s, at, "en", "inferior_vena_cava").verdict == UNSURE
+
+
+def test_a_negation_further_on_does_not_make_the_observation_an_absence():
+    from melampo.memory.what_is_said import negated
+
+    assert not negated("Fractures of the left ribs 3-7 without significant displacement", "en", "left ribs 3")
+    assert not negated("A cyst with no septa", "en")
+    assert negated("no stones", "en") and negated("not enlarged", "en")
+    assert negated("liver not enlarged", "en", "liver") and negated("senza calcoli", "it")

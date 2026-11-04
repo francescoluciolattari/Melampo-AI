@@ -259,16 +259,23 @@ def _radiological(word: str, language: str) -> bool:
     return bool(_RADIOLOGICAL.match(word))
 
 
-def negated(text: str, language: str = "en") -> bool:
-    """Does the assertion detector read the last word of ``text`` as negated ("not enlarged", "no stones")?"""
+def negated(text: str, language: str = "en", subject: str = "") -> bool:
+    """Is what the words observe negated: the head of their first phrase ("not enlarged", "no stones", "senza
+    calcoli")? A negation further on says what is absent from it, not that it is absent: "fractures of the ribs
+    without displacement" observes fractures (4 November 2026; the last word was read before, and the fractures
+    became an absence). A first phrase that only names the ``subject`` (the structure: "liver not enlarged") is
+    skipped."""
     from .assertion import POLARITY_NEGATED, AssertionDetector, select_cues
 
-    words = list(re.finditer(r"[A-Za-zÀ-ÿ]+", text or ""))
-    if len(words) < 2:
+    named = {w.lower() for w in re.findall(r"[A-Za-zÀ-ÿ]+", subject or "")}
+    found = [p for p in phrases(text, language)
+             if not named or not {w.lower() for w, _, _ in p} <= named | _ARTICLES]
+    if not found:
         return False
+    first = found[0]
+    heads = [first[-1]] if language != "it" else first     # Italian: the head is on the left, after a quantifier
     detector = AssertionDetector(cues=select_cues(language if language in ("en", "it") else "en"))
-    last = words[-1]
-    return detector.detect(text, last.start(), last.end()).polarity == POLARITY_NEGATED
+    return any(detector.detect(text, s, e).polarity == POLARITY_NEGATED for _, s, e in heads)
 
 
 def past(text: str, language: str = "en") -> bool:

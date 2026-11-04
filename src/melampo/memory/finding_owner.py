@@ -569,9 +569,9 @@ class FindingOwner:
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
                 said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
                                "error_text": str(error)[:160]}
-        return self._with_anatomy(said, mention, cid)
+        return self._with_anatomy(said, mention, cid, language)
 
-    def _with_anatomy(self, said: dict[str, dict], mention: str, cid: str) -> dict[str, dict]:
+    def _with_anatomy(self, said: dict[str, dict], mention: str, cid: str, language: str = "en") -> dict[str, dict]:
         """Whether a structure the model names is the linked one is anatomy, and anatomy is the reader's: a
         part of the linked structure is the linked structure ("the wall of the arch" of the aorta, the pons of
         the brain, the neck of the femur), and so is the whole it is a part of (2 November 2026: the models
@@ -590,7 +590,7 @@ class FindingOwner:
                 continue
             kept = []
             for o in answer.get("observed", []):
-                if negated(o.get("words", "")):
+                if negated(o.get("words", ""), language, mention):
                     # "not enlarged" is not an observation but an absence: the reader reads the negation
                     answer.setdefault("normal", []).append(o["words"])
                     answer.setdefault("moved_by_the_reader", []).append(o["words"])
