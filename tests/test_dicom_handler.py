@@ -49,7 +49,13 @@ def _read_header(path):
 def _first_sample(predicate):
     for path in get_testdata_files():
         dataset = _read_header(path)
-        if dataset is not None and predicate(dataset):
+        try:
+            matches = dataset is not None and predicate(dataset)
+        except AttributeError:
+            # a sample without the element the predicate reads (a file meta with no TransferSyntaxUID): pydicom
+            # ships such samples on purpose, and the set of samples grows with its data releases
+            matches = False
+        if matches:
             return open(path, "rb").read()
     pytest.skip("no matching pydicom sample available")
 
