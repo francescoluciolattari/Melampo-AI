@@ -19,6 +19,7 @@ risks:
       - control: A structure the model names is read as the linked one, a part or another with UBERON
         tests:
           - tests/test_claims_reading.py::test_a_part_the_model_names_is_the_structure_when_the_reader_reads_it_so
+          - tests/test_claims_reading.py::test_another_structure_that_reaches_it_is_a_finding_that_involves_it
     measured_by: owner-probe, criterion 1 (VALIDATION.md)
     status: partial
   - id: R02
@@ -153,6 +154,21 @@ risks:
         tests:
           - tests/test_claims_reading.py::test_the_exam_on_one_side_and_the_sentence_on_the_other_goes_to_a_person
     status: controlled
+  - id: R15
+    hazard: A normal or physiological state is read as a finding
+    situation: "\"bladder partially filled, anechoic content\" becomes an abnormality of the bladder"
+    harm: A false finding in the differential, unnecessary tests
+    severity: 3
+    probability: 3
+    controls:
+      - control: The models compare each aspect the sentence describes with the usual one; a model that cannot tell sends the sentence to a person
+        tests:
+          - tests/test_claims_reading.py::test_each_aspect_is_compared_with_the_usual_and_the_same_is_normal
+      - control: What the models call usual and the reader knows as a deviation of that tissue (HPO, PATO) goes to a person
+        tests:
+          - tests/test_claims_reading.py::test_what_the_models_call_usual_and_the_reader_knows_as_a_deviation_goes_to_a_person
+    measured_by: owner-probe, criterion 4 (VALIDATION.md)
+    status: partial
   - id: R13
     hazard: A performance figure is measured on data the system was tuned on
     situation: The figure overstates the real performance

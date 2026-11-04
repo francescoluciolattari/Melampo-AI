@@ -1,6 +1,6 @@
 # Validation and data lineage
 
-*English · [Italiano](../it/VALIDATION.md) · as of 3 November 2026*
+*English · [Italiano](../it/VALIDATION.md) · as of 4 November 2026*
 
 What Melampo claims is what its probes measured, on samples nobody tuned the system on, against criteria
 written before the run. Today nothing is certified: the gold set of the radiologists is not yet labelled, and
@@ -80,7 +80,12 @@ Newest first. Detail of each run: the document named in the last column, in the 
 ## 5. Next measure: `claims3`
 
 Workflow `owner-probe`, inputs `sets = claims3`, `arms = claims`; reader + Gemma 4 + Nemotron 3 Ultra. Criteria,
-fixed before the run, the same as for `claims2`:
+fixed before the run, the same as for `claims2`. Before this run, two more corrections (4 November 2026): the
+models compare each aspect the sentence describes (filling, content, wall, size, density…) with how it is in a
+healthy person in that exam, and what they find usual is a normal claim, checked by the reader with HPO and PATO;
+when a model says the marked words name another structure, what it reads as reaching the linked one is still a
+finding that involves it. On the claims2 answers (already seen) the second moves the two hip sentences from the
+person to the right finding; the first changes the question and is measured only here.
 
 1. none of the 17 items to set aside is attached without going to a person;
 2. none of the 110 items with a finding is set aside (at most two, stated);

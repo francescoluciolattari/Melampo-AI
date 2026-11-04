@@ -1,6 +1,6 @@
 # Validazione e provenienza dei dati
 
-*[English](../en/VALIDATION.md) · Italiano · aggiornato al 3 novembre 2026*
+*[English](../en/VALIDATION.md) · Italiano · aggiornato al 4 novembre 2026*
 
 Melampo afferma soltanto ciò che le sue probe hanno misurato, su campioni su cui nessuno ha tarato il sistema e
 con criteri scritti prima del run. Oggi niente è certificato: il gold set dei radiologi non è ancora etichettato,
@@ -81,7 +81,12 @@ Dal più recente. Il dettaglio di ogni run è nel documento indicato nell'ultima
 ## 5. Prossima misura: `claims3`
 
 Workflow `owner-probe`, input `sets = claims3`, `arms = claims`; lettore + Gemma 4 + Nemotron 3 Ultra. Criteri,
-fissati prima del run, gli stessi di `claims2`:
+fissati prima del run, gli stessi di `claims2`. Prima di questo run, altre due correzioni (4 novembre 2026): i
+modelli confrontano ogni aspetto che la frase descrive (riempimento, contenuto, parete, dimensione, densità…) con
+com'è in una persona sana in quell'esame, e ciò che trovano abituale è un'affermazione di normalità, controllata dal
+lettore con HPO e PATO; quando un modello dice che le parole marcate nominano un'altra struttura, ciò che legge come
+raggiungere quella collegata resta un reperto che la coinvolge. Sulle risposte di claims2 (già viste) la seconda
+porta le due frasi sull'anca dalla persona al reperto giusto; la prima cambia la domanda e si misura solo qui.
 
 1. nessuno dei 17 item da non attribuire viene attaccato senza passare da una persona;
 2. nessuno dei 110 item con un reperto viene messo da parte (al massimo due, dichiarati);
