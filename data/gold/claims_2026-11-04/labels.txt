@@ -1,0 +1,134 @@
+# What the sentence states of the linked structure, claim by claim: labels of the fourth claims sample
+# (4 November 2026, after the reference library). Labeller: Claude, one labeller. Written BEFORE any reader or
+# model was run on these items: the labeller saw the clause, the marked mention, the linked class and the exam
+# (PARROT's modality and area), nothing else; not the reference values.
+# Items: scripts/owner_probe.py sample --seed 20261106 --per-structure 16 (PARROT v1.0; no report of any earlier
+# sample; with the cap of 8 per structure the remaining reports gave 74 items).
+# 121 English items from 75 reports (74 finding, 40 keep, 7 aside; 13 for a radiologist;
+# 22 with a measure). A measure is labelled "measure" whatever the reference says of it: the label is what the
+# sentence states, the comparison with a reference is checked apart.
+# Claims, joined by "+": finding, involved (of another structure, reaching it), normal, measure, history,
+# device, not_assessable, nothing, aside (of another structure, only placed by it). What is attached follows: a
+# finding if finding or involved; nothing at the structure if aside; otherwise only the other claims.
+# "?" at the end of the note: for a radiologist. Format: item|claims|note
+parrot-1454-en-0|finding|calcifications of the arch wall
+parrot-2495-en-0|finding+measure+normal|enlarged, echogenicity; 171 mm; no focal changes
+parrot-2495-en-1|finding+normal|thickened wall; no stones
+parrot-2495-en-2|not_assessable|trace urine, unsuitable
+parrot-1105-en-0|finding|lesions
+parrot-1105-en-1|finding|lesions
+parrot-1554-en-0|finding|calcifications
+parrot-1631-en-0|finding|calcifications, tortuous
+parrot-1793-en-0|finding|malacic change
+parrot-1793-en-1|involved|the change involves the temporal lobe
+parrot-2308-en-0|finding|signal of the tracts from the level of the midbrain ?
+parrot-2308-en-1|finding|hyperintense band
+parrot-2308-en-2|normal|within norms
+parrot-2609-en-0|normal+finding|normal caliber; calcified walls
+parrot-122-en-0|finding|infiltrative lesion
+parrot-1616-en-0|finding|hypodense focus
+parrot-2691-en-0|nothing|title
+parrot-1455-en-0|finding|calcifications
+parrot-553-en-0|finding|atrophy
+parrot-2340-en-0|measure+normal|34 mm; normal
+parrot-2340-en-1|measure+normal|27 mm; normal
+parrot-2340-en-2|finding+measure|slightly enlarged, plaque; 34 mm
+parrot-1514-en-0|normal|normal
+parrot-1435-en-0|normal|no focal changes
+parrot-1749-en-0|finding|calcifications
+parrot-2262-en-0|normal|normal
+parrot-2347-en-0|history|referral: a lesion to examine ?
+parrot-2347-en-1|finding|ischemic foci
+parrot-2347-en-2|finding|ischemic changes
+parrot-29-en-0|finding|contusion
+parrot-2359-en-0|finding|calcifications
+parrot-1178-en-0|measure+normal|77.1 mm; homogeneous
+parrot-1178-en-1|finding|irregular, masses
+parrot-1178-en-2|finding|irregular, masses
+parrot-1660-en-0|finding|calcifications
+parrot-2482-en-0|finding|calcifications
+parrot-1001-en-0|finding|fatty
+parrot-1672-en-0|finding+normal|calculus at the exit; thin wall ?
+parrot-1720-en-0|finding|calcifications
+parrot-2327-en-0|finding|polyp, bent
+parrot-2327-en-1|finding|cyst
+parrot-2327-en-2|finding|cyst
+parrot-869-en-0|nothing|configuration unchanged ?
+parrot-869-en-1|finding|elongated, sclerotic
+parrot-111-en-0|finding+measure+normal|enlarged, hyperechoic; 186 mm; regular contours
+parrot-111-en-1|normal|normal
+parrot-111-en-2|normal+measure|normal size; 80 mm
+parrot-507-en-0|finding|cysts
+parrot-2531-en-0|normal|full, fluid
+parrot-1559-en-0|finding|calcifications
+parrot-1576-en-0|finding|calcifications
+parrot-1730-en-0|history|referral: heart failure ?
+parrot-1486-en-0|finding|lesions seen on ultrasound
+parrot-1486-en-1|finding+measure|enlarged, steatosis; 18 cm
+parrot-1486-en-2|aside|lesion near the gallbladder
+parrot-1401-en-0|finding|enlarged shadow
+parrot-1099-en-2|aside|accessory spleen ?
+parrot-2431-en-0|normal|no stones
+parrot-2431-en-1|finding|wall thickening
+parrot-106-en-0|normal|good capacity, thin wall
+parrot-1396-en-0|history|referral: heart failure ?
+parrot-1396-en-1|finding|enlarged, coronary calcifications
+parrot-489-en-0|finding|distended, stones
+parrot-489-en-1|finding|thickened wall
+parrot-489-en-2|finding|tenderness over it
+parrot-2659-en-0|normal+measure|significantly full; 500 cc
+parrot-1880-en-0|finding|enlarged
+parrot-1880-en-1|aside|accessory spleens in its vicinity
+parrot-2263-en-0|finding|enlarged, accentuated waist
+parrot-2360-en-0|device|implanted aortic valve
+parrot-2360-en-1|device|implanted valve
+parrot-1633-en-0|normal|not enlarged, no fluid
+parrot-1024-en-0|finding|fatty
+parrot-2111-en-0|finding|microlobulated, heterogeneous
+parrot-2111-en-1|finding|chronic liver disease
+parrot-2111-en-2|finding+normal+measure|floating echoes; normal distension, regular wall; 2.5 mm
+parrot-2653-en-0|measure|5 cm
+parrot-191-en-0|history|chemoembolization of the lobe ?
+parrot-695-en-0|finding+normal+measure|stones; normal size; wall up to 3 mm
+parrot-695-en-1|measure|11.2 cm
+parrot-827-en-0|normal|well-defined
+parrot-827-en-1|finding|lesion
+parrot-2361-en-0|finding+device|enlarged; implanted valve
+parrot-2361-en-1|device|implanted valve
+parrot-2466-en-2|normal+finding|thin wall; heterogeneous content, concentrated bile ?
+parrot-1879-en-0|finding+measure|enlarged; 142 mm
+parrot-1326-en-0|finding|air-fluid levels
+parrot-1326-en-1|finding|obstruction suspected
+parrot-2369-en-1|not_assessable|poorly visible, not suitable
+parrot-2369-en-2|aside|accessory spleen near the pole ?
+parrot-2369-en-3|aside|accessory spleen near the pole ?
+parrot-2381-en-1|normal|no stones
+parrot-2381-en-2|aside|accessory spleens
+parrot-2381-en-3|normal|moderately filled, no defects
+parrot-1410-en-0|aside|calcification projected on the apex ?
+parrot-1824-en-1|finding|tumor
+parrot-1824-en-2|normal+measure|homogeneous, not enlarged; 7.6 cm
+parrot-1467-en-0|history|referral: suspected tumor ?
+parrot-1467-en-1|finding|tumor on ultrasound
+parrot-1467-en-2|finding+measure|remodeled, fluid; 14x13x21 cm
+parrot-2084-en-0|measure|61 x 41 x 46 mm
+parrot-2084-en-1|measure|95 x 44 x 46 mm
+parrot-2084-en-2|measure|79 x 50 x 55 mm
+parrot-894-en-0|finding|laceration
+parrot-894-en-1|finding|subcapsular hematoma
+parrot-893-en-0|finding|hematoma
+parrot-893-en-1|finding|laceration
+parrot-2396-en-0|finding|thickened neck, polyp
+parrot-2396-en-1|finding|cyst
+parrot-1403-en-0|finding|enlarged shadow
+parrot-2402-en-0|finding+measure|cystic; 124 x 67 mm
+parrot-2402-en-1|measure+normal|128 x 56 mm; no stasis
+parrot-1872-en-1|finding+normal|hyperechoic; not enlarged
+parrot-1872-en-2|normal+measure|homogeneous; 10 cm
+parrot-1872-en-3|finding|stone
+parrot-1475-en-0|finding|enlarged
+parrot-1615-en-0|finding+normal|enlarged; no pericardial fluid
+parrot-649-en-0|normal|significantly filled
+parrot-1207-en-0|normal|normal
+parrot-888-en-0|finding|lesion of the wall
+parrot-2038-en-0|normal|no abnormalities

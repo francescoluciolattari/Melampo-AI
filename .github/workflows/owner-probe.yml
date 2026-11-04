@@ -14,9 +14,9 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
       sets:
-        description: "samples: claims3 (3 Nov, third), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
+        description: "samples: claims4 (4 Nov, fourth), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
         required: false
-        default: "claims3"
+        default: "claims4"
       arms:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
@@ -59,6 +59,8 @@ jobs:
             --seed 20261104 --out owner_items_claims2.jsonl
           uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
             --seed 20261105 --out owner_items_claims3.jsonl
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
+            --seed 20261106 --per-structure 16 --out owner_items_claims4.jsonl
 
       - name: Run the probe
         env:
@@ -75,6 +77,7 @@ jobs:
           ITEMS=()
           for name in ${SETS//,/ }; do
             case "$name" in
+              claims4) ITEMS+=(--items claims4=owner_items_claims4.jsonl) ;;
               claims3) ITEMS+=(--items claims3=owner_items_claims3.jsonl) ;;
               claims2) ITEMS+=(--items claims2=owner_items_claims2.jsonl) ;;
               claims) ITEMS+=(--items claims=owner_items_claims.jsonl) ;;
