@@ -48,6 +48,7 @@ generated [SOUP list](../registers/soup.md).
 | claims | 20261103 | the above | `data/gold/claims_2026-11-02` | seen |
 | claims2 | 20261104 | the above | `data/gold/claims_2026-11-02b` | seen |
 | claims3 (174 items) | 20261105 | the above | `data/gold/claims_2026-11-03` | seen |
+| claims4 (121 items, up to 16 per structure) | 20261106 | the above | `data/gold/claims_2026-11-04` | **fresh, labelled, not yet run** |
 
 ## 3. The gold set of the radiologists
 
@@ -78,12 +79,22 @@ Newest first. Detail of each run: the document named in the last column, in the 
 | 2026-10-13 | Role probe, complete run | 963 items, five strata, three models | method kept | `role_probe_run_completo_2026-10-13` |
 | 2026-10-08 | External check of the linker | CRAFT 1,352 judged, 13 errors (99.04%); MedMentions 768 judged, 51 errors | error analysis | `analisi_errori_controllo_esterno_2026-10-08` |
 
-## 5. Next measure: a new sample, after the reference library
+## 5. Next measure: `claims4`
 
-The library changes the question, so it is measured only on a sample no reader has seen, drawn and labelled
-before the run, with the same five criteria and two more counts: the measures compared with a cited reference,
-and those the reader's recomputation sends to a person. The rows of the table are to verify against their pages
-before that run; a row a person has not checked is not trusted in clinical use.
+Workflow `owner-probe`, inputs `sets = claims4`, `arms = claims`; reader + Gemma 4 + Nemotron 3 Ultra, with the
+reference library (19 rows, all still to verify against their pages). Criteria, fixed before the run, the same as
+for the earlier samples:
+
+1. none of the 7 items to set aside is attached without going to a person;
+2. none of the 74 items with a finding is set aside (at most two, stated);
+3. at most 10% of the 114 items to keep go to a person, laterality questions included;
+4. among accepted items, at most 5% attached otherwise than the label (a finding where the label has none, or
+   the opposite);
+5. the run counts only if at most 5% of the answers are lost.
+
+Reported, without a threshold: the measures compared with a cited reference, those without one, and those the
+reader's recomputation sends to a person. The PARROT reports not used before are running out: this sample is
+smaller (121 items from 75 reports), and with 7 items to set aside criterion 1 says less than before.
 
 ## 6. Known limits
 

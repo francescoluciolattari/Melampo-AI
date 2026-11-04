@@ -49,6 +49,7 @@ nell'[elenco SOUP](../registers/soup.md) generato.
 | claims | 20261103 | i precedenti | `data/gold/claims_2026-11-02` | visto |
 | claims2 | 20261104 | i precedenti | `data/gold/claims_2026-11-02b` | visto |
 | claims3 (174 item) | 20261105 | i precedenti | `data/gold/claims_2026-11-03` | visto |
+| claims4 (121 item, fino a 16 per struttura) | 20261106 | i precedenti | `data/gold/claims_2026-11-04` | **nuovo, etichettato, non ancora lanciato** |
 
 ## 3. Il gold set dei radiologi
 
@@ -79,12 +80,22 @@ Dal più recente. Il dettaglio di ogni run è nel documento indicato nell'ultima
 | 2026-10-13 | Role probe, run completo | 963 item, cinque strati, tre modelli | metodo tenuto | `role_probe_run_completo_2026-10-13` |
 | 2026-10-08 | Controllo esterno del linker | CRAFT 1.352 giudicati, 13 errori (99,04%); MedMentions 768 giudicati, 51 errori | analisi degli errori | `analisi_errori_controllo_esterno_2026-10-08` |
 
-## 5. Prossima misura: un campione nuovo, dopo la biblioteca di riferimento
+## 5. Prossima misura: `claims4`
 
-La biblioteca cambia la domanda, quindi si misura solo su un campione che nessun lettore ha visto, estratto ed
-etichettato prima del run, con gli stessi cinque criteri e due conteggi in più: le misure confrontate con un
-valore citato, e quelle che il ricalcolo del lettore manda alla persona. Prima di quel run le righe della tabella
-vanno verificate sulle loro pagine; una riga che nessuno ha controllato non vale per l'uso clinico.
+Workflow `owner-probe`, input `sets = claims4`, `arms = claims`; lettore + Gemma 4 + Nemotron 3 Ultra, con la
+biblioteca di riferimento (19 righe, tutte ancora da verificare sulle loro pagine). Criteri, fissati prima del
+run, gli stessi dei campioni precedenti:
+
+1. nessuno dei 7 item da non attribuire viene attaccato senza passare da una persona;
+2. nessuno dei 74 item con un reperto viene messo da parte (al massimo due, dichiarati);
+3. va alla persona al massimo il 10% dei 114 item da tenere, comprese le domande sul lato;
+4. fra gli item accettati, al massimo il 5% attaccati diversamente dall'etichetta (un reperto dove l'etichetta non
+   lo ha, o il contrario);
+5. il run conta solo se si perde al massimo il 5% delle risposte.
+
+Riportati, senza soglia: le misure confrontate con un riferimento citato, quelle senza, e quelle che il ricalcolo
+del lettore manda alla persona. I referti PARROT non ancora usati stanno finendo: questo campione è più piccolo
+(121 item da 75 referti), e con 7 item da non attribuire il criterio 1 dice meno di prima.
 
 ## 6. Limiti noti
 

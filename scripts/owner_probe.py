@@ -46,13 +46,18 @@ CLAIMS_LABELS = ROOT / "data/gold/claims_2026-11-02/labels.txt"
 CLAIMS2_LABELS = ROOT / "data/gold/claims_2026-11-02b/labels.txt"
 # the third claims sample (3 November 2026, after the corrections of the second claims run)
 CLAIMS3_LABELS = ROOT / "data/gold/claims_2026-11-03/labels.txt"
+# the fourth claims sample (4 November 2026, after the reference library); drawn with --per-structure 16: with the
+# cap of 8, the reports not yet used gave 74 items
+CLAIMS4_LABELS = ROOT / "data/gold/claims_2026-11-04/labels.txt"
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
-           "claims3": CLAIMS3_LABELS}
-CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS}
+           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS}
+CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
+                "claims4": CLAIMS4_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
 CLAIMS3_SEED = 20261105
+CLAIMS4_SEED = 20261106
 
 
 def owner_labels() -> dict[str, str]:
@@ -301,7 +306,9 @@ def main(argv: list[str] | None = None) -> int:
         before = {FRESH_SEED: [*LABELS.values()], STATEMENT_SEED: [*LABELS.values(), OWNER_LABELS],
                   CLAIMS_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS],
                   CLAIMS2_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS],
-                  CLAIMS3_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS]}
+                  CLAIMS3_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS],
+                  CLAIMS4_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS,
+                                 CLAIMS3_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
