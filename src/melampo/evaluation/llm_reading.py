@@ -588,7 +588,8 @@ of that kind.
   "unsure".
 - observed: everything the sentence says of an aspect of it or of what it contains (its state of filling or
   distension, its content, its wall, size, shape, density, echogenicity, signal, position, a lesion), each compared
-  as a radiologist does with how that aspect of this structure is in a healthy person in this exam. For each:
+  as a radiologist does with how that aspect of this structure is in a healthy person in this exam. A number is
+  not compared here: a measure goes in measure, where it is compared with the reference values. For each:
   words; aspect: the aspect, in a few words; usual: how that aspect is in a healthy person in this exam, in a few
   words of your own (a physiological state, such as a hollow organ more or less filled, is usual); differs: "yes"
   if the words describe something different from the usual, even if mild, "no" if they describe the usual,
@@ -600,7 +601,10 @@ of that kind.
   structure forms with another (a disc between two vertebrae); "no" if the sentence says only where it is, how
   high or how far it goes, without the linked structure being touched.
 - normal: words saying that it, or something of it, is normal or that something is absent from it.
-- measure: words giving a measure of it.
+- measure: every measure of it. For each: words; reference: the id of the reference value that applies to
+  this measure (the same structure, aspect, technique and population), or "" if none applies or none is given;
+  against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
+  is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
 - certainty: words saying that what is observed is only probable or possible.
 - alternatives: words listing other possible explanations, or something to be excluded.
@@ -609,14 +613,16 @@ of that kind.
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
                 '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", "of": "it", '
                 '"relation": "", "reaches": "no"}], "normal": [], '
-                '"measure": [], "past": [], "certainty": [], "alternatives": [], "device": [], "not_assessable": [], '
+                '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], "certainty": [], "alternatives": [], "device": [], "not_assessable": [], '
                 '"why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
 
 def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_names: list[str] | None = None,
-                  exam: str = "", section: str = "", language: str = "") -> str:
-    """The question "what does the sentence state of the linked structure?", claim by claim."""
+                  exam: str = "", section: str = "", language: str = "", references: list[str] | None = None,
+                  passages: list[str] | None = None) -> str:
+    """The question "what does the sentence state of the linked structure?", claim by claim. ``references``:
+    the reference values that apply (``reference_values.Row.line``); ``passages``: paragraphs of their sources."""
     parts = ["You read sentences of radiology reports the way a radiologist does."]
     if exam:
         parts.append(f"Exam (context only: the sentence prevails): {exam}")
@@ -627,6 +633,14 @@ def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_na
     also = f" (also called: {', '.join(names[:4])})" if names else ""
     parts.append(f"An automatic reader linked the marked words to this structure of an anatomical atlas: "
                  f"{linked}{also}.")
+    if references:
+        parts.append("Reference values (compare a measure only with these, and cite the id):\n"
+                     + "\n".join(references))
+    else:
+        parts.append("Reference values: none for this structure and exam (a measure is only a measure).")
+    if passages:
+        parts.append("Paragraphs of the sources of these values (for reading them, not to be copied):\n"
+                     + "\n".join(passages))
     parts.append(CLAIM_STEPS)
     parts.append("Answer with JSON only, no other text:\n" + CLAIM_SCHEMA)
     return "\n\n".join(parts)
@@ -685,12 +699,16 @@ def read_claims(text: str, sentence: str, mention: str) -> dict:
                          "reaches": reaches if reaches in ("yes", "no") else "no",
                          "aspect": str(entry.get("aspect") or ""), "usual": str(entry.get("usual") or "")})
     out["observed"] = observed
+    out["measure_refs"] = []
     for key in CLAIM_LISTS[1:]:
         kept = []
-        for words in answer.get(key) or []:
-            words = words.get("words", "") if isinstance(words, dict) else str(words)
+        for entry in answer.get(key) or []:
+            words = entry.get("words", "") if isinstance(entry, dict) else str(entry)
             if copied(sentence, words):
                 kept.append(words)
+                if key == "measure" and isinstance(entry, dict) and str(entry.get("reference") or "").strip():
+                    out["measure_refs"].append({"words": words, "reference": str(entry["reference"]).strip(),
+                                                "against": str(entry.get("against") or "").strip().lower()})
             else:
                 out["dropped"] += 1
         out[key] = kept

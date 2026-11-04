@@ -61,6 +61,7 @@ etichetta confermata).
 | Lettore Kintsch | `memory/ci_reader.py`, `memory/spatial_relation.py` | funziona; il secondo stadio legge il ruolo di riferimento |
 | Finding owner | `memory/finding_owner.py` | funziona con la domanda v1; lettura per affermazioni costruita, spenta (`MELAMPO_OWNER_QUESTION=claims`) |
 | Ciò che sa il lettore | `memory/what_is_said.py` | anomalie da HPO e PATO, testa del sintagma, negazione, coordinazione |
+| Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | costruita: valori di riferimento con le fonti (da verificare), paragrafi in una copia locale; i modelli confrontano una misura solo con una riga citata, il lettore ricalcola il confronto |
 | Domanda per una persona | `memory/review_question.py` | funziona; nella lettura del caso come `questions` |
 | Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | funziona quando volume e segmentatori sono configurati |
 | Reperto → termine HPO | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | solo prove (90% sicuro, soglia 95%) |
@@ -129,3 +130,4 @@ In forma breve; i record completi sono nel tag `docs-archive-2026-11`.
 | 2026-10-30 | Il lettore narrativo e l'interprete d'immagine girano nell'acquisizione | sì |
 | 2026-10-31 | Il ruolo di riferimento; il finding owner deciso insieme da lettore e modelli | sì |
 | 2026-11-02 | Nessuna etichetta scelta da un elenco ordinato: affermazioni con parole copiate; il lettore controlla con ontologie e grammatica, mai con liste di parole fatte per i casi | sì |
+| 2026-11-04 | Una misura si confronta con un valore di riferimento di una fonte citata, mai con ciò che un modello ricorda; paragrafi, non capitoli, delle fonti; per la ricerca letteratura aperta e Radiopaedia | sì |

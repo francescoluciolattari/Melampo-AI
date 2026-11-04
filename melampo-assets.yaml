@@ -700,3 +700,20 @@ assets:
     licence: GPL family (exact version to_verify; external binaries, called as processes)
     consumers: [data/document_processing.py]
     notes: pdftotext, pdfimages, pdftoppm. Not a Python package; needs a container image outside CI.
+
+  # --- The reference library (4 November 2026) ---------------------------------
+  - id: reference-values
+    kind: knowledge_source
+    manager: git
+    status: present
+    path: data/reference/values.yml
+    source: rows compiled by the project, each citing its source (Radiopaedia, Lang et al. 2015, Egbe et al. 2022)
+    licence: >-
+      The rows are facts with their citation. Sources: Radiopaedia CC BY-NC-SA 3.0 (modified; non-commercial,
+      for research only: a product replaces these rows or obtains permission); journal guidelines all rights
+      reserved (only the value and its citation are kept).
+    consumers: [memory/reference_values.py, memory/finding_owner.py]
+    notes: >-
+      Every row is to_verify until a person checks it against the page; only reviewed rows (radiologist) are
+      fit for clinical use. The paragraphs of the sources are a local copy (MELAMPO_REFERENCE_PASSAGES,
+      scripts/reference_passages.py), never committed.

@@ -375,6 +375,8 @@ def agreed_claims(answers: list[dict]) -> dict:
             out[key] = list(first.get(key, []))
     if first.get("same") == "no":
         out["of"] = first.get("named", "")
+    if first.get("measure_refs"):
+        out["measure_refs"] = list(first["measure_refs"])   # checked against the rows before anything is attached
     return out
 
 
@@ -412,7 +414,7 @@ class FindingOwner:
     the sentence say of this structure? 1 November 2026)."""
 
     def __init__(self, reader, chats: dict[str, Callable[[str], str]] | None = None, anatomy: Anatomy | None = None,
-                 question: str = "owner", anomalies=None):
+                 question: str = "owner", anomalies=None, references=None):
         self.reader = reader
         self.chats = dict(chats or {})
         self.anatomy = anatomy if anatomy is not None else Anatomy()
@@ -420,6 +422,7 @@ class FindingOwner:
             raise ValueError("question must be 'owner', 'statement' or 'claims'")
         self.question = question
         self.anomalies = anomalies          # what_is_said.AnomalyWords: what the reader knows of abnormalities
+        self.references = references        # reference_values.ReferenceValues: what a measure is compared with
 
     # -- the reader ---------------------------------------------------------------------------------------
     def _reader(self, mention: str, clause: str, at: int, language: str, cid: str,
@@ -560,8 +563,12 @@ class FindingOwner:
         name = {"it": "Italian", "en": "English"}.get(language, "")
         names = _class_names().get(cid, []) if cid else []
         linked = names[0] if names else (cid.replace("_", " ") or mention)
+        rows = self._reference_rows(cid, context)
+        passages = [f"[{p.get('id', '')}] {p.get('title', '')}, {p.get('section', '')}: {p.get('text', '')}"
+                    for p in (self.references.passages_for(rows) if self.references else [])]
         prompt = claims_prompt(clause, at, at + len(mention), linked, linked_names=names,
-                               exam=context.get("exam", ""), section=context.get("section", ""), language=name)
+                               exam=context.get("exam", ""), section=context.get("section", ""), language=name,
+                               references=[r.line() for r in rows], passages=passages)
         said: dict[str, dict] = {}
         for model, chat in self.chats.items():
             try:
@@ -569,9 +576,15 @@ class FindingOwner:
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
                 said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
                                "error_text": str(error)[:160]}
-        return self._with_anatomy(said, mention, cid)
+        return self._with_anatomy(said, mention, cid, language)
 
-    def _with_anatomy(self, said: dict[str, dict], mention: str, cid: str) -> dict[str, dict]:
+    def _reference_rows(self, cid: str, context: dict) -> list:
+        """The reference values for the structure and the exam's technique (all techniques when unknown)."""
+        if not self.references or not cid:
+            return []
+        return self.references.rows_for(cid, context.get("modality", ""), context.get("sex", ""))
+
+    def _with_anatomy(self, said: dict[str, dict], mention: str, cid: str, language: str = "en") -> dict[str, dict]:
         """Whether a structure the model names is the linked one is anatomy, and anatomy is the reader's: a
         part of the linked structure is the linked structure ("the wall of the arch" of the aorta, the pons of
         the brain, the neck of the femur), and so is the whole it is a part of (2 November 2026: the models
@@ -590,7 +603,7 @@ class FindingOwner:
                 continue
             kept = []
             for o in answer.get("observed", []):
-                if negated(o.get("words", "")):
+                if negated(o.get("words", ""), language, mention):
                     # "not enlarged" is not an observation but an absence: the reader reads the negation
                     answer.setdefault("normal", []).append(o["words"])
                     answer.setdefault("moved_by_the_reader", []).append(o["words"])
@@ -657,10 +670,25 @@ class FindingOwner:
             return Ownership(ELSEWHERE, why, said, claims.get("of", "") or placed, "reader_and_model_agree", ASIDE,
                              piece, claims, review)
         why = self._contradiction(outcome, claims, evidence, text, language, cid, mention, list(said.values()))
+        why = why or self._reference_check(list(said.values()), cid, context)
         if why:
             return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
                              outcome, piece, claims, review)
         return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review)
+
+    def _reference_check(self, answers: list[dict], cid: str, context: dict) -> str:
+        """Every comparison of a measure a model states is recomputed with the row it cites and the number the
+        sentence writes (``reference_values.check``): a row not given, a number in another unit or a comparison
+        that does not hold send the sentence to a person (4 November 2026)."""
+        from .reference_values import check
+
+        rows = self._reference_rows(cid, context)
+        for a in answers:
+            for ref in a.get("measure_refs", []):
+                why = check(ref["words"], ref["reference"], ref["against"], rows)
+                if why:
+                    return f"measure_{why}"
+        return ""
 
     def _contradiction(self, outcome: str, claims: dict, evidence: str, text: str, language: str, cid: str,
                        mention: str, answers: list[dict] | None = None) -> str:

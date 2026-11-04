@@ -102,6 +102,13 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                     statements.append({"mention": mention, "structure": site["cid"], "statement":
                                        {"past": "history"}.get(kind, kind), "piece": " … ".join(words),
                                        "clause": clause, "report": report_id})
+            if statements is not None:
+                # a measure compared with a reference value (4 November 2026): the row cited and what it says,
+                # checked by the reader before anything was attached; never a finding the sentence does not state
+                for ref in owner.claims.get("measure_refs", []):
+                    statements.append({"mention": mention, "structure": site["cid"], "statement": "measure",
+                                       "piece": ref["words"], "reference": ref["reference"],
+                                       "against": ref["against"], "clause": clause, "report": report_id})
             claimed = owner.claims.get("findings", [])
             measures = owner.claims.get("measure", [])
             if claimed:
