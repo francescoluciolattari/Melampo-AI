@@ -27,6 +27,10 @@ dependencies = [
   "numpy>=1.26",
   "Pillow>=10.0",
   "python-gdcm>=3.0",
+  # PyYAML: the reference library (data/reference/values.yml) is read whenever the claims reading runs, in
+  # ingestion and in the probes, not only in the extras that already listed it (4 November 2026: owner-probe
+  # stopped at "No module named 'yaml'")
+  "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]

@@ -2260,6 +2260,7 @@ dependencies = [
     { name = "pillow" },
     { name = "pydicom" },
     { name = "python-gdcm" },
+    { name = "pyyaml" },
     { name = "requests" },
 ]
 
@@ -2405,6 +2406,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "pytest-cov", marker = "extra == 'enterprise'", specifier = ">=5.0" },
     { name = "python-gdcm", specifier = ">=3.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "pyyaml", marker = "extra == 'clinical'", specifier = ">=6.0" },
     { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pyyaml", marker = "extra == 'enterprise'", specifier = ">=6.0" },
