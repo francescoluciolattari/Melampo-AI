@@ -33,7 +33,7 @@ Direct dependencies: 41. Packages in the lock, transitive included: 207.
 | pytest | 9.1.1 | dev, enterprise |
 | pytest-cov | 7.1.0 | dev, enterprise |
 | python-gdcm | 3.2.6 | core |
-| pyyaml | 6.0.3 | clinical, dev, enterprise |
+| pyyaml | 6.0.3 | clinical, core, dev, enterprise |
 | qiskit | 2.5.2 | enterprise, quantum |
 | requests | 2.34.2 | core |
 | ruff | 0.16.9 | dev, enterprise |
