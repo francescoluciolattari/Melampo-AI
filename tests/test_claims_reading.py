@@ -224,10 +224,13 @@ def test_a_finding_said_its_own_but_only_placed_by_its_own_words_goes_to_a_perso
 def test_the_spatial_indicators_that_only_place():
     from melampo.memory.spatial_relation import PROXIMITY, read_relation
 
-    for s in ("a nodule beneath the skull", "a focus in the topography of the pancreatic head",
-              "a collection underneath the liver"):
+    for s in ("a nodule beneath the skull", "a collection underneath the liver"):
         name = s.split(" the ")[-1]
         assert read_relation(s, s.index(name), "en").kind == PROXIMITY, s
+    # "in the topography of" can also mean "in" (claims4: "in the topography of the right kidney, a tumor" is of
+    # the kidney): it is read by the models, not held by the reader against them (6 November 2026)
+    s = "a focus in the topography of the pancreatic head"
+    assert read_relation(s, s.index("pancreatic head"), "en").kind != PROXIMITY
     p = " ".join(claims_prompt("a shadow at the level of L2-L3", 26, 28, "lumbar vertebra 2").split())
     assert "a joint or a space" in p and "how high" in p
 
@@ -285,3 +288,11 @@ def test_a_negation_further_on_does_not_make_the_observation_an_absence():
     assert not negated("A cyst with no septa", "en")
     assert negated("no stones", "en") and negated("not enlarged", "en")
     assert negated("liver not enlarged", "en", "liver") and negated("senza calcoli", "it")
+
+
+def test_a_placing_word_that_can_also_mean_in_is_not_held_against_the_models():
+    s = "In the topography of the right kidney, a polycystic solid tumor"
+    said = _answer(marked="right kidney", observed=[{"words": "a polycystic solid tumor", "of": "it",
+                                                     "relation": "In the topography of", "reaches": "no"}])
+    got = _owner(said, said)("right kidney", s, s.index("right kidney"), "en", "kidney_right")
+    assert "the_relation_words_only_place_what_is_said_its_own" not in got.reader

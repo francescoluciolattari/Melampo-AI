@@ -49,10 +49,14 @@ CLAIMS3_LABELS = ROOT / "data/gold/claims_2026-11-03/labels.txt"
 # the fourth claims sample (4 November 2026, after the reference library); drawn with --per-structure 16: with the
 # cap of 8, the reports not yet used gave 74 items
 CLAIMS4_LABELS = ROOT / "data/gold/claims_2026-11-04/labels.txt"
+# chest CT reports of CT-RATE (6 November 2026): the sample is drawn by the workflow, the labels written before any
+# reading, with the labelling convention (VALIDATION §3)
+CTRATE_LABELS = ROOT / "data/gold/ctrate/labels.txt"
+CTRATE_SEED = 20261107
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
-           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS}
+           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
-                "claims4": CLAIMS4_LABELS}
+                "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
@@ -119,7 +123,8 @@ def attached_kinds(owner: dict) -> set[str]:
     for o in claims.get("findings", []):
         out.add("finding" if o.get("of") == "it" else "involved")
     for key, kind in (("normal", "normal"), ("measure", "measure"), ("past", "history"), ("device", "device"),
-                      ("not_assessable", "not_assessable")):
+                      ("not_assessable", "not_assessable"), ("indication", "indication"),
+                      ("procedure", "procedure")):
         if claims.get(key):
             out.add(kind)
     return out or {"nothing"}
@@ -170,6 +175,24 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
     out["kinds_attached_not_in_the_label"] = dict(out["kinds_attached_not_in_the_label"])
     out["kinds_of_the_label_not_attached"] = dict(out["kinds_of_the_label_not_attached"])
     return out
+
+
+def criteria(rows: list[dict], arm: str = "claims") -> dict:
+    """The five criteria (VALIDATION §5), computed on the items whose label has no doubt and, apart, on all of
+    them (6 November 2026): a label marked "?" no longer decides a criterion alone, and is still reported."""
+    def one(rs: list[dict]) -> dict:
+        t = claims_table(rs, arm)
+        aside = t.get("aside_items", 0)
+        keep = t.get("finding_items", 0) + t.get("keep_items", 0)
+        return {"items": len(rs), "aside_items": aside,
+                "1_aside_attached_silently": t.get("aside_attached", 0),
+                "2_findings_set_aside": t.get("finding_set_aside", 0),
+                "3_to_a_person_share": t["not_aside_to_a_person_share"] if keep else 0.0,
+                "4_attached_otherwise_share": t["attached_as_another_outcome_share"]}
+
+    rs = [r for r in rows if arm in r and r.get("gold_claims")]
+    return {"without_doubt": one([r for r in rs if not r.get("gold_doubt")]), "all": one(rs),
+            "doubtful_items": sum(1 for r in rs if r.get("gold_doubt"))}
 
 
 def gold_of(item: dict, name: str, own_labels: dict[str, str], away: dict[str, set[str]]) -> str:
@@ -262,7 +285,11 @@ def build_fresh(parrot: Path, n_en: int, n_it: int, per_report: int, per_structu
 
     readers = ReportReaders(build_linker()[0])        # no owner: the findings as the interpreter makes them
     rows = [json.loads(x) for x in parrot.read_text("utf-8").split("\n") if x.strip()]
-    rows = [r for r in rows if f"parrot-{r['no']}" not in exclude and r.get("translation")]
+    def pid(r: dict) -> str:
+        # PARROT numbers its reports; another corpus converted to its form names them ("ctrate-17", 6 November)
+        return r["no"] if isinstance(r["no"], str) else f"parrot-{r['no']}"
+
+    rows = [r for r in rows if pid(r) not in exclude and r.get("translation")]
     random.Random(seed).shuffle(rows)
     per: Counter = Counter()
     items: list[dict] = []
@@ -275,13 +302,13 @@ def build_fresh(parrot: Path, n_en: int, n_it: int, per_report: int, per_structu
                 continue
             text = r["report"] if lang == "it" else r["translation"]
             taken = 0
-            for k, f in enumerate(hp._findings(readers, text, f"parrot-{r['no']}-{lang}")):
+            for k, f in enumerate(hp._findings(readers, text, f"{pid(r)}-{lang}")):
                 if taken >= per_report or count >= wanted or per[f["structure"]] >= per_structure:
                     continue
                 per[f["structure"]] += 1
                 taken += 1
                 count += 1
-                items.append({"item_id": f"parrot-{r['no']}-{lang}-{k}", "pair": f"parrot-{r['no']}",
+                items.append({"item_id": f"{pid(r)}-{lang}-{k}", "pair": pid(r),
                               "report": r["no"], "language": lang, "modality": r.get("modality"),
                               "area": r.get("area"), "structure": f["structure"], "mention": f["mention"],
                               "clause": hp._line_of(f["clause"], f["mention"])})
@@ -308,12 +335,13 @@ def main(argv: list[str] | None = None) -> int:
                   CLAIMS2_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS],
                   CLAIMS3_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS],
                   CLAIMS4_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS,
-                                 CLAIMS3_LABELS]}
+                                 CLAIMS3_LABELS],
+                  CTRATE_SEED: []}           # the first sample of CT-RATE: no report of it used before
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
                             if line.strip() and not line.startswith("#")
-                            for m in [re.match(r"parrot-\d+", line.strip())] if m}
+                            for m in [re.match(r"(?:parrot|ctrate)-\d+", line.strip())] if m}
         items = build_fresh(Path(a.parrot), a.n_en, a.n_it, a.per_report, a.per_structure, exclude, a.seed)
         Path(a.out).write_text("\n".join(json.dumps(i, ensure_ascii=False) for i in items) + "\n", "utf-8")
         print(f"{len(items)} items ({Counter(i['language'] for i in items)}) -> {a.out}")
@@ -332,6 +360,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--skip", default="", help="arms not to run: owner, statement, claims")
     ap.add_argument("--hpo", help="hp-full.obo: what the reader knows of abnormalities (the claims arm)")
     ap.add_argument("--pato", help="pato.obo: the qualities of the abnormalities")
+    ap.add_argument("--corpus", action="append", default=[],
+                    help="another corpus in PARROT's form (scripts/ctrate_corpus.py), for the reports' context")
     ap.add_argument("--references", help="the table of reference values (default data/reference/values.yml)")
     ap.add_argument("--passages", help="the local copy of the paragraphs of their sources (jsonl), if any")
     ap.add_argument("--out", required=True)
@@ -352,8 +382,8 @@ def main(argv: list[str] | None = None) -> int:
 
         reader_only = FindingOwner(reader_only.reader, {}, Anatomy.from_uberon(Path(args.uberon)))
     reports = {}
-    if args.parrot:
-        for line in Path(args.parrot).read_text("utf-8").split("\n"):
+    for corpus in [args.parrot, *args.corpus] if args.parrot else args.corpus:
+        for line in Path(corpus).read_text("utf-8").split("\n"):
             if line.strip():
                 r = json.loads(line)
                 reports[r["no"]] = r
@@ -386,6 +416,9 @@ def main(argv: list[str] | None = None) -> int:
     rows = []
     for spec in args.items:
         name, path = spec.split("=", 1)
+        if name in CLAIMS_FILES and not CLAIMS_FILES[name].exists():
+            raise SystemExit(f"the labels of {name} are not written yet ({CLAIMS_FILES[name]}): draw the sample with "
+                             "sample_only, label it, then run")
         labels = hp.read_labels(LABELS[name]) if name in LABELS else {}
         own = {k: v for k, v in labels.items() if k.endswith(("-it", "-en"))}
         items = [json.loads(x) for x in Path(path).read_text("utf-8").splitlines() if x.strip()]
@@ -436,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
                                   if any(arm in r for r in rs)}
         if name in CLAIMS_FILES and any("claims" in r for r in rs):
             report["by_set"][name]["claims_kinds"] = claims_table(rs, "claims")
+            report["by_set"][name]["criteria"] = criteria(rs, "claims")
         if name == "statement" and any("statement" in r for r in rs):
             report["by_set"][name]["statement_types"] = statement_table(rs, "statement")
     if args.questions:
@@ -450,7 +484,8 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 item = row["_item"]
                 owner = Ownership(**row[arm])
-                q = build_question(owner, report=f"parrot-{item.get('report')}", language=item["language"],
+                q = build_question(owner, report=item.get("pair") or f"parrot-{item.get('report')}",
+                                   language=item["language"],
                                    sentence=item["clause"], mention=item["mention"],
                                    start=item["clause"].find(item["mention"]), structure=item["structure"],
                                    structure_name=FindingOwner.linked_name(item["structure"]),

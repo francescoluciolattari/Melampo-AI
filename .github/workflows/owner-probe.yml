@@ -14,13 +14,18 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
       sets:
-        description: "samples: claims4 (4 Nov, fourth), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
+        description: "samples: ctrate (CT-RATE chest CT, 6 Nov), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
         required: false
-        default: "claims4"
+        default: "ctrate"
       arms:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
         default: "claims"
+      sample_only:
+        description: "only draw the samples and upload them, for labelling before any reading (no model call)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -62,7 +67,23 @@ jobs:
           uv run --no-sync python scripts/owner_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
             --seed 20261106 --per-structure 16 --out owner_items_claims4.jsonl
 
+      # CT-RATE (6 November 2026): chest CT reports, CC BY-NC-SA 4.0, gated on Hugging Face. The terms are accepted
+      # with the account whose read token is the secret HF_TOKEN. Only the validation reports (1,304 patients) are
+      # used; the texts stay in the run and are never committed.
+      - name: CT-RATE reports and their sample
+        if: contains(inputs.sets, 'ctrate')
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then echo "::error::the secret HF_TOKEN is needed for CT-RATE"; exit 2; fi
+          curl -sSL --fail -H "Authorization: Bearer $HF_TOKEN" -o ctrate_validation_reports.csv \
+            https://huggingface.co/datasets/ibrahimhamamci/CT-RATE/resolve/main/dataset/radiology_text_reports/validation_reports.csv
+          uv run --no-sync python scripts/ctrate_corpus.py --csv ctrate_validation_reports.csv --out ctrate.jsonl
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261107 \
+            --n-en 200 --n-it 0 --per-structure 16 --out owner_items_ctrate.jsonl
+
       - name: Run the probe
+        if: ${{ !inputs.sample_only }}
         env:
           MODELS: ${{ inputs.models }}
           SETS: ${{ inputs.sets }}
@@ -77,6 +98,7 @@ jobs:
           ITEMS=()
           for name in ${SETS//,/ }; do
             case "$name" in
+              ctrate) ITEMS+=(--items ctrate=owner_items_ctrate.jsonl --corpus ctrate.jsonl) ;;
               claims4) ITEMS+=(--items claims4=owner_items_claims4.jsonl) ;;
               claims3) ITEMS+=(--items claims3=owner_items_claims3.jsonl) ;;
               claims2) ITEMS+=(--items claims2=owner_items_claims2.jsonl) ;;
@@ -116,3 +138,4 @@ jobs:
             owner_probe.log
             owner_probe_answers.jsonl
             owner_questions.jsonl
+            owner_items_ctrate.jsonl

@@ -3,7 +3,7 @@
 *English · [Italiano](../it/COMPLIANCE_RISK.md) · as of 4 November 2026*
 
 Melampo is research software today, but it is built as if it will become a medical device: MDR class IIa,
-IEC 62304 class C, a high-risk AI system under the AI Act. Fifteen of the sixteen recorded hazards have a
+IEC 62304 class C, a high-risk AI system under the AI Act. Sixteen of the seventeen recorded hazards have a
 control verified by tests; one is open.
 
 ## 1. Classification
@@ -43,6 +43,7 @@ with a physician.
 | R14 | model does not answer | a lost answer is "cannot say" and goes to a person | controlled |
 | R15 | a normal or physiological state read as a finding | the models compare each aspect with the usual one; the reader checks with HPO and PATO | partial: 4 of 169 in the claims2 run, before the control |
 | R16 | a measure judged against a remembered value | only a cited reference row, recomputed by the reader | partial: the rows are to verify |
+| R17 | the referral's question read as a current finding | the sections of the report, the conclusion and the sentence before are read; a contradiction goes to a person | partial: 4 of 99 in claims4, before the control |
 
 ## 3. Software of unknown provenance and external models
 

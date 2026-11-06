@@ -49,6 +49,7 @@ _EMPTY = frozenset(stem(w) for w in """
 increased decreased reduced elevated raised low high lower higher abnormal abnormality normal morphology quality
 present presence absent absence
 level levels amount size shape structure function process feature involving affecting type
+appearance aspect configuration pattern enhancement signal density echogenicity echotexture intensity attenuation
 """.split())
 
 

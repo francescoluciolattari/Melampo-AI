@@ -576,7 +576,8 @@ def read_statement(text: str, sentence: str) -> dict:
 # question, before reading. Here nothing is chosen: the model says what the sentence states of the structure,
 # claim by claim, each with the words copied from the sentence, and the interpreter attaches every claim the
 # readers agree on. What is not in the words is not a claim ("said, not inferred").
-CLAIM_LISTS = ("observed", "normal", "measure", "past", "certainty", "alternatives", "device", "not_assessable")
+CLAIM_LISTS = ("observed", "normal", "measure", "past", "certainty", "alternatives", "device", "not_assessable",
+               "indication", "procedure")
 CLAIM_STEPS = """Say what the sentence states of the linked structure, using only its words: every entry is copied
 exactly from the sentence (you may shorten a long piece with "..." between copied parts). Do not add what the
 sentence does not say: a finding it does not state is not there. What you know of the structure serves only to
@@ -599,36 +600,54 @@ of that kind.
   structure, "yes" if the sentence says that the linked structure itself is touched by it (it extends into it,
   infiltrates, compresses, narrows, displaces or deforms it) or that it is of a joint or a space the linked
   structure forms with another (a disc between two vertebrae); "no" if the sentence says only where it is, how
-  high or how far it goes, without the linked structure being touched.
+  high or how far it goes, without the linked structure being touched; refers_to: when the words say "its",
+  "it", "they", "the same", "this" (or "sua", "esso", "stesso"), what they refer to, copied from the sentence or
+  from the previous sentence, else "".
 - normal: words saying that it, or something of it, is normal or that something is absent from it.
-- measure: every measure of it. For each: words; reference: the id of the reference value that applies to
+- measure: every measure of it, of the structure itself: the size of a lesion in it belongs to that lesion
+  (in observed) and is never compared with the structure's reference. For each: words; reference: the id of the reference value that applies to
   this measure (the same structure, aspect, technique and population), or "" if none applies or none is given;
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
 - certainty: words saying that what is observed is only probable or possible.
 - alternatives: words listing other possible explanations, or something to be excluded.
-- device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis).
-- not_assessable: words saying it cannot be assessed."""
+- device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis, an implanted valve),
+  even when the sentence says that its shadow or image is seen: a device is not an observation of it.
+- not_assessable: words saying it cannot be assessed.
+- indication: words saying why the exam was asked (the referral, the clinical question, a suspicion to verify):
+  in a section of indication everything the sentence says goes here, and nothing in observed. The question of
+  the referral is not a finding of the exam.
+- procedure: words naming a procedure done on it, now or before (a biopsy, an embolization, a resection).
+- conclusion: what the report's conclusion, when given, says of what is observed here: "same" if it repeats it
+  of this structure, "other" if it gives it to another structure (then conclusion_of: that structure, copied
+  from the conclusion), "none" if it does not mention it or no conclusion is given."""
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
                 '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", "of": "it", '
-                '"relation": "", "reaches": "no"}], "normal": [], '
-                '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], "certainty": [], "alternatives": [], "device": [], "not_assessable": [], '
-                '"why": "<one sentence>"}')
+                '"relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
+                '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], "certainty": [], '
+                '"alternatives": [], "device": [], "not_assessable": [], "indication": [], "procedure": [], '
+                '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
 
 def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_names: list[str] | None = None,
                   exam: str = "", section: str = "", language: str = "", references: list[str] | None = None,
-                  passages: list[str] | None = None) -> str:
+                  passages: list[str] | None = None, section_kind: str = "", conclusion: str = "",
+                  previous: str = "") -> str:
     """The question "what does the sentence state of the linked structure?", claim by claim. ``references``:
     the reference values that apply (``reference_values.Row.line``); ``passages``: paragraphs of their sources."""
     parts = ["You read sentences of radiology reports the way a radiologist does."]
     if exam:
         parts.append(f"Exam (context only: the sentence prevails): {exam}")
-    if section:
-        parts.append(f"Section of the report: {section}")
+    if section or section_kind:
+        kind = f" (a section of {section_kind})" if section_kind else ""
+        parts.append(f"Section of the report: {section or section_kind}{kind}")
+    if previous:
+        parts.append(f"Previous sentence (context only): {previous}")
     parts.append(f"Sentence{f' ({language})' if language else ''}: {mark(sentence, start, end)}")
+    if conclusion:
+        parts.append(f"Conclusion of the report (context only): {conclusion}")
     names = [n for n in (linked_names or []) if n and n != linked]
     also = f" (also called: {', '.join(names[:4])})" if names else ""
     parts.append(f"An automatic reader linked the marked words to this structure of an anatomical atlas: "
@@ -662,9 +681,11 @@ def copied(sentence: str, words: str) -> bool:
     return True
 
 
-def read_claims(text: str, sentence: str, mention: str) -> dict:
+def read_claims(text: str, sentence: str, mention: str, previous: str = "", conclusion: str = "") -> dict:
     """The answer of ``claims_prompt``, checked against the sentence: entries whose words are not in it are
-    dropped (``dropped`` counts them); an answer about other words than the marked ones is not valid."""
+    dropped (``dropped`` counts them); an answer about other words than the marked ones is not valid. What a
+    pronoun refers to must be copied from the sentence or the ``previous`` one, what the ``conclusion`` gives the
+    finding to from the conclusion; otherwise it is left empty."""
     found = re.findall(r"\{(?:[^{}]|\{[^{}]*\})*\}", text or "", re.S)
     try:
         answer = json.loads(found[-1])
@@ -697,7 +718,8 @@ def read_claims(text: str, sentence: str, mention: str) -> dict:
         observed.append({"words": str(entry["words"]), "of": "it" if of.lower() in ("it", "") else of,
                          "relation": relation if copied(sentence, relation) else "",
                          "reaches": reaches if reaches in ("yes", "no") else "no",
-                         "aspect": str(entry.get("aspect") or ""), "usual": str(entry.get("usual") or "")})
+                         "aspect": str(entry.get("aspect") or ""), "usual": str(entry.get("usual") or ""),
+                         "refers_to": _copied_from(entry.get("refers_to"), sentence, previous)})
     out["observed"] = observed
     out["measure_refs"] = []
     for key in CLAIM_LISTS[1:]:
@@ -713,7 +735,17 @@ def read_claims(text: str, sentence: str, mention: str) -> dict:
                 out["dropped"] += 1
         out[key] = kept
     out["normal"] = usual + [w for w in out["normal"] if w not in usual]
+    said = str(answer.get("conclusion") or "none").strip().lower()
+    out["conclusion"] = said if said in ("same", "other", "none") else "none"
+    out["conclusion_of"] = _copied_from(answer.get("conclusion_of"), conclusion)
+    if out["conclusion"] == "other" and not out["conclusion_of"]:
+        out["conclusion"] = "none"      # another structure the conclusion does not name is not read
     return out
+
+
+def _copied_from(words, *texts: str) -> str:
+    words = str(words or "").strip()
+    return words if words and any(t and copied(t, words) for t in texts) else ""
 
 
 __all__ = [
