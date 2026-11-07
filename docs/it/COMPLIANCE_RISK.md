@@ -26,7 +26,7 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 
 | Id | Pericolo | Controllo | Stato |
 |---|---|---|---|
-| R01 | reperto attaccato alla struttura sbagliata | lettore e modelli devono essere d'accordo; una persona se si contraddicono; le parti lette con UBERON | parziale: 1 su 24 attribuito in silenzio nell'ultimo campione nuovo valido |
+| R01 | reperto attaccato alla struttura sbagliata | lettore e modelli devono essere d'accordo per un reperto certo; altrimenti in dubbio con ogni lettura; una persona solo per una discordanza del documento; le parti lette con UBERON | parziale: 1 su 24 attribuito in silenzio nell'ultimo campione nuovo valido |
 | R02 | reperto giusto tolto | né il lettore né i modelli da soli mettono da parte un reperto | controllato: 0 tolti sui campioni nuovi |
 | R03 | il modello afferma ciò che la frase non dice | le affermazioni devono essere parole copiate; parole marcate diverse invalidano la risposta | controllato |
 | R04 | reperto assente o negato letto come presente | rilevazione delle asserzioni; le osservazioni negate passano fra le normali | controllato |
