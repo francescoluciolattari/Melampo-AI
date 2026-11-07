@@ -29,11 +29,33 @@ def _answer(**kw):
     return base
 
 
+_ORGANS = """[Term]
+id: UBERON:0002113
+name: kidney
+subset: organ_slim
+
+[Term]
+id: UBERON:0004538
+name: left kidney
+is_a: UBERON:0002113 ! kidney
+
+[Term]
+id: UBERON:0002106
+name: spleen
+subset: organ_slim
+"""
+
+
 def _owner(*answers, references=None):
+    from melampo.memory import hpo_candidates as hc
+    from melampo.memory.finding_owner import Anatomy
+
     def chat_of(a):
         return lambda prompt: json.dumps(a)
 
-    return FindingOwner(None, {f"m{i}": chat_of(a) for i, a in enumerate(answers)}, question="claims",
+    # the reader asks whether the words recall another organ (7 November 2026): it needs UBERON's organs
+    anatomy = Anatomy(hc.Anatomy.from_obo(_ORGANS.splitlines()))
+    return FindingOwner(None, {f"m{i}": chat_of(a) for i, a in enumerate(answers)}, anatomy, question="claims",
                         references=references)
 
 
@@ -85,6 +107,11 @@ def test_its_and_the_conclusion_are_checked_against_the_anatomy():
     assert read_claims(json.dumps(said), s, "spleen")["observed"][0]["refers_to"] == ""   # not copied: not read
     got = _owner(said, said)("spleen", s, s.index("spleen"), "en", "spleen", {"previous": previous})
     assert got.verdict == UNSURE and "its_refers_to_another_structure" in got.reader
+    # a part of the same organ, or words without a pronoun, are not another structure
+    part = _answer(marked="spleen", observed=[{"words": "Its upper pole is in contact", "of": "it", "relation": "",
+                                               "refers_to": "the spleen"}])
+    assert "its_refers_to_another_structure" not in _owner(part, part)(
+        "spleen", s, s.index("spleen"), "en", "spleen", {"previous": "The spleen is enlarged."}).reader
     s = "There is a cyst near the spleen"
     told = _answer(marked="spleen", observed=[{"words": "a cyst", "of": "it"}], conclusion="other",
                    conclusion_of="left kidney")

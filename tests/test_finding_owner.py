@@ -178,3 +178,33 @@ def test_the_gold_set_takes_the_landmark_and_several_roles():
                   "mention": "colon"}}
     problems = validate_sheet(rows, ["aorta", "colon"])
     assert len(problems) == 1 and problems[0].startswith("3:")
+
+
+def test_only_the_senses_of_a_person_s_body_are_recalled():
+    # 7 November 2026: "corpus" was read as the septomaxilla of amphibians (UBERON:3000645) and "aortic arch" as
+    # the embryonic pharyngeal arch arteries ("aortic arch 1" with its digit dropped)
+    from melampo.memory import hpo_candidates as hc
+    from melampo.memory.finding_owner import EMBRYONIC, Anatomy
+
+    obo = f"""[Term]
+id: {EMBRYONIC}
+name: embryonic structure
+
+[Term]
+id: UBERON:0003118
+name: pharyngeal arch artery 1
+is_a: {EMBRYONIC} ! embryonic structure
+
+[Term]
+id: UBERON:0001508
+name: arch of aorta
+subset: organ_slim
+"""
+    uberon = hc.Anatomy.from_obo(obo.splitlines())
+    anatomy = Anatomy(uberon, uberon_names={"UBERON:0003118": ["aortic arch 1", "first arch artery"],
+                                            "UBERON:3000645": ["corpus"],
+                                            "UBERON:0001508": ["arch of aorta"]})
+    assert not anatomy.find("the first arch artery")
+    assert not anatomy.find("the corpus of the stomach", short=True) or all(
+        "UBERON:3000645" not in ids for _, ids in anatomy.find("the corpus of the stomach", short=True))
+    assert any("UBERON:0001508" in ids for _, ids in anatomy.find("the arch of aorta is calcified"))

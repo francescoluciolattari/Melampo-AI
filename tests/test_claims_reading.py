@@ -296,3 +296,47 @@ def test_a_placing_word_that_can_also_mean_in_is_not_held_against_the_models():
                                                      "relation": "In the topography of", "reaches": "no"}])
     got = _owner(said, said)("right kidney", s, s.index("right kidney"), "en", "kidney_right")
     assert "the_relation_words_only_place_what_is_said_its_own" not in got.reader
+
+
+def test_a_piece_given_another_kind_is_not_also_observed():
+    from melampo.memory.finding_owner import _one_kind_per_piece
+
+    a = _answer(observed=[{"words": "cannot be evaluated optimally", "of": "it"}],
+                not_assessable=["cannot be evaluated optimally"])
+    assert _one_kind_per_piece(a)["observed"] == []
+    b = _answer(observed=[{"words": "enlarged", "of": "it"}])
+    assert _one_kind_per_piece(b) is b
+
+
+def test_nested_readings_the_reader_decides_only_the_piece_one_model_adds():
+    # 7 November 2026: one model reads the measure and "enlarged", the other only the measure. The reader is the
+    # third reader of the piece they differ on, and only with what it knows without ambiguity
+    words = AnomalyWords(qualities={"enlarg": {"*"}})
+    s = "The spleen is enlarged, measuring 15 cm"
+    larger = _answer(marked="spleen", observed=[{"words": "enlarged", "of": "it"}], measure=["measuring 15 cm"])
+    smaller = _answer(marked="spleen", measure=["measuring 15 cm"])
+    got = _owner(larger, smaller, anomalies=words)("spleen", s, 4, "en", "spleen")
+    assert got.verdict == HERE and "the_reader_confirms_the_finding_one_model_adds" in got.reader
+    got = _owner(smaller, larger, anomalies=words)("spleen", s, 4, "en", "spleen")
+    assert got.verdict == HERE                                          # the order of the models does not matter
+    # a piece the reader does not know as a deviation: a person decides
+    s = "The spleen is larger than usual, measuring 15 cm"
+    larger = _answer(marked="spleen", observed=[{"words": "larger than usual", "of": "it"}],
+                     measure=["measuring 15 cm"])
+    assert _owner(larger, smaller, anomalies=words)("spleen", s, 4, "en", "spleen").verdict == UNSURE
+    # the other model read the same words as normal: a disagreement, not a reading that leaves a piece out
+    s = "The spleen is enlarged, measuring 15 cm"
+    normal = _answer(marked="spleen", normal=["enlarged"], measure=["measuring 15 cm"])
+    larger = _answer(marked="spleen", observed=[{"words": "enlarged", "of": "it"}], measure=["measuring 15 cm"])
+    assert _owner(larger, normal, anomalies=words)("spleen", s, 4, "en", "spleen").verdict == UNSURE
+    # without the reader's knowledge the two models must agree, as before
+    assert _owner(larger, smaller)("spleen", s, 4, "en", "spleen").verdict == UNSURE
+
+
+def test_two_places_in_parallel_each_hold_their_own_finding():
+    from melampo.memory.finding_owner import _parallel_places
+
+    s = "A stone in the gallbladder and a cyst in the right kidney"
+    assert _parallel_places(s, s.index("gallbladder"), s.index("right kidney"), "en")
+    s = "Thickening of the parietal pleura in the lower lobe"
+    assert not _parallel_places(s, s.index("parietal pleura"), s.index("lower lobe"), "en")

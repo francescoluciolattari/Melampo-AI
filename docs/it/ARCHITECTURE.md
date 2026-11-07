@@ -132,3 +132,5 @@ In forma breve; i record completi sono nel tag `docs-archive-2026-11`.
 | 2026-10-31 | Il ruolo di riferimento; il finding owner deciso insieme da lettore e modelli | sì |
 | 2026-11-02 | Nessuna etichetta scelta da un elenco ordinato: affermazioni con parole copiate; il lettore controlla con ontologie e grammatica, mai con liste di parole fatte per i casi | sì |
 | 2026-11-04 | Una misura si confronta con un valore di riferimento di una fonte citata, mai con ciò che un modello ricorda; paragrafi, non capitoli, delle fonti; per la ricerca letteratura aperta e Radiopaedia | sì |
+| 2026-11-07 | Richiamo selettivo: una parola si legge prima nel contesto del referto (la sua struttura, la sua sezione, le sue conclusioni); un senso estraneo (un'altra specie, l'embrione) non si richiama se il referto non lo dice. Un reperto può avere più sedi, e più reperti una sede | sì |
+| 2026-11-07 | Dove le letture dei due modelli sono annidate, il lettore decide solo il pezzo su cui differiscono, e solo con conoscenza non ambigua (HPO, PATO); può confermare la lettura più ampia, mai toglierne una; altrimenti una persona | proposta |
