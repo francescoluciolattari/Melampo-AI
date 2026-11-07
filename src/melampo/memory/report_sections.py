@@ -41,13 +41,18 @@ _HEADINGS = {
                 "method", "methods", "sequences", "tecnica", "tecnica d'esame", "dati tecnici", "protocollo",
                 "metodica", "sequenze"),
     FINDINGS: ("findings", "finding", "results", "result", "description", "examination description",
+               "study description", "description of the study", "description of the examination",
                "observations", "study observation", "reperti", "reperto", "descrizione", "esito", "risultati"),
     IMPRESSION: ("impression", "impressions", "conclusion", "conclusions", "summary", "assessment",
                  "diagnostic impression", "opinion", "interpretation", "final impression", "conclusioni",
                  "conclusione", "giudizio", "impressione", "impressione diagnostica", "sintesi", "valutazione"),
 }
 _KIND = {name: kind for kind, names in _HEADINGS.items() for name in names}
-_HEADING = re.compile(r"(?:^|[\n.;])\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' /\-]{1,48}):", re.MULTILINE)
+_HEADING = re.compile(r"(?:^|[\n.;])\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' ,/\-]{1,48}):", re.MULTILINE)
+# the sections a report gives before its findings: what follows them that is not one of them is the findings
+_BEFORE = {INDICATION, HISTORY, COMPARISON, TECHNIQUE}
+_LINE = re.compile(r"\S[ \t]*\n\s*")
+_SENTENCE = re.compile(r"[.!?][ \t]+(?=[A-ZÀ-Ý])")
 
 
 def kind_of(heading: str) -> str:
@@ -70,15 +75,38 @@ class Section:
 
 
 def sections(report: str) -> list[Section]:
-    """The sections of the report, in order. Only headings of a section kind open a section; an organ heading
-    ("Liver:") stays inside its section (the findings). A heading followed by a number is a measure ("Ao: 33 mm")."""
+    """The sections of the report, in order. Headings of a section kind open a section; an organ heading
+    ("Liver:") stays inside its section (the findings). A heading followed by a number is a measure ("Ao: 33 mm").
+
+    A section given before the findings (indication, history, comparison, technique) is certain only as far as
+    its heading reaches (7 November 2026, PARROT: "Referral data: pain in the liver region. The liver is not
+    enlarged …" read the whole report as the referral): to its first line break, or, when the report goes on in
+    the same line, to the end of its first sentence; and never past a heading that is no section kind (an organ,
+    the exam). What follows, until the next heading of a kind, is of no kind the reader can say ("": the models
+    read it), never held against them as the referral."""
+    report = report or ""
     found = []
-    for m in _HEADING.finditer(report or ""):
+    for m in _HEADING.finditer(report):
         if re.match(r"\s*[\d<>~≈]", report[m.end():m.end() + 6]):
             continue
         kind = kind_of(m.group(1))
+        heading = m.group(1).strip()
         if kind:
-            found.append((m.start(1), m.end(), m.group(1).strip(), kind))
+            found.append((m.start(1), m.end(), heading, kind))
+        elif found and found[-1][3] in _BEFORE:
+            found.append((m.start(1), m.start(1), heading, ""))
+    # where a section before the findings stops being certain
+    more = []
+    for i, (start, body, heading, kind) in enumerate(found):
+        if kind not in _BEFORE:
+            continue
+        end = found[i + 1][0] if i + 1 < len(found) else len(report)
+        text = report[body:end]
+        lead = len(text) - len(text.lstrip())
+        stop = _LINE.search(text, lead) or _SENTENCE.search(text, lead)
+        if stop and text[stop.end():].strip():
+            more.append((body + stop.end(), body + stop.end(), "", ""))
+    found = sorted(found + more)
     out = []
     for i, (start, body, heading, kind) in enumerate(found):
         end = found[i + 1][0] if i + 1 < len(found) else len(report)

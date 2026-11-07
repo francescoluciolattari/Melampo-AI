@@ -78,7 +78,9 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
             context = report_context(report_text, lo)
             owner = ownership(mention, clause, at, language, cid=site["cid"], context=context)
             question = None
-            if owner.verdict != "here" or getattr(owner, "review", ""):
+            # a person is asked only of a discordance (``unsure``) or a review; a finding in doubt stays in the
+            # diagnostic path with its doubt (the principle of doubt, 7 November 2026)
+            if owner.verdict not in ("here", "doubt") or getattr(owner, "review", ""):
                 name = getattr(ownership, "linked_name", lambda c: c.replace("_", " "))(site["cid"])
                 question = build_question(owner, report=report_id, language=language, sentence=clause,
                                           mention=mention, start=at, structure=site["cid"], structure_name=name,
@@ -91,8 +93,12 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                                       "reason": "the_structure_only_places_something_else", **owner.as_dict(),
                                       "question": question["id"]})
                 continue
-        statement = owner.statement if owner is not None and owner.verdict == "here" else ""
-        if owner is not None and owner.claims and owner.verdict == "here":
+        attached = owner is not None and owner.verdict in ("here", "doubt")
+        statement = owner.statement if attached else ""
+        doubt = dict(getattr(owner, "doubt", {}) or {}) if owner is not None else {}
+        if doubt and not doubt.get("closed_by"):
+            qd = {**qd, "doubt": doubt}
+        if attached and owner.claims:
             # claim by claim (2 November 2026): the claims that are not a current finding go to ``statements``;
             # a finding is made from its own words, with the certainty the sentence gives it
             mention = site.get("mention", report_text[start:end])
@@ -123,10 +129,12 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
             elif measures:
                 clause, sizes, statement = " … ".join(measures), sizes_in_text(" ".join(measures)), "measure"
                 qd = {**qd, "character": [], "degree": ""}
-            elif other:
+            elif other and owner.verdict != "doubt":
                 continue            # only what is not a current finding: it is in ``statements``
             else:
-                statement = "nothing"   # the sentence states nothing of it: the finding stays as it was
+                statement = "nothing"   # the sentence states nothing of it, or in doubt: the finding stays as it was
+            if owner.verdict == "doubt" and doubt.get("kind") != "clinical":
+                qd = {**qd, "certainty": "in_doubt"}
         if statement in ("history", "normal"):
             if statements is not None:
                 statements.append({"mention": site.get("mention", report_text[start:end]), "structure": site["cid"],
@@ -165,6 +173,8 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                 image = ImageSide(NO_IMAGE, notes=(f"segmenter_unavailable:{error}",))
         if owner is not None and owner.verdict == "unsure":
             image = replace(image, review=(*image.review, f"is_the_finding_of_this_structure:{owner.reason}"))
+        if doubt and not doubt.get("closed_by"):
+            image = replace(image, notes=(*image.notes, f"in_doubt:{doubt.get('kind', '')}"))
         if owner is not None and getattr(owner, "review", ""):
             image = replace(image, review=(*image.review, owner.review))
         findings.append(build_finding(patient, study, study_date, modality, text, image))

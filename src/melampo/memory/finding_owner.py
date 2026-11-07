@@ -39,6 +39,14 @@ from pathlib import Path
 from typing import Any
 
 HERE, ELSEWHERE, UNSURE = "here", "elsewhere", "unsure"
+# the principle of doubt (7 November 2026): a reading that is not certain is not a question for a person, who knows
+# no more than the report says; it stays in the diagnostic path as a finding in doubt, that the conclusion, the
+# reader's unambiguous knowledge, other reports, the history or a new exam may close. A person sees only what is
+# discordant: the context and the sentence, the sentence and the conclusion, a measure and its cited reference
+DOUBT = "doubt"
+# what the reader finds that is a discordance of the document, not a doubt of reading
+DISCORDANCES = ("the_finding_is_in_the_indication", "the_conclusion_gives_it_to_another_structure",
+                "its_refers_to_another_structure", "the_measure_is_of_what_is_observed", "measure_")
 LEXICON = Path(__file__).resolve().parents[3] / "data" / "linking" / "anatomy_lexicon.json"
 # Names too general to say which structure a clause describes ("wall", "body", "area", "lobe" alone).
 _GENERIC = frozenset("""
@@ -62,7 +70,7 @@ _SECTION = re.compile(r"(?:^|[\n.;])\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ /\-]{1,40}):")
 
 @dataclass(frozen=True)
 class Ownership:
-    verdict: str                                   # HERE, ELSEWHERE, UNSURE
+    verdict: str                                   # HERE, ELSEWHERE, DOUBT, UNSURE
     reader: str = ""                               # the reader's reading and the evidence against the link
     models: dict[str, dict] = field(default_factory=dict)   # what each model answered
     placed: str = ""                               # what the clause describes instead, for the person
@@ -71,11 +79,12 @@ class Ownership:
     piece: str = ""                                # the words that say it, copied from the sentence
     claims: dict = field(default_factory=dict)     # the claims the readers agree on (question="claims")
     review: str = ""                               # what a person should look at even when the readers agree
+    doubt: dict = field(default_factory=dict)      # the doubt the finding keeps, or the one that was closed
 
     def as_dict(self) -> dict:
         return {"verdict": self.verdict, "reader": self.reader, "models": self.models, "placed": self.placed,
                 "reason": self.reason, "statement": self.statement, "piece": self.piece, "claims": self.claims,
-                "review": self.review}
+                "review": self.review, "doubt": self.doubt}
 
 
 _COORDINATORS = frozenset("and or e ed o oppure".split())
@@ -217,6 +226,51 @@ class Anatomy:
 
 _DIFFERENTIAL = re.compile(r"\b(differential(?: diagnosis| diagnoses)?|ddx|d\.d\.|diagnosi differenziale|"
                            r"diagnostica differenziale)\b", re.I)
+
+
+def _unflagged_outcome(answer: dict) -> str:
+    """What a reading would attach without its "I cannot tell it from the usual": the doubt is kept apart."""
+    return claims_outcome({**answer, "state_unsure": False})
+
+
+_RANK = {"finding": 3, "keep": 2, "aside": 1, "unsure": 0}   # FINDING, KEEP, ASIDE (defined further on)
+
+
+def _leading_first(said: dict[str, dict]) -> dict[str, dict]:
+    """The readings in order: first the one that keeps the most at the structure (a finding, then other claims,
+    then another structure's), so that nothing a model read of the structure is lost while in doubt."""
+    order = sorted(said, key=lambda m: -_RANK.get(_unflagged_outcome(said[m]), 0))
+    return {m: said[m] for m in order}
+
+
+def _reading_doubt(said: dict[str, dict], valid: dict[str, dict], outcomes: list[str], closed: str) -> dict:
+    """The doubt of reading: of what kind, each reading beside the others, and what closed it if anything."""
+    unflagged = [_unflagged_outcome(a) for a in valid.values()]
+    if len(valid) < len(said):
+        kind = "one_reading"
+    elif ASIDE in unflagged or any(a.get("same") != "yes" for a in valid.values()):
+        kind = "site"
+    elif any(a.get("state_unsure") for a in valid.values()) and len(set(unflagged)) == 1:
+        kind = "state"
+    else:
+        kind = "reading"
+    readings = {m: {"outcome": claims_outcome(a) if a.get("valid") else "none",
+                    "observed": [o.get("words", "") for o in a.get("observed", [])],
+                    "same": a.get("same", "")} for m, a in said.items()}
+    out = {"kind": kind, "why": "the_models_read_differently", "readings": readings,
+           "closes_with": ["conclusion", "reader", "other_reports", "history", "new_exam"]}
+    if closed:
+        out["closed_by"] = "conclusion" if "conclusion" in closed else "reader"
+    return out
+
+
+def _clinical_doubt(claims: dict) -> dict:
+    """The doubt the report itself states ("may", "cannot be excluded", a differential): a finding with its
+    certainty, kept in the path; only new clinical information closes it, never our reading."""
+    words = list(claims.get("certainty", [])) + list(claims.get("alternatives", []))
+    if not claims.get("findings") or not words:
+        return {}
+    return {"kind": "clinical", "words": words, "closes_with": ["other_reports", "history", "new_exam"]}
 
 
 def _one_kind_per_piece(answer: dict) -> dict:
@@ -710,42 +764,94 @@ class FindingOwner:
         """What the sentence states of the structure, claim by claim, each with its words (``read_claims``).
         Nothing is chosen from a list: the readers agree when they would attach the same thing (a current
         finding at the structure, nothing at it because the finding is of another structure, or only other
-        claims: normal, a measure, its past, a device, not assessable). The models, one stream, must agree; the
-        reader checks the claims with what it knows (``_contradiction``); when they do not agree a person
-        decides and the finding stays. The claims both models make are attached."""
+        claims: normal, a measure, its past, a device, not assessable). A finding is certain when two sources
+        of different mechanism hold it: the two models agreeing (one stream) and the reader not contradicting
+        them, or one model's reading confirmed by the conclusion or by the reader's unambiguous knowledge.
+        Otherwise it is a finding in doubt (``DOUBT``, 7 November 2026), kept in the diagnostic path with every
+        reading beside it, never set aside; a person sees only a discordance of the document (``DISCORDANCES``)."""
         text, where = window(clause, at, len(mention))
         reader, evidence, placed = self._reader(mention, text, where, language, cid, context)
         said = self._claim_answers(mention, text, where, language, cid, context)
         said = {m: _one_kind_per_piece(a) for m, a in said.items()}
-        outcomes = [claims_outcome(a) for a in said.values()]
         review = laterality_conflict(context.get("exam", ""), cid, mention)
-        arbitrated = ""
-        if "unsure" in outcomes or len(set(outcomes)) != 1:
-            said, arbitrated = self._arbitrate(said, outcomes, language, cid)
-            if not arbitrated:
-                return Ownership(UNSURE, evidence, said, placed, "the_models_cannot_say_or_disagree", review=review)
-            outcomes = [FINDING]
-            evidence = f"{evidence},{arbitrated}".strip(",")
-        outcome = outcomes[0]
-        claims = agreed_claims(list(said.values()))
+        valid = {m: a for m, a in said.items() if a.get("valid")}
+        if not valid:
+            # no reading at all (the answers were lost or unreadable): nothing to keep in doubt, ask again
+            return Ownership(UNSURE, evidence, said, placed, "the_models_cannot_say_or_disagree", review=review)
+        outcomes = [claims_outcome(a) for a in valid.values()]
+        doubt: dict = {}
+        if len(valid) < len(said) or "unsure" in outcomes or len(set(outcomes)) != 1:
+            # the two models do not read the same: a doubt of reading. The reading that keeps the most at the
+            # structure leads (a finding, then other claims, then another structure's), the others are kept
+            # beside it; the conclusion, then the reader's unambiguous knowledge, may close it
+            valid = _leading_first(valid)
+            outcomes = [claims_outcome(a) for a in valid.values()]
+            closed = self._closed_by_conclusion(valid, outcomes, language, cid, context)
+            if not closed:
+                valid, closed = self._arbitrate(valid, outcomes, language, cid)
+            doubt = _reading_doubt(said, valid, outcomes, closed)
+            if closed:
+                evidence = f"{evidence},{closed}".strip(",")
+                outcomes = [FINDING]
+        outcome = _unflagged_outcome(next(iter(valid.values()))) if doubt and not doubt.get("closed_by") \
+            else outcomes[0]
+        answers = list(valid.values()) if not doubt or doubt.get("closed_by") else list(valid.values())[:1]
+        claims = agreed_claims(answers)
         piece = " … ".join(o["words"] for o in claims.get("findings", []))
+        open_doubt = bool(doubt) and not doubt.get("closed_by")
         if outcome == ASIDE:
-            relations = [o.get("relation", "") for a in said.values() for o in a.get("observed", [])
-                         if o.get("of") != "it"]
+            relations = [o.get("relation", "") for a in answers for o in a.get("observed", []) if o.get("of") != "it"]
             near = any(_relation_kind(r, language) in ("proximity", "projection") for r in relations if r)
-            if reader != ELSEWHERE and not near:
-                return Ownership(UNSURE, evidence, said, placed or claims.get("of", ""), "reader_and_model_disagree",
-                                 ASIDE, piece, claims, review)
+            if open_doubt or (reader != ELSEWHERE and not near):
+                # the finding is never set aside on a reading in doubt: it stays where the linker put it, with
+                # the reading that would give it to another structure beside it
+                doubt = doubt or {"kind": "site", "why": "reader_and_model_disagree", "readings": {}}
+                return Ownership(DOUBT, evidence, said, placed or claims.get("of", ""), "reader_and_model_disagree",
+                                 ASIDE, piece, claims, review, {**doubt, "kind": "site"})
             why = evidence or "the_relation_words_place_it"
             return Ownership(ELSEWHERE, why, said, claims.get("of", "") or placed, "reader_and_model_agree", ASIDE,
-                             piece, claims, review)
-        why = self._contradiction(outcome, claims, evidence, text, language, cid, mention, list(said.values()))
-        why = why or self._reference_check(list(said.values()), cid, context)
-        why = why or self._document_check(outcome, claims, list(said.values()), evidence, cid, context)
+                             piece, claims, review, doubt)
+        why = self._contradiction(outcome, claims, evidence, text, language, cid, mention, answers)
+        why = why or self._reference_check(answers, cid, context)
+        why = why or self._document_check(outcome, claims, answers, evidence, cid, context)
+        if why and why.startswith(DISCORDANCES):
+            # a discordance of the document: a person clarifies it, the finding stays
+            return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "the_document_is_discordant",
+                             outcome, piece, claims, review, doubt)
         if why:
-            return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
-                             outcome, piece, claims, review)
-        return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review)
+            # the reader and the models read the sentence differently: a doubt of reading, kept in the path
+            doubt = {**(doubt if open_doubt else {}), "kind": doubt.get("kind", "reader") if open_doubt else "reader",
+                     "why": why}
+            return Ownership(DOUBT, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
+                             outcome, piece, claims, review, doubt)
+        if open_doubt:
+            return Ownership(DOUBT, evidence, said, placed, "the_models_read_differently", outcome, piece, claims,
+                             review, doubt)
+        clinical = _clinical_doubt(claims)
+        return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review,
+                         doubt or clinical)
+
+    def _closed_by_conclusion(self, said: dict[str, dict], outcomes: list[str], language: str, cid: str,
+                              context: dict) -> str:
+        """A doubt of reading closed by the report's conclusion (7 November 2026), as a radiologist reads it: the
+        leading reading is a finding of the structure, every model reads that the conclusion repeats what is
+        observed here, and the reader knows, without ambiguity, that the conclusion names this structure and
+        states a deviation of its tissue (CT-RATE: "43 mm, larger than normal", the conclusion "aneurysmal
+        dilatation of the ascending aorta"). Two sources of different mechanism: then the finding is certain."""
+        from .hpo_candidates import site_anchors
+        from .what_is_said import stated_anomalies
+
+        concl = context.get("conclusion", "")
+        if not concl or self.anomalies is None or self.anatomy is None or not outcomes or outcomes[0] != FINDING:
+            return ""
+        if not all(a.get("conclusion") == "same" for a in said.values()):
+            return ""
+        linked = set(site_anchors(cid)) | {f"class:{cid}"} if cid else set()
+        if not self.same_structure(concl, linked):
+            return ""
+        if not stated_anomalies(concl, language, self.anomalies, self.anomalies.sites_of(cid)):
+            return ""
+        return "the_conclusion_confirms_the_finding_one_model_adds"
 
     def _arbitrate(self, said: dict[str, dict], outcomes: list[str], language: str, cid: str):
         """When the two models' readings are nested (7 November 2026): one reads a finding, the other the same
@@ -753,8 +859,8 @@ class FindingOwner:
         disagreements are of this kind (CT-RATE: "43 mm, larger than normal" read as a measure only by one;
         "it may belong to a thyroid nodule" read as a hedge only). As a third reader, the reader decides only the
         piece they differ on, and only with what it knows without ambiguity: a deviation that HPO and PATO know
-        for this tissue in the words of that piece. Then the finding is attached; otherwise a person decides.
-        The reader never takes away what a model read: it can only confirm the larger reading."""
+        for this tissue in the words of that piece. Then the doubt is closed and the finding is certain; otherwise
+        it stays in doubt. The reader never takes away what a model read: it can only confirm the larger one."""
         from .what_is_said import stated_anomalies
 
         if self.anomalies is None or set(outcomes) - {FINDING, KEEP, "unsure"} or FINDING not in outcomes:
@@ -936,5 +1042,5 @@ def _class_names() -> dict[str, list[str]]:
     return _NAMES
 
 
-__all__ = ["KEEP", "agreed_claims", "claims_outcome", "laterality_conflict", "ASIDE", "ELSEWHERE", "FINDING", "HERE", "HISTORY", "MEASURE", "NORMAL", "NOTHING", "STATEMENT_GROUPS",
+__all__ = ["DISCORDANCES", "DOUBT", "KEEP", "agreed_claims", "claims_outcome", "laterality_conflict", "ASIDE", "ELSEWHERE", "FINDING", "HERE", "HISTORY", "MEASURE", "NORMAL", "NOTHING", "STATEMENT_GROUPS",
            "UNSURE", "Anatomy", "FindingOwner", "Ownership", "report_context", "type_check", "window"]

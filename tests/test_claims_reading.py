@@ -6,7 +6,7 @@ import json
 
 from melampo.evaluation.llm_reading import claims_prompt, copied, read_claims
 from melampo.memory.finding_owner import (
-    ASIDE, ELSEWHERE, FINDING, HERE, KEEP, UNSURE, FindingOwner, agreed_claims, claims_outcome, laterality_conflict,
+    ASIDE, DOUBT, ELSEWHERE, FINDING, HERE, KEEP, UNSURE, FindingOwner, agreed_claims, claims_outcome, laterality_conflict,
     report_context,
 )
 from melampo.memory.what_is_said import AnomalyWords, conjuncts, phrases, stated_anomalies
@@ -81,11 +81,11 @@ def test_the_reader_contradicts_with_what_it_knows():
     s = "The gallbladder is homogeneous, with a hypodense halo around it"
     said = _answer(marked="gallbladder", normal=["homogeneous, with a hypodense halo around it"])
     got = _owner(said, said)("gallbladder", s, 4, "en", "gallbladder")
-    assert got.verdict == UNSURE and "the_normal_words_state_an_abnormality" in got.reader
+    assert got.verdict == DOUBT and "the_normal_words_state_an_abnormality" in got.reader
     s = "The right kidney measures 10.5 cm"
     said = _answer(marked="right kidney", observed=[{"words": "measures 10.5 cm", "of": "it"}])
     got = _owner(said, said)("right kidney", s, 4, "en", "kidney_right")
-    assert got.verdict == UNSURE and "the_finding_is_only_a_measure" in got.reader
+    assert got.verdict == DOUBT and "the_finding_is_only_a_measure" in got.reader
 
 
 def test_what_is_of_another_structure_is_set_aside_only_with_the_reader_or_its_relation_words():
@@ -97,14 +97,14 @@ def test_what_is_of_another_structure_is_set_aside_only_with_the_reader_or_its_r
     s = "a collection next to the left psoas muscle"
     bare = _answer(marked="left psoas muscle", observed=[{"words": "a collection", "of": "collection",
                                                          "relation": "", "reaches": "no"}])
-    assert _owner(bare, bare)("left psoas muscle", s, s.index("left psoas"), "en", "iliopsoas_left").verdict == UNSURE
+    assert _owner(bare, bare)("left psoas muscle", s, s.index("left psoas"), "en", "iliopsoas_left").verdict == DOUBT
 
 
-def test_the_models_one_stream_must_agree():
+def test_the_models_one_stream_must_agree_or_it_stays_in_doubt():
     s = "The pancreas is hyperechoic and not enlarged"
     a = _answer(marked="pancreas", observed=[{"words": "hyperechoic", "of": "it"}])
     b = _answer(marked="pancreas", normal=["not enlarged"])
-    assert _owner(a, b)("pancreas", s, 4, "en", "pancreas").verdict == UNSURE
+    assert _owner(a, b)("pancreas", s, 4, "en", "pancreas").verdict == DOUBT
 
 
 def test_the_exam_on_one_side_and_the_sentence_on_the_other_goes_to_a_person():
@@ -184,7 +184,7 @@ def test_words_that_can_say_either_are_the_model_s_to_read():
                                                          "reaches": "no"}])
     # the models read "reaching" as how far the fluid goes: aside, but the reader has no evidence of its own
     got = _owner(said, said)("seventh right rib", s, s.index("seventh"), "en", "rib_right_7")
-    assert got.verdict == UNSURE
+    assert got.verdict == DOUBT
     p = claims_prompt(s, s.index("seventh"), len(s), "rib")
     assert "itself is" in p and "how far it" in p
 
@@ -202,7 +202,7 @@ def test_the_bearer_is_read_in_the_mention_s_own_sentence():
     assert owner._reader("gallbladder", s, s.index("gallbladder"), "en", "gallbladder", {})[0] == "here"
 
 
-def test_a_finding_said_its_own_but_only_placed_by_its_own_words_goes_to_a_person():
+def test_a_finding_said_its_own_but_only_placed_by_its_own_words_stays_in_doubt():
     s = "A semi-circular nodule is observed beneath the right frontal skull plate"
     beneath = _answer(marked="skull", observed=[{"words": "semi-circular nodule", "of": "it", "relation": "beneath",
                                                  "reaches": "no"}])
@@ -211,7 +211,7 @@ def test_a_finding_said_its_own_but_only_placed_by_its_own_words_goes_to_a_perso
     at = s.index("skull")
     # one model contradicting itself is not agreement: a person decides, nothing is set aside
     got = _owner(inside, beneath)("skull", s, at, "en", "skull")
-    assert got.verdict == UNSURE and "the_relation_words_only_place_what_is_said_its_own" in got.reader
+    assert got.verdict == DOUBT and "the_relation_words_only_place_what_is_said_its_own" in got.reader
     assert _owner(inside, inside)("skull", s, at, "en", "skull").verdict == HERE
     # a placed observation beside a finding of the structure changes nothing that is attached
     s = "The pancreas is enlarged, with blurred fat planes around the pancreas"
@@ -249,16 +249,16 @@ def test_each_aspect_is_compared_with_the_usual_and_the_same_is_normal():
     assert got.verdict == HERE and got.statement == KEEP
     # a model that cannot tell the state from the usual sends the sentence to a person
     unsure = _answer(marked="bladder", observed=[{"words": "partially filled", "differs": "unsure", "of": "it"}])
-    assert _owner(said, unsure)("bladder", s, 4, "en", "urinary_bladder").verdict == UNSURE
+    assert _owner(said, unsure)("bladder", s, 4, "en", "urinary_bladder").verdict == DOUBT
 
 
-def test_what_the_models_call_usual_and_the_reader_knows_as_a_deviation_goes_to_a_person():
+def test_what_the_models_call_usual_and_the_reader_knows_as_a_deviation_stays_in_doubt():
     s = "The gallbladder is distended, with a hypodense halo of the wall"
     said = _answer(marked="gallbladder", observed=[
         {"words": "distended", "differs": "yes", "of": "it"},
         {"words": "hypodense halo of the wall", "differs": "no", "of": "it"}])
     got = _owner(said, said)("gallbladder", s, 4, "en", "gallbladder")
-    assert got.verdict == UNSURE and "the_normal_words_state_an_abnormality" in got.reader
+    assert got.verdict == DOUBT and "the_normal_words_state_an_abnormality" in got.reader
 
 
 def test_another_structure_that_reaches_it_is_a_finding_that_involves_it():
@@ -278,7 +278,7 @@ def test_a_model_that_reads_nothing_and_one_that_reads_another_structure_disagre
     nothing = _answer(marked="inferior vena cava")
     other = _answer(marked="inferior vena cava", observed=[{"words": "Another node", "of": "Another node",
                                                             "relation": "between", "reaches": "no"}])
-    assert _owner(nothing, other)("inferior vena cava", s, at, "en", "inferior_vena_cava").verdict == UNSURE
+    assert _owner(nothing, other)("inferior vena cava", s, at, "en", "inferior_vena_cava").verdict == DOUBT
 
 
 def test_a_negation_further_on_does_not_make_the_observation_an_absence():
@@ -319,18 +319,18 @@ def test_nested_readings_the_reader_decides_only_the_piece_one_model_adds():
     assert got.verdict == HERE and "the_reader_confirms_the_finding_one_model_adds" in got.reader
     got = _owner(smaller, larger, anomalies=words)("spleen", s, 4, "en", "spleen")
     assert got.verdict == HERE                                          # the order of the models does not matter
-    # a piece the reader does not know as a deviation: a person decides
+    # a piece the reader does not know as a deviation: a person keeps it in doubt
     s = "The spleen is larger than usual, measuring 15 cm"
     larger = _answer(marked="spleen", observed=[{"words": "larger than usual", "of": "it"}],
                      measure=["measuring 15 cm"])
-    assert _owner(larger, smaller, anomalies=words)("spleen", s, 4, "en", "spleen").verdict == UNSURE
-    # the other model read the same words as normal: a disagreement, not a reading that leaves a piece out
+    assert _owner(larger, smaller, anomalies=words)("spleen", s, 4, "en", "spleen").verdict == DOUBT
+    # the other model read the same words as normal: a disagreement, kept in doubt, not closed by the reader
     s = "The spleen is enlarged, measuring 15 cm"
     normal = _answer(marked="spleen", normal=["enlarged"], measure=["measuring 15 cm"])
     larger = _answer(marked="spleen", observed=[{"words": "enlarged", "of": "it"}], measure=["measuring 15 cm"])
-    assert _owner(larger, normal, anomalies=words)("spleen", s, 4, "en", "spleen").verdict == UNSURE
+    assert _owner(larger, normal, anomalies=words)("spleen", s, 4, "en", "spleen").verdict == DOUBT
     # without the reader's knowledge the two models must agree, as before
-    assert _owner(larger, smaller)("spleen", s, 4, "en", "spleen").verdict == UNSURE
+    assert _owner(larger, smaller)("spleen", s, 4, "en", "spleen").verdict == DOUBT
 
 
 def test_two_places_in_parallel_each_hold_their_own_finding():
@@ -340,3 +340,50 @@ def test_two_places_in_parallel_each_hold_their_own_finding():
     assert _parallel_places(s, s.index("gallbladder"), s.index("right kidney"), "en")
     s = "Thickening of the parietal pleura in the lower lobe"
     assert not _parallel_places(s, s.index("parietal pleura"), s.index("lower lobe"), "en")
+
+
+def test_the_principle_of_doubt():
+    # 7 November 2026: what is not certain stays in the diagnostic path as a finding in doubt, with every reading
+    # beside it; a person sees only a discordance of the document
+    s = "The spleen is larger than usual, measuring 15 cm"
+    larger = _answer(marked="spleen", observed=[{"words": "larger than usual", "of": "it"}],
+                     measure=["measuring 15 cm"])
+    smaller = _answer(marked="spleen", measure=["measuring 15 cm"])
+    got = _owner(smaller, larger)("spleen", s, 4, "en", "spleen")
+    assert got.verdict == DOUBT and got.statement == FINDING          # the leading reading keeps the finding
+    assert got.doubt["kind"] == "reading" and set(got.doubt["readings"]) == {"m0", "m1"}
+    assert "closed_by" not in got.doubt and "new_exam" in got.doubt["closes_with"]
+    # one model's reading only (the other lost): in doubt, not certain
+    got = FindingOwner(None, {"m0": lambda p: json.dumps(larger), "m1": lambda p: "not json"},
+                       question="claims")("spleen", s, 4, "en", "spleen")
+    assert got.verdict == DOUBT and got.doubt["kind"] == "one_reading"
+    # no reading at all: nothing to keep in doubt
+    lost = FindingOwner(None, {"m0": lambda p: "?", "m1": lambda p: "?"}, question="claims")
+    assert lost("spleen", s, 4, "en", "spleen").verdict == UNSURE
+    # the doubt the report states is the report's: certain attribution, the doubt kept with the finding
+    s = "A nodule of the spleen, possibly a hemangioma"
+    hedged = _answer(marked="spleen", observed=[{"words": "A nodule", "of": "it"}],
+                     alternatives=["possibly a hemangioma"])
+    got = _owner(hedged, hedged)("spleen", s, s.index("spleen"), "en", "spleen")
+    assert got.verdict == HERE and got.doubt["kind"] == "clinical"
+
+
+def test_the_conclusion_closes_a_doubt_of_reading():
+    # CT-RATE 911: "43 mm, larger than normal" read as a measure only by one model; the conclusion says "aneurysmal
+    # dilatation of the ascending aorta": every model reads that it repeats the finding, the reader knows that it
+    # names the structure and states a deviation of its tissue
+    from melampo.memory.finding_owner import Anatomy
+
+    words = AnomalyWords(qualities={"dilat": {"*"}})
+    s = "The diameter of the spleen is 15 cm, larger than normal"
+    larger = _answer(marked="spleen", observed=[{"words": "larger than normal", "of": "it"}],
+                     measure=["15 cm"], conclusion="same")
+    smaller = _answer(marked="spleen", measure=["15 cm"], conclusion="same")
+    owner = FindingOwner(None, {"m0": lambda p: json.dumps(smaller), "m1": lambda p: json.dumps(larger)},
+                         Anatomy(), question="claims", anomalies=words)
+    at = s.index("spleen")
+    got = owner("spleen", s, at, "en", "spleen", {"conclusion": "Dilatation of the spleen."})
+    assert got.verdict == HERE and got.doubt["closed_by"] == "conclusion"
+    # a conclusion that does not state a deviation of it does not close it
+    got = owner("spleen", s, at, "en", "spleen", {"conclusion": "Nodule of the liver."})
+    assert got.verdict == DOUBT

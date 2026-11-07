@@ -75,10 +75,27 @@ di etichettare un campione e non si correggono mai guardando le risposte dei mod
 | un'embolizzazione, una resezione | una procedura: storia | — |
 | una valvola impiantata, un tubo, uno stent | un dispositivo, anche quando «se ne vede l'ombra» | — |
 | «a livello di», «in proiezione di» | collocano, salvo che la frase dica che la struttura è toccata | indicatori spaziali di Rad-SpRL |
+| «potrebbe», «non si esclude», una diagnosi differenziale (7 novembre 2026) | il dubbio del referto: il reperto con l'affermazione `uncertain` (`finding+uncertain`), tenuto nel percorso diagnostico | il principio del dubbio |
 
 Un'etichetta che le regole lasciano ancora aperta è segnata "?". **I criteri si calcolano sugli item senza "?"**
 (`by_set.<campione>.criteria.without_doubt`); gli item "?" sono riportati a parte, con il loro esito
 (`criteria.all`, `claims_kinds.for_a_radiologist`).
+
+### Il principio del dubbio (7 novembre 2026)
+
+Ciò che non è certo non è una domanda per una persona, che non ne sa più di quanto dica il referto: resta nel
+percorso diagnostico come **reperto in dubbio** (verdetto `doubt`), con ogni lettura accanto, mai messo da parte.
+Altri referti, l'anamnesi o un esame nuovo possono chiuderlo in seguito; dentro il referto, le conclusioni o la
+conoscenza non ambigua del lettore (HPO, PATO) possono chiudere un dubbio di lettura. Un reperto è certo quando lo
+sostengono due fonti di meccanismo diverso: i due modelli d'accordo (un solo flusso) e il lettore che non li
+contraddice, oppure la lettura di un modello confermata dalle conclusioni o dal lettore. Alla persona va solo una
+**discordanza del documento**: il contesto e la frase (un reperto letto nell'impegnativa), la frase e le
+conclusioni, un «suo» che rimanda a un altro organo, una misura e il suo riferimento citato. Il dubbio che il
+referto stesso dichiara resta con il reperto (`clinical`); la nostra lettura non lo chiude mai.
+
+I tipi di dubbio: `reading` (i modelli leggono diversamente), `state` (un modello non sa se differisce dal
+consueto), `site` (una lettura lo dà a un'altra struttura: resta dove l'ha messo il linker), `one_reading` (una
+sola risposta), `reader` (il lettore legge diversamente dai modelli), `clinical`.
 
 ## 4. Risultati
 
@@ -87,7 +104,8 @@ Dal più recente. Il dettaglio di ogni run è nel documento indicato nell'ultima
 
 | Data | Domanda | Risultato | Decisione | Dettaglio |
 |---|---|---|---|---|
-| 2026-11-07 | Affermazione per affermazione, campione `ctrate` (TC torace, CT-RATE) | valido (0 su 400 risposte perse); per la prima volta tutti e cinque i criteri soddisfatti: 0 su 1 attribuiti in silenzio, 0 reperti messi da parte, 16 su 198 alla persona (8,1%), 1,1% attaccati diversamente. Dei 16: 7 disaccordi fra i modelli, 5 dei quali annidati (un modello legge un pezzo che l'altro tralascia); 9 da controlli del lettore che richiamavano un senso estraneo al referto (il setto-mascellare degli anfibi per "corpus", le arterie embrionali degli archi per "aortic arch") o leggevano due sedi parallele come una | sensi secondo il contesto: il lettore richiama solo sensi del corpo di una persona adulta, la conclusione e "its" contano solo quando nominano un altro organo, "its" solo con un pronome, le sedi parallele tengono ciascuna il proprio reperto; il lettore come terzo lettore del pezzo su cui le letture annidate differiscono (**proposta**, cambia "i modelli devono concordare"). Sullo stesso run, già visto: 5 su 198 alla persona (2,5%), nient'altro cambiato, nessun cambiamento su claims2/3/4. Da misurare su un secondo campione CT-RATE | questa pull request |
+| 2026-11-07 | Il principio del dubbio, su run già visti (le decisioni rifatte sulle risposte conservate) | CT-RATE (199 item): 0 alla persona (limite superiore al 95% 1,5%), 1,0% delle letture certe attaccate diversamente (limite 3,2%), 0 «a parte» attaccati come certi, 0 reperti messi da parte, 3,0% in dubbio, 24 dubbi del referto tenuti con il loro reperto. PARROT claims2/3/4: alla persona 1,1%, 0,6%, 4,6% (era 17,5%, 29,5%, 26,7%), letture certe attaccate diversamente 1,9%, 1,6%, 2,1%, «a parte» attaccati come certi 2, 2, 2 (i due modelli d'accordo nell'errore; su claims4 due andavano alla persona solo perché l'impegnativa era letta fino alla fine del referto), in dubbio 9,9%, 17,6%, 4,6%, la lettura che guida un dubbio sbagliata in 13 su 18, 21 su 28, 5 su 5. Nessun criterio risulta sotto il 2% con confidenza al 95% su questi campioni | principio del dubbio **acceso** nella lettura per affermazioni (che resta spenta nell'ingestione); una sezione prima dei reperti è certa solo fino alla sua riga o alla prima frase. Campione `ctrate2` (300 item) con i criteri sotto il 2% | questa pull request |
+| 2026-11-07 | Affermazione per affermazione, campione `ctrate` (TC torace, CT-RATE) | valido (0 su 400 risposte perse); per la prima volta tutti e cinque i criteri soddisfatti: 0 su 1 attribuiti in silenzio, 0 reperti messi da parte, 16 su 198 alla persona (8,1%), 1,1% attaccati diversamente. Dei 16: 7 disaccordi fra i modelli, 5 dei quali annidati (un modello legge un pezzo che l'altro tralascia); 9 da controlli del lettore che richiamavano un senso estraneo al referto (il setto-mascellare degli anfibi per "corpus", le arterie embrionali degli archi per "aortic arch") o leggevano due sedi parallele come una | sensi secondo il contesto: il lettore richiama solo sensi del corpo di una persona adulta, la conclusione e "its" contano solo quando nominano un altro organo, "its" solo con un pronome, le sedi parallele tengono ciascuna il proprio reperto; il lettore come terzo lettore del pezzo su cui le letture annidate differiscono (**proposta**, cambia "i modelli devono concordare"). Sullo stesso run, già visto: 5 su 198 alla persona (2,5%), nient'altro cambiato. (Corretto lo stesso giorno: le letture per affermazioni di claims2/3/4 non si possono rigiocare dalla cache, perché i loro prompt sono cambiati da allora; sono rigiocate dalle risposte conservate nella riga successiva.) Da misurare su un secondo campione CT-RATE | questa pull request |
 | 2026-11-05 | Affermazione per affermazione, campione `claims4` | valido (0 risposte perse). 3 su 7 attribuiti in silenzio, tutti milze accessorie, che l'HPO tiene come fenotipo della milza (HP:0001747): molto probabilmente etichette mie; 0 su 74 reperti messi da parte; 15 su 114 alla persona (13,2%); 7,1% attaccati diversamente, 4 dei quali frasi dell'impegnativa lette come reperti attuali. 38 misure confrontate con un riferimento citato, 4 mandate alla persona dal ricalcolo del lettore, tutte a ragione | **spenta**; il referto letto come documento (sezioni, conclusioni, frase precedente), indicazione e procedura come affermazioni, i dispositivi come dispositivi, la dimensione di una lesione mai confrontata con il riferimento dell'organo, le parole di collocazione ambigue lette solo dai modelli; la convenzione di etichettatura, criteri sugli item senza "?" | questa pull request |
 | 2026-11-04 | Affermazione per affermazione, campione `claims3` | valido (0 risposte perse). 4 su 17 attribuiti in silenzio (criterio 1 mancato), 0 su 110 reperti messi da parte, 33 su 157 alla persona (21%, criterio 3 mancato), 2,4% attaccati diversamente, nessuno uno stato normale (claims2: 4 su 5). Alla persona: 13 misure e tabelle, confrontate dai modelli con valori ricordati; 2 fratture costali lette come assenze (la negazione letta sull'ultima parola); 1 dall'estensione del controllo del lettore; 5 etichette "?"; il resto letture vecchie del lettore e disaccordi dei modelli | **spenta**; negazione letta sulla testa dell'osservazione; la biblioteca di riferimento: una misura si confronta solo con un valore citato, ricalcolato dal lettore | questa pull request |
 | 2026-11-03 | Affermazione per affermazione, campione `claims2` | valido (0 risposte perse). 5 su 17 attribuiti in silenzio (criterio 1 mancato), 0 su 134 reperti messi da parte, 13 su 182 alla persona (7,1%), 3,0% attaccati diversamente. Dei 5: due in cui il modello diceva «è suo» mentre le sue stesse parole collocavano soltanto il reperto («beneath», «in the topography of»); due in cui la domanda diceva ai modelli che «at the level of» raggiunge la vertebra; un'etichetta "?" («lucency at the base of the heart - pneumothorax?») | **spenta**; correzioni: un modello le cui parole collocano soltanto ciò che dice proprio della struttura si contraddice e va alla persona, «beneath», «underneath» e «in the topography of» letti come parole che collocano, la domanda non dice più che un livello raggiunge la struttura. Sullo stesso run, già visto: 3 su 17 in silenzio, 0 tolti, 13 alla persona. Campione `claims3` | questa pull request |
@@ -116,6 +134,17 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   al massimo il 10% degli item da tenere; (4) al massimo il 5% degli item accettati attaccati diversamente
   dall'etichetta; (5) al massimo il 5% di risposte perse. Con un solo item da non attribuire il criterio 1 qui
   dice quasi nulla: il campione misura soprattutto che cosa fa la lettura ai reperti veri (2, 3, 4).
+- **CT-RATE, secondo campione** (`ctrate2`, 7 novembre 2026): 300 item, seed 20261108, da referti non usati dal
+  primo campione, al massimo 24 per struttura, etichettati con la convenzione (compreso il dubbio del referto) prima
+  di ogni lettura. Criteri, fissati prima di etichettare, sugli item senza "?", ogni quota di errore sotto il
+  **2%**, la frequenza degli errori clinicamente significativi dei referti stessi (dettatura 2,3%, riconoscimento
+  vocale 6–9,6% in du Toit et al., BMC Medical Imaging 2015), ciascuna con il suo limite superiore unilaterale al
+  95% (Clopper-Pearson): (1) nessun item da mettere da parte attaccato come certo; (2) nessun reperto messo da
+  parte; (3) al massimo il 2% degli item alla persona, ciascuno una discordanza del documento; (4) al massimo il 2%
+  delle letture certe attaccate diversamente dall'etichetta, compresi i dubbi chiusi; (5) al massimo il 2% di
+  risposte perse; (6) al massimo il 10% degli item in dubbio (un limite di utilità, non di errore), i dubbi chiusi
+  sbagliati sotto il 2% dei chiusi, la lettura che guida quelli aperti riportata contro l'etichetta. Con 300 item,
+  0 errori limitano la quota all'1,0%, 2 errori al 2,1%.
 - **PhysioNet** (accesso con credenziali richiesto): RadGraph-XL, etichette di radiologi su RX torace, TC torace, TC
   addome-pelvi e RM encefalo; MIMIC-IV-Note per la varietà; RadGraph per l'accordo fra due radiologi; RadCoref per i
   rimandi fra frasi. Si lancia solo in un ambiente protetto, con modelli nostri o un servizio verificato con

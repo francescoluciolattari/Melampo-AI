@@ -53,10 +53,14 @@ CLAIMS4_LABELS = ROOT / "data/gold/claims_2026-11-04/labels.txt"
 # reading, with the labelling convention (VALIDATION §3)
 CTRATE_LABELS = ROOT / "data/gold/ctrate/labels.txt"
 CTRATE_SEED = 20261107
+# the second sample of CT-RATE (7 November 2026), for the principle of doubt and the criteria under 2%: 300 items,
+# from reports not used by the first, labelled before any reading
+CTRATE2_LABELS = ROOT / "data/gold/ctrate2/labels.txt"
+CTRATE2_SEED = 20261108
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
-           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS}
+           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
-                "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS}
+                "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
@@ -127,6 +131,8 @@ def attached_kinds(owner: dict) -> set[str]:
                       ("procedure", "procedure")):
         if claims.get(key):
             out.add(kind)
+    if (owner.get("doubt") or {}).get("kind") == "clinical":
+        out.add("uncertain")        # the doubt the sentence states, kept with the finding (7 November 2026)
     return out or {"nothing"}
 
 
@@ -144,14 +150,30 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
         c[f"{want}_items"] += 1
         if got.get("review"):
             c[f"{want}_review"] += 1
+        doubt = got.get("doubt") or {}
         if verdict == "unsure":
             c[f"{want}_to_a_person"] += 1
         elif verdict == "elsewhere":
             c[f"{want}_set_aside"] += 1
+        elif verdict == "doubt":
+            # in doubt (7 November 2026): kept in the path with its readings, not certain; is the leading
+            # reading the label's?
+            c[f"{want}_in_doubt"] += 1
+            have = got.get("statement", "")
+            lead = "aside" if have == "aside" else "finding" if have == "finding" else "keep"
+            c["doubt_leading_right" if lead == want else "doubt_leading_wrong"] += 1
+            c[f"doubt_kind_{doubt.get('kind', '')}"] += 1
         else:
             have = got.get("statement", "")
             c[f"{want}_attached"] += 1
             have_outcome = "finding" if have == "finding" else "keep"
+            if doubt.get("closed_by"):
+                c[f"closed_doubts_by_{doubt['closed_by']}"] += 1
+                c["closed_doubts"] += 1
+                if have_outcome != want:
+                    c["closed_doubts_wrong"] += 1
+            if doubt.get("kind") == "clinical":
+                c["clinical_doubts_kept"] += 1
             if want != "aside":
                 c["attached_as_its_outcome" if have_outcome == want else "attached_as_another_outcome"] += 1
                 kinds = attached_kinds(got)
@@ -177,17 +199,54 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
     return out
 
 
+def upper_95(errors: int, n: int) -> float:
+    """The one-sided 95% upper bound of an error share seen as ``errors`` of ``n`` (Clopper-Pearson): what the
+    sample allows to say the true share is below. With 0 errors it is about 3/n (the rule of three)."""
+    if n <= 0:
+        return 1.0
+    if errors >= n:
+        return 1.0
+    lo, hi = errors / n, 1.0
+    for _ in range(60):                       # the p at which P(X <= errors | n, p) = 0.05
+        mid = (lo + hi) / 2
+        tail, term = 0.0, (1 - mid) ** n
+        for k in range(errors + 1):
+            tail += term
+            term *= (n - k) / (k + 1) * mid / (1 - mid) if mid < 1 else 0
+        lo, hi = (mid, hi) if tail > 0.05 else (lo, mid)
+    return round(hi, 4)
+
+
 def criteria(rows: list[dict], arm: str = "claims") -> dict:
-    """The five criteria (VALIDATION §5), computed on the items whose label has no doubt and, apart, on all of
-    them (6 November 2026): a label marked "?" no longer decides a criterion alone, and is still reported."""
+    """The criteria (VALIDATION §5), computed on the items whose label has no doubt and, apart, on all of them.
+    Since 7 November 2026, with the principle of doubt, every error share must stay under 2%, the rate of
+    clinically significant errors of radiology reports themselves: (1) an item to set aside attached as certain;
+    (2) a finding set aside; (3) items sent to a person, each a discordance of the document; (4) certain readings
+    attached otherwise than the label, closed doubts included; (5) answers lost (in the summary); (6) doubts kept
+    in the path, at most 10% of the items (a bound of usefulness, not an error), with their leading reading
+    against the label, and closed doubts wrong under 2% of the closed ones. Each share has its 95% upper bound."""
     def one(rs: list[dict]) -> dict:
         t = claims_table(rs, arm)
         aside = t.get("aside_items", 0)
-        keep = t.get("finding_items", 0) + t.get("keep_items", 0)
-        return {"items": len(rs), "aside_items": aside,
-                "1_aside_attached_silently": t.get("aside_attached", 0),
+        n = len(rs)
+        person = sum(t.get(f"{w}_to_a_person", 0) for w in ("finding", "keep", "aside"))
+        doubts = sum(t.get(f"{w}_in_doubt", 0) for w in ("finding", "keep", "aside"))
+        attached = t.get("attached_as_its_outcome", 0) + t.get("attached_as_another_outcome", 0)
+        other = t.get("attached_as_another_outcome", 0)
+        closed, closed_wrong = t.get("closed_doubts", 0), t.get("closed_doubts_wrong", 0)
+        share = lambda a, b: round(a / b, 4) if b else 0.0   # noqa: E731
+        return {"items": n, "aside_items": aside,
+                "1_aside_attached_as_certain": t.get("aside_attached", 0),
                 "2_findings_set_aside": t.get("finding_set_aside", 0),
-                "3_to_a_person_share": t["not_aside_to_a_person_share"] if keep else 0.0,
+                "3_to_a_person_share": share(person, n), "3_upper_95": upper_95(person, n),
+                "4_certain_attached_otherwise_share": share(other, attached),
+                "4_upper_95": upper_95(other, attached),
+                "6_in_doubt_share": share(doubts, n),
+                "6_doubt_leading_reading_wrong": t.get("doubt_leading_wrong", 0),
+                "6_closed_doubts": closed, "6_closed_doubts_wrong_share": share(closed_wrong, closed),
+                "clinical_doubts_kept": t.get("clinical_doubts_kept", 0),
+                # the earlier names, to compare with the runs before the principle of doubt
+                "1_aside_attached_silently": t.get("aside_attached", 0),
                 "4_attached_otherwise_share": t["attached_as_another_outcome_share"]}
 
     rs = [r for r in rows if arm in r and r.get("gold_claims")]
@@ -270,7 +329,7 @@ def statement_table(rows: list[dict], arm: str) -> dict:
 
 
 FRESH_SEED = 20261101
-LOST_LIMIT = 0.05
+LOST_LIMIT = 0.02     # answers lost: at most 2% (7 November 2026, the principle of doubt: every error share under 2%)
 
 
 def build_fresh(parrot: Path, n_en: int, n_it: int, per_report: int, per_structure: int,
@@ -336,7 +395,8 @@ def main(argv: list[str] | None = None) -> int:
                   CLAIMS3_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS],
                   CLAIMS4_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS,
                                  CLAIMS3_LABELS],
-                  CTRATE_SEED: []}           # the first sample of CT-RATE: no report of it used before
+                  CTRATE_SEED: [],           # the first sample of CT-RATE: no report of it used before
+                  CTRATE2_SEED: [CTRATE_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
