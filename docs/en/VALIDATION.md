@@ -49,6 +49,7 @@ generated [SOUP list](../registers/soup.md).
 | claims2 | 20261104 | the above | `data/gold/claims_2026-11-02b` | seen |
 | claims3 (174 items) | 20261105 | the above | `data/gold/claims_2026-11-03` | seen |
 | claims4 (121 items, up to 16 per structure) | 20261106 | the above | `data/gold/claims_2026-11-04` | seen |
+| ctrate (200 items, CT-RATE chest CT) | 20261107 | — (another corpus) | `data/gold/ctrate` | **fresh, labelled with the convention, not yet run** |
 
 ## 3. The gold set of the radiologists
 
@@ -106,6 +107,13 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
 - **CT-RATE** (chest CT, CC BY-NC-SA 4.0, public, usable with OpenRouter for research): a sample drawn by seed and
   labelled with the convention before any reading, with the same five criteria computed on the items without "?".
   It covers the chest only: it measures the corrections, not the whole system.
+
+  The sample (7 November 2026): 200 items from 101 reports, 182 with a finding, 17 to keep without one, 1 to set
+  aside, 1 doubtful. Criteria, fixed before the run, on the 199 items without doubt: (1) the item to set aside is
+  not attached silently; (2) none of the findings is set aside, at most two stated; (3) at most 10% of the items to
+  keep go to a person; (4) at most 5% of the accepted items are attached otherwise than the label; (5) at most 5%
+  of the answers lost. With one item to set aside, criterion 1 says almost nothing here: the sample measures
+  above all what the reading does to real findings (2, 3, 4).
 - **PhysioNet** (credentialed access requested): RadGraph-XL, radiologists' labels on chest X-ray, chest CT,
   abdomen-pelvis CT and brain MR; MIMIC-IV-Note for variety; RadGraph for the agreement between two radiologists;
   RadCoref for references across sentences. Run only inside a protected environment with models of our own or a

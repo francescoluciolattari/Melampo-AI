@@ -50,6 +50,7 @@ nell'[elenco SOUP](../registers/soup.md) generato.
 | claims2 | 20261104 | i precedenti | `data/gold/claims_2026-11-02b` | visto |
 | claims3 (174 item) | 20261105 | i precedenti | `data/gold/claims_2026-11-03` | visto |
 | claims4 (121 item, fino a 16 per struttura) | 20261106 | i precedenti | `data/gold/claims_2026-11-04` | visto |
+| ctrate (200 item, TC torace di CT-RATE) | 20261107 | — (un altro corpus) | `data/gold/ctrate` | **nuovo, etichettato con la convenzione, non ancora lanciato** |
 
 ## 3. Il gold set dei radiologi
 
@@ -107,6 +108,13 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
 - **CT-RATE** (TC torace, CC BY-NC-SA 4.0, pubblico, utilizzabile con OpenRouter per la ricerca): un campione estratto
   per seed ed etichettato con la convenzione prima di ogni lettura, con gli stessi cinque criteri calcolati sugli
   item senza "?". Copre solo il torace: misura le correzioni, non il sistema intero.
+
+  Il campione (7 novembre 2026): 200 item da 101 referti, 182 con un reperto, 17 da tenere senza reperto, 1 da non
+  attribuire, 1 dubbio. Criteri, fissati prima del run, sui 199 item senza dubbio: (1) l'item da non attribuire
+  non viene attaccato in silenzio; (2) nessun reperto messo da parte, al massimo due dichiarati; (3) alla persona
+  al massimo il 10% degli item da tenere; (4) al massimo il 5% degli item accettati attaccati diversamente
+  dall'etichetta; (5) al massimo il 5% di risposte perse. Con un solo item da non attribuire il criterio 1 qui
+  dice quasi nulla: il campione misura soprattutto che cosa fa la lettura ai reperti veri (2, 3, 4).
 - **PhysioNet** (accesso con credenziali richiesto): RadGraph-XL, etichette di radiologi su RX torace, TC torace, TC
   addome-pelvi e RM encefalo; MIMIC-IV-Note per la varietà; RadGraph per l'accordo fra due radiologi; RadCoref per i
   rimandi fra frasi. Si lancia solo in un ambiente protetto, con modelli nostri o un servizio verificato con
