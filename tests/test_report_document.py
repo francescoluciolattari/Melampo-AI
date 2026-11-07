@@ -133,3 +133,18 @@ def test_the_size_of_a_lesion_is_not_compared_with_the_organ():
     got = _owner(said, said, references=ReferenceValues.load())("right kidney", s, s.index("right kidney"), "en",
                                                                 "kidney_right", {})
     assert got.verdict == UNSURE and "the_measure_is_of_what_is_observed" in got.reader
+
+
+def test_a_section_before_the_findings_is_certain_only_as_far_as_its_heading_reaches():
+    # 7 November 2026, PARROT: the referral given in one line with the findings ("Referral data: pain in the liver
+    # region. The liver is not enlarged …") was read as reaching the end of the report
+    one_line = "US of the abdomen. Referral data: pain in the liver region. The liver is not enlarged."
+    assert section_at(one_line, one_line.index("pain")).kind == INDICATION
+    assert section_at(one_line, one_line.index("liver is")).kind == ""          # the models read it
+    lines = "Data from the referral: Consciousness disturbances. Please rule out infection.\nSigns of atrophy."
+    assert section_at(lines, lines.index("Please")).kind == INDICATION         # to its line break
+    assert section_at(lines, lines.index("Signs")).kind == ""
+    exam = "Data on the referral: altered mental status. Chest X-ray AP, in a lying position: Asymmetry."
+    assert section_at(exam, exam.index("Asymmetry")).kind == ""               # a heading of no section kind
+    assert section_at(REPORT, REPORT.index("narrowing")).kind == FINDINGS
+    assert section_at(REPORT, REPORT.index("stenosis")).kind == IMPRESSION

@@ -14,9 +14,9 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
       sets:
-        description: "samples: ctrate (CT-RATE chest CT, 6 Nov), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
+        description: "samples: ctrate2 (CT-RATE, second sample, 7 Nov), ctrate (CT-RATE chest CT, 6 Nov, seen), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
         required: false
-        default: "ctrate"
+        default: "ctrate2"
       arms:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
@@ -81,6 +81,10 @@ jobs:
           uv run --no-sync python scripts/ctrate_corpus.py --csv ctrate_validation_reports.csv --out ctrate.jsonl
           uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261107 \
             --n-en 200 --n-it 0 --per-structure 16 --out owner_items_ctrate.jsonl
+          # the second sample (7 November 2026): 300 items from reports the first did not use; with 0 to 1 errors
+          # in 300, the 95% upper bound of an error share stays near or under 2%
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261108 \
+            --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate2.jsonl
 
       - name: Run the probe
         if: ${{ !inputs.sample_only }}
@@ -99,6 +103,7 @@ jobs:
           for name in ${SETS//,/ }; do
             case "$name" in
               ctrate) ITEMS+=(--items ctrate=owner_items_ctrate.jsonl --corpus ctrate.jsonl) ;;
+              ctrate2) ITEMS+=(--items ctrate2=owner_items_ctrate2.jsonl --corpus ctrate.jsonl) ;;
               claims4) ITEMS+=(--items claims4=owner_items_claims4.jsonl) ;;
               claims3) ITEMS+=(--items claims3=owner_items_claims3.jsonl) ;;
               claims2) ITEMS+=(--items claims2=owner_items_claims2.jsonl) ;;
@@ -139,3 +144,4 @@ jobs:
             owner_probe_answers.jsonl
             owner_questions.jsonl
             owner_items_ctrate.jsonl
+            owner_items_ctrate2.jsonl

@@ -27,7 +27,7 @@ with a physician.
 
 | Id | Hazard | Control | Status |
 |---|---|---|---|
-| R01 | finding attached to the wrong structure | reader and models must agree; a person on contradiction; parts read with UBERON | partial: 1 of 24 attributed silently on the last valid fresh sample |
+| R01 | finding attached to the wrong structure | reader and models must agree for a certain finding; otherwise in doubt with every reading; a person only on a discordance of the document; parts read with UBERON | partial: 1 of 24 attributed silently on the last valid fresh sample |
 | R02 | right finding removed | neither reader nor models alone set a finding aside | controlled: 0 removed on fresh samples |
 | R03 | model states what the sentence does not say | claims must be copied words; other marked words invalidate the answer | controlled |
 | R04 | absent or negated finding read as present | assertion detection; negated observations moved to normal | controlled |
