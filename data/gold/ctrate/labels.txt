@@ -1,0 +1,211 @@
+# What the sentence states of the linked structure, claim by claim: labels of the first CT-RATE sample (chest CT,
+# 7 November 2026). Labeller: Claude, one labeller, with the labelling convention of VALIDATION §3 (HPO variants,
+# UBERON part_of, sections, procedures, devices, placing words). Written BEFORE any reader or model was run on
+# these items: the labeller saw the clause, the marked mention and the linked class, nothing else.
+# Items: owner-probe workflow, scripts/ctrate_corpus.py on CT-RATE's validation reports, then scripts/owner_probe.py
+# sample --seed 20261107 --n-en 200 --n-it 0 --per-structure 16 (uploaded by a run before any model answered).
+# 200 English items from 101 reports (182 finding, 17 keep, 1 aside; 1 for a radiologist).
+# The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
+# Claims, joined by "+": finding, involved, normal, measure, history, device, not_assessable, nothing, aside,
+# indication, procedure. "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
+# Format: item|claims|note
+ctrate-842-en-0|finding|hyperdensities, contrast of the previous exam
+ctrate-507-en-0|finding|calcified atherosclerotic wall
+ctrate-507-en-1|normal|calibration normal, no wall thickening
+ctrate-507-en-2|finding|ground-glass density
+ctrate-175-en-0|finding+measure|30 mm, slightly larger than normal
+ctrate-175-en-1|finding|atheroma plaques
+ctrate-175-en-2|finding|atheroma plaques
+ctrate-1305-en-0|normal|calibration normal, no wall thickening
+ctrate-1271-en-0|normal|calibration normal, no wall thickening
+ctrate-232-en-0|normal|calibration normal, no wall thickening
+ctrate-232-en-1|finding|solitary nodule
+ctrate-232-en-2|finding|nodule, in the impression
+ctrate-1520-en-0|normal|calibration normal, no wall thickening
+ctrate-1520-en-1|finding|ground-glass density
+ctrate-157-en-0|normal|calibration normal, no wall thickening
+ctrate-487-en-0|finding|nodule
+ctrate-487-en-1|finding|nodule
+ctrate-1549-en-0|normal|calibration normal, no wall thickening
+ctrate-1549-en-1|finding|spiculated nodule
+ctrate-1549-en-2|finding|nodular lesion, in the impression
+ctrate-1528-en-0|normal|calibration normal, no wall thickening
+ctrate-512-en-0|finding+measure|37 mm, above normal
+ctrate-512-en-1|finding|atheroma plaques
+ctrate-512-en-2|normal|calibration normal, no wall thickening
+ctrate-151-en-0|finding|wall calcifications
+ctrate-151-en-1|finding|aortic valve calcified (UBERON: part of the heart)
+ctrate-151-en-2|finding|wall thickening
+ctrate-170-en-0|normal|calibration normal, no wall thickening
+ctrate-1298-en-0|normal|calibration normal, no wall thickening
+ctrate-1196-en-0|normal|calibration normal, no wall thickening
+ctrate-1196-en-1|finding|nodule
+ctrate-1013-en-0|finding|ground glass
+ctrate-1013-en-1|finding|ground glass
+ctrate-739-en-0|finding|ground glass, consolidation
+ctrate-739-en-1|finding|ground glass, consolidation
+ctrate-739-en-2|finding|ground glass, consolidation
+ctrate-661-en-0|finding|ground glass
+ctrate-661-en-1|finding|ground glass
+ctrate-661-en-2|normal|calibration normal, no wall thickening
+ctrate-106-en-0|normal|calibration normal, no wall thickening
+ctrate-595-en-0|finding|atheroma plaques
+ctrate-595-en-1|finding|atheroma plaques
+ctrate-595-en-2|finding|atheroma plaques
+ctrate-713-en-0|finding|stone
+ctrate-911-en-0|finding+measure|43 mm, larger than normal
+ctrate-911-en-1|finding+measure|32 mm, larger than normal
+ctrate-911-en-2|finding|atheroma plaques
+ctrate-1531-en-0|finding|atheroma plaques
+ctrate-1531-en-1|finding|smaller, nodule
+ctrate-1531-en-2|normal|calibration normal, no wall thickening
+ctrate-260-en-0|finding|nodule
+ctrate-850-en-0|finding|atheroma plaques
+ctrate-850-en-2|finding|nodule
+ctrate-850-en-3|finding|semi-solid nodule
+ctrate-736-en-1|finding|calcified nodule
+ctrate-736-en-2|finding|decreased density, adiposity
+ctrate-736-en-3|finding|calcified nodules
+ctrate-1491-en-1|finding|calcification at segment 2
+ctrate-1491-en-2|finding|calcification
+ctrate-1491-en-3|finding|calcification
+ctrate-608-en-0|finding|atheroma plaques
+ctrate-339-en-0|finding|consolidation, unchanged
+ctrate-711-en-0|finding|valve calcification (UBERON: part of the heart)
+ctrate-711-en-4|finding|tree-in-bud
+ctrate-711-en-5|finding|tree-in-bud
+ctrate-892-en-7|finding|band, nodule
+ctrate-1008-en-0|finding|nodule, sequelae
+ctrate-1008-en-1|finding|nodule, sequelae
+ctrate-338-en-1|finding|lesions, hemorrhagic cyst
+ctrate-338-en-2|finding|hypodense lesions
+ctrate-338-en-3|finding|hypodense lesions
+ctrate-1111-en-1|finding|hypodense lesion
+ctrate-1111-en-2|finding|hypodense lesions
+ctrate-1111-en-3|finding|hypodense lesions, in the impression
+ctrate-63-en-2|finding|consolidation, ground glass
+ctrate-63-en-3|finding|consolidation, ground glass
+ctrate-606-en-1|finding|calcification
+ctrate-606-en-2|finding|hypodense lesion, cyst? (said so in the sentence)
+ctrate-606-en-3|aside|lesion of liver segment 4B, adjacent to the gallbladder
+ctrate-323-en-1|finding|hypodense area, cyst? (said so in the sentence)
+ctrate-323-en-2|finding|hypodense lesion, cyst? (said so in the sentence)
+ctrate-145-en-2|finding|accessory spleen (convention: HPO HP:0001747, phenotype of the spleen)
+ctrate-145-en-3|finding|accessory spleen (convention: HPO HP:0001747, phenotype of the spleen)
+ctrate-877-en-0|finding|large lesions
+ctrate-975-en-2|finding|calcific focus of the wall, calcified polyp? (said so in the sentence)
+ctrate-975-en-4|finding|calcific focus of the wall, calcified polyp? (said so in the sentence)
+ctrate-1385-en-1|finding|decreased density, adiposity
+ctrate-1324-en-1|finding|nodule
+ctrate-1324-en-2|finding|nodule
+ctrate-1324-en-3|finding|cortical cysts
+ctrate-1497-en-0|finding|bronchial ectasia
+ctrate-1311-en-1|finding|fibrotic nodular formation
+ctrate-1311-en-2|finding|increased heart size, in the impression
+ctrate-548-en-0|finding|heterogeneous, nodule
+ctrate-548-en-3|finding|compression atelectasis, ground glass
+ctrate-548-en-4|finding+measure|140 mm, increased
+ctrate-1036-en-2|finding|lobulated contours
+ctrate-1036-en-3|finding|lobulated contours, in the impression
+ctrate-876-en-1|measure|138 mm
+ctrate-1377-en-0|finding|hypodense lesion at the level of segment 4B, adjacent to the falciform ligament ?
+ctrate-1377-en-1|finding|lesion, angiomyolipoma
+ctrate-1377-en-2|finding|nodular lesion
+ctrate-1146-en-2|finding|ground glass
+ctrate-1146-en-3|finding|ground glass
+ctrate-1146-en-4|finding|ground glass
+ctrate-861-en-1|finding|nodule
+ctrate-861-en-2|finding|decreased density, adiposity
+ctrate-639-en-1|finding|ground glass
+ctrate-639-en-2|finding|ground glass
+ctrate-100-en-0|finding|nodules
+ctrate-100-en-3|finding|cyst, hemangioma? (said so in the sentence)
+ctrate-100-en-4|finding|heterogeneous, nodules, in the impression
+ctrate-377-en-0|finding|ground glass
+ctrate-377-en-1|finding|ground glass
+ctrate-377-en-2|finding|ground glass, in the impression
+ctrate-731-en-0|finding|stones in the lumen
+ctrate-731-en-1|finding|stone
+ctrate-757-en-0|finding|nodular lesions
+ctrate-1343-en-1|finding|nodules
+ctrate-1343-en-2|finding|nodule
+ctrate-1343-en-3|finding|nodules
+ctrate-796-en-1|finding|density increase
+ctrate-1091-en-0|finding|size increase, perirenal density
+ctrate-423-en-3|finding|cardiothoracic ratio increased, in the impression
+ctrate-1345-en-0|finding|hypodense lesion
+ctrate-1345-en-1|finding+not_assessable|hypodense appearance, cannot be evaluated
+ctrate-728-en-1|finding|atelectasis, in the impression
+ctrate-109-en-0|finding|sequelae, bronchiectasis
+ctrate-109-en-1|finding|sclerotic lesion
+ctrate-109-en-2|finding|bronchioloectasia
+ctrate-532-en-0|finding|nodule
+ctrate-532-en-1|finding|may be a thyroid nodule
+ctrate-443-en-1|finding|consolidation, ground glass
+ctrate-654-en-2|finding|calcific nodule
+ctrate-654-en-3|finding|nodule
+ctrate-654-en-5|finding|stable nodule
+ctrate-772-en-1|finding+normal|nodules; no infiltration or mass
+ctrate-428-en-1|finding|decreased density, adiposity
+ctrate-144-en-1|finding|nodules
+ctrate-144-en-2|finding|minimal thickening
+ctrate-144-en-3|finding|minimal thickening, in the impression
+ctrate-690-en-0|finding|nodule
+ctrate-690-en-1|finding|intrapulmonary lymph node
+ctrate-1067-en-0|finding|hypodense nodule
+ctrate-1067-en-3|finding|stone in the lumen
+ctrate-1067-en-4|finding|nodule, in the impression
+ctrate-495-en-0|finding|consolidation
+ctrate-495-en-1|finding|nodular lesion, adenoma
+ctrate-495-en-2|finding|consolidation, in the impression
+ctrate-254-en-2|finding|ground glass
+ctrate-254-en-3|finding|ground glass, bronchiectatic changes
+ctrate-611-en-0|finding|nodular calcifications of the wall
+ctrate-611-en-4|finding|nodular lesion, round atelectasis
+ctrate-611-en-5|finding|nodular lesion, round atelectasis
+ctrate-419-en-2|finding|hypodense lesion, adenoma? (said so in the sentence)
+ctrate-419-en-4|finding|atelectatic changes, in the impression
+ctrate-419-en-6|finding|hypodense lesion, in the impression
+ctrate-276-en-0|finding|spiculated solid lesion
+ctrate-276-en-1|finding|nodules
+ctrate-915-en-0|finding|nodule
+ctrate-192-en-2|finding|calculus
+ctrate-192-en-3|finding|bone islet
+ctrate-1441-en-2|finding|nodule
+ctrate-1441-en-3|finding|hypodense lesion, cyst? (said so in the sentence)
+ctrate-1441-en-4|finding|nodule, in the impression
+ctrate-700-en-5|finding|nodular mass, adenoma? (said so in the sentence)
+ctrate-700-en-6|finding|hypodense nodular lesion, cyst? (said so in the sentence)
+ctrate-700-en-10|finding|hypodense lesion, cyst? (said so in the sentence)
+ctrate-1355-en-2|finding|ground glass
+ctrate-1355-en-5|finding|ground glass
+ctrate-588-en-1|finding|nodules
+ctrate-588-en-2|finding|hypodense lesions, cyst? (said so in the sentence)
+ctrate-588-en-3|finding|calcifications
+ctrate-119-en-1|finding|valve calcified (UBERON: part of the heart)
+ctrate-119-en-2|finding|valve calcified (UBERON: part of the heart)
+ctrate-119-en-5|finding|valve calcifications, cardiomegaly
+ctrate-225-en-2|finding|hypodense finding, cyst
+ctrate-933-en-0|finding|wall calcifications
+ctrate-933-en-2|finding|ground glass nodules
+ctrate-841-en-1|finding|consolidations, atelectasis
+ctrate-841-en-3|finding|consolidations, fibroatelectatic changes
+ctrate-278-en-1|finding|hepatosteatosis
+ctrate-340-en-0|finding|stone
+ctrate-21-en-3|finding|nodules
+ctrate-21-en-4|finding|calculus in the lumen
+ctrate-1150-en-0|finding|nodule
+ctrate-1150-en-2|finding|nodule, in the impression
+ctrate-545-en-0|finding|stone
+ctrate-563-en-0|finding|cardiothoracic ratio increased
+ctrate-1266-en-0|finding|decreased density, adiposity
+ctrate-1257-en-2|finding|ground glass
+ctrate-1257-en-3|finding|decreased density, adiposity
+ctrate-1202-en-0|finding|Schmorl node
+ctrate-168-en-2|finding|reticulonodular opacities
+ctrate-168-en-6|finding|cortical cyst
+ctrate-1167-en-0|finding|cardiothoracic ratio increased, pericardial effusion
+ctrate-132-en-1|finding|calculi
+ctrate-181-en-0|not_assessable|cannot be evaluated optimally
+ctrate-1515-en-0|finding|enlarged lobe, nodule
+ctrate-1236-en-1|finding|accessory spleen (convention: HPO HP:0001747, phenotype of the spleen)
