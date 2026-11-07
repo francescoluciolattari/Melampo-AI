@@ -96,7 +96,8 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
             # claim by claim (2 November 2026): the claims that are not a current finding go to ``statements``;
             # a finding is made from its own words, with the certainty the sentence gives it
             mention = site.get("mention", report_text[start:end])
-            other = {k: owner.claims[k] for k in ("normal", "past", "device", "not_assessable") if owner.claims.get(k)}
+            other = {k: owner.claims[k] for k in ("normal", "past", "device", "not_assessable", "indication",
+                                                   "procedure") if owner.claims.get(k)}
             if statements is not None:
                 for kind, words in other.items():
                     statements.append({"mention": mention, "structure": site["cid"], "statement":

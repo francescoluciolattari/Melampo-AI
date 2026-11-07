@@ -240,7 +240,18 @@ def report_context(report: str, clause_start: int) -> dict[str, str]:
     sections = [m for m in _SECTION.finditer(report[:clause_start + 1])
                 if not re.match(r"\s*[\d<>~≈]", report[m.end():m.end() + 6])]
     section = sections[-1].group(1).strip() if sections and clause_start - sections[-1].end() < 400 else ""
-    return {"exam": exam, "section": section, "areas": ",".join(sorted(areas.of(report)))}
+    # the document around the sentence, as a radiologist reads it (6 November 2026): the kind of section it is in
+    # (the referral is not a finding), the report's conclusion (which repeats what matters), and the sentence
+    # before it (what "its", "the same" refer to)
+    from .report_sections import IMPRESSION, impression_of, section_at
+
+    part = section_at(report, clause_start)
+    kind = part.kind if part else ""
+    conclusion = impression_of(report) if kind != IMPRESSION else ""
+    before = [x for x in re.split(r"(?<=[.!?;\n])\s+", report[max(0, clause_start - 400):clause_start]) if x.strip()]
+    previous = " ".join(before[-1].split())[:300] if before else ""
+    return {"exam": exam, "section": section, "areas": ",".join(sorted(areas.of(report))),
+            "section_kind": kind, "conclusion": conclusion, "previous": previous}
 
 
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
@@ -378,6 +389,13 @@ def agreed_claims(answers: list[dict]) -> dict:
     if first.get("measure_refs"):
         out["measure_refs"] = list(first["measure_refs"])   # checked against the rows before anything is attached
     return out
+
+
+# placing words that can also mean "in" (6 November 2026): "a lesion in the region of the pancreatic head" may be
+# of the head; "in the projection of" on a radiograph says only that the two overlap. The reader does not hold a
+# model's reading against them: they are read by the models, as "up to" is (decision of 3 November 2026)
+_AMBIGUOUS_PLACE = re.compile(r"\b(region|area|topography|territory|projection|level|zone|regione|area|sede|"
+                              r"proiezione|livello|zona|ambito)\b", re.I)
 
 
 def _relation_kind(words: str, language: str) -> str:
@@ -568,11 +586,14 @@ class FindingOwner:
                     for p in (self.references.passages_for(rows) if self.references else [])]
         prompt = claims_prompt(clause, at, at + len(mention), linked, linked_names=names,
                                exam=context.get("exam", ""), section=context.get("section", ""), language=name,
-                               references=[r.line() for r in rows], passages=passages)
+                               references=[r.line() for r in rows], passages=passages,
+                               section_kind=context.get("section_kind", ""),
+                               conclusion=context.get("conclusion", ""), previous=context.get("previous", ""))
         said: dict[str, dict] = {}
         for model, chat in self.chats.items():
             try:
-                said[model] = read_claims(chat(prompt), clause, mention)
+                said[model] = read_claims(chat(prompt), clause, mention, context.get("previous", ""),
+                                          context.get("conclusion", ""))
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
                 said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
                                "error_text": str(error)[:160]}
@@ -671,10 +692,52 @@ class FindingOwner:
                              piece, claims, review)
         why = self._contradiction(outcome, claims, evidence, text, language, cid, mention, list(said.values()))
         why = why or self._reference_check(list(said.values()), cid, context)
+        why = why or self._document_check(outcome, claims, list(said.values()), evidence, cid, context)
         if why:
             return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
                              outcome, piece, claims, review)
         return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review)
+
+    def _document_check(self, outcome: str, claims: dict, answers: list[dict], evidence: str, cid: str,
+                        context: dict) -> str:
+        """What the report around the sentence says, as a radiologist reads it (6 November 2026). Each reason
+        sends the sentence to a person; none sets a finding aside:
+
+        * a finding read in a section of indication: the referral's question is not a finding of the exam;
+        * the report's conclusion gives the finding to another structure;
+        * "its", "the same" of a finding said the structure's own refer to another structure;
+        * a measure the models compare with the structure's reference is part of a lesion they observe;
+        * the models read nothing of the structure while the reader reads that the sentence describes another:
+          "nothing" leaves the linker's finding where it is (claims3: the dilated ureter left on the bladder)."""
+        from .report_sections import INDICATION
+
+        linked = set()
+        if self.anatomy is not None and cid:
+            from .hpo_candidates import site_anchors
+
+            linked = set(site_anchors(cid)) | {f"class:{cid}"}
+
+        def other(words: str) -> bool:
+            return bool(words) and self.anatomy is not None and bool(self.anatomy.find(words, short=True)) \
+                and not self.same_structure(words, linked)
+
+        if outcome == FINDING and context.get("section_kind") == INDICATION:
+            return "the_finding_is_in_the_indication"
+        for a in answers:
+            if outcome == FINDING and a.get("conclusion") == "other" and other(a.get("conclusion_of", "")):
+                return "the_conclusion_gives_it_to_another_structure"
+            for o in a.get("observed", []):
+                if o.get("of") == "it" and other(o.get("refers_to", "")):
+                    return "its_refers_to_another_structure"
+            for ref in a.get("measure_refs", []):
+                if any(ref["words"] in o.get("words", "") or o.get("words", "") in ref["words"]
+                       for o in a.get("observed", []) if o.get("words")):
+                    return "the_measure_is_of_what_is_observed"
+        if outcome == KEEP and not any(claims.get(k) for k in ("normal", "measure", "past", "device", "procedure",
+                                                                 "indication", "not_assessable")) \
+                and any(e.startswith(("describes:", "landmark", "outside_the_exam")) for e in evidence.split(",")):
+            return "nothing_said_of_it_and_the_reader_reads_another_owner"
+        return ""
 
     def _reference_check(self, answers: list[dict], cid: str, context: dict) -> str:
         """Every comparison of a measure a model states is recomputed with the row it cites and the number the
@@ -712,8 +775,8 @@ class FindingOwner:
                 return "the_reader_reads_a_differential"
             for a in answers or [claims]:
                 mine = [o for o in a.get("observed", a.get("findings", [])) if o.get("of") == "it"]
-                if mine and all(o.get("relation") and _relation_kind(o["relation"], language) in (
-                        "proximity", "projection") for o in mine):
+                if mine and all(o.get("relation") and _relation_kind(o["relation"], language) == "proximity"
+                                and not _AMBIGUOUS_PLACE.search(o["relation"]) for o in mine):
                     # "a nodule beneath the skull plate", "a focus in the topography of the pancreatic head": the
                     # model says the finding is the structure's own, and its own words only place it there. Each
                     # model's answer is checked, because one that contradicts itself is not agreement; one placed

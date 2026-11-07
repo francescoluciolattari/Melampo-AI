@@ -48,7 +48,7 @@ generated [SOUP list](../registers/soup.md).
 | claims | 20261103 | the above | `data/gold/claims_2026-11-02` | seen |
 | claims2 | 20261104 | the above | `data/gold/claims_2026-11-02b` | seen |
 | claims3 (174 items) | 20261105 | the above | `data/gold/claims_2026-11-03` | seen |
-| claims4 (121 items, up to 16 per structure) | 20261106 | the above | `data/gold/claims_2026-11-04` | **fresh, labelled, not yet run** |
+| claims4 (121 items, up to 16 per structure) | 20261106 | the above | `data/gold/claims_2026-11-04` | seen |
 
 ## 3. The gold set of the radiologists
 
@@ -59,6 +59,25 @@ the disagreements, the set frozen once labelled. How to label is in the
 [radiologists' guide](RADIOLOGIST_GUIDE.md); the commands are `scripts/gold_set.py sample | check | agree | merge
 | evaluate`. After go-live, a blind 2–5% sample of accepted links keeps the bound up to date.
 
+### The labelling convention (6 November 2026)
+
+Until the radiologists label, the samples are labelled by one labeller (Claude). Doubtful cases are decided by
+written rules, each with its source, not by the labeller's judgement of the moment; the rules are fixed before a
+sample is labelled and never corrected by looking at the models' answers.
+
+| Case | Rule | Source |
+|---|---|---|
+| a variant (accessory spleen, Riedel's lobe) | a variant HPO holds as a phenotype of a structure is a finding of that structure | HPO (e.g. HP:0001747) |
+| mesentery, parietal pleura, lobar bronchus | a structure is part of another only if UBERON says so (`part_of`) | UBERON |
+| what the referral or the clinical question says | an indication, never a current finding | the report's sections (LOINC 18785-6) |
+| an embolization, a resection | a procedure: history | — |
+| an implanted valve, a tube, a stent | a device, even when "its shadow is seen" | — |
+| "at the level of", "in the projection of" | they place, unless the sentence says the structure is touched | Rad-SpRL spatial indicators |
+
+A label that the rules still leave open is marked "?". **The criteria are computed on the items without "?"**
+(`by_set.<sample>.criteria.without_doubt`); the "?" items are reported apart, with their outcome
+(`criteria.all`, `claims_kinds.for_a_radiologist`).
+
 ## 4. Results
 
 Newest first. Detail of each run: the document named in the last column, in the tag `docs-archive-2026-11`
@@ -66,6 +85,7 @@ Newest first. Detail of each run: the document named in the last column, in the 
 
 | Date | Question | Result | Decision | Detail |
 |---|---|---|---|---|
+| 2026-11-05 | Claim by claim, sample `claims4` | valid (0 answers lost). 3 of 7 attributed silently, all accessory spleens that HPO holds as a phenotype of the spleen (HP:0001747): most likely my labels; 0 of 74 findings set aside; 15 of 114 to a person (13.2%); 7.1% attached otherwise, 4 of them sentences of the referral read as current findings. 38 measures compared with a cited reference, 4 sent to a person by the reader's recomputation, all rightly | **off**; the report read as a document (sections, conclusion, sentence before), indication and procedure as claims, devices as devices, the size of a lesion never compared with the organ's reference, ambiguous placing words read by the models only; the labelling convention, criteria on the items without "?" | this pull request |
 | 2026-11-04 | Claim by claim, sample `claims3` | valid (0 answers lost). 4 of 17 attributed silently (criterion 1 failed), 0 of 110 findings set aside, 33 of 157 to a person (21%, criterion 3 failed), 2.4% attached otherwise, none a normal state (claims2: 4 of 5). To a person: 13 measures and tables, compared by the models with values they remember; 2 rib fractures read as absences (the negation was read on the last word); 1 from extending the reader's check; 5 "?" labels; the rest older reader readings and model disagreements | **off**; negation read on the head of the observation; the reference library: a measure is compared only with a cited reference value, recomputed by the reader | this pull request |
 | 2026-11-03 | Claim by claim, sample `claims2` | valid (0 answers lost). 5 of 17 attributed silently (criterion 1 failed), 0 of 134 findings set aside, 13 of 182 to a person (7.1%), 3.0% attached otherwise. Of the 5: two where the model said "its own" while its own words only placed the finding ("beneath", "in the topography of"); two where the question told the models that "at the level of" reaches the vertebra; one "?" label ("lucency at the base of the heart - pneumothorax?") | **off**; corrections: a model whose own words only place what it calls the structure's own contradicts itself and goes to a person, "beneath", "underneath" and "in the topography of" read as placing, the question no longer says that a level reaches the structure. On the same, already seen run: 3 of 17 silently, 0 removed, 13 to a person. Sample `claims3` | this pull request |
 | 2026-11-02 | Claim by claim, sample `claims` | run not valid: credit ran out (Nemotron lost 47 of 200 answers). On the 153 items with both answers: 2 of 5 attributed silently, 0 right findings removed, 21% to a person, 4.3% attached otherwise | **off**; corrections (parts read with UBERON, question on the marked words); sample `claims2` | `affermazione_per_affermazione_2026-11-02` |
@@ -79,22 +99,18 @@ Newest first. Detail of each run: the document named in the last column, in the 
 | 2026-10-13 | Role probe, complete run | 963 items, five strata, three models | method kept | `role_probe_run_completo_2026-10-13` |
 | 2026-10-08 | External check of the linker | CRAFT 1,352 judged, 13 errors (99.04%); MedMentions 768 judged, 51 errors | error analysis | `analisi_errori_controllo_esterno_2026-10-08` |
 
-## 5. Next measure: `claims4`
+## 5. Next measure: a chest CT sample from CT-RATE, and PhysioNet
 
-Workflow `owner-probe`, inputs `sets = claims4`, `arms = claims`; reader + Gemma 4 + Nemotron 3 Ultra, with the
-reference library (19 rows, all still to verify against their pages). Criteria, fixed before the run, the same as
-for the earlier samples:
+PARROT has no varied sample left (62 items from 42 reports, mostly brain and aorta). The next measures:
 
-1. none of the 7 items to set aside is attached without going to a person;
-2. none of the 74 items with a finding is set aside (at most two, stated);
-3. at most 10% of the 114 items to keep go to a person, laterality questions included;
-4. among accepted items, at most 5% attached otherwise than the label (a finding where the label has none, or
-   the opposite);
-5. the run counts only if at most 5% of the answers are lost.
-
-Reported, without a threshold: the measures compared with a cited reference, those without one, and those the
-reader's recomputation sends to a person. The PARROT reports not used before are running out: this sample is
-smaller (121 items from 75 reports), and with 7 items to set aside criterion 1 says less than before.
+- **CT-RATE** (chest CT, CC BY-NC-SA 4.0, public, usable with OpenRouter for research): a sample drawn by seed and
+  labelled with the convention before any reading, with the same five criteria computed on the items without "?".
+  It covers the chest only: it measures the corrections, not the whole system.
+- **PhysioNet** (credentialed access requested): RadGraph-XL, radiologists' labels on chest X-ray, chest CT,
+  abdomen-pelvis CT and brain MR; MIMIC-IV-Note for variety; RadGraph for the agreement between two radiologists;
+  RadCoref for references across sentences. Run only inside a protected environment with models of our own or a
+  service verified with PhysioNet, never on GitHub runners, never with OpenRouter until PhysioNet agrees; only
+  aggregate numbers come back to the repository.
 
 ## 6. Known limits
 

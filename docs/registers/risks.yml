@@ -185,6 +185,22 @@ risks:
           - tests/test_reference_values.py::test_every_row_of_the_table_has_its_source_and_a_status
     measured_by: owner-probe, measures compared with a reference (VALIDATION.md)
     status: partial
+  - id: R17
+    hazard: The referral's question or the clinical history is read as a current finding
+    situation: "\"signs of heart failure\" in the referral becomes a finding of the heart"
+    harm: A finding the exam did not make enters the differential
+    severity: 4
+    probability: 3
+    controls:
+      - control: The sections of the report are read (LOINC report sections); a finding read in a section of indication goes to a person, an indication is kept as such
+        tests:
+          - tests/test_report_document.py::test_a_finding_read_in_the_referral_goes_to_a_person_and_an_indication_is_kept_as_such
+          - tests/test_report_document.py::test_the_kinds_of_section_follow_the_loinc_sections_of_a_report
+      - control: The conclusion and the sentence before are read; a conclusion or an "its" that gives the finding to another structure goes to a person
+        tests:
+          - tests/test_report_document.py::test_its_and_the_conclusion_are_checked_against_the_anatomy
+    measured_by: owner-probe, criterion 4 (VALIDATION.md)
+    status: partial
   - id: R13
     hazard: A performance figure is measured on data the system was tuned on
     situation: The figure overstates the real performance
