@@ -130,3 +130,5 @@ Short form; the full records are in the tag `docs-archive-2026-11`.
 | 2026-10-31 | The landmark role; the finding owner decided by reader and models together | yes |
 | 2026-11-02 | No label chosen from an ordered list: claims with copied words; the reader checks with ontologies and grammar, never with word lists made for cases | yes |
 | 2026-11-04 | A measure is compared with a reference value from a cited source, never with what a model remembers; paragraphs, not chapters, of the sources; for research open literature and Radiopaedia | yes |
+| 2026-11-07 | Selective recall: a word is read first in the context of the report (its structure, its section, its conclusion); a sense outside it (another species, the embryo) is not recalled unless the report says so. One finding may hold several places, and several findings one place | yes |
+| 2026-11-07 | Where the two models' readings are nested, the reader decides only the piece they differ on, and only with unambiguous knowledge (HPO, PATO); it can confirm the larger reading, never take one away; otherwise a person | proposed |

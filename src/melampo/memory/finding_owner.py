@@ -53,6 +53,10 @@ segmento lobo parete corpo area regione zona porzione parte polo base apice sede
 _KIND_OF_ORGAN = re.compile(r"\b(element|organ|viscus|genitalia)\b|^(exocrine|endocrine|reproductive|digestive system) gland$"
                             r"|^skeletal joint$|^skin of body$")
 _WORD = re.compile(r"[A-Za-zÀ-ÿ']+")
+EMBRYONIC = "UBERON:0002050"          # embryonic structure
+# the words that point back to something said before: closed-class words of the two languages
+_POINTER = re.compile(r"\b(its|it|they|them|their|this|these|those|the same|same|sua|suo|sue|suoi|esso|essa|"
+                      r"essi|esse|stesso|stessa|stessi|stesse|questo|questa|tale|tali)\b", re.IGNORECASE)
 _SECTION = re.compile(r"(?:^|[\n.;])\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ /\-]{1,40}):")
 
 
@@ -112,14 +116,27 @@ class Anatomy:
             ids = set(site_anchors(cid)) or {f"class:{cid}"}
             for name in c.get("en", []) + c.get("it", []):
                 self._add(name, ids)
+        self._up: dict[str, set[str]] = {}
         # UBERON's labels and exact synonyms, not its relational adjectives ("cortical", "dorsal" name no
-        # structure in a clause)
+        # structure in a clause). Only the senses a report of a person can mean (7 November 2026): a reader that
+        # takes any sense of a name read "gallbladder corpus" as the corpus of an amphibian's septomaxilla
+        # (UBERON:3000645) and "aortic arch" as the arches of the embryo ("aortic arch 1" … with the number
+        # dropped), so the arch was not part of the aorta. A term of another taxon (UBERON's identifiers from
+        # 2000000 and 3000000 come from the fish and amphibian ontologies), an embryonic structure, and a name
+        # whose number the words would drop are not read
         for uid, names in (uberon_names or {}).items():
+            if not self._of_a_person(uid):
+                continue
             for name in names:
-                self._add(name, {uid})
+                if not re.search(r"\d", name):
+                    self._add(name, {uid})
         self.organs = {o for o in getattr(uberon, "organs", set())
                        if not _KIND_OF_ORGAN.search(uberon.labels.get(o, ""))} if uberon is not None else set()
-        self._up: dict[str, set[str]] = {}
+
+    def _of_a_person(self, uid: str) -> bool:
+        if re.match(r"UBERON:[23]\d{6}$", uid):
+            return False
+        return self.uberon is None or EMBRYONIC not in self._closure(uid, False)
 
     @classmethod
     def from_uberon(cls, path: Path) -> Anatomy:
@@ -200,6 +217,27 @@ class Anatomy:
 
 _DIFFERENTIAL = re.compile(r"\b(differential(?: diagnosis| diagnoses)?|ddx|d\.d\.|diagnosi differenziale|"
                            r"diagnostica differenziale)\b", re.I)
+
+
+def _one_kind_per_piece(answer: dict) -> dict:
+    """The same words cannot be two claims (7 November 2026: "cannot be evaluated optimally" listed as not
+    assessable and also as observed): a piece a model gives another kind is not also observed."""
+    other = {w for k in ("normal", "not_assessable", "indication", "past", "device", "procedure")
+             for w in answer.get(k, [])}
+    kept = [o for o in answer.get("observed", []) if o.get("words") not in other]
+    return answer if len(kept) == len(answer.get("observed", [])) else {**answer, "observed": kept}
+
+
+def _parallel_places(clause: str, other_at: int, at: int, language: str) -> bool:
+    """Are both structures places of what is observed: each introduced by its own relation of containment
+    that is not "of" ("in the gallbladder lumen … in the middle zone of the left kidney")? A structure the
+    observation is "of" ("thickening of the parietal pleura in the lower lobe") is its bearer, not a place."""
+    from .spatial_relation import CONTAINMENT, read_relation
+
+    mine, theirs = read_relation(clause, at, language), read_relation(clause, other_at, language)
+    of = {"of", "di", "del", "dello", "della", "dei", "degli", "delle", "dell'"}
+    return (mine.kind == CONTAINMENT and theirs.kind == CONTAINMENT
+            and (theirs.indicator.split() or [""])[0].lower() not in of)
 
 
 def _in_a_differential(clause: str, at: int) -> bool:
@@ -486,6 +524,11 @@ class FindingOwner:
                 where = _find_name(before, name)
                 if where is None or not conjuncts(clause, (base + where[0], base + where[1]), (at, at + len(mention))):
                     first = named[:1]
+                if first and where is not None and _parallel_places(clause, base + where[0], at, language):
+                    # "stones in the gallbladder lumen and, of 3 mm, in the middle zone of the left kidney": each
+                    # structure has its own place, and what is observed is in both, one to many, as a reader
+                    # holds them in parallel (7 November 2026). The structure before is not the bearer instead
+                    first = []
             for name, ids in ([head[0]] if head and after[:1] == " " else []) + first:
                 if self.anatomy.other_organ(ids, linked):
                     against.append(f"describes:{name}")
@@ -673,10 +716,16 @@ class FindingOwner:
         text, where = window(clause, at, len(mention))
         reader, evidence, placed = self._reader(mention, text, where, language, cid, context)
         said = self._claim_answers(mention, text, where, language, cid, context)
+        said = {m: _one_kind_per_piece(a) for m, a in said.items()}
         outcomes = [claims_outcome(a) for a in said.values()]
         review = laterality_conflict(context.get("exam", ""), cid, mention)
+        arbitrated = ""
         if "unsure" in outcomes or len(set(outcomes)) != 1:
-            return Ownership(UNSURE, evidence, said, placed, "the_models_cannot_say_or_disagree", review=review)
+            said, arbitrated = self._arbitrate(said, outcomes, language, cid)
+            if not arbitrated:
+                return Ownership(UNSURE, evidence, said, placed, "the_models_cannot_say_or_disagree", review=review)
+            outcomes = [FINDING]
+            evidence = f"{evidence},{arbitrated}".strip(",")
         outcome = outcomes[0]
         claims = agreed_claims(list(said.values()))
         piece = " … ".join(o["words"] for o in claims.get("findings", []))
@@ -698,6 +747,40 @@ class FindingOwner:
                              outcome, piece, claims, review)
         return Ownership(HERE, evidence, said, "", "reader_and_model_agree", outcome, piece, claims, review)
 
+    def _arbitrate(self, said: dict[str, dict], outcomes: list[str], language: str, cid: str):
+        """When the two models' readings are nested (7 November 2026): one reads a finding, the other the same
+        claims without it, or the same piece without being sure it differs from the usual. Most of the models'
+        disagreements are of this kind (CT-RATE: "43 mm, larger than normal" read as a measure only by one;
+        "it may belong to a thyroid nodule" read as a hedge only). As a third reader, the reader decides only the
+        piece they differ on, and only with what it knows without ambiguity: a deviation that HPO and PATO know
+        for this tissue in the words of that piece. Then the finding is attached; otherwise a person decides.
+        The reader never takes away what a model read: it can only confirm the larger reading."""
+        from .what_is_said import stated_anomalies
+
+        if self.anomalies is None or set(outcomes) - {FINDING, KEEP, "unsure"} or FINDING not in outcomes:
+            return said, ""
+        sites = self.anomalies.sites_of(cid)
+        larger = [m for m, o in zip(said, outcomes) if o == FINDING]
+        others = [m for m, o in zip(said, outcomes) if o != FINDING]
+        for m in others:
+            a = said[m]
+            if not a.get("valid") or a.get("same") != "yes":
+                return said, ""
+        pieces = [o["words"] for m in larger for o in said[m].get("observed", []) if o.get("of") == "it"]
+        held = {o["words"] for m in others for o in said[m].get("observed", []) if not said[m].get("state_unsure")}
+        disputed = [w for w in pieces if w not in held]
+        # the other model read the same words as something else (normal, not assessable, its past): that is a
+        # disagreement, not a reading that leaves a piece out. A differential is not something else: it says
+        # what the finding may be, and a finding named with its alternatives is still a finding
+        read_else = [w for m in others for k in ("normal", "not_assessable", "past", "device", "indication",
+                                                 "procedure") for w in said[m].get(k, [])]
+        if any(w.lower() in e.lower() or e.lower() in w.lower() for w in disputed for e in read_else):
+            return said, ""
+        if not disputed or not any(stated_anomalies(w, language, self.anomalies, sites) for w in disputed):
+            return said, ""
+        ordered = {m: said[m] for m in larger} | {m: said[m] for m in others}
+        return ordered, "the_reader_confirms_the_finding_one_model_adds"
+
     def _document_check(self, outcome: str, claims: dict, answers: list[dict], evidence: str, cid: str,
                         context: dict) -> str:
         """What the report around the sentence says, as a radiologist reads it (6 November 2026). Each reason
@@ -718,8 +801,16 @@ class FindingOwner:
             linked = set(site_anchors(cid)) | {f"class:{cid}"}
 
         def other(words: str) -> bool:
-            return bool(words) and self.anatomy is not None and bool(self.anatomy.find(words, short=True)) \
-                and not self.same_structure(words, linked)
+            """A structure of another organ, read in the senses the report can mean (7 November 2026): the
+            name is first recalled in the context of the linked structure, as memory recalls selectively; a
+            part, the whole or another part of the same organ ("lung parenchyma" for a lobe, another lobe) is
+            not another structure, and a name the reader does not know says nothing."""
+            if not words or self.anatomy is None:
+                return False
+            found = self.anatomy.find(words, short=True)
+            if not found or self.same_structure(words, linked):
+                return False
+            return any(self.anatomy.other_organ(ids, linked) for _, ids in found)
 
         if outcome == FINDING and context.get("section_kind") == INDICATION:
             return "the_finding_is_in_the_indication"
@@ -727,7 +818,9 @@ class FindingOwner:
             if outcome == FINDING and a.get("conclusion") == "other" and other(a.get("conclusion_of", "")):
                 return "the_conclusion_gives_it_to_another_structure"
             for o in a.get("observed", []):
-                if o.get("of") == "it" and other(o.get("refers_to", "")):
+                # only what a pronoun of the observed words points to ("its origin", "the same"): a model may
+                # fill the field without one, and that says nothing
+                if o.get("of") == "it" and _POINTER.search(o.get("words", "")) and other(o.get("refers_to", "")):
                     return "its_refers_to_another_structure"
             for ref in a.get("measure_refs", []):
                 if any(ref["words"] in o.get("words", "") or o.get("words", "") in ref["words"]
