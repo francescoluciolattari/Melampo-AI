@@ -85,7 +85,8 @@ def test_the_reader_contradicts_with_what_it_knows():
     s = "The right kidney measures 10.5 cm"
     said = _answer(marked="right kidney", observed=[{"words": "measures 10.5 cm", "of": "it"}])
     got = _owner(said, said)("right kidney", s, 4, "en", "kidney_right")
-    assert got.verdict == DOUBT and "the_finding_is_only_a_measure" in got.reader
+    # a piece that is only a measure is a measure (8 November 2026): compared with the references, not observed
+    assert got.verdict == HERE and got.statement == KEEP and got.claims.get("measure") == ["measures 10.5 cm"]
 
 
 def test_what_is_of_another_structure_is_set_aside_only_with_the_reader_or_its_relation_words():

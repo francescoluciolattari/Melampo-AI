@@ -595,7 +595,13 @@ of that kind.
   words of your own (a physiological state, such as a hollow organ more or less filled, is usual); differs: "yes"
   if the words describe something different from the usual, even if mild, "no" if they describe the usual,
   "unsure" if it cannot be told; of: "it" if it is of the linked structure or one of its parts, otherwise the
-  structure it is of, copied from the sentence; relation: the words that relate it to the linked structure ("in",
+  structure it is of, copied from the sentence. Words that only say where something is ("at the level of", "at
+  the base of", "in the topography of", "in the region of", "in the projection of", "projected on", "near",
+  "beside") place it and do not make it the structure's own, unless the sentence says that it is in it or of it
+  or that the structure itself is touched; when the sentence says what it is ("a stone in the right kidney", "may
+  correspond to a lymph node", "pneumothorax?"), it is of the structure that is; what the sentence says of
+  another subject ("the celiac trunk is patent, with a narrowing at its origin from the aorta") is of that
+  subject. A variant of the structure (an accessory spleen, a lobe of Riedel) is of it; relation: the words that relate it to the linked structure ("in",
   "of", "between", "adjacent to", "extends into", "compresses"), copied, or ""; reaches: for what is of another
   structure, "yes" if the sentence says that the linked structure itself is touched by it (it extends into it,
   infiltrates, compresses, narrows, displaces or deforms it) or that it is of a joint or a space the linked

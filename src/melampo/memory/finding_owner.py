@@ -254,14 +254,27 @@ def _reading_doubt(said: dict[str, dict], valid: dict[str, dict], outcomes: list
         kind = "state"
     else:
         kind = "reading"
-    readings = {m: {"outcome": claims_outcome(a) if a.get("valid") else "none",
-                    "observed": [o.get("words", "") for o in a.get("observed", [])],
-                    "same": a.get("same", "")} for m, a in said.items()}
-    out = {"kind": kind, "why": "the_models_read_differently", "readings": readings,
+    out = {"kind": kind, "why": "the_models_read_differently", "readings": _readings(said),
            "closes_with": ["conclusion", "reader", "other_reports", "history", "new_exam"]}
     if closed:
         out["closed_by"] = "conclusion" if "conclusion" in closed else "reader"
     return out
+
+
+def _readings(said: dict[str, dict]) -> dict:
+    """Each model's reading, as the doubt keeps it: none of them is the doubt's own."""
+    return {m: {"outcome": claims_outcome(a) if a.get("valid") else "none",
+                "observed": [o.get("words", "") for o in a.get("observed", [])],
+                "same": a.get("same", "")} for m, a in said.items()}
+
+
+# what the reader's contradiction says the sentence attaches
+_READER_SAYS = {"the_normal_words_state_an_abnormality": "finding", "the_reader_reads_another_owner": "aside",
+                "nothing_said_of_it_and_the_reader_reads_another_owner": "aside",
+                "the_reader_reads_a_differential": "differential",
+                "the_relation_words_only_place_what_is_said_its_own": "aside",
+                "the_relation_words_say_near_not_reaching": "aside", "the_finding_is_only_a_measure": "keep",
+                "the_finding_is_a_past_fact": "past"}
 
 
 def _clinical_doubt(claims: dict) -> dict:
@@ -273,13 +286,23 @@ def _clinical_doubt(claims: dict) -> dict:
     return {"kind": "clinical", "words": words, "closes_with": ["other_reports", "history", "new_exam"]}
 
 
-def _one_kind_per_piece(answer: dict) -> dict:
+def _one_kind_per_piece(answer: dict, mention: str = "") -> dict:
     """The same words cannot be two claims (7 November 2026: "cannot be evaluated optimally" listed as not
-    assessable and also as observed): a piece a model gives another kind is not also observed."""
+    assessable and also as observed): a piece a model gives another kind is not also observed. And a piece that is
+    only a measure, numbers and units with the words of a measure ("measures 7 mm in diameter", "volume: 109 cm3"),
+    is a measure, as the question itself says ("a measure goes in measure", 8 November 2026): it is compared with
+    the reference values, not read as an observation."""
     other = {w for k in ("normal", "not_assessable", "indication", "past", "device", "procedure")
              for w in answer.get(k, [])}
-    kept = [o for o in answer.get("observed", []) if o.get("words") not in other]
-    return answer if len(kept) == len(answer.get("observed", [])) else {**answer, "observed": kept}
+    observed = answer.get("observed", [])
+    kept = [o for o in observed if o.get("words") not in other
+            and not (o.get("of") == "it" and _pure_measure(o.get("words", ""), mention))]
+    if len(kept) == len(observed):
+        return answer
+    moved = [o["words"] for o in observed if o not in kept and o.get("words") not in other]
+    have = {(m.get("words") if isinstance(m, dict) else m) for m in answer.get("measure", [])}
+    measure = list(answer.get("measure", [])) + [w for w in moved if w not in have]
+    return {**answer, "observed": kept, "measure": measure}
 
 
 def _parallel_places(clause: str, other_at: int, at: int, language: str) -> bool:
@@ -772,7 +795,7 @@ class FindingOwner:
         text, where = window(clause, at, len(mention))
         reader, evidence, placed = self._reader(mention, text, where, language, cid, context)
         said = self._claim_answers(mention, text, where, language, cid, context)
-        said = {m: _one_kind_per_piece(a) for m, a in said.items()}
+        said = {m: _one_kind_per_piece(a, mention) for m, a in said.items()}
         review = laterality_conflict(context.get("exam", ""), cid, mention)
         valid = {m: a for m, a in said.items() if a.get("valid")}
         if not valid:
@@ -819,9 +842,13 @@ class FindingOwner:
             return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "the_document_is_discordant",
                              outcome, piece, claims, review, doubt)
         if why:
-            # the reader and the models read the sentence differently: a doubt of reading, kept in the path
+            # the reader and the models read the sentence differently: a doubt of reading, kept in the path. The
+            # reader's reading is one of the doubt's readings, beside the models': none of them leads (8 November
+            # 2026: in the doubts of the reader its reading was often the right one)
             doubt = {**(doubt if open_doubt else {}), "kind": doubt.get("kind", "reader") if open_doubt else "reader",
                      "why": why}
+            doubt["readings"] = {**doubt.get("readings", _readings(said)), "reader": {"outcome": _READER_SAYS.get(
+                why, "other"), "why": why}}
             return Ownership(DOUBT, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_disagree",
                              outcome, piece, claims, review, doubt)
         if open_doubt:

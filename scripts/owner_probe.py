@@ -111,6 +111,11 @@ def claims_labels(name: str = "claims") -> dict[str, tuple[set[str], bool]]:
     return out
 
 
+def _as_outcome(said: str) -> str:
+    """A reading of a doubt as the label's outcome: a finding (with its differential), aside, or the rest."""
+    return "finding" if said in ("finding", "differential") else "aside" if said == "aside" else "keep"
+
+
 def outcome_of_claims(kinds: set[str]) -> str:
     """What the label attaches: a finding, nothing at the structure (aside), or only the other claims (keep)."""
     if kinds & {"finding", "involved"}:
@@ -162,6 +167,9 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
             have = got.get("statement", "")
             lead = "aside" if have == "aside" else "finding" if have == "finding" else "keep"
             c["doubt_leading_right" if lead == want else "doubt_leading_wrong"] += 1
+            # is the label's reading among those the doubt keeps (8 November 2026)? A doubt without it is an error
+            kept = {_as_outcome(v.get("outcome", "")) for v in (doubt.get("readings") or {}).values()} | {lead}
+            c["doubt_keeps_the_right_reading" if want in kept else "doubt_without_the_right_reading"] += 1
             c[f"doubt_kind_{doubt.get('kind', '')}"] += 1
         else:
             have = got.get("statement", "")
@@ -223,8 +231,9 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
     clinically significant errors of radiology reports themselves: (1) an item to set aside attached as certain;
     (2) a finding set aside; (3) items sent to a person, each a discordance of the document; (4) certain readings
     attached otherwise than the label, closed doubts included; (5) answers lost (in the summary); (6) doubts kept
-    in the path, at most 10% of the items (a bound of usefulness, not an error), with their leading reading
-    against the label, and closed doubts wrong under 2% of the closed ones. Each share has its 95% upper bound."""
+    in the path, at most 10% of the items (a bound of usefulness, not an error), a doubt that does not keep the
+    label's reading among its readings counted as an error (under 2% of the items, 8 November 2026), and closed
+    doubts wrong under 2% of the closed ones. Each share has its 95% upper bound."""
     def one(rs: list[dict]) -> dict:
         t = claims_table(rs, arm)
         aside = t.get("aside_items", 0)
@@ -243,6 +252,8 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
                 "4_upper_95": upper_95(other, attached),
                 "6_in_doubt_share": share(doubts, n),
                 "6_doubt_leading_reading_wrong": t.get("doubt_leading_wrong", 0),
+                "6_doubt_without_the_right_reading_share": share(t.get("doubt_without_the_right_reading", 0), n),
+                "6_doubt_without_upper_95": upper_95(t.get("doubt_without_the_right_reading", 0), n),
                 "6_closed_doubts": closed, "6_closed_doubts_wrong_share": share(closed_wrong, closed),
                 "clinical_doubts_kept": t.get("clinical_doubts_kept", 0),
                 # the earlier names, to compare with the runs before the principle of doubt
