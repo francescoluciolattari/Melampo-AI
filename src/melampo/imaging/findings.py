@@ -149,6 +149,7 @@ class Finding:
             "id": self.id, "patient": self.patient, "study": self.study, "study_date": self.study_date,
             "modality": self.modality, "report": self.text.report_id, "structure": self.text.structure,
             "mention": self.text.mention, "clause": self.text.clause, "roles": list(self.text.roles),
+            "start": self.text.start, "end": self.text.end,
             "language": self.text.language, "statement": self.text.statement,
             "location": q.get("location", ""), "degree": q.get("degree", ""), "character": list(q.get("character", [])),
             "certainty": q.get("certainty", ""), "polarity": q.get("polarity", ""),

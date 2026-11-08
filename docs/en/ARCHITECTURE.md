@@ -32,6 +32,7 @@ flowchart TD
   prep --> router["report_router: the model says only the KIND;<br/>deterministic cues decide with it"]
   router --> lab["laboratory tables, LOINC,<br/>out-of-range values → HPO"]
   router --> path["pathology reports<br/>(TNM, grading, margins)"]
+  path -->|"the diagnosis with its items"| rr
   router --> narr["narrative reader: anatomical linker,<br/>Kintsch reader, local models"]
   narr --> img["image interpreter: findings of every text;<br/>VoxTell + TotalSegmentator when a volume is paired"]
   img --> owner["whose is the finding? (finding_owner)<br/>reader + models; a person on contradiction"]
@@ -132,3 +133,4 @@ Short form; the full records are in the tag `docs-archive-2026-11`.
 | 2026-11-04 | A measure is compared with a reference value from a cited source, never with what a model remembers; paragraphs, not chapters, of the sources; for research open literature and Radiopaedia | yes |
 | 2026-11-07 | Selective recall: a word is read first in the context of the report (its structure, its section, its conclusion); a sense outside it (another species, the embryo) is not recalled unless the report says so. One finding may hold several places, and several findings one place | yes |
 | 2026-11-07 | The principle of doubt: what is not certain stays in the diagnostic path as a finding in doubt, with every reading beside it, closed by the conclusion, the reader's unambiguous knowledge (HPO, PATO), other reports, the history or a new exam; certain when two sources of different mechanism hold it; a person only for a discordance of the document; every error share under 2% | yes |
+| 2026-11-08 | The pathologist's diagnosis is given to its finding with its TNM, grade, margins, nodes and markers; the clinical information of a pathology report is the question, the material where the sample comes from; an item is given only where it certainly belongs (its line of the diagnosis, or the one structure the diagnosis names), otherwise it stays with the report and says why | yes |

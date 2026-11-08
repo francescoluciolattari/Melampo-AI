@@ -32,6 +32,7 @@ flowchart TD
   prep --> router["report_router: il modello dice solo il TIPO;<br/>indizi deterministici decidono con lui"]
   router --> lab["tabelle di laboratorio, LOINC,<br/>valori fuori range → HPO"]
   router --> path["referti di anatomia patologica<br/>(TNM, grading, margini)"]
+  path -->|"la diagnosi con i suoi elementi"| rr
   router --> narr["lettore narrativo: linker anatomico,<br/>lettore Kintsch, modelli locali"]
   narr --> img["interprete d'immagine: reperti di ogni testo;<br/>VoxTell + TotalSegmentator se c'è un volume abbinato"]
   img --> owner["di chi è il reperto? (finding_owner)<br/>lettore + modelli; una persona se si contraddicono"]
@@ -134,3 +135,4 @@ In forma breve; i record completi sono nel tag `docs-archive-2026-11`.
 | 2026-11-04 | Una misura si confronta con un valore di riferimento di una fonte citata, mai con ciò che un modello ricorda; paragrafi, non capitoli, delle fonti; per la ricerca letteratura aperta e Radiopaedia | sì |
 | 2026-11-07 | Richiamo selettivo: una parola si legge prima nel contesto del referto (la sua struttura, la sua sezione, le sue conclusioni); un senso estraneo (un'altra specie, l'embrione) non si richiama se il referto non lo dice. Un reperto può avere più sedi, e più reperti una sede | sì |
 | 2026-11-07 | Il principio del dubbio: ciò che non è certo resta nel percorso diagnostico come reperto in dubbio, con ogni lettura accanto, chiuso dalle conclusioni, dalla conoscenza non ambigua del lettore (HPO, PATO), da altri referti, dall'anamnesi o da un esame nuovo; certo quando lo sostengono due fonti di meccanismo diverso; alla persona solo una discordanza del documento; ogni quota di errore sotto il 2% | sì |
+| 2026-11-08 | La diagnosi del patologo è data al suo reperto con TNM, grado, margini, linfonodi e marcatori; le notizie cliniche di un istologico sono il quesito, il materiale è da dove viene il campione; un elemento si dà solo dove appartiene con certezza (la sua riga della diagnosi, o l'unica struttura che la diagnosi nomina), altrimenti resta con il referto e dice perché | sì |
