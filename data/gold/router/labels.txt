@@ -1,0 +1,282 @@
+# The kinds of report each text contains: labels of the router probe (8 November 2026). Labeller: Claude, one
+# labeller. Written BEFORE any router or model read these texts, from the text itself (its headings, its
+# sentences, its values), not from the specialty it is filed under.
+# Items: router-probe workflow (sample_only), scripts/router_probe.py sample --seed 20261108: MTSamples (Hugging
+# Face mirror argilla/medical-domain), 6 per specialty, and PARROT, 20 Italian and 10 other languages.
+# 270 texts: 191 clinical_note, 14 clinical_note+laboratory, 1 clinical_note+microbiology, 50 imaging_report,
+# 10 pathology, 1 pathology+microbiology, 3 other. The texts are not here: only the labels.
+# Rules: an operative or procedure note is a clinical note (specimens sent are not results); endoscopy,
+# catheterization and angiography are imaging reports; EEG, EMG, sleep and vestibular studies are clinical notes
+# (narrative, no kind of their own); an autopsy is pathology; "laboratory" only with analytes and their values
+# written (not "labs normal"); "microbiology" only with a culture's result; "other" a text about no patient.
+# Format: item_id<TAB>kinds joined by "+"<TAB>note
+mts-1e7b585e-8f24-4948-b107-cecf42ea7406	clinical_note	discharge summary
+mts-8374620e-94e6-4a99-b4eb-52a690fdf075	clinical_note	visit note
+mts-06bb656a-c786-43a8-989c-8e0ffab6c8a3	clinical_note	visit note
+mts-cd2f1a3c-372c-4ad9-9b45-5e6aa8657571	clinical_note	emergency note, quotes a chest x-ray
+mts-9d21f84a-7bc1-449a-b784-00cbe07b94a3	clinical_note	consultation
+mts-02e9f32f-ddd5-43b7-812a-5f30c77e71a1	clinical_note	consultation letter
+mts-c65fdece-eea5-4ee7-b4d3-f6881f83db4b	pathology	autopsy: external and internal examination, opinion
+mts-cd0ac79a-0c39-4307-abb6-d3018d08d001	pathology	autopsy (refers to bacteriological cultures and an attached cardiopathology report, results not given)
+mts-a315b9a1-4ab7-45bd-a8bd-64fdfa4ac82c	pathology	autopsy with microscopic examination
+mts-261097b0-55e0-4915-bc61-6204683ad612	pathology+microbiology	autopsy with CSF culture and sensitivity results
+mts-32b44b91-f96e-491a-bd76-f1e3d4bd6c30	pathology	autopsy, final diagnosis
+mts-e9fa97ef-f646-4dad-9e6f-31b2ea1be071	pathology	autopsy with clinical history and clinicopathologic correlation
+mts-1e49df51-4a74-4a41-945f-f6406e407133	clinical_note	discharge summary
+mts-babf947b-45ef-4c15-aa6e-92f2a221fac5	clinical_note	operative note
+mts-98df383f-6ede-4405-a930-0c37300de9e1	clinical_note	preoperative visit
+mts-a4a685a9-55b5-4e1e-af69-997b94b92454	clinical_note	history
+mts-752b0f1f-d48d-4df9-8aa2-338f0762cb27	clinical_note	history
+mts-bfeb0ad0-1d60-49cf-9bfb-4e69babe20fa	clinical_note	visit note
+mts-a991da2a-b09e-43a2-aa7e-f33924b0c6c9	imaging_report	cardiac catheterization and angiography report
+mts-1ac59d5d-09ac-4d15-86a4-220d19b3cd40	imaging_report	coronary CT angiography report
+mts-617519a6-48af-4c11-aebd-542348a1d2fe	imaging_report	bronchoscopy (endoscopy) with biopsies, no results
+mts-882731d7-a963-4114-8d40-fb67d8b69900	imaging_report	left heart catheterization report
+mts-f9461415-a7b1-4caf-ac88-8e27a26fecfa	clinical_note	operative note
+mts-9c676b41-3320-44e2-acc0-1fe5033ed33d	imaging_report	cardiac catheterization and angiography report
+mts-0d8a6cc2-50de-43c0-aaa8-39db51b87b7b	clinical_note	consultation, quotes MRI results
+mts-44148f3a-0315-40fb-96bc-8a988787c6f4	clinical_note	independent medical examination
+mts-aca5450e-9d66-47ba-a323-c8db6b069cdf	clinical_note	examination report
+mts-3f24bb7b-0fa0-4d1e-852d-387dd5c8cc57	clinical_note	chiropractic note
+mts-31af6f6d-738b-4226-8509-d89b2ce07b58	clinical_note	consultation
+mts-6de5952f-d165-4f8e-a6b9-d0429d673bd3	clinical_note	examination report
+mts-615ffa8c-2a86-4f74-946b-9ce639bff72e	clinical_note	consultation
+mts-76087f4d-b679-4638-8347-ee675a8597f2	clinical_note	history and physical
+mts-9dcbbc7f-da33-43b1-a601-705ad441b6ad	clinical_note	school physical
+mts-ef5967d9-b14d-49f9-b635-d4362a554a28	clinical_note	follow-up visit
+mts-f0f42735-7807-479a-981a-6e3c8f998084	clinical_note	visit note
+mts-fa3a7f6b-5ea0-47eb-8a97-53fb4f41b9c6	clinical_note	history and physical
+mts-2dccec3c-4a35-4c2f-a0e6-46cbdafc3ada	clinical_note	operative note, specimens sent to pathology
+mts-08f31552-08bf-4039-9217-441b6f97a5f7	clinical_note	operative note
+mts-ca06ce1a-a4d7-4ec3-87fd-0a1058fcd01f	clinical_note	operative note
+mts-5beb2c35-2d9b-4f62-ba38-08586e2f9c81	clinical_note	operative note
+mts-b86fc474-86ab-46d1-a6b7-4a5fd8cb5b82	clinical_note	operative note, tissue sent for pathology
+mts-6802c56d-6bed-40f5-9c79-8e765c24f274	clinical_note	operative note
+mts-d306689f-2908-4d79-942c-7529cf0d7393	clinical_note	emergency note
+mts-178e8049-5f00-4488-8db8-db15dd97eb25	clinical_note	operative note, cultures sent
+mts-7d02ed14-4078-473c-bb14-f0d99d2a00c4	clinical_note	operative note, cultures sent
+mts-dfa4f44d-b17b-48ca-90a4-7db898354fc3	clinical_note	operative note
+mts-d5e3682e-05cc-453a-803b-bf62b3d0d8cb	clinical_note	operative note, cultures sent
+mts-81698cd6-0eaf-4a01-b905-a03f0ae04b00	clinical_note	operative note
+mts-2171cee3-7aa9-43c5-a62d-8c4f29c17feb	clinical_note	visit note
+mts-c7fdab35-bac7-4db6-9909-127d3ef5cd21	clinical_note	procedure note, punch biopsy taken
+mts-8986e5d4-2adb-4634-9ad4-674fdb14d89b	clinical_note	operative note
+mts-5a46f5a5-b06c-4d39-baa1-502f92ef0200	clinical_note	operative note, specimens sent
+mts-9d615490-d229-4959-8dc3-908cf9c3c809	clinical_note	emergency note
+mts-83790734-d15c-427b-b48d-238c7b1f32b4	clinical_note	procedure note, biopsy sent
+mts-378ae8f9-f5a5-45d1-87db-140ef5feaeaf	clinical_note	dietary consultation
+mts-f9ba3975-8a75-4755-bb4b-fdc675c636c3	clinical_note	dietary consultation
+mts-8ce7c139-fd57-4ffb-8868-fad9cbb4e0af	clinical_note	dietary consultation
+mts-05a2dc62-1859-47d3-b046-71fc62fb60b4	clinical_note	dietary consultation
+mts-41595c88-fca3-4a74-85ee-b19fe0483046	clinical_note	dietary consultation
+mts-63daee28-6117-42b4-8638-9ffe4d96ce27	clinical_note	dietary consultation
+mts-f86fea8c-eb8d-4df8-9081-ed54b7fbe68b	clinical_note	discharge summary
+mts-266d1916-18c7-4595-887b-9b6f370de1ca	clinical_note	discharge summary, urine culture to be checked
+mts-0a0cb81b-f2c4-4834-852b-e6e68828b1e6	clinical_note	discharge summary
+mts-4bcb09c1-aa1c-416b-80c3-64c873d0f6e1	clinical_note	discharge summary
+mts-9dbcb330-f900-46f3-bda9-44a2702838b6	clinical_note	discharge summary
+mts-84f1b7f0-b271-4803-bd8a-58b19011eeaa	clinical_note	rehabilitation goals
+mts-2b99f807-f907-4325-94af-6852c59aefa4	clinical_note	operative note
+mts-64db2774-89f2-4a0e-9d95-117cc410ef5d	clinical_note	visit note
+mts-87ffbbe1-0820-4c34-9fff-c1db4a32d744	clinical_note	vestibular assessment
+mts-dbdba3b2-0828-449e-b74a-761167643eaa	clinical_note	case presentation, normal CBC mentioned
+mts-5380e437-8183-49c7-aae3-baaed1caa9a5	clinical_note	operative note
+mts-1aee588c-dd74-4c54-a914-ef4d35f03cb3	clinical_note	consultation
+mts-04cd327a-9e06-44fb-9bee-59081f2e2b47	clinical_note	emergency note
+mts-d1e7f66d-7995-48e2-8377-909f62f3275b	clinical_note	emergency note
+mts-ed814df3-6589-43a5-89f0-bad116a0e996	clinical_note	emergency note
+mts-93fbc522-1eeb-47b9-8d1f-c7c11fa85f35	clinical_note	emergency note
+mts-2b9a5e11-856d-4fc2-a0de-1c98971977f0	clinical_note+laboratory	emergency note with electrolytes
+mts-397cab44-ca45-4c23-82a9-9e2a888442f9	clinical_note+laboratory	emergency note with blood count values
+mts-7c2c26b6-5af2-430b-9489-a0350fcddf11	clinical_note	operative note, frozen section mentioned
+mts-ca7866af-48e9-4f80-89bb-721464097c8d	clinical_note+laboratory	visit note with HbA1c and microalbumin
+mts-8f8a1d53-c650-489c-a41a-180d83b3e322	clinical_note	consultation
+mts-321b51bb-3fc4-4800-b842-44a4ca0bf722	clinical_note	operative note
+mts-7be4d9e5-2554-464b-b7d1-5ef35400f21a	clinical_note	visit note
+mts-69fcda23-e199-4a44-93b9-65a54de64df7	clinical_note	operative note
+mts-70d73399-4fde-4dee-80a5-9a2a60aa9024	clinical_note	consultation
+mts-2c15c53b-2b69-41f2-aba5-38bf060fccdd	imaging_report	upper endoscopy findings
+mts-8b55637a-dcb1-4d08-8f47-14c3ffafda15	imaging_report	upper endoscopy with biopsies
+mts-71412687-3cf4-4229-820a-fcde295fe243	imaging_report	upper endoscopy
+mts-00001265-03e2-47b2-b6cf-bed32dad2fa9	imaging_report	colonoscopy
+mts-b191bfa3-dd4a-40fa-9598-ac82710f79a3	clinical_note	operative note
+mts-78706f37-6e11-4670-a654-4dcb4b3fb41f	clinical_note+laboratory	history with blood count and chemistry
+mts-6e0bd869-48d4-45b9-a29c-2348997ec0b5	clinical_note	emergency history
+mts-7a3f1407-c22f-47ca-8874-1d470913ff52	clinical_note	review of systems
+mts-ee6348bd-4936-48da-8094-8b933e87261c	clinical_note	physical examination
+mts-9ec9eb16-0091-4869-8b6e-202f3ba4dfa6	clinical_note	progress note
+mts-e654bffd-26ae-4b42-8031-29f2c4b3c99b	clinical_note	physical examination template
+mts-8028a653-8cf0-4a84-90ac-e9f138f4af63	clinical_note	consultation
+mts-29ddd1cf-c183-4ef6-b318-6dff962b8bbb	clinical_note	consultation
+mts-c2583bea-2371-479b-ae1c-2d7e40b20b67	clinical_note	operative note
+mts-46c356ab-91fc-4bee-b03c-24ed0e405751	clinical_note	visit note
+mts-31e7a8b1-1c1f-4e9d-8048-86ae5d93dc3e	clinical_note	operative note
+mts-5e38ccaf-8dfb-4b14-a42a-c86e9d502d67	clinical_note	operative note
+mts-b4c5888d-b749-4062-a492-5d68018f7657	clinical_note	hospice visit
+mts-785fee3f-1e32-4d49-ba3b-2faee7a5fd7f	clinical_note	hospice visit
+mts-f843d00d-2ce6-45fe-8328-75edf612faaa	clinical_note+laboratory	consultation with electrolytes
+mts-cff86e86-fd70-4182-a010-7abc6d2dbdc5	clinical_note	hospice visit
+mts-76b4d639-bb86-4a3b-b3a1-5459ac4e6c0c	clinical_note	care conference note
+mts-1d73f203-8b5a-4662-b2f5-10bfd1b9fd27	clinical_note	hospice visit
+mts-5919a7a3-d8dc-4ebe-a748-a2ed87f6ffaf	clinical_note	independent medical examination
+mts-70688e85-199d-430a-a50c-a559d17046f0	clinical_note	independent medical examination
+mts-aeeec0ef-5183-4ed1-9d67-93d682402daa	clinical_note	independent medical examination
+mts-9cab5248-3392-4aa1-a671-f8adc69f76b0	clinical_note	independent medical examination
+mts-b6643414-2c41-47bd-80ae-8248d6f65132	clinical_note	independent medical examination
+mts-396d7589-0da0-4fb7-adfc-7b9fa0c3b3cf	clinical_note	visit note
+mts-0c147f3c-5265-4783-b2a0-1a702d9d9f27	pathology	frozen section, gross description and diagnosis
+mts-ae8ddcaf-cb47-4ef9-b113-7be71ba2ef44	other	explanation of what BNP and metabolic panels are, not about a patient
+mts-c32c3649-8457-4f5a-9789-33e76000e823	pathology	lung resection: gross description, diagnosis
+mts-d243a097-8eab-4993-8f61-3ee2720028ca	pathology	bone fragments: gross description, diagnosis
+mts-97113cb6-8c61-4f6e-ac32-bd55512d2c05	pathology	lung specimens: diagnosis, comment
+mts-573c111e-c028-45b0-8a4c-b7f3238d1cf2	pathology	prostatectomy and nodes
+mts-00375fb4-e42c-4a01-a426-5b4bafd3ce06	clinical_note	referral letter
+mts-6593e999-6770-4b6e-9f58-98a8209cc8af	clinical_note	letter
+mts-058cf2a1-355d-4bf8-8b23-80bca5b60235	clinical_note	referral letter
+mts-645fdc97-8e4a-4cc4-a60a-f095896fb0f7	clinical_note	introduction letter
+mts-f76619c3-077f-4b93-81b0-f79219250552	other	template letter about an abnormal cholesterol test, no patient values
+mts-88a5a0b4-dc68-4ca7-8de4-6a12e7531f98	clinical_note	consultation letter with lab values in words
+mts-62d40cd2-1171-4d6f-b2fb-1ac012e523fa	clinical_note	operative note, urine for cytology and culture
+mts-986eef09-dc1d-4d4c-b897-ae5717eeb493	clinical_note	operative note
+mts-860d105e-63f9-4741-b2d8-b40f3402aec6	imaging_report	CT abdomen and pelvis report
+mts-588367d3-5b88-4bd4-8ddf-42231d7421b6	clinical_note+laboratory	consultation with laboratory data
+mts-f34b3f61-87c9-4d76-8bee-30329f2014f9	clinical_note	operative note
+mts-b6d4dad3-4be8-4e14-8618-82a108db2f0e	clinical_note	operative note
+mts-3dd99559-f47f-4d70-b9c7-39112ce3992a	clinical_note	nerve conduction and EMG report
+mts-d69a443c-2ef8-4262-a696-bb44281b23ef	clinical_note	neurology consultation
+mts-eb6158b8-c980-4a19-bec8-dce9f6d65375	clinical_note	EEG impression
+mts-497a52eb-1921-4788-bffb-9fd13db406fd	clinical_note	headache visit
+mts-860d3f4b-3b52-4ba5-aae4-f01a8447393b	clinical_note	case history
+mts-3dd47871-3be1-40d2-b68a-88258b318e1e	imaging_report	spine flexion-extension radiographs
+mts-157953e3-d891-4325-9116-90d903f39cf6	clinical_note	neurosurgery visit, reviews a CT
+mts-de802043-8f50-4fd4-875e-8f0a096cc611	clinical_note	operative note
+mts-d4d2fd85-5159-4418-a462-249909309a1f	clinical_note	operative note
+mts-25b728a1-18f3-4e5c-8f2a-06a1ca84c25b	clinical_note	operative note
+mts-d03d5e80-2f1e-4ac0-8409-32fde0a0fa9b	clinical_note	operative note
+mts-fc4196f2-db5c-42fb-b35b-b715133c7976	clinical_note	operative note
+mts-682129a2-9a75-4b17-9703-45ef21fb5d37	clinical_note	operative note, needle biopsy taken
+mts-13d67af5-6f20-4f23-8539-4a98832f0295	clinical_note	operative note
+mts-1e22ca72-78b5-4b2b-ae5c-7b09b90b29c2	clinical_note	operative note
+mts-59357c51-6b3b-4b5f-bfb8-9b349a0f08e1	imaging_report	screening mammogram
+mts-98127b1f-6daa-4ad4-9894-ad04a77ea6f4	imaging_report	screening mammogram
+mts-89cbeda3-a3bb-4848-81ec-ebf086edd878	clinical_note	operative note
+mts-edd520e5-59d3-4218-8e50-b80ac3f64a46	clinical_note	office note
+mts-39ce6ebe-eb95-4ad8-83e8-64d511d691ad	clinical_note	examination template
+mts-fe621e93-2a7f-421a-b0ad-858115f3f05e	clinical_note	history
+mts-1fbdc21b-9ae8-4713-9dae-72157c438c23	clinical_note	delivery note
+mts-c0038321-2734-47c5-8a5f-0fd549d9648c	clinical_note	examination template
+mts-a5fce18d-a685-4325-a5cc-8ecbca0cc23c	other	instructions about eye dilation drops
+mts-8f1ab2bc-71dc-49bf-b017-221e4fbd7346	clinical_note	visit note
+mts-bd57b825-11e0-497b-b035-225d14831285	clinical_note	referral letter
+mts-0a39f4fa-271a-4bac-9dbf-c7810430d98b	clinical_note	visit note
+mts-cd1e407e-755f-4b9c-98f7-95d244ec98ee	clinical_note	operative note
+mts-7efb6bf4-95d3-43bb-a312-77e02b22fe78	clinical_note	operative note
+mts-f9677658-0a2d-40c0-99d2-0093ef2a5bfd	clinical_note	operative note
+mts-ce209775-bb29-44b7-a6f7-85999ae1bef7	clinical_note	operative note
+mts-680cff50-135e-42c3-bef4-97c048e3fe2b	clinical_note+laboratory	case history with blood gas and blood count
+mts-b517b4af-fbfa-4a2e-8d38-9c49180426ea	imaging_report	MRI of the knee
+mts-41670c4b-2cdc-4884-921d-e5d4cf0afaf2	clinical_note	visit note, radiographs reviewed
+mts-29a0f4e2-92c2-4bb9-8fb8-b6691ad2e84e	clinical_note	operative note
+mts-1782e657-0603-4cda-8698-a72268521f72	clinical_note	operative note, cultures taken
+mts-97a3f4f7-6bac-4693-a3f3-4cb34bae36bc	clinical_note	procedure note
+mts-04c86cd2-2def-4488-863d-2134de0d59b4	clinical_note	procedure note
+mts-51f80f59-acea-4a18-8f12-e2d731c6e56b	clinical_note	procedure note
+mts-5d960c0e-793e-4a44-bcb9-db2c454998e0	clinical_note	procedure note
+mts-a1e37cc8-d33c-4f22-aa50-2f7dd1e894a6	clinical_note	operative note
+mts-cb4c66af-14d3-4fee-8c8f-3b533b397262	clinical_note	procedure note
+mts-caf8f81c-a5f4-4a6a-a3cc-b676d4ed6881	clinical_note+laboratory	neonatal history with blood count
+mts-f9aa615c-ecc2-41f1-807c-6f3568e3c53a	clinical_note	admission history, labs normal in words
+mts-47a910c2-8794-4ffd-9289-b6103fe3f48d	clinical_note	emergency note, quotes a chest x-ray
+mts-f51e1a58-9323-40e5-84b7-dcc30e9a9d6b	clinical_note	emergency note
+mts-99ec63ca-2b20-417b-96ea-4720bbf22a2f	clinical_note+laboratory	emergency note, creatinine 1.3
+mts-272577f3-e0d9-4145-8183-285a7c390fa1	clinical_note+laboratory	neonatal history with blood count and electrolytes
+mts-b1e11b48-11a7-4c2e-a065-a7e4cd3737a6	clinical_note	physical therapy evaluation
+mts-19138e81-8f4b-46d4-b0a3-1a5ffc0a78d7	clinical_note	rehabilitation history
+mts-01916231-6d07-4290-b644-881de3c19bcc	clinical_note	EMG report
+mts-6d6cf3da-a5c1-4851-a23b-c7cf49037ebc	clinical_note	physical therapy evaluation
+mts-62f8f3b6-66c2-4e46-8513-ef43af081a5d	clinical_note	physical therapy evaluation
+mts-e723da15-5622-4417-b4b0-7581befe8f5c	clinical_note	EMG interpretation
+mts-ed6aebed-a0ed-4186-924d-4e084d5ac8d0	clinical_note	operative note, bone culture sent
+mts-6e1c837f-103b-4261-8840-16d64b968538	clinical_note	operative note
+mts-3ad6bcaa-6a6d-4787-ad26-8ffded262604	clinical_note	podiatry visit
+mts-1b1c7cc4-dfb5-4f85-bc40-177aa00b7cbc	clinical_note	podiatry note
+mts-67402fc4-5ef6-435a-a97d-657edac0af0a	clinical_note	operative note
+mts-c95e7bb2-4ace-4ff9-a27b-28f2ffc41ea3	imaging_report	MRI of the foot
+mts-8b192613-3e39-447b-93a1-9720dedbd646	clinical_note	psychiatric consultation
+mts-d2b13484-0d74-430a-a26b-aa3854876066	clinical_note	psychiatric discharge summary
+mts-a17942f1-3c90-4a0f-8e6d-be8375c630bb	clinical_note	discharge summary
+mts-cce54c15-2288-4c4b-b959-9f3b8fbf1f21	clinical_note	psychiatric evaluation
+mts-88d45d25-4b89-49c5-8fff-69d431492b4d	clinical_note	psychiatric evaluation
+mts-32519f69-7893-4b1a-868e-2cdca510a2d6	clinical_note	neuropsychological evaluation
+mts-cac186aa-01f4-4e3d-b884-478352e53e76	clinical_note	case history with angiography in the course
+mts-00097d1e-1357-4447-a39a-fe8f8b7c36ae	imaging_report	CT of the lumbar spine
+mts-a4b087f0-43ba-4ced-ad04-f3c585315faa	clinical_note+laboratory	case history with glucose 178
+mts-a8d9230b-bf6e-4fc5-9898-33473e41bc45	imaging_report	carotid ultrasound
+mts-62bcede1-84cc-4f35-91f4-4ea41efee3ea	imaging_report	CT abdomen and pelvis
+mts-d678fdab-8ac1-45db-9aa6-6e747969982d	clinical_note	EMG report
+mts-ce1caaae-ce8f-4940-85e2-c702f645cfca	clinical_note	rheumatology visit
+mts-c4240ac8-f4f2-42d7-aa12-0394d0c5322c	clinical_note	rheumatology consultation
+mts-a5a4085b-3ad0-4a81-a0e8-73a784e55adc	clinical_note	rheumatology visit
+mts-5b4465ca-a9b0-41bc-a1ec-42963dfd6063	clinical_note	rheumatology visit
+mts-6d6926ae-c5cf-4b36-a800-8a796edf15b0	clinical_note+laboratory	visit with laboratory data
+mts-356c9332-1277-4ae2-a70c-a0ef7a256263	clinical_note	visit note
+mts-4edb6f3b-9d70-4e36-8cc0-3f9f6b7478e8	clinical_note	progress note, home glucose values
+mts-3c7334da-908b-41e8-be2a-545949368525	clinical_note+laboratory	progress note with laboratory data
+mts-b37f99b0-88dc-45e2-ae8f-31c9b5261ca4	clinical_note	follow-up visit
+mts-1cd70b1d-9457-4ad2-bfc9-063ef8706c47	clinical_note+laboratory	progress note, creatinine and A1c
+mts-e53009f9-1a65-441d-aebf-24f7eed7e51d	clinical_note	pulmonary clinic note
+mts-54fa3f5d-7188-49e2-b87d-46a6eb3f0eb6	clinical_note	clinic note
+mts-54615bf2-d088-4841-9a7a-5c0378b2e6fd	clinical_note	sleep study report
+mts-418ed541-4242-425c-b8a0-212a78e6f9af	clinical_note	EEG report
+mts-fbd056a1-8652-4799-b963-ec464061b594	clinical_note	sleep study report
+mts-6fd64908-25af-4d7e-97dd-603dae0e6ea5	clinical_note	polysomnogram interpretation
+mts-ec9f3c3a-4194-4ec6-94c3-f95cc6ad7194	clinical_note	sleep visit
+mts-a711fcc7-71ee-484e-97d8-3feec79aa261	clinical_note	sleep visit
+mts-058150ff-485b-4c22-9f01-283dd0148587	clinical_note	speech therapy evaluation
+mts-8470b34d-43a6-43b1-b7b8-34d6e36ae372	clinical_note	speech therapy evaluation
+mts-e188a4a3-e119-441b-8740-94f2c1be4d6a	clinical_note	speech therapy evaluation
+mts-7ae0dca9-bd6a-443b-9312-a8fe3f271fc9	clinical_note	speech therapy progress
+mts-1a618793-3e4f-4f5f-bbef-8286b23463ef	clinical_note	speech therapy goals
+mts-3cf46bd7-aee1-4a01-959b-774181c6921c	clinical_note	speech therapy evaluation
+mts-f8b788ae-6456-4f4e-a079-327bdfc1a8ff	clinical_note	operative note
+mts-271d9bb2-d6e2-4c5d-8640-562c79098e7e	clinical_note	operative note
+mts-b64fa513-3631-4b2f-84d2-ab4a7183d017	imaging_report	bronchoscopy (endoscopy) with biopsies, after a history
+mts-006ed1d1-8465-4f93-bd40-1e507da1878c	clinical_note	operative note
+mts-452b6dfe-cdf8-4ccc-a9a6-3c33c9366604	imaging_report	upper endoscopy
+mts-c4542837-7a77-4600-bc14-9c496ba4386c	clinical_note	operative note, frozen section mentioned
+mts-31dcdafe-c58f-4e53-b6cf-b23625149c26	clinical_note+microbiology	urology consultation, blood and urine cultures positive for a named organism
+mts-f25dc061-8afc-4540-82b5-1b94a6c471b4	clinical_note	urology visit
+mts-717aeddb-01ee-4fc7-b83b-ac372b32e757	clinical_note	operative note
+mts-a175ce9f-352c-4afe-9e12-e7068581b416	clinical_note	operative note, urine sent for culture
+mts-165a341a-e12b-4001-9ded-6e3576764858	clinical_note	operative note
+mts-af423e43-7202-4f41-8a6c-6917786b7d55	clinical_note	urology visit
+parrot-717	imaging_report	RX report (Italian)
+parrot-927	imaging_report	US report (Italian)
+parrot-912	imaging_report	RX report (Italian)
+parrot-951	imaging_report	RX report (Italian)
+parrot-765	imaging_report	MR report (Italian)
+parrot-805	imaging_report	MR report (Italian)
+parrot-2200	imaging_report	CT report (Italian)
+parrot-306	imaging_report	OPH report (Italian)
+parrot-309	imaging_report	US report (Italian)
+parrot-300	imaging_report	OPH report (Italian)
+parrot-2020	imaging_report	MR report (Italian)
+parrot-782	imaging_report	CT report (Italian)
+parrot-297	imaging_report	OPH report (Italian)
+parrot-2202	imaging_report	RX report (Italian)
+parrot-2019	imaging_report	MR report (Italian)
+parrot-2204	imaging_report	CT report (Italian)
+parrot-812	imaging_report	CT report (Italian)
+parrot-790	imaging_report	MR report (Italian)
+parrot-760	imaging_report	MR report (Italian)
+parrot-2215	imaging_report	US report (Italian)
+parrot-2362	imaging_report	US report (Polish)
+parrot-2479	imaging_report	CT report (Polish)
+parrot-598	imaging_report	RX report (German)
+parrot-1080	imaging_report	RX report (German)
+parrot-247	imaging_report	MR report (Croatian)
+parrot-2136	imaging_report	MR report (French)
+parrot-2148	imaging_report	US report (Afrikaans)
+parrot-625	imaging_report	CT report (German)
+parrot-1611	imaging_report	RX report (Polish)
+parrot-2123	imaging_report	US report (Spanish)
