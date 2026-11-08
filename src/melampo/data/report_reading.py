@@ -290,6 +290,8 @@ class ReportReaders:
         for attachment in getattr(bundle, "attachments", ()) or ():
             if attachment.text.strip():
                 sources.append((f"attachment-{attachment.index}", attachment.text, dict(attachment.routing or {})))
+        pathologies = {f"attachment-{a.index}": dict(getattr(a, "pathology", {}) or {})
+                       for a in getattr(bundle, "attachments", ()) or ()}
         imaging_reports = [s for s in sources if IMAGING_KIND in (s[2].get("kinds") or ())]
         volumes = _usable_volumes(bundle)
         paired, why = _pair(imaging_reports, volumes)
@@ -320,6 +322,16 @@ class ReportReaders:
             asked: list[dict[str, Any]] = []
             stated: list[dict[str, Any]] = []
             rows = self.read_exam(case_key, reading, text, volume, reason, aside, asked, stated)
+            if "pathology" in (routing.get("interpreters") or ()):
+                # the pathologist's diagnosis given to its findings, with its TNM, grade, margins, markers
+                # (pathology_findings, 8 November 2026)
+                from .pathology_findings import give_the_diagnosis
+                from .pathology_report import read_pathology
+
+                summary = pathologies.get(source_id) or read_pathology(text, reading["language"]).summary()
+                specimen = [x for x in reading["sites"] if "procedure_site" in (x.get("roles") or ())]
+                rows, stated, of_report = give_the_diagnosis(rows, stated, text, summary, specimen)
+                entry["pathology"] = of_report
             out["questions"] += asked
             out["statements"] += [{**x, "report": source_id} for x in stated]
             out["findings"] += rows

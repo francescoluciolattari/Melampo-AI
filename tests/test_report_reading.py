@@ -125,3 +125,23 @@ def test_without_segmenters_the_paired_exam_says_why_there_is_no_image(linker):
 def test_a_remote_model_is_refused_for_the_linker():
     _, notes = build_linker(chat_endpoint="https://api.example.com/v1", chat_models=("m",))
     assert any(n.startswith("models_refused") for n in notes)
+
+
+def test_a_pathology_report_gives_its_diagnosis_to_its_finding(linker):
+    # 8 November 2026: the TNM, grade, margins and markers go with the finding of the diagnosis; the clinical
+    # information is the question asked, not a finding
+    text = ("Materiale: biopsia del colon sigmoideo.\n"
+            "Notizie cliniche: sospetta neoplasia del fegato.\n"
+            "Macroscopia: frammenti multipli di tessuto biancastro.\n"
+            "Microscopia: proliferazione ghiandolare atipica infiltrante la sottomucosa.\n"
+            "Immunoistochimica: CK20 positivo, CDX2 positivo.\n"
+            "Diagnosi: adenocarcinoma moderatamente differenziato (G2) del colon sigmoideo, pT3 pN1a, "
+            "margini indenni.\n")
+    reading = _reading(ClinicalIngestionPipeline(report_readers=ReportReaders(linker)).from_payload(
+        {"case_id": "p1", "report_text": text}))
+    [entry] = reading["texts"]
+    assert entry["kinds"] == ["pathology"] and entry["pathology"]["unplaced"] == []
+    [finding] = reading["findings"]
+    assert finding["structure"] == "colon" and finding["pathology_section"] == "diagnosis"
+    assert {i["kind"] for i in finding["pathology"]["items"]} == {"tnm", "grade", "margin", "biomarker"}
+    assert all(s["structure"] != "liver" for s in reading["findings"])
