@@ -36,6 +36,13 @@ class ClinicalIngestionPipeline:
     report_readers: Any = None
     read_reports: bool = True
 
+    def __post_init__(self) -> None:
+        # the router's local model from the environment (MELAMPO_REPORT_ROUTER=model), when none is given
+        if self.router_chat is None:
+            from .report_router import router_chat_from_env
+
+            self.router_chat = router_chat_from_env()
+
     def prepare_payload(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Process attachments once: report_text becomes note + labelled attachment text; raw bytes leave the payload.
 

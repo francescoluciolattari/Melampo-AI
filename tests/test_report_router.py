@@ -99,3 +99,31 @@ def test_an_external_model_is_refused():
 
 def test_images_add_the_imaging_interpreter():
     assert "imaging" in rr.route(CT, images=2).interpreters
+
+
+def test_the_router_model_is_off_unless_asked_and_only_local():
+    # 8 November 2026: MELAMPO_REPORT_ROUTER=model turns it on, with the reader's local server
+    from melampo.data.report_router import router_chat_from_env
+
+    assert router_chat_from_env({}) is None
+    assert router_chat_from_env({"MELAMPO_REPORT_ROUTER": "cues", "MELAMPO_LOCAL_CHAT_ENDPOINT": "x"}) is None
+    on = {"MELAMPO_REPORT_ROUTER": "model", "MELAMPO_LOCAL_CHAT_ENDPOINT": "http://localhost:8000/v1",
+          "MELAMPO_LOCAL_CHAT_MODELS": "gemma, nemotron"}
+    assert callable(router_chat_from_env(on))
+    with pytest.raises(ValueError):
+        router_chat_from_env({**on, "MELAMPO_LOCAL_CHAT_ENDPOINT": "https://openrouter.ai/api/v1"})
+    with pytest.raises(ValueError):
+        router_chat_from_env({"MELAMPO_REPORT_ROUTER": "model"})
+
+
+def test_the_router_probe_counts_an_interpreter_missed():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import router_probe
+
+    biopsy = rr.route("Macroscopia: frammenti.\nMicroscopia: adenocarcinoma.\nDiagnosi: adenocarcinoma G2.")
+    assert router_probe.one(biopsy, {"pathology"})["missed"] == []
+    note = rr.route("The patient was discharged home in good condition.")
+    assert router_probe.one(note, {"pathology"})["missed"] == ["pathology"]

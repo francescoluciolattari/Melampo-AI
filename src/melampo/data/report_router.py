@@ -255,6 +255,27 @@ def route(text: str, chat: Callable[[str], str] | None = None, images: int = 0) 
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 
 
+def router_chat_from_env(environ: dict[str, str] | None = None) -> Callable[[str], str] | None:
+    """The local model the router asks, from the environment (8 November 2026), or None (the cues alone).
+
+    ``MELAMPO_REPORT_ROUTER=model`` turns it on; it stays off until the router probe has passed its criteria
+    (scripts/router_probe.py, VALIDATION). The server is the reader's (``MELAMPO_LOCAL_CHAT_ENDPOINT``), the model
+    ``MELAMPO_ROUTER_MODEL`` or the first of ``MELAMPO_LOCAL_CHAT_MODELS``. A host that is not this machine stops
+    the start: a patient's report is never sent away (GDPR)."""
+    import os
+
+    env = os.environ if environ is None else environ
+    if env.get("MELAMPO_REPORT_ROUTER", "cues").strip().lower() != "model":
+        return None
+    endpoint = env.get("MELAMPO_LOCAL_CHAT_ENDPOINT", "").strip()
+    models = [m.strip() for m in env.get("MELAMPO_LOCAL_CHAT_MODELS", "").split(",") if m.strip()]
+    model = env.get("MELAMPO_ROUTER_MODEL", "").strip() or (models[0] if models else "")
+    if not endpoint or not model:
+        raise ValueError("MELAMPO_REPORT_ROUTER=model needs MELAMPO_LOCAL_CHAT_ENDPOINT and a model "
+                         "(MELAMPO_ROUTER_MODEL or MELAMPO_LOCAL_CHAT_MODELS)")
+    return local_chat(endpoint, model)
+
+
 def local_chat(endpoint: str, model: str, timeout: float = 60.0) -> Callable[[str], str]:
     """A chat callable for an OpenAI-compatible server on this machine (vLLM, llama.cpp, Ollama). Any other
     host is refused: a patient report never leaves the machine without a legal basis (GDPR)."""
@@ -289,4 +310,5 @@ def lab_reading(text: str, decision: RoutingDecision):
 
 __all__ = ["CLINICAL_NOTE", "ELECTROPHORESIS", "ELECTROPHORESIS_NOTE", "IMAGING_REPORT", "INTERPRETERS",
            "INTERPRETERS_OF_KIND", "KINDS", "LABORATORY", "MICROBIOLOGY", "OTHER", "PATHOLOGY", "Cues",
-           "RoutingDecision", "kind_prompt", "lab_reading", "local_chat", "parse_kind_answer", "read_cues", "route"]
+           "RoutingDecision", "kind_prompt", "lab_reading", "local_chat", "parse_kind_answer", "read_cues", "route",
+           "router_chat_from_env"]
