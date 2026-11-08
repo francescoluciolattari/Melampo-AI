@@ -14,16 +14,19 @@ commercial product). Classic textbooks only through an institution with lawful a
 Italian copyright law) or a licence. Every source used is listed in `melampo-assets.yaml`; a product replaces
 the non-commercial ones.
 
-A row is `to_verify` until a person has checked it against the page, and only a `reviewed` row (by a
-radiologist) is fit for clinical use. The first rows were read by Claude through a summarising web reading:
-they must be checked against the pages before they are trusted.
+A row is `to_verify` until the words it cites (`quoted`) have been found on the page itself, word for word, by
+the weekly check of the sources index (`scripts/sources_index.py check-quotes`, workflow `sources-index`); then it
+is `verified`, with the date and the fingerprint of the page. A value holds because its source says it: there
+is no status for a person's memory (8 November 2026). The sources themselves, and how each may be reached, are
+in `sources.yml` (the index of the sources), kept up to date by hand (`scripts/sources_mask.py`) and by the
+project's weekly search.
 
 ## State on 8 November 2026
 
 29 rows, all `to_verify`. Each row now carries `quoted`: the sentence of the page it rests on, as a web reading
 quoted it when asked for the exact words. Reading them so corrected three rows (a threshold without a reference
 number cited as ref 2, a missing ref 3, the section of the IVC threshold) and confirmed the others. A quotation
-read through a web reading is still not a person's check: it says where to look and what to find.
+read through a web reading may still be wrong: the check on the page decides.
 
 Added: the ascending aorta (dilatation above 40 mm) and the descending thoracic aorta (aneurysm above 40 mm), the
 adrenal limbs and bodies, the thyroid lobes, isthmus and volume.

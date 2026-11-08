@@ -6,18 +6,21 @@
 # committed (data/reference/README.md): a number with its citation is a fact, a paragraph is the author's work.
 #
 # status:
-#   to_verify  read by Claude through a web reading of the page (a summarising fetch), not yet checked by a
-#              person against the page itself: usable in the probes, not in clinical use
-#   verified   checked against the page by a person (name, date)
-#   reviewed   reviewed by a radiologist (name, date): the only status for clinical use
+#   to_verify  read by Claude through a web reading of the page (a summarising fetch): the words it cites
+#              (quoted) have not yet been found on the page itself
+#   verified   the words the row cites found on the page, word for word, by the weekly check of the sources index
+#              (workflow sources-index, scripts/sources_index.py check-quotes): with the date and the fingerprint
+#              of the page read. A value is valid because its source says it, not because someone remembers it
+#              (Frank, 8 November 2026): no person's memory is a status; a source that is better or more recent
+#              replaces the row, it does not confirm it.
 #
 # Fields: id; structures (linker classes); aspect (length, diameter, thickness, volume, volume_index); detail
 # (how it is measured); techniques (US, CT, MR, RX, XA, any); population (age, sex: male, female, any);
 # normal (low, high: the normal range, either may be absent) or above (a value above it is abnormal); unit;
 # above_means / below_means (the deviation, in the words of the source); source; status; checked_by;
 # quoted (8 November 2026): the words of the page the row rests on, as a web reading quoted them when asked for
-# the exact sentence, with the date. A quotation read through a web reading is not a person's check: the status
-# stays to_verify until a person has read the page; the quotation says where to look and what to find there.
+# the exact sentence, with the date. A quotation read through a web reading may be wrong: the status stays
+# to_verify until the check finds those words on the page.
 version: 2026-11-08
 rows:
   - id: spleen-length-us

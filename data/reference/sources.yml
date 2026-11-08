@@ -1,0 +1,368 @@
+# The index of the sources (8 November 2026): the literature, textbooks, research and consolidated documentation
+# Melampo reads, how each may be reached, and the documents found in them. memory/sources_index.py explains it.
+# Kept up to date by hand (scripts/sources_mask.py, or scripts/sources_index.py add) and by the project's weekly
+# search (workflow sources-index), which adds documents as candidates only.
+#
+# kind: database, journal, guideline, textbook, open_textbook, reference_site, terminology, document
+# access: open, free_registration, subscription, institutional, public_domain, purchase
+# status: in_use (rows or paragraphs come from it), available (reachable now, not yet used), to_register (a
+#   person must register or subscribe first: how_to_reach says how), not_reachable, candidate (found by the
+#   search, not yet read), rejected
+# The terms of each publisher change: what is written here was read on the date in last_checked, and the
+# publisher's own page decides. Reading a source lawfully does not by itself allow copying it: only facts with
+# their citation go into the repository, never paragraphs of closed sources.
+version: '2026-11-08'
+sources:
+- id: europe-pmc
+  kind: database
+  title: Europe PMC
+  publisher: EMBL-EBI
+  url: https://europepmc.org
+  access: open
+  licence: each article its own; the open-access subset reusable under its licence
+  status: in_use
+  fields: [clinical, reference_values, radiology, pathology, physiology]
+  how_to_reach: REST API without a key (10 requests per second); the weekly search uses it
+  note: indexes PubMed with the full text of PMC and preprints
+  added: '2026-11-08'
+  added_by: claude
+- id: pubmed
+  kind: database
+  title: PubMed
+  publisher: NCBI, US National Library of Medicine
+  url: https://pubmed.ncbi.nlm.nih.gov
+  access: open
+  licence: citations and abstracts; the articles have their publishers' terms
+  status: in_use
+  fields: [clinical, reference_values, radiology, pathology, physiology]
+  how_to_reach: open; an NCBI account gives an E-utilities API key (10 instead of 3 requests per second)
+  added: '2026-11-08'
+  added_by: claude
+- id: pmc-open-access
+  kind: database
+  title: PubMed Central, open-access subset
+  publisher: NCBI
+  url: https://pmc.ncbi.nlm.nih.gov/tools/openftlist/
+  access: open
+  licence: CC BY, CC BY-NC and others, article by article
+  status: in_use
+  fields: [clinical, reference_values, radiology]
+  added: '2026-11-08'
+  added_by: claude
+- id: ncbi-bookshelf
+  kind: database
+  title: NCBI Bookshelf (StatPearls and other books)
+  publisher: NCBI
+  url: https://www.ncbi.nlm.nih.gov/books/
+  access: open
+  licence: book by book; StatPearls CC BY-NC-ND 4.0
+  status: available
+  fields: [anatomy, physiology, pathology, clinical]
+  how_to_reach: open to read; text mining only where the book's licence allows
+  added: '2026-11-08'
+  added_by: claude
+- id: openstax-anatomy-physiology
+  kind: open_textbook
+  title: Anatomy and Physiology 2e
+  publisher: OpenStax, Rice University
+  url: https://openstax.org/details/books/anatomy-and-physiology-2e
+  access: open
+  licence: CC BY 4.0
+  status: available
+  fields: [anatomy, physiology]
+  note: a complete textbook under an open licence
+  added: '2026-11-08'
+  added_by: claude
+- id: grays-anatomy-1918
+  kind: textbook
+  title: Gray's Anatomy of the Human Body, 20th edition (1918)
+  publisher: Lea & Febiger (Bartleby.com edition)
+  url: https://www.bartleby.com/lit-hub/anatomy-of-the-human-body/
+  access: public_domain
+  licence: public domain
+  status: available
+  fields: [anatomy]
+  note: classical descriptive anatomy; measures and imaging of today come from recent sources
+  added: '2026-11-08'
+  added_by: claude
+- id: radiopaedia
+  kind: reference_site
+  title: Radiopaedia
+  publisher: Radiopaedia Australia Pty Ltd
+  url: https://radiopaedia.org
+  access: open
+  licence: 'CC BY-NC-SA 3.0 (modified): research only, not a commercial product'
+  status: in_use
+  fields: [radiology, reference_values, anatomy, pathology]
+  note: edited like a wiki; where a guideline gives the value, the guideline replaces it
+  added: '2026-11-08'
+  added_by: claude
+- id: ase-eacvi-chamber-quantification
+  kind: guideline
+  title: Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al., 2015)
+  publisher: ASE and EACVI, European Heart Journal - Cardiovascular Imaging 16:233-271
+  url: https://doi.org/10.1093/ehjci/jev014
+  access: open
+  licence: free to read; all rights reserved (the values with their citation only)
+  status: in_use
+  fields: [cardiology, reference_values, radiology]
+  identifier: doi:10.1093/ehjci/jev014
+  added: '2026-11-08'
+  added_by: claude
+- id: esc-guidelines
+  kind: guideline
+  title: ESC Clinical Practice Guidelines
+  publisher: European Society of Cardiology
+  url: https://www.escardio.org/Guidelines
+  access: free_registration
+  licence: free to read; reuse with the ESC's permission
+  status: available
+  fields: [cardiology, guidelines, reference_values]
+  how_to_reach: free account on escardio.org for the full texts and pocket guidelines
+  added: '2026-11-08'
+  added_by: claude
+- id: acr-appropriateness
+  kind: guideline
+  title: ACR Appropriateness Criteria and practice parameters
+  publisher: American College of Radiology
+  url: https://www.acr.org/Clinical-Resources/ACR-Appropriateness-Criteria
+  access: open
+  licence: free to read under the ACR's terms of use
+  status: available
+  fields: [radiology, guidelines]
+  added: '2026-11-08'
+  added_by: claude
+- id: snlg-iss
+  kind: guideline
+  title: Sistema Nazionale Linee Guida
+  publisher: Istituto Superiore di Sanità
+  url: https://www.iss.it/snlg
+  access: open
+  licence: free to read
+  status: available
+  fields: [guidelines, clinical]
+  note: the Italian guidelines of the national system
+  added: '2026-11-08'
+  added_by: claude
+- id: sirm
+  kind: guideline
+  title: Documenti e raccomandazioni SIRM
+  publisher: Società Italiana di Radiologia Medica e Interventistica
+  url: https://sirm.org
+  access: free_registration
+  licence: to verify on the site
+  status: to_register
+  fields: [radiology, guidelines]
+  how_to_reach: some documents are public, others for members; membership through sirm.org (to verify)
+  added: '2026-11-08'
+  added_by: claude
+- id: radlex
+  kind: terminology
+  title: RadLex
+  publisher: RSNA
+  url: https://www.rsna.org/practice-tools/data-tools-and-standards/radlex-radiology-lexicon
+  access: free_registration
+  licence: RadLex licence (free, with attribution)
+  status: in_use
+  fields: [terminology, radiology]
+  how_to_reach: download after accepting the licence on BioPortal or the RSNA site
+  added: '2026-11-08'
+  added_by: claude
+- id: uberon-hpo-pato
+  kind: terminology
+  title: UBERON, HPO and PATO ontologies
+  publisher: OBO Foundry, Monarch Initiative
+  url: https://obofoundry.org
+  access: open
+  licence: CC BY 3.0 / 4.0 (HPO with its own terms)
+  status: in_use
+  fields: [terminology, anatomy, pathology]
+  added: '2026-11-08'
+  added_by: claude
+- id: insights-into-imaging
+  kind: journal
+  title: Insights into Imaging
+  publisher: Springer, for the European Society of Radiology
+  url: https://insightsimaging.springeropen.com
+  access: open
+  licence: CC BY 4.0
+  status: available
+  fields: [radiology, guidelines]
+  note: the ESR's open journal, with its statements and guidelines
+  added: '2026-11-08'
+  added_by: claude
+- id: bmj
+  kind: journal
+  title: The BMJ and BMJ journals
+  publisher: BMJ Publishing Group
+  url: https://www.bmj.com
+  access: subscription
+  licence: research articles of The BMJ open; others by subscription; BMJ Open fully open (CC BY / CC BY-NC)
+  status: to_register
+  fields: [clinical, guidelines]
+  how_to_reach: personal or institutional subscription on bmj.com; the open articles are reached through Europe PMC
+  added: '2026-11-08'
+  added_by: claude
+- id: elsevier-sciencedirect
+  kind: database
+  title: ScienceDirect (The Lancet, Radiology journals of Elsevier, textbooks)
+  publisher: Elsevier
+  url: https://www.sciencedirect.com
+  access: subscription
+  licence: subscription; the open-access articles under their licence
+  status: to_register
+  fields: [clinical, radiology, pathology, anatomy, physiology]
+  how_to_reach: 'institutional access through a university or hospital library, or a personal purchase per article
+    or book; for text and data mining, a free key at dev.elsevier.com, which gives full text only for what the
+    institution subscribes'
+  added: '2026-11-08'
+  added_by: claude
+- id: clinicalkey
+  kind: database
+  title: ClinicalKey (Elsevier books and journals for clinicians)
+  publisher: Elsevier
+  url: https://www.clinicalkey.com
+  access: subscription
+  licence: subscription, personal use; copying and mining under its terms only
+  status: to_register
+  fields: [anatomy, physiology, pathology, radiology, clinical]
+  how_to_reach: individual subscription on clinicalkey.com or institutional access; it contains Gray's Anatomy,
+    Robbins, Guyton and Hall, Netter, Grainger and Allison
+  added: '2026-11-08'
+  added_by: claude
+- id: rsna-journals
+  kind: journal
+  title: Radiology and RadioGraphics
+  publisher: Radiological Society of North America
+  url: https://pubs.rsna.org
+  access: subscription
+  licence: subscription or RSNA membership; some articles open
+  status: to_register
+  fields: [radiology, reference_values]
+  how_to_reach: RSNA membership (international members included) or institutional access
+  added: '2026-11-08'
+  added_by: claude
+- id: european-radiology
+  kind: journal
+  title: European Radiology
+  publisher: Springer, for the European Society of Radiology
+  url: https://link.springer.com/journal/330
+  access: subscription
+  licence: subscription; open-access articles under CC BY
+  status: to_register
+  fields: [radiology, reference_values]
+  how_to_reach: ESR membership or institutional access; open articles through Europe PMC
+  added: '2026-11-08'
+  added_by: claude
+- id: nejm
+  kind: journal
+  title: The New England Journal of Medicine
+  publisher: Massachusetts Medical Society
+  url: https://www.nejm.org
+  access: subscription
+  licence: subscription; some articles free
+  status: to_register
+  fields: [clinical]
+  how_to_reach: personal or institutional subscription
+  added: '2026-11-08'
+  added_by: claude
+- id: who-blue-books
+  kind: textbook
+  title: WHO Classification of Tumours (Blue Books)
+  publisher: IARC, World Health Organization
+  url: https://tumourclassification.iarc.who.int
+  access: subscription
+  licence: subscription
+  status: to_register
+  fields: [pathology, oncology]
+  how_to_reach: online subscription on tumourclassification.iarc.who.int, personal or institutional
+  added: '2026-11-08'
+  added_by: claude
+- id: robbins-pathology
+  kind: textbook
+  title: Robbins and Cotran Pathologic Basis of Disease
+  publisher: Elsevier
+  url: https://www.us.elsevierhealth.com
+  access: purchase
+  licence: all rights reserved
+  status: to_register
+  fields: [pathology]
+  how_to_reach: purchase (print or e-book) or ClinicalKey; for research use, the facts with their citation only
+  added: '2026-11-08'
+  added_by: claude
+- id: guyton-hall-physiology
+  kind: textbook
+  title: Guyton and Hall Textbook of Medical Physiology
+  publisher: Elsevier
+  url: https://www.us.elsevierhealth.com
+  access: purchase
+  licence: all rights reserved
+  status: to_register
+  fields: [physiology]
+  how_to_reach: purchase or ClinicalKey; the facts with their citation only
+  added: '2026-11-08'
+  added_by: claude
+- id: grays-anatomy-current
+  kind: textbook
+  title: Gray's Anatomy, The Anatomical Basis of Clinical Practice (current edition)
+  publisher: Elsevier
+  url: https://www.us.elsevierhealth.com
+  access: purchase
+  licence: all rights reserved
+  status: to_register
+  fields: [anatomy]
+  how_to_reach: purchase or ClinicalKey; the facts with their citation only
+  added: '2026-11-08'
+  added_by: claude
+- id: harrisons-medicine
+  kind: textbook
+  title: Harrison's Principles of Internal Medicine
+  publisher: McGraw Hill (AccessMedicine)
+  url: https://accessmedicine.mhmedical.com
+  access: subscription
+  licence: all rights reserved
+  status: to_register
+  fields: [clinical, laboratory]
+  how_to_reach: AccessMedicine subscription (personal or institutional) or purchase of the book
+  added: '2026-11-08'
+  added_by: claude
+- id: grainger-allison-radiology
+  kind: textbook
+  title: Grainger and Allison's Diagnostic Radiology
+  publisher: Elsevier
+  url: https://www.us.elsevierhealth.com
+  access: purchase
+  licence: all rights reserved
+  status: to_register
+  fields: [radiology, reference_values]
+  how_to_reach: purchase or ClinicalKey
+  added: '2026-11-08'
+  added_by: claude
+- id: rumack-ultrasound
+  kind: textbook
+  title: Rumack Diagnostic Ultrasound
+  publisher: Elsevier
+  url: https://www.us.elsevierhealth.com
+  access: purchase
+  licence: all rights reserved
+  status: to_register
+  fields: [radiology, reference_values]
+  how_to_reach: purchase or ClinicalKey
+  added: '2026-11-08'
+  added_by: claude
+- id: library-access-italy
+  kind: database
+  title: Accesso istituzionale alle biblioteche biomediche (università, IRCCS, Bibliosan)
+  publisher: università italiane, rete Bibliosan degli enti di ricerca biomedica
+  url: https://www.bibliosan.it
+  access: institutional
+  licence: the terms of each licence the library holds
+  status: to_register
+  fields: [clinical, anatomy, physiology, pathology, radiology]
+  how_to_reach: 'an independent researcher reaches the closed sources through an affiliation: a research
+    collaboration or visiting status with a university or an IRCCS gives the library''s licences (ScienceDirect,
+    ClinicalKey, Springer, Wiley, BMJ, NEJM); the right to mine texts for research (art. 70-ter of the Italian
+    copyright law) belongs to research organisations, the general one (art. 70-quater) only where the publisher
+    has not reserved it'
+  added: '2026-11-08'
+  added_by: claude

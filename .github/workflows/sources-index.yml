@@ -1,0 +1,67 @@
+name: sources-index
+
+# The index of the sources (8 November 2026), every week and by hand: the project's search adds the documents it
+# finds as candidates (Europe PMC, open access, guidelines and reviews first), and the rows of the reference
+# library are checked against their pages (the words they cite found word for word: verified). Public pages
+# only; nothing of a patient. The changes come as a pull request: a person merges them.
+on:
+  schedule:
+    - cron: "17 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      search:
+        description: "search for new documents"
+        type: boolean
+        default: true
+      check_quotes:
+        description: "check the reference rows against their pages"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked
+      - name: pdftotext, for the sources that are PDFs
+        run: sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - name: Search
+        if: ${{ github.event_name == 'schedule' || inputs.search }}
+        run: uv run --no-sync python scripts/sources_index.py search --limit 5 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the reference rows against their pages
+        if: ${{ github.event_name == 'schedule' || inputs.check_quotes }}
+        run: uv run --no-sync python scripts/sources_index.py check-quotes | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: The index is well formed
+        run: uv run --no-sync python scripts/sources_index.py check
+
+      - name: Open a pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/sources-index
+          title: "chore: sources index and reference checks"
+          commit-message: "chore: sources index and reference checks"
+          author: frankltr <francesco.lucio.lattari@gmail.com>
+          add-paths: |
+            data/reference/sources.yml
+            data/reference/values.yml
+          body: |
+            The weekly update of the index of the sources (`data/reference/sources.yml`) and of the checks of
+            the reference rows (`data/reference/values.yml`).
+
+            - New documents come in as **candidates**: open them in the mask (`python scripts/sources_mask.py`)
+              and accept or reject them. A candidate is never a row of the reference library.
+            - A row whose words were found on its page is **verified**, with the date and the fingerprint of
+              the page; one whose words were not found stays `to_verify` and says what was missing.
+
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
