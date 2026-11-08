@@ -147,6 +147,14 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   non tiene fra le sue letture quella dell'etichetta contato come errore (sotto il 2% degli item), i dubbi chiusi
   sbagliati sotto il 2% dei chiusi. Con 300 item,
   0 errori limitano la quota all'1,0%, 2 errori al 2,1%.
+- **Misura del router** (`scripts/router_probe.py`, workflow `router-probe`, 8 novembre 2026): il modello locale
+  aiuta l'orchestratore a dire i tipi di un testo? Testi pubblici di tipo noto: MTSamples (6 per specialità,
+  inglese) e PARROT (20 italiani, 10 di altre lingue), seed 20261108, etichettati (`data/gold/router/labels.txt`)
+  prima di ogni lettura. Ogni modello da solo contro gli indizi da soli. Criteri, fissati prima delle etichette:
+  con il modello, al massimo il 2% dei testi con un interprete mancato (un tipo dell'etichetta i cui interpreti non
+  sono eseguiti), con il suo limite superiore al 95%; al massimo il 2% di risposte del modello inutilizzabili. Allora
+  `MELAMPO_REPORT_ROUTER=model` si può accendere; altrimenti resta spento. Gli interpreti aggiunti che nessun tipo
+  richiede sono riportati (un costo, non un errore).
 - **PhysioNet** (accesso con credenziali richiesto): RadGraph-XL, etichette di radiologi su RX torace, TC torace, TC
   addome-pelvi e RM encefalo; MIMIC-IV-Note per la varietà; RadGraph per l'accordo fra due radiologi; RadCoref per i
   rimandi fra frasi. Si lancia solo in un ambiente protetto, con modelli nostri o un servizio verificato con

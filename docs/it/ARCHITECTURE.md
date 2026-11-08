@@ -57,12 +57,13 @@ etichetta confermata).
 | Componente | Modulo | Stato |
 |---|---|---|
 | Estrazione dai documenti | `data/document_processing.py` | funziona; senza parser dice `no_text_extracted` |
-| Orchestratore dei referti | `data/report_router.py` | funziona; un modello esterno è rifiutato per i testi dei pazienti |
+| Orchestratore dei referti | `data/report_router.py` | funziona con gli indizi deterministici; il modello locale (`MELAMPO_REPORT_ROUTER=model`, il server locale del lettore) è costruito e spento finché non passa la misura del router; un modello esterno è rifiutato per i testi dei pazienti |
 | Linker anatomico | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | funziona; si astiene quando non è sicuro |
 | Lettore Kintsch | `memory/ci_reader.py`, `memory/spatial_relation.py` | funziona; il secondo stadio legge il ruolo di riferimento |
 | Finding owner | `memory/finding_owner.py` | funziona con la domanda v1; lettura per affermazioni costruita, spenta (`MELAMPO_OWNER_QUESTION=claims`) |
 | Ciò che sa il lettore | `memory/what_is_said.py` | anomalie da HPO e PATO, testa del sintagma, negazione, coordinazione |
 | Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | costruita: valori di riferimento con le fonti (da verificare), paragrafi in una copia locale; i modelli confrontano una misura solo con una riga citata, il lettore ricalcola il confronto |
+| Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | funziona: la diagnosi con TNM, grado, margini, linfonodi e marcatori sul suo reperto; le notizie cliniche sono il quesito |
 | Sezioni del referto | `memory/report_sections.py` | costruito: indicazione, storia, confronto, tecnica, reperti, conclusioni (le sezioni LOINC dei referti); le conclusioni e la frase precedente date come contesto |
 | Domanda per una persona | `memory/review_question.py` | funziona; nella lettura del caso come `questions` |
 | Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | funziona quando volume e segmentatori sono configurati |

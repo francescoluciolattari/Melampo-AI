@@ -1,0 +1,67 @@
+name: router-probe
+
+# Manual trigger only (8 November 2026). Does the local model help the report router say which kinds of report a
+# text is? Public texts only (MTSamples, PARROT): they may go to OpenRouter (--public-data); patients' reports
+# never do. First run with sample_only to get the texts, label them (data/gold/router/labels.txt) before any
+# reading, then run. The texts are not committed: the artifact is short-lived.
+on:
+  workflow_dispatch:
+    inputs:
+      sample_only:
+        description: "only draw the texts (to label them before the run)"
+        type: boolean
+        default: true
+      models:
+        description: "models asked, each alone (comma separated)"
+        default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked
+
+      - name: MTSamples (Hugging Face mirror) and PARROT
+        run: |
+          uv pip install pyarrow
+          url=$(curl -sSL --fail https://huggingface.co/api/datasets/argilla/medical-domain/parquet/default/train \
+            | python -c 'import json,sys; print(json.load(sys.stdin)[0])')
+          curl -sSL --fail -o medical-domain.parquet "$url"
+          git clone --quiet --depth 1 https://github.com/PARROT-reports/PARROT_v1.0.git ext/PARROT
+          uv run --no-sync python scripts/router_probe.py sample --mtsamples medical-domain.parquet \
+            --parrot ext/PARROT/data/PARROT_v1_0.jsonl --seed 20261108 --out router_items.jsonl
+
+      - name: Run
+        if: ${{ !inputs.sample_only }}
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          uv run --no-sync python scripts/router_probe.py run --items router_items.jsonl \
+            --labels data/gold/router/labels.txt --models "${{ inputs.models }}" \
+            --endpoint https://openrouter.ai/api/v1 --public-data --out router_probe.json | tee router_probe_summary.json
+
+      - name: Summarise
+        if: always()
+        run: |
+          { echo "Branch \`${GITHUB_REF_NAME}\`, commit \`${GITHUB_SHA::7}\`"; echo; echo '```json'
+            if [ -f router_probe_summary.json ]; then head -c 60000 router_probe_summary.json; fi; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: router-probe
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            router_items.jsonl
+            router_probe.json
+            router_probe_summary.json
+            router_probe_answers.jsonl

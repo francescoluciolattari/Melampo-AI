@@ -56,12 +56,13 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Component | Module | State |
 |---|---|---|
 | Document extraction | `data/document_processing.py` | working; without a parser it says `no_text_extracted` |
-| Report router | `data/report_router.py` | working; an external model is refused for patients' texts |
+| Report router | `data/report_router.py` | working with the deterministic cues; the local model (`MELAMPO_REPORT_ROUTER=model`, the reader's local server) is built and off until the router probe passes; an external model is refused for patients' texts |
 | Anatomical linker | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | working; abstains when unsure |
 | Kintsch reader | `memory/ci_reader.py`, `memory/spatial_relation.py` | working; second stage reads the landmark role |
 | Finding owner | `memory/finding_owner.py` | working with question v1; claim-by-claim reading built, off (`MELAMPO_OWNER_QUESTION=claims`) |
 | What the reader knows | `memory/what_is_said.py` | abnormalities from HPO and PATO, phrase heads, negation, coordination |
 | Reference library | `memory/reference_values.py`, `data/reference/` | built: reference values with their sources (to verify), paragraphs in a local copy; the models compare a measure only with a cited row, the reader recomputes it |
+| Pathology diagnosis to its finding | `data/pathology_findings.py` | working: the diagnosis with its TNM, grade, margins, nodes and markers on its finding; the clinical information is the question |
 | Sections of the report | `memory/report_sections.py` | built: indication, history, comparison, technique, findings, impression (the LOINC report sections); the conclusion and the sentence before given as context |
 | Question for a person | `memory/review_question.py` | working; shown in the case reading as `questions` |
 | Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | working when a volume and the segmenters are configured |

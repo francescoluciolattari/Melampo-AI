@@ -144,6 +144,13 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   closed doubts included; (5) at most 2% of the answers lost; (6) at most 10% of the items in doubt (a bound of
   usefulness, not of error), a doubt that does not keep the label's reading among its readings counted as an
   error (under 2% of the items), the closed doubts wrong under 2% of the closed ones. With 300 items, 0 errors bound the share at 1.0%, 2 errors at 2.1%.
+- **Router probe** (`scripts/router_probe.py`, workflow `router-probe`, 8 November 2026): does the local model
+  help the report router say the kinds of a text? Public texts of known kinds: MTSamples (6 per specialty,
+  English) and PARROT (20 Italian, 10 other languages), seed 20261108, labelled (`data/gold/router/labels.txt`)
+  before any reading. Each model alone against the cues alone. Criteria, fixed before the labels: with the model,
+  at most 2% of the texts with an interpreter missed (a kind of the label whose interpreters are not run), with
+  its 95% upper bound; at most 2% of the model's answers unusable. Then `MELAMPO_REPORT_ROUTER=model` may be
+  turned on; otherwise it stays off. Interpreters added that no kind needs are reported (a cost, not an error).
 - **PhysioNet** (credentialed access requested): RadGraph-XL, radiologists' labels on chest X-ray, chest CT,
   abdomen-pelvis CT and brain MR; MIMIC-IV-Note for variety; RadGraph for the agreement between two radiologists;
   RadCoref for references across sentences. Run only inside a protected environment with models of our own or a
