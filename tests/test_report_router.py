@@ -1,5 +1,7 @@
 """The report router: the kind of report first, then the interpreters (16 October 2026)."""
 
+import json
+
 import pytest
 
 from melampo.data import report_router as rr
@@ -108,10 +110,11 @@ def test_the_router_model_is_on_with_the_local_server_and_only_local():
     assert router_chat_from_env({}) is None                       # no local server: the cues alone
     on = {"MELAMPO_REPORT_ROUTER": "model", "MELAMPO_LOCAL_CHAT_ENDPOINT": "http://localhost:8000/v1",
           "MELAMPO_LOCAL_CHAT_MODELS": "gemma, nemotron"}
-    assert callable(router_chat_from_env(on))
+    assert [callable(c) for c in router_chat_from_env(on)] == [True, True]    # both models, joined
+    assert callable(router_chat_from_env({**on, "MELAMPO_ROUTER_MODEL": "nemotron"}))
     # 9 November 2026: on by default once the reader's local server is configured; "cues" turns it off
     configured = {k: v for k, v in on.items() if k != "MELAMPO_REPORT_ROUTER"}
-    assert callable(router_chat_from_env(configured))
+    assert router_chat_from_env(configured)
     assert router_chat_from_env({**configured, "MELAMPO_REPORT_ROUTER": "cues"}) is None
     with pytest.raises(ValueError):
         router_chat_from_env({**on, "MELAMPO_LOCAL_CHAT_ENDPOINT": "https://openrouter.ai/api/v1"})
@@ -130,3 +133,16 @@ def test_the_router_probe_counts_an_interpreter_missed():
     assert router_probe.one(biopsy, {"pathology"})["missed"] == []
     note = rr.route("The patient was discharged home in good condition.")
     assert router_probe.one(note, {"pathology"})["missed"] == ["pathology"]
+
+
+def test_the_models_kinds_are_joined_and_other_is_still_read():
+    # 9 November 2026: an EEG impression one model called "other" would have been read by nothing
+    text = "IMPRESSION: EEG during wakefulness and sleep demonstrated no evidence of epileptogenic activity."
+    other = lambda prompt: json.dumps({"kinds": [{"kind": "other", "lines": [1, 1]}]})  # noqa: E731
+    imaging = lambda prompt: json.dumps({"kinds": [{"kind": "imaging_report", "lines": [1, 1]}]})  # noqa: E731
+    alone = rr.route(text, other)
+    assert "narrative_reader" in alone.interpreters
+    both = rr.route(text, [other, imaging])
+    assert set(both.model_kinds) == {"other", "imaging_report"} and "narrative_reader" in both.interpreters
+    broken = rr.route(text, [lambda p: "?", imaging])
+    assert broken.model_kinds == ("imaging_report",) and "router_model_answer_unusable" in broken.notes

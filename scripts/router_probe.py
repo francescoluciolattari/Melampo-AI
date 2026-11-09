@@ -158,6 +158,9 @@ def run(args: argparse.Namespace) -> int:
                "label": sorted(want), "cues": one(route(it["text"]), want)}
         for name, chat in chats.items():
             row[name] = one(route(it["text"], chat), want)
+        if len(chats) > 1:
+            # the models together, their kinds joined (as the router asks them when no single one is chosen)
+            row["joined"] = one(route(it["text"], list(chats.values())), want)
         rows.append(row)
     n = len(rows)
 
@@ -172,9 +175,10 @@ def run(args: argparse.Namespace) -> int:
                 "agreement": dict(Counter(g["agreement"] for g in got)),
                 "missed_by_kind": dict(Counter(i for g in got for i in g["missed"]))}
 
-    out = {"arms": {arm: summary(arm) for arm in ["cues", *chats]}, "rows": rows,
+    arms = ["cues", *chats, *(["joined"] if len(chats) > 1 else [])]
+    out = {"arms": {arm: summary(arm) for arm in arms}, "rows": rows,
            "criteria": "missed_share <= 0.02 and unusable_answers/texts <= 0.02 (fixed 8 November 2026)"}
-    for arm in chats:
+    for arm in arms[1:]:
         s = out["arms"][arm]
         s["passes"] = s["missed_share"] <= 0.02 and s["unusable_answers"] / n <= 0.02
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, indent=1), "utf-8")
