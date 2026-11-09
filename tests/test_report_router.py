@@ -101,15 +101,18 @@ def test_images_add_the_imaging_interpreter():
     assert "imaging" in rr.route(CT, images=2).interpreters
 
 
-def test_the_router_model_is_off_unless_asked_and_only_local():
+def test_the_router_model_is_on_with_the_local_server_and_only_local():
     # 8 November 2026: MELAMPO_REPORT_ROUTER=model turns it on, with the reader's local server
     from melampo.data.report_router import router_chat_from_env
 
-    assert router_chat_from_env({}) is None
-    assert router_chat_from_env({"MELAMPO_REPORT_ROUTER": "cues", "MELAMPO_LOCAL_CHAT_ENDPOINT": "x"}) is None
+    assert router_chat_from_env({}) is None                       # no local server: the cues alone
     on = {"MELAMPO_REPORT_ROUTER": "model", "MELAMPO_LOCAL_CHAT_ENDPOINT": "http://localhost:8000/v1",
           "MELAMPO_LOCAL_CHAT_MODELS": "gemma, nemotron"}
     assert callable(router_chat_from_env(on))
+    # 9 November 2026: on by default once the reader's local server is configured; "cues" turns it off
+    configured = {k: v for k, v in on.items() if k != "MELAMPO_REPORT_ROUTER"}
+    assert callable(router_chat_from_env(configured))
+    assert router_chat_from_env({**configured, "MELAMPO_REPORT_ROUTER": "cues"}) is None
     with pytest.raises(ValueError):
         router_chat_from_env({**on, "MELAMPO_LOCAL_CHAT_ENDPOINT": "https://openrouter.ai/api/v1"})
     with pytest.raises(ValueError):

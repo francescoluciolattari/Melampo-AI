@@ -258,18 +258,24 @@ LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 def router_chat_from_env(environ: dict[str, str] | None = None) -> Callable[[str], str] | None:
     """The local model the router asks, from the environment (8 November 2026), or None (the cues alone).
 
-    ``MELAMPO_REPORT_ROUTER=model`` turns it on; it stays off until the router probe has passed its criteria
-    (scripts/router_probe.py, VALIDATION). The server is the reader's (``MELAMPO_LOCAL_CHAT_ENDPOINT``), the model
-    ``MELAMPO_ROUTER_MODEL`` or the first of ``MELAMPO_LOCAL_CHAT_MODELS``. A host that is not this machine stops
-    the start: a patient's report is never sent away (GDPR)."""
+    On since 9 November 2026, when the reader's local server is configured: the router probe passed its criteria
+    (270 public texts labelled first: an interpreter missed in 1.1% of the texts with Gemma 4, 0.4% with Nemotron 3
+    Ultra, against 20.4% with the cues alone; no unusable answer). ``MELAMPO_REPORT_ROUTER=cues`` turns it off,
+    ``=model`` asks for it and stops the start when the server is not given. The server is the reader's
+    (``MELAMPO_LOCAL_CHAT_ENDPOINT``), the model ``MELAMPO_ROUTER_MODEL`` or the first of
+    ``MELAMPO_LOCAL_CHAT_MODELS``. A host that is not this machine stops the start: a patient's report is never
+    sent away (GDPR)."""
     import os
 
     env = os.environ if environ is None else environ
-    if env.get("MELAMPO_REPORT_ROUTER", "cues").strip().lower() != "model":
+    asked = env.get("MELAMPO_REPORT_ROUTER", "").strip().lower()
+    if asked == "cues":
         return None
     endpoint = env.get("MELAMPO_LOCAL_CHAT_ENDPOINT", "").strip()
     models = [m.strip() for m in env.get("MELAMPO_LOCAL_CHAT_MODELS", "").split(",") if m.strip()]
     model = env.get("MELAMPO_ROUTER_MODEL", "").strip() or (models[0] if models else "")
+    if asked != "model" and (not endpoint or not model):
+        return None                     # no local server: the cues alone, as before
     if not endpoint or not model:
         raise ValueError("MELAMPO_REPORT_ROUTER=model needs MELAMPO_LOCAL_CHAT_ENDPOINT and a model "
                          "(MELAMPO_ROUTER_MODEL or MELAMPO_LOCAL_CHAT_MODELS)")

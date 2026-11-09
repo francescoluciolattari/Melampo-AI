@@ -56,7 +56,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Component | Module | State |
 |---|---|---|
 | Document extraction | `data/document_processing.py` | working; without a parser it says `no_text_extracted` |
-| Report router | `data/report_router.py` | working with the deterministic cues; the local model (`MELAMPO_REPORT_ROUTER=model`, the reader's local server) is built and off until the router probe passes; an external model is refused for patients' texts |
+| Report router | `data/report_router.py` | working: the deterministic cues and the reader's local model together (on when the local server is configured; the router probe: 1.1% and 0.4% of the texts with an interpreter missed, against 20.4% with the cues alone); an external model is refused for patients' texts |
 | Anatomical linker | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | working; abstains when unsure |
 | Kintsch reader | `memory/ci_reader.py`, `memory/spatial_relation.py` | working; second stage reads the landmark role |
 | Finding owner | `memory/finding_owner.py` | working with question v1; claim-by-claim reading built, off (`MELAMPO_OWNER_QUESTION=claims`) |
