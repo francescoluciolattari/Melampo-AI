@@ -36,15 +36,22 @@ jobs:
 
       - name: Search
         if: ${{ github.event_name == 'schedule' || inputs.search }}
-        run: uv run --no-sync python scripts/sources_index.py search --limit 5 | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          set -o pipefail
+          uv run --no-sync python scripts/sources_index.py search --limit 5 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Check the reference rows against their pages
         if: ${{ github.event_name == 'schedule' || inputs.check_quotes }}
-        run: uv run --no-sync python scripts/sources_index.py check-quotes | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          set -o pipefail
+          uv run --no-sync python scripts/sources_index.py check-quotes | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: The index is well formed
         run: uv run --no-sync python scripts/sources_index.py check
 
+      # needs the repository setting "Allow GitHub Actions to create and approve pull requests" (Settings,
+      # Actions, General, Workflow permissions); without it the branch is pushed and the pull request is opened by
+      # hand (gh pr create --head chore/sources-index)
       - name: Open a pull request
         uses: peter-evans/create-pull-request@v6
         with:

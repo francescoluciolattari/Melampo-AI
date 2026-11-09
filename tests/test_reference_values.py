@@ -96,7 +96,8 @@ def test_a_comparison_the_cited_row_does_not_support_goes_to_a_person():
     assert got.verdict == UNSURE and "measure_the_reference_says_above" in got.reader
     # a row the model was not given (one it remembers) is not a reference
     got = _owner(_answer("above"), [])("portal vein", s, 4, "en", "portal_vein_and_splenic_vein")
-    assert got.verdict == UNSURE and "measure_the_cited_reference_was_not_given" in got.reader
+    # a model's error, not a discordance of the document: a doubt kept in the path (9 November 2026)
+    assert got.verdict == "doubt" and "measure_the_cited_reference_was_not_given" in got.reader
 
 
 def test_paragraphs_never_a_chapter_and_their_links(tmp_path):

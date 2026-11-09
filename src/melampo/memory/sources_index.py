@@ -228,15 +228,28 @@ def _squash(text: str) -> str:
 
 def quoted_pieces(quoted: str) -> list[str]:
     """The words a row cites, between double quotes."""
-    return [q for q in re.findall(r'"([^"]{6,})"', quoted or "")]
+    return [q for q in re.findall(r'"([^"]+)"', quoted or "") if len(q) >= 6 or re.search(r"\d", q)]
+
+
+def nearest(piece: str, text: str, width: int = 240) -> str:
+    """The words of the page closest to a piece that is not there word for word: what the page does say, so that
+    the row can be corrected from the page itself (9 November 2026: a web reading had paraphrased some)."""
+    import difflib
+
+    sentences = [x.strip() for x in re.split(r"(?<=[.;:])\s+|\n+", " ".join(text.split(" "))) if len(x.strip()) > 8]
+    numbers = set(re.findall(r"\d+(?:[.,]\d+)?", piece))
+    pool = [x for x in sentences if numbers & set(re.findall(r"\d+(?:[.,]\d+)?", x))] or sentences
+    best = max(pool, key=lambda x: difflib.SequenceMatcher(None, piece.lower(), x.lower()).ratio(), default="")
+    return " ".join(best.split())[:width]
 
 
 def check_quote(quoted: str, text: str) -> dict[str, Any]:
-    """Is every piece the row cites on the page, word for word?"""
+    """Is every piece the row cites on the page, word for word? For a piece that is not, the nearest words of
+    the page."""
     page = _squash(text)
     pieces = quoted_pieces(quoted)
     missing = [p for p in pieces if _squash(p.replace("...", "")) not in page]
-    return {"pieces": len(pieces), "missing": missing,
+    return {"pieces": len(pieces), "missing": missing, "nearest": {p: nearest(p, text) for p in missing},
             "found": bool(pieces) and not missing, "page_sha256": hashlib.sha256(text.encode()).hexdigest()[:16]}
 
 
@@ -256,8 +269,9 @@ def mark_rows(values: Path, results: dict[str, dict[str, Any]], today: str | Non
             line = (f"    status: verified\n    checked_by: \"the words found on the page by the sources-index check, "
                     f"{today}\"\n    page_check: \"{today}, page {res['page_sha256']}\"\n")
         else:
-            why = "the page could not be read" if res.get("error") else \
-                  f"not found on the page: {json.dumps(res.get('missing', []), ensure_ascii=False)[:300]}"
+            why = ("the page could not be read" if res.get("error") else
+                   "not found on the page; the nearest words of the page: "
+                   + json.dumps(res.get("nearest") or res.get("missing") or "no quotation", ensure_ascii=False)[:600])
             line = f"    status: to_verify\n    checked_by: \"\"\n    page_check: {json.dumps(today + ', ' + why, ensure_ascii=False)}\n"
         new = new.rstrip("\n") + "\n" + line
         if new != block:

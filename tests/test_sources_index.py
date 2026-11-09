@@ -82,3 +82,11 @@ def test_the_mask_shows_the_index_and_refuses_a_bad_source():
     bad = si.Source(id="x", kind="journal", title="", url="nope", access="open", status="available")
     shown = sources_mask.page(si.SourcesIndex.load(), {}, "non salvato: title: required", True, draft=bad)
     assert 'class="msg bad"' in shown and 'value="nope"' in shown
+
+
+def test_a_missing_quotation_shows_what_the_page_says():
+    page = "Normal values. The portal vein measures 7-13 mm, and up to 15 mm in deep inspiration. Other text."
+    res = si.check_quote('"normal diameter of 7-13 mm" ... "but may vary up to 15 mm 11"', page)
+    assert not res["found"] and res["missing"] == ["normal diameter of 7-13 mm", "but may vary up to 15 mm 11"]
+    assert "up to 15 mm in deep inspiration" in res["nearest"]["but may vary up to 15 mm 11"]
+    assert si.quoted_pieces('table 4, "16-34" mL/m2') == ["16-34"]       # a short piece with a number counts

@@ -4,7 +4,7 @@ radiologist reads them; each contradiction sends the sentence to a person and no
 import json
 
 from melampo.evaluation.llm_reading import claims_prompt, read_claims
-from melampo.memory.finding_owner import HERE, UNSURE, FindingOwner, report_context
+from melampo.memory.finding_owner import DOUBT, HERE, UNSURE, FindingOwner, report_context
 from melampo.memory.report_sections import (
     FINDINGS,
     IMPRESSION,
@@ -132,7 +132,8 @@ def test_the_size_of_a_lesion_is_not_compared_with_the_organ():
 
     got = _owner(said, said, references=ReferenceValues.load())("right kidney", s, s.index("right kidney"), "en",
                                                                 "kidney_right", {})
-    assert got.verdict == UNSURE and "the_measure_is_of_what_is_observed" in got.reader
+    # a doubt of reading, kept in the path with the reader's reading beside (9 November 2026)
+    assert got.verdict == DOUBT and "the_measure_is_of_what_is_observed" in got.reader
 
 
 def test_a_section_before_the_findings_is_certain_only_as_far_as_its_heading_reaches():

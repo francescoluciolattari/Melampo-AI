@@ -43,9 +43,12 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
+          # a failure stops the step and its message is kept (9 November 2026: the first run failed in silence)
+          set -o pipefail
           uv run --no-sync python scripts/router_probe.py run --items router_items.jsonl \
             --labels data/gold/router/labels.txt --models "${{ inputs.models }}" \
-            --endpoint https://openrouter.ai/api/v1 --public-data --out router_probe.json | tee router_probe_summary.json
+            --endpoint https://openrouter.ai/api/v1 --public-data --out router_probe.json \
+            2> >(tee router_probe.err >&2) | tee router_probe_summary.json
 
       - name: Summarise
         if: always()
@@ -65,3 +68,4 @@ jobs:
             router_probe.json
             router_probe_summary.json
             router_probe_answers.jsonl
+            router_probe.err
