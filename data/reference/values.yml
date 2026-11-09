@@ -35,9 +35,10 @@ rows:
     note: "the source adds that lengths upwards of 14 cm can be seen in normal, taller males; men and taller or heavier individuals have longer spleens"
     source: {title: "Splenomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/splenomegaly",
              section: "sonographic assessment", ref: "15", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"On sonographic assessment, a length of 12 cm is generally considered the upper limit of normal 15" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 34bf01e8432c0fe5"
   - id: spleen-length-ct-massive
     structures: [spleen]
     aspect: length
@@ -49,9 +50,10 @@ rows:
     above_means: massive splenomegaly
     source: {title: "Splenomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/splenomegaly",
              section: "massive splenomegaly", ref: "4", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '">14.5 cm true craniocaudal measurement on coronal CT 4", among the definitions of massive splenomegaly (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 34bf01e8432c0fe5"
   - id: kidney-length-male
     structures: [kidney_right, kidney_left]
     aspect: length
@@ -62,9 +64,10 @@ rows:
     unit: mm
     source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
              section: "gross anatomy: size", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"In adults, the normal kidney is 10-14 cm long in males and 9-13 cm long in females" (no reference number; 2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 987916bc2a756c33"
   - id: kidney-length-female
     structures: [kidney_right, kidney_left]
     aspect: length
@@ -75,9 +78,10 @@ rows:
     unit: mm
     source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
              section: "gross anatomy: size", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"In adults, the normal kidney is 10-14 cm long in males and 9-13 cm long in females" (no reference number; 2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 987916bc2a756c33"
   - id: kidney-parenchyma-us
     structures: [kidney_right, kidney_left]
     aspect: thickness
@@ -88,9 +92,10 @@ rows:
     unit: mm
     source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
              section: "radiographic features: ultrasound", ref: "11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"if the pyramids are difficult to differentiate, the parenchymal thickness can be measured instead and should be 15-20 mm 11" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 987916bc2a756c33"
   - id: kidney-cortex-us
     structures: [kidney_right, kidney_left]
     aspect: thickness
@@ -101,9 +106,10 @@ rows:
     unit: mm
     source: {title: "Kidneys", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/kidneys",
              section: "radiographic features: ultrasound", ref: "14", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"cortex thickness equals/is more than 6 mm 14" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 987916bc2a756c33"
   - id: liver-length-mcl
     structures: [liver]
     aspect: length
@@ -116,9 +122,10 @@ rows:
     note: "the range of normal liver volume depends on patient population and demographics"
     source: {title: "Hepatomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/hepatomegaly",
              section: "for the adult liver", ref: "", revised: "2024-03-29", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"a liver that is longer than 15.5-16 cm in the midclavicular line (MCL) is considered enlarged" (no reference number; the average, "10-12.5 cm", cites 2; 2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page fbd52c3be008bf95"
   - id: portal-vein-diameter
     structures: [portal_vein_and_splenic_vein]
     aspect: diameter
@@ -129,9 +136,10 @@ rows:
     unit: mm
     source: {title: "Portal vein", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/portal-vein",
              section: "gross anatomy: origin and course", ref: "2, 11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"with a normal diameter of 7-13 mm 2,11" ... "but may vary up to 15 mm 11" (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"with a normal diameter of 7-13 mm 2,11" ... "but may vary up to 15 mm 11" (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"but may vary up to 15 mm 11\": \"Gross anatomy Origin and course The portal vein usually measures ~8 cm in length in adults with a normal diameter of 7-13 mm 2,11 but may vary up to 15 mm and more 13 .\"}"
   - id: portal-vein-diameter-ct
     structures: [portal_vein_and_splenic_vein]
     aspect: diameter
@@ -142,9 +150,10 @@ rows:
     unit: mm
     source: {title: "Portal vein", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/portal-vein",
              section: "radiographic features: CT", ref: "13", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"Mean portal vein diameter is typically larger on CT, measuring up to 1.55 cm" (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"Mean portal vein diameter is typically larger on CT, measuring up to 1.55 cm" (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"Mean portal vein diameter is typically larger on CT, measuring up to 1.55 cm\": \"CT Mean portal vein diameter is typically larger on CT, measuring up to 15.5 ± 1.9 mm, and the enhanced portal vein is typically 0.56 mm larger than the unenhanced portal vein 13 .\"}"
   - id: aorta-infrarenal-diameter
     structures: [aorta]
     aspect: diameter
@@ -155,9 +164,10 @@ rows:
     unit: mm
     source: {title: "Abdominal aorta", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/abdominal-aorta-1",
              section: "gross anatomy: course", ref: "5", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"The diameter of the aorta decreases from 28 mm in the thorax to less than 20 mm below the kidneys 5." (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 310937ac117cc763"
   - id: gallbladder-wall-us
     structures: [gallbladder]
     aspect: thickness
@@ -169,9 +179,10 @@ rows:
     above_means: gallbladder wall thickening
     source: {title: "Acute cholecystitis", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/acute-cholecystitis",
              section: "radiographic features: ultrasound", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"Both gallbladder wall thickening (>3 mm) and pericholecystic fluid are secondary findings." (no reference number; 2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"Both gallbladder wall thickening (>3 mm) and pericholecystic fluid are secondary findings." (no reference number; 2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"Both gallbladder wall thickening (>3 mm) and pericholecystic fluid are secondary findings.\": \"MRI MRI is sensitive in the detection of acute cholecystitis, with findings similar to those seen on ultrasound and CT 3 .\"}"
   - id: small-bowel-diameter-ct
     structures: [small_bowel]
     aspect: diameter
@@ -183,9 +194,10 @@ rows:
     above_means: dilated small bowel
     source: {title: "Small bowel obstruction", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/small-bowel-obstruction",
              section: "radiographic features: CT", ref: "3", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"dilated small bowel loops >2.5 cm up from outer wall to outer wall", in the features on CT that cite 3 (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"dilated small bowel loops >2.5 cm up from outer wall to outer wall", in the features on CT that cite 3 (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"dilated small bowel loops >2.5 cm up from outer wall to outer wall\": \"dilated small bowel loops >2.5 cm from outer wall to outer wall\"}"
   - id: small-bowel-diameter-us
     structures: [small_bowel]
     aspect: diameter
@@ -197,9 +209,10 @@ rows:
     above_means: dilated bowel loop
     source: {title: "Small bowel obstruction", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/small-bowel-obstruction",
              section: "radiographic features: bedside ultrasound", ref: "7", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"dilated bowel loop (diameter > 3 cm)", in the bedside tests that cite 7 (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page cf78b81b97ffc7eb"
   - id: left-atrium-volume-index
     structures: [heart, atrial_appendage_left]
     aspect: volume_index
@@ -213,9 +226,10 @@ rows:
              publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
              url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
              section: "table 4", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
-    status: to_verify
-    checked_by: ""
     quoted: 'table 4, "16-34" mL/m2 for men and women (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page df6f90df5c1d5794"
   - id: lv-diastolic-dimension-male
     structures: [heart]
     aspect: diameter
@@ -228,9 +242,10 @@ rows:
              publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
              url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
              section: "table 2", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
-    status: to_verify
-    checked_by: ""
     quoted: 'table 2, men "50.2±4.1", 2-SD range "42.0-58.4" mm (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page df6f90df5c1d5794"
   - id: lv-diastolic-dimension-female
     structures: [heart]
     aspect: diameter
@@ -243,9 +258,10 @@ rows:
              publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
              url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
              section: "table 2", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
-    status: to_verify
-    checked_by: ""
     quoted: 'table 2, women "45.0±3.6", 2-SD range "37.8-52.2" mm (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page df6f90df5c1d5794"
   - id: septal-thickness-male
     structures: [heart]
     aspect: thickness
@@ -258,9 +274,10 @@ rows:
              publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
              url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
              section: "table 6", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
-    status: to_verify
-    checked_by: ""
     quoted: 'table 6, men "0.6-1.0" cm (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page df6f90df5c1d5794"
   - id: septal-thickness-female
     structures: [heart]
     aspect: thickness
@@ -273,9 +290,10 @@ rows:
              publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
              url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
              section: "table 6", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
-    status: to_verify
-    checked_by: ""
     quoted: 'table 6, women "0.6-0.9" cm (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page df6f90df5c1d5794"
   - id: ivc-high-right-atrial-pressure
     structures: [inferior_vena_cava]
     aspect: diameter
@@ -289,9 +307,10 @@ rows:
              publisher: "Circulation: Cardiovascular Imaging 2022;15(9):e014308",
              url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC9504388", section: "methods: echocardiography", ref: "4",
              revised: "2022", licence: "PMC copyright notice: the value with its citation only"}
-    status: to_verify
-    checked_by: ""
     quoted: '"Based on the ASE criteria, IVCmax >2.1 cm and IVCCI <50% were used as the threshold to detect RAP >10 mmHg" (methods: echocardiography, ref 4; 2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 471217462034c43f"
   # rows added on 8 November 2026, for the structures of chest CT (CT-RATE) and of the adrenals and thyroid
   - id: aorta-ascending-dilatation
     structures: [aorta]
@@ -304,9 +323,10 @@ rows:
     above_means: dilatation of the ascending aorta
     source: {title: "Ascending aorta dilatation", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/ascending-aorta-dilatation",
              section: "pathology", ref: "4", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"In adults, an ascending aortic diameter greater than 4 cm is considered to indicate dilatation 4." (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 0383cbff0c2aa98b"
   - id: aorta-descending-aneurysm
     structures: [aorta]
     aspect: diameter
@@ -319,9 +339,10 @@ rows:
     note: "the same page says elsewhere that the term aneurysm applies when the diameter is >4 cm (ref 1); the ascending aorta has its own row"
     source: {title: "Thoracic aortic aneurysm", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thoracic-aortic-aneurysm",
              section: "terminology", ref: "12", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"the axial diameter is >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta" (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"the axial diameter is >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta" (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"the axial diameter is >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta\": \"Previously, the term aneurysm was used when the axial diameter exceeded >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta 12 .\"}"
   - id: adrenal-limb-width
     structures: [adrenal_gland_left, adrenal_gland_right]
     aspect: thickness
@@ -332,9 +353,10 @@ rows:
     unit: mm
     source: {title: "Adrenal gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/adrenal-gland",
              section: "radiographic appearance: cross-sectional imaging", ref: "9", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"body should measure ≤8 mm and limbs ≤5 mm 9" (right), "body should measure ≤10 mm and limbs ≤5 mm 9" (left) (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"body should measure ≤8 mm and limbs ≤5 mm 9" (right), "body should measure ≤10 mm and limbs ≤5 mm 9" (left) (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"body should measure ≤8 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\", \"body should measure ≤10 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\"}"
   - id: adrenal-body-width-right
     structures: [adrenal_gland_right]
     aspect: thickness
@@ -345,9 +367,10 @@ rows:
     unit: mm
     source: {title: "Adrenal gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/adrenal-gland",
              section: "radiographic appearance: cross-sectional imaging, right adrenal gland", ref: "9", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"body should measure ≤8 mm and limbs ≤5 mm 9" (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"body should measure ≤8 mm and limbs ≤5 mm 9" (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"body should measure ≤8 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\"}"
   - id: adrenal-body-width-left
     structures: [adrenal_gland_left]
     aspect: thickness
@@ -358,9 +381,10 @@ rows:
     unit: mm
     source: {title: "Adrenal gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/adrenal-gland",
              section: "radiographic appearance: cross-sectional imaging, left adrenal gland", ref: "9", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"body should measure ≤10 mm and limbs ≤5 mm 9" (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"body should measure ≤10 mm and limbs ≤5 mm 9" (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"body should measure ≤10 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\"}"
   - id: thyroid-lobe-length-us
     structures: [thyroid_gland]
     aspect: length
@@ -371,9 +395,10 @@ rows:
     unit: mm
     source: {title: "Thyroid gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thyroid-gland",
              section: "radiographic appearance: ultrasound", ref: "10", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"each lobe normally measures 10": "length or craniocaudal: 4-6 cm" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 437d3830f264bf55"
   - id: thyroid-lobe-depth-us
     structures: [thyroid_gland]
     aspect: thickness
@@ -384,9 +409,10 @@ rows:
     unit: mm
     source: {title: "Thyroid gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thyroid-gland",
              section: "radiographic appearance: ultrasound", ref: "10", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
+    quoted: '"depth or anterior-posterior dimension: <2 cm" (2026-11-08)'
     status: to_verify
     checked_by: ""
-    quoted: '"depth or anterior-posterior dimension: <2 cm" (2026-11-08)'
+    page_check: "2026-11-09, not found on the page; the nearest words of the page: {\"depth or anterior-posterior dimension: <2 cm\": \"Radiology of Infectious and Inflammatory Diseases - Volume 2.\"}"
   - id: thyroid-isthmus-depth-us
     structures: [thyroid_gland]
     aspect: thickness
@@ -397,9 +423,10 @@ rows:
     unit: mm
     source: {title: "Thyroid gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thyroid-gland",
              section: "radiographic appearance: ultrasound", ref: "4", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"isthmus <0.5 cm deep 4" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 437d3830f264bf55"
   - id: thyroid-volume-female
     structures: [thyroid_gland]
     aspect: volume
@@ -410,9 +437,10 @@ rows:
     unit: mL
     source: {title: "Thyroid gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thyroid-gland",
              section: "radiographic appearance: ultrasound", ref: "6", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"volume (excluding isthmus, unless its thickness is >3 mm) 6": "10-15 mL for females" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 437d3830f264bf55"
   - id: thyroid-volume-male
     structures: [thyroid_gland]
     aspect: volume
@@ -423,6 +451,7 @@ rows:
     unit: mL
     source: {title: "Thyroid gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thyroid-gland",
              section: "radiographic appearance: ultrasound", ref: "6", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    status: to_verify
-    checked_by: ""
     quoted: '"12-18 mL for males" (2026-11-08)'
+    status: verified
+    checked_by: "the words found on the page by the sources-index check, 2026-11-09"
+    page_check: "2026-11-09, page 437d3830f264bf55"
