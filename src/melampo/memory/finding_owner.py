@@ -46,8 +46,11 @@ HERE, ELSEWHERE, UNSURE = "here", "elsewhere", "unsure"
 # discordant: the context and the sentence, the sentence and the conclusion, a measure and its cited reference
 DOUBT = "doubt"
 # what the reader finds that is a discordance of the document, not a doubt of reading
+# (9 November 2026, ctrate2: a model citing a row it was not given, or comparing a lesion's size with the organ's
+# reference, is a doubt of reading, not a discordance of the document: only the sentence's own judgement against
+# the reference it cites is)
 DISCORDANCES = ("the_finding_is_in_the_indication", "the_conclusion_gives_it_to_another_structure",
-                "its_refers_to_another_structure", "the_measure_is_of_what_is_observed", "measure_")
+                "its_refers_to_another_structure", "measure_the_reference_says_")
 LEXICON = Path(__file__).resolve().parents[3] / "data" / "linking" / "anatomy_lexicon.json"
 # Names too general to say which structure a clause describes ("wall", "body", "area", "lobe" alone).
 _GENERIC = frozenset("""
@@ -897,6 +900,12 @@ class FindingOwner:
         if not concl or self.anomalies is None or self.anatomy is None or not outcomes or outcomes[0] != FINDING:
             return ""
         if not all(a.get("conclusion") == "same" for a in said.values()):
+            return ""
+        # the conclusion says that there is a finding, not whose it is (9 November 2026, ctrate2: "pleural
+        # effusion ... at the level of the lower lobe", one model giving it to the effusion's own place): a doubt
+        # of the structure is not closed by it
+        if any(a.get("same") != "yes" or _unflagged_outcome(a) == ASIDE
+               or any(o.get("of") not in ("it", "?", "") for o in a.get("observed", [])) for a in said.values()):
             return ""
         linked = set(site_anchors(cid)) | {f"class:{cid}"} if cid else set()
         if not self.same_structure(concl, linked):

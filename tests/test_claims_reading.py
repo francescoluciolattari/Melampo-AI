@@ -388,3 +388,27 @@ def test_the_conclusion_closes_a_doubt_of_reading():
     # a conclusion that does not state a deviation of it does not close it
     got = owner("spleen", s, at, "en", "spleen", {"conclusion": "Nodule of the liver."})
     assert got.verdict == DOUBT
+
+
+def test_the_conclusion_does_not_close_a_doubt_of_the_structure():
+    # 9 November 2026, ctrate2: "the pleural effusion ... at the level of the lower lobe of the right lung", one
+    # model giving it to the effusion's place: the conclusion says that there is a finding, not whose it is
+    from melampo.memory.finding_owner import Anatomy
+
+    words = AnomalyWords(qualities={"dilat": {"*"}, "effusion": {"*"}})
+    s = "The spleen is larger than normal, 15 cm"
+    here = _answer(marked="spleen", observed=[{"words": "larger than normal", "of": "it"}], conclusion="same")
+    other = _answer(marked="spleen", observed=[{"words": "larger than normal", "of": "liver"}], conclusion="same")
+    owner = FindingOwner(None, {"m0": lambda p: json.dumps(other), "m1": lambda p: json.dumps(here)},
+                         Anatomy(), question="claims", anomalies=words)
+    got = owner("spleen", s, s.index("spleen"), "en", "spleen", {"conclusion": "Dilatation of the spleen."})
+    assert got.verdict == DOUBT and "closed_by" not in got.doubt
+
+
+def test_a_model_s_error_on_a_measure_is_a_doubt_the_sentence_against_its_reference_a_discordance():
+    from melampo.memory.finding_owner import DISCORDANCES
+
+    assert "measure_the_reference_says_within".startswith(DISCORDANCES)
+    for reading in ("measure_the_cited_reference_was_not_given", "measure_the_comparison_is_not_stated",
+                    "the_measure_is_of_what_is_observed"):
+        assert not reading.startswith(DISCORDANCES)

@@ -103,6 +103,8 @@ def cmd_check_quotes(args: argparse.Namespace) -> int:
         results[row["id"]] = res
         print(f"- {row['id']}: {'found' if res.get('found') else 'not found'} "
               f"{res.get('error', '') or res.get('missing', '')}")
+        for piece, near in (res.get("nearest") or {}).items():
+            print(f"    the page says: {near}")
     changed = si.mark_rows(Path(args.values), results)
     print(f"{sum(r.get('found', False) for r in results.values())} of {len(results)} rows found on their pages; "
           f"{changed} rows written")
