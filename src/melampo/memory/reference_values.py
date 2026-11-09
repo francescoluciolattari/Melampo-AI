@@ -6,8 +6,8 @@ book, not from a guess. The models remember values, and two models remember diff
 sentence to a person, or worse attaches an unfounded judgement. Here the comparison is made with the library:
 
 * **the table** (``data/reference/values.yml``): each row a reference value with its source (URL, section,
-  reference number), its population (age, sex) and technique, its licence and who checked it. Only the facts
-  are in the repository;
+  reference number), its population (age, sex) and technique, its licence, the words of the source it rests on
+  and whether they were found on the page (``memory/sources_index.py``). Only the facts are in the repository;
 * **the paragraphs** of the sources (a local copy, ``MELAMPO_REFERENCE_PASSAGES``): paragraphs, never whole
   chapters, each with its source, section and the sections it links to; not committed, as the texts of PARROT.
 
