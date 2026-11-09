@@ -149,6 +149,13 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   non tiene fra le sue letture quella dell'etichetta contato come errore (sotto il 2% degli item), i dubbi chiusi
   sbagliati sotto il 2% dei chiusi. Con 300 item,
   0 errori limitano la quota all'1,0%, 2 errori al 2,1%.
+- **CT-RATE, terzo campione** (`ctrate3`, 9 novembre 2026): 300 item, seed 20261109, da referti non usati dai
+  primi due, etichettati con la convenzione prima di ogni lettura. Letti due volte sugli stessi item: la lettura
+  per affermazioni (spenta) e la domanda sul proprietario (accesa oggi), per confrontarle con gli stessi criteri.
+  Proposti prima del run: (1) item attaccati come certi alla struttura sbagliata al massimo l'1% (l'errore più
+  grave: il nostro si somma a quello del referto); le altre quote di errore al massimo il 2%; ogni quota con il
+  suo limite superiore al 95%; le discordanze del referto intercettate riportate a parte. Frank decide sui
+  risultati e sui tipi di errore.
 - **Misura del router** (`scripts/router_probe.py`, workflow `router-probe`, 8 novembre 2026): il modello locale
   aiuta l'orchestratore a dire i tipi di un testo? Testi pubblici di tipo noto: MTSamples (6 per specialità,
   inglese) e PARROT (20 italiani, 10 di altre lingue), seed 20261108, etichettati (`data/gold/router/labels.txt`)
