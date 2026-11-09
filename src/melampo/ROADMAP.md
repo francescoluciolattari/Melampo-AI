@@ -346,6 +346,20 @@ caso resta in sospeso. Aggiunta anche una scadenza a un anno per i casi
 mai confermati (`sweep_expired_pending_cases`), non ancora innescata da
 nessun processo periodico reale.
 
+**La scadenza dei casi in sospeso dall'ultimo documento (9 novembre 2026).**
+Un caso è l'insieme dei suoi record in sospeso con lo stesso `case_id`
+(ogni unione ne accoda uno nuovo): l'anno decorre dal più recente, cioè
+dall'ultimo documento ricevuto, e i record si cancellano insieme
+(`sweep_pending_cases`). Un caso che attende ancora un esito (coltura,
+istologico: `case_context.awaited_results` con stato aperto) non si
+cancella in silenzio: viene segnalato a chi l'ha inserito (evento nel suo
+registro e voce `flagged_awaiting_results` della manutenzione) e si
+cancella solo se entro il preavviso (`DEFAULT_NOTICE_SECONDS`, 30 giorni,
+proposta da confermare) non arriva nulla. Un esito in attesa non è un
+dubbio diagnostico: è un esito che altrimenti andrebbe perso (Callen et
+al. 2012). Gli esiti attesi saranno riempiti dal tracciamento dei rimandi
+tra documenti.
+
 
 
 **`_auto_evolution_plan()` consolidato, non eliminato in blocco** (trovato

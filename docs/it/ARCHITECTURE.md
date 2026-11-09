@@ -57,7 +57,7 @@ etichetta confermata).
 | Componente | Modulo | Stato |
 |---|---|---|
 | Estrazione dai documenti | `data/document_processing.py` | funziona; senza parser dice `no_text_extracted` |
-| Orchestratore dei referti | `data/report_router.py` | funziona con gli indizi deterministici; il modello locale (`MELAMPO_REPORT_ROUTER=model`, il server locale del lettore) è costruito e spento finché non passa la misura del router; un modello esterno è rifiutato per i testi dei pazienti |
+| Orchestratore dei referti | `data/report_router.py` | funziona: indizi deterministici e modello locale del lettore insieme (acceso quando il server locale è configurato; misura del router: 1,1% e 0,4% dei testi con un interprete mancato, contro il 20,4% dei soli indizi); un modello esterno è rifiutato per i testi dei pazienti |
 | Linker anatomico | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | funziona; si astiene quando non è sicuro |
 | Lettore Kintsch | `memory/ci_reader.py`, `memory/spatial_relation.py` | funziona; il secondo stadio legge il ruolo di riferimento |
 | Finding owner | `memory/finding_owner.py` | funziona con la domanda v1; lettura per affermazioni costruita, spenta (`MELAMPO_OWNER_QUESTION=claims`) |

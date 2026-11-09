@@ -304,3 +304,74 @@ def test_the_lazy_graph_callable_is_never_invoked_when_case_id_matches_directly(
         password="secret",
     )
     assert decision.action == "merge_and_rerun"
+
+
+# --------------------------------------------------------------------------
+# sweep_pending_cases: the year runs from the last document; a case awaiting a
+# result is flagged before it is deleted (9 November 2026)
+# --------------------------------------------------------------------------
+
+DAY = 24 * 60 * 60
+YEAR = 365 * DAY
+
+
+def _case(store, case_id, age_days, awaited=None):
+    context = {"case_id": case_id, "report_text": "x"}
+    if awaited is not None:
+        context["awaited_results"] = awaited
+    store.create_candidate(payload={"case_context": context}, case_id=case_id, learning_status="needs_review")
+    record = max((r for r in store.records.values() if r.case_id == case_id), key=lambda r: r.created_at)
+    record.created_at = time.time() - age_days * DAY
+    return record
+
+
+def test_the_year_runs_from_the_last_document_the_case_received():
+    from melampo.training.pending_case_router import sweep_pending_cases
+
+    store = NexusCandidateStore()
+    first = _case(store, "case-1", 400)
+    second = _case(store, "case-1", 30)  # the histology, merged eleven months later
+
+    result = sweep_pending_cases(store, retention_seconds=YEAR)
+
+    assert result.deleted == []
+    assert {first.candidate_id, second.candidate_id} <= set(store.records)
+
+
+def test_an_expired_case_is_deleted_whole():
+    from melampo.training.pending_case_router import sweep_pending_cases
+
+    store = NexusCandidateStore()
+    _case(store, "case-1", 500)
+    _case(store, "case-1", 400)
+
+    result = sweep_pending_cases(store, retention_seconds=YEAR)
+
+    assert len(result.deleted) == 2 and not store.records
+
+
+def test_a_case_awaiting_a_result_is_flagged_not_deleted_then_deleted_after_the_notice():
+    from melampo.training.pending_case_router import FLAGGED_EVENT, sweep_pending_cases
+
+    store = NexusCandidateStore()
+    record = _case(store, "case-1", 400, awaited=[{"what": "coltura", "status": "awaited"}])
+    now = time.time()
+
+    first = sweep_pending_cases(store, retention_seconds=YEAR, notice_seconds=30 * DAY, now=now)
+    assert first.deleted == [] and first.flagged[0]["awaited"][0]["what"] == "coltura"
+    assert any(e["event"] == FLAGGED_EVENT for e in store.records[record.candidate_id].audit)
+
+    again = sweep_pending_cases(store, retention_seconds=YEAR, notice_seconds=30 * DAY, now=now + 10 * DAY)
+    assert again.deleted == [] and len(again.flagged) == 1  # flagged once, still within the notice
+
+    late = sweep_pending_cases(store, retention_seconds=YEAR, notice_seconds=30 * DAY, now=now + 31 * DAY)
+    assert late.deleted == [record.candidate_id] and not store.records
+
+
+def test_a_result_already_arrived_does_not_hold_the_case():
+    from melampo.training.pending_case_router import sweep_pending_cases
+
+    store = NexusCandidateStore()
+    _case(store, "case-1", 400, awaited=[{"what": "istologico", "status": "linked"}])
+
+    assert len(sweep_pending_cases(store, retention_seconds=YEAR).deleted) == 1

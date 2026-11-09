@@ -268,6 +268,17 @@ class NexusCandidateStore:
             )
             self._persist_deletion(candidate_id)
 
+    def record_event(self, candidate_id: str, event: str, **fields: Any) -> dict[str, Any]:
+        """An event in a record's audit trail (e.g. a case flagged before it expires), persisted like any change."""
+        with self._lock:
+            record = self.records[candidate_id]
+            entry = {**fields, "event": event, "candidate_id": candidate_id, "timestamp": fields.get("timestamp",
+                                                                                                    time.time())}
+            record.audit.append(entry)
+            self.audit_log.append(entry)
+            self._persist_current_state(candidate_id)
+            return entry
+
     def get(self, candidate_id: str) -> NexusCandidateRecord:
         with self._lock:
             return self.records[candidate_id]

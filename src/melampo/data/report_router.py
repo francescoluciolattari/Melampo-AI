@@ -207,19 +207,28 @@ class RoutingDecision:
                 "needs_review": self.needs_review, "notes": list(self.notes)}
 
 
-def route(text: str, chat: Callable[[str], str] | None = None, images: int = 0) -> RoutingDecision:
-    """Recognise the kinds of report, then choose the interpreters (the union of the model's and the cues')."""
+def route(text: str, chat: Callable[[str], str] | list | tuple | None = None, images: int = 0) -> RoutingDecision:
+    """Recognise the kinds of report, then choose the interpreters (the union of the models' and the cues').
+
+    ``chat`` may be one model or several (9 November 2026: each model alone missed an interpreter on texts the
+    other read right; an interpreter run in vain costs nothing, one not run loses what only it reads): the kinds
+    any of them gives are joined."""
     cues = read_cues(text, images)
     cue_kinds = cues.kinds()
     model: list[dict[str, Any]] | None = None
     notes: list[str] = []
-    if chat is not None and text.strip():
-        try:
-            model = parse_kind_answer(chat(kind_prompt(text)), len(text.splitlines()))
-        except Exception as error:  # noqa: BLE001 -- an unreachable model must not stop the reading
-            notes.append(f"router_model_error:{type(error).__name__}")
-        if model is None:
-            notes.append("router_model_answer_unusable")
+    chats = [] if chat is None else list(chat) if isinstance(chat, (list, tuple)) else [chat]
+    if chats and text.strip():
+        for one in chats:
+            try:
+                got = parse_kind_answer(one(kind_prompt(text)), len(text.splitlines()))
+            except Exception as error:  # noqa: BLE001 -- an unreachable model must not stop the reading
+                notes.append(f"router_model_error:{type(error).__name__}")
+                continue
+            if got is None:
+                notes.append("router_model_answer_unusable")
+            else:
+                model = (model or []) + got
     model_kinds = None if model is None else {m["kind"] for m in model}
     kinds = set(cue_kinds) | (model_kinds or set())
     if model_kinds is None:
@@ -234,8 +243,10 @@ def route(text: str, chat: Callable[[str], str] | None = None, images: int = 0) 
         agreement = "cues_add"
     else:
         agreement = "both_differ"
-    if not kinds and text.strip():
-        kinds = {CLINICAL_NOTE}  # unknown text is read as narrative, never dropped
+    if text.strip() and not any(INTERPRETERS_OF_KIND[k] for k in kinds):
+        # a text no interpreter would read (no kind, or "other": 9 November 2026, an EEG impression a model called
+        # other) is read as narrative, never dropped
+        kinds.add(CLINICAL_NOTE)
         notes.append("no_kind_recognised_read_as_narrative")
     interpreters = {i for k in kinds for i in INTERPRETERS_OF_KIND[k]}
     if images:
@@ -244,7 +255,7 @@ def route(text: str, chat: Callable[[str], str] | None = None, images: int = 0) 
         notes.append(ELECTROPHORESIS_NOTE)
         if images:
             notes.append(f"electrophoresis_trace_images:{images}")
-    needs_review = agreement in ("both_differ", "cues_add") or (chat is not None and model_kinds is None)
+    needs_review = agreement in ("both_differ", "cues_add") or (bool(chats) and model_kinds is None)
     return RoutingDecision(
         kinds=tuple(sorted(kinds)), interpreters=tuple(i for i in INTERPRETERS if i in interpreters),
         model_kinds=None if model_kinds is None else tuple(sorted(model_kinds)), cue_kinds=tuple(sorted(cue_kinds)),
@@ -255,25 +266,34 @@ def route(text: str, chat: Callable[[str], str] | None = None, images: int = 0) 
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 
 
-def router_chat_from_env(environ: dict[str, str] | None = None) -> Callable[[str], str] | None:
+def router_chat_from_env(environ: dict[str, str] | None = None) -> Callable[[str], str] | list | None:
     """The local model the router asks, from the environment (8 November 2026), or None (the cues alone).
 
-    ``MELAMPO_REPORT_ROUTER=model`` turns it on; it stays off until the router probe has passed its criteria
-    (scripts/router_probe.py, VALIDATION). The server is the reader's (``MELAMPO_LOCAL_CHAT_ENDPOINT``), the model
-    ``MELAMPO_ROUTER_MODEL`` or the first of ``MELAMPO_LOCAL_CHAT_MODELS``. A host that is not this machine stops
-    the start: a patient's report is never sent away (GDPR)."""
+    On since 9 November 2026, when the reader's local server is configured: the router probe passed its criteria
+    (270 public texts labelled first: an interpreter missed in 1.1% of the texts with Gemma 4, 0.4% with Nemotron 3
+    Ultra, against 20.4% with the cues alone; no unusable answer). ``MELAMPO_REPORT_ROUTER=cues`` turns it off,
+    ``=model`` asks for it and stops the start when the server is not given. The server is the reader's
+    (``MELAMPO_LOCAL_CHAT_ENDPOINT``), the model ``MELAMPO_ROUTER_MODEL`` or the first of
+    ``MELAMPO_LOCAL_CHAT_MODELS``. A host that is not this machine stops the start: a patient's report is never
+    sent away (GDPR). Without ``MELAMPO_ROUTER_MODEL`` every local model is asked and their kinds are joined (9
+    November 2026: together they miss less than either alone)."""
     import os
 
     env = os.environ if environ is None else environ
-    if env.get("MELAMPO_REPORT_ROUTER", "cues").strip().lower() != "model":
+    asked = env.get("MELAMPO_REPORT_ROUTER", "").strip().lower()
+    if asked == "cues":
         return None
     endpoint = env.get("MELAMPO_LOCAL_CHAT_ENDPOINT", "").strip()
     models = [m.strip() for m in env.get("MELAMPO_LOCAL_CHAT_MODELS", "").split(",") if m.strip()]
-    model = env.get("MELAMPO_ROUTER_MODEL", "").strip() or (models[0] if models else "")
-    if not endpoint or not model:
+    model = env.get("MELAMPO_ROUTER_MODEL", "").strip()
+    chosen = [model] if model else models
+    if asked != "model" and (not endpoint or not chosen):
+        return None                     # no local server: the cues alone, as before
+    if not endpoint or not chosen:
         raise ValueError("MELAMPO_REPORT_ROUTER=model needs MELAMPO_LOCAL_CHAT_ENDPOINT and a model "
                          "(MELAMPO_ROUTER_MODEL or MELAMPO_LOCAL_CHAT_MODELS)")
-    return local_chat(endpoint, model)
+    chats = [local_chat(endpoint, m) for m in chosen]
+    return chats[0] if len(chats) == 1 else chats
 
 
 def local_chat(endpoint: str, model: str, timeout: float = 60.0) -> Callable[[str], str]:
