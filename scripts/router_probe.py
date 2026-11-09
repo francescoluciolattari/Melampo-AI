@@ -20,7 +20,7 @@ mtsamples.com and published as CC0 on Kaggle, mirrored on Hugging Face as ``argi
         --seed 20261108 --out router_items.jsonl
     python scripts/router_probe.py run --items router_items.jsonl --labels data/gold/router/labels.txt \\
         --models google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b \\
-        --endpoint https://openrouter.ai/api/v1 --public-data --out router_probe.json
+        --endpoint https://openrouter.ai/api/v1/chat/completions --public-data --out router_probe.json
 
 Criteria, fixed before the labels (VALIDATION): with the model, at most 2% of the texts with an interpreter
 missed (and the 95% upper bound reported); at most 2% of the model's answers unusable; the router with the model
@@ -195,7 +195,7 @@ def main(argv: list[str]) -> int:
     r.add_argument("--items", required=True)
     r.add_argument("--labels", default=str(LABELS))
     r.add_argument("--models", default="")
-    r.add_argument("--endpoint", default="http://localhost:8000/v1")
+    r.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     r.add_argument("--public-data", action="store_true",
                    help="the texts are public (MTSamples, PARROT): they may go to an external service")
     r.add_argument("--cache", default="router_probe_answers.jsonl")
