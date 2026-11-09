@@ -57,7 +57,7 @@ def test_the_reader_reads_a_landmark_in_its_second_stage_only(reader):
     # the readings of the first stage are never moved by the relation
     s = "Ultrasound: liver biopsy near the hilum"
     assert reader.read("liver", s, s.index("liver")).decision == "procedure_site"
-    from melampo.memory.ci_reader import CIReading, LANDMARK
+    from melampo.memory.ci_reader import LANDMARK, CIReading
 
     assert CIReading(LANDMARK, LANDMARK, 1.0, {LANDMARK: 1.0}, 1).p_not_structure == 0.0   # still a body site
 
@@ -180,19 +180,31 @@ def test_the_gold_set_takes_the_landmark_and_several_roles():
     assert len(problems) == 1 and problems[0].startswith("3:")
 
 
-def test_only_the_senses_of_a_person_s_body_are_recalled():
+def test_the_senses_recalled_are_those_of_a_person_and_of_the_context():
     # 7 November 2026: "corpus" was read as the septomaxilla of amphibians (UBERON:3000645) and "aortic arch" as
-    # the embryonic pharyngeal arch arteries ("aortic arch 1" with its digit dropped)
+    # the embryonic pharyngeal arch arteries ("aortic arch 1" with its digit dropped). 9 November 2026: the embryo
+    # is not excluded beforehand; where a name has a sense of the body formed and one of the embryo, the context
+    # chooses
     from melampo.memory import hpo_candidates as hc
-    from melampo.memory.finding_owner import EMBRYONIC, Anatomy
+    from melampo.memory.finding_owner import (
+        _DEVELOPING,
+        EMBRYONIC,
+        Anatomy,
+        report_context,
+    )
 
     obo = f"""[Term]
 id: {EMBRYONIC}
 name: embryonic structure
 
 [Term]
-id: UBERON:0003118
-name: pharyngeal arch artery 1
+id: UBERON:0004363
+name: pharyngeal arch artery
+is_a: {EMBRYONIC} ! embryonic structure
+
+[Term]
+id: UBERON:0000088
+name: trophoblast
 is_a: {EMBRYONIC} ! embryonic structure
 
 [Term]
@@ -201,10 +213,20 @@ name: arch of aorta
 subset: organ_slim
 """
     uberon = hc.Anatomy.from_obo(obo.splitlines())
-    anatomy = Anatomy(uberon, uberon_names={"UBERON:0003118": ["aortic arch 1", "first arch artery"],
-                                            "UBERON:3000645": ["corpus"],
-                                            "UBERON:0001508": ["arch of aorta"]})
-    assert not anatomy.find("the first arch artery")
-    assert not anatomy.find("the corpus of the stomach", short=True) or all(
-        "UBERON:3000645" not in ids for _, ids in anatomy.find("the corpus of the stomach", short=True))
-    assert any("UBERON:0001508" in ids for _, ids in anatomy.find("the arch of aorta is calcified"))
+    anatomy = Anatomy(uberon, uberon_names={"UBERON:0004363": ["pharyngeal arch artery", "aortic arch",
+                                                               "aortic arch 1"],
+                                            "UBERON:3000645": ["corpus"], "UBERON:0000088": ["trophoblast"],
+                                            "UBERON:0001508": ["arch of aorta", "aortic arch"]})
+    ids = lambda text, **k: set().union(*[i for _, i in anatomy.find(text, **k)] or [set()])
+    assert "UBERON:3000645" not in ids("the corpus of the stomach", short=True)    # another species: never
+    assert ids("the aortic arch is calcified") == {"UBERON:0001508"}               # the body formed
+    assert ids("the aortic arch", developing=True) == {"UBERON:0001508", "UBERON:0004363"}
+    assert ids("the trophoblast is thickened") == {"UBERON:0000088"}               # one sense: kept
+    token = _DEVELOPING.set(True)
+    try:
+        assert "UBERON:0004363" in ids("the aortic arch")                           # the report being read
+    finally:
+        _DEVELOPING.reset(token)
+    assert report_context("Obstetric ultrasound, 22 weeks of gestation. The aortic arch is normal.", 40)[
+        "development"] == "yes"
+    assert report_context("CT of the chest. The aortic arch is calcified.", 20)["development"] == ""

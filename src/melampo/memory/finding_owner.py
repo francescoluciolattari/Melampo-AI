@@ -31,6 +31,7 @@ finding.** Patients' reports are read only by local models (``report_router.loca
 
 from __future__ import annotations
 
+import contextvars
 import json
 import re
 from collections.abc import Callable
@@ -62,6 +63,15 @@ _KIND_OF_ORGAN = re.compile(r"\b(element|organ|viscus|genitalia)\b|^(exocrine|en
                             r"|^skeletal joint$|^skin of body$")
 _WORD = re.compile(r"[A-Za-zÀ-ÿ']+")
 EMBRYONIC = "UBERON:0002050"          # embryonic structure
+# A report about development (9 November 2026): an obstetric or fetal exam, a pregnancy, a gestational age. Only
+# then does a name with a sense of the body formed and one of the embryo ("aortic arch": the arch of the aorta, or
+# the pharyngeal arch artery of the embryo) recall the embryo's too. Words of the exam, not of a finding
+_DEVELOPMENT = re.compile(
+    r"\b(obstetric\w*|ostetric\w*|fetal|fetus|foetal|foetus|fetale|fetali|feto|embryo\w*|embrion\w*|"
+    r"pregnan\w*|gravidanz\w*|gestation\w*|gestazion\w*|crown[- ]rump|CRL|"
+    r"\d+\s*(?:\+\s*\d+\s*)?(?:weeks?|settimane|wk)\s*(?:of\s+gestation|di\s+gestazione|gestational)|"
+    r"(?:settimana|week)\s+\d+\s*(?:di\s+gestazione|of\s+gestation))\b", re.IGNORECASE)
+_DEVELOPING: contextvars.ContextVar[bool] = contextvars.ContextVar("melampo_developing", default=False)
 # the words that point back to something said before: closed-class words of the two languages
 _POINTER = re.compile(r"\b(its|it|they|them|their|this|these|those|the same|same|sua|suo|sue|suoi|esso|essa|"
                       r"essi|esse|stesso|stessa|stessi|stesse|questo|questa|tale|tali)\b", re.IGNORECASE)
@@ -129,23 +139,36 @@ class Anatomy:
         # UBERON's labels and exact synonyms, not its relational adjectives ("cortical", "dorsal" name no
         # structure in a clause). Only the senses a report of a person can mean (7 November 2026): a reader that
         # takes any sense of a name read "gallbladder corpus" as the corpus of an amphibian's septomaxilla
-        # (UBERON:3000645) and "aortic arch" as the arches of the embryo ("aortic arch 1" … with the number
-        # dropped), so the arch was not part of the aorta. A term of another taxon (UBERON's identifiers from
-        # 2000000 and 3000000 come from the fish and amphibian ontologies), an embryonic structure, and a name
-        # whose number the words would drop are not read
+        # (UBERON:3000645). A term of another taxon (UBERON's identifiers from 2000000 and 3000000 come from the
+        # fish and amphibian ontologies) and a name whose number the words would drop ("aortic arch 1") are not
+        # read. The structures of the embryo are read (9 November 2026: excluding them all was a boundary fixed
+        # beforehand, and it took away "trophoblast", and adult structures UBERON files under the embryo); where a
+        # name has a sense of the body formed and one of the embryo, the context chooses (``find``)
+        self.developing: set[str] = set()
         for uid, names in (uberon_names or {}).items():
             if not self._of_a_person(uid):
                 continue
+            if self.uberon is not None and EMBRYONIC in self._closure(uid, False):
+                self.developing.add(uid)
             for name in names:
                 if not re.search(r"\d", name):
                     self._add(name, {uid})
         self.organs = {o for o in getattr(uberon, "organs", set())
                        if not _KIND_OF_ORGAN.search(uberon.labels.get(o, ""))} if uberon is not None else set()
 
-    def _of_a_person(self, uid: str) -> bool:
-        if re.match(r"UBERON:[23]\d{6}$", uid):
-            return False
-        return self.uberon is None or EMBRYONIC not in self._closure(uid, False)
+    @staticmethod
+    def _of_a_person(uid: str) -> bool:
+        return not re.match(r"UBERON:[23]\d{6}$", uid)
+
+    def _in_context(self, ids: set[str], developing: bool | None) -> set[str]:
+        """The senses of a name the context recalls: a name with a sense of the body formed and one of the embryo
+        recalls the embryo's only in a report about development; a name with one sense keeps it."""
+        if developing is None:
+            developing = _DEVELOPING.get()
+        embryo = ids & self.developing
+        if developing or not embryo or embryo == ids:
+            return ids
+        return ids - embryo
 
     @classmethod
     def from_uberon(cls, path: Path) -> Anatomy:
@@ -172,9 +195,10 @@ class Anatomy:
             return
         self.names.setdefault(key, set()).update(ids)
 
-    def find(self, text: str, short: bool = False) -> list[tuple[str, set[str]]]:
+    def find(self, text: str, short: bool = False, developing: bool | None = None) -> list[tuple[str, set[str]]]:
         """Every body structure named in ``text``, longest names first, in order (``short``: also the short
-        single names, for a name a model gives)."""
+        single names, for a name a model gives), with the senses the context recalls (``developing``: a report
+        about development; by default the one being read)."""
         words = [_singular(w) for w in _WORD.findall(text.lower())]
         out, i = [], 0
         while i < len(words):
@@ -182,7 +206,7 @@ class Anatomy:
                 ids = self.names.get(tuple(words[i:i + n])) or (
                     self.short.get(tuple(words[i:i + n])) if short and n == 1 else None)
                 if ids:
-                    out.append((" ".join(words[i:i + n]), ids))
+                    out.append((" ".join(words[i:i + n]), self._in_context(ids, developing)))
                     i += n
                     break
             else:
@@ -365,8 +389,9 @@ def report_context(report: str, clause_start: int) -> dict[str, str]:
     conclusion = impression_of(report) if kind != IMPRESSION else ""
     before = [x for x in re.split(r"(?<=[.!?;\n])\s+", report[max(0, clause_start - 400):clause_start]) if x.strip()]
     previous = " ".join(before[-1].split())[:300] if before else ""
+    development = "yes" if _DEVELOPMENT.search(" ".join([exam, report[:3000]])) else ""
     return {"exam": exam, "section": section, "areas": ",".join(sorted(areas.of(report))),
-            "section_kind": kind, "conclusion": conclusion, "previous": previous}
+            "section_kind": kind, "conclusion": conclusion, "previous": previous, "development": development}
 
 
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
@@ -1033,6 +1058,13 @@ class FindingOwner:
     def __call__(self, mention: str, clause: str, at: int, language: str = "en", cid: str = "",
                  context: dict | None = None) -> Ownership:
         context = context or {}
+        token = _DEVELOPING.set(bool(context.get("development")))
+        try:
+            return self._call(mention, clause, at, language, cid, context)
+        finally:
+            _DEVELOPING.reset(token)
+
+    def _call(self, mention: str, clause: str, at: int, language: str, cid: str, context: dict) -> Ownership:
         if self.question == "statement" and self.chats:
             return self._by_statement(mention, clause, at, language, cid, context)
         if self.question == "claims" and self.chats:
