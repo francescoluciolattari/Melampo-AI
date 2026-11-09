@@ -65,8 +65,9 @@ from melampo.training.confirmed_case_store import (
 )
 from melampo.training.nexus_scheduler import NexusScheduler
 from melampo.training.pending_case_router import (
+    DEFAULT_NOTICE_SECONDS,
     DEFAULT_RETENTION_SECONDS,
-    sweep_expired_pending_cases,
+    sweep_pending_cases,
 )
 from melampo.training.training_extraction import extract_and_purge
 
@@ -77,7 +78,11 @@ def main() -> int:
     parser.add_argument("--active-requests", type=int, default=0, help="reported active request count (default: 0)")
     parser.add_argument(
         "--retention-seconds", type=float, default=DEFAULT_RETENTION_SECONDS,
-        help="expire pending cases older than this with no confirmation (default: one year)",
+        help="expire pending cases that received no document for this long (default: one year)",
+    )
+    parser.add_argument(
+        "--notice-seconds", type=float, default=DEFAULT_NOTICE_SECONDS,
+        help="a case still awaiting a result is flagged first and deleted only after this notice (default: 30 days)",
     )
     args = parser.parse_args()
 
@@ -100,7 +105,9 @@ def main() -> int:
 
     activity = {"active_requests": args.active_requests, "idle_seconds": args.idle_seconds}
     run_result = scheduler.run_once(activity=activity)
-    expired_ids = sweep_expired_pending_cases(candidate_store, retention_seconds=args.retention_seconds)
+    sweep = sweep_pending_cases(candidate_store, retention_seconds=args.retention_seconds,
+                                notice_seconds=args.notice_seconds)
+    expired_ids = sweep.deleted
     # extract_and_purge only deletes a confirmed case once DPO extraction
     # has genuinely produced a pair from it -- see training_extraction.py's
     # own docstring for why a case with nothing usable stays retained
@@ -111,6 +118,9 @@ def main() -> int:
         "run_once": run_result,
         "expired_candidate_ids": expired_ids,
         "expired_count": len(expired_ids),
+        # cases that would have expired while still awaiting a result: for whoever entered them, never deleted
+        # in silence (9 November 2026)
+        "flagged_awaiting_results": sweep.flagged,
         "training_extraction": extraction_result.as_dict(),
     }
     print(json.dumps(report, indent=2, default=str))

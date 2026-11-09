@@ -36,8 +36,20 @@ PENDING_STATUSES = ("candidate", "needs_review")
 
 # A case with no confirmation for this long is closed unconfirmed, not
 # left open indefinitely -- a decision made directly, not defaulted into
-# (see recursive_engine_decision_record.md).
+# (see recursive_engine_decision_record.md). Since 9 November 2026 the year
+# runs from the LAST document the case received, not from its creation.
 DEFAULT_RETENTION_SECONDS = 365 * 24 * 60 * 60
+
+# A case that would expire while a result it awaits (a culture, a histology) is still open is not deleted in
+# silence (9 November 2026): it is flagged to whoever entered it, and deleted only if nothing arrives within this
+# notice -- a result awaited and never followed up is the loss the literature documents (Callen et al. 2012). The
+# length of the notice is a proposal, to be confirmed.
+DEFAULT_NOTICE_SECONDS = 30 * 24 * 60 * 60
+
+# the statuses of an awaited result that is still open (``case_context.awaited_results``: what, expected_by,
+# status); the tracking of the references between documents fills them
+AWAITED_OPEN = ("awaited", "pending", "overdue")
+FLAGGED_EVENT = "flagged_before_expiry"
 
 
 @dataclass(frozen=True)
@@ -167,26 +179,77 @@ def route_payload(
     )
 
 
-def sweep_expired_pending_cases(
+def open_awaited_results(record: NexusCandidateRecord) -> list[dict[str, Any]]:
+    """The results the case still awaits (``case_context.awaited_results`` with an open status)."""
+    items = ((record.payload or {}).get("case_context") or {}).get("awaited_results") or []
+    return [dict(i) for i in items if isinstance(i, dict) and str(i.get("status", "awaited")) in AWAITED_OPEN]
+
+
+@dataclass(frozen=True)
+class SweepResult:
+    """What a sweep did: the records deleted, and the cases flagged instead because they still await a result."""
+
+    deleted: list[str]
+    flagged: list[dict[str, Any]]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"deleted": list(self.deleted), "flagged": [dict(f) for f in self.flagged]}
+
+
+def sweep_pending_cases(
     store: NexusCandidateStore,
     *,
     retention_seconds: float = DEFAULT_RETENTION_SECONDS,
+    notice_seconds: float = DEFAULT_NOTICE_SECONDS,
     now: float | None = None,
-) -> list[str]:
-    """Delete every pending case older than the retention window with no confirmation -- returns the deleted candidate_ids.
+) -> SweepResult:
+    """Close the pending cases that received nothing for ``retention_seconds`` (9 November 2026).
 
-    Only pending (candidate/needs_review) records are touched -- a case
-    already promoted or rejected has already had its raw data handled by
-    the confirm-and-train path and is not this function's concern.
+    A case is all the pending records with its case_id (a merge enqueues a new record); its time is that of its
+    newest record, i.e. of the last document it received, and its records are deleted together. A case that still
+    awaits a result is flagged first (an event in its audit trail, and in the result for whoever entered it) and
+    deleted only if ``notice_seconds`` pass after the flag with nothing new; a document arriving meanwhile makes the
+    case young again. Only pending (candidate/needs_review) records are touched -- a case already promoted or
+    rejected has had its raw data handled by the confirm-and-train path.
     """
     import time as _time
 
     now = _time.time() if now is None else now
-    expired = [
-        record.candidate_id
-        for record in store.list_by_status(statuses=PENDING_STATUSES)
-        if (now - record.created_at) >= retention_seconds
-    ]
-    for candidate_id in expired:
-        store.delete(candidate_id)
-    return expired
+    cases: dict[str, list[NexusCandidateRecord]] = {}
+    for record in store.list_by_status(statuses=PENDING_STATUSES):
+        cases.setdefault(record.case_id, []).append(record)
+    deleted: list[str] = []
+    flagged: list[dict[str, Any]] = []
+    for case_id, records in cases.items():
+        newest = max(records, key=lambda r: r.created_at)
+        if now - newest.created_at < retention_seconds:
+            continue
+        awaited = open_awaited_results(newest)
+        if awaited:
+            flags = [e.get("timestamp", 0.0) for e in newest.audit if e.get("event") == FLAGGED_EVENT]
+            flagged_at = max(flags) if flags else None
+            if flagged_at is None:
+                flagged_at = now
+                store.record_event(newest.candidate_id, FLAGGED_EVENT, timestamp=now,
+                                   awaited=[str(a.get("what", "")) for a in awaited])
+            if now - flagged_at < notice_seconds:
+                flagged.append({"case_id": case_id, "candidate_id": newest.candidate_id,
+                                "last_document_at": newest.created_at, "flagged_at": flagged_at,
+                                "deleted_after": flagged_at + notice_seconds, "awaited": awaited})
+                continue
+        for record in records:
+            store.delete(record.candidate_id)
+            deleted.append(record.candidate_id)
+    return SweepResult(deleted=deleted, flagged=flagged)
+
+
+def sweep_expired_pending_cases(
+    store: NexusCandidateStore,
+    *,
+    retention_seconds: float = DEFAULT_RETENTION_SECONDS,
+    notice_seconds: float = DEFAULT_NOTICE_SECONDS,
+    now: float | None = None,
+) -> list[str]:
+    """The candidate_ids :func:`sweep_pending_cases` deleted (the cases it flagged are in its own result)."""
+    return sweep_pending_cases(store, retention_seconds=retention_seconds, notice_seconds=notice_seconds,
+                               now=now).deleted
