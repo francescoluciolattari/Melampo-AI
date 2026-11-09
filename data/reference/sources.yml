@@ -11,7 +11,7 @@
 # The terms of each publisher change: what is written here was read on the date in last_checked, and the
 # publisher's own page decides. Reading a source lawfully does not by itself allow copying it: only facts with
 # their citation go into the repository, never paragraphs of closed sources.
-version: '2026-11-08'
+version: '2026-11-09'
 sources:
 - id: europe-pmc
   kind: database
@@ -21,7 +21,12 @@ sources:
   access: open
   licence: each article its own; the open-access subset reusable under its licence
   status: in_use
-  fields: [clinical, reference_values, radiology, pathology, physiology]
+  fields:
+  - clinical
+  - reference_values
+  - radiology
+  - pathology
+  - physiology
   how_to_reach: REST API without a key (10 requests per second); the weekly search uses it
   note: indexes PubMed with the full text of PMC and preprints
   added: '2026-11-08'
@@ -34,7 +39,12 @@ sources:
   access: open
   licence: citations and abstracts; the articles have their publishers' terms
   status: in_use
-  fields: [clinical, reference_values, radiology, pathology, physiology]
+  fields:
+  - clinical
+  - reference_values
+  - radiology
+  - pathology
+  - physiology
   how_to_reach: open; an NCBI account gives an E-utilities API key (10 instead of 3 requests per second)
   added: '2026-11-08'
   added_by: claude
@@ -46,7 +56,10 @@ sources:
   access: open
   licence: CC BY, CC BY-NC and others, article by article
   status: in_use
-  fields: [clinical, reference_values, radiology]
+  fields:
+  - clinical
+  - reference_values
+  - radiology
   added: '2026-11-08'
   added_by: claude
 - id: ncbi-bookshelf
@@ -57,7 +70,11 @@ sources:
   access: open
   licence: book by book; StatPearls CC BY-NC-ND 4.0
   status: available
-  fields: [anatomy, physiology, pathology, clinical]
+  fields:
+  - anatomy
+  - physiology
+  - pathology
+  - clinical
   how_to_reach: open to read; text mining only where the book's licence allows
   added: '2026-11-08'
   added_by: claude
@@ -69,7 +86,9 @@ sources:
   access: open
   licence: CC BY 4.0
   status: available
-  fields: [anatomy, physiology]
+  fields:
+  - anatomy
+  - physiology
   note: a complete textbook under an open licence
   added: '2026-11-08'
   added_by: claude
@@ -81,7 +100,8 @@ sources:
   access: public_domain
   licence: public domain
   status: available
-  fields: [anatomy]
+  fields:
+  - anatomy
   note: classical descriptive anatomy; measures and imaging of today come from recent sources
   added: '2026-11-08'
   added_by: claude
@@ -93,7 +113,11 @@ sources:
   access: open
   licence: 'CC BY-NC-SA 3.0 (modified): research only, not a commercial product'
   status: in_use
-  fields: [radiology, reference_values, anatomy, pathology]
+  fields:
+  - radiology
+  - reference_values
+  - anatomy
+  - pathology
   note: edited like a wiki; where a guideline gives the value, the guideline replaces it
   added: '2026-11-08'
   added_by: claude
@@ -105,7 +129,10 @@ sources:
   access: open
   licence: free to read; all rights reserved (the values with their citation only)
   status: in_use
-  fields: [cardiology, reference_values, radiology]
+  fields:
+  - cardiology
+  - reference_values
+  - radiology
   identifier: doi:10.1093/ehjci/jev014
   added: '2026-11-08'
   added_by: claude
@@ -117,7 +144,10 @@ sources:
   access: free_registration
   licence: free to read; reuse with the ESC's permission
   status: available
-  fields: [cardiology, guidelines, reference_values]
+  fields:
+  - cardiology
+  - guidelines
+  - reference_values
   how_to_reach: free account on escardio.org for the full texts and pocket guidelines
   added: '2026-11-08'
   added_by: claude
@@ -129,7 +159,9 @@ sources:
   access: open
   licence: free to read under the ACR's terms of use
   status: available
-  fields: [radiology, guidelines]
+  fields:
+  - radiology
+  - guidelines
   added: '2026-11-08'
   added_by: claude
 - id: snlg-iss
@@ -140,7 +172,9 @@ sources:
   access: open
   licence: free to read
   status: available
-  fields: [guidelines, clinical]
+  fields:
+  - guidelines
+  - clinical
   note: the Italian guidelines of the national system
   added: '2026-11-08'
   added_by: claude
@@ -152,7 +186,9 @@ sources:
   access: free_registration
   licence: to verify on the site
   status: to_register
-  fields: [radiology, guidelines]
+  fields:
+  - radiology
+  - guidelines
   how_to_reach: some documents are public, others for members; membership through sirm.org (to verify)
   added: '2026-11-08'
   added_by: claude
@@ -164,7 +200,9 @@ sources:
   access: free_registration
   licence: RadLex licence (free, with attribution)
   status: in_use
-  fields: [terminology, radiology]
+  fields:
+  - terminology
+  - radiology
   how_to_reach: download after accepting the licence on BioPortal or the RSNA site
   added: '2026-11-08'
   added_by: claude
@@ -176,7 +214,10 @@ sources:
   access: open
   licence: CC BY 3.0 / 4.0 (HPO with its own terms)
   status: in_use
-  fields: [terminology, anatomy, pathology]
+  fields:
+  - terminology
+  - anatomy
+  - pathology
   added: '2026-11-08'
   added_by: claude
 - id: insights-into-imaging
@@ -187,7 +228,9 @@ sources:
   access: open
   licence: CC BY 4.0
   status: available
-  fields: [radiology, guidelines]
+  fields:
+  - radiology
+  - guidelines
   note: the ESR's open journal, with its statements and guidelines
   added: '2026-11-08'
   added_by: claude
@@ -199,8 +242,11 @@ sources:
   access: subscription
   licence: research articles of The BMJ open; others by subscription; BMJ Open fully open (CC BY / CC BY-NC)
   status: to_register
-  fields: [clinical, guidelines]
-  how_to_reach: personal or institutional subscription on bmj.com; the open articles are reached through Europe PMC
+  fields:
+  - clinical
+  - guidelines
+  how_to_reach: personal or institutional subscription on bmj.com; the open articles are reached through Europe
+    PMC
   added: '2026-11-08'
   added_by: claude
 - id: elsevier-sciencedirect
@@ -211,10 +257,15 @@ sources:
   access: subscription
   licence: subscription; the open-access articles under their licence
   status: to_register
-  fields: [clinical, radiology, pathology, anatomy, physiology]
-  how_to_reach: 'institutional access through a university or hospital library, or a personal purchase per article
-    or book; for text and data mining, a free key at dev.elsevier.com, which gives full text only for what the
-    institution subscribes'
+  fields:
+  - clinical
+  - radiology
+  - pathology
+  - anatomy
+  - physiology
+  how_to_reach: institutional access through a university or hospital library, or a personal purchase per article
+    or book; for text and data mining, a free key at dev.elsevier.com, which gives full text only for what the institution
+    subscribes
   added: '2026-11-08'
   added_by: claude
 - id: clinicalkey
@@ -225,7 +276,12 @@ sources:
   access: subscription
   licence: subscription, personal use; copying and mining under its terms only
   status: to_register
-  fields: [anatomy, physiology, pathology, radiology, clinical]
+  fields:
+  - anatomy
+  - physiology
+  - pathology
+  - radiology
+  - clinical
   how_to_reach: individual subscription on clinicalkey.com or institutional access; it contains Gray's Anatomy,
     Robbins, Guyton and Hall, Netter, Grainger and Allison
   added: '2026-11-08'
@@ -238,7 +294,9 @@ sources:
   access: subscription
   licence: subscription or RSNA membership; some articles open
   status: to_register
-  fields: [radiology, reference_values]
+  fields:
+  - radiology
+  - reference_values
   how_to_reach: RSNA membership (international members included) or institutional access
   added: '2026-11-08'
   added_by: claude
@@ -250,7 +308,9 @@ sources:
   access: subscription
   licence: subscription; open-access articles under CC BY
   status: to_register
-  fields: [radiology, reference_values]
+  fields:
+  - radiology
+  - reference_values
   how_to_reach: ESR membership or institutional access; open articles through Europe PMC
   added: '2026-11-08'
   added_by: claude
@@ -262,7 +322,8 @@ sources:
   access: subscription
   licence: subscription; some articles free
   status: to_register
-  fields: [clinical]
+  fields:
+  - clinical
   how_to_reach: personal or institutional subscription
   added: '2026-11-08'
   added_by: claude
@@ -274,7 +335,9 @@ sources:
   access: subscription
   licence: subscription
   status: to_register
-  fields: [pathology, oncology]
+  fields:
+  - pathology
+  - oncology
   how_to_reach: online subscription on tumourclassification.iarc.who.int, personal or institutional
   added: '2026-11-08'
   added_by: claude
@@ -286,7 +349,8 @@ sources:
   access: purchase
   licence: all rights reserved
   status: to_register
-  fields: [pathology]
+  fields:
+  - pathology
   how_to_reach: purchase (print or e-book) or ClinicalKey; for research use, the facts with their citation only
   added: '2026-11-08'
   added_by: claude
@@ -298,7 +362,8 @@ sources:
   access: purchase
   licence: all rights reserved
   status: to_register
-  fields: [physiology]
+  fields:
+  - physiology
   how_to_reach: purchase or ClinicalKey; the facts with their citation only
   added: '2026-11-08'
   added_by: claude
@@ -310,7 +375,8 @@ sources:
   access: purchase
   licence: all rights reserved
   status: to_register
-  fields: [anatomy]
+  fields:
+  - anatomy
   how_to_reach: purchase or ClinicalKey; the facts with their citation only
   added: '2026-11-08'
   added_by: claude
@@ -322,7 +388,9 @@ sources:
   access: subscription
   licence: all rights reserved
   status: to_register
-  fields: [clinical, laboratory]
+  fields:
+  - clinical
+  - laboratory
   how_to_reach: AccessMedicine subscription (personal or institutional) or purchase of the book
   added: '2026-11-08'
   added_by: claude
@@ -334,7 +402,9 @@ sources:
   access: purchase
   licence: all rights reserved
   status: to_register
-  fields: [radiology, reference_values]
+  fields:
+  - radiology
+  - reference_values
   how_to_reach: purchase or ClinicalKey
   added: '2026-11-08'
   added_by: claude
@@ -346,7 +416,9 @@ sources:
   access: purchase
   licence: all rights reserved
   status: to_register
-  fields: [radiology, reference_values]
+  fields:
+  - radiology
+  - reference_values
   how_to_reach: purchase or ClinicalKey
   added: '2026-11-08'
   added_by: claude
@@ -358,11 +430,867 @@ sources:
   access: institutional
   licence: the terms of each licence the library holds
   status: to_register
-  fields: [clinical, anatomy, physiology, pathology, radiology]
-  how_to_reach: 'an independent researcher reaches the closed sources through an affiliation: a research
-    collaboration or visiting status with a university or an IRCCS gives the library''s licences (ScienceDirect,
-    ClinicalKey, Springer, Wiley, BMJ, NEJM); the right to mine texts for research (art. 70-ter of the Italian
-    copyright law) belongs to research organisations, the general one (art. 70-quater) only where the publisher
-    has not reserved it'
+  fields:
+  - clinical
+  - anatomy
+  - physiology
+  - pathology
+  - radiology
+  how_to_reach: 'an independent researcher reaches the closed sources through an affiliation: a research collaboration
+    or visiting status with a university or an IRCCS gives the library''s licences (ScienceDirect, ClinicalKey,
+    Springer, Wiley, BMJ, NEJM); the right to mine texts for research (art. 70-ter of the Italian copyright law)
+    belongs to research organisations, the general one (art. 70-quater) only where the publisher has not reserved
+    it'
   added: '2026-11-08'
   added_by: claude
+- id: doc-pmc4530010
+  kind: document
+  title: Integrative analysis of 111 reference human epigenomes.
+  publisher: Nature
+  url: https://europepmc.org/article/PMC/PMC4530010
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4530010
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "spleen" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6689741
+  kind: document
+  title: The Sleep-Immune Crosstalk in Health and Disease.
+  publisher: Physiol Rev
+  url: https://europepmc.org/article/PMC/PMC6689741
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6689741
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "spleen" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6436241
+  kind: document
+  title: 'The European guideline on management of major bleeding and coagulopathy following trauma: fifth edition.'
+  publisher: Crit Care
+  url: https://europepmc.org/article/PMC/PMC6436241
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6436241
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "spleen" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc1469672
+  kind: document
+  title: Male reproductive health and environmental xenoestrogens.
+  publisher: Environ Health Perspect
+  url: https://europepmc.org/article/PMC/PMC1469672
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC1469672
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "spleen" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4828865
+  kind: document
+  title: 'The European guideline on management of major bleeding and coagulopathy following trauma: fourth edition.'
+  publisher: Crit Care
+  url: https://europepmc.org/article/PMC/PMC4828865
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4828865
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "spleen" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3541470
+  kind: document
+  title: 'SPIRIT 2013 explanation and elaboration: guidance for protocols of clinical trials.'
+  publisher: BMJ
+  url: https://europepmc.org/article/PMC/PMC3541470
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3541470
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc522841
+  kind: document
+  title: 'Acute renal failure - definition, outcome measures, animal models, fluid therapy and information technology
+    needs: the Second International Consensus Conference of the Acute Dialysis Quality Initiative (ADQI) Group.'
+  publisher: Crit Care
+  url: https://europepmc.org/article/PMC/PMC522841
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC522841
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc8486643
+  kind: document
+  title: 'Surviving sepsis campaign: international guidelines for management of sepsis and septic shock 2021.'
+  publisher: Intensive Care Med
+  url: https://europepmc.org/article/PMC/PMC8486643
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC8486643
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7095153
+  kind: document
+  title: 'Surviving Sepsis Campaign: international guidelines for management of severe sepsis and septic shock,
+    2012.'
+  publisher: Intensive Care Med
+  url: https://europepmc.org/article/PMC/PMC7095153
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7095153
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3537269
+  kind: document
+  title: Standards of medical care in diabetes--2013.
+  publisher: Diabetes Care
+  url: https://europepmc.org/article/PMC/PMC3537269
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3537269
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc2886201
+  kind: document
+  title: 'Sarcopenia: European consensus on definition and diagnosis: Report of the European Working Group on Sarcopenia
+    in Older People.'
+  publisher: Age Ageing
+  url: https://europepmc.org/article/PMC/PMC2886201
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC2886201
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc11350039
+  kind: document
+  title: 'Revised criteria for diagnosis and staging of Alzheimer''s disease: Alzheimer''s Association Workgroup.'
+  publisher: Alzheimers Dement
+  url: https://europepmc.org/article/PMC/PMC11350039
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC11350039
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6872448
+  kind: document
+  title: British Society of Gastroenterology consensus guidelines on the management of inflammatory bowel disease
+    in adults.
+  publisher: Gut
+  url: https://europepmc.org/article/PMC/PMC6872448
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6872448
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4890267
+  kind: document
+  title: Sex and Gender Differences in Risk, Pathophysiology and Complications of Type 2 Diabetes Mellitus.
+  publisher: Endocr Rev
+  url: https://europepmc.org/article/PMC/PMC4890267
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4890267
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5633041
+  kind: document
+  title: 'Clinical recommendations for cardiovascular magnetic resonance mapping of T1, T2, T2* and extracellular
+    volume: A consensus statement by the Society for Cardiovascular Magnetic Resonance (SCMR) endorsed by the European
+    Association for Cardiovascular Imaging (EACVI).'
+  publisher: J Cardiovasc Magn Reson
+  url: https://europepmc.org/article/PMC/PMC5633041
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5633041
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "kidney" AND
+    thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7159286
+  kind: document
+  title: 'A familial cluster of pneumonia associated with the 2019 novel coronavirus indicating person-to-person
+    transmission: a study of a family cluster.'
+  publisher: Lancet
+  url: https://europepmc.org/article/PMC/PMC7159286
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7159286
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "liver" AND length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3259370
+  kind: document
+  title: The prevalence of circumportal pancreas as shown by multidetector-row computed tomography.
+  publisher: Insights Imaging
+  url: https://europepmc.org/article/PMC/PMC3259370
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3259370
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "portal vein
+    and splenic vein" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc9680545
+  kind: document
+  title: Quality Control for 4D Flow MR Imaging.
+  publisher: Magn Reson Med Sci
+  url: https://europepmc.org/article/PMC/PMC9680545
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC9680545
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "portal vein
+    and splenic vein" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4939173
+  kind: document
+  title: Relevance of 3D Cholangiography and Transient Elastography to Assess Cystic Fibrosis-Associated Liver Disease?
+  publisher: Can Respir J
+  url: https://europepmc.org/article/PMC/PMC4939173
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4939173
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "portal vein
+    and splenic vein" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6386773
+  kind: document
+  title: AngioJet-assisted transvenous-transhepatic mechanical thrombectomy in the portal vein.
+  publisher: Pol J Radiol
+  url: https://europepmc.org/article/PMC/PMC6386773
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6386773
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "portal vein
+    and splenic vein" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5391000
+  kind: document
+  title: UEG Week 2016 Poster Presentations
+  publisher: United European Gastroenterol J
+  url: https://europepmc.org/article/PMC/PMC5391000
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5391000
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "portal vein
+    and splenic vein" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4239778
+  kind: document
+  title: Consensus on circulatory shock and hemodynamic monitoring. Task force of the European Society of Intensive
+    Care Medicine.
+  publisher: Intensive Care Med
+  url: https://europepmc.org/article/PMC/PMC4239778
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4239778
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "aorta" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7038611
+  kind: document
+  title: 'Standardized cardiovascular magnetic resonance imaging (CMR) protocols: 2020 update.'
+  publisher: J Cardiovasc Magn Reson
+  url: https://europepmc.org/article/PMC/PMC7038611
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7038611
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "aorta" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3695769
+  kind: document
+  title: 'Standardized image interpretation and post processing in cardiovascular magnetic resonance: Society for
+    Cardiovascular Magnetic Resonance (SCMR) board of trustees task force on standardized post processing.'
+  publisher: J Cardiovasc Magn Reson
+  url: https://europepmc.org/article/PMC/PMC3695769
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3695769
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "aorta" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7066763
+  kind: document
+  title: 'Standardized image interpretation and post-processing in cardiovascular magnetic resonance - 2020 update
+    : Society for Cardiovascular Magnetic Resonance (SCMR): Board of Trustees Task Force on Standardized Post-Processing.'
+  publisher: J Cardiovasc Magn Reson
+  url: https://europepmc.org/article/PMC/PMC7066763
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7066763
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "aorta" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6500570
+  kind: document
+  title: 2018 Chinese Guidelines for Prevention and Treatment of Hypertension-A report of the Revision Committee
+    of Chinese Guidelines for Prevention and Treatment of Hypertension.
+  publisher: J Geriatr Cardiol
+  url: https://europepmc.org/article/PMC/PMC6500570
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6500570
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "aorta" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3019132
+  kind: document
+  title: 'Pretreatment serum albumin as a predictor of cancer survival: a systematic review of the epidemiological
+    literature.'
+  publisher: Nutr J
+  url: https://europepmc.org/article/PMC/PMC3019132
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3019132
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "gallbladder"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4943498
+  kind: document
+  title: 'Proceedings of the 3rd IPLeiria''s International Health Congress : Leiria, Portugal. 6-7 May 2016.'
+  publisher: BMC Health Serv Res
+  url: https://europepmc.org/article/PMC/PMC4943498
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4943498
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "gallbladder"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3965714
+  kind: document
+  title: 'Pasireotide versus octreotide in acromegaly: a head-to-head superiority study.'
+  publisher: J Clin Endocrinol Metab
+  url: https://europepmc.org/article/PMC/PMC3965714
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3965714
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "gallbladder"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc11150976
+  kind: document
+  title: Japan Atherosclerosis Society (JAS) Guidelines for Prevention of Atherosclerotic Cardiovascular Diseases
+    2022.
+  publisher: J Atheroscler Thromb
+  url: https://europepmc.org/article/PMC/PMC11150976
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC11150976
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "gallbladder"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc2872299
+  kind: document
+  title: 'Prevention of overweight and obesity: how effective is the current public health approach.'
+  publisher: Int J Environ Res Public Health
+  url: https://europepmc.org/article/PMC/PMC2872299
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC2872299
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "gallbladder"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5809573
+  kind: document
+  title: Japanese Society for Cancer of the Colon and Rectum (JSCCR) guidelines 2016 for the treatment of colorectal
+    cancer.
+  publisher: Int J Clin Oncol
+  url: https://europepmc.org/article/PMC/PMC5809573
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5809573
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "small bowel"
+    AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4653248
+  kind: document
+  title: Japanese Society for Cancer of the Colon and Rectum (JSCCR) Guidelines 2014 for treatment of colorectal
+    cancer.
+  publisher: Int J Clin Oncol
+  url: https://europepmc.org/article/PMC/PMC4653248
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4653248
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "small bowel"
+    AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5440615
+  kind: document
+  title: Homeostasis of the gut barrier and potential biomarkers.
+  publisher: Am J Physiol Gastrointest Liver Physiol
+  url: https://europepmc.org/article/PMC/PMC5440615
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5440615
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "small bowel"
+    AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7454368
+  kind: document
+  title: 'Endothelial dysfunction in COVID-19: a position paper of the ESC Working Group for Atherosclerosis and
+    Vascular Biology, and the ESC Council of Basic Cardiovascular Science.'
+  publisher: Cardiovasc Res
+  url: https://europepmc.org/article/PMC/PMC7454368
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7454368
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "small bowel"
+    AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5624990
+  kind: document
+  title: An Overview of Heart Rate Variability Metrics and Norms.
+  publisher: Front Public Health
+  url: https://europepmc.org/article/PMC/PMC5624990
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5624990
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "heart" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5850297
+  kind: document
+  title: The International Glossary on Infertility and Fertility Care, 2017.
+  publisher: Hum Reprod
+  url: https://europepmc.org/article/PMC/PMC5850297
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5850297
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "heart" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6340919
+  kind: document
+  title: KDIGO 2017 Clinical Practice Guideline Update for the Diagnosis, Evaluation, Prevention, and Treatment
+    of Chronic Kidney Disease-Mineral and Bone Disorder (CKD-MBD).
+  publisher: Kidney Int Suppl (2011)
+  url: https://europepmc.org/article/PMC/PMC6340919
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6340919
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "heart" AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4403942
+  kind: document
+  title: Normal values for cardiovascular magnetic resonance in adults and children.
+  publisher: J Cardiovasc Magn Reson
+  url: https://europepmc.org/article/PMC/PMC4403942
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4403942
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "inferior vena
+    cava" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4753638
+  kind: document
+  title: The Tissue-Engineered Vascular Graft-Past, Present, and Future.
+  publisher: Tissue Eng Part B Rev
+  url: https://europepmc.org/article/PMC/PMC4753638
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4753638
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "inferior vena
+    cava" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7734766
+  kind: document
+  title: 'Reference ranges ("normal values") for cardiovascular magnetic resonance (CMR) in adults and children:
+    2020 update.'
+  publisher: J Cardiovasc Magn Reson
+  url: https://europepmc.org/article/PMC/PMC7734766
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7734766
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "inferior vena
+    cava" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc11115438
+  kind: document
+  title: Guidelines for the use of flow cytometry and cell sorting in immunological studies (third edition).
+  publisher: Eur J Immunol
+  url: https://europepmc.org/article/PMC/PMC11115438
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC11115438
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "inferior vena
+    cava" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc10601883
+  kind: document
+  title: Guidelines for the Diagnosis and Treatment of Primary Liver Cancer (2022 Edition).
+  publisher: Liver Cancer
+  url: https://europepmc.org/article/PMC/PMC10601883
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC10601883
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "inferior vena
+    cava" AND diameter'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc10326056
+  kind: document
+  title: 'Adverse effects of tyrosine kinase inhibitors in cancer therapy: pathophysiology, mechanisms and clinical
+    management.'
+  publisher: Signal Transduct Target Ther
+  url: https://europepmc.org/article/PMC/PMC10326056
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC10326056
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "adrenal gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5662692
+  kind: document
+  title: 'The Rotterdam Study: 2018 update on objectives, design and main results.'
+  publisher: Eur J Epidemiol
+  url: https://europepmc.org/article/PMC/PMC5662692
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5662692
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "adrenal gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4579264
+  kind: document
+  title: 'The Rotterdam Study: 2016 objectives and design update.'
+  publisher: Eur J Epidemiol
+  url: https://europepmc.org/article/PMC/PMC4579264
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4579264
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "adrenal gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc8624903
+  kind: document
+  title: Nutrition, Physical Activity, and Other Lifestyle Factors in the Prevention of Cognitive Decline and Dementia.
+  publisher: Nutrients
+  url: https://europepmc.org/article/PMC/PMC8624903
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC8624903
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "adrenal gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc7131462
+  kind: document
+  title: 'The chromogranins A and B: the first 25 years and future perspectives.'
+  publisher: Neuroscience
+  url: https://europepmc.org/article/PMC/PMC7131462
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC7131462
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5142605
+  kind: document
+  title: 'Circadian Rhythm and Sleep Disruption: Causes, Metabolic Consequences, and Countermeasures.'
+  publisher: Endocr Rev
+  url: https://europepmc.org/article/PMC/PMC5142605
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5142605
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND length'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6143773
+  kind: document
+  title: Japan Atherosclerosis Society (JAS) Guidelines for Prevention of Atherosclerotic Cardiovascular Diseases
+    2017.
+  publisher: J Atheroscler Thromb
+  url: https://europepmc.org/article/PMC/PMC6143773
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6143773
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc11555284
+  kind: document
+  title: 'Inflammation in atherosclerosis: pathophysiology and mechanisms.'
+  publisher: Cell Death Dis
+  url: https://europepmc.org/article/PMC/PMC11555284
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC11555284
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc5540357
+  kind: document
+  title: KDIGO Clinical Practice Guideline on the Evaluation and Care of Living Kidney Donors.
+  publisher: Transplantation
+  url: https://europepmc.org/article/PMC/PMC5540357
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC5540357
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6713274
+  kind: document
+  title: A longitudinal big data approach for precision health.
+  publisher: Nat Med
+  url: https://europepmc.org/article/PMC/PMC6713274
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6713274
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND thickness'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc4928162
+  kind: document
+  title: Physiological changes in pregnancy.
+  publisher: Cardiovasc J Afr
+  url: https://europepmc.org/article/PMC/PMC4928162
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC4928162
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND volume'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc6626501
+  kind: document
+  title: 'Skeletal and Extraskeletal Actions of Vitamin D: Current Evidence and Outstanding Questions.'
+  publisher: Endocr Rev
+  url: https://europepmc.org/article/PMC/PMC6626501
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6626501
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND volume'
+  added: '2026-11-09'
+  added_by: search
+- id: doc-pmc3102236
+  kind: document
+  title: Harnessing neuroplasticity for clinical applications.
+  publisher: Brain
+  url: https://europepmc.org/article/PMC/PMC3102236
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC3102236
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "thyroid gland"
+    AND volume'
+  added: '2026-11-09'
+  added_by: search
