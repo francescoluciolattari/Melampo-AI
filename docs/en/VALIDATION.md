@@ -146,6 +146,12 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   closed doubts included; (5) at most 2% of the answers lost; (6) at most 10% of the items in doubt (a bound of
   usefulness, not of error), a doubt that does not keep the label's reading among its readings counted as an
   error (under 2% of the items), the closed doubts wrong under 2% of the closed ones. With 300 items, 0 errors bound the share at 1.0%, 2 errors at 2.1%.
+- **CT-RATE, third sample** (`ctrate3`, 9 November 2026): 300 items, seed 20261109, from reports neither of the
+  first two used, labelled with the convention before any reading. Read twice on the same items: the claims
+  reading (off) and the owner question (on today), so that the two are compared with the same criteria. Proposed
+  before the run: (1) items attached as certain to the wrong structure at most 1% (the gravest error: ours adds
+  to the report's own); the other error shares at most 2%; every share with its 95% upper bound; the
+  discordances of the report caught reported apart. Frank decides on the results and on the kinds of error.
 - **Router probe** (`scripts/router_probe.py`, workflow `router-probe`, 8 November 2026): does the local model
   help the report router say the kinds of a text? Public texts of known kinds: MTSamples (6 per specialty,
   English) and PARROT (20 Italian, 10 other languages), seed 20261108, labelled (`data/gold/router/labels.txt`)

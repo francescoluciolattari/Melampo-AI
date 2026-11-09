@@ -57,10 +57,16 @@ CTRATE_SEED = 20261107
 # from reports not used by the first, labelled before any reading
 CTRATE2_LABELS = ROOT / "data/gold/ctrate2/labels.txt"
 CTRATE2_SEED = 20261108
+# the third sample of CT-RATE (9 November 2026), after the corrections ctrate2 led to: 300 items from reports the
+# first two did not use, labelled before any reading; the claims reading and the owner question on the same items
+CTRATE3_LABELS = ROOT / "data/gold/ctrate3/labels.txt"
+CTRATE3_SEED = 20261109
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
-           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS}
+           "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
+           "ctrate3": CTRATE3_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
-                "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS}
+                "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
+                "ctrate3": CTRATE3_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
@@ -407,7 +413,8 @@ def main(argv: list[str] | None = None) -> int:
                   CLAIMS4_SEED: [*LABELS.values(), OWNER_LABELS, STATEMENT_LABELS, CLAIMS_LABELS, CLAIMS2_LABELS,
                                  CLAIMS3_LABELS],
                   CTRATE_SEED: [],           # the first sample of CT-RATE: no report of it used before
-                  CTRATE2_SEED: [CTRATE_LABELS]}
+                  CTRATE2_SEED: [CTRATE_LABELS],
+                  CTRATE3_SEED: [CTRATE_LABELS, CTRATE2_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()
