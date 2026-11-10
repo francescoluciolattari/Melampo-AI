@@ -412,3 +412,49 @@ def test_a_model_s_error_on_a_measure_is_a_doubt_the_sentence_against_its_refere
     for reading in ("measure_the_cited_reference_was_not_given", "measure_the_comparison_is_not_stated",
                     "the_measure_is_of_what_is_observed"):
         assert not reading.startswith(DISCORDANCES)
+
+
+def test_the_uncertainty_one_model_reads_stays_uncertain():
+    # ctrate3 (10 November 2026): "a hypodense lesion (cyst?)": the lesion is seen, the cyst is a hypothesis; one
+    # model read it, or the two put it in different lists, and the doubt was lost. Now it is one category, joined
+    s = "A hypodense lesion was observed in the right kidney (cyst?)"
+    at = s.index("right kidney")
+    seen = [{"words": "A hypodense lesion", "of": "it", "said_to_be": "cyst"}]
+    one = _answer(marked="right kidney", observed=seen, uncertainty=[{"words": "?", "about": "cyst"}])
+    other = _answer(marked="right kidney", observed=seen)
+    got = _owner(one, other)("right kidney", s, at, "en", "kidney_right")
+    assert got.verdict == HERE and got.doubt["kind"] == "clinical"
+    assert got.claims["uncertain_about"] == [{"words": "?", "about": "cyst"}]
+    got = _owner(other, one)("right kidney", s, at, "en", "kidney_right")
+    assert got.doubt["kind"] == "clinical"     # also when the reading without it leads
+
+
+def test_the_former_two_lists_are_read_as_one_uncertainty():
+    s = "Centrally located ground glass density in the lower lobe of the right lung (pneumonia?)"
+    first = read_claims(json.dumps(_answer(marked="lower lobe of the right lung",
+                                           observed=[{"words": "ground glass density", "of": "it"}],
+                                           alternatives=["pneumonia?"])), s, "lower lobe of the right lung")
+    second = read_claims(json.dumps(_answer(marked="lower lobe of the right lung",
+                                            observed=[{"words": "ground glass density", "of": "it"}],
+                                            certainty=["(pneumonia?)"])), s, "lower lobe of the right lung")
+    assert first["uncertainty"] == ["pneumonia?"] and second["uncertainty"] == ["(pneumonia?)"]
+    assert agreed_claims([first, second])["uncertainty"] == ["pneumonia?", "(pneumonia?)"]
+
+
+def test_what_the_sentence_says_it_is_is_apart_from_what_is_seen():
+    s = "Slight ground glass densities in the right upper lobe were evaluated in favor of the infectious process"
+    got = read_claims(json.dumps(_answer(marked="right upper lobe", observed=[
+        {"words": "Slight ground glass densities", "of": "it", "said_to_be": "the infectious process"}],
+        uncertainty=[{"words": "evaluated in favor of", "about": "the infectious process"}])), s, "right upper lobe")
+    assert got["observed"][0]["said_to_be"] == "the infectious process"
+    assert got["uncertain_about"] == [{"words": "evaluated in favor of", "about": "the infectious process"}]
+
+
+def test_what_is_said_of_another_person_is_not_a_finding_of_the_patient():
+    s = "Family history: the mother had a carcinoma of the breast"
+    at = s.index("breast")
+    said = _answer(marked="breast", other_person=["the mother had a carcinoma of the breast"])
+    got = read_claims(json.dumps(said), s, "breast")
+    assert got["other_person"] == ["the mother had a carcinoma of the breast"]
+    assert claims_outcome(got) == KEEP
+    assert _owner(said, said)("breast", s, at, "en", "breast").statement != "finding"

@@ -432,3 +432,26 @@ prodotta, con ogni controllo documentato singolarmente, resta in
 voci del blocco E non riverificate (E1, E3, E4) e l'intero blocco F
 andrebbero controllate con la stessa disciplina di verifica diretta contro
 il codice prima di pianificarle con fiducia.
+
+**Il rilevatore a regole sostituito dalla lettura semantica (deciso il 10 novembre 2026).**
+Il rilevatore di negazione, certezza, tempo e di chi (`memory/assertion.py`, sul modello di ConText: elenchi di
+parole spia con una portata fissa) non comprende la frase: un elenco è sempre incompleto e non sa su quale
+proposizione agisce «non», «?» o «in favore di». Si sostituisce con la lettura semantica della frase, del lettore
+di Kintsch e dei modelli, e poi si cancella con i suoi elenchi, italiani compresi. L'ordine conta: oggi la
+negazione la legge solo il rilevatore, e toglierlo prima del sostituto misurato farebbe entrare «non si osserva
+pneumotorace» come pneumotorace.
+
+1. Fatto: nella lettura per affermazioni l'incertezza è una sola categoria (dubbio, ipotesi, differenziale), ogni
+   voce con le parole a cui si riferisce; ciò che si vede è separato da ciò che la frase dice che è; ciò che un
+   modello legge come incerto resta incerto; anche ciò che si dice di un'altra persona e ciò che il paziente
+   riferisce. Misura su `ctrate4` (criterio 7).
+2. Il lettore di Kintsch costruisce le proposizioni della frase e la portata dei loro operatori (negazione,
+   modalità, tempo, di chi), accanto ai modelli.
+3. La stessa lettura per ogni documento (referti, note cliniche, anatomia patologica), misurata asse per asse su
+   campioni nuovi etichettati prima (CT-RATE, PARROT italiano, MTSamples), ogni quota di errore sotto il 2%.
+4. I sette usi del rilevatore sostituiti uno alla volta (ingestione, anatomia patologica, `what_is_said`,
+   qualificatori della sede, discorso clinico, confini dei reperti, risposte ai quesiti, candidati HPO), poi
+   `assertion.py` cancellato.
+
+Senza il rilevatore non c'è una lettura di riserva: quando il modello locale non è raggiungibile il documento
+resta in attesa di lettura, non viene interpretato con regole.

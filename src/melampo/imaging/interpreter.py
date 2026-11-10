@@ -103,7 +103,7 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
             # a finding is made from its own words, with the certainty the sentence gives it
             mention = site.get("mention", report_text[start:end])
             other = {k: owner.claims[k] for k in ("normal", "past", "device", "not_assessable", "indication",
-                                                   "procedure") if owner.claims.get(k)}
+                                                   "procedure", "other_person", "reported") if owner.claims.get(k)}
             if statements is not None:
                 for kind, words in other.items():
                     statements.append({"mention": mention, "structure": site["cid"], "statement":
@@ -122,10 +122,10 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                 words = [o["words"] for o in claimed]
                 clause, sizes = " … ".join(words), sizes_in_text(" ".join(words + measures))
                 statement = "finding" if any(o.get("of") == "it" for o in claimed) else "involved"
-                if owner.claims.get("alternatives"):
-                    qd = {**qd, "certainty": "hypothetical"}
-                elif owner.claims.get("certainty"):
-                    qd = {**qd, "certainty": "possible"}
+                if owner.claims.get("uncertainty"):
+                    # uncertain as the sentence says it (10 November 2026): one category, with the words it is
+                    # about, carried with the finding into the diagnostic path
+                    qd = {**qd, "certainty": "possible", "uncertain_about": owner.claims.get("uncertain_about", [])}
             elif measures:
                 clause, sizes, statement = " … ".join(measures), sizes_in_text(" ".join(measures)), "measure"
                 qd = {**qd, "character": [], "degree": ""}

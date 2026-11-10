@@ -576,8 +576,17 @@ def read_statement(text: str, sentence: str) -> dict:
 # question, before reading. Here nothing is chosen: the model says what the sentence states of the structure,
 # claim by claim, each with the words copied from the sentence, and the interpreter attaches every claim the
 # readers agree on. What is not in the words is not a claim ("said, not inferred").
-CLAIM_LISTS = ("observed", "normal", "measure", "past", "certainty", "alternatives", "device", "not_assessable",
-               "indication", "procedure")
+# 10 November 2026: one category of uncertainty instead of two ("certainty", "alternatives"). On ctrate3 the
+# report's doubt was lost in 11 of 43 items: a sentence such as "a hypodense lesion (cyst?)" says two things, a
+# lesion that is stated and that it is a cyst, which is only a hypothesis; the question asked whether "what is
+# observed" is only probable, and the lesion is not, so a model reading well left it empty; one hypothesis fitted
+# neither list, so the models put it in different lists or in none. Now what is seen and what the sentence says it
+# is are apart, and every uncertainty is said with the words it applies to. Also: what is said of another person,
+# and what the patient reports, which are not the exam's observation.
+CLAIM_LISTS = ("observed", "normal", "measure", "past", "uncertainty", "device", "not_assessable",
+               "indication", "procedure", "other_person", "reported")
+# the lists of the questions before 10 November 2026, read into "uncertainty" (stored answers, replays)
+_FORMER_UNCERTAINTY = ("certainty", "alternatives")
 CLAIM_STEPS = """Say what the sentence states of the linked structure, using only its words: every entry is copied
 exactly from the sentence (you may shorten a long piece with "..." between copied parts). Do not add what the
 sentence does not say: a finding it does not state is not there. What you know of the structure serves only to
@@ -594,7 +603,10 @@ of that kind.
   words; aspect: the aspect, in a few words; usual: how that aspect is in a healthy person in this exam, in a few
   words of your own (a physiological state, such as a hollow organ more or less filled, is usual); differs: "yes"
   if the words describe something different from the usual, even if mild, "no" if they describe the usual,
-  "unsure" if it cannot be told; of: "it" if it is of the linked structure or one of its parts, otherwise the
+  "unsure" if it cannot be told; said_to_be: what the sentence says it is or what it is due to ("cyst" in "a
+  hypodense lesion (cyst?)", "infectious process" in "densities evaluated in favor of an infectious process"),
+  copied, or "": these words are not part of words, which hold only what is seen; of: "it" if it is of the linked
+  structure or one of its parts, otherwise the
   structure it is of, copied from the sentence. Words that only say where something is ("at the level of", "at
   the base of", "in the topography of", "in the region of", "in the projection of", "projected on", "near",
   "beside") place it and do not make it the structure's own, unless the sentence says that it is in it or of it
@@ -616,8 +628,15 @@ of that kind.
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
-- certainty: words saying that what is observed is only probable or possible.
-- alternatives: words listing other possible explanations, or something to be excluded.
+- uncertainty: every part of what the sentence says that it does not state as certain: a doubt, a hypothesis, a
+  differential, something probable, possible, suspected, questioned ("?"), "in favor of", "thought to be",
+  "can be seen in", to be excluded. For each: words: the words that make it uncertain, copied; about: the words
+  of what is uncertain, copied (often what the sentence says it is, while what is seen is certain: in "a
+  hypodense lesion (cyst?)" the lesion is seen, the cyst is uncertain). A question mark applies to what it
+  follows or closes, a parenthesis with "?" to the words in it. When in doubt whether something is stated as
+  certain, it is uncertain.
+- other_person: words of what is said of a person other than the patient (a relative's disease).
+- reported: words of what the patient reports or the referral says, not observed in the exam.
 - device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis, an implanted valve),
   even when the sentence says that its shadow or image is seen: a device is not an observation of it.
 - not_assessable: words saying it cannot be assessed.
@@ -629,10 +648,11 @@ of that kind.
   of this structure, "other" if it gives it to another structure (then conclusion_of: that structure, copied
   from the conclusion), "none" if it does not mention it or no conclusion is given."""
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
-                '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", "of": "it", '
-                '"relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
-                '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], "certainty": [], '
-                '"alternatives": [], "device": [], "not_assessable": [], "indication": [], "procedure": [], '
+                '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", '
+                '"said_to_be": "", "of": "it", "relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
+                '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], '
+                '"uncertainty": [{"words": "...", "about": "..."}], "device": [], "not_assessable": [], '
+                '"indication": [], "procedure": [], "other_person": [], "reported": [], '
                 '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
@@ -725,15 +745,25 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
                          "relation": relation if copied(sentence, relation) else "",
                          "reaches": reaches if reaches in ("yes", "no") else "no",
                          "aspect": str(entry.get("aspect") or ""), "usual": str(entry.get("usual") or ""),
+                         "said_to_be": _copied_from(entry.get("said_to_be"), sentence),
                          "refers_to": _copied_from(entry.get("refers_to"), sentence, previous)})
     out["observed"] = observed
     out["measure_refs"] = []
+    out["uncertain_about"] = []
     for key in CLAIM_LISTS[1:]:
         kept = []
-        for entry in answer.get(key) or []:
+        entries = list(answer.get(key) or [])
+        if key == "uncertainty":
+            entries += [e for k in _FORMER_UNCERTAINTY for e in (answer.get(k) or [])]
+        for entry in entries:
             words = entry.get("words", "") if isinstance(entry, dict) else str(entry)
             if copied(sentence, words):
+                if words in kept:
+                    continue
                 kept.append(words)
+                if key == "uncertainty" and isinstance(entry, dict):
+                    out["uncertain_about"].append({"words": words, "about": _copied_from(entry.get("about"),
+                                                                                         sentence)})
                 if key == "measure" and isinstance(entry, dict) and str(entry.get("reference") or "").strip():
                     out["measure_refs"].append({"words": words, "reference": str(entry["reference"]).strip(),
                                                 "against": str(entry.get("against") or "").strip().lower()})
