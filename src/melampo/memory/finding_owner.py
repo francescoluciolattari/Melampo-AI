@@ -307,10 +307,11 @@ _READER_SAYS = {"the_normal_words_state_an_abnormality": "finding", "the_reader_
 def _clinical_doubt(claims: dict) -> dict:
     """The doubt the report itself states ("may", "cannot be excluded", a differential): a finding with its
     certainty, kept in the path; only new clinical information closes it, never our reading."""
-    words = list(claims.get("certainty", [])) + list(claims.get("alternatives", []))
+    words = list(claims.get("uncertainty", []))
     if not claims.get("findings") or not words:
         return {}
-    return {"kind": "clinical", "words": words, "closes_with": ["other_reports", "history", "new_exam"]}
+    return {"kind": "clinical", "words": words, "about": list(claims.get("uncertain_about", [])),
+            "closes_with": ["other_reports", "history", "new_exam"]}
 
 
 def _one_kind_per_piece(answer: dict, mention: str = "") -> dict:
@@ -319,8 +320,8 @@ def _one_kind_per_piece(answer: dict, mention: str = "") -> dict:
     only a measure, numbers and units with the words of a measure ("measures 7 mm in diameter", "volume: 109 cm3"),
     is a measure, as the question itself says ("a measure goes in measure", 8 November 2026): it is compared with
     the reference values, not read as an observation."""
-    other = {w for k in ("normal", "not_assessable", "indication", "past", "device", "procedure")
-             for w in answer.get(k, [])}
+    other = {w for k in ("normal", "not_assessable", "indication", "past", "device", "procedure", "other_person",
+                         "reported") for w in answer.get(k, [])}
     observed = answer.get("observed", [])
     kept = [o for o in observed if o.get("words") not in other
             and not (o.get("of") == "it" and _pure_measure(o.get("words", ""), mention))]
@@ -514,9 +515,11 @@ def claims_outcome(answer: dict) -> str:
     return KEEP
 
 
-def agreed_claims(answers: list[dict]) -> dict:
+def agreed_claims(answers: list[dict], every: list[dict] | None = None) -> dict:
     """The claims every model makes, with the first model's words: its findings (of the structure or reaching
-    it), and each other kind that every model fills."""
+    it), and each other kind that every model fills. The uncertainty is the exception (10 November 2026): what
+    any model reads as uncertain stays uncertain, from all the valid answers (``every``), also when one reading
+    leads. Leaving a doubt open costs a hypothesis kept open; losing it makes a hypothesis a fact."""
     from ..evaluation.llm_reading import CLAIM_LISTS
 
     first = answers[0]
@@ -525,8 +528,21 @@ def agreed_claims(answers: list[dict]) -> dict:
     if others:
         out["of"] = next((o["of"] for o in others if o.get("of") not in ("it", "?")), "")
     for key in CLAIM_LISTS[1:]:
+        if key == "uncertainty":
+            continue
         if all(a.get(key) for a in answers):
             out[key] = list(first.get(key, []))
+    uncertain, about = [], []
+    for a in every or answers:
+        for w in a.get("uncertainty", []):
+            if w not in uncertain:
+                uncertain.append(w)
+        for u in a.get("uncertain_about", []):
+            if u not in about:
+                about.append(u)
+    if uncertain:
+        out["uncertainty"] = uncertain
+        out["uncertain_about"] = about
     if first.get("same") == "no":
         out["of"] = first.get("named", "")
     if first.get("measure_refs"):
@@ -847,7 +863,7 @@ class FindingOwner:
         outcome = _unflagged_outcome(next(iter(valid.values()))) if doubt and not doubt.get("closed_by") \
             else outcomes[0]
         answers = list(valid.values()) if not doubt or doubt.get("closed_by") else list(valid.values())[:1]
-        claims = agreed_claims(answers)
+        claims = agreed_claims(answers, list(valid.values()))
         piece = " … ".join(o["words"] for o in claims.get("findings", []))
         open_doubt = bool(doubt) and not doubt.get("closed_by")
         if outcome == ASIDE:
@@ -940,7 +956,7 @@ class FindingOwner:
         # disagreement, not a reading that leaves a piece out. A differential is not something else: it says
         # what the finding may be, and a finding named with its alternatives is still a finding
         read_else = [w for m in others for k in ("normal", "not_assessable", "past", "device", "indication",
-                                                 "procedure") for w in said[m].get(k, [])]
+                                                 "procedure", "other_person", "reported") for w in said[m].get(k, [])]
         if any(w.lower() in e.lower() or e.lower() in w.lower() for w in disputed for e in read_else):
             return said, ""
         if not disputed or not any(stated_anomalies(w, language, self.anomalies, sites) for w in disputed):
@@ -994,7 +1010,8 @@ class FindingOwner:
                        for o in a.get("observed", []) if o.get("words")):
                     return "the_measure_is_of_what_is_observed"
         if outcome == KEEP and not any(claims.get(k) for k in ("normal", "measure", "past", "device", "procedure",
-                                                                 "indication", "not_assessable")) \
+                                                                 "indication", "not_assessable", "other_person",
+                                                                 "reported")) \
                 and any(e.startswith(("describes:", "landmark", "outside_the_exam")) for e in evidence.split(",")):
             return "nothing_said_of_it_and_the_reader_reads_another_owner"
         return ""
@@ -1031,7 +1048,7 @@ class FindingOwner:
             own = [o for o in findings if o.get("of") == "it"]
             if own and any(e.startswith(("landmark", "describes:", "outside_the_exam")) for e in evidence.split(",")):
                 return "the_reader_reads_another_owner"
-            if own and "named_only_in_a_differential" in evidence and not claims.get("alternatives"):
+            if own and "named_only_in_a_differential" in evidence and not claims.get("uncertainty"):
                 return "the_reader_reads_a_differential"
             for a in answers or [claims]:
                 mine = [o for o in a.get("observed", a.get("findings", [])) if o.get("of") == "it"]
