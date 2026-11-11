@@ -1,0 +1,53 @@
+name: poppler-utils
+description: >-
+  pdftotext, pdfimages and pdf2image's poppler, from a cache of the packages when there is one, from Ubuntu's
+  mirror otherwise (tried four times). On 11 November 2026 the hosted runners could not resolve Ubuntu's mirrors
+  for hours, on every image (actions/runner-images #15296, #15297), and the suite could not start: the packages
+  of a run that installed them are kept, keyed by the image's release and architecture, and installed without the
+  network.
+runs:
+  using: composite
+  steps:
+    - name: Which image
+      id: image
+      shell: bash
+      run: |
+        . /etc/os-release
+        echo "key=poppler-debs-${VERSION_CODENAME}-$(dpkg --print-architecture)-v1" >> "$GITHUB_OUTPUT"
+        mkdir -p "$HOME/poppler-debs"
+
+    - name: The packages kept by an earlier run
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/poppler-debs
+        key: ${{ steps.image.outputs.key }}
+
+    - name: Install
+      id: install
+      shell: bash
+      run: |
+        dir="$HOME/poppler-debs"
+        if ls "$dir"/*.deb >/dev/null 2>&1 && sudo dpkg -i "$dir"/*.deb >/dev/null && command -v pdftotext >/dev/null; then
+          echo "poppler-utils from the packages kept by an earlier run (no network)"
+          echo "fresh=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        for i in 1 2 3 4; do
+          if sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends --download-only poppler-utils \
+             && sudo apt-get install -y -qq --no-install-recommends poppler-utils; then
+            rm -f "$dir"/*.deb
+            cp /var/cache/apt/archives/*.deb "$dir"/ 2>/dev/null || true
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [ "$i" = 4 ] && { echo "::error::poppler-utils: no cache and Ubuntu's mirror cannot be reached"; exit 1; }
+          echo "apt failed (try $i), again in 30 s"; sleep 30
+        done
+
+    - name: Keep the packages for the next runs
+      if: steps.install.outputs.fresh == 'true' && steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/poppler-debs
+        key: ${{ steps.image.outputs.key }}

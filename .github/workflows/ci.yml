@@ -19,9 +19,7 @@ on:
 jobs:
   tests:
     name: Full test suite (Python 3.12, uv.lock)
-    # ubuntu-24.04, not ubuntu-latest (11 November 2026): on the new image (Ubuntu 26.04 "resolute") apt could not
-    # resolve security.ubuntu.com, run after run, and poppler-utils could not be installed
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -34,11 +32,9 @@ jobs:
 
       - name: Install system packages
         # poppler-utils: pdftotext / pdfimages / pdf2image (document
-        # processing). Not a Python package -- uv cannot provide it.
-        # tried again (11 November 2026): a runner that cannot reach the Ubuntu mirrors for a moment
-        # ("Temporary failure resolving 'security.ubuntu.com'") must not fail the whole suite
-        run: |
-          for i in 1 2 3 4; do sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils && break; [ "$i" = 4 ] && exit 1; echo "apt failed (try $i), again in 30 s"; sleep 30; done
+        # processing). Not a Python package -- uv cannot provide it. From a cache of the packages when there is
+        # one, so that an outage of Ubuntu's mirrors does not stop the suite (11 November 2026).
+        uses: ./.github/actions/poppler
 
       - name: Create the locked environment
         # --locked fails if uv.lock is out of date with pyproject.toml,
