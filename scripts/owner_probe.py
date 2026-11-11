@@ -295,6 +295,10 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
                 "6_doubt_without_the_right_reading_share": share(t.get("doubt_without_the_right_reading", 0), n),
                 "6_doubt_without_upper_95": upper_95(t.get("doubt_without_the_right_reading", 0), n),
                 "6_closed_doubts": closed, "6_closed_doubts_wrong_share": share(closed_wrong, closed),
+                # the counts behind the shares (11 November 2026: an adapter is decided on them)
+                "counts": {"3_to_a_person": person, "4_attached_otherwise": other,
+                           "6_doubt_without_the_right_reading": t.get("doubt_without_the_right_reading", 0),
+                           "6_closed_doubts_wrong": closed_wrong},
                 "clinical_doubts_kept": t.get("clinical_doubts_kept", 0),
                 # (7) the uncertainty of the report lost: under 2% of the items, and reported of the items whose
                 # label is uncertain (10 November 2026)
@@ -318,6 +322,23 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
     return {"without_doubt": one([r for r in rs if not r.get("gold_doubt")]), "all": one(rs),
             "doubtful_items": sum(1 for r in rs if r.get("gold_doubt")),
             "uncertainty_by_reading": uncertainty_by_reading([r for r in rs if not r.get("gold_doubt")], arm)}
+
+
+def fingerprint(item: dict) -> str:
+    """The item as labelled (11 November 2026): the clause, the mention and the structure."""
+    import hashlib
+
+    return hashlib.sha256((item["clause"] + "\x00" + item["mention"] + "\x00" + item["structure"]).encode(
+        "utf-8")).hexdigest()[:16]
+
+
+def fingerprints(name: str) -> dict[str, str]:
+    """The fingerprints of the labelled items of a sample, if taken (data/gold/<sample>/fingerprints.txt)."""
+    path = ROOT / "data/gold" / name / "fingerprints.txt"
+    if not path.exists():
+        return {}
+    return dict(ln.split("|", 1) for ln in path.read_text("utf-8").splitlines() if ln.strip() and not
+                ln.startswith("#"))
 
 
 def uncertainty_by_reading(rows: list[dict], arm: str = "claims") -> dict:
@@ -534,6 +555,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="another corpus in PARROT's form (scripts/ctrate_corpus.py), for the reports' context")
     ap.add_argument("--references", help="the table of reference values (default data/reference/values.yml)")
     ap.add_argument("--passages", help="the local copy of the paragraphs of their sources (jsonl), if any")
+    ap.add_argument("--memory", default="", help="the memory of verified examples (default data/reading/memory."
+                    "jsonl; 'off' for none)")
+    ap.add_argument("--memory-items", default="owner_items_*.jsonl",
+                    help="the items whose sentences the memory's examples are read from (a glob)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
 
@@ -582,6 +607,27 @@ def main(argv: list[str] | None = None) -> int:
                           anomalies=anomalies, references=references) if chats else None
     from melampo.memory.finding_owner import report_context
     away = elsewhere_pairs()
+    # the manual and the memory of verified examples (11 November 2026); the samples measured here never give
+    # examples to themselves
+    from melampo.memory import reading_memory as rm
+
+    measured = tuple(spec.split("=", 1)[0] for spec in args.items)
+    memory_note = {"manual_version": rm.manual_version(), "examples": 0, "excluded_samples": list(measured)}
+    if args.memory.strip().lower() != "off":
+        import glob
+
+        texts = {}
+        for f in sorted(glob.glob(args.memory_items)):
+            sample = Path(f).stem.replace("owner_items_", "")
+            known = fingerprints(sample)
+            for x in Path(f).read_text("utf-8").splitlines():
+                if x.strip():
+                    it = json.loads(x)
+                    if known.get(it["item_id"], fingerprint(it)) == fingerprint(it):
+                        texts[it["item_id"]] = it       # an example whose item changed is not its sentence
+        memory = rm.ReadingMemory.load(Path(args.memory) if args.memory else None, texts, measured)
+        rm.use(memory)
+        memory_note["examples"] = len(memory.examples)
 
     rows = []
     for spec in args.items:
@@ -592,6 +638,14 @@ def main(argv: list[str] | None = None) -> int:
         labels = hp.read_labels(LABELS[name]) if name in LABELS else {}
         own = {k: v for k, v in labels.items() if k.endswith(("-it", "-en"))}
         items = [json.loads(x) for x in Path(path).read_text("utf-8").splitlines() if x.strip()]
+        # an item drawn again that is not the item labelled is left out, and said (11 November 2026)
+        known = fingerprints(name)
+        changed = [it["item_id"] for it in items if it["item_id"] in known and known[it["item_id"]] != fingerprint(it)]
+        if changed:
+            memory_note.setdefault("changed_items", {})[name] = changed
+            print(f"{name}: {len(changed)} items are not the items labelled, left out: {changed[:10]}",
+                  file=sys.stderr)
+            items = [it for it in items if it["item_id"] not in set(changed)]
 
         def one(item: dict, name: str = name, own: dict = own) -> dict | None:
             at = item["clause"].find(item["mention"])
@@ -632,7 +686,7 @@ def main(argv: list[str] | None = None) -> int:
 
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             rows += [r for r in pool.map(one, items) if r is not None]
-    report = {"by_set": {}}
+    report = {"by_set": {}, "reading": memory_note}
     for name in sorted({r["set"] for r in rows}):
         rs = [r for r in rows if r["set"] == name]
         report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models", "statement", "claims")

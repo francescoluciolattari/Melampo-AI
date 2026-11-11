@@ -175,6 +175,38 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   un'incertezza di livello alto). Criteri fissati prima: (1) al massimo l'1%; da (2) a (7) come per `ctrate4`; (8)
   l'incertezza data dove il referto afferma (nessuna incertezza nell'etichetta, o «consistent with» letto sotto il
   livello alto) sotto il 2% degli item, con il suo limite superiore al 95%.
+- **Contro gli errori di etichetta, il manuale, la memoria e gli adattatori** (11 novembre 2026).
+  - Etichette: scritte dalla frase intera, mai tagliata (`data/reading/labelling_convention.md`); un secondo
+    etichettatore indipendente (un modello che non è nessuno dei lettori, di default Mistral Large) etichetta lo
+    stesso campione prima di ogni lettura (`scripts/second_labeller.py`, input `second_labeller` del workflow);
+    le sue etichette si aprono solo dopo che quelle del primo sono state committate; si riporta l'accordo (kappa
+    di Cohen) e ogni disaccordo si rilegge sulla frase intera e si decide con le fonti, scrivendo il motivo di
+    ogni cambiamento, prima che i lettori leggano (doppia annotazione con arbitrato, come è stato fatto BioScope).
+    Un'etichetta corretta dopo un run porta il suo motivo, e il risultato si riporta sia come etichettato sia
+    come corretto.
+  - Il manuale (`data/reading/manual.md`): ciò che le fonti dicono del leggere una frase, dato con ogni domanda,
+    versionato con la sua impronta (registrata nel resoconto del probe).
+  - La memoria (`data/reading/memory.jsonl`, `scripts/reading_memory.py`): esempi verificati, i più simili dati
+    con ogni domanda. Un esempio entra solo quando l'etichetta (senza dubbio, con la convenzione in vigore) e la
+    lettura di ogni modello concordano su ciò che la frase afferma e sulla sua incertezza; non contiene testo di
+    un corpus chiuso; un esempio si può togliere con il suo motivo (`data/reading/removed.jsonl`). Un campione
+    misurato non dà mai esempi a sé stesso.
+  - Gli adattatori (`scripts/reader_training.py`, ogni due o tre mesi, ricordati dal workflow
+    `reader-training-due`): addestrati sulle GPU locali solo sulla memoria; la regola, fissata prima che esista
+    un adattatore: su un campione nuovo il probe gira senza e con l'adattatore, con lo stesso manuale e la stessa
+    memoria; l'adattatore entra se ogni criterio passa con esso e i suoi errori (in numero) sono meno; altrimenti
+    resta fuori, e il motivo si scrive in `data/reading/training_log.yml`.
+- **Che cos'è una classe dell'atlante, e i campioni estratti come allora** (11 novembre 2026). Una classe
+  dell'atlante è una struttura se è ancorata a UBERON; una senza ancora UBERON il cui nome, senza il lato, è
+  un'anomalia fenotipica di HPO è un reperto, e la sua sede è la struttura di cui HPO dice che l'anomalia è
+  (`src/melampo/memory/class_kinds.py`: la stessa lettura per ogni classe, nessun elenco; oggi le cisti renali di
+  TotalSegmentator, del rene dal loro lato; i segmenti epatici restano strutture). Il cercatore di nomi non
+  attraversa più una parentesi o un punto e virgola («left kidney (cyst?)»). I campioni etichettati prima del 12
+  novembre 2026 si estraggono con il cercatore di quel giorno (`MELAMPO_FINDER=2026-11-11` nei workflow che li
+  estraggono): sul campione `claims` di PARROT il cercatore nuovo cambierebbe 3 item su 260. Ogni item
+  etichettato dei campioni CT-RATE ha la sua impronta (`data/gold/<campione>/fingerprints.txt`): un item estratto
+  di nuovo che non corrisponde resta fuori dai criteri e dalla memoria, e lo si dice. Da `ctrate6` i campioni si
+  estraggono con il cercatore nuovo.
 - **CT-RATE, sesto campione** (`ctrate6`, 11 novembre 2026): 300 item, seed 20261112, da referti non usati dai
   primi cinque, etichettati prima di ogni lettura con la convenzione dell'11 novembre (l'incertezza come la
   distingue la letteratura sugli attenuatori), la frase mai letta tagliata. Criteri fissati prima: (1) al massimo

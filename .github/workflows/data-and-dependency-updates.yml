@@ -46,7 +46,9 @@ permissions:
 
 jobs:
   check-updates:
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest (11 November 2026): on the new image (Ubuntu 26.04 "resolute") apt could not
+    # resolve security.ubuntu.com, run after run, and poppler-utils could not be installed
+    runs-on: ubuntu-24.04
     # Runs on the weekly cron or on manual dispatch -- but not on the daily
     # literature cron, which shares this workflow file but must not trigger
     # an HPO/dependency check every day. github.event.schedule carries which
@@ -191,7 +193,7 @@ jobs:
           # poppler-utils: pdf2image (Nemotron-Parse page rendering) and
           # pdftotext (digital-PDF text layer) both call poppler binaries;
           # two tests exercise that path and failed on a runner without it.
-          sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+          for i in 1 2 3 4; do sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils && break; [ "$i" = 4 ] && exit 1; echo "apt failed (try $i), again in 30 s"; sleep 30; done
           # The whole suite, not a subset, in the locked environment: the
           # point of proposing rather than applying is that a reviewer sees a
           # green run against the new data, or sees precisely what broke.

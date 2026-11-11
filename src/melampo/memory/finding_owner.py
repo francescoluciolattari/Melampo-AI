@@ -762,6 +762,7 @@ class FindingOwner:
     def _claim_answers(self, mention: str, clause: str, at: int, language: str, cid: str,
                        context: dict) -> dict[str, dict]:
         from ..evaluation.llm_reading import claims_prompt, read_claims
+        from .reading_memory import active_examples, active_manual
 
         name = {"it": "Italian", "en": "English"}.get(language, "")
         names = _class_names().get(cid, []) if cid else []
@@ -773,7 +774,8 @@ class FindingOwner:
                                exam=context.get("exam", ""), section=context.get("section", ""), language=name,
                                references=[r.line() for r in rows], passages=passages,
                                section_kind=context.get("section_kind", ""),
-                               conclusion=context.get("conclusion", ""), previous=context.get("previous", ""))
+                               conclusion=context.get("conclusion", ""), previous=context.get("previous", ""),
+                               manual=active_manual(), examples=active_examples(clause, cid))
         said: dict[str, dict] = {}
         for model, chat in self.chats.items():
             try:

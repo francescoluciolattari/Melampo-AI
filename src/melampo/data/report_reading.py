@@ -237,6 +237,7 @@ class ReportReaders:
             if row is not None:
                 row["support"] = list(result.support)
                 row["conflicts"] = list(result.conflicts)
+                _finding_class_as_site(row)
                 sites.append(row)
             else:
                 abstentions.append({**m, "reason": result.reason, "options": list(result.options)[:5],
@@ -389,3 +390,35 @@ def _load(study: Any) -> dict[str, Any] | str:
 
 
 __all__ = ["ReportReaders", "build_linker"]
+
+
+def _finding_class_as_site(row: dict[str, Any]) -> None:
+    """A class of the atlas that is a finding (``class_kinds``: read from UBERON and HPO, the same for every
+    class) gives its site to the structure it is of; the class stays with the finding, for the image (11 November
+    2026). The mention becomes the words that name the structure, if the mention holds them; else it stays."""
+    import os
+
+    from ..memory.class_kinds import as_site
+
+    if os.environ.get("MELAMPO_FINDER", "") == "2026-11-11":
+        return      # the samples labelled before 12 November 2026 are drawn as they were
+    site = as_site(row["cid"])
+    if "finding_class" not in site:
+        return
+    row.update(cid=site["cid"], finding_class=site["finding_class"], phenotype=site["phenotype"],
+               phenotype_name=site["phenotype_name"])
+    import json as _json
+
+    from ..memory.class_kinds import LEXICON
+
+    mention = row["mention"]
+    c = _json.loads(LEXICON.read_text("utf-8"))["classes"].get(site["cid"], {})
+    names = list(c.get("en", [])) + list(c.get("it", []))
+    low = mention.lower()
+    for n in sorted(names, key=len, reverse=True):
+        at = low.find(n.lower())
+        if at >= 0:
+            row["mention"] = mention[at:at + len(n)]
+            row["start"] = int(row["start"]) + at
+            row["end"] = row["start"] + len(n)
+            break

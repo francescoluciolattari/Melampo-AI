@@ -34,6 +34,9 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
+    # the samples labelled before 12 November 2026 are drawn as they were (the finder of names of that day)
+    env:
+      MELAMPO_FINDER: "2026-11-11"
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4

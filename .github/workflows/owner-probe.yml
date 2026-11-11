@@ -21,8 +21,12 @@ on:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
         default: "claims"
+      second_labeller:
+        description: "with sample_only: the model that labels the samples independently (none of the readers)"
+        required: false
+        default: "mistralai/mistral-large-4-0"
       sample_only:
-        description: "only draw the samples and upload them, for labelling before any reading (no model call)"
+        description: "only draw the samples and upload them, for labelling before any reading (no reading call)"
         type: boolean
         required: false
         default: false
@@ -48,6 +52,10 @@ jobs:
           curl -sSL --fail -o pato.obo https://raw.githubusercontent.com/pato-ontology/pato/master/pato.obo
 
       - name: PARROT reports and the three samples (the seeds of the labels)
+        # the samples labelled before 12 November 2026 are drawn as they were (the finder of names of that day:
+        # a name could cross a parenthesis, a class of a finding was a site); fingerprints check every item
+        env:
+          MELAMPO_FINDER: "2026-11-11"
         run: |
           git clone --quiet --depth 1 https://github.com/PARROT-reports/PARROT_v1.0.git ext/PARROT
           uv run --no-sync python scripts/hpo_probe.py sample --parrot ext/PARROT/data/PARROT_v1_0.jsonl \
@@ -79,6 +87,7 @@ jobs:
           curl -sSL --fail -H "Authorization: Bearer $HF_TOKEN" -o ctrate_validation_reports.csv \
             https://huggingface.co/datasets/ibrahimhamamci/CT-RATE/resolve/main/dataset/radiology_text_reports/validation_reports.csv
           uv run --no-sync python scripts/ctrate_corpus.py --csv ctrate_validation_reports.csv --out ctrate.jsonl
+          export MELAMPO_FINDER=2026-11-11   # the samples labelled before 12 November 2026, drawn as they were
           uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261107 \
             --n-en 200 --n-it 0 --per-structure 16 --out owner_items_ctrate.jsonl
           # the second sample (7 November 2026): 300 items from reports the first did not use; with 0 to 1 errors
@@ -96,9 +105,33 @@ jobs:
           uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261111 \
             --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate5.jsonl
           # the sixth (11 November 2026): the uncertainty as the literature tells it apart; reports none of the
-          # first five used
+          # first five used; drawn with the finder of 12 November (no name across a parenthesis; a class of a
+          # finding gives its site to its structure, read from UBERON and HPO: hp-full.obo)
+          export MELAMPO_FINDER=2026-11-12 MELAMPO_HPO_OBO=hp-full.obo
           uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261112 \
             --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate6.jsonl
+
+      # 11 November 2026: a second, independent labeller, against errors of labelling (double annotation with
+      # adjudication, as BioScope was made). Its labels are compared with the first labeller's only after those
+      # are committed, and every disagreement is re-read before the readers run.
+      - name: Second labeller
+        if: ${{ inputs.sample_only && inputs.second_labeller != '' }}
+        env:
+          SETS: ${{ inputs.sets }}
+          SECOND: ${{ inputs.second_labeller }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          SECOND="${SECOND//[[:space:]]/}"
+          if ! [[ "$SECOND" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+$ ]]; then
+            echo "::error::second_labeller takes an id like org/name"; exit 2
+          fi
+          for name in ${SETS//,/ }; do
+            [ -f "owner_items_${name}.jsonl" ] || continue
+            uv run --no-sync python scripts/second_labeller.py label --items "owner_items_${name}.jsonl" \
+              --set "$name" --model "$SECOND" --endpoint https://openrouter.ai/api/v1/chat/completions \
+              --public-data --out "second_labels_${name}.txt" 2> >(tee -a second_labeller.log >&2)
+          done
 
       - name: Run the probe
         if: ${{ !inputs.sample_only }}
@@ -167,3 +200,6 @@ jobs:
             owner_items_ctrate4.jsonl
             owner_items_ctrate5.jsonl
             owner_items_ctrate6.jsonl
+            second_labels_*.txt
+            second_labeller.log
+            second_labeller_answers.jsonl

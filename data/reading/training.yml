@@ -1,0 +1,12 @@
+# The settings of the readers' adapters (LoRA, 11 November 2026), recorded with every adapter. They are fixed
+# before the first training; a change is a new setting, measured like an adapter.
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+epochs: 2
+learning_rate: 0.0001
+batch_size: 1
+gradient_accumulation: 16
+seed: 20261111

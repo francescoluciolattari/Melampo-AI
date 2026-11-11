@@ -1,0 +1,35 @@
+name: reader-training-due
+
+# Every two months (11 November 2026): is a training of the readers' adapters due? It says how many verified
+# examples the memory has gained since the last one and opens an issue as a reminder. The training itself runs on
+# the local GPUs (scripts/reader_training.py), never here; an adapter enters only by the rule written there.
+on:
+  schedule:
+    - cron: "23 6 1 */2 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv sync --locked
+      - name: Status of the memory
+        run: |
+          set -o pipefail
+          uv run --no-sync python scripts/reader_training.py status | tee status.json
+          { echo '```json'; cat status.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Reminder
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if python -c 'import json,sys; sys.exit(0 if json.load(open("status.json"))["due"] else 1)'; then
+            gh issue create --title "Training of the readers' adapters due ($(date +%Y-%m))" \
+              --body "$(printf 'The memory of verified examples since the last training:\n\n```json\n%s\n```\n\nSteps: scripts/reader_training.py export, train (local GPUs), then the probe on a new sample without and with the adapter, then decide. The rule is in the script.' "$(cat status.json)")"
+          fi

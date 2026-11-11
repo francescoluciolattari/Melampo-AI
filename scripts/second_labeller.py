@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+"""A second, independent labeller (11 November 2026), against errors of labelling.
+
+Double annotation with adjudication is how the annotated corpora of the field are made (BioScope, Vincze et al.
+2008: two independent annotators, their disagreements resolved by a chief annotator). Here:
+
+1. the sample is drawn; the second labeller (a model that is none of the readers measured, by default
+   Mistral Large, EU) labels every item from the whole sentence and the written convention
+   (data/reading/labelling_convention.md, data/reading/manual.md), before any reading;
+2. the first labeller labels the sample without opening the second's labels, and commits them;
+3. ``compare`` gives the agreement (Cohen's kappa, on what the sentence states and on its uncertainty) and the
+   disagreements; each is re-read on the whole sentence and decided by the sources, a change written with its
+   reason in the note. All this happens before the readers run: the labels stay written before any reading.
+
+Only public texts go to the external service (--public-data); patients' reports never do.
+
+    python scripts/second_labeller.py label --items owner_items_ctrate6.jsonl --set ctrate6 \\
+        --model mistralai/mistral-large-4-0 --endpoint https://openrouter.ai/api/v1/chat/completions \\
+        --public-data --out second_labels_ctrate6.txt
+    python scripts/second_labeller.py compare --set ctrate6 --second second_labels_ctrate6.txt \\
+        --items owner_items_ctrate6.jsonl
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from collections import Counter
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+CONVENTION = ROOT / "data/reading/labelling_convention.md"
+MANUAL = ROOT / "data/reading/manual.md"
+CLAIMS = ("finding", "involved", "normal", "measure", "history", "device", "not_assessable", "aside",
+          "indication", "procedure", "nothing", "uncertain", "uncertain_high")
+
+
+def prompt(item: dict) -> str:
+    return ("You label sentences of radiology reports for a reference set. Follow the convention exactly.\n\n"
+            f"Convention:\n{CONVENTION.read_text('utf-8')}\n\nReading manual:\n{MANUAL.read_text('utf-8')}\n\n"
+            f"Sentence: {item['clause']}\nMarked words: \"{item['mention']}\"\n"
+            f"Linked structure: {item['structure'].replace('_', ' ')}\n\n"
+            "Answer with JSON only: {\"claims\": [\"...\"], \"why\": \"one short sentence\"}; claims from: "
+            + ", ".join(CLAIMS) + ".")
+
+
+def read_answer(text: str) -> tuple[list[str], str]:
+    m = re.search(r"\{.*\}", text or "", re.S)
+    try:
+        d = json.loads(m.group(0)) if m else {}
+    except json.JSONDecodeError:
+        d = {}
+    claims = sorted({str(c).strip() for c in d.get("claims") or [] if str(c).strip() in CLAIMS})
+    return claims, str(d.get("why") or "").replace("|", "/").replace("\n", " ")[:200]
+
+
+def cmd_label(args: argparse.Namespace) -> int:
+    from role_probe import Cache, check_endpoint, make_chats
+
+    check_endpoint(args.endpoint, args.public_data)
+    chat = make_chats([args.model], args.endpoint, Cache(Path(args.cache)), max_tokens=300)[args.model]
+    items = [json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines() if x.strip()]
+    lines = [f"# Second labeller ({args.model}) of {args.set}, written before any reading, from the whole sentence "
+             "and data/reading/labelling_convention.md. Not a reference: it is compared with the first labeller.",
+             "# Format: item|claims|why"]
+    lost = 0
+    for it in items:
+        try:
+            claims, why = read_answer(chat(prompt(it)))
+        except Exception as error:  # noqa: BLE001 - a lost answer is a missing label, never a guess
+            claims, why = [], f"no answer ({type(error).__name__})"
+        lost += not claims
+        lines.append(f"{it['item_id']}|{'+'.join(claims) or 'none'}|{why}")
+    Path(args.out).write_text("\n".join(lines) + "\n", "utf-8")
+    print(f"{len(items)} items labelled by {args.model}, {lost} without an answer -> {args.out}")
+    return 0
+
+
+def _kappa(pairs: list[tuple[str, str]]) -> float:
+    n = len(pairs)
+    if not n:
+        return 0.0
+    po = sum(a == b for a, b in pairs) / n
+    ca, cb = Counter(a for a, _ in pairs), Counter(b for _, b in pairs)
+    pe = sum(ca[k] * cb[k] for k in set(ca) | set(cb)) / (n * n)
+    return round((po - pe) / (1 - pe), 3) if pe < 1 else 1.0
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    import owner_probe as op
+    from melampo.memory.reading_memory import label_uncertainty
+
+    first = op.claims_labels(args.set)
+    second = {}
+    for ln in Path(args.second).read_text("utf-8").splitlines():
+        if ln.strip() and not ln.startswith("#"):
+            item, claims, why = (ln.split("|", 2) + ["", ""])[:3]
+            second[item] = (set() if claims == "none" else set(claims.split("+")), why)
+    items = {}
+    if args.items:
+        items = {json.loads(x)["item_id"]: json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines()
+                 if x.strip()}
+    both = [i for i in first if i in second and second[i][0]]
+    outcome = [(op.outcome_of_claims(first[i][0]), op.outcome_of_claims(second[i][0])) for i in both]
+    unc = [(label_uncertainty(first[i][0]) or "none", label_uncertainty(second[i][0]) or "none") for i in both]
+    print(json.dumps({"items": len(both), "outcome_agreement": round(sum(a == b for a, b in outcome) / len(both), 3)
+                      if both else 0, "outcome_kappa": _kappa(outcome),
+                      "uncertainty_agreement": round(sum(a == b for a, b in unc) / len(both), 3) if both else 0,
+                      "uncertainty_kappa": _kappa(unc)}, indent=1))
+    for i, (o, u) in zip(both, zip(outcome, unc)):
+        if o[0] != o[1] or u[0] != u[1]:
+            it = items.get(i, {})
+            print(f"\n{i}: first {'+'.join(sorted(first[i][0]))} / second {'+'.join(sorted(second[i][0]))}"
+                  f"  ({second[i][1]})")
+            if it:
+                print(f"  [{it['mention']}] {it['clause']}")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    a = sub.add_parser("label")
+    a.add_argument("--items", required=True)
+    a.add_argument("--set", required=True)
+    a.add_argument("--model", default="mistralai/mistral-large-4-0")
+    a.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
+    a.add_argument("--public-data", action="store_true")
+    a.add_argument("--cache", default="second_labeller_answers.jsonl")
+    a.add_argument("--out", required=True)
+    c = sub.add_parser("compare")
+    c.add_argument("--set", required=True)
+    c.add_argument("--second", required=True)
+    c.add_argument("--items", default="")
+    args = ap.parse_args(argv)
+    return cmd_label(args) if args.cmd == "label" else cmd_compare(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
