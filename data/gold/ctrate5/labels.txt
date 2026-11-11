@@ -1,0 +1,320 @@
+# What the sentence states of the linked structure, claim by claim: labels of the fifth CT-RATE sample (chest CT,
+# 11 November 2026). Labeller: Claude, one labeller, with the labelling convention of VALIDATION §3 as of 11
+# November 2026. Written BEFORE any reader or model was run on these items: the labeller saw the clause, the marked
+# mention and the linked class, nothing else.
+# Items: owner-probe workflow (sample_only), scripts/owner_probe.py sample --seed 20261111 --n-en 300 --n-it 0
+# --per-structure 24, from CT-RATE validation reports none of the first four samples used.
+# 300 English items from 170 reports (261 finding: 34 with an uncertainty below high, 24 with "consistent with" or
+# "compatible with", an uncertainty of level high; 12 with a measure; 23 normal, 7 aside, 3 involved, 3 history,
+# 2 measure alone, 1 device; 7 doubtful).
+# The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
+# Claims, joined by "+": finding, involved, normal, measure, history, device, not_assessable, nothing, aside,
+# indication, procedure, uncertain, uncertain_high. The uncertainty of the report (11 November 2026, Panicek and
+# Hricak, AJR 2016;207:2-3): "consistent with", "compatible with", "in line with" are uncertain_high (more than
+# 90%); "probably", "suspicious for", "possibly", "may", "?", "in favour of", "thought to be", "cannot be
+# excluded" are uncertain; "nonspecific", "cannot be characterized" (the nature open), "as far as can be
+# observed" (the exam's limit), "ground-glass-like", "slight" (a quality), "secondary to", "due to" (a stated
+# cause) are no uncertainty. The size of a lesion is part of the finding; the size of an organ is a measure, and a
+# finding too when the sentence says it is abnormal. "?" at the end of the note, after a space: the label is
+# doubtful (out of the criteria).
+# Format: item|claims|note
+ctrate-653-en-0|normal|calibration normal, no wall thickening
+ctrate-653-en-1|finding|subpleural nodules of 6 mm
+ctrate-979-en-0|normal|calibration normal, no wall thickening
+ctrate-676-en-0|normal|calibration normal, no wall thickening
+ctrate-1396-en-0|normal|calibration normal, no wall thickening
+ctrate-1086-en-0|normal|calibration normal, no wall thickening
+ctrate-470-en-0|finding+measure|wider than normal, 38.5 mm
+ctrate-470-en-1|finding|calcified atheroma plaques
+ctrate-470-en-2|normal|calibration normal, no wall thickening
+ctrate-1040-en-0|finding|stone of 4 mm
+ctrate-270-en-0|finding|the largest nodule, 4 mm
+ctrate-270-en-1|finding|nodules of millimetric diameter
+ctrate-1183-en-0|normal|calibration normal, no wall thickening
+ctrate-333-en-0|finding|nodular lesion, decreased from 8 to 5 mm
+ctrate-333-en-1|finding|hyperdense level, biliary sludge (said as understood, with US)
+ctrate-856-en-0|finding|ground glass, tree in bud
+ctrate-856-en-1|finding|nonspecific nodules of 4 mm (nonspecific: the nature open, not a doubt)
+ctrate-856-en-2|involved|sliding hiatal hernia "at the lower end of the esophagus": the junction moves up, or the place only ?
+ctrate-1116-en-0|finding+measure|38 mm, slight dilatation
+ctrate-1116-en-1|normal|calibration normal, no wall thickening
+ctrate-1116-en-2|finding+uncertain_high|decreased density, consistent with mild adiposity
+ctrate-414-en-0|normal|calibration normal, no wall thickening
+ctrate-414-en-1|finding|nonspecific nodule of 4 mm
+ctrate-248-en-0|normal|calibration normal, no wall thickening
+ctrate-248-en-1|finding+uncertain|hypodense nodular lesion of 14 mm, a cyst (the report's doubt)
+ctrate-188-en-0|normal|calibration normal, no wall thickening
+ctrate-188-en-1|finding+uncertain|ground glass, suspicious for Covid-19 pneumonia
+ctrate-188-en-2|finding+uncertain|ground glass, suspicious for Covid-19 pneumonia, in the impression
+ctrate-572-en-0|finding|minimal calcified changes of the wall
+ctrate-572-en-1|normal|calibration normal, no wall thickening
+ctrate-288-en-0|normal|calibration normal, no wall thickening
+ctrate-779-en-0|normal|calibration normal, no wall thickening, within the limits of the exam
+ctrate-779-en-1|finding|two nodules of 5.7 mm
+ctrate-779-en-2|finding+uncertain_high|decreased density "in line with" fatty deposits (as consistent with)
+ctrate-1046-en-0|normal|calibration normal, no wall thickening
+ctrate-437-en-0|measure|33 mm, not said to be abnormal
+ctrate-437-en-1|normal|calibration normal, no wall thickening
+ctrate-437-en-2|finding+uncertain_high|hypodense lesion of 39 mm, consistent with a cortical cyst
+ctrate-1069-en-0|normal|calibration normal, no wall thickening
+ctrate-843-en-0|finding|millimetric calcific nodule, in the impression
+ctrate-1423-en-0|normal|calibration normal, no wall thickening
+ctrate-1423-en-1|finding|thin-walled air cyst of 14 mm
+ctrate-1423-en-2|finding|thin-walled air cysts
+ctrate-1175-en-0|normal|calibration normal, no wall thickening
+ctrate-122-en-0|normal|calibration normal, no wall thickening
+ctrate-1289-en-0|finding+measure|36 mm, larger than normal
+ctrate-1289-en-1|finding|calcific atheroma plaques
+ctrate-1289-en-2|finding|calcific atheroma plaques
+ctrate-8-en-0|normal|calibration normal, no wall thickening
+ctrate-8-en-1|finding|ground-glass-like nodule of 5 mm (a quality, not a doubt)
+ctrate-8-en-2|finding|nodule of 6x4 mm
+ctrate-596-en-0|finding|pneumonic consolidation, ground glass, septal thickening
+ctrate-596-en-1|finding|pneumonic consolidation, ground glass, septal thickening
+ctrate-887-en-0|normal|calibration normal, no wall thickening
+ctrate-267-en-0|normal|calibration normal, no wall thickening
+ctrate-1234-en-0|finding+measure|30 mm, slightly wider than normal
+ctrate-1234-en-2|finding|millimetric calcific plaques
+ctrate-1234-en-3|finding|millimetric calcific plaques
+ctrate-1058-en-0|finding+measure|41 mm, fusiform dilatation
+ctrate-1058-en-1|finding|calcified changes of the wall
+ctrate-1058-en-3|history+normal|opacities of the previous exam, not detected now ?
+ctrate-1399-en-1|finding|minimal pleuroparenchymal sequelae
+ctrate-1399-en-2|finding|nonspecific nodule of 3 mm
+ctrate-1127-en-0|finding|ground glass and centriacinar nodules
+ctrate-1127-en-1|finding|nodular ground glass
+ctrate-1127-en-2|finding|nodular ground glass
+ctrate-542-en-1|finding|the largest nodule, 5 mm, unchanged
+ctrate-542-en-2|finding|pneumocyst of 7 mm
+ctrate-523-en-0|measure|33 mm, not said to be abnormal
+ctrate-523-en-1|finding|sequelae, cicatricial bronchiectasis
+ctrate-1342-en-0|finding|millimetric calcific plaque
+ctrate-1248-en-0|finding+measure|37 mm, slightly ectatic
+ctrate-1248-en-1|finding|diffuse calcific plaques
+ctrate-1248-en-3|finding|mild ectasia, in the impression
+ctrate-1282-en-1|finding|nonspecific nodule of 5 mm
+ctrate-1282-en-2|finding+uncertain|"if there is" a nonspecific nodule: conditional, a translation of "there is" ?
+ctrate-1294-en-0|finding+measure|ectatic, 40 mm
+ctrate-1119-en-1|finding|mild atelectasis of the inferior lingula, a part of the lobe
+ctrate-1119-en-2|finding|mild atelectasis of the inferior lingula, a part of the left upper lobe
+ctrate-1119-en-3|finding+uncertain|mild atelectasis; "atypical for covid-19 pneumonia", the hypothesis unlikely ?
+ctrate-1120-en-1|finding|focal ground-glass-like density (a quality)
+ctrate-1120-en-2|finding|faint ground-glass-like density (a quality)
+ctrate-873-en-0|finding+measure|42 mm, fusiform dilatation
+ctrate-873-en-1|finding|calcific atherosclerotic changes
+ctrate-873-en-3|finding|round ground glass, decreased
+ctrate-369-en-0|finding|irregular nodule of 6.5 mm with sequelae
+ctrate-369-en-1|finding|subpleural nodule of 5 mm
+ctrate-369-en-2|finding|subpleural nodule of 5 mm, in the impression
+ctrate-1466-en-1|finding|the largest of the nonspecific nodules, 5 mm
+ctrate-1477-en-0|finding|hypodense nodule of 10 mm
+ctrate-44-en-1|finding|subpleural consolidation
+ctrate-44-en-2|finding|subpleural consolidation
+ctrate-547-en-0|finding+uncertain|ground glass and consolidation; viral pneumonia (Covid-19 pneumonia, the report's doubt)
+ctrate-547-en-1|finding+uncertain|ground glass and consolidation; viral pneumonia (Covid-19 pneumonia, the report's doubt)
+ctrate-547-en-2|finding|consolidation and ground glass, in the impression
+ctrate-1538-en-1|finding|calculus of 3 mm
+ctrate-623-en-0|finding+measure|slightly ectatic, 36 mm
+ctrate-623-en-2|finding|calcific plaques
+ctrate-958-en-0|finding+measure|30 mm, slightly above normal
+ctrate-958-en-2|finding|subpleural nodule of 7x3 mm
+ctrate-43-en-0|finding|slightly heterogeneous parenchyma
+ctrate-43-en-2|finding|two adjacent nodules of 3 mm
+ctrate-1543-en-0|device|tracheostomy cannula, its tip 5 cm above the carina, a part of the trachea
+ctrate-599-en-3|finding|the largest of the nonspecific nodules, 8 mm
+ctrate-599-en-4|finding|the largest of the nonspecific nodules, in the impression
+ctrate-1494-en-0|finding+uncertain_high|decreased density compatible with advanced adiposity
+ctrate-80-en-0|finding+uncertain|nodular lesions in favour of a subpleural lymph node
+ctrate-80-en-1|finding+uncertain|nodular lesions in favour of subpleural lymph nodes, in the impression
+ctrate-368-en-2|finding|diffuse hypodense appearance, due to hepatosteatosis
+ctrate-368-en-3|finding|sequelae linear atelectasis, in the impression
+ctrate-1189-en-1|finding|millimetric indistinct ground glass
+ctrate-1189-en-2|finding|millimetric indistinct ground glass
+ctrate-1189-en-3|finding|millimetric indistinct ground glass, in the impression
+ctrate-177-en-2|finding|the larger nodules, 8 mm
+ctrate-177-en-3|finding|hypodense lesion of 12 mm, not characterised
+ctrate-177-en-4|finding|uncharacterised hypodense lesion, in the impression
+ctrate-138-en-1|finding|lesions up to 25x21 mm, spiculated, cavitated
+ctrate-138-en-2|finding|lesions slightly increased, in the impression
+ctrate-1131-en-0|finding|consolidation resorbed, now ground glass
+ctrate-849-en-2|finding|increase in heart size, in the impression
+ctrate-1335-en-2|finding|nodules with calcifications
+ctrate-1335-en-3|finding|nodules decreased, turned to ground glass
+ctrate-1335-en-4|finding|nodules decreased, turned to ground glass
+ctrate-1300-en-0|finding|hypodense appearance of hepatosteatosis
+ctrate-609-en-2|finding|compression atelectasis
+ctrate-11-en-1|finding|the largest of the nonspecific nodules, 3.5 mm
+ctrate-11-en-2|finding|increased size, hypodense nodules, in the impression
+ctrate-777-en-1|finding|patchy ground-glass nodular opacities
+ctrate-777-en-2|finding|patchy ground-glass nodular opacities
+ctrate-33-en-0|finding|bronchial ectasia, peribronchial thickening
+ctrate-33-en-1|finding|centriacinar nodules, tree in bud
+ctrate-33-en-2|finding|bronchial ectasia, centriacinar nodules, in the impression
+ctrate-751-en-0|finding+uncertain_high|ground glass and density increase consistent with consolidation
+ctrate-751-en-1|finding+uncertain_high|ground glass and density increase consistent with consolidation, of the lingula
+ctrate-498-en-0|finding|stone of 8 mm
+ctrate-446-en-2|finding|focal nodular ground glass
+ctrate-446-en-3|finding|focal nodular ground glass
+ctrate-446-en-4|finding|focal nodular ground glass of the lingula, a part of the left upper lobe
+ctrate-103-en-1|finding|nodule of 4 mm, also in the previous exam
+ctrate-1143-en-0|finding|ground glass with air bronchogram
+ctrate-991-en-0|finding|millimetric subpleural nodule
+ctrate-881-en-1|finding|ground-glass-like centriacinar nodular infiltration
+ctrate-881-en-2|finding|accessory spleen of 1.5 cm by its hilum (a variant of the spleen)
+ctrate-881-en-3|finding|accessory spleen of 1.5 cm by its hilum (a variant of the spleen)
+ctrate-275-en-1|finding|the largest of the nonspecific nodules, 3.5 mm
+ctrate-1286-en-2|finding|hypodense appearance at segment 6, in the liver
+ctrate-1286-en-4|finding|linear opacities, evaluated nonspecifically
+ctrate-1100-en-1|finding|tree in bud, consolidation, ground glass
+ctrate-1100-en-2|finding|tree in bud, consolidation, ground glass, in the impression
+ctrate-1100-en-3|finding|tree in bud, consolidation, ground glass, in the impression
+ctrate-1023-en-0|finding|minimal bronchiectasis
+ctrate-1023-en-3|finding+uncertain|bronchiectasis, volume loss; tree in bud in favour of infective pathology, in the impression
+ctrate-237-en-0|finding+uncertain|nodular density thought to belong, "may", to atelectatic parenchyma
+ctrate-237-en-1|finding|calcified millimetric nodule
+ctrate-237-en-2|finding|hypodense lesion of 10 mm, not characterised
+ctrate-701-en-0|finding+uncertain|rounded consolidation, in favour of round atelectasis
+ctrate-701-en-1|finding|linear hyperdense foreign bodies
+ctrate-701-en-3|finding|minimal subsegmental atelectasis of the lingula, a part of the left upper lobe
+ctrate-479-en-2|finding|millimetric nodular densities
+ctrate-1481-en-1|finding|minimal volume loss
+ctrate-1481-en-3|finding+uncertain|centriacinar nodular infiltration, distal airway disease (the report's doubt)
+ctrate-1481-en-4|finding|cortical cyst of 44x22 mm
+ctrate-1213-en-0|finding|cystic bronchiectasis
+ctrate-1221-en-3|finding|size markedly increased
+ctrate-1221-en-5|finding|cortical cyst of 25 mm
+ctrate-812-en-1|finding|nodule of 4.5 mm
+ctrate-551-en-2|finding+uncertain|cavitary lesion of 22x10 mm, an aspergilloma (the report's doubt)
+ctrate-1364-en-3|finding|centriacinar nodules and consolidation
+ctrate-1364-en-4|finding|centriacinar nodules and consolidation of the lingula, a part of the left upper lobe
+ctrate-1394-en-1|finding|nonspecific nodule of 2.5 mm
+ctrate-880-en-0|finding|ground-glass areas
+ctrate-1333-en-0|finding+device|suture materials, fibrotic retractions, distortion, minimal volume loss
+ctrate-1545-en-2|finding|increased heart size, in the impression
+ctrate-247-en-1|finding|faint ground-glass-like density increase (a quality)
+ctrate-247-en-2|finding|hypodense lesion of 10 mm with faint borders
+ctrate-247-en-3|finding+uncertain_high|decreased density compatible with mild adiposity
+ctrate-1252-en-1|finding+uncertain_high|decreased density compatible with fatty deposits
+ctrate-500-en-1|finding+uncertain_high|nodular lesion of 22 mm compatible with an adenoma, -10 HU (the lesion's)
+ctrate-500-en-2|finding|cortical cyst of 21 mm
+ctrate-222-en-3|finding+uncertain_high|slight decrease of density, consistent with steatosis
+ctrate-860-en-1|finding|nonspecific nodule of 3.5 mm
+ctrate-1480-en-0|finding|ground glass and pneumonic infiltration
+ctrate-231-en-1|finding+uncertain_high|decreased density "in line with" adiposity, within the limits of the exam
+ctrate-231-en-2|finding|accessory spleen of 12.6 mm (a variant of the spleen)
+ctrate-1166-en-1|finding|consolidation of the lingula, a part of the left upper lobe
+ctrate-1166-en-2|finding|nodular consolidation of 15 mm, stable
+ctrate-517-en-0|finding|stone of 2.5 mm
+ctrate-553-en-1|finding|focal ground glass
+ctrate-600-en-3|finding|septal thickening, focal ground-glass-like density
+ctrate-600-en-4|finding+uncertain_high|slight decrease of density, consistent with steatosis
+ctrate-1192-en-1|finding|nonspecific ground-glass nodule of 4 mm
+ctrate-1192-en-2|finding|nonspecific ground-glass nodule, in the impression
+ctrate-416-en-2|finding+uncertain|appearance in the lumen of its bronchi that may be secretion
+ctrate-416-en-3|finding|patchy ground glass
+ctrate-416-en-5|finding+uncertain|nodular sclerotic appearance of the right transverse process, an enostosis (the report's doubt)
+ctrate-152-en-6|finding|peribronchovascular thickening, slight prominence
+ctrate-152-en-7|finding|peribronchovascular thickening, slight prominence of the lingula
+ctrate-152-en-8|finding|stable nodule of 3 mm
+ctrate-59-en-1|finding|diffuse hypodense appearance due to hepatosteatosis, within the limits of the exam
+ctrate-59-en-2|finding|sequela parenchymal changes of the lingula, a part of the lobe, in the impression
+ctrate-59-en-3|finding|sequela parenchymal changes of the lingula, a part of the left upper lobe, in the impression
+ctrate-79-en-0|finding+uncertain_high|decreased density "in line with" adiposity
+ctrate-1297-en-1|finding|pleuroparenchymal sequelae, paracicatricial bronchiectasis
+ctrate-1297-en-3|finding+uncertain|millimetric hyperdensity, a calcified polyp or a calculus (the report's doubt)
+ctrate-1297-en-4|finding|cortical cyst of 3 cm
+ctrate-1542-en-2|aside|pleural thickening with calcifications of "the left lung upper lobe pleura": the pleura is not the lobe ?
+ctrate-1190-en-0|finding|emphysema, nodules of 4x2 mm
+ctrate-1190-en-1|finding|the largest nodule, 4x2 mm
+ctrate-1340-en-2|finding+uncertain_high|density compatible with a 1-2 mm calculus
+ctrate-1334-en-2|finding+uncertain_high|decreased density "in line with" adiposity
+ctrate-982-en-0|finding|calcified hypodense nodules, within the limits of the exam
+ctrate-1237-en-1|finding|two accessory spleens (a variant of the spleen)
+ctrate-1237-en-2|finding|two accessory spleens (a variant of the spleen)
+ctrate-1406-en-1|finding|calculi of 3 mm
+ctrate-851-en-2|finding+uncertain_high|decreased density, consistent with mild hepatosteatosis
+ctrate-141-en-1|finding|stable hypodense lesions of 19 mm
+ctrate-1123-en-1|finding|nonspecific nodule of 2 mm
+ctrate-1123-en-2|finding|calculus of 2 cm
+ctrate-1123-en-3|finding|exophytic hypodense lesion of 1 cm
+ctrate-1500-en-1|involved|slightly indented by the mass and the esophagus
+ctrate-1500-en-7|finding+history|malignant mass of its left lobe; treated for thyroid cancer
+ctrate-1500-en-10|finding+history|malignant mass of its left lobe; treated for thyroid cancer
+ctrate-562-en-5|finding+uncertain|nodular density that may be an accessory spleen (a variant of the spleen)
+ctrate-562-en-6|finding+uncertain|nodular density that may be an accessory spleen (a variant of the spleen)
+ctrate-562-en-7|finding+uncertain|nodular density that may be an accessory spleen (a variant of the spleen)
+ctrate-745-en-0|aside|anterior mediastinal mass between the heart and the sternum
+ctrate-745-en-1|aside|anterior mediastinal mass between the heart and the sternum
+ctrate-111-en-1|finding+uncertain|nodular formation that may be an accessory spleen (a variant of the spleen)
+ctrate-111-en-2|finding+uncertain|nodular formation that may be an accessory spleen (a variant of the spleen)
+ctrate-482-en-0|history|pneumonic consolidation in the old CT
+ctrate-271-en-2|finding+device|pathological compression fracture, cement material
+ctrate-271-en-3|finding+device|pathological compression fracture, cement material
+ctrate-1115-en-0|finding|large hypodense nodular lesion
+ctrate-113-en-3|finding|minimal height loss
+ctrate-684-en-0|finding|nonspecific nodule of 3 mm
+ctrate-165-en-1|finding+uncertain|hypodense lesion that may be a cortical cyst
+ctrate-1037-en-1|finding+uncertain_high|decreased density, compatible with advanced adiposity
+ctrate-240-en-1|finding+uncertain|mass of 3.5 cm, in favour of a myelolipoma
+ctrate-53-en-0|finding|nodule of 3 mm with rim calcification
+ctrate-53-en-1|finding|millimetric nodule with peripheral calcification
+ctrate-890-en-4|finding|nodular lesion of 24 mm, not characterised
+ctrate-208-en-0|finding+uncertain_high|decreased density, -6 HU, "in line with" severe adiposity
+ctrate-917-en-1|aside|lymph nodes up to 11 mm at the carina
+ctrate-1511-en-2|finding|calculi, the largest 2 mm
+ctrate-1511-en-3|finding|calculi, the largest 3 mm
+ctrate-1511-en-4|finding+uncertain|hypodense nodular lesion of 2.5 mm, a cyst (the report's doubt)
+ctrate-1474-en-0|finding+uncertain_high|wall calcifications consistent with tracheobronchopathia osteochondroplastica
+ctrate-1474-en-3|finding+uncertain|hyperdense nodular lesion of 11 mm, a haemorrhagic cyst (the report's doubt)
+ctrate-1474-en-5|finding|haemorrhagic cyst; "compatible with" may reach it ?
+ctrate-819-en-2|finding|subcapsular hypodense areas of 23 and 15 mm
+ctrate-819-en-3|finding|hypodense lesions, in the impression
+ctrate-31-en-0|finding|hypodense area with barely distinguishable borders
+ctrate-543-en-3|finding+uncertain|hypodense lesion of 17 mm, a parapelvic cyst (the report's doubt)
+ctrate-543-en-4|finding+uncertain|hypodense lesion, a parapelvic cyst (the report's doubt)
+ctrate-832-en-0|finding|slightly heterogeneous parenchyma
+ctrate-1144-en-2|finding|minimal thickening of the lateral crus
+ctrate-1144-en-3|finding|minimal thickening of the lateral crus, in the impression
+ctrate-618-en-0|finding|solid mass of 17 mm
+ctrate-618-en-1|finding+uncertain_high|density changes compatible with advanced adiposity
+ctrate-1210-en-0|finding|minimally larger than normal, within the limits of the exam
+ctrate-1210-en-1|aside|retrosternal collection at the level of the xiphoid process
+ctrate-764-en-2|finding|calcified mitral valve, a part of the heart
+ctrate-764-en-12|finding|calcification of the mitral valve, in the impression
+ctrate-1505-en-3|finding|hypodense lesion of 19 mm
+ctrate-1505-en-5|finding|hypodense lesion, not characterised, in the impression
+ctrate-583-en-4|finding|faintly circumscribed hyperdense nodular lesion of 15 mm
+ctrate-976-en-1|finding|cortical cyst of 48 mm
+ctrate-1258-en-2|finding|both lobes prominent
+ctrate-1258-en-3|finding+uncertain|soft tissue appearance that may be mucus impaction
+ctrate-215-en-7|finding|thickening of the corpus and lateral crus, in the impression (the clause is cut)
+ctrate-1158-en-2|finding|millimetric stone
+ctrate-1158-en-6|finding|millimetric stone
+ctrate-130-en-0|finding|hypodense nodule of 29 mm, within the limits of the exam
+ctrate-130-en-2|finding|calculus of 2.5 mm
+ctrate-130-en-3|finding|hypodense nodule, ultrasound recommended
+ctrate-710-en-0|finding|parenchymal calcification
+ctrate-710-en-1|finding+uncertain|hypodense fluid lesion, a cyst (the report's doubt)
+ctrate-441-en-6|finding|lobulation of the fundus
+ctrate-441-en-7|finding+uncertain|a suspicious density consistent with a calculus of 1-2 mm
+ctrate-441-en-9|finding|lobulated contours
+ctrate-1179-en-0|finding|stones of 1 cm
+ctrate-660-en-0|aside|mass at the level of the scapula, infiltrating the skin and under it
+ctrate-349-en-0|finding+uncertain_high|nodular lesion of 13 mm compatible with an adenoma
+ctrate-1149-en-1|finding|millimetric hypodense lesion, not characterised
+ctrate-335-en-0|finding+uncertain|millimetric hyperdense lesion, a haemorrhagic cyst (the report's doubt)
+ctrate-896-en-5|finding|extrarenal pelvis variation, prominent renal pelvis
+ctrate-896-en-7|involved+uncertain_high|paravertebral mass destroying the spinous process, compatible with metastasis "in the first plan" ?
+ctrate-896-en-8|finding|metastatic appearance without cortical destruction
+ctrate-211-en-1|finding|hypodense lesion of 25 mm, a cyst (stated, without "?")
+ctrate-230-en-0|finding+uncertain_high|wall calcifications consistent with tracheobronchopathia osteochondroplastica
+ctrate-230-en-9|history|known gallbladder carcinoma; the findings evaluated are of other structures
+ctrate-230-en-12|aside|subcutaneous nodular soft tissue adjacent to the rib
+ctrate-1186-en-2|finding|accessory spleen of 13 mm (a variant of the spleen)
+ctrate-1168-en-0|finding|slightly displaced to the right
+ctrate-838-en-0|finding+uncertain|findings in the heart; the appearance thought, "might", due to cardiac pathology
+ctrate-1516-en-2|finding|subcapsular hypodense lesion of 28 mm
+ctrate-190-en-1|finding|diverticular lesion
+ctrate-536-en-0|finding+uncertain_high|nodular cortical lesion of 10 mm compatible with angiomyolipoma
+ctrate-64-en-3|finding+uncertain|hyperdense findings up to 14 mm, in favour of stones
+ctrate-738-en-0|finding|hypodense fluid lesion and a millimetric stone
