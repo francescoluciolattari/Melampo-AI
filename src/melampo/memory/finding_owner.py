@@ -515,6 +515,20 @@ def claims_outcome(answer: dict) -> str:
     return KEEP
 
 
+def uncertainty_readers(valid: dict[str, dict]) -> list[dict]:
+    """The answers whose uncertainty is read (11 November 2026): every model's (their union) by default; with
+    ``MELAMPO_UNCERTAINTY_FROM`` set to model names (comma separated), only theirs. The choice is measured, never
+    assumed: on ctrate5 one model gave the uncertainty to 13 stated findings, the other to 1, and the union lost
+    nothing either alone lost; ctrate6 measures the three readings with the rule fixed before (VALIDATION)."""
+    import os
+
+    chosen = [m.strip() for m in os.environ.get("MELAMPO_UNCERTAINTY_FROM", "").split(",") if m.strip()]
+    if not chosen:
+        return list(valid.values())
+    picked = [a for m, a in valid.items() if any(c in m for c in chosen)]
+    return picked or list(valid.values())     # a chosen model that did not answer: all the readings, never none
+
+
 def agreed_claims(answers: list[dict], every: list[dict] | None = None) -> dict:
     """The claims every model makes, with the first model's words: its findings (of the structure or reaching
     it), and each other kind that every model fills. The uncertainty is the exception (10 November 2026): what
@@ -870,7 +884,7 @@ class FindingOwner:
         outcome = _unflagged_outcome(next(iter(valid.values()))) if doubt and not doubt.get("closed_by") \
             else outcomes[0]
         answers = list(valid.values()) if not doubt or doubt.get("closed_by") else list(valid.values())[:1]
-        claims = agreed_claims(answers, list(valid.values()))
+        claims = agreed_claims(answers, uncertainty_readers(valid))
         piece = " … ".join(o["words"] for o in claims.get("findings", []))
         open_doubt = bool(doubt) and not doubt.get("closed_by")
         if outcome == ASIDE:

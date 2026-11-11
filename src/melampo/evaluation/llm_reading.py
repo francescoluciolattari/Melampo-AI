@@ -583,6 +583,13 @@ def read_statement(text: str, sentence: str) -> dict:
 # neither list, so the models put it in different lists or in none. Now what is seen and what the sentence says it
 # is are apart, and every uncertainty is said with the words it applies to. Also: what is said of another person,
 # and what the patient reports, which are not the exam's observation.
+# 11 November 2026 (2): on ctrate5 the uncertainty was given to 14 of 293 stated findings, 13 by one model: what
+# is seen but not identified and the limits of the exam put also in the uncertainty, "stable" read as probable,
+# "ground-glass-like" as a doubt, a source of knowledge as a level. The literature on hedging tells them apart:
+# approximators change what is said, shields the commitment to it (Prince, Frader and Bosk 1982; Hyland 1996:
+# attribute and reliability hedges); attribution shields name a source; speculation has a cue and a scope
+# (BioScope, Vincze et al. 2008); factuality is the commitment of a source to an event (FactBank, Sauri and
+# Pustejovsky); time and experiencer are apart (ConText, Harkema et al. 2009).
 # 11 November 2026: on ctrate4 the uncertainty was given to 62 of 250 findings the report states (24.8%): what is
 # seen but not identified, the limits of the exam, an attribution, the degree of what is seen had no place of
 # their own, and "when in doubt, it is uncertain" pushed them into the uncertainty. Now each has its place, and
@@ -633,23 +640,35 @@ of that kind.
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
-- uncertainty: only what the sentence presents as perhaps not true: a doubt, a hypothesis, a differential,
-  something probable, possible, suspected, questioned ("?"), "in favor of" a hypothesis, "thought to be", "can be
-  seen in", to be excluded, and also "consistent with", "compatible with". For each: words: the words that make it
-  uncertain, copied; about: the words of what is uncertain, copied (often what the sentence says it is, while
-  what is seen is certain: in "a hypodense lesion (cyst?)" the lesion is seen, the cyst is uncertain); level: how
-  likely the sentence says it is, on the scale of Panicek and Hricak (AJR 2016): "high" (more than 90%, as
-  "consistent with"), "probable" (about 75%, as "suspicious for", "probably"), "possible" (about 50%, as
-  "possibly", "?"), "less_likely" (about 25%), "unlikely" (less than 10%), read from the whole sentence ("may be
-  consistent with" is not "consistent with"). A question mark applies to what it follows or closes, a parenthesis
-  with "?" to the words in it. Not uncertainty, each with its own place: what is seen but not identified
-  ("nonspecific", "cannot be characterized") is undetermined; how far the exam could see ("as far as can be
-  observed", "within the limits of non-contrast CT") is limits; what something is attributed to ("increased
-  cardiothoracic ratio in favor of the heart") and the degree or quality of what is seen ("slight", "faintly
-  limited", "ground-glass-like", "tends to") stay in what is seen.
+- uncertainty: only how far the writer commits to the truth of something the sentence says (a hedge that shields
+  it, Prince, Frader and Bosk 1982; a speculation, BioScope 2008): a doubt, a hypothesis, alternatives joined by
+  "or", a differential, something probable, possible, suspected, questioned ("?"), "suggests", "may", "might",
+  "in favor of" a hypothesis, "thought to be", "considered", "can be seen in", "cannot be excluded", "to be
+  evaluated for", a condition ("if there is"), and also "consistent with", "compatible with", "in line with".
+  For each: words: the words that make it uncertain, copied; about: the words of what is uncertain, copied (often
+  what the sentence says it is, while what is seen is certain: in "a hypodense lesion (cyst?)" the lesion is
+  seen, the cyst is uncertain); level: how likely the writer says it is, on the scale of Panicek and Hricak (AJR
+  2016): "high" (more than 90%, as "consistent with"), "probable" (about 75%, as "suspicious for",
+  "probably"), "possible" (about 50%, as "possibly", "may", "?"), "less_likely" (about 25%), "unlikely" (less
+  than 10%), read from the whole sentence ("may be consistent with" is not "consistent with"; "suspicious ...
+  consistent with" is not "consistent with"). A question mark applies to what it follows or closes, a
+  parenthesis with "?" to the words in it. What a word does in this sentence decides, not the word. These are not
+  uncertainty, and none of their words goes in uncertainty: a word stays in one place only.
+  * what is seen but not identified ("nonspecific", "uncharacterized", "cannot be characterized"): its nature is
+    open, it is not doubted; it goes in undetermined;
+  * how far the exam could see ("as far as can be observed", "within the limits of non-contrast CT"): it goes in
+    limits;
+  * an approximation of what is seen, its degree, extent or likeness ("slight", "faint", "approximately", "about",
+    "ground-glass-like", "tends to"): it changes what is said, not the commitment to it; it stays in what is seen;
+  * where the knowledge comes from ("when evaluated together with US", "according to", "it was understood
+    that"): a source, not a doubt; what the writer then states is certain;
+  * a change in time ("stable", "unchanged", "new", "decreased", "regressed"): a statement about time, certain;
+  * what something is attributed to ("increased cardiothoracic ratio in favor of the heart", "secondary to",
+    "due to"): stated, certain.
 - undetermined: words saying that what is seen is not identified or not characterised ("nonspecific", "cannot be
   characterized"): what is seen stays certain, only its nature is open.
-- limits: words saying how far the exam could see, or what limited it, for what is said here.
+- limits: words saying how far the exam could see, or what limited it, copied. A limit qualifies what the exam
+  could not see (most often an absence: "no lesion, as far as can be observed"); what was seen stays certain.
 - other_person: words of what is said of a person other than the patient (a relative's disease).
 - reported: words of what the patient reports or the referral says, not observed in the exam.
 - device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis, an implanted valve),
@@ -791,6 +810,27 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
                 out["dropped"] += 1
         out[key] = kept
     out["normal"] = usual + [w for w in out["normal"] if w not in usual]
+    # non-contradiction (11 November 2026): words the answer itself puts where the nature is open or the exam's
+    # limit is are not, in the same answer, an uncertainty; the place it chose for them stands (ctrate5: 10 of the
+    # 13 uncertainties one model gave to stated findings were such words, put in both places)
+    elsewhere = [w.lower() for k in ("undetermined", "limits") for w in out.get(k, [])]
+    if elsewhere and out.get("uncertainty"):
+        def tokens(text: str) -> str:
+            return " ".join(re.findall(r"\w+", text.lower()))
+
+        def placed(words: str) -> bool:
+            # the same words, whole words only: "or" is not in "for"
+            w = tokens(words)
+            for e in map(tokens, elsewhere):
+                if w and e and (re.search(r"\b" + re.escape(w) + r"\b", e) or re.search(r"\b" + re.escape(e) + r"\b", w)):
+                    return True
+            return False
+
+        dropped = [w for w in out["uncertainty"] if placed(w)]
+        if dropped:
+            out["uncertainty"] = [w for w in out["uncertainty"] if w not in dropped]
+            out["uncertain_about"] = [u for u in out["uncertain_about"] if u["words"] not in dropped]
+            out["contradictions"] = dropped
     said = str(answer.get("conclusion") or "none").strip().lower()
     out["conclusion"] = said if said in ("same", "other", "none") else "none"
     out["conclusion_of"] = _copied_from(answer.get("conclusion_of"), conclusion)

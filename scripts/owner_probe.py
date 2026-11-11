@@ -69,14 +69,19 @@ CTRATE4_SEED = 20261110
 # in a place of its own (undetermined, limits); ctrate4 gave the uncertainty to 62 of 250 stated findings
 CTRATE5_LABELS = ROOT / "data/gold/ctrate5/labels.txt"
 CTRATE5_SEED = 20261111
+# the sixth (11 November 2026): the uncertainty as the literature on hedging tells it apart (shields, not
+# approximators, sources, time, the nature open or the exam's limits), no word in two places, and the three
+# readings (each model, their union) measured on one run
+CTRATE6_LABELS = ROOT / "data/gold/ctrate6/labels.txt"
+CTRATE6_SEED = 20261112
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
            "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
            "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
-           "ctrate5": CTRATE5_LABELS}
+           "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
                 "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
                 "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
-                "ctrate5": CTRATE5_LABELS}
+                "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
@@ -311,7 +316,48 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
 
     rs = [r for r in rows if arm in r and r.get("gold_claims")]
     return {"without_doubt": one([r for r in rs if not r.get("gold_doubt")]), "all": one(rs),
-            "doubtful_items": sum(1 for r in rs if r.get("gold_doubt"))}
+            "doubtful_items": sum(1 for r in rs if r.get("gold_doubt")),
+            "uncertainty_by_reading": uncertainty_by_reading([r for r in rs if not r.get("gold_doubt")], arm)}
+
+
+def uncertainty_by_reading(rows: list[dict], arm: str = "claims") -> dict:
+    """Criteria 7 and 8 for each reading of the uncertainty (11 November 2026): each model alone and their union,
+    from the answers of one run. The rule, fixed before ctrate6 (VALIDATION): the reading used is the one with the
+    fewest errors of 7 and 8 together, if both stay under 2%; on a tie, the one that loses less."""
+    rows = [r for r in rows if (r.get(arm) or {}).get("verdict") != "unsure"]
+    models = sorted({m for r in rows for m in ((r.get(arm) or {}).get("models") or {})})
+
+    def read(r: dict, which: list[str]) -> list[dict]:
+        answers = (r.get(arm) or {}).get("models") or {}
+        out = []
+        for m in which:
+            a = answers.get(m) or {}
+            out += a.get("uncertain_about") or [{"words": w, "level": "possible"} for w in a.get("uncertainty", [])]
+        return out
+
+    n = len(rows)
+    result = {}
+    for name, which in [*((m, [m]) for m in models), ("union", models)]:
+        lost, given, lost_items, given_items = 0, 0, [], []
+        for r in rows:
+            gold = set(r.get("gold_claims") or [])
+            ua = read(r, which)
+            below = any(u.get("level", "possible") != "high" for u in ua)
+            if "uncertain" in gold:
+                if not below:
+                    lost += 1
+                    lost_items.append(r["item_id"])
+            elif ua and ("uncertain_high" not in gold or below):
+                given += 1
+                given_items.append(r["item_id"])
+        result[name] = {"7_lost": lost, "7_share": round(lost / n, 4) if n else 0.0, "7_upper_95": upper_95(lost, n),
+                        "8_given": given, "8_share": round(given / n, 4) if n else 0.0,
+                        "8_upper_95": upper_95(given, n), "7_items": lost_items, "8_items": given_items,
+                        "passes": n > 0 and lost / n <= 0.02 and given / n <= 0.02}
+    passing = [k for k, v in result.items() if v["passes"]]
+    result["chosen"] = min(passing, key=lambda k: (result[k]["7_lost"] + result[k]["8_given"],
+                                                   result[k]["7_lost"])) if passing else ""
+    return result
 
 
 def gold_of(item: dict, name: str, own_labels: dict[str, str], away: dict[str, set[str]]) -> str:
@@ -459,7 +505,8 @@ def main(argv: list[str] | None = None) -> int:
                   CTRATE2_SEED: [CTRATE_LABELS],
                   CTRATE3_SEED: [CTRATE_LABELS, CTRATE2_LABELS],
                   CTRATE4_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS],
-                  CTRATE5_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS]}
+                  CTRATE5_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS],
+                  CTRATE6_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS, CTRATE5_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()

@@ -17,6 +17,8 @@
 # cause) are no uncertainty. The size of a lesion is part of the finding; the size of an organ is a measure, and a
 # finding too when the sentence says it is abnormal. "?" at the end of the note, after a space: the label is
 # doubtful (out of the criteria).
+# Corrected after the run (11 November 2026), each with its reason in the note: ctrate-215-en-7, ctrate-271-en-2,
+# ctrate-271-en-3 (VALIDATION, ctrate5). From ctrate6 on, the clause is never read cut.
 # Format: item|claims|note
 ctrate-653-en-0|normal|calibration normal, no wall thickening
 ctrate-653-en-1|finding|subpleural nodules of 6 mm
@@ -248,8 +250,8 @@ ctrate-745-en-1|aside|anterior mediastinal mass between the heart and the sternu
 ctrate-111-en-1|finding+uncertain|nodular formation that may be an accessory spleen (a variant of the spleen)
 ctrate-111-en-2|finding+uncertain|nodular formation that may be an accessory spleen (a variant of the spleen)
 ctrate-482-en-0|history|pneumonic consolidation in the old CT
-ctrate-271-en-2|finding+device|pathological compression fracture, cement material
-ctrate-271-en-3|finding+device|pathological compression fracture, cement material
+ctrate-271-en-2|finding+device+uncertain_high|pathological compression fracture among the lytic lesions consistent with metastasis, cement material; corrected 11 November 2026 after the run: the fracture is pathological, one of the lesions "consistent with metastasis"
+ctrate-271-en-3|finding+device+uncertain_high|pathological compression fracture among the lytic lesions consistent with metastasis, cement material; corrected 11 November 2026 after the run: the fracture is pathological, one of the lesions "consistent with metastasis"
 ctrate-1115-en-0|finding|large hypodense nodular lesion
 ctrate-113-en-3|finding|minimal height loss
 ctrate-684-en-0|finding|nonspecific nodule of 3 mm
@@ -287,7 +289,7 @@ ctrate-583-en-4|finding|faintly circumscribed hyperdense nodular lesion of 15 mm
 ctrate-976-en-1|finding|cortical cyst of 48 mm
 ctrate-1258-en-2|finding|both lobes prominent
 ctrate-1258-en-3|finding+uncertain|soft tissue appearance that may be mucus impaction
-ctrate-215-en-7|finding|thickening of the corpus and lateral crus, in the impression (the clause is cut)
+ctrate-215-en-7|finding+uncertain|thickening of the corpus and lateral crus, a metastasis (the report's doubt); corrected 11 November 2026 after the run: the labeller had read the clause cut at 420 characters, without its last "(metastasis?)"
 ctrate-1158-en-2|finding|millimetric stone
 ctrate-1158-en-6|finding|millimetric stone
 ctrate-130-en-0|finding|hypodense nodule of 29 mm, within the limits of the exam
