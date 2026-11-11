@@ -44,3 +44,18 @@ def test_the_uncertainty_given_where_the_report_states_is_counted():
     got = criteria([given, high, lower, only_high])["without_doubt"]
     assert got["8_given_items"] == ["e", "g"]
     assert got["7_lost_items"] == ["h"]
+
+
+def test_the_readings_of_the_uncertainty_are_measured_apart():
+    from owner_probe import uncertainty_by_reading
+
+    def row(item, gold, a, b):
+        return {"item_id": item, "gold_claims": gold, "claims": {"verdict": "here", "models": {
+            "m1": {"uncertain_about": a}, "m2": {"uncertain_about": b}}}}
+
+    q = [{"words": "?", "level": "possible"}]
+    rows = [row("a", ["finding", "uncertain"], q, q), row("b", ["finding"], [], [{"words": "stable"}])]
+    rows += [row(f"c{i}", ["finding"], [], []) for i in range(98)]
+    got = uncertainty_by_reading(rows)
+    assert got["m1"]["8_given"] == 0 and got["m2"]["8_items"] == ["b"] and got["union"]["8_given"] == 1
+    assert got["chosen"] == "m1"

@@ -475,3 +475,29 @@ def test_every_uncertainty_has_its_level_and_what_is_not_uncertain_its_place():
                                              uncertainty=[{"words": "consistent with", "about": "a granuloma",
                                                            "level": "almost"}])), s, "right lung")
     assert without["uncertain_about"][0]["level"] == "possible"   # an unreadable level is never certain
+
+
+def test_words_an_answer_puts_as_undetermined_are_not_its_uncertainty():
+    # ctrate5 (11 November 2026): one model put "nonspecific" both where the nature is open and in the
+    # uncertainty, making the nodule itself uncertain; the place it chose for the words stands
+    s = "A nonspecific nodule of 5 mm, or a scar, is observed in the lower lobe of the left lung, as far as can be seen"
+    got = read_claims(json.dumps(_answer(
+        marked="lower lobe of the left lung", observed=[{"words": "nodule of 5 mm", "of": "it"}],
+        uncertainty=[{"words": "nonspecific", "about": "nodule", "level": "possible"},
+                     {"words": "or", "about": "a scar", "level": "possible"},
+                     {"words": "as far as can be seen", "about": "nodule", "level": "possible"}],
+        undetermined=["nonspecific"], limits=["as far as can be seen"])), s, "lower lobe of the left lung")
+    assert got["uncertainty"] == ["or"]           # "or" is not in "for": whole words only
+    assert got["contradictions"] == ["nonspecific", "as far as can be seen"]
+    assert [u["words"] for u in got["uncertain_about"]] == ["or"]
+
+
+def test_the_uncertainty_is_read_from_the_chosen_models(monkeypatch):
+    from melampo.memory.finding_owner import uncertainty_readers
+
+    valid = {"google/gemma": {"uncertainty": []}, "nvidia/nemotron": {"uncertainty": ["stable"]}}
+    assert len(uncertainty_readers(valid)) == 2
+    monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "gemma")
+    assert uncertainty_readers(valid) == [{"uncertainty": []}]
+    monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "absent")
+    assert len(uncertainty_readers(valid)) == 2   # a chosen model that did not answer: never no reading
