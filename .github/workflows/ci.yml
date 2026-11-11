@@ -33,7 +33,10 @@ jobs:
       - name: Install system packages
         # poppler-utils: pdftotext / pdfimages / pdf2image (document
         # processing). Not a Python package -- uv cannot provide it.
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+        # tried again (11 November 2026): a runner that cannot reach the Ubuntu mirrors for a moment
+        # ("Temporary failure resolving 'security.ubuntu.com'") must not fail the whole suite
+        run: |
+          for i in 1 2 3 4; do sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils && break; [ "$i" = 4 ] && exit 1; echo "apt failed (try $i), again in 30 s"; sleep 30; done
 
       - name: Create the locked environment
         # --locked fails if uv.lock is out of date with pyproject.toml,
