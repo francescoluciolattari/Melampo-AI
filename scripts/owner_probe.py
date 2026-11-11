@@ -324,6 +324,23 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
             "uncertainty_by_reading": uncertainty_by_reading([r for r in rs if not r.get("gold_doubt")], arm)}
 
 
+def fingerprint(item: dict) -> str:
+    """The item as labelled (11 November 2026): the clause, the mention and the structure."""
+    import hashlib
+
+    return hashlib.sha256((item["clause"] + "\x00" + item["mention"] + "\x00" + item["structure"]).encode(
+        "utf-8")).hexdigest()[:16]
+
+
+def fingerprints(name: str) -> dict[str, str]:
+    """The fingerprints of the labelled items of a sample, if taken (data/gold/<sample>/fingerprints.txt)."""
+    path = ROOT / "data/gold" / name / "fingerprints.txt"
+    if not path.exists():
+        return {}
+    return dict(ln.split("|", 1) for ln in path.read_text("utf-8").splitlines() if ln.strip() and not
+                ln.startswith("#"))
+
+
 def uncertainty_by_reading(rows: list[dict], arm: str = "claims") -> dict:
     """Criteria 7 and 8 for each reading of the uncertainty (11 November 2026): each model alone and their union,
     from the answers of one run. The rule, fixed before ctrate6 (VALIDATION): the reading used is the one with the
@@ -601,10 +618,13 @@ def main(argv: list[str] | None = None) -> int:
 
         texts = {}
         for f in sorted(glob.glob(args.memory_items)):
+            sample = Path(f).stem.replace("owner_items_", "")
+            known = fingerprints(sample)
             for x in Path(f).read_text("utf-8").splitlines():
                 if x.strip():
                     it = json.loads(x)
-                    texts[it["item_id"]] = it
+                    if known.get(it["item_id"], fingerprint(it)) == fingerprint(it):
+                        texts[it["item_id"]] = it       # an example whose item changed is not its sentence
         memory = rm.ReadingMemory.load(Path(args.memory) if args.memory else None, texts, measured)
         rm.use(memory)
         memory_note["examples"] = len(memory.examples)
@@ -618,6 +638,14 @@ def main(argv: list[str] | None = None) -> int:
         labels = hp.read_labels(LABELS[name]) if name in LABELS else {}
         own = {k: v for k, v in labels.items() if k.endswith(("-it", "-en"))}
         items = [json.loads(x) for x in Path(path).read_text("utf-8").splitlines() if x.strip()]
+        # an item drawn again that is not the item labelled is left out, and said (11 November 2026)
+        known = fingerprints(name)
+        changed = [it["item_id"] for it in items if it["item_id"] in known and known[it["item_id"]] != fingerprint(it)]
+        if changed:
+            memory_note.setdefault("changed_items", {})[name] = changed
+            print(f"{name}: {len(changed)} items are not the items labelled, left out: {changed[:10]}",
+                  file=sys.stderr)
+            items = [it for it in items if it["item_id"] not in set(changed)]
 
         def one(item: dict, name: str = name, own: dict = own) -> dict | None:
             at = item["clause"].find(item["mention"])

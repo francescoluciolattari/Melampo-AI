@@ -196,6 +196,17 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
     un adattatore: su un campione nuovo il probe gira senza e con l'adattatore, con lo stesso manuale e la stessa
     memoria; l'adattatore entra se ogni criterio passa con esso e i suoi errori (in numero) sono meno; altrimenti
     resta fuori, e il motivo si scrive in `data/reading/training_log.yml`.
+- **Che cos'è una classe dell'atlante, e i campioni estratti come allora** (11 novembre 2026). Una classe
+  dell'atlante è una struttura se è ancorata a UBERON; una senza ancora UBERON il cui nome, senza il lato, è
+  un'anomalia fenotipica di HPO è un reperto, e la sua sede è la struttura di cui HPO dice che l'anomalia è
+  (`src/melampo/memory/class_kinds.py`: la stessa lettura per ogni classe, nessun elenco; oggi le cisti renali di
+  TotalSegmentator, del rene dal loro lato; i segmenti epatici restano strutture). Il cercatore di nomi non
+  attraversa più una parentesi o un punto e virgola («left kidney (cyst?)»). I campioni etichettati prima del 12
+  novembre 2026 si estraggono con il cercatore di quel giorno (`MELAMPO_FINDER=2026-11-11` nei workflow che li
+  estraggono): sul campione `claims` di PARROT il cercatore nuovo cambierebbe 3 item su 260. Ogni item
+  etichettato dei campioni CT-RATE ha la sua impronta (`data/gold/<campione>/fingerprints.txt`): un item estratto
+  di nuovo che non corrisponde resta fuori dai criteri e dalla memoria, e lo si dice. Da `ctrate6` i campioni si
+  estraggono con il cercatore nuovo.
 - **CT-RATE, sesto campione** (`ctrate6`, 11 novembre 2026): 300 item, seed 20261112, da referti non usati dai
   primi cinque, etichettati prima di ogni lettura con la convenzione dell'11 novembre (l'incertezza come la
   distingue la letteratura sugli attenuatori), la frase mai letta tagliata. Criteri fissati prima: (1) al massimo

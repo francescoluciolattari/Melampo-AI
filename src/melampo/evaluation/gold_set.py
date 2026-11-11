@@ -21,6 +21,7 @@ and the labels are correct. `evaluate` states those conditions in its verdict.
 import csv
 import math
 import random
+import os
 import re
 import unicodedata
 from collections import Counter, defaultdict
@@ -108,6 +109,10 @@ def _breaks(text: str, spans: list[tuple[int, int, str]], k: int) -> bool:
         return False
     gap = text[spans[k][1] : spans[k + 1][0]]
     word = spans[k + 1][2]
+    if any(c in gap for c in "()[]{};") and os.environ.get("MELAMPO_FINDER", "") != "2026-11-11":
+        # 11 November 2026: a name never crosses a parenthesis or a semicolon ("left kidney (cyst?)" was read as
+        # "left kidney cyst" on ctrate5); the samples labelled before are drawn as they were (MELAMPO_FINDER)
+        return True
     return bool(_STOP.search(gap)) and (word[0].isupper() or word[0].isdigit())
 
 

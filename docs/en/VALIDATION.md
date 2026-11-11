@@ -190,6 +190,17 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
     exists: on a new sample, the probe runs without and with the adapter, with the same manual and memory; the
     adapter enters if every criterion passes with it and its errors (as counts) are fewer; otherwise it stays
     out, and the reason is written in `data/reading/training_log.yml`.
+- **What a class of the atlas is, and the samples drawn as they were** (11 November 2026). A class of the
+  atlas is a structure if it is anchored to UBERON; one with no UBERON anchor whose name, without its side, is a
+  phenotypic abnormality of HPO is a finding, whose site is the structure HPO says the abnormality is of
+  (`src/melampo/memory/class_kinds.py`: the same reading for every class, no list; today the renal cysts of
+  TotalSegmentator, of the kidney on their side; the segments of the liver stay structures). The finder of
+  names no longer crosses a parenthesis or a semicolon ("left kidney (cyst?)"). The samples labelled before 12
+  November 2026 are drawn with the finder of that day (`MELAMPO_FINDER=2026-11-11` in the workflows that draw
+  them): on PARROT's `claims` sample the new finder would change 3 of 260 items. Every labelled item of the
+  CT-RATE samples has its fingerprint (`data/gold/<sample>/fingerprints.txt`): an item drawn again that does not
+  match is left out of the criteria and of the memory, and said. From `ctrate6` on, samples are drawn with the
+  new finder.
 - **CT-RATE, sixth sample** (`ctrate6`, 11 November 2026): 300 items, seed 20261112, from reports none of the
   first five used, labelled before any reading with the convention of 11 November (the uncertainty as the
   literature on hedging tells it apart), the clause never read cut. Criteria fixed before: (1) at most 1%; (2) to
