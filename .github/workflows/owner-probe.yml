@@ -14,9 +14,9 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b"
       sets:
-        description: "samples: ctrate4 (CT-RATE, fourth sample, 10 Nov), ctrate3 (CT-RATE, third sample, 9 Nov, seen), ctrate2 (CT-RATE, second sample, 8 Nov, seen), ctrate (CT-RATE chest CT, 6 Nov, seen), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
+        description: "samples: ctrate5 (CT-RATE, fifth sample, 11 Nov), ctrate4 (CT-RATE, fourth sample, 10 Nov, seen), ctrate3 (CT-RATE, third sample, 9 Nov, seen), ctrate2 (CT-RATE, second sample, 8 Nov, seen), ctrate (CT-RATE chest CT, 6 Nov, seen), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
         required: false
-        default: "ctrate4"
+        default: "ctrate5"
       arms:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
@@ -92,6 +92,9 @@ jobs:
           # three used
           uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261110 \
             --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate4.jsonl
+          # the fifth (11 November 2026): the level of every uncertainty; reports none of the first four used
+          uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261111 \
+            --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate5.jsonl
 
       - name: Run the probe
         if: ${{ !inputs.sample_only }}
@@ -113,6 +116,7 @@ jobs:
               ctrate2) ITEMS+=(--items ctrate2=owner_items_ctrate2.jsonl --corpus ctrate.jsonl) ;;
               ctrate3) ITEMS+=(--items ctrate3=owner_items_ctrate3.jsonl --corpus ctrate.jsonl) ;;
               ctrate4) ITEMS+=(--items ctrate4=owner_items_ctrate4.jsonl --corpus ctrate.jsonl) ;;
+              ctrate5) ITEMS+=(--items ctrate5=owner_items_ctrate5.jsonl --corpus ctrate.jsonl) ;;
               claims4) ITEMS+=(--items claims4=owner_items_claims4.jsonl) ;;
               claims3) ITEMS+=(--items claims3=owner_items_claims3.jsonl) ;;
               claims2) ITEMS+=(--items claims2=owner_items_claims2.jsonl) ;;
@@ -156,3 +160,4 @@ jobs:
             owner_items_ctrate2.jsonl
             owner_items_ctrate3.jsonl
             owner_items_ctrate4.jsonl
+            owner_items_ctrate5.jsonl

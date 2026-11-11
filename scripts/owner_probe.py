@@ -65,12 +65,18 @@ CTRATE3_SEED = 20261109
 # across the models (ctrate3 lost it in 11 of 43 items); reports none of the first three used
 CTRATE4_LABELS = ROOT / "data/gold/ctrate4/labels.txt"
 CTRATE4_SEED = 20261110
+# the fifth (11 November 2026): every uncertainty with its level (Panicek and Hricak), and what is not uncertainty
+# in a place of its own (undetermined, limits); ctrate4 gave the uncertainty to 62 of 250 stated findings
+CTRATE5_LABELS = ROOT / "data/gold/ctrate5/labels.txt"
+CTRATE5_SEED = 20261111
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
            "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
-           "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS}
+           "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
+           "ctrate5": CTRATE5_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
                 "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
-                "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS}
+                "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
+                "ctrate5": CTRATE5_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
@@ -204,15 +210,25 @@ def claims_table(rows: list[dict], arm: str = "claims") -> dict:
             c["measures_without_a_reference"] += max(len(a.get("measure") or []) - len(refs), 0)
         if "measure_" in (got.get("reader") or ""):
             c["reference_check_to_a_person"] += 1   # a comparison the cited row does not support
+        read = got.get("claims") or {}
+        levels = [u.get("level", "possible") for u in read.get("uncertain_about", [])]
+        below_high = bool(read.get("uncertainty")) and (not levels or any(v != "high" for v in levels))
         if "uncertain" in gold and verdict != "unsure":
             # the uncertainty of the report (10 November 2026): kept, whatever the verdict, if the claims carry it;
-            # lost, if a finding the report states as uncertain is read as certain
+            # lost, if a finding the report states as uncertain is read as certain; since 11 November an uncertainty
+            # below "high" is kept only by an uncertainty below "high"
             c["uncertain_items"] += 1
-            if (got.get("claims") or {}).get("uncertainty") or doubt.get("kind") == "clinical":
+            if below_high or (doubt.get("kind") == "clinical" and not levels):
                 c["uncertainty_kept"] += 1
             else:
                 c["uncertainty_lost"] += 1
                 out.setdefault("uncertainty_lost_items", []).append(r["item_id"])
+        elif verdict != "unsure" and read.get("uncertainty"):
+            # (8) the uncertainty given where the report states (11 November 2026): no uncertainty in the label,
+            # or one of level "high" (uncertain_high: "consistent with") read lower
+            if "uncertain_high" not in gold or below_high:
+                c["uncertainty_given"] += 1
+                out.setdefault("uncertainty_given_items", []).append(r["item_id"])
         if r.get("gold_doubt"):
             out["for_a_radiologist"].append({"item": r["item_id"], "gold": "+".join(sorted(gold)),
                                              "verdict": verdict, "statement": got.get("statement", "")})
@@ -283,6 +299,12 @@ def criteria(rows: list[dict], arm: str = "claims") -> dict:
                 "7_of_the_uncertain_items": share(t.get("uncertainty_lost", 0), t.get("uncertain_items", 0)),
                 "7_uncertain_items": t.get("uncertain_items", 0),
                 "7_lost_items": t.get("uncertainty_lost_items", []),
+                # (8) the uncertainty given where the report states it as certain, or read lower than "high" where
+                # the report says "consistent with": under 2% of the items (11 November 2026)
+                "8_uncertainty_given": t.get("uncertainty_given", 0),
+                "8_uncertainty_given_share": share(t.get("uncertainty_given", 0), n),
+                "8_upper_95": upper_95(t.get("uncertainty_given", 0), n),
+                "8_given_items": t.get("uncertainty_given_items", []),
                 # the earlier names, to compare with the runs before the principle of doubt
                 "1_aside_attached_silently": t.get("aside_attached", 0),
                 "4_attached_otherwise_share": t["attached_as_another_outcome_share"]}
@@ -436,7 +458,8 @@ def main(argv: list[str] | None = None) -> int:
                   CTRATE_SEED: [],           # the first sample of CT-RATE: no report of it used before
                   CTRATE2_SEED: [CTRATE_LABELS],
                   CTRATE3_SEED: [CTRATE_LABELS, CTRATE2_LABELS],
-                  CTRATE4_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS]}
+                  CTRATE4_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS],
+                  CTRATE5_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()

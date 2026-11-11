@@ -424,7 +424,7 @@ def test_the_uncertainty_one_model_reads_stays_uncertain():
     other = _answer(marked="right kidney", observed=seen)
     got = _owner(one, other)("right kidney", s, at, "en", "kidney_right")
     assert got.verdict == HERE and got.doubt["kind"] == "clinical"
-    assert got.claims["uncertain_about"] == [{"words": "?", "about": "cyst"}]
+    assert got.claims["uncertain_about"] == [{"words": "?", "about": "cyst", "level": "possible"}]
     got = _owner(other, one)("right kidney", s, at, "en", "kidney_right")
     assert got.doubt["kind"] == "clinical"     # also when the reading without it leads
 
@@ -447,7 +447,8 @@ def test_what_the_sentence_says_it_is_is_apart_from_what_is_seen():
         {"words": "Slight ground glass densities", "of": "it", "said_to_be": "the infectious process"}],
         uncertainty=[{"words": "evaluated in favor of", "about": "the infectious process"}])), s, "right upper lobe")
     assert got["observed"][0]["said_to_be"] == "the infectious process"
-    assert got["uncertain_about"] == [{"words": "evaluated in favor of", "about": "the infectious process"}]
+    assert got["uncertain_about"] == [{"words": "evaluated in favor of", "about": "the infectious process",
+                                       "level": "possible"}]
 
 
 def test_what_is_said_of_another_person_is_not_a_finding_of_the_patient():
@@ -458,3 +459,19 @@ def test_what_is_said_of_another_person_is_not_a_finding_of_the_patient():
     assert got["other_person"] == ["the mother had a carcinoma of the breast"]
     assert claims_outcome(got) == KEEP
     assert _owner(said, said)("breast", s, at, "en", "breast").statement != "finding"
+
+
+def test_every_uncertainty_has_its_level_and_what_is_not_uncertain_its_place():
+    # ctrate4 (11 November 2026): "nonspecific", the limits of the exam had no place and became uncertainties
+    s = "As far as can be observed, a nonspecific nodule consistent with a granuloma is observed in the right lung"
+    got = read_claims(json.dumps(_answer(marked="right lung", observed=[{"words": "a nonspecific nodule", "of": "it",
+                                                                        "said_to_be": "a granuloma"}],
+        uncertainty=[{"words": "consistent with", "about": "a granuloma", "level": "high"}],
+        undetermined=["nonspecific"], limits=["As far as can be observed"])), s, "right lung")
+    assert got["uncertain_about"] == [{"words": "consistent with", "about": "a granuloma", "level": "high"}]
+    assert got["undetermined"] == ["nonspecific"] and got["limits"] == ["As far as can be observed"]
+    without = read_claims(json.dumps(_answer(marked="right lung", observed=[{"words": "a nonspecific nodule",
+                                                                             "of": "it"}],
+                                             uncertainty=[{"words": "consistent with", "about": "a granuloma",
+                                                           "level": "almost"}])), s, "right lung")
+    assert without["uncertain_about"][0]["level"] == "possible"   # an unreadable level is never certain
