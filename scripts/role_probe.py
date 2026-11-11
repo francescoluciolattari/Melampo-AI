@@ -174,6 +174,8 @@ class Cache:
             if k in self.data:
                 return self.data[k]
             text = chat(prompt)
+            if not (text or "").strip():
+                return text     # an empty answer is a failed call: never kept, asked again on the next run
             with self.lock:
                 self.data[k] = text
                 if self.path:
