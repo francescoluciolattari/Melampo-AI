@@ -170,6 +170,26 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   uncertainty of level high). Criteria fixed before: (1) at most 1%; (2) to (7) as for `ctrate4`; (8) the
   uncertainty given where the report states (no uncertainty in the label, or "consistent with" read lower than
   high) under 2% of the items, with its 95% upper bound.
+- **Against errors of labelling, the manual, the memory and the adapters** (11 November 2026).
+  - Labels: written from the whole sentence, never cut (`data/reading/labelling_convention.md`); a second,
+    independent labeller (a model that is none of the readers, by default Mistral Large) labels the same sample
+    before any reading (`scripts/second_labeller.py`, workflow input `second_labeller`); its labels are opened
+    only after the first labeller's are committed; the agreement (Cohen's kappa) is reported and every
+    disagreement is re-read on the whole sentence and decided by the sources, a change written with its reason,
+    before the readers run (double annotation with adjudication, as BioScope was made). A label corrected after
+    a run carries its reason, and the result is reported both as labelled and as corrected.
+  - The manual (`data/reading/manual.md`): what the sources say of reading a sentence, given with every
+    question, versioned by its fingerprint (recorded in the probe's report).
+  - The memory (`data/reading/memory.jsonl`, `scripts/reading_memory.py`): verified examples, the most similar
+    given with every question. An example enters only when the label (no doubt, the convention in force) and
+    every model's reading agree on what the sentence states and on its uncertainty; it holds no text of a
+    closed corpus; an example can be removed with its reason (`data/reading/removed.jsonl`). A sample being
+    measured never gives examples to itself.
+  - The adapters (`scripts/reader_training.py`, every two or three months, reminded by the workflow
+    `reader-training-due`): trained on the local GPUs on the memory only; the rule, fixed before any adapter
+    exists: on a new sample, the probe runs without and with the adapter, with the same manual and memory; the
+    adapter enters if every criterion passes with it and its errors (as counts) are fewer; otherwise it stays
+    out, and the reason is written in `data/reading/training_log.yml`.
 - **CT-RATE, sixth sample** (`ctrate6`, 11 November 2026): 300 items, seed 20261112, from reports none of the
   first five used, labelled before any reading with the convention of 11 November (the uncertainty as the
   literature on hedging tells it apart), the clause never read cut. Criteria fixed before: (1) at most 1%; (2) to

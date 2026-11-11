@@ -21,8 +21,12 @@ on:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
         default: "claims"
+      second_labeller:
+        description: "with sample_only: the model that labels the samples independently (none of the readers)"
+        required: false
+        default: "mistralai/mistral-large-4-0"
       sample_only:
-        description: "only draw the samples and upload them, for labelling before any reading (no model call)"
+        description: "only draw the samples and upload them, for labelling before any reading (no reading call)"
         type: boolean
         required: false
         default: false
@@ -100,6 +104,28 @@ jobs:
           uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate.jsonl --seed 20261112 \
             --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate6.jsonl
 
+      # 11 November 2026: a second, independent labeller, against errors of labelling (double annotation with
+      # adjudication, as BioScope was made). Its labels are compared with the first labeller's only after those
+      # are committed, and every disagreement is re-read before the readers run.
+      - name: Second labeller
+        if: ${{ inputs.sample_only && inputs.second_labeller != '' }}
+        env:
+          SETS: ${{ inputs.sets }}
+          SECOND: ${{ inputs.second_labeller }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          SECOND="${SECOND//[[:space:]]/}"
+          if ! [[ "$SECOND" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+$ ]]; then
+            echo "::error::second_labeller takes an id like org/name"; exit 2
+          fi
+          for name in ${SETS//,/ }; do
+            [ -f "owner_items_${name}.jsonl" ] || continue
+            uv run --no-sync python scripts/second_labeller.py label --items "owner_items_${name}.jsonl" \
+              --set "$name" --model "$SECOND" --endpoint https://openrouter.ai/api/v1/chat/completions \
+              --public-data --out "second_labels_${name}.txt" 2> >(tee -a second_labeller.log >&2)
+          done
+
       - name: Run the probe
         if: ${{ !inputs.sample_only }}
         env:
@@ -167,3 +193,6 @@ jobs:
             owner_items_ctrate4.jsonl
             owner_items_ctrate5.jsonl
             owner_items_ctrate6.jsonl
+            second_labels_*.txt
+            second_labeller.log
+            second_labeller_answers.jsonl

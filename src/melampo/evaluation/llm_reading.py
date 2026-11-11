@@ -695,9 +695,11 @@ _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_names: list[str] | None = None,
                   exam: str = "", section: str = "", language: str = "", references: list[str] | None = None,
                   passages: list[str] | None = None, section_kind: str = "", conclusion: str = "",
-                  previous: str = "") -> str:
+                  previous: str = "", manual: str = "", examples: list[str] | None = None) -> str:
     """The question "what does the sentence state of the linked structure?", claim by claim. ``references``:
-    the reference values that apply (``reference_values.Row.line``); ``passages``: paragraphs of their sources."""
+    the reference values that apply (``reference_values.Row.line``); ``passages``: paragraphs of their sources;
+    ``manual``: what the sources say of reading a sentence (``reading_memory``, 11 November 2026); ``examples``:
+    the most similar sentences already read and verified."""
     parts = ["You read sentences of radiology reports the way a radiologist does."]
     if exam:
         parts.append(f"Exam (context only: the sentence prevails): {exam}")
@@ -721,6 +723,12 @@ def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_na
     if passages:
         parts.append("Paragraphs of the sources of these values (for reading them, not to be copied):\n"
                      + "\n".join(passages))
+    if manual:
+        parts.append("Reading manual (what the sources say of reading what a sentence states; it guides the "
+                     "steps below):\n" + manual.strip())
+    if examples:
+        parts.append("Sentences already read and verified, the most like this one (how to read, not what to copy: "
+                     "this sentence decides):\n" + "\n".join(examples))
     parts.append(CLAIM_STEPS)
     parts.append("Answer with JSON only, no other text:\n" + CLAIM_SCHEMA)
     return "\n\n".join(parts)
