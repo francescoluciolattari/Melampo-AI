@@ -46,8 +46,20 @@ def _read_header(path):
         return None
 
 
-def _first_sample(predicate):
-    for path in get_testdata_files():
+def _has_pixels(path) -> bool:
+    """Is there pixel data in the sample? Some samples carry a compressed transfer syntax and no image
+    (``UN_sequence.dcm``); which one comes first depends on the order of the samples on disk."""
+    try:
+        return "PixelData" in pydicom.dcmread(path, specific_tags=["PixelData"])
+    except Exception:  # noqa: BLE001 - a sample that cannot be read has no image to decode
+        return False
+
+
+def _first_sample(predicate, with_pixels: bool = False):
+    # sorted (12 November 2026): get_testdata_files() follows the order of the disk, which differs between machines
+    for path in sorted(get_testdata_files()):
+        if with_pixels and not _has_pixels(path):
+            continue
         dataset = _read_header(path)
         try:
             matches = dataset is not None and predicate(dataset)
@@ -138,7 +150,7 @@ def test_jpeg_lossless_process_14_decodes_via_gdcm():
     """The compression most common from a PACS, undecodable without a plugin;
     python-gdcm (Apache-2.0) chosen over GPLv3 pylibjpeg-libjpeg."""
     result = extract_dicom(
-        _first_sample(lambda d: "Process 14" in d.file_meta.TransferSyntaxUID.name)
+        _first_sample(lambda d: "Process 14" in d.file_meta.TransferSyntaxUID.name, with_pixels=True)
     )
     assert result.status == "completed"
     assert result.images_png
