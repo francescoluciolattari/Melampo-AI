@@ -19,7 +19,9 @@ on:
 jobs:
   tests:
     name: Full test suite (Python 3.12, uv.lock)
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest (11 November 2026): on the new image (Ubuntu 26.04 "resolute") apt could not
+    # resolve security.ubuntu.com, run after run, and poppler-utils could not be installed
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
