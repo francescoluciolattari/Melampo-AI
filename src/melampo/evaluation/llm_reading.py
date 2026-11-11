@@ -583,8 +583,13 @@ def read_statement(text: str, sentence: str) -> dict:
 # neither list, so the models put it in different lists or in none. Now what is seen and what the sentence says it
 # is are apart, and every uncertainty is said with the words it applies to. Also: what is said of another person,
 # and what the patient reports, which are not the exam's observation.
+# 11 November 2026: on ctrate4 the uncertainty was given to 62 of 250 findings the report states (24.8%): what is
+# seen but not identified, the limits of the exam, an attribution, the degree of what is seen had no place of
+# their own, and "when in doubt, it is uncertain" pushed them into the uncertainty. Now each has its place, and
+# every uncertainty has its level on a published scale (Panicek and Hricak, AJR 2016).
 CLAIM_LISTS = ("observed", "normal", "measure", "past", "uncertainty", "device", "not_assessable",
-               "indication", "procedure", "other_person", "reported")
+               "indication", "procedure", "other_person", "reported", "undetermined", "limits")
+UNCERTAINTY_LEVELS = ("high", "probable", "possible", "less_likely", "unlikely")
 # the lists of the questions before 10 November 2026, read into "uncertainty" (stored answers, replays)
 _FORMER_UNCERTAINTY = ("certainty", "alternatives")
 CLAIM_STEPS = """Say what the sentence states of the linked structure, using only its words: every entry is copied
@@ -628,13 +633,23 @@ of that kind.
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
-- uncertainty: every part of what the sentence says that it does not state as certain: a doubt, a hypothesis, a
-  differential, something probable, possible, suspected, questioned ("?"), "in favor of", "thought to be",
-  "can be seen in", to be excluded. For each: words: the words that make it uncertain, copied; about: the words
-  of what is uncertain, copied (often what the sentence says it is, while what is seen is certain: in "a
-  hypodense lesion (cyst?)" the lesion is seen, the cyst is uncertain). A question mark applies to what it
-  follows or closes, a parenthesis with "?" to the words in it. When in doubt whether something is stated as
-  certain, it is uncertain.
+- uncertainty: only what the sentence presents as perhaps not true: a doubt, a hypothesis, a differential,
+  something probable, possible, suspected, questioned ("?"), "in favor of" a hypothesis, "thought to be", "can be
+  seen in", to be excluded, and also "consistent with", "compatible with". For each: words: the words that make it
+  uncertain, copied; about: the words of what is uncertain, copied (often what the sentence says it is, while
+  what is seen is certain: in "a hypodense lesion (cyst?)" the lesion is seen, the cyst is uncertain); level: how
+  likely the sentence says it is, on the scale of Panicek and Hricak (AJR 2016): "high" (more than 90%, as
+  "consistent with"), "probable" (about 75%, as "suspicious for", "probably"), "possible" (about 50%, as
+  "possibly", "?"), "less_likely" (about 25%), "unlikely" (less than 10%), read from the whole sentence ("may be
+  consistent with" is not "consistent with"). A question mark applies to what it follows or closes, a parenthesis
+  with "?" to the words in it. Not uncertainty, each with its own place: what is seen but not identified
+  ("nonspecific", "cannot be characterized") is undetermined; how far the exam could see ("as far as can be
+  observed", "within the limits of non-contrast CT") is limits; what something is attributed to ("increased
+  cardiothoracic ratio in favor of the heart") and the degree or quality of what is seen ("slight", "faintly
+  limited", "ground-glass-like", "tends to") stay in what is seen.
+- undetermined: words saying that what is seen is not identified or not characterised ("nonspecific", "cannot be
+  characterized"): what is seen stays certain, only its nature is open.
+- limits: words saying how far the exam could see, or what limited it, for what is said here.
 - other_person: words of what is said of a person other than the patient (a relative's disease).
 - reported: words of what the patient reports or the referral says, not observed in the exam.
 - device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis, an implanted valve),
@@ -651,8 +666,9 @@ CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
                 '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", '
                 '"said_to_be": "", "of": "it", "relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
                 '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], '
-                '"uncertainty": [{"words": "...", "about": "..."}], "device": [], "not_assessable": [], '
-                '"indication": [], "procedure": [], "other_person": [], "reported": [], '
+                '"uncertainty": [{"words": "...", "about": "...", "level": "high|probable|possible|less_likely|unlikely"}], '
+                '"device": [], "not_assessable": [], "indication": [], "procedure": [], "other_person": [], '
+                '"reported": [], "undetermined": [], "limits": [], '
                 '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
@@ -762,8 +778,12 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
                     continue
                 kept.append(words)
                 if key == "uncertainty" and isinstance(entry, dict):
+                    level = str(entry.get("level") or "").strip().lower()
                     out["uncertain_about"].append({"words": words, "about": _copied_from(entry.get("about"),
-                                                                                         sentence)})
+                                                                                         sentence),
+                                                   # an uncertainty without a readable level is "possible": it stays
+                                                   # uncertain, never certain
+                                                   "level": level if level in UNCERTAINTY_LEVELS else "possible"})
                 if key == "measure" and isinstance(entry, dict) and str(entry.get("reference") or "").strip():
                     out["measure_refs"].append({"words": words, "reference": str(entry["reference"]).strip(),
                                                 "against": str(entry.get("against") or "").strip().lower()})

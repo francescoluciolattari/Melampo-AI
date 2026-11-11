@@ -20,6 +20,7 @@ from typing import Any
 
 import numpy as np
 
+from ..evaluation.llm_reading import UNCERTAINTY_LEVELS
 from ..memory.site_qualifiers import read_site_qualifiers
 from .findings import NO_IMAGE, Finding, ImageSide, TextSide, build_finding, image_evidence, sizes_in_text
 from .segmenters import SegmenterUnavailable
@@ -29,7 +30,7 @@ def _describes(qualifiers: dict[str, Any], sizes: list) -> bool:
     if qualifiers.get("polarity") == "negated":
         return False
     return bool(sizes or qualifiers.get("character") or qualifiers.get("degree")
-                or qualifiers.get("certainty") in ("possible", "hypothetical"))
+                or qualifiers.get("certainty") in ("possible", "hypothetical", "high"))
 
 
 def interpret_exam(patient: str, study: str, study_date: str, modality: str, report_id: str, report_text: str,
@@ -124,8 +125,16 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                 statement = "finding" if any(o.get("of") == "it" for o in claimed) else "involved"
                 if owner.claims.get("uncertainty"):
                     # uncertain as the sentence says it (10 November 2026): one category, with the words it is
-                    # about, carried with the finding into the diagnostic path
-                    qd = {**qd, "certainty": "possible", "uncertain_about": owner.claims.get("uncertain_about", [])}
+                    # about and its level (11 November 2026, Panicek and Hricak), carried with the finding into
+                    # the diagnostic path; the least certain level the readings give
+                    about = owner.claims.get("uncertain_about", [])
+                    levels = [u.get("level", "possible") for u in about] or ["possible"]
+                    level = max(levels, key=lambda v: UNCERTAINTY_LEVELS.index(v) if v in UNCERTAINTY_LEVELS else 2)
+                    qd = {**qd, "certainty": "high" if level == "high" else "possible", "certainty_level": level,
+                          "uncertain_about": about}
+                for key in ("undetermined", "limits"):
+                    if owner.claims.get(key):
+                        qd = {**qd, key: list(owner.claims[key])}
             elif measures:
                 clause, sizes, statement = " … ".join(measures), sizes_in_text(" ".join(measures)), "measure"
                 qd = {**qd, "character": [], "degree": ""}

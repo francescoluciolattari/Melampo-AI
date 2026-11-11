@@ -27,3 +27,20 @@ def test_the_uncertainty_of_the_report_lost_is_counted():
     got = criteria([kept, lost, plain, in_doubt])["without_doubt"]
     assert got["7_uncertainty_lost"] == 1 and got["7_lost_items"] == ["b"]
     assert got["7_uncertain_items"] == 3 and got["7_uncertainty_lost_share"] == 0.25
+
+
+def test_the_uncertainty_given_where_the_report_states_is_counted():
+    given = _row("e", ["finding"])
+    given["claims"]["claims"]["uncertainty"] = ["nonspecific"]
+    high = _row("f", ["finding", "uncertain_high"])
+    high["claims"]["claims"].update(uncertainty=["consistent with"],
+                                    uncertain_about=[{"words": "consistent with", "about": "x", "level": "high"}])
+    lower = _row("g", ["finding", "uncertain_high"])
+    lower["claims"]["claims"].update(uncertainty=["consistent with"],
+                                     uncertain_about=[{"words": "consistent with", "about": "x", "level": "possible"}])
+    only_high = _row("h", ["finding", "uncertain"])
+    only_high["claims"]["claims"].update(uncertainty=["?"],
+                                         uncertain_about=[{"words": "?", "about": "x", "level": "high"}])
+    got = criteria([given, high, lower, only_high])["without_doubt"]
+    assert got["8_given_items"] == ["e", "g"]
+    assert got["7_lost_items"] == ["h"]

@@ -528,7 +528,7 @@ def agreed_claims(answers: list[dict], every: list[dict] | None = None) -> dict:
     if others:
         out["of"] = next((o["of"] for o in others if o.get("of") not in ("it", "?")), "")
     for key in CLAIM_LISTS[1:]:
-        if key == "uncertainty":
+        if key in ("uncertainty", "undetermined", "limits"):
             continue
         if all(a.get(key) for a in answers):
             out[key] = list(first.get(key, []))
@@ -543,6 +543,13 @@ def agreed_claims(answers: list[dict], every: list[dict] | None = None) -> dict:
     if uncertain:
         out["uncertainty"] = uncertain
         out["uncertain_about"] = about
+    # what is seen but not identified, and the limits of the exam, accompany the finding: what any model reads
+    for key in ("undetermined", "limits"):
+        joined = []
+        for a in every or answers:
+            joined += [w for w in a.get(key, []) if w not in joined]
+        if joined:
+            out[key] = joined
     if first.get("same") == "no":
         out["of"] = first.get("named", "")
     if first.get("measure_refs"):
