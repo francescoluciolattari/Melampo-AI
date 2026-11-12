@@ -71,17 +71,40 @@ def cmd_label(args: argparse.Namespace) -> int:
              "and data/reading/labelling_convention.md. Not a reference: it is compared with the first labeller.",
              "# Format: item|claims|why"]
     # several questions at a time (12 November 2026): one after the other, 114 of 265 items were answered in the
-    # two hours of the job
+    # two hours of the job. With eight at a time 150 of 265 came back without an answer: what failed is now
+    # written for each item, and the items without an answer are asked again, fewer at a time and with longer
+    # pauses, until every item has its answer or the passes are spent (a lost answer is never a guess)
+    import time
     from concurrent.futures import ThreadPoolExecutor
 
     def one(it: dict) -> tuple[list[str], str]:
         try:
-            return read_answer(chat(prompt(it)))
+            text = chat(prompt(it))
         except Exception as error:  # noqa: BLE001 - a lost answer is a missing label, never a guess
-            return [], f"no answer ({type(error).__name__})"
+            return [], f"no answer ({type(error).__name__}: {str(error)[:120]})"
+        claims, why = read_answer(text)
+        if not claims:
+            return [], ("no answer (empty reply)" if not (text or "").strip()
+                        else f"no answer (unreadable reply: {' '.join(text.split())[:120]})")
+        return claims, why
 
-    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
-        answers = list(pool.map(one, items))
+    answers: list[tuple[list[str], str]] = [([], "not asked")] * len(items)
+    todo = list(range(len(items)))
+    for n, workers in enumerate([args.workers, max(1, args.workers // 2), 2, 1][:max(1, args.passes)]):
+        if not todo:
+            break
+        if n:
+            time.sleep(args.pause)
+            print(f"pass {n + 1}: {len(todo)} items asked again, {workers} at a time", file=sys.stderr)
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            got = list(pool.map(lambda i: one(items[i]), todo))
+        for i, a in zip(todo, got):
+            answers[i] = a
+        todo = [i for i in todo if not answers[i][0]]
+    reasons = Counter(why.split(":")[0].split(" (")[1].rstrip(")") if why.startswith("no answer (") else why
+                      for claims, why in answers if not claims)
+    if reasons:
+        print(f"without an answer, by reason: {dict(reasons)}", file=sys.stderr)
     lost = 0
     for it, (claims, why) in zip(items, answers):
         lost += not claims
@@ -148,6 +171,8 @@ def main(argv: list[str]) -> int:
     a.add_argument("--cache", default="second_labeller_answers.jsonl")
     a.add_argument("--max-tokens", type=int, default=1500)
     a.add_argument("--workers", type=int, default=8, help="questions asked at the same time")
+    a.add_argument("--passes", type=int, default=4, help="passes over the items still without an answer")
+    a.add_argument("--pause", type=float, default=60.0, help="seconds between two passes")
     a.add_argument("--out", required=True)
     c = sub.add_parser("compare")
     c.add_argument("--set", required=True)
