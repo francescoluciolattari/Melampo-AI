@@ -70,12 +70,20 @@ def cmd_label(args: argparse.Namespace) -> int:
     lines = [f"# Second labeller ({args.model}) of {args.set}, written before any reading, from the whole sentence "
              "and data/reading/labelling_convention.md. Not a reference: it is compared with the first labeller.",
              "# Format: item|claims|why"]
-    lost = 0
-    for it in items:
+    # several questions at a time (12 November 2026): one after the other, 114 of 265 items were answered in the
+    # two hours of the job
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(it: dict) -> tuple[list[str], str]:
         try:
-            claims, why = read_answer(chat(prompt(it)))
+            return read_answer(chat(prompt(it)))
         except Exception as error:  # noqa: BLE001 - a lost answer is a missing label, never a guess
-            claims, why = [], f"no answer ({type(error).__name__})"
+            return [], f"no answer ({type(error).__name__})"
+
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+        answers = list(pool.map(one, items))
+    lost = 0
+    for it, (claims, why) in zip(items, answers):
         lost += not claims
         lines.append(f"{it['item_id']}|{'+'.join(claims) or 'none'}|{why}")
     Path(args.out).write_text("\n".join(lines) + "\n", "utf-8")
@@ -139,6 +147,7 @@ def main(argv: list[str]) -> int:
     a.add_argument("--public-data", action="store_true")
     a.add_argument("--cache", default="second_labeller_answers.jsonl")
     a.add_argument("--max-tokens", type=int, default=1500)
+    a.add_argument("--workers", type=int, default=8, help="questions asked at the same time")
     a.add_argument("--out", required=True)
     c = sub.add_parser("compare")
     c.add_argument("--set", required=True)

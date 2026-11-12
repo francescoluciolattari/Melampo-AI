@@ -37,7 +37,8 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # 240 minutes (12 November 2026): the second labeller's model answers slowly; 120 were not enough
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -116,6 +117,7 @@ jobs:
       # are committed, and every disagreement is re-read before the readers run.
       - name: Second labeller
         if: ${{ inputs.sample_only && inputs.second_labeller != '' }}
+        timeout-minutes: 200
         env:
           SETS: ${{ inputs.sets }}
           SECOND: ${{ inputs.second_labeller }}
