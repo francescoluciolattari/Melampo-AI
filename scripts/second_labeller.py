@@ -63,7 +63,9 @@ def cmd_label(args: argparse.Namespace) -> int:
     from role_probe import Cache, check_endpoint, make_chats
 
     check_endpoint(args.endpoint, args.public_data)
-    chat = make_chats([args.model], args.endpoint, Cache(Path(args.cache)), max_tokens=300)[args.model]
+    # 1500 tokens (12 November 2026): with 300 the second labeller's model answered 3 items of 265, the others
+    # empty (the budget spent before the answer)
+    chat = make_chats([args.model], args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)[args.model]
     items = [json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines() if x.strip()]
     lines = [f"# Second labeller ({args.model}) of {args.set}, written before any reading, from the whole sentence "
              "and data/reading/labelling_convention.md. Not a reference: it is compared with the first labeller.",
@@ -78,6 +80,10 @@ def cmd_label(args: argparse.Namespace) -> int:
         lines.append(f"{it['item_id']}|{'+'.join(claims) or 'none'}|{why}")
     Path(args.out).write_text("\n".join(lines) + "\n", "utf-8")
     print(f"{len(items)} items labelled by {args.model}, {lost} without an answer -> {args.out}")
+    if items and lost / len(items) > 0.02:
+        # a second labeller that did not label is no check: the run says so instead of looking done
+        print(f"::error::the second labeller left {lost} of {len(items)} items without an answer", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -132,6 +138,7 @@ def main(argv: list[str]) -> int:
     a.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     a.add_argument("--public-data", action="store_true")
     a.add_argument("--cache", default="second_labeller_answers.jsonl")
+    a.add_argument("--max-tokens", type=int, default=1500)
     a.add_argument("--out", required=True)
     c = sub.add_parser("compare")
     c.add_argument("--set", required=True)
