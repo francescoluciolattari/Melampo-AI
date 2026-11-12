@@ -81,8 +81,8 @@ ctrate-692-en-0|finding|calcific atheroma plaques
 ctrate-692-en-2|finding|consolidation and ground glass of its anterior part
 ctrate-692-en-3|finding|consolidation and ground glass
 ctrate-626-en-0|finding|millimetric calcific atheroma plaques
-ctrate-1369-en-0|finding|minimal enlargement of the left atrium, a part of the heart; minimal pericardial effusion
-ctrate-1422-en-0|finding+uncertain_high|density decreased "in line with" advanced adiposity
+ctrate-1369-en-0|finding|minimal enlargement of the left atrium, a part of the heart; minimal pericardial effusion; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
+ctrate-1422-en-0|finding+uncertain_high|density decreased "in line with" advanced adiposity; kept 12 November 2026 on the independent second labeller's disagreement (certain): "in line with" gives the interpretation of the finding at the level of "consistent with" (Panicek and Hricak 2016), as the convention says
 ctrate-220-en-1|finding|ground glass around a consolidation with air bronchograms
 ctrate-220-en-2|finding|nonspecific nodule of 5 mm with fibrotic recessions
 ctrate-220-en-3|finding|dense ground glass around a consolidation, in the impression
@@ -141,7 +141,7 @@ ctrate-587-en-4|finding|consolidation areas significantly increased
 ctrate-404-en-1|finding|mild subsegmental atelectasis "in the lingular segment" and "in the right lung middle lobe": the sentence is garbled ?
 ctrate-404-en-2|finding|mild subsegmental atelectasis "in the lingular segment" and "in the right lung middle lobe": the sentence is garbled ?
 ctrate-404-en-3|finding|mild subsegmental atelectasis of its medial segment
-ctrate-908-en-1|finding+measure|increased in size, 154 mm
+ctrate-908-en-1|finding+measure|increased in size, 154 mm; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-556-en-1|finding|the largest nonspecific nodule, 3.4 mm
 ctrate-556-en-2|finding|minimal pleuroparenchymal sequelae of the lingula, a part of the left upper lobe
 ctrate-556-en-3|finding|minimal sequelae changes of the lingula, in the impression
@@ -184,7 +184,7 @@ ctrate-355-en-1|finding|old compression fracture of the lower endplate
 ctrate-355-en-2|finding+uncertain|nodule with irregular border, a fibrotic nodular formation (the report's doubt)
 ctrate-424-en-2|finding+uncertain|hypodense lesion of 25 mm, a cyst (the report's doubt)
 ctrate-424-en-3|finding+uncertain|hypodense lesion of 77 mm, a cyst (the report's doubt)
-ctrate-424-en-6|finding|increased cardiothoracic ratio in favour of the heart (an attribution), in the impression
+ctrate-424-en-6|finding|increased cardiothoracic ratio in favour of the heart (an attribution), in the impression; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-125-en-0|finding|bronchus markedly narrowed
 ctrate-125-en-2|finding+uncertain|multiple hypodense lesions, in favour of metastasis
 ctrate-501-en-0|finding+uncertain|peribronchial thickening, ground glass; viral pneumonia (the report's doubt)
@@ -202,17 +202,17 @@ ctrate-1157-en-0|finding|hypodense nodular lesions
 ctrate-1157-en-2|finding|hypodense lesion of 50x20 mm
 ctrate-1157-en-3|finding|similar lesion of 30x10 mm
 ctrate-683-en-1|finding|the largest nodule, 6x7.5 mm
-ctrate-229-en-3|finding+uncertain|focal consolidation, an infectious process (the report's doubt)
+ctrate-229-en-3|finding+uncertain|focal consolidation, an infectious process (the report's doubt); kept 12 November 2026 on the independent second labeller's disagreement (certain): the "?" bears on the interpretation of this consolidation (infectious process), in the same sentence; unlike ctrate-47-en-0, where it bore on another statement
 ctrate-229-en-6|finding|sclerotic lesions with faint borders
 ctrate-978-en-1|aside|lymph nodes at the level of the carina
-ctrate-1126-en-1|finding+uncertain_high|density decreased "in line with" adiposity
+ctrate-1126-en-1|finding+uncertain_high|density decreased "in line with" adiposity; kept 12 November 2026 on the independent second labeller's disagreement (certain): "in line with" gives the interpretation of the finding at the level of "consistent with" (Panicek and Hricak 2016), as the convention says
 ctrate-585-en-0|finding|consolidation and ground glass of the lingula, a part of the left upper lobe
 ctrate-585-en-1|finding|consolidation and ground glass of its lingula
 ctrate-1247-en-2|finding|nodule of 7x4 mm
 ctrate-1247-en-3|finding+uncertain|consolidative density increases that may be the continuation of Covid, in the impression
 ctrate-814-en-1|finding|mild bronchiectasis, peribronchovascular thickening, bands
 ctrate-814-en-2|finding+uncertain_high|bronchiectasis, tree in bud compatible with pneumonic infiltration, in the impression
-ctrate-1198-en-1|finding|cardiothoracic index slightly increased in favour of the heart (an attribution)
+ctrate-1198-en-1|finding|cardiothoracic index slightly increased in favour of the heart (an attribution); kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-238-en-2|finding|the largest metastatic lesion, 20 mm
 ctrate-284-en-0|finding+uncertain|density increases consistent with ground glass and consolidation; viral pneumonia considered
 ctrate-1048-en-5|finding+measure|AP diameter 190 mm, increased
@@ -222,7 +222,7 @@ ctrate-1066-en-3|finding|stone of 1.5 mm
 ctrate-1390-en-3|finding|hypodense nodular formation of 8 mm, unchanged
 ctrate-1390-en-4|finding|hypodense nodular formation of 8 mm, unchanged
 ctrate-1290-en-3|finding|hypodense nodule
-ctrate-1012-en-1|finding+measure|craniocaudal length increased, 181 mm
+ctrate-1012-en-1|finding+measure|craniocaudal length increased, 181 mm; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-1012-en-2|finding+uncertain|hypodense areas increased, diffuse metastatic disease (the report's doubt)
 ctrate-510-en-0|finding+uncertain_high|nodular calcifications consistent with tracheobronchopathia osteochondroplastica
 ctrate-510-en-6|finding|heart failure stated as the cause of the lungs' overload ("secondary to") ?
@@ -244,7 +244,7 @@ ctrate-952-en-2|finding|millimetric hypodense nodular lesion, not characterised;
 ctrate-429-en-0|finding+uncertain_high|hypodense appearance compatible with mild adiposity
 ctrate-1527-en-4|finding+uncertain|nodular density, a calculus or surgical material (the report's doubt)
 ctrate-730-en-1|finding+uncertain_high|decreased density consistent with moderate adiposity
-ctrate-86-en-0|finding|size markedly increased
+ctrate-86-en-0|finding|size markedly increased; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-86-en-4|finding+uncertain|hypodense appearance that may be a cyst
 ctrate-1173-en-1|finding+uncertain|hyperdense finding of 6 mm, in favour of a stone
 ctrate-334-en-1|finding+uncertain|nonspecific hypodense lesion, a cyst (the report's doubt)
@@ -253,16 +253,16 @@ ctrate-334-en-3|finding+uncertain|hyperdense appearance, haemorrhagic (the repor
 ctrate-457-en-2|aside|the largest lymph node, anterior to the carina
 ctrate-45-en-3|finding|multiple hypodense lesions, the largest 32x21 mm
 ctrate-735-en-1|finding|accessory spleen of 11 mm (a variant of the spleen)
-ctrate-60-en-0|finding|sizes slightly increased
+ctrate-60-en-0|finding|sizes slightly increased; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-1325-en-2|finding|minimal decrease of density, secondary to hepatosteatosis (a stated cause)
 ctrate-1325-en-3|finding|millimetric stone
 ctrate-1325-en-4|finding|fluid lesions of 28 and 25 mm
 ctrate-662-en-0|device+uncertain|an appearance that may be a pacemaker
-ctrate-662-en-2|finding|increase in heart size, pericardial thickening, in the impression
-ctrate-1272-en-0|finding|size slightly increased
+ctrate-662-en-2|finding|increase in heart size, pericardial thickening, in the impression; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
+ctrate-1272-en-0|finding|size slightly increased; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-1407-en-0|finding|stone of 4 mm
-ctrate-1359-en-2|finding|accessory spleen of 12 mm (a variant of the spleen)
-ctrate-1359-en-3|finding|accessory spleen of 12 mm (a variant of the spleen)
+ctrate-1359-en-2|finding|accessory spleen of 12 mm (a variant of the spleen); kept 12 November 2026 on the independent second labeller's disagreement (aside): an accessory spleen is an abnormality of the spleen in HPO (Accessory spleen HP:0001747, under Supernumerary spleens, inheres in the spleen)
+ctrate-1359-en-3|finding|accessory spleen of 12 mm (a variant of the spleen); kept 12 November 2026 on the independent second labeller's disagreement (aside): an accessory spleen is an abnormality of the spleen in HPO (Accessory spleen HP:0001747, under Supernumerary spleens, inheres in the spleen)
 ctrate-1359-en-5|finding+uncertain|hypodense lesion of 16 mm, a cortical cyst (the report's doubt)
 ctrate-1063-en-2|aside+uncertain|hyperdense areas of the liver in its neighbourhood, or the adjacent parenchyma; kept 12 November 2026 on the second labeller's disagreement (aside): the alternative joined by "or" is the sentence's, and the probe measures the uncertainty of the sentence the reading carries, also when it places another structure's finding (as in ctrate-935-en-0)
 ctrate-947-en-2|finding+uncertain|hypodense lesion "considered to be compatible with" a cortical cyst of 11 mm
@@ -275,6 +275,6 @@ ctrate-1293-en-3|finding+uncertain_high|nodular lesion of 33 mm compatible with 
 ctrate-52-en-1|finding|two angiomyolipomas of 4.5 and 7.5 mm
 ctrate-971-en-1|finding|calculi of 15 mm
 ctrate-971-en-2|finding+uncertain|hypodense lesion of 10 mm with fat, an angiomyolipoma (the report's doubt)
-ctrate-852-en-2|finding+uncertain|hypodense nodular appearance, in favour of a cyst
+ctrate-852-en-2|finding+uncertain|hypodense nodular appearance, in favour of a cyst; kept 12 November 2026 on the independent second labeller's disagreement (very likely): "evaluated primarily in favor of" a hypothesis is a probability below the level of "consistent with" (Panicek and Hricak 2016)
 ctrate-852-en-4|finding+uncertain|hypodense lesion, a cyst (the report's doubt)
 ctrate-754-en-0|finding|millimetric hypodense nodular lesion
