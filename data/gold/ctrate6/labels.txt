@@ -10,13 +10,15 @@
 # 1 procedure+uncertain, 1 device+uncertain, 1 measure; 5 doubtful.
 # The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
 # "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
+# Adjudicated before any reading with the second labeller (scripts/second_labeller.py compare): each change or
+# kept label carries its reason in the note.
 # Format: item|claims|note
 ctrate-891-en-0|finding|calcific atheroma plaques
 ctrate-891-en-1|normal|calibration normal, no wall thickening
 ctrate-893-en-0|finding|nodule of 4 mm
 ctrate-893-en-1|finding|nodule, in the impression
 ctrate-567-en-0|normal|calibration normal, no wall thickening
-ctrate-47-en-0|finding+uncertain|parenchymal nodule of 6 mm; infectious bronchiolitis (the report's doubt)
+ctrate-47-en-0|finding|parenchymal nodule of 6 mm; corrected 12 November 2026 before any reading, on the second labeller's disagreement: the "?" bears on "Infectious bronchiolitis", a statement of its own, not on the nodule of the lobe (BioScope: a cue's scope is what it bears on)
 ctrate-1041-en-0|normal|calibration normal, no wall thickening
 ctrate-753-en-0|normal|calibration normal, no wall thickening
 ctrate-395-en-0|finding|calcified atheroma plaques of the wall
@@ -238,7 +240,7 @@ ctrate-986-en-1|finding+uncertain|polypoid appearance at the carina, a part of i
 ctrate-986-en-5|finding|slight deviation, polypoid protrusion narrowing the lumen, in the impression
 ctrate-981-en-0|finding|cyst of 4 cm
 ctrate-952-en-1|finding|hypodense nodular lesion of 7 mm, not characterised, within the limits of the exam
-ctrate-952-en-2|finding|millimetric hypodense nodular lesion, not characterised
+ctrate-952-en-2|finding|millimetric hypodense nodular lesion, not characterised; kept 12 November 2026 on the second labeller's disagreement (aside): a lesion of the liver "at the level of" segment 2 is in the segment, a part of the liver, not placed by it
 ctrate-429-en-0|finding+uncertain_high|hypodense appearance compatible with mild adiposity
 ctrate-1527-en-4|finding+uncertain|nodular density, a calculus or surgical material (the report's doubt)
 ctrate-730-en-1|finding+uncertain_high|decreased density consistent with moderate adiposity
