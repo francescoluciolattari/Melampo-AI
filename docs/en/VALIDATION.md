@@ -173,7 +173,8 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
 - **Against errors of labelling, the manual, the memory and the adapters** (11 November 2026).
   - Labels: written from the whole sentence, never cut (`data/reading/labelling_convention.md`); a second,
     independent labeller (a model that is none of the readers, by default Mistral Large) labels the same sample
-    before any reading (`scripts/second_labeller.py`, workflow input `second_labeller`); its labels are opened
+    before any reading, from the sentence alone (since 12 November 2026 it is given no convention, no manual, no
+    examples, no list of words: only what each label means, in plain words) (`scripts/second_labeller.py`, workflow input `second_labeller`); its labels are opened
     only after the first labeller's are committed; the agreement (Cohen's kappa) is reported and every
     disagreement is re-read on the whole sentence and decided by the sources, a change written with its reason,
     before the readers run (double annotation with adjudication, as BioScope was made). A label corrected after

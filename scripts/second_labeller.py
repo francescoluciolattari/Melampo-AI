@@ -5,8 +5,9 @@ Double annotation with adjudication is how the annotated corpora of the field ar
 2008: two independent annotators, their disagreements resolved by a chief annotator). Here:
 
 1. the sample is drawn; the second labeller (a model that is none of the readers measured, by default
-   Mistral Large, EU) labels every item from the whole sentence and the written convention
-   (data/reading/labelling_convention.md, data/reading/manual.md), before any reading;
+   Mistral Large, EU) labels every item from the whole sentence alone, before any reading. Since 12 November
+   2026 it is given nothing the first labeller or the readers are given (no convention, no manual, no examples,
+   no list of words): only what each label means, in plain words, so that both answer the same question;
 2. the first labeller labels the sample without opening the second's labels, and commits them;
 3. ``compare`` gives the agreement (Cohen's kappa, on what the sentence states and on its uncertainty) and the
    disagreements; each is re-read on the whole sentence and decided by the sources, a change written with its
@@ -34,29 +35,65 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-CONVENTION = ROOT / "data/reading/labelling_convention.md"
-MANUAL = ROOT / "data/reading/manual.md"
 CLAIMS = ("finding", "involved", "normal", "measure", "history", "device", "not_assessable", "aside",
           "indication", "procedure", "nothing", "uncertain", "uncertain_high")
 
 
+# Independent of everything the first labeller and the readers are given (12 November 2026, Frank: "assolutamente
+# indipendente"): no convention, no manual, no examples, no list of words. Only what each label means, said once
+# in plain words, so that the two labellers answer the same question; how to read the sentence is the model's own.
+SAYS = {
+    "abnormal_in_it": "finding",                 # something abnormal in it or in a part of it
+    "abnormal_of_another_reaching_it": "involved",
+    "normal_or_absent": "normal",                # it, or something of it, is normal; or something is absent from it
+    "its_size": "measure",
+    "its_past": "history",
+    "a_device_in_it": "device",
+    "could_not_be_examined": "not_assessable",
+    "only_where_something_else_is": "aside",
+    "why_the_exam_was_done": "indication",
+    "a_procedure_on_it": "procedure",
+    "nothing": "nothing",
+}
+CERTAINTY = {"certain": "", "very_likely": "uncertain_high", "not_certain": "uncertain"}
+
+
 def prompt(item: dict) -> str:
-    return ("You label sentences of radiology reports for a reference set. Follow the convention exactly.\n\n"
-            f"Convention:\n{CONVENTION.read_text('utf-8')}\n\nReading manual:\n{MANUAL.read_text('utf-8')}\n\n"
-            f"Sentence: {item['clause']}\nMarked words: \"{item['mention']}\"\n"
-            f"Linked structure: {item['structure'].replace('_', ' ')}\n\n"
-            "Answer with JSON only: {\"claims\": [\"...\"], \"why\": \"one short sentence\"}; claims from: "
-            + ", ".join(CLAIMS) + ".")
+    return ("A sentence of a radiology report, and a structure of the body named in it.\n\n"
+            f"Sentence: {item['clause']}\nWords that name the structure: \"{item['mention']}\"\n"
+            f"Structure: {item['structure'].replace('_', ' ')}\n\n"
+            "1. What does the sentence say of this structure? One or more of:\n"
+            "- abnormal_in_it: something abnormal in it or in a part of it\n"
+            "- abnormal_of_another_reaching_it: something abnormal of another structure that reaches it\n"
+            "- normal_or_absent: it, or something of it, is normal, or something is absent from it\n"
+            "- its_size: a size of it\n- its_past: something of its past\n- a_device_in_it: a device in or at it\n"
+            "- could_not_be_examined: it could not be examined\n"
+            "- only_where_something_else_is: it is named only to say where something else is\n"
+            "- why_the_exam_was_done: the reason for the exam\n- a_procedure_on_it: a procedure done on it\n"
+            "- nothing: nothing of it\n"
+            "2. How sure is the writer of what the sentence says? One of: certain; very_likely (very likely, not "
+            "quite certain); not_certain (a possibility, a doubt, a hypothesis).\n\n"
+            "Answer with JSON only: {\"says\": [\"...\"], \"certainty\": \"...\", \"why\": \"one short sentence\"}.")
 
 
 def read_answer(text: str) -> tuple[list[str], str]:
-    m = re.search(r"\{.*\}", text or "", re.S)
+    m = re.search(r"\{.*\}", text or "", re.DOTALL)
     try:
         d = json.loads(m.group(0)) if m else {}
     except json.JSONDecodeError:
         d = {}
-    claims = sorted({str(c).strip() for c in d.get("claims") or [] if str(c).strip() in CLAIMS})
-    return claims, str(d.get("why") or "").replace("|", "/").replace("\n", " ")[:200]
+    if not isinstance(d, dict):
+        d = {}
+    if "says" in d:
+        claims = {SAYS[str(x).strip()] for x in d.get("says") or [] if str(x).strip() in SAYS}
+        sure = str(d.get("certainty") or "").strip()
+        if claims and sure not in CERTAINTY:
+            claims = set()              # an answer without its certainty is no label
+        elif claims and CERTAINTY[sure]:
+            claims.add(CERTAINTY[sure])
+    else:
+        claims = {str(c).strip() for c in d.get("claims") or [] if str(c).strip() in CLAIMS}
+    return sorted(claims), str(d.get("why") or "").replace("|", "/").replace("\n", " ")[:200]
 
 
 def cmd_label(args: argparse.Namespace) -> int:
@@ -81,7 +118,7 @@ def cmd_label(args: argparse.Namespace) -> int:
     deadline = time.monotonic() + args.budget_minutes * 60
     items = [json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines() if x.strip()]
     lines = [f"# Second labeller ({args.model}) of {args.set}, written before any reading, from the whole sentence "
-             "and data/reading/labelling_convention.md. Not a reference: it is compared with the first labeller.",
+             "alone (no convention, no manual). Not a reference: it is compared with the first labeller.",
              "# Format: item|claims|why"]
     # several questions at a time (12 November 2026): one after the other, 114 of 265 items were answered in the
     # two hours of the job. With eight at a time 150 of 265 came back without an answer: what failed is now

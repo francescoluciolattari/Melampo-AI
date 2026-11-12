@@ -178,7 +178,8 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
 - **Contro gli errori di etichetta, il manuale, la memoria e gli adattatori** (11 novembre 2026).
   - Etichette: scritte dalla frase intera, mai tagliata (`data/reading/labelling_convention.md`); un secondo
     etichettatore indipendente (un modello che non è nessuno dei lettori, di default Mistral Large) etichetta lo
-    stesso campione prima di ogni lettura (`scripts/second_labeller.py`, input `second_labeller` del workflow);
+    stesso campione prima di ogni lettura, dalla sola frase (dal 12 novembre 2026 non gli si dà né convenzione, né
+    manuale, né esempi, né liste di parole: solo che cosa vuol dire ogni etichetta, in parole semplici) (`scripts/second_labeller.py`, input `second_labeller` del workflow);
     le sue etichette si aprono solo dopo che quelle del primo sono state committate; si riporta l'accordo (kappa
     di Cohen) e ogni disaccordo si rilegge sulla frase intera e si decide con le fonti, scrivendo il motivo di
     ogni cambiamento, prima che i lettori leggano (doppia annotazione con arbitrato, come è stato fatto BioScope).
