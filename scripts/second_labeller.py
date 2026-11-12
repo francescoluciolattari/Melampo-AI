@@ -60,12 +60,25 @@ def read_answer(text: str) -> tuple[list[str], str]:
 
 
 def cmd_label(args: argparse.Namespace) -> int:
-    from role_probe import Cache, check_endpoint, make_chats
+    from role_probe import Cache, check_endpoint
 
     check_endpoint(args.endpoint, args.public_data)
     # 1500 tokens (12 November 2026): with 300 the second labeller's model answered 3 items of 265, the others
     # empty (the budget spent before the answer)
-    chat = make_chats([args.model], args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)[args.model]
+    import os
+    import time
+
+    from melampo.evaluation import linking_bench as lb
+
+    if "openrouter.ai" in args.endpoint and not os.environ.get("OPENROUTER_API_KEY"):
+        raise SystemExit("OPENROUTER_API_KEY is not set")
+    key = os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("LLM_API_KEY", "local")
+    # a short wait per question (12 November 2026): the answers are about 200 characters, yet with 180 s and four
+    # retries a question that hung held its thread up to 18 minutes, and the run spent 3 h 30 on 161 of 265 items
+    chat = Cache(Path(args.cache)).wrap(args.model, lb.OpenRouterChat(
+        args.model, key, endpoint=args.endpoint, max_tokens=args.max_tokens, timeout=args.timeout,
+        retries=args.retries, min_interval=0.2))
+    deadline = time.monotonic() + args.budget_minutes * 60
     items = [json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines() if x.strip()]
     lines = [f"# Second labeller ({args.model}) of {args.set}, written before any reading, from the whole sentence "
              "and data/reading/labelling_convention.md. Not a reference: it is compared with the first labeller.",
@@ -74,10 +87,13 @@ def cmd_label(args: argparse.Namespace) -> int:
     # two hours of the job. With eight at a time 150 of 265 came back without an answer: what failed is now
     # written for each item, and the items without an answer are asked again, fewer at a time and with longer
     # pauses, until every item has its answer or the passes are spent (a lost answer is never a guess)
-    import time
     from concurrent.futures import ThreadPoolExecutor
 
     def one(it: dict) -> tuple[list[str], str]:
+        if time.monotonic() > deadline:
+            # the budget spent: the item is left without an answer and the file is still written, with the
+            # answers kept; the next run asks only what is missing
+            return [], "no answer (time budget spent)"
         try:
             text = chat(prompt(it))
         except Exception as error:  # noqa: BLE001 - a lost answer is a missing label, never a guess
@@ -94,6 +110,8 @@ def cmd_label(args: argparse.Namespace) -> int:
         if not todo:
             break
         if n:
+            if time.monotonic() + args.pause > deadline:
+                break
             time.sleep(args.pause)
             print(f"pass {n + 1}: {len(todo)} items asked again, {workers} at a time", file=sys.stderr)
         with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
@@ -173,6 +191,10 @@ def main(argv: list[str]) -> int:
     a.add_argument("--workers", type=int, default=8, help="questions asked at the same time")
     a.add_argument("--passes", type=int, default=4, help="passes over the items still without an answer")
     a.add_argument("--pause", type=float, default=60.0, help="seconds between two passes")
+    a.add_argument("--timeout", type=float, default=60.0, help="seconds to wait for one answer")
+    a.add_argument("--retries", type=int, default=2)
+    a.add_argument("--budget-minutes", type=float, default=170.0,
+                   help="minutes after which no question is asked; the labels are written with what was answered")
     a.add_argument("--out", required=True)
     c = sub.add_parser("compare")
     c.add_argument("--set", required=True)
