@@ -5,9 +5,9 @@
 # Items: owner-probe workflow (sample_only, owner-probe_21), scripts/owner_probe.py sample --seed 20261112 --n-en
 # 300 --n-it 0 --per-structure 24, drawn with the finder of 12 November 2026 (no name across a parenthesis; a class
 # of a finding gives its site to its structure), from CT-RATE validation reports none of the first five used.
-# 265 English items from 153 reports: 165 finding, 42 finding+uncertain, 11 finding+uncertain_high, 11
-# finding+measure, 1 finding+measure+not_assessable, 24 normal, 4 aside, 3 aside+uncertain, 1 aside+uncertain_high,
-# 1 procedure+uncertain, 1 device+uncertain, 1 measure; 5 doubtful.
+# 265 English items from 153 reports: 166 finding, 41 finding+uncertain, 11 finding+uncertain_high, 11
+# finding+measure, 1 not_assessable, 24 normal, 4 aside, 3 aside+uncertain, 1 aside+uncertain_high,
+# 1 procedure+uncertain, 1 device+uncertain, 1 measure; 4 doubtful (after the adjudication of 12 November 2026).
 # The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
 # "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
 # Adjudicated before any reading with the second labeller (scripts/second_labeller.py compare): each change or
@@ -264,11 +264,11 @@ ctrate-1407-en-0|finding|stone of 4 mm
 ctrate-1359-en-2|finding|accessory spleen of 12 mm (a variant of the spleen)
 ctrate-1359-en-3|finding|accessory spleen of 12 mm (a variant of the spleen)
 ctrate-1359-en-5|finding+uncertain|hypodense lesion of 16 mm, a cortical cyst (the report's doubt)
-ctrate-1063-en-2|aside+uncertain|hyperdense areas of the liver in its neighbourhood, or the adjacent parenchyma
+ctrate-1063-en-2|aside+uncertain|hyperdense areas of the liver in its neighbourhood, or the adjacent parenchyma; kept 12 November 2026 on the second labeller's disagreement (aside): the alternative joined by "or" is the sentence's, and the probe measures the uncertainty of the sentence the reading carries, also when it places another structure's finding (as in ctrate-935-en-0)
 ctrate-947-en-2|finding+uncertain|hypodense lesion "considered to be compatible with" a cortical cyst of 11 mm
 ctrate-544-en-2|finding+uncertain|hypodense lesion of 17 mm, a parapelvic cyst (the report's doubt)
 ctrate-544-en-3|finding+uncertain|hypodense lesion, a parapelvic cyst (the report's doubt)
-ctrate-835-en-0|finding+measure+not_assessable|not evaluated optimally; the pulmonary conus, a part of the heart, wider than normal, 35 mm ?
+ctrate-835-en-0|not_assessable|not evaluated optimally; corrected 12 November 2026 before any reading, on the second labeller's disagreement: the "pulmonary conus" measured at 35 mm is the main pulmonary artery as radiology measures it (its diameter, enlarged above 29 mm), not the conus arteriosus of the heart: the measure and the finding are the pulmonary artery's
 ctrate-835-en-5|finding+uncertain|pelvicalyceal ectasia and a fat lesion of 42x27 mm, an angiomyolipoma (the report's doubt)
 ctrate-835-en-6|finding+uncertain|pelvicalyceal ectasia and a fat lesion of 42x27 mm, an angiomyolipoma (the report's doubt)
 ctrate-1293-en-3|finding+uncertain_high|nodular lesion of 33 mm compatible with an adrenal adenoma

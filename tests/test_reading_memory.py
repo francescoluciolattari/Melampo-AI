@@ -94,5 +94,14 @@ def test_the_second_labeller_answer_and_the_agreement():
 
     assert sl.read_answer('```json\n{"claims": ["finding", "uncertain", "bogus"], "why": "a|b"}\n```') == \
         (["finding", "uncertain"], "a/b")
+    # the independent question (12 November 2026): plain words, mapped to the labels
+    assert sl.read_answer('{"says": ["abnormal_in_it", "its_size"], "certainty": "not_certain", "why": "x"}') == \
+        (["finding", "measure", "uncertain"], "x")
+    assert sl.read_answer('{"says": ["only_where_something_else_is"], "certainty": "very_likely"}')[0] == \
+        ["aside", "uncertain_high"]
+    assert sl.read_answer('{"says": ["abnormal_in_it"], "certainty": "certain"}')[0] == ["finding"]
+    assert sl.read_answer('{"says": ["abnormal_in_it"]}')[0] == []       # no certainty, no label
+    prompt = sl.prompt({"clause": "A cyst.", "mention": "kidney", "structure": "kidney_left"})
+    assert "consistent with" not in prompt and "Convention" not in prompt and "manual" not in prompt.lower()
     assert sl._kappa([("a", "a"), ("b", "b")]) == 1.0
     assert sl._kappa([("a", "b"), ("b", "a")]) < 0
