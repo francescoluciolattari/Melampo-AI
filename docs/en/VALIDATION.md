@@ -209,6 +209,18 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   fixed before: each model alone and their union are measured on the same run (criteria 7 and 8 by reading);
   the reading used is the one with the fewest errors of 7 and 8 together, if both stay under 2%; on a tie, the
   one that loses less. If none passes, the claims reading stays off.
+- **CT-RATE, seventh sample** (`ctrate7`, 13 November 2026): 300 items, seed 20261113, from reports none of the
+  first six used, labelled before any reading with the convention made more precise on 13 November (an
+  uncertainty goes to the structure only if it bears on what is said of it, an aside carries none; "at the level
+  of" a part of the same structure is in it; "considered to be compatible with" is of level high). The question:
+  every qualifying word with what it does before it is placed; a measure says whether it is of the structure or of
+  what is seen in it; a part is the structure's only if UBERON gives it that part. Readers: Gemma 4 31B, Nemotron
+  3 Ultra without and with reasoning, Muse Spark Open with reasoning, on one run. Rule fixed before: each pair
+  (Gemma with each of the other three) is measured by replaying the run's own answers with that pair only; for each pair the
+  reading of the uncertainty is chosen as on `ctrate6` (each model, or the pair's union); the second reader is the
+  one whose pair passes every criterion (1 at most 1%, 2 to 8 under 2%) with the fewest errors of 1 to 8 together;
+  on a tie, fewer of criterion 1, then the lower cost. Every error is read for its cause, by category, before the
+  choice is written. If no pair passes, the claims reading stays off.
 - **Router probe** (`scripts/router_probe.py`, workflow `router-probe`, 8 November 2026): does the local model
   help the report router say the kinds of a text? Public texts of known kinds: MTSamples (6 per specialty,
   English) and PARROT (20 Italian, 10 other languages), seed 20261108, labelled (`data/gold/router/labels.txt`)

@@ -215,6 +215,19 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   dell'incertezza si sceglie con una regola fissata prima: ciascun modello da solo e la loro unione si misurano
   sullo stesso run (criteri 7 e 8 per lettura); si usa quella con meno errori di 7 e 8 insieme, se entrambi
   restano sotto il 2%; a parità, quella che perde meno. Se nessuna passa, la lettura per affermazioni resta spenta.
+- **CT-RATE, settimo campione** (`ctrate7`, 13 novembre 2026): 300 item, seed 20261113, da referti non usati dai
+  primi sei, etichettati prima di ogni lettura con la convenzione precisata il 13 novembre (un'incertezza va alla
+  struttura solo se verte su ciò che se ne dice, una struttura che colloca non ne porta; «at the level of» una
+  parte della stessa struttura è in essa; «considered to be compatible with» è di livello alto). La domanda: ogni
+  parola che qualifica con ciò che fa prima di collocarla; la misura dice se è della struttura o di ciò che vi si
+  vede; una parte è della struttura solo se UBERON gliela dà. Lettori: Gemma 4 31B, Nemotron 3 Ultra senza
+  e con ragionamento, Muse Spark Open con ragionamento, in un solo run. Regola fissata prima: ogni coppia (Gemma
+  con ciascuno degli altri tre) si misura rigiocando le risposte dello stesso run con la sola coppia; per ogni coppia
+  la lettura dell'incertezza si sceglie come su `ctrate6` (ciascun modello o l'unione della coppia); il secondo
+  lettore è quello la cui coppia supera tutti i criteri (1 al massimo l'1%, da 2 a 8 sotto il 2%) con meno errori
+  da 1 a 8 insieme; a parità, meno errori del criterio 1, poi il costo minore. Ogni errore si legge per la sua
+  causa, per categoria, prima di scrivere la scelta. Se nessuna coppia passa, la lettura per affermazioni resta
+  spenta.
 - **Misura del router** (`scripts/router_probe.py`, workflow `router-probe`, 8 novembre 2026): il modello locale
   aiuta l'orchestratore a dire i tipi di un testo? Testi pubblici di tipo noto: MTSamples (6 per specialità,
   inglese) e PARROT (20 italiani, 10 di altre lingue), seed 20261108, etichettati (`data/gold/router/labels.txt`)

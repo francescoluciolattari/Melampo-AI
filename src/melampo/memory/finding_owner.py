@@ -148,6 +148,9 @@ class Anatomy:
         # beforehand, and it took away "trophoblast", and adult structures UBERON files under the embryo); where a
         # name has a sense of the body formed and one of the embryo, the context chooses (``find``)
         self.developing: set[str] = set()
+        self._uberon_names = {u: n for u, n in (uberon_names or {}).items() if self._of_a_person(u)}
+        self._heads: set[str] | None = None
+        self._part_heads: dict[frozenset, set[str]] = {}
         for uid, names in (uberon_names or {}).items():
             if not self._of_a_person(uid):
                 continue
@@ -235,6 +238,55 @@ class Anatomy:
         if self.uberon is None or not uid.startswith("UBERON:"):
             return {uid}
         return self._closure(uid, False)
+
+    @staticmethod
+    def _head(name: str) -> str:
+        """The noun a name of UBERON is a name of: the word before "of" ("left lobe of liver": lobe), else its
+        last word ("aortic arch": arch)."""
+        words = [_singular(w) for w in _WORD.findall(name.lower())]
+        if "of" in words[1:]:
+            return words[words.index("of", 1) - 1]
+        return words[-1] if words else ""
+
+    def part_of_linked(self, words: str, linked: set[str]) -> bool | None:
+        """Do the words name a part the linked structure has (13 November 2026)? Read from UBERON, not from a
+        list of words: the parts of a structure are the terms below it by ``part_of``/``is_a``, and what each is
+        a part of its kind is the noun its name is a name of ("wall of aorta": a wall). The words name such a
+        part when one of their nouns is the noun of a part of the linked structure: "the wall of the arch" of the
+        aorta (a wall of the aorta), never "the left lobe medial segment" of the portal vein (UBERON gives the
+        portal vein branches, no lobe and no segment). None when UBERON is not at hand, or when the words have no
+        noun that names a part of anything: then nothing is said."""
+        if self.uberon is None or not self._uberon_names:
+            return None
+        if self._heads is None:
+            self._heads = {self._head(n) for names in self._uberon_names.values() for n in names if n}
+            self._heads.discard("")
+        nouns = {_singular(w) for w in _WORD.findall(str(words).lower())} & self._heads
+        if not nouns:
+            return None
+        roots = frozenset(x for x in linked if x.startswith("UBERON:"))
+        if not roots:
+            return None
+        if roots not in self._part_heads:
+            self._part_heads[roots] = self._heads_of_parts(roots)
+        return bool(nouns & self._part_heads[roots])
+
+    def _heads_of_parts(self, roots: frozenset) -> set[str]:
+        """The nouns of the parts a structure has: the terms below it (``part_of``/``is_a``), the parts every
+        kind it is has (a vein has a wall: ``is_a`` up, then ``part_of`` one step down), and the parts of the
+        whole it is a subdivision of, which a subdivision has as well (a segment of the colon has the colon's
+        wall: ``part_of`` one step up, then the same)."""
+        if not hasattr(self, "_parts_of"):
+            self._parts_of: dict[str, set[str]] = {}
+            for u, wholes in self.uberon.part_of.items():
+                for w in wholes:
+                    self._parts_of.setdefault(w, set()).add(u)
+        wholes = {w for r in roots for w in self.uberon.part_of.get(r, ())}
+        kinds = {k for r in roots | wholes for k in self._closure(r, True)}
+        parts = {u for u in self._uberon_names if u not in roots and self.up(u) & roots}
+        parts |= {u for k in kinds for u in self._parts_of.get(k, ())}
+        parts -= roots
+        return {self._head(n) for u in parts for n in self._uberon_names.get(u, []) if n} - {""}
 
     def organs_of(self, ids: set[str]) -> set[str]:
         """The organs a structure is, or is a part of (UBERON's organ subsets, without the kinds of organ)."""
@@ -803,7 +855,6 @@ class FindingOwner:
         from .hpo_candidates import site_anchors
 
         linked = set(site_anchors(cid)) | {f"class:{cid}"}
-        from .spatial_relation import _OWN_PARTS
         from .what_is_said import negated
 
         for answer in said.values():
@@ -821,9 +872,10 @@ class FindingOwner:
                     continue
                 if self.same_structure(o["of"], linked):
                     o["of_by_the_reader"], o["of"] = o["of"], "it"
-                elif (set(re.findall(r"[a-zà-ÿ]+", o["of"].lower())) & _OWN_PARTS
-                      and not self.anatomy.find(o["of"], short=True)):
-                    # "the wall of the arch": a part, and no other structure named, is a part of this one
+                elif not self.anatomy.find(o["of"], short=True) and self.anatomy.part_of_linked(o["of"], linked):
+                    # "the wall of the arch": a part, and no other structure named, is a part of this one when
+                    # UBERON gives this one such a part (13 November 2026: a fixed list of part words made "the
+                    # left lobe medial segment" of the liver a part of the portal vein, ctrate6 1063-en-2)
                     o["of_by_the_reader"], o["of"] = o["of"], "it"
             answer["observed"] = kept
             if answer.get("same") == "no":

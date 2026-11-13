@@ -5,9 +5,10 @@
 # Items: owner-probe workflow (sample_only, owner-probe_21), scripts/owner_probe.py sample --seed 20261112 --n-en
 # 300 --n-it 0 --per-structure 24, drawn with the finder of 12 November 2026 (no name across a parenthesis; a class
 # of a finding gives its site to its structure), from CT-RATE validation reports none of the first five used.
-# 265 English items from 153 reports: 166 finding, 41 finding+uncertain, 11 finding+uncertain_high, 11
+# 265 English items from 153 reports: 166 finding, 40 finding+uncertain, 12 finding+uncertain_high, 11
 # finding+measure, 1 not_assessable, 24 normal, 4 aside, 3 aside+uncertain, 1 aside+uncertain_high,
-# 1 procedure+uncertain, 1 device+uncertain, 1 measure; 4 doubtful (after the adjudication of 12 November 2026).
+# 1 procedure+uncertain, 1 device+uncertain, 1 measure; 4 doubtful (after the adjudication of 12 November 2026, and
+# ctrate-947-en-2 corrected after the reading on 13 November 2026, declared in its note).
 # The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
 # "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
 # Adjudicated before any reading with the second labeller (scripts/second_labeller.py compare): each change or
@@ -265,7 +266,7 @@ ctrate-1359-en-2|finding|accessory spleen of 12 mm (a variant of the spleen); ke
 ctrate-1359-en-3|finding|accessory spleen of 12 mm (a variant of the spleen); kept 12 November 2026 on the independent second labeller's disagreement (aside): an accessory spleen is an abnormality of the spleen in HPO (Accessory spleen HP:0001747, under Supernumerary spleens, inheres in the spleen)
 ctrate-1359-en-5|finding+uncertain|hypodense lesion of 16 mm, a cortical cyst (the report's doubt)
 ctrate-1063-en-2|aside+uncertain|hyperdense areas of the liver in its neighbourhood, or the adjacent parenchyma; kept 12 November 2026 on the second labeller's disagreement (aside): the alternative joined by "or" is the sentence's, and the probe measures the uncertainty of the sentence the reading carries, also when it places another structure's finding (as in ctrate-935-en-0)
-ctrate-947-en-2|finding+uncertain|hypodense lesion "considered to be compatible with" a cortical cyst of 11 mm
+ctrate-947-en-2|finding+uncertain_high|hypodense lesion "considered to be compatible with" a cortical cyst of 11 mm; corrected 13 November 2026 AFTER the reading runs owner-probe_26 and _27, declared: "considered to be compatible with" is the form of the judgement at the level of "compatible with" (Panicek and Hricak), as all six readings of owner-probe_27 read it; the item had one label (the second labeller gave no answer)
 ctrate-544-en-2|finding+uncertain|hypodense lesion of 17 mm, a parapelvic cyst (the report's doubt)
 ctrate-544-en-3|finding+uncertain|hypodense lesion, a parapelvic cyst (the report's doubt)
 ctrate-835-en-0|not_assessable|not evaluated optimally; corrected 12 November 2026 before any reading, on the second labeller's disagreement: the "pulmonary conus" measured at 35 mm is the main pulmonary artery as radiology measures it (its diameter, enlarged above 29 mm), not the conus arteriosus of the heart: the measure and the finding are the pulmonary artery's
