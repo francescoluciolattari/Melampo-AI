@@ -8,7 +8,8 @@ different mechanism agree on, list it, take an example out.
 
 An example enters only if: the label has no doubt; the reading attached what the label says (no doubt, nothing
 to a person); every model's own reading agrees with the label on what the sentence states and on its
-uncertainty (src/melampo/memory/reading_memory.py, ``verified``). Only samples labelled with the convention in
+uncertainty (src/melampo/memory/reading_memory.py, ``verified``); in a sample labelled by two labellers, only
+the items both labelled (``double_labelled.txt``). Only samples labelled with the convention in
 force enter (``CONVENTION``): an example labelled with a superseded convention would teach it. The memory holds
 no text of the corpus: the item, its sample, the claims, how it was verified.
 """
@@ -51,10 +52,15 @@ def cmd_add(args: argparse.Namespace) -> int:
     run = json.loads(Path(args.run).read_text("utf-8"))
     memory = _load(Path(args.memory))
     removed = {r["item_id"] for r in _load(REMOVED)}
+    # a sample labelled by two labellers gives only the items both labelled (13 November 2026): an item with one
+    # label has no check against an error of labelling but the readers', and the readers are what is measured
+    double = op.CLAIMS_FILES[args.set].parent / "double_labelled.txt"
+    both = {x.strip() for x in double.read_text("utf-8").splitlines() if x.strip() and not x.startswith("#")} \
+        if double.exists() else None
     have = {r["item_id"] for r in memory}
     added = skipped = 0
     for row in run.get("rows", []):
-        if row.get("set") != args.set or row["item_id"] not in labels:
+        if row.get("set") != args.set or row["item_id"] not in labels or (both is not None and row["item_id"] not in both):
             continue
         claims, doubtful = labels[row["item_id"]]
         row = {**row, "gold_claims": sorted(claims), "gold_doubt": doubtful}   # the labels as they are now
