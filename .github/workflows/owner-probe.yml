@@ -25,6 +25,10 @@ on:
         description: "with sample_only: the model that labels the samples independently (none of the readers)"
         required: false
         default: "mistralai/mistral-large-4-0"
+      only_items:
+        description: "a diagnosis on seen items: only these item ids, comma-separated (no measure)"
+        required: false
+        default: ""
       sample_only:
         description: "only draw the samples and upload them, for labelling before any reading (no reading call)"
         type: boolean
@@ -156,14 +160,19 @@ jobs:
         if: ${{ !inputs.sample_only }}
         env:
           MODELS: ${{ inputs.models }}
+          ONLY: ${{ inputs.only_items }}
           SETS: ${{ inputs.sets }}
           ARMS: ${{ inputs.arms }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
           MODELS="${MODELS//[[:space:]]/}"
-          if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+)*$ ]]; then
-            echo "::error::models takes ids like org/name, comma-separated"; exit 2
+          if [ -n "$MODELS" ] && ! [[ "$MODELS" =~ ^[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(\+reasoning)?(,[A-Za-z0-9._:-]+/[A-Za-z0-9._:-]+(\+reasoning)?)*$ ]]; then
+            echo "::error::models takes ids like org/name (or org/name+reasoning), comma-separated"; exit 2
+          fi
+          ONLY="${ONLY//[[:space:]]/}"
+          if [ -n "$ONLY" ] && ! [[ "$ONLY" =~ ^[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*$ ]]; then
+            echo "::error::only_items takes item ids, comma-separated"; exit 2
           fi
           ITEMS=()
           for name in ${SETS//,/ }; do
@@ -189,7 +198,7 @@ jobs:
           for arm in owner statement claims; do
             [[ ",${ARMS// /}," == *",$arm,"* ]] || SKIP="$SKIP,$arm"
           done
-          uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" --skip "${SKIP#,}" \
+          uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" --skip "${SKIP#,}" --only "$ONLY" \
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo --hpo hp-full.obo --pato pato.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
             --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json

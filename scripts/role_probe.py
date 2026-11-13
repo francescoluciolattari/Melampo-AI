@@ -221,14 +221,19 @@ def make_chats(models: list[str], endpoint: str, cache: Cache, max_tokens: int,
     if router and not key:
         raise SystemExit("OPENROUTER_API_KEY is not set")
     chats = {}
-    for m in models:
+    for spec in models:
+        # "<model>+reasoning" (13 November 2026): the same model asked to reason before answering, beside it
+        m, _, flag = spec.partition("+")
+        reasoning = flag == "reasoning"
         q = (quantization or {}).get(m)
         # On OpenRouter the precision is a hard filter (no fallback to another one); a local server serves
         # the checkpoint it was started with, and the run records which one was asked for.
         provider = {"quantizations": [q], "allow_fallbacks": False} if (router and q) else None
-        name = f"{m}@{q}" if q else m
-        chats[name] = cache.wrap(name, lb.OpenRouterChat(m, key, endpoint=endpoint, max_tokens=max_tokens, timeout=180.0,
-                                                         retries=4, min_interval=0.2, provider=provider))
+        name = (f"{m}@{q}" if q else m) + ("+reasoning" if reasoning else "")
+        chats[name] = cache.wrap(name, lb.OpenRouterChat(m, key, endpoint=endpoint,
+                                                         max_tokens=max(max_tokens, 8000) if reasoning else max_tokens,
+                                                         timeout=180.0, retries=4, min_interval=0.2,
+                                                         provider=provider, reasoning=reasoning))
     return chats
 
 

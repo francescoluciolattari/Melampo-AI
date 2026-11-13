@@ -592,8 +592,12 @@ class OpenRouterChat:
         max_wait: float = 60.0,
         empty_retries: int = 2,
         provider: dict | None = None,
+        reasoning: bool = False,
     ) -> None:
         self.slug = slug
+        # reasoning (13 November 2026): asked on, for a model that reasons before answering; otherwise the hint
+        # asks it off, and is dropped for a model that rejects it
+        self.reasoning = reasoning
         self._api_key = api_key
         self.endpoint = endpoint
         self.timeout = timeout
@@ -632,7 +636,7 @@ class OpenRouterChat:
         return min(float(2**attempt), self.max_wait)
 
     def __call__(self, prompt: str) -> str:
-        hint = True
+        hint = not self.reasoning
         empty = 0
         for attempt in range(self.retries + 2):
             self._wait_for_turn()
@@ -642,6 +646,7 @@ class OpenRouterChat:
                 "temperature": 0,
                 "max_tokens": self.max_tokens,
                 **({"reasoning": {"enabled": False}} if hint else {}),
+                **({"reasoning": {"enabled": True}} if self.reasoning else {}),
                 **({"provider": self.provider} if self.provider else {}),
             }
             request = urllib.request.Request(
