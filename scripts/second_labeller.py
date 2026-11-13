@@ -100,8 +100,6 @@ def cmd_label(args: argparse.Namespace) -> int:
     from role_probe import Cache, check_endpoint
 
     check_endpoint(args.endpoint, args.public_data)
-    # 1500 tokens (12 November 2026): with 300 the second labeller's model answered 3 items of 265, the others
-    # empty (the budget spent before the answer)
     import os
     import time
 
@@ -111,10 +109,27 @@ def cmd_label(args: argparse.Namespace) -> int:
         raise SystemExit("OPENROUTER_API_KEY is not set")
     key = os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("LLM_API_KEY", "local")
     # a short wait per question (12 November 2026): the answers are about 200 characters, yet with 180 s and four
-    # retries a question that hung held its thread up to 18 minutes, and the run spent 3 h 30 on 161 of 265 items
-    chat = Cache(Path(args.cache)).wrap(args.model, lb.OpenRouterChat(
-        args.model, key, endpoint=args.endpoint, max_tokens=args.max_tokens, timeout=args.timeout,
-        retries=args.retries, min_interval=0.2))
+    # retries a question that hung held its thread up to 18 minutes, and the run spent 3 h 30 on 161 of 265 items.
+    # What it costs (12 November 2026): 63 empty and 16 cut answers in one run, each asked again three times in
+    # each of four passes with 1500 tokens: the model spent the tokens before answering, and the credit went. The
+    # answer is under 100 tokens: 400 are enough, an empty reply is not asked again by the call, and an answer
+    # that cannot be read is never kept in the cache (it was, and it came back from the cache at every pass).
+    raw = lb.OpenRouterChat(args.model, key, endpoint=args.endpoint, max_tokens=args.max_tokens,
+                            timeout=args.timeout, retries=args.retries, min_interval=0.2, empty_retries=0)
+    cache = Cache(Path(args.cache))
+
+    def chat(text: str) -> str:
+        k = cache.key(args.model, text)
+        if k in cache.data and read_answer(cache.data[k])[0]:
+            return cache.data[k]
+        answer = raw(text)
+        if read_answer(answer)[0]:
+            with cache.lock:
+                cache.data[k] = answer
+                with Path(args.cache).open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps({"key": k, "model": args.model, "text": answer}, ensure_ascii=False) + "\n")
+        return answer
+
     deadline = time.monotonic() + args.budget_minutes * 60
     items = [json.loads(x) for x in Path(args.items).read_text("utf-8").splitlines() if x.strip()]
     lines = [f"# Second labeller ({args.model}) of {args.set}, written before any reading, from the whole sentence "
@@ -126,14 +141,20 @@ def cmd_label(args: argparse.Namespace) -> int:
     # pauses, until every item has its answer or the passes are spent (a lost answer is never a guess)
     from concurrent.futures import ThreadPoolExecutor
 
+    spent: list[bool] = []
+
     def one(it: dict) -> tuple[list[str], str]:
         if time.monotonic() > deadline:
             # the budget spent: the item is left without an answer and the file is still written, with the
             # answers kept; the next run asks only what is missing
             return [], "no answer (time budget spent)"
+        if spent:
+            return [], "no answer (the credit is spent: not asked)"
         try:
             text = chat(prompt(it))
         except Exception as error:  # noqa: BLE001 - a lost answer is a missing label, never a guess
+            if "HTTP 402" in str(error):
+                spent.append(True)      # payment required: nothing more is asked
             return [], f"no answer ({type(error).__name__}: {str(error)[:120]})"
         claims, why = read_answer(text)
         if not claims:
@@ -147,7 +168,7 @@ def cmd_label(args: argparse.Namespace) -> int:
         if not todo:
             break
         if n:
-            if time.monotonic() + args.pause > deadline:
+            if spent or time.monotonic() + args.pause > deadline:
                 break
             time.sleep(args.pause)
             print(f"pass {n + 1}: {len(todo)} items asked again, {workers} at a time", file=sys.stderr)
@@ -155,7 +176,11 @@ def cmd_label(args: argparse.Namespace) -> int:
             got = list(pool.map(lambda i: one(items[i]), todo))
         for i, a in zip(todo, got):
             answers[i] = a
-        todo = [i for i in todo if not answers[i][0]]
+        before, todo = len(todo), [i for i in todo if not answers[i][0]]
+        if n and len(todo) > before - max(1, before // 20):
+            # a pass that answered almost nothing will not do better: stop, instead of paying for it again
+            print(f"pass {n + 1} answered {before - len(todo)} of {before}: no further pass", file=sys.stderr)
+            break
     reasons = Counter(why.split(":")[0].split(" (")[1].rstrip(")") if why.startswith("no answer (") else why
                       for claims, why in answers if not claims)
     if reasons:
@@ -224,9 +249,9 @@ def main(argv: list[str]) -> int:
     a.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     a.add_argument("--public-data", action="store_true")
     a.add_argument("--cache", default="second_labeller_answers.jsonl")
-    a.add_argument("--max-tokens", type=int, default=1500)
+    a.add_argument("--max-tokens", type=int, default=400)
     a.add_argument("--workers", type=int, default=8, help="questions asked at the same time")
-    a.add_argument("--passes", type=int, default=4, help="passes over the items still without an answer")
+    a.add_argument("--passes", type=int, default=3, help="passes over the items still without an answer")
     a.add_argument("--pause", type=float, default=60.0, help="seconds between two passes")
     a.add_argument("--timeout", type=float, default=60.0, help="seconds to wait for one answer")
     a.add_argument("--retries", type=int, default=2)

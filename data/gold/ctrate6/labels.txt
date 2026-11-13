@@ -183,7 +183,7 @@ ctrate-355-en-0|finding|nodule of 1 cm with irregular border
 ctrate-355-en-1|finding|old compression fracture of the lower endplate
 ctrate-355-en-2|finding+uncertain|nodule with irregular border, a fibrotic nodular formation (the report's doubt)
 ctrate-424-en-2|finding+uncertain|hypodense lesion of 25 mm, a cyst (the report's doubt)
-ctrate-424-en-3|finding+uncertain|hypodense lesion of 77 mm, a cyst (the report's doubt)
+ctrate-424-en-3|finding+uncertain|hypodense lesion of 77 mm, a cyst (the report's doubt); kept 12 November 2026 on the independent second labeller's disagreement (certain): the "(cyst?)" bears on the interpretation of these lesions, in the same sentence (as in ctrate-229-en-3)
 ctrate-424-en-6|finding|increased cardiothoracic ratio in favour of the heart (an attribution), in the impression; kept 12 November 2026 on the independent second labeller's disagreement (measure only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly HP:0001640, Splenomegaly HP:0001744, Hepatomegaly HP:0002240, Left atrial enlargement HP:0031295: increased size, qualifier abnormal, inheres in the organ)
 ctrate-125-en-0|finding|bronchus markedly narrowed
 ctrate-125-en-2|finding+uncertain|multiple hypodense lesions, in favour of metastasis
