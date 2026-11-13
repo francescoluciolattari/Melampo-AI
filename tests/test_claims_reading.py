@@ -501,3 +501,45 @@ def test_the_uncertainty_is_read_from_the_chosen_models(monkeypatch):
     assert uncertainty_readers(valid) == [{"uncertainty": []}]
     monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "absent")
     assert len(uncertainty_readers(valid)) == 2   # a chosen model that did not answer: never no reading
+
+
+def test_the_qualifiers_say_what_each_word_does_before_it_is_placed():
+    """13 November 2026: only a shield is an uncertainty; an approximation, a frequency, a visibility, a source, a
+    time, an attribution are kept for what they are; an open nature and an exam's limit go to their places."""
+    from melampo.evaluation.llm_reading import CLAIM_SCHEMA, read_claims
+
+    assert CLAIM_SCHEMA.index('"qualifiers"') < CLAIM_SCHEMA.index('"observed"')
+    sentence = ("Occasionally a nonspecific nodule of about 10 mm, as far as can be observed, is seen in the left "
+                "adrenal (adenoma?)")
+    answer = {"marked": "left adrenal", "same": "yes", "qualifiers": [
+        {"words": "Occasionally", "does": "frequency", "about": "a nonspecific nodule"},
+        {"words": "nonspecific", "does": "open_nature", "about": "nodule"},
+        {"words": "about", "does": "approximation", "about": "10 mm"},
+        {"words": "as far as can be observed", "does": "exam_limit", "about": ""},
+        {"words": "?", "does": "shield", "about": "adenoma", "level": "possible"}],
+        "observed": [{"words": "nodule", "differs": "yes", "of": "it"}]}
+    import json
+
+    got = read_claims(json.dumps(answer), sentence, "left adrenal")
+    assert got["uncertainty"] == ["?"]
+    assert got["uncertain_about"] == [{"words": "?", "about": "adenoma", "level": "possible"}]
+    assert got["undetermined"] == ["nonspecific"] and got["limits"] == ["as far as can be observed"]
+    assert [q["does"] for q in got["qualifiers"]] == ["frequency", "open_nature", "approximation", "exam_limit",
+                                                       "shield"]
+
+
+def test_a_word_given_two_functions_is_not_an_uncertainty():
+    import json
+
+    from melampo.evaluation.llm_reading import read_claims
+
+    sentence = "A lesion of approximately 50x20 mm in the middle lobe"
+    answer = {"marked": "middle lobe", "same": "yes", "qualifiers": [
+        {"words": "approximately", "does": "approximation"}, {"words": "approximately", "does": "shield",
+                                                             "level": "possible"}],
+        "observed": [{"words": "A lesion", "differs": "yes", "of": "it"}]}
+    got = read_claims(json.dumps(answer), sentence, "middle lobe")
+    assert got["uncertainty"] == [] and got["contradictions"] == ["approximately"]
+    # a function that cannot be read stays a doubt, never a certainty
+    answer["qualifiers"] = [{"words": "approximately", "does": "hedge?"}]
+    assert read_claims(json.dumps(answer), sentence, "middle lobe")["uncertainty"] == ["approximately"]

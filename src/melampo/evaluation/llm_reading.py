@@ -594,9 +594,19 @@ def read_statement(text: str, sentence: str) -> dict:
 # seen but not identified, the limits of the exam, an attribution, the degree of what is seen had no place of
 # their own, and "when in doubt, it is uncertain" pushed them into the uncertainty. Now each has its place, and
 # every uncertainty has its level on a published scale (Panicek and Hricak, AJR 2016).
+# 13 November 2026: on ctrate6 one model gave an uncertainty to 5 stated findings with words that had no place
+# of their own (approximately, about, occasionally, can hardly be distinguished), and to 7 more with words it also
+# put where they belong; in one answer it wrote, after the lists, that "about" is an approximator, not a hedge. The
+# answer said what a word does only at its end, after placing it. Now every word that qualifies what the sentence
+# says comes first, with what it does, and only a shield is an uncertainty.
 CLAIM_LISTS = ("observed", "normal", "measure", "past", "uncertainty", "device", "not_assessable",
                "indication", "procedure", "other_person", "reported", "undetermined", "limits")
 UNCERTAINTY_LEVELS = ("high", "probable", "possible", "less_likely", "unlikely")
+# what a word that qualifies what a sentence says does (13 November 2026): the hedges of Prince, Frader and Bosk
+# (1982) and of Hyland (1996), the speculation of BioScope, and what is not a hedge but was read as one (ctrate4-6)
+QUALIFIER_FUNCTIONS = ("shield", "approximation", "frequency", "visibility", "open_nature", "exam_limit", "source",
+                       "time", "attribution")
+_PLACED_AS = {"open_nature": "undetermined", "exam_limit": "limits"}
 # the lists of the questions before 10 November 2026, read into "uncertainty" (stored answers, replays)
 _FORMER_UNCERTAINTY = ("certainty", "alternatives")
 CLAIM_STEPS = """Say what the sentence states of the linked structure, using only its words: every entry is copied
@@ -608,6 +618,35 @@ of that kind.
 - same: about the marked words only, not about what the sentence describes: "yes" if here they name the linked
   structure or a part of it, "no" if they name a different structure (then named: the structure they name),
   "unsure".
+- qualifiers: first, before what is seen, every word of the sentence that qualifies what it says instead of
+  saying it, each with what it does here, decided from the whole sentence: what a word does in this sentence
+  decides, not the word (Prince, Frader and Bosk 1982; Hyland 1996; BioScope, Vincze et al. 2008). For each:
+  words: copied; does: what it does, one of
+  * shield: it lowers how far the writer commits to the truth of something the sentence says: a doubt, a
+    hypothesis, alternatives joined by "or", a differential, something probable, possible, suspected, questioned
+    ("?"), "suggests", "may", "might", "in favor of" a hypothesis, "thought to be", "considered", "can be seen
+    in", "cannot be excluded", "to be evaluated for", a condition ("if there is"), and also "consistent with",
+    "compatible with", "in line with";
+  * approximation: the degree, extent, number or likeness of what is seen ("slight", "faint", "approximately",
+    "about", "ground-glass-like", "tends to"): it changes what is said, not the commitment to it;
+  * frequency: how often or in how many places it is seen ("occasionally", "in places", "scattered");
+  * visibility: how well what is seen stands out from what is around it ("can hardly be distinguished");
+  * open_nature: what is seen is not identified ("nonspecific", "uncharacterized", "cannot be characterized"):
+    it is seen, its nature is open, nothing is doubted;
+  * exam_limit: how far the exam could see, or what limited it ("as far as can be observed", "within the
+    limits of non-contrast CT");
+  * source: where the knowledge comes from ("according to", "when evaluated together with US", "it was
+    understood that"): what the writer then states is certain;
+  * time: a change in time ("stable", "unchanged", "new", "decreased", "regressed");
+  * attribution: what something is attributed to ("increased cardiothoracic ratio in favor of the heart",
+    "secondary to", "due to");
+  about: the words it qualifies, copied (for a shield, often what the sentence says it is, while what is seen is
+  certain: in "a hypodense lesion (cyst?)" the lesion is seen, the cyst is shielded); level: only for a shield,
+  how likely the writer says it is, on the scale of Panicek and Hricak (AJR 2016): "high" (more than 90%, as
+  "consistent with"), "probable" (about 75%, as "suspicious for", "probably"), "possible" (about 50%, as
+  "possibly", "may", "?"), "less_likely" (about 25%), "unlikely" (less than 10%), read from the whole sentence
+  ("may be consistent with" is not "consistent with"); otherwise "". A question mark applies to what it follows
+  or closes, a parenthesis with "?" to the words in it. A word does one thing: it is written once.
 - observed: everything the sentence says of an aspect of it or of what it contains (its state of filling or
   distension, its content, its wall, size, shape, density, echogenicity, signal, position, a lesion), each compared
   as a radiologist does with how that aspect of this structure is in a healthy person in this exam. A number is
@@ -640,35 +679,6 @@ of that kind.
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
-- uncertainty: only how far the writer commits to the truth of something the sentence says (a hedge that shields
-  it, Prince, Frader and Bosk 1982; a speculation, BioScope 2008): a doubt, a hypothesis, alternatives joined by
-  "or", a differential, something probable, possible, suspected, questioned ("?"), "suggests", "may", "might",
-  "in favor of" a hypothesis, "thought to be", "considered", "can be seen in", "cannot be excluded", "to be
-  evaluated for", a condition ("if there is"), and also "consistent with", "compatible with", "in line with".
-  For each: words: the words that make it uncertain, copied; about: the words of what is uncertain, copied (often
-  what the sentence says it is, while what is seen is certain: in "a hypodense lesion (cyst?)" the lesion is
-  seen, the cyst is uncertain); level: how likely the writer says it is, on the scale of Panicek and Hricak (AJR
-  2016): "high" (more than 90%, as "consistent with"), "probable" (about 75%, as "suspicious for",
-  "probably"), "possible" (about 50%, as "possibly", "may", "?"), "less_likely" (about 25%), "unlikely" (less
-  than 10%), read from the whole sentence ("may be consistent with" is not "consistent with"; "suspicious ...
-  consistent with" is not "consistent with"). A question mark applies to what it follows or closes, a
-  parenthesis with "?" to the words in it. What a word does in this sentence decides, not the word. These are not
-  uncertainty, and none of their words goes in uncertainty: a word stays in one place only.
-  * what is seen but not identified ("nonspecific", "uncharacterized", "cannot be characterized"): its nature is
-    open, it is not doubted; it goes in undetermined;
-  * how far the exam could see ("as far as can be observed", "within the limits of non-contrast CT"): it goes in
-    limits;
-  * an approximation of what is seen, its degree, extent or likeness ("slight", "faint", "approximately", "about",
-    "ground-glass-like", "tends to"): it changes what is said, not the commitment to it; it stays in what is seen;
-  * where the knowledge comes from ("when evaluated together with US", "according to", "it was understood
-    that"): a source, not a doubt; what the writer then states is certain;
-  * a change in time ("stable", "unchanged", "new", "decreased", "regressed"): a statement about time, certain;
-  * what something is attributed to ("increased cardiothoracic ratio in favor of the heart", "secondary to",
-    "due to"): stated, certain.
-- undetermined: words saying that what is seen is not identified or not characterised ("nonspecific", "cannot be
-  characterized"): what is seen stays certain, only its nature is open.
-- limits: words saying how far the exam could see, or what limited it, copied. A limit qualifies what the exam
-  could not see (most often an absence: "no lesion, as far as can be observed"); what was seen stays certain.
 - other_person: words of what is said of a person other than the patient (a relative's disease).
 - reported: words of what the patient reports or the referral says, not observed in the exam.
 - device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis, an implanted valve),
@@ -682,12 +692,13 @@ of that kind.
   of this structure, "other" if it gives it to another structure (then conclusion_of: that structure, copied
   from the conclusion), "none" if it does not mention it or no conclusion is given."""
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
+                '"qualifiers": [{"words": "...", "does": "shield|approximation|frequency|visibility|open_nature|'
+                'exam_limit|source|time|attribution", "about": "...", "level": ""}], '
                 '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", '
                 '"said_to_be": "", "of": "it", "relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
                 '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], '
-                '"uncertainty": [{"words": "...", "about": "...", "level": "high|probable|possible|less_likely|unlikely"}], '
                 '"device": [], "not_assessable": [], "indication": [], "procedure": [], "other_person": [], '
-                '"reported": [], "undetermined": [], "limits": [], '
+                '"reported": [], '
                 '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
@@ -818,6 +829,33 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
                 out["dropped"] += 1
         out[key] = kept
     out["normal"] = usual + [w for w in out["normal"] if w not in usual]
+    # the qualifiers (13 November 2026): each word with what it does, said before it is placed; a shield is an
+    # uncertainty, an open nature is undetermined, an exam's limit is a limit; the other functions are kept for
+    # what they are and are never an uncertainty
+    out["qualifiers"] = []
+    for entry in answer.get("qualifiers") or []:
+        if not isinstance(entry, dict) or not copied(sentence, entry.get("words", "")):
+            out["dropped"] += 1
+            continue
+        words, does = str(entry["words"]), str(entry.get("does") or "").strip().lower()
+        if does not in QUALIFIER_FUNCTIONS:
+            does = "shield"         # a qualifier whose function cannot be read stays a doubt, never a certainty
+        out["qualifiers"].append({"words": words, "does": does})
+        if does == "shield" and words not in out["uncertainty"]:
+            level = str(entry.get("level") or "").strip().lower()
+            out["uncertainty"].append(words)
+            out["uncertain_about"].append({"words": words, "about": _copied_from(entry.get("about"), sentence),
+                                           "level": level if level in UNCERTAINTY_LEVELS else "possible"})
+        elif does in _PLACED_AS and words not in out[_PLACED_AS[does]]:
+            out[_PLACED_AS[does]].append(words)
+    # a word given two functions in the same answer, one of them a shield: the other stands (one place for each
+    # word); recorded with the contradictions below
+    other = [q["words"] for q in out["qualifiers"] if q["does"] not in ("shield",)]
+    twice = [w for w in out["uncertainty"] if w in other]
+    if twice:
+        out["uncertainty"] = [w for w in out["uncertainty"] if w not in twice]
+        out["uncertain_about"] = [u for u in out["uncertain_about"] if u["words"] not in twice]
+        out["contradictions"] = list(twice)
     # non-contradiction (11 November 2026): words the answer itself puts where the nature is open or the exam's
     # limit is are not, in the same answer, an uncertainty; the place it chose for them stands (ctrate5: 10 of the
     # 13 uncertainties one model gave to stated findings were such words, put in both places)
@@ -838,7 +876,7 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
         if dropped:
             out["uncertainty"] = [w for w in out["uncertainty"] if w not in dropped]
             out["uncertain_about"] = [u for u in out["uncertain_about"] if u["words"] not in dropped]
-            out["contradictions"] = dropped
+            out["contradictions"] = out.get("contradictions", []) + dropped
     said = str(answer.get("conclusion") or "none").strip().lower()
     out["conclusion"] = said if said in ("same", "other", "none") else "none"
     out["conclusion_of"] = _copied_from(answer.get("conclusion_of"), conclusion)
@@ -853,7 +891,7 @@ def _copied_from(words, *texts: str) -> str:
 
 
 __all__ = [
-    "CLAIM_LISTS", "claims_prompt", "copied", "read_claims",
+    "CLAIM_LISTS", "QUALIFIER_FUNCTIONS", "claims_prompt", "copied", "read_claims",
     "STATEMENT_TYPES", "in_sentence", "read_statement", "statement_prompt",
     "OWNER_RELATIONS", "owner_prompt", "read_owner",
     "CLOSE", "METHOD_SCHEMA", "METHOD_STEPS", "OPEN", "ROLES", "method_prompt", "SITE_ROLES", "TYPES", "Asked", "Checked", "ask", "balanced", "check",

@@ -559,8 +559,11 @@ def main(argv: list[str] | None = None) -> int:
                     "jsonl; 'off' for none)")
     ap.add_argument("--memory-items", default="owner_items_*.jsonl",
                     help="the items whose sentences the memory's examples are read from (a glob)")
+    ap.add_argument("--only", default="", help="a diagnosis: only these items (comma-separated ids); its numbers "
+                    "are no measure, the items were seen")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
+    only = {x.strip() for x in args.only.split(",") if x.strip()}
 
     import hpo_probe as hp
     from melampo.data.report_reading import build_linker
@@ -646,6 +649,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{name}: {len(changed)} items are not the items labelled, left out: {changed[:10]}",
                   file=sys.stderr)
             items = [it for it in items if it["item_id"] not in set(changed)]
+        if only:
+            items = [it for it in items if it["item_id"] in only]
 
         def one(item: dict, name: str = name, own: dict = own) -> dict | None:
             at = item["clause"].find(item["mention"])
@@ -687,6 +692,8 @@ def main(argv: list[str] | None = None) -> int:
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             rows += [r for r in pool.map(one, items) if r is not None]
     report = {"by_set": {}, "reading": memory_note}
+    if only:
+        report["diagnosis_only"] = sorted(only)     # seen items: why, not how much
     for name in sorted({r["set"] for r in rows}):
         rs = [r for r in rows if r["set"] == name]
         report["by_set"][name] = {arm: table(rs, arm) for arm in ("reader", "reader+models", "statement", "claims")
