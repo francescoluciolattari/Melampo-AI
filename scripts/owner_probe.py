@@ -550,6 +550,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     ap.add_argument("--public-data", action="store_true")
     ap.add_argument("--cache", default="owner_probe_answers.jsonl")
+    ap.add_argument("--replay", action="store_true", help="answers only from --cache (a run's own answers), for a "
+                    "subset of its models: nothing is asked")
     ap.add_argument("--max-tokens", type=int, default=900)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--parrot", help="PARROT_v1_0.jsonl: the whole report, for the exam and the section")
@@ -597,9 +599,25 @@ def main(argv: list[str] | None = None) -> int:
     if models:
         from role_probe import Cache, check_endpoint, make_chats, probe_models
 
-        check_endpoint(args.endpoint, args.public_data)
-        chats = make_chats(models, args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)
-        probe_models(chats)
+        if args.replay:
+            # a replay (13 November 2026): the answers a run already gave, from its cache, for a subset of its
+            # models; nothing is asked. A pair of readers is measured on the very answers it gave in the run,
+            # so that every pair is compared on the same answers; a question not in the cache is a lost answer
+            cache = Cache(Path(args.cache))
+
+            def from_cache(name: str):
+                def call(prompt: str) -> str:
+                    k = Cache.key(name, prompt)
+                    if k not in cache.data:
+                        raise LookupError(f"not in the run's answers: {name}")
+                    return cache.data[k]
+                return call
+
+            chats = {m: from_cache(m) for m in models}
+        else:
+            check_endpoint(args.endpoint, args.public_data)
+            chats = make_chats(models, args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)
+            probe_models(chats)
     with_models = FindingOwner(reader_only.reader, chats, reader_only.anatomy) if chats else None
     # the statement reading (1 November 2026): what the sentence says of the structure
     statement = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="statement") if chats else None

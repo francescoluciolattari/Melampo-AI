@@ -221,11 +221,13 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   parte della stessa struttura è in essa; «considered to be compatible with» è di livello alto). La domanda: ogni
   parola che qualifica con ciò che fa prima di collocarla; la misura dice se è della struttura o di ciò che vi si
   vede; una parte è della struttura solo se UBERON gliela dà. Lettori: Gemma 4 31B, Nemotron 3 Ultra senza
-  e con ragionamento, Muse Spark Open con ragionamento, in un solo run. Regola fissata prima: ogni coppia (Gemma
-  con ciascuno degli altri tre) si misura rigiocando le risposte dello stesso run con la sola coppia; per ogni coppia
-  la lettura dell'incertezza si sceglie come su `ctrate6` (ciascun modello o l'unione della coppia); il secondo
-  lettore è quello la cui coppia supera tutti i criteri (1 al massimo l'1%, da 2 a 8 sotto il 2%) con meno errori
-  da 1 a 8 insieme; a parità, meno errori del criterio 1, poi il costo minore. Ogni errore si legge per la sua
+  e con ragionamento, Muse Spark Open con ragionamento, in un solo run. Regola fissata prima (Frank,
+  13 novembre 2026: la coppia migliore dei tre modelli, due qualsiasi): ogni coppia di due modelli diversi (Gemma
+  con Nemotron, con Nemotron con ragionamento, con Muse; Nemotron, senza o con ragionamento, con Muse) si misura
+  rigiocando le risposte dello stesso run con la sola coppia (`owner_probe.py --replay`, nello stesso run del
+  workflow); per ogni coppia la lettura dell'incertezza si sceglie come su `ctrate6` (ciascuno dei suoi modelli o
+  la loro unione); si usa la coppia che supera tutti i criteri (1 al massimo l'1%, da 2 a 8 sotto il 2%) con meno
+  errori da 1 a 8 insieme; a parità, meno errori del criterio 1, poi il costo minore. Ogni errore si legge per la sua
   causa, per categoria, prima di scrivere la scelta. Se nessuna coppia passa, la lettura per affermazioni resta
   spenta.
 - **Misura del router** (`scripts/router_probe.py`, workflow `router-probe`, 8 novembre 2026): il modello locale

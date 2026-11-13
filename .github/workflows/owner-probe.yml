@@ -208,6 +208,24 @@ jobs:
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo --hpo hp-full.obo --pato pato.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
             --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json 2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json
+          # every pair of readers (13 November 2026): with three or more models, each pair of two different models
+          # is measured again on the answers this run already gave (--replay: nothing is asked, nothing is paid),
+          # so the pairs are compared on the same answers; the rule that chooses is in VALIDATION
+          IFS=',' read -ra M <<< "$MODELS"
+          if [ "${#M[@]}" -ge 3 ]; then
+            n=0
+            for ((i = 0; i < ${#M[@]}; i++)); do
+              for ((j = i + 1; j < ${#M[@]}; j++)); do
+                [ "${M[i]%%+*}" = "${M[j]%%+*}" ] && continue    # the same model with and without reasoning
+                n=$((n + 1))
+                echo "pair $n: ${M[i]},${M[j]}" | tee -a owner_probe_pairs.txt
+                uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "${M[i]},${M[j]}" --replay \
+                  --skip "${SKIP#,}" --only "$ONLY" --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo \
+                  --hpo hp-full.obo --pato pato.obo --cache owner_probe_answers.jsonl \
+                  --out "owner_probe_pair_${n}.json" > "owner_probe_pair_${n}_summary.json" 2>> owner_probe_pairs.log
+              done
+            done
+          fi
 
       - name: Summarise
         if: always()
@@ -228,6 +246,9 @@ jobs:
             owner_probe.log
             owner_probe_answers.jsonl
             owner_questions.jsonl
+            owner_probe_pairs.txt
+            owner_probe_pairs.log
+            owner_probe_pair_*.json
             owner_items_ctrate.jsonl
             owner_items_ctrate2.jsonl
             owner_items_ctrate3.jsonl
