@@ -234,6 +234,16 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   doubts are weighed too): a pair counts only if it passes every criterion (1 at most 1%, 2 to 8 under 2%); among
   those, the fewest errors of 1 to 8, an aside with nothing attached to it not counted as an error of criterion
   1; then the fewest doubts; then the lower cost. The uncertainty of each pair is read as on `ctrate6`.
+- **CT-RATE, ninth sample** (`ctrate9`, 13 November 2026): 300 items, seed 20261115, from the training reports
+  `ctrate8` did not use, labelled before any reading. Since `ctrate8` (owner-probe_31: Nemotron with reasoning and
+  Muse the only pair passing, 2 errors of criterion 1 and 15 doubts, 11 of them not grounded in the report), eight
+  universal corrections: the reader reads HPO for the structure a phenotype is of (an accessory spleen "anterior
+  to the spleen" is the spleen's), reads a new phrase after a coordinator as its own conjunct, and agrees with the
+  models when its own reading of the relation places the structure they give the finding to; the models say when
+  a structure only places something else (`places`); readings that say nothing of a structure, with the reader
+  reading another owner, set it aside; a measure the model says is the structure's is not taken for the finding's;
+  a model whose words are not in the sentence is asked once more; a measure the sentence judges ("above normal")
+  and a variant of the usual plan are observed. Readers, pairs and rule as for `ctrate8`.
 - **Router probe** (`scripts/router_probe.py`, workflow `router-probe`, 8 November 2026): does the local model
   help the report router say the kinds of a text? Public texts of known kinds: MTSamples (6 per specialty,
   English) and PARROT (20 Italian, 10 other languages), seed 20261108, labelled (`data/gold/router/labels.txt`)

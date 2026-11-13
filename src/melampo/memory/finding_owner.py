@@ -547,6 +547,30 @@ def window(clause: str, at: int, length: int, size: int = WINDOW) -> tuple[str, 
 KEEP = "keep"     # only other claims: normal, a measure, its past, a device, not assessable (or nothing)
 
 
+_COORDINATORS_OF_PHRASES = {"en": ("and", "or", "with", "while"), "it": ("e", "ed", "o", "con", "mentre")}
+
+
+def _own_conjunct(between: str, language: str) -> bool:
+    """Does a coordinator in the words between a structure and the mention open a new phrase of its own (at least
+    two words that are not the articles or prepositions that lead to the mention: "and hypodense fluid-density
+    lesion located in the anterior cortical region in the middle zone of the")? "the stomach and the duodenum",
+    "in the liver and in the pancreas" open none."""
+    coords = _COORDINATORS_OF_PHRASES.get(language, _COORDINATORS_OF_PHRASES["en"])
+    words = _WORD.findall(between.lower())
+    idx = [i for i, w in enumerate(words) if w in coords]
+    if not idx:
+        return False
+    rest = words[idx[-1] + 1:]
+    light = {"the", "a", "an", "of", "in", "at", "on", "to", "il", "lo", "la", "i", "gli", "le", "di", "del",
+             "della", "dello", "dei", "delle", "nel", "nella", "nello", "al", "alla", "a", "in"}
+    return sum(1 for w in rest if w not in light and not w.isdigit()) >= 2
+
+
+_COPY_AGAIN = ("\n\nAsked again: some words of your previous answer to this question are not in the sentence as "
+               "it is written. Copy every \"words\" exactly from the sentence; to leave words out between two "
+               "pieces, write \" ... \" between them.")
+
+
 def claims_outcome(answer: dict) -> str:
     """What one model's claims attach: FINDING (a current finding of the structure, or of another structure
     that reaches it), ASIDE (what is observed is of other structures, or the words name another one), KEEP, or
@@ -562,7 +586,8 @@ def claims_outcome(answer: dict) -> str:
         return "unsure"
     if any(o.get("of") == "it" or o.get("reaches") == "yes" for o in observed):
         return FINDING
-    if observed:
+    if observed or answer.get("places"):
+        # what is observed is of other structures, or the structure only places something else (13 November 2026)
         return ASIDE
     return KEEP
 
@@ -718,6 +743,12 @@ class FindingOwner:
                 where = _find_name(before, name)
                 if where is None or not conjuncts(clause, (base + where[0], base + where[1]), (at, at + len(mention))):
                     first = named[:1]
+                if first and where is not None and _own_conjunct(before[where[1]:], language):
+                    # "lesions in the left lobe of the liver and hypodense fluid-density lesion ... of the left
+                    # kidney": a coordinator between them opens a new phrase with its own head before the mention;
+                    # the structure before it is in the other conjunct, not the bearer (13 November 2026, ctrate8
+                    # 14068-en-1)
+                    first = []
                 if first and where is not None and _parallel_places(clause, base + where[0], at, language):
                     # "stones in the gallbladder lumen and, of 3 mm, in the middle zone of the left kidney": each
                     # structure has its own place, and what is observed is in both, one to many, as a reader
@@ -833,10 +864,40 @@ class FindingOwner:
             try:
                 said[model] = read_claims(chat(prompt), clause, mention, context.get("previous", ""),
                                           context.get("conclusion", ""))
+                if said[model].get("dropped"):
+                    # words not in the sentence as written (13 November 2026, ctrate8 22424-en-2: a model joined
+                    # pieces of a list into words the sentence does not hold, and its reading was empty): the
+                    # question is asked once more, saying why; the answer with fewer such words is kept
+                    again = read_claims(chat(prompt + _COPY_AGAIN), clause, mention, context.get("previous", ""),
+                                        context.get("conclusion", ""))
+                    if again.get("valid") and again.get("dropped", 0) < said[model]["dropped"]:
+                        said[model] = {**again, "asked_again": True}
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict
                 said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
                                "error_text": str(error)[:160]}
         return self._with_anatomy(said, mention, cid, language)
+
+    def _phenotype_of_linked(self, findings: list[dict], cid: str) -> bool:
+        """Does HPO give what is observed to the linked structure? The words, and what they are said to be, are
+        read for the name or an EXACT synonym of a phenotypic abnormality of HPO; its structure is the UBERON
+        term of its logical definition (``class_kinds.phenotypes_in``). True when that structure is the linked
+        one or a whole it is part of. Without HPO or UBERON, False: nothing is read."""
+        if self.anatomy is None or not cid:
+            return False
+        from .class_kinds import phenotypes_in
+        from .hpo_candidates import site_anchors
+
+        linked = {x for x in site_anchors(cid) if x.startswith("UBERON:")}
+        if not linked:
+            return False
+        around = set(linked)
+        for x in linked:
+            around |= self.anatomy.up(x)
+        for o in findings:
+            for _, sites in phenotypes_in(f"{o.get('words', '')} ; {o.get('said_to_be', '')}").items():
+                if sites & around:
+                    return True
+        return False
 
     def _reference_rows(self, cid: str, context: dict) -> list:
         """The reference values for the structure and the exam's technique (all techniques when unknown)."""
@@ -944,7 +1005,18 @@ class FindingOwner:
         if outcome == ASIDE:
             relations = [o.get("relation", "") for a in answers for o in a.get("observed", []) if o.get("of") != "it"]
             near = any(_relation_kind(r, language) in ("proximity", "projection") for r in relations if r)
-            if open_doubt or (reader != ELSEWHERE and not near):
+            # every model says the structure only places something, and none reads a finding of it (13 November
+            # 2026, ctrate8: "in close proximity to the tail of the pancreas", "at the level of the T10 and T11
+            # vertebral corpora"): what the structure was named for is said, by every reading
+            places = all(a.get("places") and not any(o.get("of") == "it" for o in a.get("observed", []))
+                         for a in answers)
+            # the reader's own reading of the relation places the same structure the models give the finding to
+            # ("observed in the pleura at the level of the lingular segment": the reader's placed is the pleura,
+            # the models' "of" is the pleura): two mechanisms agree (13 November 2026, ctrate8 21230-en-3)
+            owners = {w for a in answers for o in a.get("observed", []) if o.get("of") not in ("it", "?", "")
+                      for w in _WORD.findall(o["of"].lower()) if len(w) > 3}
+            agree_place = bool(placed) and bool(owners & {w for w in _WORD.findall(placed.lower()) if len(w) > 3})
+            if open_doubt or (reader != ELSEWHERE and not near and not places and not agree_place):
                 # the finding is never set aside on a reading in doubt: it stays where the linker put it, with
                 # the reading that would give it to another structure beside it
                 doubt = doubt or {"kind": "site", "why": "reader_and_model_disagree", "readings": {}}
@@ -956,6 +1028,11 @@ class FindingOwner:
         why = self._contradiction(outcome, claims, evidence, text, language, cid, mention, answers)
         why = why or self._reference_check(answers, cid, context)
         why = why or self._document_check(outcome, claims, answers, evidence, cid, context)
+        if why == "nothing_said_of_it_and_the_reader_reads_another_owner" and not open_doubt:
+            # the models read nothing of the structure and the reader reads that the sentence describes another:
+            # two mechanisms say the same, it only places what is said (13 November 2026, ctrate8 13350-en-3)
+            return Ownership(ELSEWHERE, f"{evidence},{why}".strip(","), said, placed, "reader_and_model_agree",
+                             ASIDE, piece, claims, review, doubt)
         if why and why.startswith(DISCORDANCES):
             # a discordance of the document: a person clarifies it, the finding stays
             return Ownership(UNSURE, f"{evidence},{why}".strip(","), said, placed, "the_document_is_discordant",
@@ -1081,6 +1158,10 @@ class FindingOwner:
                 if o.get("of") == "it" and _POINTER.search(o.get("words", "")) and other(o.get("refers_to", "")):
                     return "its_refers_to_another_structure"
             for ref in a.get("measure_refs", []):
+                if ref.get("of") == "it":
+                    # the model said the measure is of the structure itself (13 November 2026, ctrate8 18982-en-1:
+                    # "measured as 140 mm and increased", the judgement copied with its number among the observed)
+                    continue
                 if any(ref["words"] in o.get("words", "") or o.get("words", "") in ref["words"]
                        for o in a.get("observed", []) if o.get("words")):
                     return "the_measure_is_of_what_is_observed"
@@ -1109,7 +1190,7 @@ class FindingOwner:
                        mention: str, answers: list[dict] | None = None) -> str:
         """Does what the reader knows contradict the claims? The reason, or "". It never decides a claim: a
         contradiction sends the sentence to a person."""
-        from .what_is_said import past, stated_anomalies, stated_anomalies_where
+        from .what_is_said import past, stated_anomalies_where
 
         sites = self.anomalies.sites_of(cid) if self.anomalies else set()
         for w in claims.get("normal", []):
@@ -1123,13 +1204,18 @@ class FindingOwner:
         if outcome == FINDING:
             findings = claims.get("findings", [])
             own = [o for o in findings if o.get("of") == "it"]
-            if own and any(e.startswith(("landmark", "describes:", "outside_the_exam")) for e in evidence.split(",")):
+            # what is observed is, by HPO, an abnormality of this very structure (13 November 2026, ctrate8: "an
+            # accessory spleen ... anterior to the spleen", "in the vicinity of the spleen hilum ... compatible with
+            # the accessory spleen"): the words that place it do not make it another structure's
+            hpo_own = bool(own) and self._phenotype_of_linked(own, cid)
+            if own and not hpo_own and any(e.startswith(("landmark", "describes:", "outside_the_exam"))
+                                           for e in evidence.split(",")):
                 return "the_reader_reads_another_owner"
             if own and "named_only_in_a_differential" in evidence and not claims.get("uncertainty"):
                 return "the_reader_reads_a_differential"
             for a in answers or [claims]:
                 mine = [o for o in a.get("observed", a.get("findings", [])) if o.get("of") == "it"]
-                if mine and all(o.get("relation") and _relation_kind(o["relation"], language) == "proximity"
+                if mine and not hpo_own and all(o.get("relation") and _relation_kind(o["relation"], language) == "proximity"
                                 and not _AMBIGUOUS_PLACE.search(o["relation"]) for o in mine):
                     # "a nodule beneath the skull plate", "a focus in the topography of the pancreatic head": the
                     # model says the finding is the structure's own, and its own words only place it there. Each

@@ -242,6 +242,17 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   sotto il 2%); fra queste, meno errori da 1 a 8, senza contare come errore del criterio 1 una struttura che
   colloca a cui non si attacca nulla; poi meno dubbi; poi il costo minore. L'incertezza di ogni coppia si legge
   come su `ctrate6`.
+- **CT-RATE, nono campione** (`ctrate9`, 13 novembre 2026): 300 item, seed 20261115, dai referti di training
+  non usati da `ctrate8`, etichettati prima di ogni lettura. Da `ctrate8` (owner-probe_31: Nemotron con
+  ragionamento e Muse l'unica coppia che passa, 2 errori del criterio 1 e 15 dubbi, 11 non fondati sul referto),
+  otto correzioni universali: il lettore legge in HPO di quale struttura è un fenotipo (una milza accessoria
+  «anterior to the spleen» è della milza), legge una frase nuova dopo una congiunzione come coordinata propria, e
+  concorda con i modelli quando la sua lettura della relazione colloca la struttura a cui loro danno il reperto; i
+  modelli dicono quando una struttura colloca soltanto (`places`); letture che non dicono nulla della struttura,
+  con il lettore che legge un altro proprietario, la mettono da parte; una misura che il modello dice della
+  struttura non è presa per quella del reperto; un modello le cui parole non sono nella frase è interrogato una
+  seconda volta; una misura che la frase giudica («above normal») e una variante del piano consueto sono reperti.
+  Lettori, coppie e regola come per `ctrate8`.
 - **Misura del router** (`scripts/router_probe.py`, workflow `router-probe`, 8 novembre 2026): il modello locale
   aiuta l'orchestratore a dire i tipi di un testo? Testi pubblici di tipo noto: MTSamples (6 per specialità,
   inglese) e PARROT (20 italiani, 10 di altre lingue), seed 20261108, etichettati (`data/gold/router/labels.txt`)

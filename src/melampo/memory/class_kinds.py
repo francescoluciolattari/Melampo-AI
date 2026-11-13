@@ -101,6 +101,34 @@ def _site_of(h: str, parents: dict[str, list[str]], sites: dict[str, set[str]]) 
     return set()
 
 
+_PHENO: dict[str, tuple] = {}
+
+
+def phenotypes_in(text: str, hpo: Path | None = None) -> dict[str, set[str]]:
+    """The phenotypic abnormalities of HPO the text names (name or EXACT synonym, the longest first, 1 to 6
+    words), each with the UBERON terms of its nearest logical definition (13 November 2026). {} without HPO."""
+    path = hpo or hpo_path()
+    if path is None:
+        return {}
+    key = str(path)
+    if key not in _PHENO:
+        _PHENO[key] = _phenotypes(path)
+    by_name, parents, sites, _ = _PHENO[key]
+    words = _norm(text).split()
+    found: dict[str, set[str]] = {}
+    i = 0
+    while i < len(words):
+        for n in range(min(6, len(words) - i), 0, -1):
+            h = by_name.get(" ".join(words[i:i + n]))
+            if h:
+                found[h] = _site_of(h, parents, sites)
+                i += n
+                break
+        else:
+            i += 1
+    return found
+
+
 def class_kinds(hpo: Path | None = None) -> dict[str, dict]:
     """class id -> {"kind": "structure"|"finding", ...}; a finding with its "site" (a class of the atlas), its
     "phenotype" (HP id and name) and "why"."""
@@ -154,4 +182,4 @@ def as_site(cid: str, hpo: Path | None = None) -> dict:
             "phenotype_name": kind["phenotype_name"]}
 
 
-__all__ = ["as_site", "class_kinds", "hpo_path"]
+__all__ = ["as_site", "class_kinds", "hpo_path", "phenotypes_in"]

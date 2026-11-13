@@ -660,7 +660,9 @@ of that kind.
   as a radiologist does with how that aspect of this structure is in a healthy person in this exam. A number is
   not compared here: a measure goes in measure, where it is compared with the reference values. For each:
   words; aspect: the aspect, in a few words; usual: how that aspect is in a healthy person in this exam, in a few
-  words of your own (a physiological state, such as a hollow organ more or less filled, is usual); differs: "yes"
+  words of your own (a physiological state, such as a hollow organ more or less filled, is usual; a variant of
+  the usual plan of the body, such as an accessory spleen or a duplicated vessel, is not the usual plan: it is
+  something seen, with "variant" as what it is said to be); differs: "yes"
   if the words describe something different from the usual, even if mild, "no" if they describe the usual,
   "unsure" if it cannot be told; said_to_be: what the sentence says it is or what it is due to ("cyst" in "a
   hypodense lesion (cyst?)", "infectious process" in "densities evaluated in favor of an infectious process"),
@@ -681,7 +683,9 @@ of that kind.
   "it", "they", "the same", "this" (or "sua", "esso", "stesso"), what they refer to, copied from the sentence or
   from the previous sentence, else "".
 - normal: words saying that it, or something of it, is normal or that something is absent from it.
-- measure: every measure the sentence gives. For each, first of: "it" if it is a measure of the structure itself
+- measure: every measure the sentence gives. When the sentence also judges it ("35 mm and above normal",
+  "increased", "enlarged", "wider than normal"), that judgement says the structure differs from its usual state:
+  its words go in observed as well, and the number stays here. For each, first of: "it" if it is a measure of the structure itself
   (its length, diameter, volume, thickness, density), "what_is_seen" if it is the size of something seen in it (a
   lesion, a nodule, a cyst, a fluid collection): that belongs to what is seen and is never compared with the
   structure's reference; then words; reference: the id of the reference value that applies to
@@ -689,6 +693,11 @@ of that kind.
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
 - past: words of a fact of its past (a past disease, a surgery).
+- places: when the sentence names this structure only to say where something else is, of another structure
+  ("a lesion in close proximity to the tail of the pancreas", "a mass at the level of the T10 vertebra", "in the
+  sections passing through the trachea, ... in the esophagus"): what: the words of that something, copied; by:
+  the words that place it ("in close proximity to", "at the level of"); otherwise both "". A finding of the
+  structure itself is never in places.
 - other_person: words of what is said of a person other than the patient (a relative's disease).
 - reported: words of what the patient reports or the referral says, not observed in the exam.
 - device: words naming a device in or at it (a tube, a catheter, a stent, a prosthesis, an implanted valve),
@@ -708,7 +717,7 @@ CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
                 '"said_to_be": "", "of": "it", "relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
                 '"measure": [{"of": "it|what_is_seen", "words": "...", "reference": "", "against": ""}], "past": [], '
                 '"device": [], "not_assessable": [], "indication": [], "procedure": [], "other_person": [], '
-                '"reported": [], '
+                '"reported": [], "places": {"what": "", "by": ""}, '
                 '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
@@ -844,11 +853,19 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
                                                    "level": level if level in UNCERTAINTY_LEVELS else "possible"})
                 if key == "measure" and isinstance(entry, dict) and str(entry.get("reference") or "").strip():
                     out["measure_refs"].append({"words": words, "reference": str(entry["reference"]).strip(),
-                                                "against": str(entry.get("against") or "").strip().lower()})
+                                                "against": str(entry.get("against") or "").strip().lower(),
+                                                "of": str(entry.get("of") or "").strip().lower()})
             else:
                 out["dropped"] += 1
         out[key] = kept
     out["normal"] = usual + [w for w in out["normal"] if w not in usual]
+    # what the structure only places (13 November 2026, ctrate8: "a lesion in close proximity to the tail of the
+    # pancreas", "at the level of the T10 and T11 vertebral corpora"): the models read nothing of it and nothing
+    # said what it was named for; the words of what it places, copied, and the words that place it
+    places = answer.get("places") if isinstance(answer.get("places"), dict) else {}
+    out["places"] = {}
+    if places and copied(sentence, str(places.get("what") or "")):
+        out["places"] = {"what": str(places["what"]), "by": _copied_from(places.get("by"), sentence)}
     # the qualifiers (13 November 2026): each word with what it does, said before it is placed; a shield is an
     # uncertainty, an open nature is undetermined, an exam's limit is a limit; the other functions are kept for
     # what they are and are never an uncertainty
