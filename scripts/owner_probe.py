@@ -632,6 +632,26 @@ def main(argv: list[str] | None = None) -> int:
             check_endpoint(args.endpoint, args.public_data)
             chats = make_chats(models, args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)
             probe_models(chats)
+            # the credit spent (14 November 2026, owner-probe_33: HTTP 402 on 581 of 900 answers, every question
+            # after the first 402 still sent): after the first, nothing more is asked; the answers already given
+            # stay in the cache, kept between runs, and a run after the credit is topped up asks only what is missing
+            spent: list[str] = []
+
+            def guarded(name, chat):
+                def call(prompt: str) -> str:
+                    if spent:
+                        raise RuntimeError(f"HTTP 402 from {name}: the credit is spent, not asked")
+                    try:
+                        return chat(prompt)
+                    except Exception as error:
+                        if "HTTP 402" in str(error):
+                            spent.append(name)
+                            print(f"::error::HTTP 402 from {name}: the credit is spent; nothing more is asked",
+                                  file=sys.stderr)
+                        raise
+                return call
+
+            chats = {m: guarded(m, c) for m, c in chats.items()}
     with_models = FindingOwner(reader_only.reader, chats, reader_only.anatomy) if chats else None
     # the statement reading (1 November 2026): what the sentence says of the structure
     statement = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="statement") if chats else None
