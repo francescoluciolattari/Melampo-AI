@@ -5,7 +5,7 @@
 # marked mention and the linked class, nothing else.
 # Items: owner-probe workflow (sample_only, owner-probe_30), scripts/owner_probe.py sample --seed 20261114 --n-en
 # 300 --n-it 0 --per-structure 24, drawn with the finder of 12 November 2026: 300 items from 147 reports.
-# 300 English items: 195 finding, 37 finding+uncertain, 24 normal, 18 finding+uncertain_high, 9 finding+measure, 9 aside, 2 measure, 1 finding+history, 1 normal+not_assessable, 1 finding+procedure, 1 nothing, 1 history, 1 not_assessable; 6 doubtful.
+# 300 English items: 196 finding, 37 finding+uncertain, 24 normal, 18 finding+uncertain_high, 9 finding+measure, 8 aside, 2 measure, 1 finding+history, 1 normal+not_assessable, 1 finding+procedure, 1 nothing, 1 history, 1 not_assessable; 6 doubtful.
 # The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
 # "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
 # Adjudicated before any reading with the second labeller (mistralai/mistral-large-4-0, from the sentence alone,
@@ -174,7 +174,7 @@ ctrate-train-567-en-4|finding|nodular mass in the posterobasal segment
 ctrate-train-10372-en-0|finding|heart sizes significantly increased; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6
 ctrate-train-10372-en-1|finding|biatrial increase, most in the left atrium, a part of the heart; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6
 ctrate-train-10372-en-5|finding|significant increase of the heart's dimensions; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6
-ctrate-train-18844-en-2|aside|a pleural nodule at the junction of the upper and middle lobes: the pleura's, placed by the lobes
+ctrate-train-18844-en-2|finding|a pleural nodule at the junction of the upper and middle lobes, on the fissure; corrected 13 November 2026 AFTER the reading run owner-probe_31, declared: the pleura of a fissure is visceral pleura, which UBERON gives as a part of the lung (UBERON:0002401 part_of lung, from FMA), so a nodule on it is of the lobes it bounds, as all three readings read it
 ctrate-train-16656-en-1|finding|minimal atelectatic sequelae changes
 ctrate-train-16656-en-2|finding|minimal atelectatic sequelae changes in the lingula
 ctrate-train-18663-en-0|finding+uncertain|subsegmental atelectasis with nonspecific ground glass (sequelae?); kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
