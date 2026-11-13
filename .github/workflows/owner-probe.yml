@@ -175,6 +175,16 @@ jobs:
           path: second_labeller_answers.jsonl
           key: second-labeller-${{ inputs.sets }}-${{ inputs.second_labeller }}-${{ github.run_id }}
 
+      # the readers' answers are kept between runs (14 November 2026): a run stopped by the credit asks again, after
+      # it is topped up, only what is missing; the cache is keyed by the samples and the models
+      - name: Restore the readers' answers
+        if: ${{ !inputs.sample_only }}
+        uses: actions/cache/restore@v4
+        with:
+          path: owner_probe_answers.jsonl
+          key: owner-answers-${{ inputs.sets }}-${{ hashFiles('src/melampo/evaluation/llm_reading.py', 'src/melampo/memory/finding_owner.py', 'data/reading/manual.md') }}-${{ github.run_id }}
+          restore-keys: owner-answers-${{ inputs.sets }}-${{ hashFiles('src/melampo/evaluation/llm_reading.py', 'src/melampo/memory/finding_owner.py', 'data/reading/manual.md') }}-
+
       - name: Run the probe
         if: ${{ !inputs.sample_only }}
         env:
@@ -242,6 +252,13 @@ jobs:
               done
             done
           fi
+
+      - name: Keep the readers' answers
+        if: ${{ always() && !inputs.sample_only }}
+        uses: actions/cache/save@v4
+        with:
+          path: owner_probe_answers.jsonl
+          key: owner-answers-${{ inputs.sets }}-${{ hashFiles('src/melampo/evaluation/llm_reading.py', 'src/melampo/memory/finding_owner.py', 'data/reading/manual.md') }}-${{ github.run_id }}
 
       - name: Summarise
         if: always()

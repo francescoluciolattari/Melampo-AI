@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import threading
 import re
 import sys
 from collections import Counter
@@ -632,6 +634,61 @@ def main(argv: list[str] | None = None) -> int:
             check_endpoint(args.endpoint, args.public_data)
             chats = make_chats(models, args.endpoint, Cache(Path(args.cache)), max_tokens=args.max_tokens)
             probe_models(chats)
+            # the credit spent (14 November 2026, owner-probe_33: HTTP 402 on 581 of 900 answers, every question
+            # after the first 402 still sent): after the first, nothing more is asked; the answers already given
+            # stay in the cache, kept between runs, and a run after the credit is topped up asks only what is missing
+            spent: list[str] = []
+            # the credit against the cost of what is left (14 November 2026): after the first 30 questions really
+            # sent, and every 150 after, what each model's questions cost so far is carried to the questions left;
+            # if the credit left does not cover them with a margin, nothing more is asked, and the run says how
+            # much to load. The answers given stay in the cache: nothing paid is lost.
+            from role_probe import RAW, remaining_credit
+
+            n_items = 0
+            for spec in args.items:
+                path = Path(spec.split("=", 1)[1])
+                if path.exists():
+                    n_items += sum(1 for x in path.read_text("utf-8").splitlines() if x.strip()
+                                   and (not only or json.loads(x)["item_id"] in only))
+            key = os.environ.get("OPENROUTER_API_KEY", "")
+            checked = {"at": 0}
+            budget_lock = threading.Lock()
+
+            def budget() -> None:
+                sent = sum(r.usage["calls"] for r in RAW.values())
+                if not key or sent < 30 or sent - checked["at"] < (30 if not checked["at"] else 150):
+                    return
+                with budget_lock:
+                    checked["at"] = sent
+                    left = sum(r.usage["cost"] / max(1, r.usage["calls"]) * max(0, n_items - r.usage["calls"])
+                               for r in RAW.values())
+                    credit = remaining_credit(key)
+                    spent_so_far = sum(r.usage["cost"] for r in RAW.values())
+                    print(f"cost so far ${spent_so_far:.2f} for {sent} questions; the rest estimated ${left:.2f}; "
+                          f"credit left {'unknown' if credit is None else f'${credit:.2f}'}", file=sys.stderr)
+                    if credit is not None and credit < left * 1.15 and not spent:
+                        spent.append("budget")
+                        print(f"::error::the credit left (${credit:.2f}) does not cover the rest of the run (about "
+                              f"${left:.2f}): nothing more is asked; load at least ${left * 1.15 - credit:.2f} and "
+                              "run again: the answers given are kept", file=sys.stderr)
+
+            def guarded(name, chat):
+                def call(prompt: str) -> str:
+                    if spent:
+                        raise RuntimeError(f"HTTP 402 from {name}: the credit is spent, not asked")
+                    try:
+                        answer = chat(prompt)
+                    except Exception as error:
+                        if "HTTP 402" in str(error):
+                            spent.append(name)
+                            print(f"::error::HTTP 402 from {name}: the credit is spent; nothing more is asked",
+                                  file=sys.stderr)
+                        raise
+                    budget()
+                    return answer
+                return call
+
+            chats = {m: guarded(m, c) for m, c in chats.items()}
     with_models = FindingOwner(reader_only.reader, chats, reader_only.anatomy) if chats else None
     # the statement reading (1 November 2026): what the sentence says of the structure
     statement = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="statement") if chats else None
@@ -775,6 +832,13 @@ def main(argv: list[str] | None = None) -> int:
     if not report["valid_for_criteria"]:
         print(f"WARNING: more than {LOST_LIMIT:.0%} of the answers were lost: the run does not count for the "
               f"criteria {json.dumps(report['lost_answers'])}", file=sys.stderr)
+    try:
+        from role_probe import RAW
+
+        report["cost"] = {m: {**r.usage, "cost": round(r.usage["cost"], 4)} for m, r in RAW.items()}
+        print(f"what the questions sent cost: {json.dumps(report['cost'])}", file=sys.stderr)
+    except ImportError:
+        pass
     for row in rows:
         row.pop("_item", None)
     report["rows"] = rows

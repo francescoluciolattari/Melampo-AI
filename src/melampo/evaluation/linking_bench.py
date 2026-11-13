@@ -614,6 +614,18 @@ class OpenRouterChat:
         self.provider = provider
         self._pace = threading.Lock()
         self._last = 0.0
+        # what the calls cost (14 November 2026): OpenRouter's usage accounting, every call counted, an empty
+        # reply too (it is paid)
+        self.usage = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "cost": 0.0}
+        self._usage_lock = threading.Lock()
+
+    def _count(self, payload: dict) -> None:
+        u = payload.get("usage") or {}
+        with self._usage_lock:
+            self.usage["calls"] += 1
+            self.usage["prompt_tokens"] += int(u.get("prompt_tokens") or 0)
+            self.usage["completion_tokens"] += int(u.get("completion_tokens") or 0)
+            self.usage["cost"] += float(u.get("cost") or 0.0)
 
     def _wait_for_turn(self) -> None:
         if self.min_interval <= 0:
@@ -648,6 +660,7 @@ class OpenRouterChat:
                 **({"reasoning": {"enabled": False}} if hint else {}),
                 **({"reasoning": {"enabled": True}} if self.reasoning else {}),
                 **({"provider": self.provider} if self.provider else {}),
+                **({"usage": {"include": True}} if "openrouter.ai" in self.endpoint else {}),
             }
             request = urllib.request.Request(
                 self.endpoint,
@@ -678,6 +691,8 @@ class OpenRouterChat:
                 raise EncoderError(
                     f"{type(error).__name__} calling {self.slug}"
                 ) from error
+            if isinstance(payload, dict):
+                self._count(payload)
             try:
                 content = str(payload["choices"][0]["message"]["content"] or "")
                 if not content.strip() and empty < self.empty_retries:
