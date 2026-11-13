@@ -83,7 +83,8 @@ def test_the_question_shows_the_document_and_asks_the_new_kinds():
     assert "a section of indication" in p and "Previous sentence (context only)" in p
     assert "Conclusion of the report (context only)" in p
     assert '"indication": []' in p and '"procedure": []' in p and '"refers_to": ""' in p
-    assert "the size of a lesion in it belongs to that lesion" in p and "an implanted valve" in p
+    assert "the size of something seen in it" in p and "never compared with the structure's reference" in p
+    assert "an implanted valve" in p
 
 
 def test_a_finding_read_in_the_referral_goes_to_a_person_and_an_indication_is_kept_as_such():
