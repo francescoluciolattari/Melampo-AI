@@ -1,0 +1,311 @@
+# What the sentence states of the linked structure, claim by claim: labels of the eighth CT-RATE sample (chest CT,
+# 13 November 2026), from CT-RATE's TRAINING reports (ids ctrate-train-N). First labeller: Claude, with
+# data/reading/labelling_convention.md (convention of 13 November 2026). Written BEFORE any reader was run on these
+# items and BEFORE the second labeller's labels were opened: the labeller saw the whole clause (never cut), the
+# marked mention and the linked class, nothing else.
+# Items: owner-probe workflow (sample_only, owner-probe_30), scripts/owner_probe.py sample --seed 20261114 --n-en
+# 300 --n-it 0 --per-structure 24, drawn with the finder of 12 November 2026: 300 items from 147 reports.
+# 300 English items: 195 finding, 37 finding+uncertain, 24 normal, 18 finding+uncertain_high, 9 finding+measure, 9 aside, 2 measure, 1 finding+history, 1 normal+not_assessable, 1 finding+procedure, 1 nothing, 1 history, 1 not_assessable; 6 doubtful.
+# The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
+# "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
+# Format: item|claims|note
+ctrate-train-11873-en-0|finding|calcific atheroma plaques
+ctrate-train-11873-en-1|normal|calibre normal, no significant wall thickening
+ctrate-train-15041-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-15331-en-0|finding+uncertain|pleural sequelae thickening and a parenchymal calcification focus of the apical segment "in favor of" primary TB sequelae
+ctrate-train-15331-en-1|finding|wall calcifications
+ctrate-train-15331-en-2|finding|wall calcifications
+ctrate-train-2816-en-0|finding|severe fatty liver
+ctrate-train-2816-en-1|finding|severe fatty liver
+ctrate-train-22424-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-22424-en-1|finding|ground glass-consolidation areas in the apical segment
+ctrate-train-22424-en-2|finding|ground glass-consolidation areas in the medial segment
+ctrate-train-10108-en-0|finding|millimetric calcific atheroma plaques
+ctrate-train-10108-en-1|finding|millimetric calcific atheroma plaques
+ctrate-train-10108-en-2|normal|calibre normal, no significant wall thickening
+ctrate-train-19145-en-0|measure|arch calibre 35 mm, no judgement in the sentence
+ctrate-train-19145-en-1|finding+uncertain_high|lesion of about 18x11 mm "consistent with" multiple metastases, the largest in the anterior segment
+ctrate-train-4606-en-0|finding|diverticulum of 16x10x18 mm at the right posterior corner of the trachea, communicating with its lumen
+ctrate-train-4606-en-1|finding+measure|41 mm, wider than normal ("as far as can be observed": the exam's limit)
+ctrate-train-4606-en-2|finding|calcific atheroma plaques in the arch
+ctrate-train-10931-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-1052-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-8895-en-0|finding|ground glass area in the superior segment
+ctrate-train-8895-en-1|finding|hypodense lesions that cannot be characterized (the nature open)
+ctrate-train-8895-en-2|finding+uncertain|peripheral ground glass with enlarged vessels "primarily evaluated in favor of" viral pneumonia
+ctrate-train-14858-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-9196-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-9196-en-1|finding|millimetric hypodense lesion at the dome, stable (in the liver)
+ctrate-train-9196-en-2|finding|millimetric hypodense stable lesion
+ctrate-train-2004-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-2004-en-1|finding+uncertain|focal nodular consolidations, "suspicious for" ultra-early Covid-19 pneumonia
+ctrate-train-2004-en-2|finding|nonspecific nodule of 4.8 mm, the largest, in the superior segment
+ctrate-train-19261-en-0|finding|diffuse hypodense appearance "secondary to" hepatosteatosis (an attribution)
+ctrate-train-10403-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-20770-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-4407-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-22638-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-22638-en-1|finding+uncertain_high|slight decrease of density "consistent with" hepatosteatosis
+ctrate-train-22638-en-2|finding+uncertain_high|density "compatible with" two calculi of 2 mm
+ctrate-train-3885-en-0|finding|calcific atheroma plaques
+ctrate-train-3885-en-1|normal|calibre normal, no significant wall thickening
+ctrate-train-3885-en-2|finding|atelectasis changes in the right lower lobe
+ctrate-train-16311-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-16311-en-1|finding|millimetric nodular ground glass density in the superior segment
+ctrate-train-16311-en-2|finding+uncertain|minimal focal nodular consolidation; "not typical for" Covid-19 pneumonia lowers that hypothesis, which may or may not be read as an uncertainty of the finding's interpretation ?
+ctrate-train-18559-en-0|finding+measure|aneurysmatic dilatation, 42 mm
+ctrate-train-18559-en-1|finding|increased heart size; calcific plaques of the LAD
+ctrate-train-18559-en-2|finding+uncertain_high|increase in density "consistent with" newly developed nodular consolidation in the posterobasal segment
+ctrate-train-15675-en-0|finding+measure|wider than normal, 43 mm
+ctrate-train-15675-en-1|finding|atherosclerotic wall calcifications
+ctrate-train-15675-en-2|normal|calibre normal, no significant wall thickening
+ctrate-train-11138-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-21320-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-21320-en-1|finding|stable nodules and a few new nodules up to 5 mm (time; "tend to" an approximation)
+ctrate-train-13531-en-0|finding|minimal bronchiectasis and peribronchial thickening
+ctrate-train-13531-en-1|finding|metastatic mass, 53 mm (the size is the mass's)
+ctrate-train-13531-en-2|finding|metastatic mass, 55 mm (the size is the mass's)
+ctrate-train-22140-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-22140-en-1|finding|mild atelectatic changes at the level of the inferior lingula, a part of the left upper lobe
+ctrate-train-22140-en-2|finding|mild atelectatic changes at the inferior lingula
+ctrate-train-23549-en-0|finding|aortic valve calcification, a valve of the heart
+ctrate-train-23549-en-1|finding|aortic valve calcification
+ctrate-train-815-en-0|finding|calcific atheromatous plaques
+ctrate-train-815-en-1|finding|calcific atheromatous plaques
+ctrate-train-815-en-2|normal|calibre normal, no significant wall thickening
+ctrate-train-22580-en-0|finding|millimetric calcifications in the arch
+ctrate-train-22580-en-1|finding|nonspecific low-density nodule of 5 mm
+ctrate-train-22580-en-2|finding+uncertain|area that "can be compatible with" focal adiposity adjacent to the falciform ligament, in the liver
+ctrate-train-12180-en-0|finding|increased heart size
+ctrate-train-12180-en-1|finding|calcified atheroma plaques of the arch walls
+ctrate-train-12180-en-2|finding|calcified plaques of the heart valves
+ctrate-train-19920-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-7716-en-0|finding+measure|40 mm; "larger than normal" after the descending aorta's 39 mm may or may not bear on the ascending aorta too ?
+ctrate-train-7716-en-1|finding+measure|39 mm, larger than normal
+ctrate-train-7716-en-2|finding|atherosclerotic wall calcifications
+ctrate-train-6525-en-0|finding+measure|35 mm, above normal
+ctrate-train-6525-en-1|finding|calcific atheroma plaques and stents "in the coronary arteries in the aortic arch": the sentence may give the plaques to the arch or only to the coronary arteries ?
+ctrate-train-6525-en-2|normal|calibre normal, no significant wall thickening
+ctrate-train-2362-en-0|finding+uncertain|solid lesion of 20x14 mm "evaluated in favor of" adenoma
+ctrate-train-2362-en-1|finding|another adenoma, 12x10 mm, stated
+ctrate-train-10916-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-10916-en-1|finding|soft tissue density of 20x10 mm, subpleural
+ctrate-train-19993-en-0|normal|calibre normal, no significant wall thickening
+ctrate-train-19668-en-0|measure|arch calibre 32 mm, no judgement in the sentence
+ctrate-train-19668-en-1|finding|calcific atheroma plaques
+ctrate-train-19668-en-2|finding|calcific atheroma plaques
+ctrate-train-20287-en-1|finding|pleural-based consolidation of 26x14 mm (42x20 mm before: time)
+ctrate-train-15769-en-0|finding|numerous calculi of 14 mm
+ctrate-train-21970-en-1|finding+uncertain_high|density diffusely decreased, "compatible with" fatty deposits
+ctrate-train-21970-en-2|finding|calculus of 3 cm
+ctrate-train-21970-en-3|finding|accessory spleen of 1.5 cm on its anterior surface: an abnormality of the spleen in HPO (HP:0001747)
+ctrate-train-22877-en-1|finding|mild bronchiectatic changes
+ctrate-train-22877-en-2|finding|mild bronchiectatic changes in the lingular segment
+ctrate-train-22877-en-3|finding|nonspecific ground glass density increases
+ctrate-train-16182-en-0|finding|hypodense lesion of 13x11 mm at the level of segment 2, not characterized (the nature open; the exam's limit)
+ctrate-train-16182-en-1|finding+uncertain_high|nodular lesion "compatible with" adenoma
+ctrate-train-16182-en-2|finding|hypodense lesion not characterized at the level of segment 2
+ctrate-train-22941-en-0|finding|aortic valve calcifications
+ctrate-train-22941-en-1|aside|a large air cyst "in the neighborhood of" the lower lobe: the lobe places it
+ctrate-train-22941-en-2|finding|stable nodules of 9 mm
+ctrate-train-3232-en-1|finding|subpleural millimetric nodule in the inferior lingular segment
+ctrate-train-3232-en-2|finding|subpleural millimetric nodule in the inferior lingular segment
+ctrate-train-3232-en-3|finding|subpleural millimetric nodule
+ctrate-train-3912-en-0|finding|minimal bronchiectasis and peribronchial thickening
+ctrate-train-3912-en-1|finding|linear densities, minimal distortion and volume loss, calcific nodules
+ctrate-train-12834-en-0|finding|linear density and minimal ground glass
+ctrate-train-10337-en-0|finding|minimal patchy ground-glass density and acinar opacities
+ctrate-train-10337-en-1|finding|minimal acinar opacities, recently emerged (time)
+ctrate-train-20163-en-1|finding+uncertain|consolidation areas: "Post-operative change?, Infectious process?"
+ctrate-train-20163-en-2|finding+uncertain|consolidation areas: "Post-operative change?, Infectious process?"
+ctrate-train-20322-en-2|finding|millimetric calcific nodule, stable
+ctrate-train-20322-en-3|finding|millimetric nonspecific nodule, stable
+ctrate-train-7457-en-0|finding+uncertain|consolidation that "may be compatible with" atelectasis-pneumonia
+ctrate-train-7457-en-1|finding|significant lobulation of the contours
+ctrate-train-9902-en-0|finding|stone of 5 mm in the upper pole
+ctrate-train-13731-en-1|finding|nodular density increases with ground glass in the posterior segment
+ctrate-train-13731-en-2|finding|nodular density increases with ground glass
+ctrate-train-13731-en-3|finding|faintly circumscribed hypodense lesions of 15 and 35 mm
+ctrate-train-21169-en-0|finding|hypodense lesion of 16 mm
+ctrate-train-21169-en-3|finding+uncertain|hyperdense nodular lesion of 25 mm in the upper pole (hemorrhagic cyst?)
+ctrate-train-21169-en-4|finding+uncertain|hyperdense lesion in the upper pole (hemorrhagic cyst?)
+ctrate-train-19829-en-2|finding+history|pleural thickening and subpleural atelectasis "secondary to" a past treatment
+ctrate-train-15658-en-2|finding|irregular contours, caudate and left lobes minimally hypertrophic
+ctrate-train-15658-en-3|finding+uncertain_high|findings "consistent with" chronic liver parenchymal disease; a hypodense lesion not characterized
+ctrate-train-7997-en-1|finding|nodular lesion, significant regression since the previous examination (time)
+ctrate-train-7997-en-2|finding|nonspecific nodule of 3 mm in the posterobasal segment
+ctrate-train-7997-en-3|finding|nonspecific nodule of 3.5 mm
+ctrate-train-17003-en-2|finding|pleural-based mass of 53x32 mm in the lingular segment
+ctrate-train-17003-en-3|finding+uncertain|hypodense fluid-density lesion (cyst?)
+ctrate-train-17003-en-5|finding|increased heart size (the "(adenoma?)" is the adrenal's)
+ctrate-train-7630-en-4|finding+uncertain|nodular lesion of 16 mm, the largest, "evaluated in favor of" metastasis
+ctrate-train-7630-en-5|finding|nodular lesion of 16 mm, 20 mm in the previous PET-CT (time)
+ctrate-train-7630-en-6|finding|millimetric hyperdense stones
+ctrate-train-10509-en-1|finding|mild sequelae changes in the inferior lingular segment
+ctrate-train-10509-en-2|finding+uncertain_high|decrease of density "consistent with" mild hepatosteatosis
+ctrate-train-14609-en-0|finding|hypodense nodules
+ctrate-train-14609-en-2|finding|hypodense nodules, US control recommended
+ctrate-train-18775-en-1|finding|the largest nodule, 6 mm
+ctrate-train-2449-en-2|finding|minimal sequela fibrotic recessions
+ctrate-train-2449-en-3|finding|minimal sequela fibrotic recessions in the inferior lingular segment
+ctrate-train-2449-en-4|finding|minimal sequela fibrotic recessions
+ctrate-train-14068-en-0|finding+uncertain|hypodense fluid-density lesion of 40 mm (cyst?)
+ctrate-train-14068-en-1|finding+uncertain|hypodense fluid-density lesion (cyst?)
+ctrate-train-1776-en-1|finding+uncertain|lesion of 35 mm, not significantly different (adenoma?, space-occupying lesion?)
+ctrate-train-1776-en-2|aside|a lesion "in close proximity to" the tail of the pancreas: the pancreas places it
+ctrate-train-8228-en-0|normal+not_assessable|not evaluated optimally without contrast; no significant pathology
+ctrate-train-8228-en-2|finding|stable nodule of about 4 mm, the largest
+ctrate-train-14169-en-1|finding|mild pleuroparenchymal sequelae changes
+ctrate-train-14169-en-2|finding+uncertain_high|nodular density of 7 mm "compatible with" an accessory spleen, an abnormality of the spleen in HPO, near its hilum
+ctrate-train-14169-en-3|finding+uncertain_high|nodular density of 7 mm "compatible with" an accessory spleen
+ctrate-train-17792-en-0|finding+uncertain_high|decrease of density "consistent with" adiposity
+ctrate-train-11062-en-1|finding|newly developed cavitary lesion with consolidation and ground glass
+ctrate-train-11062-en-2|finding|newly developed consolidation, reticulonodular infiltrates and ground glass in the lingular segment
+ctrate-train-11062-en-3|finding|newly developed cavitary lesion, infiltrates, consolidation; "evaluated as secondary to" pneumonia (an attribution)
+ctrate-train-7409-en-0|finding|mitral valve calcifications
+ctrate-train-8723-en-0|finding|subpleural consolidation and centriacinar nodules
+ctrate-train-8723-en-1|finding|ground-glass appearance
+ctrate-train-567-en-2|finding|well-circumscribed mass lesion
+ctrate-train-567-en-3|finding+uncertain|hypodense mass lesions up to 44x42 mm "initially evaluated in favor of" metastasis
+ctrate-train-567-en-4|finding|nodular mass in the posterobasal segment
+ctrate-train-10372-en-0|finding|heart sizes significantly increased
+ctrate-train-10372-en-1|finding|biatrial increase, most in the left atrium, a part of the heart
+ctrate-train-10372-en-5|finding|significant increase of the heart's dimensions
+ctrate-train-18844-en-2|aside|a pleural nodule at the junction of the upper and middle lobes: the pleura's, placed by the lobes
+ctrate-train-16656-en-1|finding|minimal atelectatic sequelae changes
+ctrate-train-16656-en-2|finding|minimal atelectatic sequelae changes in the lingula
+ctrate-train-18663-en-0|finding+uncertain|subsegmental atelectasis with nonspecific ground glass (sequelae?)
+ctrate-train-18663-en-1|finding+uncertain|subsegmental atelectasis with ground glass (sequelae?)
+ctrate-train-18663-en-2|finding+uncertain|subsegmental atelectasis with ground glass (sequelae?)
+ctrate-train-7403-en-0|finding|simple cyst of 53 mm
+ctrate-train-8448-en-0|finding|nodule of 6 mm
+ctrate-train-8448-en-1|finding|nodule of 5 mm in the lingula
+ctrate-train-8448-en-2|finding|calcific nodule of 3 mm
+ctrate-train-1246-en-0|finding|increased heart size, pericardial effusion
+ctrate-train-1246-en-1|finding+uncertain|nodular consolidation areas, atypical pneumonic infiltration in the differential diagnosis
+ctrate-train-11586-en-0|finding|peripheral and central consolidations and ground glass
+ctrate-train-21230-en-0|finding|nodules containing calcifications
+ctrate-train-21230-en-3|aside|nodular pleural thickenings and calcifications "in the pleura at the level of" the lingular segment: the pleura's
+ctrate-train-21230-en-4|finding|nodules containing calcifications
+ctrate-train-19892-en-2|finding+uncertain|hypodensities that "may be compatible with" multiple metastases
+ctrate-train-18019-en-1|finding|patchy ground glass densities
+ctrate-train-18019-en-2|finding|patchy ground glass densities
+ctrate-train-870-en-0|finding|low-density nodule of 4 mm in the medial segment
+ctrate-train-870-en-1|finding|nodule of 4 mm
+ctrate-train-870-en-2|finding|nodule of 3 mm
+ctrate-train-17968-en-1|finding|calcified nodule
+ctrate-train-17968-en-2|finding+uncertain|"possible" old fracture lines of the 3rd to 6th ribs
+ctrate-train-17968-en-3|finding|calcified nodule
+ctrate-train-7310-en-0|finding|nodular consolidations with halo
+ctrate-train-7310-en-1|finding|nodular consolidations with halo
+ctrate-train-19450-en-1|finding|nodules of 3.5 mm
+ctrate-train-3546-en-2|finding|nodular ground glass density increases
+ctrate-train-12192-en-0|finding|cortical cyst of 3 cm
+ctrate-train-15814-en-1|finding+uncertain_high|density "compatible with" a calculus of about 3 mm
+ctrate-train-21161-en-0|finding|cortical cyst of 12 mm
+ctrate-train-1952-en-1|finding|ground glass around consolidation in the lateral segment
+ctrate-train-7088-en-0|finding+uncertain_high|decrease of density "compatible with" advanced adiposity
+ctrate-train-14789-en-0|finding+procedure|postoperative changes of the sternum and marked irregularity of its cortex
+ctrate-train-23048-en-1|finding|ground-glass interlobular septal thickenings
+ctrate-train-23048-en-2|finding|nonspecific nodule of 3 mm
+ctrate-train-23048-en-3|finding|ground-glass interlobular septal thickenings
+ctrate-train-8141-en-1|finding+uncertain|oval hypodensity of 36 mm "evaluated in favor of" a cyst
+ctrate-train-3763-en-0|finding|the largest nodule, about 11x10 mm
+ctrate-train-3763-en-1|finding|minimal contour irregularity and heterogeneous parenchyma
+ctrate-train-17085-en-0|finding|metastatic mass lesions, 39 mm (38 mm before)
+ctrate-train-17085-en-1|finding|metastatic mass of 47 mm in the lingular segment
+ctrate-train-17085-en-2|finding|new focal ground-glass density increase
+ctrate-train-10505-en-0|finding|nonspecific nodule of 5.5 mm, pleural-based
+ctrate-train-17607-en-2|nothing|"right lower lobe of the liver": the words name a part of the liver, nothing of the lung's lower lobe
+ctrate-train-17607-en-3|finding+uncertain|a cyst "evaluated in favor of", its septum "thought to be", 24 mm
+ctrate-train-17607-en-4|finding|dilatation, more prominent at the level of the hepatic veins
+ctrate-train-15978-en-2|finding|focal consolidation area, new
+ctrate-train-15978-en-3|finding|stable subpleural nodule
+ctrate-train-15978-en-4|finding|stable millimetric subpleural nodule
+ctrate-train-19207-en-1|finding|hypodense lesions, the largest of 47 mm in the upper pole
+ctrate-train-21674-en-1|finding|two nodular densities, the largest 3 mm
+ctrate-train-21674-en-2|finding|mild sequelae changes
+ctrate-train-21674-en-3|finding|subpleural nodule of 6 mm
+ctrate-train-3293-en-2|finding|nonspecific ground glass density increases
+ctrate-train-3293-en-3|finding+uncertain_high|density diffusely decreased, "consistent with" adiposity
+ctrate-train-3293-en-5|finding|nonspecific ground-glass density increases
+ctrate-train-16397-en-0|finding|ground glass area and minimal septal thickening
+ctrate-train-16397-en-1|finding|ground glass area
+ctrate-train-22627-en-2|finding|nodular lesion of 11 mm with low HU (nonfunctional adenoma, stated)
+ctrate-train-22627-en-3|finding|nodular lesion of 2 cm (nonfunctional adenoma, stated)
+ctrate-train-22627-en-4|finding+uncertain|hypodense nodular structure of 1.5 cm "considered to belong to" an exophytic cortical cyst
+ctrate-train-677-en-1|finding|spiculated calcific nodule with pleural retraction
+ctrate-train-677-en-2|finding|nonspecific hypodense lesion of 6 mm in segment 2
+ctrate-train-677-en-5|finding|stable hypodense lesion in segment 2
+ctrate-train-10921-en-0|finding|mitral and aortic valve calcifications
+ctrate-train-10921-en-1|finding|mitral and aortic valve calcifications
+ctrate-train-10921-en-2|finding|stable nonspecific nodule of 3 mm
+ctrate-train-23458-en-0|finding|several nonspecific nodules under 3 mm
+ctrate-train-20935-en-2|finding|two nodules of 5 mm
+ctrate-train-23388-en-1|finding+uncertain|mildly hyperdense lesion of 10 mm (condensed cyst?)
+ctrate-train-23388-en-2|finding|stable sclerotic lesion of the anterior 1st rib
+ctrate-train-23388-en-3|finding|sclerotic metastases of the manubrium, also seen before (stated)
+ctrate-train-367-en-1|finding|centrilobular nodular consolidation with ground glass
+ctrate-train-367-en-3|finding+uncertain|findings that "may be compatible with" atypical pneumonia, or viral pneumonia
+ctrate-train-6081-en-0|finding|nodular lesion of about 2.5 cm
+ctrate-train-423-en-1|finding|the perinephric fat planes "contaminated" (stranding): the perirenal fat's, around the kidney, and a sign of it ?
+ctrate-train-423-en-2|finding|focal ground-glass-like density, partly seen before
+ctrate-train-423-en-3|finding|focal ground-glass-like density
+ctrate-train-21516-en-2|finding|stable nodule of 5 mm
+ctrate-train-21516-en-3|finding+uncertain_high|nodular thickening of 35 mm with densities "compatible with" fat
+ctrate-train-23177-en-1|finding+measure|146 mm, above normal
+ctrate-train-23177-en-2|finding|calculus of 2 mm
+ctrate-train-20682-en-0|finding+uncertain|solid lesion of about 25x10 mm "evaluated in favor of" adenoma
+ctrate-train-4705-en-2|finding+uncertain_high|density decreased slightly "in line with" fatty deposits
+ctrate-train-6626-en-0|finding+uncertain_high|heterogeneous parenchyma and oval findings up to 22 mm "compatible with" nodules
+ctrate-train-11220-en-1|finding|hypodense areas in both lobes
+ctrate-train-11220-en-2|history|bladder cancer in the follow-up: of its past
+ctrate-train-11220-en-3|finding|liver metastases, stated (the "in favor of" is the lungs')
+ctrate-train-14543-en-1|finding|stable nodule of about 3 mm
+ctrate-train-14543-en-2|finding+uncertain_high|density "considered to be compatible with" calculi of 3 mm
+ctrate-train-21926-en-0|finding|two calculi of 14 and 9 mm
+ctrate-train-13145-en-1|finding|accessory spleens anterior to the spleen: an abnormality of the spleen in HPO
+ctrate-train-13145-en-2|finding|accessory spleens anterior to the spleen
+ctrate-train-13145-en-3|finding+uncertain|minimal lobulation and parenchymal thinning (sequelae of pyelonephritis?)
+ctrate-train-3719-en-1|finding|subpleural consolidation with ground glass
+ctrate-train-6418-en-1|finding|nodule of 7 mm on the fissure with faint ground glass
+ctrate-train-6418-en-3|finding+uncertain|lesion that "may be compatible with" a consolidated nodule; Covid-19 pneumonia in the differential
+ctrate-train-2341-en-0|finding|aortic valve calcification
+ctrate-train-2341-en-1|finding|patchy ground glass
+ctrate-train-2341-en-2|finding|insufficiency fracture of the upper end plate
+ctrate-train-4053-en-4|finding|ground-glass consolidations with crazy paving
+ctrate-train-21483-en-1|aside|"in the sections passing through the trachea": the trachea gives the level; the dilatation or thickening is the esophagus's
+ctrate-train-568-en-2|finding|nodule of 2 mm
+ctrate-train-8302-en-5|finding+uncertain|hypodense appearance that "may be compatible with" a parapelvic cyst
+ctrate-train-11296-en-3|finding+uncertain|low-density nodular lesion of 24 mm "evaluated in favor of" adenoma
+ctrate-train-11296-en-6|finding|increased heart size, minimal pericardial effusion
+ctrate-train-18464-en-1|not_assessable|the heart not evaluated optimally without contrast (the 42 mm is the aorta's)
+ctrate-train-18464-en-2|aside|pericardial effusion "adjacent to" the left ventricle: the pericardium's
+ctrate-train-18464-en-4|finding+uncertain|hypodense lesions, the largest in the midzone (cortical cyst?)
+ctrate-train-8006-en-0|finding|hypodense nodule of 1 cm
+ctrate-train-8006-en-1|finding|hypodense nodule of 1 cm
+ctrate-train-4019-en-4|finding|collapse fracture of L1; sclerotic metastases
+ctrate-train-3078-en-3|finding+uncertain|well-circumscribed hypodense lesion (cyst?)
+ctrate-train-13350-en-2|finding|solid mass of about 44x35 mm
+ctrate-train-13350-en-3|aside|masses "adjacent to" the tail of the pancreas: it places them
+ctrate-train-13350-en-4|finding|lytic lesion of the corpus
+ctrate-train-21468-en-1|finding+uncertain|low-density nodular lesion of 15x13 mm "in favor of" adenoma
+ctrate-train-23601-en-1|finding|nonspecific nodule of 3.3 mm
+ctrate-train-16820-en-3|finding|nodule of 2 mm
+ctrate-train-16820-en-4|finding|hypodense appearance at the proximal diaphysis, not clearly evaluated (the exam's limit)
+ctrate-train-16820-en-5|finding|hypodense nonspecific formations "located medially at the proximal diaphyseal level" of the humerus: in it or only placed by it ?
+ctrate-train-977-en-1|aside|a lung mass "at the level of" the T10 and T11 corpora: the vertebrae place it
+ctrate-train-977-en-2|aside|a lung mass "at the level of" the T10 and T11 corpora: the vertebrae place it
+ctrate-train-977-en-12|finding|nonspecific minimal thickening of the corpus and legs
+ctrate-train-18982-en-1|finding+measure|140 mm, increased
+ctrate-train-18982-en-2|finding+measure|AP diameter 47 mm, distended
+ctrate-train-20957-en-1|finding|hypodense nodular appearances, the largest of 20 mm at the level of segment 8, in it
+ctrate-train-6822-en-0|finding|heart sizes slightly increased
+ctrate-train-4437-en-8|finding|stable hypodense lesion of 11 mm in the caudate lobe
+ctrate-train-3688-en-0|finding|hypodense nodules, increased in size
+ctrate-train-3688-en-4|finding|calcific plaque formations of the mitral valve
+ctrate-train-3688-en-7|finding|punctate calcified lesion of the humeral head
+ctrate-train-21396-en-4|finding|lesions of hypodense fluid density
+ctrate-train-21396-en-5|finding|increased heart size (the "(cyst?)" is the kidney's)
+ctrate-train-21396-en-10|finding+uncertain|lesions (cyst?) of fluid density
+ctrate-train-6116-en-2|finding|the superior vena cava "cannot be clearly distinguished in places" beside the lymphadenopathy, with collateral varices "considered secondary to this": obliterated, or only not seen ?
