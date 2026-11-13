@@ -1,0 +1,193 @@
+# What the sentence states of the linked structure, claim by claim: labels of the seventh CT-RATE sample (chest CT,
+# 13 November 2026). First labeller: Claude, with data/reading/labelling_convention.md (convention of 11 November
+# 2026, made more precise on 13 November before the sample was drawn). Written BEFORE any reader was run on these
+# items and BEFORE the second labeller's labels were opened (the second labeller gave no answer: 180 empty replies):
+# the labeller saw the whole clause (never cut), the marked mention and the linked class, nothing else.
+# Items: owner-probe workflow (sample_only, owner-probe_28), scripts/owner_probe.py sample --seed 20261113 --n-en
+# 300 --n-it 0 --per-structure 24, drawn with the finder of 12 November 2026, from CT-RATE validation reports none
+# of the first six used: 180 items from 110 reports (the reports left give 8 structures: esophagus, aorta, the five
+# lobes of the lungs, liver).
+# 180 English items: 114 finding, 23 normal, 17 finding+uncertain, 7 finding+uncertain_high, 5 finding+measure, 4 aside, 4 measure, 3 involved, 2 finding+history, 1 history+not_assessable; 6 doubtful.
+# The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
+# "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
+# Format: item|claims|note
+ctrate-1348-en-0|normal|calibre normal, no significant wall thickening
+ctrate-82-en-0|normal|calibre normal, no significant wall thickening
+ctrate-82-en-1|finding|sliding hiatal hernia at the lower end of the esophagus: the gastro-oesophageal junction slides up, but HPO gives the hernia to the stomach through the hiatus ?
+ctrate-390-en-0|normal|calibre normal, no significant wall thickening
+ctrate-390-en-1|finding|volume markedly reduced
+ctrate-390-en-2|finding|focal atelectasis with marked loss of volume and bronchiectasis
+ctrate-918-en-0|normal|calibre normal, no significant wall thickening
+ctrate-886-en-0|normal|calibre normal, no significant wall thickening
+ctrate-886-en-1|finding|calcific atheroma plaques
+ctrate-1145-en-0|normal|calibre normal, no significant wall thickening
+ctrate-1153-en-0|normal|calibre normal, no significant wall thickening
+ctrate-1463-en-0|normal|calibre normal, no significant wall thickening
+ctrate-160-en-0|normal|calibre normal, no significant wall thickening
+ctrate-286-en-0|finding|ground glass areas and septal thickening in the middle lobe
+ctrate-718-en-0|normal|calibre normal, no significant wall thickening
+ctrate-732-en-0|normal|calibre normal, no significant wall thickening
+ctrate-679-en-0|normal|calibre normal, no significant wall thickening
+ctrate-679-en-1|finding+uncertain|slight change of density "in favor of" steatosis
+ctrate-604-en-0|finding+uncertain|linear density and calcification foci in the apical segment "in favor of" sequelae of previous TB
+ctrate-1444-en-0|finding+measure|41 mm, minimally wider than normal
+ctrate-983-en-0|normal|calibre normal, no significant wall thickening
+ctrate-189-en-0|finding|calcific atheroma plaques in the arch
+ctrate-189-en-1|normal|calibre normal, no significant wall thickening
+ctrate-189-en-2|finding|nonspecific stable focal ground-glass density (nonspecific: the nature open; stable: time)
+ctrate-1230-en-0|finding|calcific atherosclerotic changes of the wall
+ctrate-1230-en-1|normal|calibre normal, no significant wall thickening; "in the non-contrast examination limits" is the exam's limit
+ctrate-964-en-0|normal|calibre normal, no significant wall thickening
+ctrate-964-en-1|finding|ground-glass nodule of 4 mm
+ctrate-964-en-2|finding|faint bud branch view in the superior segment
+ctrate-1314-en-0|normal|calibre normal, no significant wall thickening
+ctrate-972-en-0|normal|calibre normal, no significant wall thickening
+ctrate-1215-en-0|normal|calibre normal, no significant wall thickening
+ctrate-963-en-0|normal|calibre normal, no significant wall thickening
+ctrate-1316-en-0|normal|calibre normal, no significant wall thickening
+ctrate-167-en-0|normal|calibre normal, no significant wall thickening
+ctrate-577-en-0|normal|calibre normal, no significant wall thickening
+ctrate-869-en-0|finding|calcific atherosclerotic changes
+ctrate-869-en-1|finding+measure|41 mm, slight dilatation
+ctrate-869-en-3|finding|calcified atherosclerotic changes of the wall of the abdominal aorta
+ctrate-665-en-0|aside|"aorta pulmonary" names the aortopulmonary station of the nodes (lymph nodes): the aorta only places them
+ctrate-665-en-1|finding+measure|4.1 cm, wider than normal
+ctrate-665-en-2|finding|calcified nodule
+ctrate-1288-en-0|finding|ground-glass appearance in the anterior segment
+ctrate-1288-en-1|finding|ground-glass appearance in the anterior segment
+ctrate-74-en-0|finding|calcific atherosclerotic changes
+ctrate-1433-en-0|finding|nodule of about 10 mm in the inferior lingular segment (in a case with primary RCC)
+ctrate-1433-en-1|finding|nodule of about 10 mm in the inferior lingular segment, a part of the left upper lobe
+ctrate-634-en-0|measure|arch calibre 33 mm, no judgement in the sentence
+ctrate-634-en-2|finding|faint ground-glass-like density increase
+ctrate-105-en-1|finding|consolidation with bronchiectasis and cavitations at the apicoposterior level
+ctrate-105-en-2|finding+uncertain|consolidated area of 18 mm that "may be sequelae or new"
+ctrate-105-en-3|finding+history|bronchiectasis, consolidation and nodules now; cavitations observed in the previous examination
+ctrate-9-en-1|finding|largest nodule of 7 mm in the anterior segment
+ctrate-9-en-2|finding|nodule of 6 mm in the posterior segment
+ctrate-361-en-0|finding+uncertain|nodules "thought to be primarily metastatic", the largest of 8 mm here
+ctrate-811-en-0|finding|calcific plaques in the arch
+ctrate-1519-en-0|finding|the largest nodule, about 4 mm
+ctrate-1358-en-0|finding+measure|arch calibre 31 mm, wider than normal
+ctrate-1358-en-1|finding|calcific atheroma plaques in the arch
+ctrate-1358-en-2|finding|calcific atheroma plaques in the descending aorta
+ctrate-691-en-1|finding|nodule of 4 mm
+ctrate-691-en-2|finding+uncertain_high|appearance "compatible with" an intrapulmonary lymph node of 3 mm
+ctrate-799-en-0|measure|ascending aorta 42 mm, no judgement in the sentence
+ctrate-799-en-2|finding|slight enlargement
+ctrate-219-en-0|measure|arch calibre 31 mm, no judgement in the sentence
+ctrate-219-en-1|finding|calcific atheroma plaques
+ctrate-219-en-2|finding|3x2 mm nodule in the anterior segment
+ctrate-1427-en-1|finding|focal ground glass area, nonspecific (the nature open)
+ctrate-1427-en-2|finding|nonspecific subpleural nodule of 3 mm
+ctrate-1427-en-3|finding|focal ground-glass area
+ctrate-821-en-0|finding|nodule of about 7x3 mm in the right lower lobe posterobasal segment
+ctrate-1362-en-1|finding|minimal emphysematous appearance
+ctrate-642-en-1|finding|mild atelectatic changes in the inferior lingula of the left upper lobe
+ctrate-642-en-2|finding|mild atelectatic changes in the inferior lingula
+ctrate-642-en-3|finding|mild atelectatic changes in the inferior lingula
+ctrate-1129-en-0|finding|consolidated area again (time)
+ctrate-1518-en-1|finding|nonspecific nodule of 2 mm
+ctrate-15-en-0|finding|sequelae parenchymal changes in the parenchyma adjacent to the pleural calcification of the apical segment
+ctrate-15-en-1|finding|sequela parenchymal changes in the adjacent parenchyma
+ctrate-114-en-0|finding|calcified atheroma plaques in the wall
+ctrate-114-en-1|finding|nonspecific nodule of 7 mm, the largest
+ctrate-114-en-2|finding|nodular lesion of 7 mm, the largest
+ctrate-871-en-1|finding|small nodule of 3 mm
+ctrate-871-en-2|finding|small nonspecific nodule of 3 mm
+ctrate-848-en-1|finding|large consolidation with air bronchogram
+ctrate-309-en-1|finding|subpleural nodule up to 5 mm with atelectatic changes around it
+ctrate-309-en-2|finding|nodule with atelectasis around it
+ctrate-822-en-0|finding|the largest (nodule) in the upper lobe; the sentence has no subject and places the 5 mm in the minor fissure ?
+ctrate-612-en-0|measure|ascending aorta 40 mm; "and increased" closes the list of the pulmonary arteries, it may or may not bear on the aorta ?
+ctrate-612-en-1|finding|calcified atherosclerotic plaques
+ctrate-992-en-0|finding|calcific atheroma plaques
+ctrate-844-en-0|finding|focal ground-glass opacity
+ctrate-1062-en-0|finding+measure|41 mm, dilatation
+ctrate-1062-en-3|finding|nodule of 5.5 mm
+ctrate-1062-en-4|finding|nodule of 5.3 mm in the lateral segment of the middle lobe
+ctrate-1155-en-1|finding|nodular density-consolidation with air bronchograms
+ctrate-468-en-0|finding|ground-glass areas
+ctrate-468-en-1|finding|ground-glass areas
+ctrate-468-en-2|finding|soft tissue density with minimal volume loss
+ctrate-920-en-0|finding+uncertain|nodular consolidation, ground glass and septal thickening (infectious processes?): the "?" bears on the interpretation of the finding
+ctrate-920-en-1|finding|nodular consolidation, ground glass areas, septal thickening
+ctrate-1434-en-0|finding+uncertain|hypodense lesions (metastasis?), not characterized within the limits of unenhanced CT
+ctrate-465-en-1|finding+uncertain|round consolidation; round pneumonia and atelectasis in the differential diagnosis
+ctrate-1417-en-1|finding|sequelae calcifications
+ctrate-590-en-1|finding|patchy ground glass densities
+ctrate-590-en-2|finding|millimetric nonspecific nodular ground glass densities
+ctrate-590-en-3|finding|millimetric calcific nonspecific nodules
+ctrate-476-en-1|finding+uncertain_high|areas of increased density "consistent with" consolidation, with a halo
+ctrate-1010-en-0|finding|nodule of 1 cm
+ctrate-294-en-1|finding+history|atelectasis and ground glass "secondary to" previous pneumonia: the pneumonia is of its past
+ctrate-560-en-0|finding|nodular consolidations with halo in the lower lobe
+ctrate-442-en-0|finding+uncertain_high|areas of increased density "consistent with" consolidation and nodular consolidation
+ctrate-442-en-1|finding+uncertain_high|areas of increased density "consistent with" consolidation and nodular consolidation
+ctrate-1223-en-0|finding|the largest nodular lesion, 16x10 mm
+ctrate-1223-en-1|aside|a nodular thickening of the pleura in the inferior lingular segment: the pleura's, placed by the lingula ?
+ctrate-1223-en-2|aside|a nodular thickening of the pleura in the inferior lingular segment: the pleura's, placed by the lobe ?
+ctrate-1455-en-0|finding+uncertain|nodule of 5x5.5 mm (Subpleural lymph node?)
+ctrate-1455-en-1|finding+uncertain|millimetric nodule "evaluated primarily in favor of" a subpleural lymph node
+ctrate-77-en-0|finding|ground glass and centriacinar nodules
+ctrate-77-en-1|finding|ground glass and centriacinar nodules
+ctrate-475-en-1|finding|mild sequela changes
+ctrate-475-en-2|finding|mild sequelae of pleuroparenchymal changes in the inferior lingular segment
+ctrate-774-en-1|finding|small nodules up to 3 mm
+ctrate-85-en-1|finding|stable nodule of 3 mm (stable: time)
+ctrate-85-en-2|finding|subpleural nodule of 2 mm
+ctrate-321-en-0|finding|nonspecific nodules of 3 mm
+ctrate-171-en-0|finding|nonspecific nodule of 3 mm
+ctrate-171-en-1|finding|nonspecific nodule of 3 mm
+ctrate-1053-en-1|finding+uncertain|nodular density with ground glass, "suspicious for" early Covid-19 pneumonia
+ctrate-1053-en-2|finding+uncertain_high|density decreased "in line with" fatty deposits
+ctrate-1053-en-3|finding|nodular density increase with ground glass around it
+ctrate-798-en-0|finding|the largest nodule, 6x3 mm
+ctrate-1246-en-1|finding+uncertain|ground glass nodular density of 13 mm with halo (infectious process?, a carcinomatous finding?)
+ctrate-1246-en-2|finding+uncertain|ground glass nodular density of 13 mm with halo (infectious process?, a carcinomatous finding?)
+ctrate-1365-en-1|finding|subpleural nodules, the largest of 5 mm
+ctrate-1365-en-2|finding|nonspecific ground glass density
+ctrate-1365-en-3|finding|nonspecific ground glass density
+ctrate-1184-en-0|finding+uncertain|fissure-based nodule of 3 mm (intraparenchymal lymph node?)
+ctrate-327-en-1|finding|septal thickening, ground-glass-like density, peribronchial thickening
+ctrate-327-en-2|finding|peribronchial ground glass densities in the posterobasal segment
+ctrate-327-en-3|finding|peribronchial ground glass densities in the posterior upper lobe
+ctrate-1028-en-1|finding|two calcified nodules
+ctrate-839-en-1|finding+uncertain|hypodense nodular appearance of about 13 mm in segment 4B (cyst? focal lipoidosis?)
+ctrate-839-en-2|finding+uncertain|hypodense nodular lesion (cyst? focal fat area?)
+ctrate-421-en-1|finding+uncertain|patchy ground-glass densities (viral pneumonia?)
+ctrate-434-en-4|finding|nodule of about 3 mm, also in the previous examination (time)
+ctrate-434-en-5|aside|pleural fluid collection, the pleura's, placed by the lateral upper lobe
+ctrate-628-en-0|finding|consolidation with minimal ground glass around it
+ctrate-1176-en-2|finding|nonspecific nodule of 3.1 mm
+ctrate-1176-en-3|finding|nonspecific nodules of 4.8 and 2.2 mm
+ctrate-1486-en-1|finding|pleural-based nodule of 7.5x4 mm
+ctrate-1432-en-1|finding|subpleural nodules up to 3 mm
+ctrate-1382-en-2|history+not_assessable|a nodule of 2.5 mm in the old examination, now not clearly distinguished because of parenchymal changes ?
+ctrate-408-en-1|finding|nodule of 7.5 mm with pleural retractions
+ctrate-408-en-4|finding|parenchymal nodule with fibrotic recessions
+ctrate-66-en-3|finding|diffuse parenchymal soft tissue lesions and ground glass
+ctrate-66-en-4|finding|diffuse parenchymal soft tissue lesions and ground glass
+ctrate-66-en-5|finding|metastatic nodules, the largest here, stated as metastatic
+ctrate-394-en-2|finding|hypodense finding of 8 mm at the level of segment 6 of the right lobe, in the liver; no significant difference (time)
+ctrate-394-en-6|finding|hypodense lesion
+ctrate-25-en-2|finding|budding tree images, more prominent here
+ctrate-25-en-3|finding+uncertain_high|density increase "consistent with" consolidation, 21 mm
+ctrate-308-en-1|finding|nonspecific nodule of about 3 mm
+ctrate-1090-en-1|finding|nodules of 6 mm
+ctrate-1090-en-2|finding|subpleural air cysts
+ctrate-210-en-3|finding+uncertain|large consolidation (recommended to evaluate for infectious process)
+ctrate-436-en-1|finding|millimetric nonspecific nodule
+ctrate-1026-en-1|finding|linear fibrotic densities and ground glass densities in the lingular segment
+ctrate-1026-en-2|finding|linear fibrotic densities and ground glass densities in the lingular segment
+ctrate-1083-en-0|involved|a mass of the infrahilar left lung, on the mediastinal pleura, surrounding the lingular segment and extending along it
+ctrate-1083-en-2|involved|the mass extending along the inferior lingular segment
+ctrate-1083-en-3|involved|the infrahilar mass extending along the inferior lingular segment
+ctrate-1070-en-0|finding|the largest nodule, 3.5 mm
+ctrate-1079-en-0|finding|peripheral ground-glass areas
+ctrate-1193-en-2|finding|nonspecific nodules of 4.5 mm in the middle lobe
+ctrate-251-en-2|finding|stable millimetric nonspecific hypodense lesion
+ctrate-1032-en-0|finding|diffuse hypodense appearance "secondary to" hepatosteatosis (an attribution)
+ctrate-768-en-1|finding|patchy consolidation with ground glass
+ctrate-176-en-3|finding|stable hypodense nodular lesion in the posterior segment of the right lobe
+ctrate-126-en-3|finding+uncertain_high|hypodense mass lesions "consistent with" metastasis, not characterized without contrast
