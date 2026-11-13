@@ -628,3 +628,77 @@ def test_normal_words_are_read_where_they_stand_in_the_sentence():
     assert stated_anomalies_where(negated, "tumoral wall thickening", "en", words) == []
     assert stated_anomalies_where(affirmed, "tumoral wall thickening", "en", words) == ["thickening"]
     assert stated_anomalies_where(negated, "irregular thickening", "en", words) == ["thickening"]
+
+
+def test_what_the_structure_only_places_is_an_aside():
+    """13 November 2026, ctrate8: "a lesion in close proximity to the tail of the pancreas"."""
+    from melampo.memory.finding_owner import ASIDE, claims_outcome
+
+    sentence = "There is a lesion measuring up to 21 mm in close proximity to the tail part of the pancreas"
+    answer = {"marked": "pancreas", "same": "yes", "places": {"what": "a lesion measuring up to 21 mm",
+                                                               "by": "in close proximity to"}}
+    got = read_claims(json.dumps(answer), sentence, "pancreas")
+    assert got["places"] == {"what": "a lesion measuring up to 21 mm", "by": "in close proximity to"}
+    assert claims_outcome(got) == ASIDE
+    answer["places"] = {"what": "a mass not in the sentence", "by": ""}
+    assert read_claims(json.dumps(answer), sentence, "pancreas")["places"] == {}
+
+
+def test_a_new_phrase_after_a_coordinator_is_its_own_conjunct():
+    from melampo.memory.finding_owner import _own_conjunct
+
+    assert _own_conjunct(" and hypodense fluid-density lesion located in the anterior cortical region of the ", "en")
+    assert not _own_conjunct(" and the ", "en")
+    assert not _own_conjunct(" and in the ", "en")
+    assert not _own_conjunct(" is enlarged ", "en")
+
+
+def test_hpo_names_the_structure_a_phenotype_is_of(tmp_path):
+    from melampo.memory.class_kinds import phenotypes_in
+
+    obo = tmp_path / "hp.obo"
+    obo.write_text("""format-version: 1.2
+
+[Term]
+id: HP:0000118
+name: Phenotypic abnormality
+
+[Term]
+id: HP:0001747
+name: Accessory spleen
+is_a: HP:0000118
+intersection_of: UPHENO:0000001
+intersection_of: has_part UBERON:0002106
+""", "utf-8")
+    got = phenotypes_in("a 7 mm nodular density compatible with the accessory spleen", obo)
+    assert got == {"HP:0001747": {"UBERON:0002106"}}
+    assert phenotypes_in("a nodule", obo) == {}
+
+
+def test_two_readings_that_say_the_structure_only_places_something_set_it_aside():
+    from melampo.memory.finding_owner import ELSEWHERE
+
+    s = "There is a lesion measuring up to 21 mm in close proximity to the tail part of the pancreas"
+    said = _answer(marked="pancreas", places={"what": "a lesion measuring up to 21 mm", "by": "in close proximity to"})
+    got = _owner(said, said)("pancreas", s, s.index("pancreas"), "en", "pancreas")
+    assert got.verdict == ELSEWHERE and got.statement == "aside"
+    # one reading of a finding of it: not every reading says it only places: never set aside
+    other = _answer(marked="pancreas", observed=[{"words": "a lesion measuring up to 21 mm", "of": "it"}])
+    assert _owner(said, other)("pancreas", s, s.index("pancreas"), "en", "pancreas").verdict != ELSEWHERE
+
+
+def test_a_model_asked_again_when_its_words_are_not_in_the_sentence():
+    s = "Ground glass areas are observed in the right lung upper lobe apical segment, right lung middle lobe medial segment"
+    bad = _answer(marked="right lung middle lobe", observed=[{"words": "ground glass areas in the right lung middle lobe",
+                                                               "of": "it"}])
+    good = _answer(marked="right lung middle lobe", observed=[{"words": "Ground glass areas are observed ... right lung "
+                                                                        "middle lobe medial segment", "of": "it"}])
+    asked = []
+
+    def chat(prompt):
+        asked.append(prompt)
+        return json.dumps(good if "Asked again" in prompt else bad)
+
+    owner = FindingOwner(None, {"m0": chat, "m1": lambda p: json.dumps(good)}, question="claims")
+    got = owner("right lung middle lobe", s, s.index("right lung middle lobe"), "en", "lung_middle_lobe_right")
+    assert len(asked) == 2 and got.verdict == "here"

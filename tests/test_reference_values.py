@@ -85,7 +85,7 @@ def test_a_comparison_the_cited_row_supports_is_attached_with_its_reference():
     s = "The portal vein measures approximately 16mm in width"
     read = read_claims(json.dumps(_answer("above")), s, "portal vein")
     assert read["measure_refs"] == [{"words": "measures approximately 16mm in width", "reference": "pv",
-                                     "against": "above"}]
+                                     "against": "above", "of": ""}]
     got = _owner(_answer("above"), [_row()])("portal vein", s, 4, "en", "portal_vein_and_splenic_vein")
     assert got.verdict == HERE and got.claims["measure_refs"][0]["reference"] == "pv"
 

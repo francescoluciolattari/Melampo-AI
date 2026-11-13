@@ -14,9 +14,9 @@ on:
         required: false
         default: "google/gemma-4-31b-it,nvidia/nemotron-3-ultra-550b-a55b+reasoning,meta/muse-spark-open+reasoning"
       sets:
-        description: "samples: ctrate8 (CT-RATE training reports, eighth sample, 13 Nov), ctrate7 (CT-RATE, seventh sample, 13 Nov, seen), ctrate6 (CT-RATE, sixth sample, 11 Nov, seen), ctrate5 (CT-RATE, fifth sample, 11 Nov, seen), ctrate4 (CT-RATE, fourth sample, 10 Nov, seen), ctrate3 (CT-RATE, third sample, 9 Nov, seen), ctrate2 (CT-RATE, second sample, 8 Nov, seen), ctrate (CT-RATE chest CT, 6 Nov, seen), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
+        description: "samples: ctrate9 (CT-RATE training reports, ninth sample, 13 Nov), ctrate8 (training reports, eighth, seen), ctrate7 (CT-RATE, seventh sample, 13 Nov, seen), ctrate6 (CT-RATE, sixth sample, 11 Nov, seen), ctrate5 (CT-RATE, fifth sample, 11 Nov, seen), ctrate4 (CT-RATE, fourth sample, 10 Nov, seen), ctrate3 (CT-RATE, third sample, 9 Nov, seen), ctrate2 (CT-RATE, second sample, 8 Nov, seen), ctrate (CT-RATE chest CT, 6 Nov, seen), claims4 (5 Nov, seen), claims3 (3 Nov, seen), claims2 (2 Nov, seen), claims (2 Nov, seen), statement (1 Nov, seen), fresh, dev, heldout"
         required: false
-        default: "ctrate8"
+        default: "ctrate9"
       arms:
         description: "readings with the models: claims, statement, owner (each costs two calls per item)"
         required: false
@@ -123,13 +123,16 @@ jobs:
             --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate7.jsonl
           # the eighth (13 November 2026), from the training reports (another 20,000 patients: the validation
           # reports left by the first seven hold only 8 structures); ids ctrate-train-N, never a validation id
-          if [[ ",${SETS}," == *",ctrate8,"* ]]; then
+          if [[ ",${SETS}," == *",ctrate8,"* || ",${SETS}," == *",ctrate9,"* ]]; then
             curl -sSL --fail -H "Authorization: Bearer $HF_TOKEN" -o ctrate_train_reports.csv \
               https://huggingface.co/datasets/ibrahimhamamci/CT-RATE/resolve/main/dataset/radiology_text_reports/train_reports.csv
             uv run --no-sync python scripts/ctrate_corpus.py --csv ctrate_train_reports.csv --prefix ctrate-train \
               --out ctrate_train.jsonl
             uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate_train.jsonl --seed 20261114 \
               --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate8.jsonl
+            # the ninth (13 November 2026): training reports the eighth did not use
+            uv run --no-sync python scripts/owner_probe.py sample --parrot ctrate_train.jsonl --seed 20261115 \
+              --n-en 300 --n-it 0 --per-structure 24 --out owner_items_ctrate9.jsonl
           fi
 
       # 11 November 2026: a second, independent labeller, against errors of labelling (double annotation with
@@ -201,6 +204,7 @@ jobs:
               ctrate6) ITEMS+=(--items ctrate6=owner_items_ctrate6.jsonl --corpus ctrate.jsonl) ;;
               ctrate7) ITEMS+=(--items ctrate7=owner_items_ctrate7.jsonl --corpus ctrate.jsonl) ;;
               ctrate8) ITEMS+=(--items ctrate8=owner_items_ctrate8.jsonl --corpus ctrate_train.jsonl) ;;
+              ctrate9) ITEMS+=(--items ctrate9=owner_items_ctrate9.jsonl --corpus ctrate_train.jsonl) ;;
               claims4) ITEMS+=(--items claims4=owner_items_claims4.jsonl) ;;
               claims3) ITEMS+=(--items claims3=owner_items_claims3.jsonl) ;;
               claims2) ITEMS+=(--items claims2=owner_items_claims2.jsonl) ;;
@@ -269,6 +273,7 @@ jobs:
             owner_items_ctrate6.jsonl
             owner_items_ctrate7.jsonl
             owner_items_ctrate8.jsonl
+            owner_items_ctrate9.jsonl
             second_labels_*.txt
             second_labeller.log
             second_labeller_answers.jsonl
