@@ -74,14 +74,19 @@ CTRATE5_SEED = 20261111
 # readings (each model, their union) measured on one run
 CTRATE6_LABELS = ROOT / "data/gold/ctrate6/labels.txt"
 CTRATE6_SEED = 20261112
+# the seventh (13 November 2026): every qualifying word with what it does before it is placed; an uncertainty
+# goes to the structure only if it bears on what is said of it; a measure says whether it is of the structure or
+# of what is seen in it; a part is the structure's only if UBERON gives it that part
+CTRATE7_LABELS = ROOT / "data/gold/ctrate7/labels.txt"
+CTRATE7_SEED = 20261113
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
            "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
            "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
-           "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS}
+           "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS, "ctrate7": CTRATE7_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
                 "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
                 "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
-                "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS}
+                "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS, "ctrate7": CTRATE7_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104
@@ -527,7 +532,9 @@ def main(argv: list[str] | None = None) -> int:
                   CTRATE3_SEED: [CTRATE_LABELS, CTRATE2_LABELS],
                   CTRATE4_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS],
                   CTRATE5_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS],
-                  CTRATE6_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS, CTRATE5_LABELS]}
+                  CTRATE6_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS, CTRATE5_LABELS],
+                  CTRATE7_SEED: [CTRATE_LABELS, CTRATE2_LABELS, CTRATE3_LABELS, CTRATE4_LABELS, CTRATE5_LABELS,
+                                 CTRATE6_LABELS]}
         for path in before.get(a.seed, [*LABELS.values(), *SAMPLES.values()]):
             if path.exists():
                 exclude |= {m.group(0) for line in path.read_text("utf-8").splitlines()

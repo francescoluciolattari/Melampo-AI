@@ -163,11 +163,47 @@ def test_agreed_claims_keep_what_every_model_fills():
     assert got["normal"] == ["n"] and "device" not in got and got["findings"][0]["words"] == "x"
 
 
-def test_a_part_the_model_names_is_the_structure_when_the_reader_reads_it_so():
+class _TinyUberon:
+    """A few terms of UBERON, as hpo_candidates.Anatomy holds them: the aorta with its wall, the liver with its
+    lobe, the portal vein with its wall and no lobe or segment."""
+    labels = {"UBERON:0000947": "aorta", "UBERON:9000001": "wall of aorta", "UBERON:0002107": "liver",
+              "UBERON:9000002": "left lobe of liver", "UBERON:0002017": "portal vein",
+              "UBERON:9000003": "wall of portal vein"}
+    parents = {"UBERON:9000001": ["UBERON:0000947"], "UBERON:9000002": ["UBERON:0002107"],
+               "UBERON:9000003": ["UBERON:0002017"]}
+    part_of = {"UBERON:9000001": {"UBERON:0000947"}, "UBERON:9000002": {"UBERON:0002107"},
+               "UBERON:9000003": {"UBERON:0002017"}}
+    organs: set = set()
+
+
+def _owner_with_uberon(*answers):
+    from melampo.memory.finding_owner import Anatomy
+
+    chats = {f"m{i}": (lambda a: lambda prompt: json.dumps(a))(a) for i, a in enumerate(answers)}
+    anatomy = Anatomy(_TinyUberon(), uberon_names={u: [n] for u, n in _TinyUberon.labels.items()})
+    return FindingOwner(None, chats, anatomy, question="claims")
+
+
+def test_a_part_the_model_names_is_the_structure_when_uberon_gives_it_that_part():
     s = "The aorta shows calcifications in the wall of the arch"
     said = _answer(marked="aorta", observed=[{"words": "calcifications", "of": "wall of the arch", "relation": "in"}])
-    got = _owner(said, said)("aorta", s, 4, "en", "aorta")
+    got = _owner_with_uberon(said, said)("aorta", s, 4, "en", "aorta")
     assert got.verdict == HERE and got.claims["findings"][0]["of"] == "it"
+    # without UBERON nothing is reinterpreted: the model's "of" stays, and two readings that agree on another
+    # structure's part do not become a finding of this one by a list of words
+    assert _owner(said, said)("aorta", s, 4, "en", "aorta").verdict != HERE
+
+
+def test_a_part_the_linked_structure_does_not_have_is_not_made_its_own():
+    """13 November 2026, ctrate6 1063-en-2: "the left lobe medial segment" (of the liver) was read as a part of
+    the portal vein, because "segment" was in a list of part words."""
+    from melampo.memory.finding_owner import Anatomy
+
+    a = Anatomy(_TinyUberon(), uberon_names={u: [n] for u, n in _TinyUberon.labels.items()})
+    assert a.part_of_linked("left lobe medial segment", {"UBERON:0002017"}) is False
+    assert a.part_of_linked("left lobe medial segment", {"UBERON:0002107"}) is True
+    assert a.part_of_linked("the wall", {"UBERON:0002017"}) is True
+    assert Anatomy().part_of_linked("the wall", {"UBERON:0002017"}) is None
 
 
 def test_an_absence_listed_as_an_observation_is_an_absence():
@@ -543,3 +579,28 @@ def test_a_word_given_two_functions_is_not_an_uncertainty():
     # a function that cannot be read stays a doubt, never a certainty
     answer["qualifiers"] = [{"words": "approximately", "does": "hedge?"}]
     assert read_claims(json.dumps(answer), sentence, "middle lobe")["uncertainty"] == ["approximately"]
+
+
+def test_an_uncertainty_of_something_else_is_not_given_to_this_structure():
+    """13 November 2026, ctrate6 47-en-0: the "?" of "Infectious bronchiolitis?" went to the nodule's lobe."""
+    sentence = "Infectious bronchiolitis? A 6 mm nodule was observed in the left lower lobe"
+    answer = {"marked": "left lower lobe", "same": "yes", "qualifiers": [
+        {"words": "Infectious bronchiolitis?", "does": "shield", "about": "Infectious bronchiolitis",
+         "of_it": "no", "level": "possible"}],
+        "observed": [{"words": "A 6 mm nodule", "differs": "yes", "of": "it"}]}
+    got = read_claims(json.dumps(answer), sentence, "left lower lobe")
+    assert got["uncertainty"] == [] and got["uncertain_elsewhere"][0]["about"] == "Infectious bronchiolitis"
+    # an of_it that cannot be read gives the doubt: a doubt is never lost by default
+    answer["qualifiers"][0]["of_it"] = ""
+    assert read_claims(json.dumps(answer), sentence, "left lower lobe")["uncertainty"] == ["Infectious bronchiolitis?"]
+
+
+def test_a_measure_of_what_is_seen_is_never_the_structures():
+    """13 November 2026, ctrate6 735-en-1: the 11 mm of an accessory spleen compared with the spleen's length."""
+    sentence = "An accessory spleen of 11 mm is seen; the spleen measures 120 mm"
+    answer = {"marked": "spleen", "same": "yes", "observed": [{"words": "An accessory spleen", "of": "it"}],
+              "measure": [{"of": "what_is_seen", "words": "11 mm", "reference": "spleen_length", "against": "below"},
+                          {"of": "it", "words": "120 mm", "reference": "spleen_length", "against": "within"}]}
+    got = read_claims(json.dumps(answer), sentence, "spleen")
+    assert got["measure"] == ["120 mm"] and got["measures_of_what_is_seen"] == ["11 mm"]
+    assert [m["words"] for m in got["measure_refs"]] == ["120 mm"]

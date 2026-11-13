@@ -30,7 +30,7 @@ from melampo.memory import reading_memory as rm  # noqa: E402
 
 # the samples labelled with the convention in force (11 November 2026: the uncertainty with its level, as the
 # literature on hedging tells it apart); earlier samples read "consistent with" as certain
-CONVENTION = {"ctrate5": "2026-11-11", "ctrate6": "2026-11-11"}
+CONVENTION = {"ctrate5": "2026-11-11", "ctrate6": "2026-11-11", "ctrate7": "2026-11-13"}
 REMOVED = ROOT / "data/reading/removed.jsonl"
 
 

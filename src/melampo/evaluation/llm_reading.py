@@ -646,7 +646,10 @@ of that kind.
   "consistent with"), "probable" (about 75%, as "suspicious for", "probably"), "possible" (about 50%, as
   "possibly", "may", "?"), "less_likely" (about 25%), "unlikely" (less than 10%), read from the whole sentence
   ("may be consistent with" is not "consistent with"); otherwise "". A question mark applies to what it follows
-  or closes, a parenthesis with "?" to the words in it. A word does one thing: it is written once.
+  or closes, a parenthesis with "?" to the words in it. of_it: for a shield, "yes" if what it shields is said of
+  the linked structure or of what is seen in it, "no" if it is said of something else (another statement of the
+  sentence, a finding of another structure this one only places); otherwise "". A word does one thing: it is
+  written once.
 - observed: everything the sentence says of an aspect of it or of what it contains (its state of filling or
   distension, its content, its wall, size, shape, density, echogenicity, signal, position, a lesion), each compared
   as a radiologist does with how that aspect of this structure is in a healthy person in this exam. A number is
@@ -673,8 +676,10 @@ of that kind.
   "it", "they", "the same", "this" (or "sua", "esso", "stesso"), what they refer to, copied from the sentence or
   from the previous sentence, else "".
 - normal: words saying that it, or something of it, is normal or that something is absent from it.
-- measure: every measure of it, of the structure itself: the size of a lesion in it belongs to that lesion
-  (in observed) and is never compared with the structure's reference. For each: words; reference: the id of the reference value that applies to
+- measure: every measure the sentence gives. For each, first of: "it" if it is a measure of the structure itself
+  (its length, diameter, volume, thickness, density), "what_is_seen" if it is the size of something seen in it (a
+  lesion, a nodule, a cyst, a fluid collection): that belongs to what is seen and is never compared with the
+  structure's reference; then words; reference: the id of the reference value that applies to
   this measure (the same structure, aspect, technique and population), or "" if none applies or none is given;
   against: "below", "within" or "above" the normal range of that reference, or "" without a reference. A measure
   is never compared with a value you remember.
@@ -693,10 +698,10 @@ of that kind.
   from the conclusion), "none" if it does not mention it or no conclusion is given."""
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
                 '"qualifiers": [{"words": "...", "does": "shield|approximation|frequency|visibility|open_nature|'
-                'exam_limit|source|time|attribution", "about": "...", "level": ""}], '
+                'exam_limit|source|time|attribution", "about": "...", "of_it": "yes|no", "level": ""}], '
                 '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", '
                 '"said_to_be": "", "of": "it", "relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
-                '"measure": [{"words": "...", "reference": "", "against": ""}], "past": [], '
+                '"measure": [{"of": "it|what_is_seen", "words": "...", "reference": "", "against": ""}], "past": [], '
                 '"device": [], "not_assessable": [], "indication": [], "procedure": [], "other_person": [], '
                 '"reported": [], '
                 '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
@@ -811,6 +816,16 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
             entries += [e for k in _FORMER_UNCERTAINTY for e in (answer.get(k) or [])]
         for entry in entries:
             words = entry.get("words", "") if isinstance(entry, dict) else str(entry)
+            if key == "measure" and isinstance(entry, dict) and \
+                    str(entry.get("of") or "").strip().lower() in ("what_is_seen", "seen", "finding"):
+                # a measure of what is seen in the structure (13 November 2026, ctrate6 735-en-1: the 11 mm of an
+                # accessory spleen compared with the spleen's length): it belongs to what is seen, never to the
+                # structure's reference values
+                if copied(sentence, words):
+                    out.setdefault("measures_of_what_is_seen", []).append(words)
+                else:
+                    out["dropped"] += 1
+                continue
             if copied(sentence, words):
                 if words in kept:
                     continue
@@ -841,7 +856,14 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
         if does not in QUALIFIER_FUNCTIONS:
             does = "shield"         # a qualifier whose function cannot be read stays a doubt, never a certainty
         out["qualifiers"].append({"words": words, "does": does})
-        if does == "shield" and words not in out["uncertainty"]:
+        if does == "shield" and str(entry.get("of_it") or "").strip().lower() == "no":
+            # an uncertainty of something the sentence says of something else (13 November 2026, ctrate6 47-en-0:
+            # "Infectious bronchiolitis? A 6 mm nodule ..." gave the doubt on the bronchiolitis to the nodule): it
+            # is kept, not given to this structure; an unreadable of_it gives it, a doubt is never lost by default
+            out.setdefault("uncertain_elsewhere", []).append(
+                {"words": words, "about": _copied_from(entry.get("about"), sentence)})
+            out["qualifiers"][-1]["of_it"] = "no"
+        elif does == "shield" and words not in out["uncertainty"]:
             level = str(entry.get("level") or "").strip().lower()
             out["uncertainty"].append(words)
             out["uncertain_about"].append({"words": words, "about": _copied_from(entry.get("about"), sentence),
