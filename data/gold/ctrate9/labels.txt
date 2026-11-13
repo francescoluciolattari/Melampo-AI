@@ -5,9 +5,12 @@
 # cut), the marked mention and the linked class, nothing else.
 # Items: owner-probe workflow (sample_only, owner-probe_32), scripts/owner_probe.py sample --seed 20261115 --n-en
 # 300 --n-it 0 --per-structure 24: 300 items from 148 reports, 30 structures.
-# 300 English items: 212 finding, 35 finding+uncertain, 24 normal, 9 finding+measure, 7 finding+uncertain_high, 4 aside, 2 measure, 1 indication+procedure, 1 history+procedure, 1 finding+device, 1 nothing, 1 indication, 1 involved, 1 procedure; 5 doubtful.
+# 300 English items: 212 finding, 35 finding+uncertain, 24 normal, 9 finding+measure, 7 finding+uncertain_high, 4 aside, 2 measure, 1 indication+procedure, 1 history+procedure, 1 finding+device, 1 nothing, 1 indication, 1 involved, 1 procedure; 7 doubtful (2 made so on the second labeller's disagreement, before any reading).
 # The texts are CT-RATE's (CC BY-NC-SA 4.0) and are not here: only the labels.
 # "?" at the end of the note, after a space: the label is doubtful (out of the criteria).
+# Adjudicated before any reading with the second labeller (mistralai/mistral-large-4-0, from the sentence alone,
+# owner-probe_32: 261 items answered; outcome agreement 95.8%, kappa 0.824; uncertainty 95.8%, kappa 0.708): every
+# disagreement re-read; none changed, two made doubtful; the reason in the note.
 # Format: item|claims|note
 ctrate-train-20627-en-0|finding|four stones of 5 mm
 ctrate-train-20627-en-1|finding|one stone of 4 mm
@@ -36,8 +39,8 @@ ctrate-train-6989-en-1|normal|calibre normal, no significant wall thickening
 ctrate-train-6989-en-2|finding|coarse calcifications
 ctrate-train-6088-en-0|finding|atypical infiltration area of ground glass density
 ctrate-train-957-en-0|normal|calibre normal, no significant wall thickening
-ctrate-train-957-en-1|finding|accessory spleen of 9.5 mm: an abnormality of the spleen in HPO
-ctrate-train-957-en-2|finding|accessory spleen of 9.5 mm
+ctrate-train-957-en-1|finding|accessory spleen of 9.5 mm: an abnormality of the spleen in HPO; kept on the second labeller's disagreement (aside): an accessory spleen is an abnormality of the spleen in HPO (HP:0001747)
+ctrate-train-957-en-2|finding|accessory spleen of 9.5 mm; kept on the second labeller's disagreement (aside): an accessory spleen is an abnormality of the spleen in HPO (HP:0001747)
 ctrate-train-19461-en-0|finding+measure|ectatic, 38 mm
 ctrate-train-19461-en-1|finding|calcified atheroma plaques
 ctrate-train-19461-en-2|normal|calibre normal, no significant wall thickening
@@ -55,10 +58,10 @@ ctrate-train-17518-en-1|finding|mitral valve calcification
 ctrate-train-17518-en-2|finding+measure|45 mm and wider than normal
 ctrate-train-14527-en-0|normal|calibre normal, no significant wall thickening
 ctrate-train-14527-en-1|finding+uncertain|light ground glass densities "primarily evaluated in favor of" atelectatic changes
-ctrate-train-14527-en-2|finding+uncertain|light ground glass densities "primarily evaluated in favor of" atelectatic changes
+ctrate-train-14527-en-2|finding+uncertain|light ground glass densities "primarily evaluated in favor of" atelectatic changes; kept on the second labeller's disagreement (level high): "in favor of" a hypothesis is below the level of "consistent with"
 ctrate-train-22564-en-0|normal|calibre normal, no significant wall thickening
-ctrate-train-22564-en-1|finding+uncertain|space-occupying lesion of 78x56 mm with calcifications (Cyshidatic?)
-ctrate-train-22564-en-2|finding+uncertain|space-occupying lesion of 78x56 mm (Cyshidatic?)
+ctrate-train-22564-en-1|finding+uncertain|space-occupying lesion of 78x56 mm with calcifications (Cyshidatic?); kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
+ctrate-train-22564-en-2|finding+uncertain|space-occupying lesion of 78x56 mm (Cyshidatic?); kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
 ctrate-train-7538-en-0|finding|mild atherosclerotic changes
 ctrate-train-7538-en-1|normal|calibre normal, no significant wall thickening
 ctrate-train-7538-en-2|finding|emphysematous and bronchiectatic changes, most in the right middle lobe
@@ -90,7 +93,7 @@ ctrate-train-14590-en-0|finding|minimal height loss of the superior end plate
 ctrate-train-14590-en-1|finding|minimal height loss
 ctrate-train-13957-en-0|finding|ground-glass appearance
 ctrate-train-13957-en-1|finding+uncertain|ground-glass appearance "primarily evaluated in favor of" viral pneumonia
-ctrate-train-7009-en-0|finding+measure|wider than normal, 38 mm
+ctrate-train-7009-en-0|finding+measure|wider than normal, 38 mm; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6 and ctrate8
 ctrate-train-7009-en-2|finding|cortical cyst of 7 cm
 ctrate-train-7009-en-3|finding|cortical cyst of 1.5 cm
 ctrate-train-8142-en-0|finding|calcified atherosclerotic changes of the wall
@@ -120,12 +123,12 @@ ctrate-train-8685-en-2|finding|hypodense lesion areas; MRI recommended
 ctrate-train-1106-en-0|finding|calcified atherosclerotic changes of the wall
 ctrate-train-1106-en-2|finding|nonspecific ground glass density increase
 ctrate-train-1106-en-3|finding|lobulated contours
-ctrate-train-13029-en-1|finding+uncertain_high|density diffusely decreased "in line with" mild adiposity
+ctrate-train-13029-en-1|finding+uncertain_high|density diffusely decreased "in line with" mild adiposity; kept on the second labeller's disagreement: "in line with" is of level high (Panicek and Hricak), as the convention says
 ctrate-train-17750-en-0|finding|consolidation area of 3 cm
 ctrate-train-17750-en-1|finding|pleural-based nodule of 5 mm
 ctrate-train-1354-en-0|finding+uncertain_high|decrease of density "consistent with" adiposity
 ctrate-train-1354-en-1|finding|hypodense lesion of 43 mm
-ctrate-train-1354-en-2|finding+uncertain|hypodense lesion (cyst?)
+ctrate-train-1354-en-2|finding+uncertain|hypodense lesion (cyst?); kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
 ctrate-train-22050-en-1|finding|nonspecific hypodense lesion of 4 mm at the liver dome, in it
 ctrate-train-22050-en-2|finding|nonspecific hypodense lesion at the liver dome
 ctrate-train-9582-en-0|finding|calculus of 4 mm
@@ -157,9 +160,9 @@ ctrate-train-17505-en-1|finding|nodule of 5.6 mm with pleural thickening
 ctrate-train-17505-en-2|finding|air cyst of 1.5 cm
 ctrate-train-6797-en-4|finding|the largest nodule, 7 mm
 ctrate-train-6797-en-5|finding+uncertain|hypodense nodular lesion of 4 cm (cyst?)
-ctrate-train-6797-en-8|finding+device|cardiomegaly; an aortic valve prosthesis
+ctrate-train-6797-en-8|finding+device|cardiomegaly; an aortic valve prosthesis; kept on the second labeller's disagreement (device only): the impression also states cardiomegaly, a finding of the heart
 ctrate-train-4669-en-1|finding|peribronchial thickening, most prominent here
-ctrate-train-4669-en-2|finding|hyperdense lumen
+ctrate-train-4669-en-2|finding|hyperdense lumen; kept on the second labeller's disagreement (level high): "appears" says how the lumen looks on the image, not how sure the writer is of it
 ctrate-train-4669-en-3|finding|widespread hypodense areas
 ctrate-train-6728-en-1|finding|patchy ground glass densities
 ctrate-train-6728-en-2|finding|patchy ground glass densities
@@ -226,8 +229,8 @@ ctrate-train-4291-en-1|finding|hypodense nodule of 34x30 mm
 ctrate-train-4291-en-2|involved|the trachea compressed to the right by the thyroid nodule
 ctrate-train-7947-en-3|finding|nodule of 5 mm
 ctrate-train-7947-en-4|finding|calcific nodule of 3 mm
-ctrate-train-8638-en-1|finding|focal cystic areas with septal thickening
-ctrate-train-8638-en-2|finding|focal cystic areas with septal thickening
+ctrate-train-8638-en-1|finding|focal cystic areas with septal thickening "posterior to" the right upper lobe and the superior segment of the lower lobe: in their posterior parts, or behind them; made doubtful on the second labeller's disagreement, before any reading ?
+ctrate-train-8638-en-2|finding|focal cystic areas with septal thickening "posterior to" the superior segment of the right lower lobe: in its posterior part, or behind it; made doubtful on the second labeller's disagreement, before any reading ?
 ctrate-train-13914-en-0|finding|nodular consolidation and ground glass
 ctrate-train-18154-en-0|finding|stable nonspecific nodule of 3 mm
 ctrate-train-18154-en-1|finding|ground-glass-like densities "observed in the previous examinations": now too, or only then ?
@@ -248,16 +251,16 @@ ctrate-train-13950-en-0|finding+uncertain_high|decrease of density "compatible w
 ctrate-train-12038-en-4|finding|focal consolidative density with lobulated contours
 ctrate-train-12038-en-5|finding|focal consolidative density
 ctrate-train-1156-en-3|finding|calcification of the mitral and aortic valves
-ctrate-train-11701-en-3|finding+uncertain|punctate calcification (granulomatous disease?)
-ctrate-train-11701-en-5|finding+uncertain|calcifications (granulomatous disease?)
+ctrate-train-11701-en-3|finding+uncertain|punctate calcification (granulomatous disease?); kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
+ctrate-train-11701-en-5|finding+uncertain|calcifications (granulomatous disease?); kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
 ctrate-train-20271-en-0|finding|solid lesion of about 35 mm
-ctrate-train-21141-en-2|finding+measure|larger than normal, AP 166 mm
+ctrate-train-21141-en-2|finding+measure|larger than normal, AP 166 mm; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6 and ctrate8
 ctrate-train-18711-en-1|finding|calcified nodule of 2.5 mm
 ctrate-train-18711-en-2|finding|parenchymal nodule of 5 mm in the lingula
 ctrate-train-4446-en-1|finding|irregular contours and heterogeneous medullary cavity
 ctrate-train-4446-en-3|finding|irregular contours and heterogeneous medullary cavity
 ctrate-train-21044-en-2|finding|nodule of 5 mm
-ctrate-train-21044-en-3|aside|a lipoma "in the posterior dorsal neighborhood of" the scapula: the soft tissue's
+ctrate-train-21044-en-3|aside|a lipoma "in the posterior dorsal neighborhood of" the scapula: the soft tissue's; kept on the second labeller's disagreement (aside with an uncertainty): an aside carries no uncertainty, the "compatible with" is the lipoma's (convention of 13 November)
 ctrate-train-16595-en-0|finding|calcific nodule of 1.5 cm
 ctrate-train-16595-en-3|finding|millimetric calcific nodule
 ctrate-train-21439-en-3|finding|nonspecific nodular thickening of the wall
@@ -270,8 +273,8 @@ ctrate-train-8273-en-3|finding|soft tissue thickening of 1.5 cm
 ctrate-train-15624-en-2|finding|ground-glass opacities with crazy paving
 ctrate-train-15624-en-3|finding+uncertain|exophytic hypodense lesion of 1.5 cm (cyst?)
 ctrate-train-15624-en-4|finding+uncertain|findings that "may be compatible with" Covid-19 or other viral pneumonias
-ctrate-train-13221-en-1|finding|heart size slightly increased
-ctrate-train-13221-en-4|finding|slight increase in heart size
+ctrate-train-13221-en-1|finding|heart size slightly increased; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6 and ctrate8
+ctrate-train-13221-en-4|finding|slight increase in heart size; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6 and ctrate8
 ctrate-train-10220-en-1|finding|mild sequelae changes
 ctrate-train-20919-en-1|finding|stones up to 23 mm
 ctrate-train-16433-en-0|finding|patchy consolidation-nodule
@@ -281,7 +284,7 @@ ctrate-train-6487-en-2|finding+uncertain|parapelvic cyst? local caliectasis? (th
 ctrate-train-5098-en-0|finding+uncertain|low-density nodular thickening of 8.5x8 mm (adenoma?)
 ctrate-train-5098-en-1|finding+uncertain|cortical lesions, the largest 39x35 mm (cyst?)
 ctrate-train-17811-en-2|finding|millimetric hyperdense stones
-ctrate-train-17811-en-4|finding|increased heart size
+ctrate-train-17811-en-4|finding|increased heart size; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6 and ctrate8
 ctrate-train-7683-en-2|finding|sequelae coarse calcification
 ctrate-train-7683-en-4|finding|coarse calcification sequela
 ctrate-train-20396-en-0|finding+uncertain|linear densities, distortion, calcific nodules "evaluated in favor of" pleuroparenchymal sequelae
@@ -291,7 +294,7 @@ ctrate-train-3429-en-5|aside|fluid "in the gallbladder bed" and in the paracolic
 ctrate-train-3429-en-6|aside|a hypodense appearance "between" the tail of the pancreas and the splenic hilum
 ctrate-train-6733-en-1|finding|similar appearance (consolidation, ground glass)
 ctrate-train-6733-en-2|finding|similar appearance in the inferior lingular segment
-ctrate-train-6733-en-4|finding+uncertain|ground glass opacities "evaluated in favor of" pneumonic infiltration
+ctrate-train-6733-en-4|finding+uncertain|ground glass opacities "evaluated in favor of" pneumonic infiltration; kept on the second labeller's disagreement (certain): the "?" or the hypothesis bears on the interpretation of this very finding, in the same sentence
 ctrate-train-18412-en-1|finding|cortical cyst of 1 mm
 ctrate-train-18412-en-2|finding|a few calculi
 ctrate-train-8238-en-0|finding|bronchial wall thickening and secretions of the posterior segment bronchus
@@ -300,7 +303,7 @@ ctrate-train-5392-en-1|finding+uncertain|hypodense appearance that "may be compa
 ctrate-train-895-en-1|procedure|the gallbladder is operated
 ctrate-train-895-en-2|finding|slightly voluminous appearance, partially observed (the exam's limit)
 ctrate-train-22375-en-3|finding|hypodense lesion of 26 mm (cyst), stated without a question
-ctrate-train-20001-en-6|finding|increase in heart size
+ctrate-train-20001-en-6|finding|increase in heart size; kept 13 November 2026 on the second labeller's disagreement (a size only): an enlarged organ is an abnormality of it in HPO (Cardiomegaly, Splenomegaly), as on ctrate6 and ctrate8
 ctrate-train-4704-en-3|finding|two hypodense lesions, the largest 8 mm
 ctrate-train-4704-en-4|finding|soft tissue density of 46x24 mm in the adrenal lodge, new
 ctrate-train-4704-en-5|aside|masses "superior to" the spleen, in the subdiaphragmatic area
