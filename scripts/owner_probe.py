@@ -79,14 +79,21 @@ CTRATE6_SEED = 20261112
 # of what is seen in it; a part is the structure's only if UBERON gives it that part
 CTRATE7_LABELS = ROOT / "data/gold/ctrate7/labels.txt"
 CTRATE7_SEED = 20261113
+# the eighth (13 November 2026), from CT-RATE's training reports (the validation reports left by the first seven
+# hold 8 structures): a negation is a function of its own; the reader reads the normal words where they stand in
+# the sentence; the pair of readers is chosen by its errors, then by its doubts
+CTRATE8_LABELS = ROOT / "data/gold/ctrate8/labels.txt"
+CTRATE8_SEED = 20261114
 SAMPLES = {"fresh": OWNER_LABELS, "statement": STATEMENT_LABELS, "claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS,
            "claims3": CLAIMS3_LABELS, "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
            "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
-           "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS, "ctrate7": CTRATE7_LABELS}
+           "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS, "ctrate7": CTRATE7_LABELS,
+           "ctrate8": CTRATE8_LABELS}
 CLAIMS_FILES = {"claims": CLAIMS_LABELS, "claims2": CLAIMS2_LABELS, "claims3": CLAIMS3_LABELS,
                 "claims4": CLAIMS4_LABELS, "ctrate": CTRATE_LABELS, "ctrate2": CTRATE2_LABELS,
                 "ctrate3": CTRATE3_LABELS, "ctrate4": CTRATE4_LABELS,
-                "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS, "ctrate7": CTRATE7_LABELS}
+                "ctrate5": CTRATE5_LABELS, "ctrate6": CTRATE6_LABELS, "ctrate7": CTRATE7_LABELS,
+                "ctrate8": CTRATE8_LABELS}
 STATEMENT_SEED = 20261102
 CLAIMS_SEED = 20261103
 CLAIMS2_SEED = 20261104

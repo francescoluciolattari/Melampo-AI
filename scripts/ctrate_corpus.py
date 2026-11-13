@@ -34,7 +34,7 @@ def columns(header: list[str]) -> dict[str, str]:
     return found
 
 
-def convert(rows: list[dict], header: list[str]) -> list[dict]:
+def convert(rows: list[dict], header: list[str], prefix: str = "ctrate") -> list[dict]:
     cols = columns(header)
     if "finding" not in cols:
         raise SystemExit(f"no findings column among {header}")
@@ -52,7 +52,7 @@ def convert(rows: list[dict], header: list[str]) -> list[dict]:
             continue                    # another reconstruction of the same scan
         seen.add(report)
         volume = str(r.get(name, ""))
-        out.append({"no": f"ctrate-{len(out) + 1}", "language": "English", "modality": "CT", "area": "chest",
+        out.append({"no": f"{prefix}-{len(out) + 1}", "language": "English", "modality": "CT", "area": "chest",
                     "report": report, "translation": report, "source": "CT-RATE", "volume": volume,
                     "patient": re.sub(r"_[a-z]_\d+\.nii(\.gz)?$", "", volume)})
     return out
@@ -62,12 +62,14 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--csv", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--prefix", default="ctrate", help="the reports' ids: ctrate-N (validation), ctrate-train-N "
+                    "(training reports, from 13 November 2026)")
     a = ap.parse_args(argv)
     with open(a.csv, encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
         rows = list(reader)
         header = reader.fieldnames or []
-    out = convert(rows, header)
+    out = convert(rows, header, a.prefix)
     Path(a.out).write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in out) + "\n", "utf-8")
     print(f"{len(out)} reports from {len(rows)} rows ({', '.join(columns(header).values())}) -> {a.out}")
     return 0

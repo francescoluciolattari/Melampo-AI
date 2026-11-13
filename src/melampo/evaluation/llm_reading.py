@@ -598,14 +598,16 @@ def read_statement(text: str, sentence: str) -> dict:
 # of their own (approximately, about, occasionally, can hardly be distinguished), and to 7 more with words it also
 # put where they belong; in one answer it wrote, after the lists, that "about" is an approximator, not a hedge. The
 # answer said what a word does only at its end, after placing it. Now every word that qualifies what the sentence
-# says comes first, with what it does, and only a shield is an uncertainty.
+# says comes first, with what it does, and only a shield is an uncertainty. On ctrate7 (owner-probe_29) one model
+# gave the "no" of 20 normal sentences as a shield of level "unlikely": negation had no function of its own; it has
+# one now (BioScope annotates negation and speculation as two categories, Vincze et al. 2008).
 CLAIM_LISTS = ("observed", "normal", "measure", "past", "uncertainty", "device", "not_assessable",
                "indication", "procedure", "other_person", "reported", "undetermined", "limits")
 UNCERTAINTY_LEVELS = ("high", "probable", "possible", "less_likely", "unlikely")
 # what a word that qualifies what a sentence says does (13 November 2026): the hedges of Prince, Frader and Bosk
 # (1982) and of Hyland (1996), the speculation of BioScope, and what is not a hedge but was read as one (ctrate4-6)
-QUALIFIER_FUNCTIONS = ("shield", "approximation", "frequency", "visibility", "open_nature", "exam_limit", "source",
-                       "time", "attribution")
+QUALIFIER_FUNCTIONS = ("shield", "negation", "approximation", "frequency", "visibility", "open_nature",
+                       "exam_limit", "source", "time", "attribution")
 _PLACED_AS = {"open_nature": "undetermined", "exam_limit": "limits"}
 # the lists of the questions before 10 November 2026, read into "uncertainty" (stored answers, replays)
 _FORMER_UNCERTAINTY = ("certainty", "alternatives")
@@ -631,6 +633,9 @@ of that kind.
     "about", "ground-glass-like", "tends to"): it changes what is said, not the commitment to it;
   * frequency: how often or in how many places it is seen ("occasionally", "in places", "scattered");
   * visibility: how well what is seen stands out from what is around it ("can hardly be distinguished");
+  * negation: it says something is absent or not so ("no", "not", "without", "absent", "free of"): what
+    it negates is stated as absent, with certainty; a negation is never a shield, and "no significant" says
+    that nothing of note is there;
   * open_nature: what is seen is not identified ("nonspecific", "uncharacterized", "cannot be characterized"):
     it is seen, its nature is open, nothing is doubted;
   * exam_limit: how far the exam could see, or what limited it ("as far as can be observed", "within the
@@ -697,8 +702,8 @@ of that kind.
   of this structure, "other" if it gives it to another structure (then conclusion_of: that structure, copied
   from the conclusion), "none" if it does not mention it or no conclusion is given."""
 CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
-                '"qualifiers": [{"words": "...", "does": "shield|approximation|frequency|visibility|open_nature|'
-                'exam_limit|source|time|attribution", "about": "...", "of_it": "yes|no", "level": ""}], '
+                '"qualifiers": [{"words": "...", "does": "shield|negation|approximation|frequency|visibility|'
+                'open_nature|exam_limit|source|time|attribution", "about": "...", "of_it": "yes|no", "level": ""}], '
                 '"observed": [{"words": "...", "aspect": "...", "usual": "...", "differs": "yes|no|unsure", '
                 '"said_to_be": "", "of": "it", "relation": "", "reaches": "no", "refers_to": ""}], "normal": [], '
                 '"measure": [{"of": "it|what_is_seen", "words": "...", "reference": "", "against": ""}], "past": [], '

@@ -230,6 +230,18 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   errori da 1 a 8 insieme; a parità, meno errori del criterio 1, poi il costo minore. Ogni errore si legge per la sua
   causa, per categoria, prima di scrivere la scelta. Se nessuna coppia passa, la lettura per affermazioni resta
   spenta.
+- **CT-RATE, ottavo campione** (`ctrate8`, 13 novembre 2026): 300 item, seed 20261114, dai referti di training
+  di CT-RATE (id `ctrate-train-N`; i referti di validazione lasciati dai primi sette hanno solo 8 strutture),
+  etichettati prima di ogni lettura con la convenzione del 13 novembre. Da `ctrate7` (owner-probe_29: Gemma con
+  Muse 0 errori e 24 dubbi, Nemotron con ragionamento e Muse 0 errori veri e 10 dubbi): la negazione è una
+  funzione propria fra le parole che qualificano; il lettore legge le parole normali di un modello dove stanno
+  nella frase («tumoral wall thickening» copiato da «no significant tumoral wall thickening» è sotto la sua
+  negazione). Lettori: Gemma 4 31B, Nemotron 3 Ultra con ragionamento, Muse Spark Open con ragionamento, in un
+  solo run; ogni coppia misurata sulle stesse risposte (`--replay`). Regola fissata prima (Frank, 13 novembre
+  2026: si pesano anche i dubbi): conta solo una coppia che supera tutti i criteri (1 al massimo l'1%, da 2 a 8
+  sotto il 2%); fra queste, meno errori da 1 a 8, senza contare come errore del criterio 1 una struttura che
+  colloca a cui non si attacca nulla; poi meno dubbi; poi il costo minore. L'incertezza di ogni coppia si legge
+  come su `ctrate6`.
 - **Misura del router** (`scripts/router_probe.py`, workflow `router-probe`, 8 novembre 2026): il modello locale
   aiuta l'orchestratore a dire i tipi di un testo? Testi pubblici di tipo noto: MTSamples (6 per specialità,
   inglese) e PARROT (20 italiani, 10 di altre lingue), seed 20261108, etichettati (`data/gold/router/labels.txt`)

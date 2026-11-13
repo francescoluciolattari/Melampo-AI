@@ -223,6 +223,17 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   used is the one that passes every criterion (1 at most 1%, 2 to 8 under 2%) with the fewest errors of 1 to 8
   together; on a tie, fewer of criterion 1, then the lower cost. Every error is read for its cause, by category, before the
   choice is written. If no pair passes, the claims reading stays off.
+- **CT-RATE, eighth sample** (`ctrate8`, 13 November 2026): 300 items, seed 20261114, from CT-RATE's training
+  reports (ids `ctrate-train-N`; the validation reports left by the first seven hold only 8 structures), labelled
+  before any reading with the convention of 13 November. Since `ctrate7` (owner-probe_29, where Gemma with Muse
+  had 0 errors and 24 doubts, Nemotron with reasoning and Muse 0 real errors and 10 doubts): a negation is a
+  function of its own among the qualifying words; the reader reads the normal words a model gives where they
+  stand in the sentence ("tumoral wall thickening" copied out of "no significant tumoral wall thickening" is under
+  its negation). Readers: Gemma 4 31B, Nemotron 3 Ultra with reasoning, Muse Spark Open with reasoning, on one
+  run; every pair measured on the same answers (`--replay`). Rule fixed before (Frank, 13 November 2026: the
+  doubts are weighed too): a pair counts only if it passes every criterion (1 at most 1%, 2 to 8 under 2%); among
+  those, the fewest errors of 1 to 8, an aside with nothing attached to it not counted as an error of criterion
+  1; then the fewest doubts; then the lower cost. The uncertainty of each pair is read as on `ctrate6`.
 - **Router probe** (`scripts/router_probe.py`, workflow `router-probe`, 8 November 2026): does the local model
   help the report router say the kinds of a text? Public texts of known kinds: MTSamples (6 per specialty,
   English) and PARROT (20 Italian, 10 other languages), seed 20261108, labelled (`data/gold/router/labels.txt`)
