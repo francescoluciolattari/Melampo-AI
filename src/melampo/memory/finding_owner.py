@@ -1109,14 +1109,16 @@ class FindingOwner:
                        mention: str, answers: list[dict] | None = None) -> str:
         """Does what the reader knows contradict the claims? The reason, or "". It never decides a claim: a
         contradiction sends the sentence to a person."""
-        from .what_is_said import past, stated_anomalies
+        from .what_is_said import past, stated_anomalies, stated_anomalies_where
 
         sites = self.anomalies.sites_of(cid) if self.anomalies else set()
         for w in claims.get("normal", []):
             # what the models compared with the usual and found the same, or call normal, while the reader knows
             # the words as a deviation of this tissue (HPO, PATO): the two readings do not correspond (4 November
-            # 2026). The reader knows fewer deviations than a radiologist, so it never confirms a finding alone
-            if stated_anomalies(w, language, self.anomalies, sites):
+            # 2026). The reader knows fewer deviations than a radiologist, so it never confirms a finding alone.
+            # The words are read where they stand in the sentence (13 November 2026): "tumoral wall thickening",
+            # copied out of "no significant tumoral wall thickening was detected", is under its negation there
+            if stated_anomalies_where(text, w, language, self.anomalies, sites):
                 return "the_normal_words_state_an_abnormality"
         if outcome == FINDING:
             findings = claims.get("findings", [])
@@ -1152,7 +1154,7 @@ class FindingOwner:
         # only other claims: the reader looks for an abnormality they state
         for key in ("normal", "measure"):
             for w in claims.get(key, []):
-                if stated_anomalies(w, language, self.anomalies, sites):
+                if stated_anomalies_where(text, w, language, self.anomalies, sites):
                     return f"the_{key}_words_state_an_abnormality"
         return ""
 

@@ -604,3 +604,27 @@ def test_a_measure_of_what_is_seen_is_never_the_structures():
     got = read_claims(json.dumps(answer), sentence, "spleen")
     assert got["measure"] == ["120 mm"] and got["measures_of_what_is_seen"] == ["11 mm"]
     assert [m["words"] for m in got["measure_refs"]] == ["120 mm"]
+
+
+def test_a_negation_is_its_own_function_never_a_shield():
+    """13 November 2026, ctrate7: the "no" of "no significant wall thickening" was given as a shield."""
+    sentence = "Thoracic esophagus calibration was normal and no significant wall thickening was detected"
+    answer = {"marked": "esophagus", "same": "yes", "qualifiers": [{"words": "no", "does": "negation"},
+                                                                   {"words": "significant", "does": "approximation"}],
+              "normal": ["calibration was normal", "no significant wall thickening was detected"]}
+    got = read_claims(json.dumps(answer), sentence, "esophagus")
+    assert got["uncertainty"] == [] and [q["does"] for q in got["qualifiers"]] == ["negation", "approximation"]
+
+
+def test_normal_words_are_read_where_they_stand_in_the_sentence():
+    """13 November 2026, ctrate7: a model copied "tumoral wall thickening" out of "no significant tumoral wall
+    thickening was detected" among the normal words; read alone it states an abnormality, in the sentence its
+    absence. The reader reads it in the sentence; affirmed, it still states the abnormality."""
+    from melampo.memory.what_is_said import AnomalyWords, stated_anomalies_where
+
+    words = AnomalyWords(qualities={"thicken": {"*"}})
+    negated = "Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected"
+    affirmed = "Thoracic esophagus calibration was normal and tumoral wall thickening was detected"
+    assert stated_anomalies_where(negated, "tumoral wall thickening", "en", words) == []
+    assert stated_anomalies_where(affirmed, "tumoral wall thickening", "en", words) == ["thickening"]
+    assert stated_anomalies_where(negated, "irregular thickening", "en", words) == ["thickening"]

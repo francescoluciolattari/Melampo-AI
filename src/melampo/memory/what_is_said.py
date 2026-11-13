@@ -222,6 +222,46 @@ def phrases(text: str, language: str = "en") -> list[list[tuple[str, int, int]]]
     return out
 
 
+def stated_anomalies_where(text: str, words_said: str, language: str = "en", words: AnomalyWords | None = None,
+                           sites: set[str] | None = None) -> list[str]:
+    """The abnormalities ``words_said`` state, read where they stand in ``text`` (13 November 2026): a model that
+    copies "tumoral wall thickening" out of "no significant tumoral wall thickening was detected" copies words a
+    negation governs in the sentence; read alone they state an abnormality, read in the sentence they state its
+    absence. The words are found in the sentence (pieces joined by "..." each in turn, in order); words that
+    cannot be found are read alone, as before."""
+    lowered = text.lower()
+    spans, at = [], 0
+    for piece in [p.strip() for p in str(words_said).split("...") if p.strip()]:
+        i = lowered.find(piece.lower(), at)
+        if i < 0:
+            return stated_anomalies(words_said, language, words, sites)
+        spans.append((i, i + len(piece)))
+        at = i + len(piece)
+    if not spans:
+        return []
+    affirmed = _stated_anomaly_spans(text, language, words, sites)
+    return [w for w, s, e in affirmed if any(a <= s and e <= b for a, b in spans)]
+
+
+def _stated_anomaly_spans(text: str, language: str = "en", words: AnomalyWords | None = None,
+                          sites: set[str] | None = None) -> list[tuple[str, int, int]]:
+    from .assertion import POLARITY_NEGATED, AssertionDetector, select_cues
+
+    words = words or AnomalyWords()
+    head_last = language != "it"
+    detector = AssertionDetector(cues=select_cues(language if language in ("en", "it") else "en"))
+    found: list[tuple[str, int, int]] = []
+    for phrase in phrases(text, language):
+        head = phrase[-1] if head_last else phrase[0]
+        for w, s, e in phrase:
+            st = stem(w)
+            at = words.qualities.get(st)
+            quality = at is not None and (not sites or "*" in at or bool(at & sites))
+            if quality or (st in words.entities and (w, s, e) == head) or _radiological(w, language):
+                found.append((w, s, e))
+    return [(w, s, e) for w, s, e in found if detector.detect(text, s, e).polarity != POLARITY_NEGATED]
+
+
 def stated_anomalies(text: str, language: str = "en", words: AnomalyWords | None = None,
                      sites: set[str] | None = None) -> list[str]:
     """The words of ``text`` that state an abnormality, affirmed: a quality anywhere in its phrase when HPO uses
