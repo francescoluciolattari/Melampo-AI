@@ -215,11 +215,13 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   of" a part of the same structure is in it; "considered to be compatible with" is of level high). The question:
   every qualifying word with what it does before it is placed; a measure says whether it is of the structure or of
   what is seen in it; a part is the structure's only if UBERON gives it that part. Readers: Gemma 4 31B, Nemotron
-  3 Ultra without and with reasoning, Muse Spark Open with reasoning, on one run. Rule fixed before: each pair
-  (Gemma with each of the other three) is measured by replaying the run's own answers with that pair only; for each pair the
-  reading of the uncertainty is chosen as on `ctrate6` (each model, or the pair's union); the second reader is the
-  one whose pair passes every criterion (1 at most 1%, 2 to 8 under 2%) with the fewest errors of 1 to 8 together;
-  on a tie, fewer of criterion 1, then the lower cost. Every error is read for its cause, by category, before the
+  3 Ultra without and with reasoning, Muse Spark Open with reasoning, on one run. Rule fixed before (Frank, 13 November
+  2026: the best pair of the three models, any two of them): every pair of two different models (Gemma with
+  Nemotron, with Nemotron reasoning, with Muse; Nemotron, without or with reasoning, with Muse) is measured by
+  replaying the run's own answers with that pair only (`owner_probe.py --replay`, in the same workflow run); for
+  each pair the reading of the uncertainty is chosen as on `ctrate6` (each of its models, or their union); the pair
+  used is the one that passes every criterion (1 at most 1%, 2 to 8 under 2%) with the fewest errors of 1 to 8
+  together; on a tie, fewer of criterion 1, then the lower cost. Every error is read for its cause, by category, before the
   choice is written. If no pair passes, the claims reading stays off.
 - **Router probe** (`scripts/router_probe.py`, workflow `router-probe`, 8 November 2026): does the local model
   help the report router say the kinds of a text? Public texts of known kinds: MTSamples (6 per specialty,

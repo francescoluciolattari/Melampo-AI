@@ -112,8 +112,11 @@ def cmd_label(args: argparse.Namespace) -> int:
     # retries a question that hung held its thread up to 18 minutes, and the run spent 3 h 30 on 161 of 265 items.
     # What it costs (12 November 2026): 63 empty and 16 cut answers in one run, each asked again three times in
     # each of four passes with 1500 tokens: the model spent the tokens before answering, and the credit went. The
-    # answer is under 100 tokens: 400 are enough, an empty reply is not asked again by the call, and an answer
-    # that cannot be read is never kept in the cache (it was, and it came back from the cache at every pass).
+    # answer is under 100 tokens, but the model reasons before it, unseen: with 400 tokens ctrate7 had 180 empty
+    # replies of 180 (13 November 2026). 3000 leave room for its reasoning; what bounds the cost is that an empty
+    # reply is not asked again by the call, two passes at most, and a pass that answers almost nothing ends them
+    # (at most 2 x 3000 tokens an item). An answer that cannot be read is never kept in the cache (it was, and it
+    # came back from the cache at every pass).
     raw = lb.OpenRouterChat(args.model, key, endpoint=args.endpoint, max_tokens=args.max_tokens,
                             timeout=args.timeout, retries=args.retries, min_interval=0.2, empty_retries=0)
     cache = Cache(Path(args.cache))
@@ -249,9 +252,9 @@ def main(argv: list[str]) -> int:
     a.add_argument("--endpoint", default="http://localhost:8000/v1/chat/completions")
     a.add_argument("--public-data", action="store_true")
     a.add_argument("--cache", default="second_labeller_answers.jsonl")
-    a.add_argument("--max-tokens", type=int, default=400)
+    a.add_argument("--max-tokens", type=int, default=3000)
     a.add_argument("--workers", type=int, default=8, help="questions asked at the same time")
-    a.add_argument("--passes", type=int, default=3, help="passes over the items still without an answer")
+    a.add_argument("--passes", type=int, default=2, help="passes over the items still without an answer")
     a.add_argument("--pause", type=float, default=60.0, help="seconds between two passes")
     a.add_argument("--timeout", type=float, default=60.0, help="seconds to wait for one answer")
     a.add_argument("--retries", type=int, default=2)
