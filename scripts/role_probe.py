@@ -230,11 +230,33 @@ def make_chats(models: list[str], endpoint: str, cache: Cache, max_tokens: int,
         # the checkpoint it was started with, and the run records which one was asked for.
         provider = {"quantizations": [q], "allow_fallbacks": False} if (router and q) else None
         name = (f"{m}@{q}" if q else m) + ("+reasoning" if reasoning else "")
-        chats[name] = cache.wrap(name, lb.OpenRouterChat(m, key, endpoint=endpoint,
-                                                         max_tokens=max(max_tokens, 8000) if reasoning else max_tokens,
-                                                         timeout=180.0, retries=4, min_interval=0.2,
-                                                         provider=provider, reasoning=reasoning))
+        RAW[name] = lb.OpenRouterChat(m, key, endpoint=endpoint,
+                                      max_tokens=max(max_tokens, 8000) if reasoning else max_tokens,
+                                      timeout=180.0, retries=4, min_interval=0.2, provider=provider,
+                                      reasoning=reasoning,
+                                      # an empty reply of a model that reasons is its budget spent before the
+                                      # answer: asked again the same, it is paid again and empty again
+                                      empty_retries=0 if reasoning else 2)
+        chats[name] = cache.wrap(name, RAW[name])
     return chats
+
+
+# the chats themselves, by name, for what their calls cost (14 November 2026)
+RAW: dict = {}
+
+
+def remaining_credit(key: str) -> float | None:
+    """What is left of the OpenRouter credit (GET /api/v1/credits), or None when it cannot be read."""
+    import urllib.request
+
+    try:
+        request = urllib.request.Request("https://openrouter.ai/api/v1/credits",
+                                          headers={"Authorization": f"Bearer {key}"})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            data = json.loads(response.read().decode("utf-8")).get("data") or {}
+        return float(data["total_credits"]) - float(data["total_usage"])
+    except Exception:  # noqa: BLE001 - a credit that cannot be read is said, never guessed
+        return None
 
 
 def probe_models(chats: dict) -> None:
