@@ -721,12 +721,28 @@ CLAIM_SCHEMA = ('{"marked": "...", "same": "yes|no|unsure", "named": "", '
                 '"conclusion": "same|other|none", "conclusion_of": "", "why": "<one sentence>"}')
 _ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)\s*")
 
+# The concept of what is seen, in the same reading (14 November 2026): the step "from the finding to the HPO term"
+# read the sentence a second time; now the readers that already read it choose, for each thing seen, the term of
+# the Human Phenotype Ontology that names it, among the terms of the structure (letters, never a code), and a
+# deterministic check keeps only what the words state. The words stay: the term is added to them, never instead.
+CONCEPT_LETTERS = "ABCDEFGHIJKLMNOPQRST"
+CONCEPT_STEP = """- concept: in each entry of observed, the letter of the term below that names what its words state,
+  the most specific one the words themselves state and never more specific than written (a doubt, a hypothesis,
+  what it "is said to be", is not stated: "a hypodense lesion (cyst?)" states a lesion); "none" if no term fits.
+  The term is added to the words; it never replaces them."""
+
+
+def concept_options(concepts) -> str:
+    return "\n".join(f"{CONCEPT_LETTERS[i]}. {name}" for i, (_, name) in enumerate(concepts[:len(CONCEPT_LETTERS)]))
+
 
 def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_names: list[str] | None = None,
                   exam: str = "", section: str = "", language: str = "", references: list[str] | None = None,
                   passages: list[str] | None = None, section_kind: str = "", conclusion: str = "",
-                  previous: str = "", manual: str = "", examples: list[str] | None = None) -> str:
-    """The question "what does the sentence state of the linked structure?", claim by claim. ``references``:
+                  previous: str = "", manual: str = "", examples: list[str] | None = None,
+                  concepts: list[tuple[str, str]] | None = None) -> str:
+    """The question "what does the sentence state of the linked structure?", claim by claim. ``concepts``: the
+    HPO terms of the structure, (id, name), offered by letter for what is observed (14 November 2026). ``references``:
     the reference values that apply (``reference_values.Row.line``); ``passages``: paragraphs of their sources;
     ``manual``: what the sources say of reading a sentence (``reading_memory``, 11 November 2026); ``examples``:
     the most similar sentences already read and verified."""
@@ -759,8 +775,15 @@ def claims_prompt(sentence: str, start: int, end: int, linked: str, *, linked_na
     if examples:
         parts.append("Sentences already read and verified, the most like this one (how to read, not what to copy: "
                      "this sentence decides):\n" + "\n".join(examples))
-    parts.append(CLAIM_STEPS)
-    parts.append("Answer with JSON only, no other text:\n" + CLAIM_SCHEMA)
+    if concepts:
+        parts.append("Terms of the Human Phenotype Ontology for this structure (for the concept of what is "
+                     "observed):\n" + concept_options(concepts))
+        parts.append(CLAIM_STEPS + "\n" + CONCEPT_STEP)
+        parts.append("Answer with JSON only, no other text:\n"
+                     + CLAIM_SCHEMA.replace('"said_to_be": "", ', '"said_to_be": "", "concept": "<letter>|none", '))
+    else:
+        parts.append(CLAIM_STEPS)
+        parts.append("Answer with JSON only, no other text:\n" + CLAIM_SCHEMA)
     return "\n\n".join(parts)
 
 
@@ -780,7 +803,8 @@ def copied(sentence: str, words: str) -> bool:
     return True
 
 
-def read_claims(text: str, sentence: str, mention: str, previous: str = "", conclusion: str = "") -> dict:
+def read_claims(text: str, sentence: str, mention: str, previous: str = "", conclusion: str = "",
+                concepts: list[tuple[str, str]] | None = None) -> dict:
     """The answer of ``claims_prompt``, checked against the sentence: entries whose words are not in it are
     dropped (``dropped`` counts them); an answer about other words than the marked ones is not valid. What a
     pronoun refers to must be copied from the sentence or the ``previous`` one, what the ``conclusion`` gives the
@@ -820,6 +844,10 @@ def read_claims(text: str, sentence: str, mention: str, previous: str = "", conc
                          "aspect": str(entry.get("aspect") or ""), "usual": str(entry.get("usual") or ""),
                          "said_to_be": _copied_from(entry.get("said_to_be"), sentence),
                          "refers_to": _copied_from(entry.get("refers_to"), sentence, previous)})
+        if concepts:
+            letter = str(entry.get("concept") or "").strip().upper()[:1]
+            at = CONCEPT_LETTERS.find(letter) if letter else -1
+            observed[-1]["concept"] = concepts[at][0] if 0 <= at < min(len(concepts), len(CONCEPT_LETTERS)) else ""
     out["observed"] = observed
     out["measure_refs"] = []
     out["uncertain_about"] = []

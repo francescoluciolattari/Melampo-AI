@@ -119,6 +119,9 @@ def interpret_exam(patient: str, study: str, study_date: str, modality: str, rep
                                        "against": ref["against"], "clause": clause, "report": report_id})
             claimed = owner.claims.get("findings", [])
             measures = owner.claims.get("measure", [])
+            if getattr(owner, "concept", None):
+                # the HPO term of what is seen, beside its words (14 November 2026): the words stay the finding
+                qd = {**qd, "concept": dict(owner.concept)}
             if claimed:
                 words = [o["words"] for o in claimed]
                 clause, sizes = " … ".join(words), sizes_in_text(" ".join(words + measures))
