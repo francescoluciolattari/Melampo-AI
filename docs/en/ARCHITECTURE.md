@@ -118,6 +118,18 @@ clause on minors concerns the user of the model: a person using Melampo must not
 | Italian procedures and diagnoses | CIPI, ICD-9-CM (weekly update) | `data/classifications_it/` |
 | Finding | report, clause, mention, structure, statement, qualifiers (certainty, polarity, time), sizes, image side | `imaging/findings.py` |
 | Result | `DiagnosticResult`: differential, support and contradictions, abstention, audit trace | `reasoning/diagnostic_result.py` |
+| Graph of the case | branches (drugs, exams, present / hypothesized / candidate diseases); facts, knowledge and inference kept apart; four states of a manifestation (present, absent, not assessed, doubtful); exchanged as GA4GH Phenopacket v2; stored in FalkorDB | `clinical/case_graph.py`, `clinical/phenopacket.py`, `memory/case_graph_store.py` |
+
+### The graph of the case (14 November 2026)
+
+Ingestion builds the graph of every case from what is already read (`clinical/case_graph_builder.from_ingestion`):
+the findings of the reports with their words and offsets, the laboratory rows with their printed line and LOINC
+code, the declared drugs and diseases. The candidate branch is empty when the case enters: only the diagnostic
+path adds to it (`CaseGraph.add_candidate`), each candidate with what proposed it. `clinical/manifestation_state`
+gives each manifestation of a disease its state in the patient: absent when stated, measured within range, or
+silent in an exam that studies its region; not assessed otherwise. `reasoning/likelihood_ranking` weighs present
+and absent manifestations as likelihood ratios (LIRICAL's method), absences included. The result carries only the
+counts (`case_graph`); the graph stays with the case.
 
 ## 5. Data boundaries
 

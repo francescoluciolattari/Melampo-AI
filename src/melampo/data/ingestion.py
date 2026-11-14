@@ -178,6 +178,18 @@ class ClinicalIngestionPipeline:
             provenance["lab_phenotypes"] = payload["lab_phenotypes"]
         if self.read_reports:
             provenance["report_reading"] = self._read_reports(payload, bundle)
+        # the graph of the case (14 November 2026, "Il grafo del caso"): the same reading, the laboratory rows and
+        # the declared drugs and diseases in their branches, words kept; it stays with the case, on this machine
+        try:
+            from ..clinical.case_graph_builder import from_ingestion
+
+            note = str(payload.get(PHYSICIAN_NOTE_KEY, payload.get("report_text", "")) or "")
+            graph, graph_notes = from_ingestion(str(payload["case_id"]), note, bundle,
+                                                provenance.get("report_reading") or {}, dict(payload))
+            provenance["case_graph"] = graph.as_dict()
+            provenance["case_graph_summary"] = {**graph.summary(), "notes": graph_notes}
+        except Exception as error:  # noqa: BLE001 -- the case is still ingested
+            provenance["case_graph_summary"] = {"status": f"not_built:{type(error).__name__}:{error}"[:300]}
         return CaseContext(
             case_id=str(payload["case_id"]),
             patient_id=str(payload["patient_id"])

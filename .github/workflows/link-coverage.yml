@@ -18,11 +18,12 @@ jobs:
         run: |
           curl -sSL --fail -o mondo.obo https://purl.obolibrary.org/obo/mondo.obo
           curl -sSL --fail -o doid.obo https://purl.obolibrary.org/obo/doid.obo
+          curl -sSL --fail -o doid.owl https://purl.obolibrary.org/obo/doid.owl
       - name: Count
         env:
           UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
         run: |
-          python3 scripts/link_coverage.py --mondo mondo.obo --doid doid.obo --out link_coverage.json \
+          python3 scripts/link_coverage.py --mondo mondo.obo --doid doid.obo --doid-owl doid.owl --out link_coverage.json \
             | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()

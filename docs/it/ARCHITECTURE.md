@@ -120,6 +120,18 @@ essere minorenne.
 | Procedure e diagnosi italiane | CIPI, ICD-9-CM (aggiornamento settimanale) | `data/classifications_it/` |
 | Reperto | referto, frase, menzione, struttura, affermazione, qualificatori (certezza, polarità, tempo), misure, lato immagine | `imaging/findings.py` |
 | Risultato | `DiagnosticResult`: differenziale, prove a favore e contro, astensione, traccia di audit | `reasoning/diagnostic_result.py` |
+| Grafo del caso | rami (farmaci, esami, patologie presenti / ipotizzate / candidate); fatti, conoscenza e inferenza separati; quattro stati di una manifestazione (presente, assente, non valutato, dubbio); scambio in GA4GH Phenopacket v2; memorizzato in FalkorDB | `clinical/case_graph.py`, `clinical/phenopacket.py`, `memory/case_graph_store.py` |
+
+### Il grafo del caso (14 novembre 2026)
+
+L'ingestione costruisce il grafo di ogni caso da ciò che è già letto (`clinical/case_graph_builder.from_ingestion`):
+i reperti dei referti con le parole e le posizioni, le righe di laboratorio con la riga stampata e il codice LOINC,
+i farmaci e le patologie dichiarati. Il ramo delle candidate è vuoto all'ingresso: solo il percorso diagnostico lo
+popola (`CaseGraph.add_candidate`), ogni candidata con ciò che l'ha proposta. `clinical/manifestation_state` dà a
+ogni manifestazione di una patologia il suo stato nel paziente: assente se detto, misurato nei limiti, o taciuto da
+un esame che ne studia la regione; altrimenti non valutato. `reasoning/likelihood_ranking` pesa le manifestazioni
+presenti e assenti come rapporti di verosimiglianza (il metodo di LIRICAL), assenze comprese. Il risultato porta solo
+i conteggi (`case_graph`); il grafo resta con il caso.
 
 ## 5. Confini dei dati
 
