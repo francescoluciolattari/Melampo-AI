@@ -90,6 +90,19 @@ class BenchCase:
     case_id: str
     documents: tuple[EnvironmentDocument, ...]
     question: str
+    # what a right answer must say (14 November 2026): each group is a regular expression, and the answer must
+    # match every group (case-insensitive); ``forbidden`` a right answer never says. Written with the case, before
+    # any run reads it. Without groups the case is not graded (as every case was before)
+    expected: tuple[str, ...] = ()
+    forbidden: tuple[str, ...] = ()
+
+    def graded(self) -> bool:
+        return bool(self.expected)
+
+    def is_right(self, answer: str | None) -> bool:
+        text = (answer or "").lower()
+        return (bool(text) and all(re.search(g, text) for g in self.expected)
+                and not any(re.search(f, text) for f in self.forbidden))
 
 
 @dataclass
@@ -131,6 +144,14 @@ class ModelResult:
     # early because its own recent behaviour already answered the question."
     abandoned_for_latency: bool = False
     cases_skipped_for_latency: int = 0
+    # the answers, graded (14 November 2026): completing a case was never the same as answering it
+    graded_runs: int = 0
+    correct_runs: int = 0
+    wrong_answers: list[dict[str, str]] = field(default_factory=list)
+
+    @property
+    def correct_rate(self) -> float | None:
+        return self.correct_runs / self.graded_runs if self.graded_runs else None
 
     @property
     def adherence(self) -> float:
@@ -238,6 +259,10 @@ class ModelResult:
             else round(self.max_case_seconds, 1),
             "abandoned_for_latency": self.abandoned_for_latency,
             "cases_skipped_for_latency": self.cases_skipped_for_latency,
+            "graded_runs": self.graded_runs,
+            "correct_runs": self.correct_runs,
+            "correct_rate": None if self.correct_rate is None else round(self.correct_rate, 4),
+            "wrong_answers": self.wrong_answers[:30],
         }
 
 
@@ -253,6 +278,7 @@ class BenchReport:
         return sorted(
             self.results,
             key=lambda item: (
+                -(item.correct_rate or 0.0),
                 -item.adherence,
                 -item.completion_rate,
                 item.mean_case_seconds
@@ -320,6 +346,8 @@ def rank_result_dicts(results: Sequence[dict[str, Any]]) -> list[dict[str, Any]]
     return sorted(
         results,
         key=lambda item: (
+            # the right answers decide first (14 November 2026); results without grading tie here
+            -(item.get("correct_rate") or 0.0),
             -item["adherence"],
             -item["completion_rate"],
             _tiebreak_seconds(item),
@@ -342,6 +370,13 @@ def compute_verdict(
         return "no models benched"
     ranked = rank_result_dicts(results)
     best = ranked[0]
+    if best.get("correct_rate") is not None:
+        right = [f"{item['model_name']} {item['correct_rate']:.0%}" for item in ranked
+                 if item.get("correct_rate") is not None]
+        lead = (f"answers right (graded cases): {', '.join(right)}; "
+                f"{best['model_name']} leads with {best['correct_rate']:.0%} right, "
+                f"{best['completion_rate']:.0%} completed, {best['adherence']:.0%} adherence")
+        return lead
     if best["adherence"] >= adherence_target:
         tied = [
             item
@@ -427,6 +462,13 @@ def bench_model(
             result.iterations_on_incompletion.append((used, budget.max_iterations))
         reason = trajectory.stop_reason or "unknown"
         result.stop_reasons[reason] = result.stop_reasons.get(reason, 0) + 1
+        if case.graded():
+            result.graded_runs += 1
+            if trajectory.stop_reason == STOP_FINAL and case.is_right(trajectory.final_answer):
+                result.correct_runs += 1
+            else:
+                result.wrong_answers.append({"case": case.case_id, "stop": reason,
+                                             "answer": (trajectory.final_answer or "")[:300]})
 
         elapsed = float(trajectory.budget.get("elapsed_seconds", 0.0) or 0.0)
         result.case_elapsed_seconds.append(elapsed)

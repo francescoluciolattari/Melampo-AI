@@ -565,6 +565,137 @@ ADVANCED_CASES = (
     ),
 )
 
+# ============================================================================
+# THE ANSWERS, GRADED (14 November 2026)
+# ============================================================================
+# Until now no case was graded: a model that called final() after one grep was
+# "complete" whatever it answered, and the engine never showed it the text it
+# had found -- so the quickest models won by answering from nothing. Each case
+# now says what a right answer must contain (regular expressions, every group
+# must match, case-insensitive) and, where a wrong answer has a recognisable
+# form, what it must not say. Written from the documents and the questions
+# alone, before any run with the engine that shows the text; alternatives are
+# generous on wording and strict on facts.
+
+def _graded(cases, grades):
+    from dataclasses import replace
+
+    return tuple(replace(case, expected=grades[case.case_id][0], forbidden=grades[case.case_id][1])
+                 for case in cases)
+
+
+_NOT_SAID = (r"not (mentioned|documented|found|prescribed|stated|reported|present|recorded|in)|no prednisone|"
+             r"\bnone\b|does not|doesn't|no mention|no record|absent|no dose|not available|no information")
+
+_GRADES = {
+    "dose": ((r"40 ?mg", r"report_1"), ()),
+    "finding": ((r"bibasilar opacit",), ()),
+    "symptom_duration": ((r"three weeks|3 weeks",), ()),
+    "fever_status": ((r"\bno\b|\bnot\b|absent|afebrile|without fever",), (r"\byes\b",)),
+    "onset_pattern": ((r"progressive",), ()),
+    "treatment_frequency": ((r"daily|once a day|every day|once per day",), ()),
+    "negation_discrimination": ((r"trace", r"pleural", r"\bno\b|absent|not present|negative"), ()),
+    "cross_document_correlation": ((r"c-reactive|\bcrp\b|white cell|\bwbc\b|procalcitonin", r"report_3b"), ()),
+    "buried_fact_after_revision": ((r"pulmonary embol", r"heart failure|cardiac decompensation"), ()),
+    "numeric_trend": ((r"fell|fall|decreas|declin|dropped|lower|down", r"16\.8|rose|rise|increas|up"), ()),
+    "confirmed_vs_candidate_diagnosis": ((r"pulmonary embol",), ()),
+    "three_document_synthesis": ((r"pericarditis", r"troponin", r"wall motion"), ()),
+    "absence_of_requested_fact": ((_NOT_SAID,), (r"prednisone (was )?(prescribed|given|started) at \d", r"\b\d+ ?mg of prednisone")),
+    "confusable_terms": ((r"oedema|edema", r"excluded|ruled out|no filling defect|absent|not (present|found)"), ()),
+    "out_of_order_chronology": ((r"ankle swelling|ankle",), (r"breathlessness (appeared|came|was) first",)),
+    "long_multi_section_lookup": ((r"streptococcus pneumoniae|s\. ?pneumoniae|pneumococc", r"sensitive|susceptible|\byes\b"), ()),
+    "conflicting_values_across_documents": ((r"5\.8", r"4\.2", r"discrepan|conflict|differ|disagree|inconsisten|mismatch"), ()),
+    "weight_based_dose": ((r"5 ?mg/kg", r"68 ?kg"), ()),
+    "two_hop_family_history_inference": ((r"marfan", r"4\.8", r"connective|threshold|referral|surg"), ()),
+    "laterality_and_growth": ((r"left lower lobe|left lung", r"\b6 ?mm", r"\b9 ?mm", r"grow|grew|increas|enlarg|larger"), (r"right lower lobe",)),
+    "hedged_lesion": ((r"not (diagnosed|definitive|confirmed|determined|characteri|established)|indeterminate|uncertain|cannot|undetermined|unclear|no (definitive|firm) diagnosis|undiagnosed",
+                       r"\bmri\b|magnetic resonance"), (r"diagnosed as (a )?(haemangioma|hemangioma|metastas)",)),
+    "italian_report": ((r"neck|collo", r"12 ?mm", r"not dilated|non dilatat|no dilat|undilated|normal (calibre|caliber|size)"), ()),
+    "growth_over_interval": ((r"13 ?mm", r"six months|6 months|6-month|six-month|192 days|about 6|approximately 6|~ ?6"), ()),
+    "negation_scope_list": ((r"emphysema", r"lymphadenopathy", r"pleural effusion", r"nodul"), ()),
+    "findings_against_conclusion": ((r"disagree|discrepan|conflict|inconsisten|contradict|do not agree|don't agree|not consistent|\bno\b", r"9 ?mm", r"strand"), ()),
+}
+
+# Harder cases (14 November 2026), written before any run of the engine that shows the text: laterality with a
+# change of size, a lesion the report leaves undiagnosed, a report in Italian, growth over an interval read from
+# two dated documents, the scope of a negation over a list, and findings that contradict the conclusion.
+LATERALITY_DOCUMENT = EnvironmentDocument(
+    document_id="report_15",
+    text=(
+        "CT chest: 9 mm solid nodule in the left lower lobe. The right lung is clear. "
+        "The prior CT described this left lower lobe nodule at 6 mm."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+HEDGED_DOCUMENT = EnvironmentDocument(
+    document_id="report_16",
+    text=(
+        "Ill-defined hypodense lesion in hepatic segment VII, 14 mm. A haemangioma cannot be excluded, "
+        "but a metastasis cannot be excluded either. MRI with hepatobiliary contrast is recommended."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+ITALIAN_DOCUMENT = EnvironmentDocument(
+    document_id="report_17",
+    text=(
+        "TC addome: litiasi della colecisti con calcolo di 12 mm a livello del collo. "
+        "Via biliare principale non dilatata. Pancreas nei limiti."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+GROWTH_FIRST = EnvironmentDocument(
+    document_id="report_18a",
+    text="MRI of 2026-03-02: right adrenal adenoma, 18 mm, homogeneous signal drop on opposed-phase images.",
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+GROWTH_SECOND = EnvironmentDocument(
+    document_id="report_18b",
+    text="MRI of 2026-09-10: the right adrenal lesion now measures 31 mm, with heterogeneous signal.",
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+NEGATION_LIST_DOCUMENT = EnvironmentDocument(
+    document_id="report_19",
+    text=(
+        "No evidence of lymphadenopathy, pleural effusion or pericardial effusion. "
+        "Mild emphysema in both upper lobes. No pulmonary nodules."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+CONTRADICTION_DOCUMENT = EnvironmentDocument(
+    document_id="report_20",
+    text=(
+        "Findings: the appendix measures 9 mm in diameter, with periappendiceal fat stranding. "
+        "Conclusion: no signs of appendicitis."
+    ),
+    source="synthetic_bench_fixture",
+    metadata={"data_class": "synthetic"},
+)
+
+COMPLEX_CASES = (
+    BenchCase("laterality_and_growth", (LATERALITY_DOCUMENT,),
+              "In which lobe is the nodule, and how has its size changed since the prior CT?"),
+    BenchCase("hedged_lesion", (HEDGED_DOCUMENT,),
+              "Is the liver lesion given a diagnosis, and what is recommended?"),
+    BenchCase("italian_report", (ITALIAN_DOCUMENT,),
+              "Where is the gallstone, how large is it, and is the common bile duct dilated?"),
+    BenchCase("growth_over_interval", (GROWTH_FIRST, GROWTH_SECOND),
+              "By how much did the adrenal lesion grow between the two exams, and over what interval?"),
+    BenchCase("negation_scope_list", (NEGATION_LIST_DOCUMENT,),
+              "Which abnormalities are present, and which are explicitly stated to be absent?"),
+    BenchCase("findings_against_conclusion", (CONTRADICTION_DOCUMENT,),
+              "Do the findings and the conclusion agree about appendicitis?"),
+)
+
+BENCH_CASES = _graded(BENCH_CASES, _GRADES)
+ADVANCED_CASES = _graded(ADVANCED_CASES, _GRADES)
+COMPLEX_CASES = _graded(COMPLEX_CASES, _GRADES)
+
 # Rewritten after a first live run showed three distinct failure patterns that
 # a short instruction left room for: two Claude tiers exhausted their full
 # iteration budget without ever calling final() despite well-formed actions
@@ -580,15 +711,16 @@ _SYSTEM_PROMPT = (
     f"chosen from: {ACTION_GRAMMAR}. Emit nothing else: no prose, no explanation, no "
     "commentary on what an action returned, no role labels or dialogue formatting "
     "(never write \"human\" or \"Assistant\" or similar).\n\n"
-    "One clean lookup that answers the question is enough. Call final(answer) as soon "
-    "as you can answer -- do not re-verify with a second lookup if the first one already "
-    "gave you the answer; every extra action spends part of a small, fixed budget.\n\n"
+    "Answer only from the text your actions returned, which you see on the next turn, and name the "
+    "document it comes from; if the documents do not say it, final() says so. Call final(answer) as "
+    "soon as the returned text answers the question -- do not re-verify; every extra action spends "
+    "part of a small, fixed budget.\n\n"
     "Example of a complete, correct exchange for a question like "
     "\"What dose was prescribed?\":\n"
-    "grep(dose)\n"
-    "final(40 mg daily)\n\n"
-    "That is the whole exchange: one lookup, then final() on the next turn. Longer "
-    "exchanges are for questions one lookup cannot answer, not the default."
+    "turn 1: grep(dose)\n"
+    "turn 2, after reading what it returned: final(40 mg daily, from report_1)\n\n"
+    "Write only the action itself, without \"turn 1:\". Longer exchanges are for questions "
+    "one lookup cannot answer, not the default."
 )
 
 # The run that motivated these constants took 10.5 minutes and ended in
@@ -701,7 +833,9 @@ def _http_chat_completion(
     twice in a row is more informatively reported as such than retried
     indefinitely.
     """
-    active_system_prompt = system_prompt if system_prompt is not None else _SYSTEM_PROMPT
+    tools = system_prompt is None and _interface() == "tools"
+    active_system_prompt = system_prompt if system_prompt is not None else (
+        _TOOLS_SYSTEM_PROMPT if tools else _SYSTEM_PROMPT)
     # REASONING_ON (14 November 2026): the model reasons before its action, with the room and the time for it
     reasoning_on = disable_reasoning == REASONING_ON
     if reasoning_on:
@@ -728,6 +862,7 @@ def _http_chat_completion(
                 # output. 1024 gives that room while staying a small fraction of
                 # a cent per call at every candidate's pricing.
                 "max_tokens": REASONING_MAX_TOKENS if reasoning_on else 1024,
+                **({"tools": TOOLS, "tool_choice": "required"} if tools else {}),
                 **({"reasoning": {"enabled": reasoning_on}} if with_reasoning_hint else {}),
             }
         ).encode("utf-8")
@@ -818,10 +953,73 @@ def _extract_content(payload: object) -> str:
     if not isinstance(choices, list) or not choices:
         raise ProviderResponseError(f"no choices in response: {json.dumps(payload)[:300]}")
     message = choices[0].get("message") if isinstance(choices[0], dict) else None
+    calls = message.get("tool_calls") if isinstance(message, dict) else None
+    if calls:
+        # the tools interface (14 November 2026): each call becomes the action line the engine parses
+        return "\n".join(_action_line(call) for call in calls if isinstance(call, dict))
     content = message.get("content") if isinstance(message, dict) else None
     if not isinstance(content, str):
         raise ProviderResponseError(f"no text content in first choice: {json.dumps(choices[0])[:300]}")
     return content
+
+
+# The engine's primitives as native tools (14 November 2026): the same six actions, asked through the function
+# calling the recent models are trained on, instead of a grammar written in the text. BENCH_INTERFACE=tools.
+TOOL_ARGUMENTS = {
+    "describe": [],
+    "grep": [("text", "the literal text to find, case-insensitive; one word or phrase, not a regular expression")],
+    "slice": [("document_id", "the document"), ("start", "first character"), ("end", "last character")],
+    "search": [("query", "what to search for")],
+    "expand": [("concept", "the concept to expand in the graph")],
+    "final": [("answer", "the answer, from the text the tools returned, naming its document")],
+}
+TOOL_DESCRIPTIONS = {
+    "describe": "List the documents of the case.",
+    "grep": "Find a literal text in every document; returns the passages with their document and offsets.",
+    "slice": "Return the characters start..end of a document.",
+    "search": "Semantic search over the documents.",
+    "expand": "Follow the relations of a concept in the knowledge graph.",
+    "final": "Give the answer and end. Call it as soon as the returned text answers the question.",
+}
+TOOLS = [
+    {"type": "function", "function": {
+        "name": verb, "description": TOOL_DESCRIPTIONS[verb],
+        "parameters": {"type": "object",
+                       "properties": {name: {"type": "integer" if name in ("start", "end") else "string",
+                                             "description": text} for name, text in args},
+                       "required": [name for name, _ in args]}}}
+    for verb, args in TOOL_ARGUMENTS.items()
+]
+_TOOLS_SYSTEM_PROMPT = (
+    "You navigate the documents of a case with the tools, one or more calls per turn. Answer only from the text "
+    "the tools returned, and name the document it comes from; if the documents do not say it, say so in final. "
+    "Call final as soon as the returned text answers the question: every call spends part of a small budget."
+)
+
+
+def _action_line(call: dict) -> str:
+    """A tool call as the action line the engine parses: final keeps its whole answer, the other arguments are
+    quoted so that a comma inside one is not read as two."""
+    function = call.get("function") or {}
+    verb = str(function.get("name", ""))
+    try:
+        given = json.loads(function.get("arguments") or "{}")
+    except json.JSONDecodeError:
+        given = {}
+    if not isinstance(given, dict):
+        given = {}
+    names = [name for name, _ in TOOL_ARGUMENTS.get(verb, [])]
+    if verb == "final":
+        return f"final({given.get('answer', '')})"
+    values = []
+    for name in names:
+        value = given.get(name, "")
+        values.append(str(value) if isinstance(value, int) else '"' + str(value).replace('"', "'") + '"')
+    return f"{verb}({', '.join(values)})"
+
+
+def _interface() -> str:
+    return "tools" if os.environ.get("BENCH_INTERFACE", "text").strip().lower() == "tools" else "text"
 
 
 def all_candidate_names() -> list[str]:
@@ -1036,7 +1234,7 @@ def main() -> int:
         )
         parser.add_argument(
             "--cases",
-            choices=("baseline", "advanced"),
+            choices=("baseline", "advanced", "complex"),
             default="baseline",
             help=(
                 "'baseline' (default) runs the eleven-case set every candidate is measured "
@@ -1045,7 +1243,8 @@ def main() -> int:
                 "out-of-order chronology, a longer multi-section document, conflicting values "
                 "across documents, a weight-based dose, a two-hop inference) built for a "
                 "smaller, focused comparison where the added cost and time are affordable. "
-                "Never changes the default for the full-roster workflow."
+                "Never changes the default for the full-roster workflow. 'complex' adds "
+                "COMPLEX_CASES (14 November 2026) to the advanced set: six harder cases, every case graded."
             ),
         )
         args = parser.parse_args()
@@ -1064,7 +1263,8 @@ def main() -> int:
             print(json.dumps(names))
             return 0
 
-        cases = BENCH_CASES + ADVANCED_CASES if args.cases == "advanced" else BENCH_CASES
+        cases = {"advanced": BENCH_CASES + ADVANCED_CASES,
+                 "complex": BENCH_CASES + ADVANCED_CASES + COMPLEX_CASES}.get(args.cases, BENCH_CASES)
         return _run(args.out, only=args.candidate, cases=cases)
     except Exception as error:  # noqa: BLE001 - last-resort net, see docstring
         import traceback
@@ -1121,6 +1321,9 @@ def _run(out: Path, *, only: str | None = None, cases: tuple = BENCH_CASES) -> i
     if skipped:
         print(f"Skipped: {'; '.join(skipped)}")
 
+    if _interface() == "tools":
+        # the same candidate asked through native tools is another row (14 November 2026)
+        candidates = {f"{name}@tools": model for name, model in candidates.items()}
     report = bench_models(candidates, cases, adherence_target=0.95, budget_factory=_bench_budget)
     payload = report.as_dict()
     payload["status"] = "completed"

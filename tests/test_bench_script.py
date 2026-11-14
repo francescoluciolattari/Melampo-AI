@@ -418,7 +418,8 @@ def test_the_system_prompt_includes_a_worked_example_and_explicit_prohibitions(s
     never finalising, dialogue-style artifacts, narrating tool output."""
     prompt = script._SYSTEM_PROMPT.lower()
     assert "grep(dose)" in script._SYSTEM_PROMPT  # worked example present
-    assert "one clean lookup" in prompt or "enough" in prompt  # anti-over-verification
+    assert "as soon as" in prompt and "do not re-verify" in prompt  # anti-over-verification
+    assert "answer only from the text" in prompt  # never from nothing (14 November 2026)
     assert "dialogue" in prompt or "role labels" in prompt  # anti-Opus-artifact
 
 
@@ -1154,3 +1155,41 @@ def test_the_readers_are_benched_as_the_root_with_and_without_reasoning(monkeypa
     assert sent[-1][0]["reasoning"] == {"enabled": False} and sent[-1][0]["max_tokens"] == 1024
     bench._preflight("x", "https://e", "k", "m", disable_reasoning=bench.REASONING_ON)
     assert sent[-1][0]["reasoning"] == {"enabled": False} and sent[-1][1] == bench.PREFLIGHT_TIMEOUT_SECONDS
+
+
+def test_every_case_is_graded_and_a_tool_call_becomes_an_action_line(script, monkeypatch):
+    """14 November 2026: every case says what a right answer contains; the tools interface turns each call into
+    the line the engine parses, a comma inside an argument kept in it."""
+    cases = script.BENCH_CASES + script.ADVANCED_CASES + script.COMPLEX_CASES
+    assert len(cases) == 25 and all(case.graded() for case in cases)
+    absence = next(c for c in cases if c.case_id == "absence_of_requested_fact")
+    assert absence.is_right("Prednisone is not mentioned in report_8")
+    assert not absence.is_right("40 mg of prednisone daily")
+    call = lambda name, args: {"function": {"name": name, "arguments": args}}  # noqa: E731
+    assert script._action_line(call("grep", '{"text": "pleural, effusion"}')) == 'grep("pleural, effusion")'
+    assert script._action_line(call("slice", '{"document_id": "report_1", "start": 0, "end": 40}')) == \
+        'slice("report_1", 0, 40)'
+    assert script._action_line(call("final", '{"answer": "40 mg, report_1"}')) == "final(40 mg, report_1)"
+    from melampo.reasoning.rlm_engine import parse_actions
+
+    action = parse_actions(script._action_line(call("grep", '{"text": "pleural, effusion"}')))[0][0]
+    assert action.args == ("pleural, effusion",)
+    sent = []
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"choices": [{"message": {"content": None, "tool_calls": [
+                call("grep", '{"text": "dose"}')]}}]}).encode()
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda request, timeout: sent.append(
+        json.loads(request.data)) or _Response())
+    monkeypatch.setenv("BENCH_INTERFACE", "tools")
+    assert script._http_chat_completion("https://e", "k", "m", "p", timeout=5) == 'grep("dose")'
+    assert sent[-1]["tool_choice"] == "required" and {t["function"]["name"] for t in sent[-1]["tools"]} == \
+        set(script.TOOL_ARGUMENTS)
