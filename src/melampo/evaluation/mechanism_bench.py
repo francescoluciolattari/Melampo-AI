@@ -577,3 +577,38 @@ MECHANISM_CASES = (
         "A patient with vitamin B12 deficiency is separately found to have primary hyperaldosteronism on endocrine "
         "workup. Does the B12 deficiency bear on the aldosteronism, and if so, by what mechanism?")),
 )
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The judges are checked before they judge (14 November 2026)
+# ---------------------------------------------------------------------------------------------------------------
+# Answers whose verdict is known: right ones the curated graph of version 2 counted wrong (real answers of the
+# run of 14 November), and wrong ones written to be plausible. A judge that misreads any of them judges nothing:
+# the run stops before a candidate is asked.
+
+CALIBRATION = (
+    ("myeloma_renal", "light chain cast nephropathy", True),
+    ("haemochromatosis_cirrhosis", "iron overload causing hepatocyte injury and hepatic fibrosis", True),
+    ("hypothyroid_lipids", "reduced hepatic LDL receptor expression", True),
+    ("cushing_hyperglycaemia", "cortisol-induced insulin resistance", True),
+    ("siadh_hyponatraemia", "excess aldosterone causing renal sodium loss", False),
+    ("sle_nephritis", "direct viral infection of the glomerular cells", False),
+    ("b12_scd", "iron deficiency anaemia causing spinal cord ischaemia", False),
+)
+
+
+def calibrate(judge: Callable[[str], str], sources: Sources | None) -> list[str]:
+    """What a judge misread among the answers whose verdict is known (empty: it may judge)."""
+    cases = {case.case_id: case for case in MECHANISM_CASES}
+    failures = []
+    for case_id, mechanism, right in CALIBRATION:
+        case = cases[case_id]
+        resolved = resolve_case(case, sources)
+        answer = {"link": LINK_KNOWN, "mechanism": mechanism, "chain": []}
+        nearby = sources.nearest(mechanism) if sources is not None else []
+        verdict = read_judge(judge(judge_prompt(case, answer, resolved, nearby)), len(resolved))
+        if verdict is None:
+            failures.append(f"{case_id}: no readable verdict")
+        elif _judged_right(verdict, sources, resolved) != right:
+            failures.append(f"{case_id}: \"{mechanism}\" read as {'right' if not right else 'wrong'}")
+    return failures

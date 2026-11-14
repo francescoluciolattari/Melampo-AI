@@ -20,6 +20,7 @@ import run_format_adherence_bench as base  # noqa: E402
 from melampo.evaluation.mechanism_bench import (  # noqa: E402
     ERRORS,
     JUDGE_SYSTEM_PROMPT,
+    calibrate,
     MECHANISM_CASES,
     Sources,
     bench_mechanisms,
@@ -31,7 +32,10 @@ CANDIDATE_SYSTEM_PROMPT = (
     "No prose before or after it."
 )
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_JUDGES = ("mistral-large-openrouter", "gpt-oss-120b")
+# 14 November 2026: judges at least as strong as the candidates, of other families, at the lowest cost --
+# Muse Spark Open (Meta) and Claude Sonnet 5 (Anthropic; the cases are synthetic, no patient's data). Mistral Large 3
+# and gpt-oss-120b, the first choice, are weaker than both candidates on the general benchmarks.
+DEFAULT_JUDGES = ("muse-spark-open", "claude-sonnet-5")
 
 
 def _entry(name: str) -> tuple[str, str, object] | None:
@@ -117,6 +121,14 @@ def main() -> int:
     if model is None:
         payload.update(status="no_candidates", reason=reason)
         args.out.write_text(json.dumps(payload, indent=2))
+        return 1
+    # the judges are checked before any candidate is asked: one misreading stops the run
+    misread = {name: calibrate(judge, sources) for name, judge in judges.items()}
+    payload["calibration"] = misread
+    if any(misread.values()):
+        payload.update(status="no_candidates", reason=f"a judge misread known answers: {misread}")
+        args.out.write_text(json.dumps(payload, indent=2))
+        print(payload["reason"], file=sys.stderr)
         return 1
 
     result = bench_mechanisms(args.candidate, model, MECHANISM_CASES, sources, judges, trials_per_case=args.trials)

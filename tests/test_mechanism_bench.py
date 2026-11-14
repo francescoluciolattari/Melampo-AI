@@ -116,3 +116,16 @@ def test_every_case_is_written_with_its_accepted_mechanisms_and_the_judge_sees_t
     assert "GO:1" in prompt and "renal water absorption" in prompt and "GO:2" in prompt
     report = mb.resolution_report([SIADH], sources)
     assert any("GO:1" in line for line in report["siadh_hyponatraemia"])
+
+
+def test_a_judge_that_misreads_a_known_answer_judges_nothing():
+    def careful(prompt):
+        wrong = any(w in prompt for w in ("aldosterone causing renal sodium loss", "viral infection",
+                                          "spinal cord ischaemia"))
+        return json.dumps({"term": "none", "matches": "none" if wrong else "A",
+                           "relation": "different" if wrong else "same", "established": "yes"})
+
+    assert mb.calibrate(careful, None) == []
+    yes_to_all = _judge(matches="A", relation="same")
+    assert len(mb.calibrate(yes_to_all, None)) == 3          # the three plausible but wrong mechanisms
+    assert len(mb.calibrate(lambda p: "", None)) == len(mb.CALIBRATION)

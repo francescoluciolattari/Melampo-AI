@@ -3,6 +3,7 @@ name: Vetting bench (diagnostic engine candidates)
 # Version 3 (14 November 2026, scripts/run_mechanism_bench.py): each case lists the mechanisms medicine accepts,
 # looked up in HPO, GO, MONDO and ChEBI; a claim that names one is right without a judge, any other is read by two
 # judges of other families than the candidate, shown the sources, and they must agree (a disagreement is a doubt).
+# Each judge is first checked on answers whose verdict is known; one misreading stops the run before any candidate.
 # The candidate states the link as known, possible or none; the errors are the confident ones.
 # Version 2 (run_vetting_bench.py, a curated graph of thirty edges) is kept but no longer run here.
 
@@ -16,11 +17,11 @@ on:
       judges:
         description: "Two judge models, of other families than every candidate"
         required: false
-        default: "mistral-large-openrouter,gpt-oss-120b"
+        default: "muse-spark-open,claude-sonnet-5"
       trials:
-        description: "Times each case is asked"
+        description: "Times each case is asked (1: the lowest cost)"
         required: false
-        default: "2"
+        default: "1"
 
 jobs:
   prepare:
