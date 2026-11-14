@@ -236,6 +236,9 @@ class ResolvedAccepted:
         return "\n".join(lines)
 
 
+_CURIE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*:\d+$")
+
+
 def resolve_case(case: MechanismCase, sources: Sources | None) -> tuple[ResolvedAccepted, ...]:
     resolved = []
     for accepted in case.accepted:
@@ -243,7 +246,14 @@ def resolve_case(case: MechanismCase, sources: Sources | None) -> tuple[Resolved
         if sources is not None:
             for label in accepted.lookups():
                 for found in sources.find(label):
-                    if found[1].term_id not in {t.term_id for _, t in terms}:
+                    # 14 November 2026, the first run: a concept is a term only by the term's own name. Found by an
+                    # exact synonym, a broader term came in ("water retention" brought HPO Edema, "iron overload"
+                    # MONDO iron poisoning, "enteropathy" Abnormal intestine morphology), and with it its synonyms
+                    # and every term below it; a gene entity of MONDO (an identifiers.org IRI) is not a mechanism
+                    term = found[1]
+                    if normalise_surface(term.name) != normalise_surface(label) or not _CURIE.match(term.term_id):
+                        continue
+                    if term.term_id not in {t.term_id for _, t in terms}:
                         terms.append(found)
         resolved.append(ResolvedAccepted(accepted, tuple(terms)))
     return tuple(resolved)
