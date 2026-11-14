@@ -1,36 +1,33 @@
 name: Vetting bench (diagnostic engine candidates)
 
-# Manual trigger only, same discipline as every other bench workflow: real,
-# billed calls to external providers, never on push or pull_request.
-#
-# This is not the navigation bench (root-model-bench.yml,
-# focused-comparison-bench.yml): those measure whether a candidate can find a
-# fact in a set of documents and report it in a strict grammar. This measures
-# a different role entirely -- whether a candidate can propose a mechanism
-# connecting a factor to a target, and whether the concept graph actually
-# supports what it proposed. The graph is the judge here, not another model
-# and not this workflow: see melampo.evaluation.vetting_bench for why, and
-# for the case set and scoring.
-#
-# The roster defaults to the two candidates raised for the vetting role and
-# never benched on anything before: claude-opus-5 (already licence-reviewed
-# for privacy in this project's own research) and gpt-oss-120b (Apache 2.0,
-# on-premise deployable, added to the shared registry specifically for this
-# comparison). CANDIDATE_MODELS in run_format_adherence_bench.py remains the
-# single source of truth for every slug; nothing here duplicates it.
+# Version 3 (14 November 2026, scripts/run_mechanism_bench.py): each case lists the mechanisms medicine accepts,
+# looked up in HPO, GO, MONDO and ChEBI; a claim that names one is right without a judge, any other is read by two
+# judges of other families than the candidate, shown the sources, and they must agree (a disagreement is a doubt).
+# Each judge is first checked on answers whose verdict is known; one misreading stops the run before any candidate.
+# The candidate states the link as known, possible or none; the errors are the confident ones.
+# Version 2 (run_vetting_bench.py, a curated graph of thirty edges) is kept but no longer run here.
+
 on:
   workflow_dispatch:
     inputs:
       roster:
-        description: "Comma-separated candidate names to compare on vetting"
+        description: "Comma-separated candidates"
         required: false
-        default: "claude-opus-5,gpt-oss-120b"
+        default: "nemotron-3-ultra,gemma-4-31b"
+      judges:
+        description: "Two judge models, of other families than every candidate"
+        required: false
+        default: "muse-spark-open,claude-sonnet-5"
+      trials:
+        description: "Times each case is asked (1: the lowest cost)"
+        required: false
+        default: "1"
 
 jobs:
   prepare:
-    name: List candidates
+    name: List candidates and resolve the cases in the sources
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     outputs:
       candidates: ${{ steps.list.outputs.candidates }}
     steps:
@@ -41,18 +38,33 @@ jobs:
           uv sync --locked
       - id: list
         run: |
-          echo "candidates=$(uv run python scripts/run_vetting_bench.py \
+          echo "candidates=$(uv run python scripts/run_mechanism_bench.py \
             --list-candidates --roster '${{ inputs.roster }}')" >> "$GITHUB_OUTPUT"
+      - name: The sources (HPO, GO, MONDO, ChEBI)
+        run: |
+          mkdir -p sources
+          curl -sSL --fail -o sources/hp.obo https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/hp.obo
+          curl -sSL --fail -o sources/go.obo https://purl.obolibrary.org/obo/go/go-basic.obo
+          curl -sSL --fail -o sources/mondo.obo https://purl.obolibrary.org/obo/mondo.obo
+          curl -sSL --fail -o sources/chebi.obo https://purl.obolibrary.org/obo/chebi/chebi_lite.obo
+          ls -la sources
+      - name: What each case's accepted mechanisms resolve to (no model is asked)
+        run: |
+          uv run python scripts/run_mechanism_bench.py --resolution-only --sources sources/*.obo \
+            --out resolution.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vetting-sources
+          path: |
+            sources/
+            resolution.json
+          retention-days: 7
 
   bench:
     name: Vet ${{ matrix.candidate }}
     needs: prepare
     runs-on: ubuntu-latest
-    # Four cases per candidate, no wide budget or circuit breaker needed the
-    # way the 19-case navigation bench does -- this is a much lighter run.
-    # 10 minutes is ample margin over what four calls to any candidate,
-    # including a genuinely slow one, would take; a candidate that reasons (14 November 2026, "-reasoning"), 30.
-    timeout-minutes: ${{ contains(matrix.candidate, '-reasoning') && 30 || 10 }}
+    timeout-minutes: ${{ contains(matrix.candidate, '-reasoning') && 60 || 30 }}
     strategy:
       fail-fast: false
       matrix:
@@ -63,17 +75,19 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - run: |
           uv sync --locked
-
+      - uses: actions/download-artifact@v4
+        with:
+          name: vetting-sources
       - name: Vet this candidate
         env:
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          JUDGES: ${{ inputs.judges }}
+          TRIALS: ${{ inputs.trials }}
         continue-on-error: true
         run: |
-          uv run python scripts/run_vetting_bench.py \
-            --candidate "${{ matrix.candidate }}" \
-            --out "result.json"
-
+          case "$TRIALS" in ''|*[!0-9]*) echo "::error::trials must be a number"; exit 2 ;; esac
+          uv run python scripts/run_mechanism_bench.py --candidate "${{ matrix.candidate }}" \
+            --judges "$JUDGES" --trials "$TRIALS" --sources sources/*.obo --out result.json
       - name: Upload this candidate's result
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,94 +104,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-
-      - name: Download every candidate's result
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           pattern: vetting-result-*
           path: all_results
           merge-multiple: false
-
       - name: Merge into one report
         run: |
-          uv run python - <<'PY'
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json, pathlib
-          all_results = []
-          skipped = []
+          results, skipped, meta = [], [], {}
           for path in sorted(pathlib.Path("all_results").rglob("*.json")):
               try:
                   payload = json.loads(path.read_text())
               except (OSError, json.JSONDecodeError) as error:
-                  skipped.append(f"{path}: {type(error).__name__}: {error}")
+                  skipped.append(f"{path}: {error}")
                   continue
               if payload.get("status") == "completed":
-                  all_results.extend(payload.get("results", []))
+                  results.extend(payload.get("results", []))
+                  meta = {k: payload.get(k) for k in ("judges", "sources", "resolution")}
               else:
-                  skipped.append(f"{payload.get('candidate', path.name)}: {payload.get('reason', payload.get('status'))}")
-          ranked = sorted(
-              all_results,
-              key=lambda item: (
-                  -item.get("restraint_wilson_interval", [0.0, 0.0])[0],
-                  -item.get("grounding_wilson_interval", [0.0, 0.0])[0],
-                  -item["useful_rate"],
-                  -item["format_rate"],
-                  item.get("mean_latency_seconds", 0.0),
-              ),
-          )
-          merged = {"status": "completed" if ranked else "no_candidates", "results": ranked, "skipped": skipped}
-          pathlib.Path("vetting_results.json").write_text(json.dumps(merged, indent=2))
-          print(f"Merged {len(ranked)} result(s), {len(skipped)} skipped")
+                  skipped.append(f"{payload.get('candidate')}: {payload.get('reason', payload.get('status'))}")
+          results.sort(key=lambda r: (r["errors"], -r["right_rate"], r["doubts"], r.get("mean_latency_seconds") or 0))
+          pathlib.Path("vetting_results.json").write_text(json.dumps(
+              {"status": "completed" if results else "no_candidates", "results": results, "skipped": skipped, **meta},
+              indent=2))
+          print("### Vetting bench v3: mechanisms judged by the sources\n")
+          print(f"Judges: {meta.get('judges')}\n")
+          print("| Candidate | Errors | Right | Hedged right | Miss | Doubts | Runs |")
+          print("|---|---:|---:|---:|---:|---:|---:|")
+          for r in results:
+              o = r["outcomes"]
+              print(f"| {r['model_name']} | {r['errors']} | {o.get('right', 0)} | {o.get('right_hedged', 0)} | "
+                    f"{o.get('miss', 0)} | {r['doubts']} | {r['runs']} |")
+          for line in skipped:
+              print(f"\nSkipped: {line}")
           PY
-
-      - name: Summarise results
+      - uses: actions/upload-artifact@v4
         if: always()
-        run: |
-          uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json, pathlib
-          data = json.loads(pathlib.Path("vetting_results.json").read_text())
-          print("### Vetting bench: diagnostic engine candidates\n")
-          results = data.get("results") or []
-          if results:
-              print("| Model | Format | Grounding (95% CI) | Useful | Restraint (95% CI) | Mean latency |")
-              print("|---|---:|---:|---:|---:|---:|")
-              for row in results:
-                  ci = row.get("grounding_wilson_interval", [0, 0])
-                  rci = row.get("restraint_wilson_interval", [0, 0])
-                  print(
-                      f"| {row['model_name']} | {row['format_rate']:.0%} | "
-                      f"{row['grounding_rate']:.0%} [{ci[0]:.0%}, {ci[1]:.0%}] | "
-                      f"{row['useful_rate']:.0%} | "
-                      f"{row['restraint_rate']:.0%} [{rci[0]:.0%}, {rci[1]:.0%}] | "
-                      f"{row['mean_latency_seconds']:.1f}s |"
-                  )
-              print()
-          skipped = data.get("skipped") or []
-          if skipped:
-              print("<details><summary>Skipped candidates</summary>\n")
-              for item in skipped:
-                  print(f"- {item}")
-              print("\n</details>")
-          PY
-
-      - name: Upload merged results
-        if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: vetting-bench-results
           path: vetting_results.json
           retention-days: 90
-          if-no-files-found: error
-
-      - name: Fail the job if no candidate produced a usable result
-        if: always()
-        run: |
-          uv run python -c "
-          import json, sys
-          data = json.load(open('vetting_results.json'))
-          if not data.get('results'):
-              print('No candidate produced a usable result; see the job summary and artifact.')
-              sys.exit(1)
-          "
