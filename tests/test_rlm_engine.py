@@ -16,6 +16,7 @@ from melampo.reasoning.rlm_engine import (
     Budget,
     DataClassViolation,
     RlmEngine,
+    TrajectoryStep,
     parse_actions,
 )
 from melampo.reasoning.rlm_wiring import (
@@ -362,11 +363,10 @@ def test_a_real_case_trajectory_is_marked_health_data(tmp_path):
 
 def test_depth_comparison_is_paired_and_reports_a_verdict():
     def root(prompt):
-        return (
-            "grep(prednisone)\nfinal(x)"
-            if "query(" not in prompt
-            else 'query("dose", report_1, 0, 80)\nfinal(x)'
-        )
+        # a final() is read only after the results it rests on (14 November 2026)
+        if "(none yet)" not in prompt:
+            return "final(x)"
+        return "grep(prednisone)" if "query(" not in prompt else 'query("dose", report_1, 0, 80)'
 
     report = compare_depths([DepthCase("c1", DOCS, "q")], root, lambda q, f: "40 mg")
     payload = report.as_dict()
@@ -381,7 +381,7 @@ def test_depth_comparison_is_paired_and_reports_a_verdict():
 def test_when_depth_one_adds_nothing_the_verdict_says_so():
     report = compare_depths(
         [DepthCase("c1", DOCS, "q")],
-        _scripted_loop("grep(prednisone)\nfinal(x)"),
+        lambda prompt: "grep(prednisone)" if "(none yet)" in prompt else "final(x)",
         lambda q, f: "y",
     )
     assert "not justified" in report.verdict()
@@ -389,3 +389,34 @@ def test_when_depth_one_adds_nothing_the_verdict_says_so():
 
 def _scripted_loop(output: str):
     return lambda prompt: output
+
+
+def test_the_model_reads_what_its_actions_returned():
+    """14 November 2026: the model saw only "grep: 1 fragment(s)" and never the text, so an answer was given
+    from nothing. It now sees the documents by name and each fragment with its document and offsets."""
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return "grep(prednisone)" if len(prompts) == 1 else "final(40 mg daily, from report_1)"
+
+    trajectory = RlmEngine(root_model=model, depth=0).run("c", DOCS, "what dose?")
+    assert "report_1" in prompts[0] and "note_1" in prompts[0] and "not a regular expression" in prompts[0]
+    assert "Prednisone 40 mg daily was started" in prompts[1] and "[report_1 " in prompts[1]
+    # the whole answer, commas included
+    assert trajectory.final_answer == "40 mg daily, from report_1"
+
+
+def test_a_final_written_with_its_lookup_waits_for_the_lookup_to_be_read():
+    seen = []
+
+    def model(prompt):
+        seen.append(prompt)
+        return "grep(fever)\nfinal(no idea)" if len(seen) == 1 else "final(no fever, note_1)"
+
+    trajectory = RlmEngine(root_model=model, depth=0).run("c", DOCS, "fever?")
+    assert trajectory.final_answer == "no fever, note_1" and len(seen) == 2
+    assert any("before reading the results" in line for line in trajectory.ignored_lines)
+    # a grep that finds nothing says so
+    assert "nothing found" in RlmEngine(root_model=_scripted("grep(zzz)"), depth=0)._shown(
+        TrajectoryStep(1, parse_actions("grep(zzz)")[0][0], "grep: 0 fragment(s)"), None)

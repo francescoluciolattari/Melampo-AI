@@ -122,9 +122,18 @@ def parse_actions(text: str) -> tuple[list[Action], list[str]]:
             ignored.append(stripped)
             continue
         verb = match.group(1).lower()
-        args = tuple(_split_args(match.group(2)))
+        # the answer is everything final() holds (14 November 2026): split at its commas it kept only the first
+        # clause ("40 mg daily, from report_1" became "40 mg daily")
+        args = (_unquoted(match.group(2)),) if verb == VERB_FINAL else tuple(_split_args(match.group(2)))
         actions.append(Action(verb=verb, args=args, raw=stripped))
     return actions, ignored
+
+
+def _unquoted(raw: str) -> str:
+    text = raw.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
+        return text[1:-1].strip()
+    return text
 
 
 def _split_args(raw: str) -> list[str]:
@@ -316,11 +325,21 @@ class RlmEngine:
                 break
 
             finished = False
+            # a final() written after other actions in the same answer is written before their results were read
+            # (14 November 2026): it is not taken; the model reads what they returned and answers on its next turn
+            if any(a.verb != VERB_FINAL for a in actions):
+                kept = []
+                for action in actions:
+                    if action.verb == VERB_FINAL:
+                        trajectory.ignored_lines.append(f"{action.raw}  [before reading the results]")
+                        break
+                    kept.append(action)
+                actions = kept
             for action in actions:
                 budget.iterations += 1
                 step = self._dispatch(action, environment, budget, trajectory)
                 trajectory.steps.append(step)
-                history.append(f"{action.raw} -> {step.result_summary}")
+                history.append(f"{action.raw} -> {self._shown(step, environment)}")
                 if action.verb == VERB_FINAL:
                     trajectory.final_answer = action.args[0] if action.args else ""
                     trajectory.stop_reason = STOP_FINAL
@@ -399,13 +418,46 @@ class RlmEngine:
         if self.depth >= 1 and self.sub_model is not None:
             verbs += ", query(question, document_id, start, end)"
         recent = "\n".join(history[-8:]) if history else "(none yet)"
+        described = environment.describe()
+        documents = "; ".join(f"{d['document_id']} ({d['characters']} characters)" for d in described["documents"])
+        # 14 November 2026: the model saw only "grep: 2 fragment(s)", never the text it had found, so a model that
+        # answered at once answered from nothing and a model that wanted to read searched until its budget ran
+        # out. It now sees the documents by name and what each action returned; grep is said to be literal text
         return (
             f"Question: {question}\n"
-            f"Environment: {environment.describe()['document_count']} document(s), "
-            f"{environment.describe()['total_characters']} characters.\n"
+            f"Environment: {described['document_count']} document(s), "
+            f"{described['total_characters']} characters: {documents}.\n"
             f"Available actions, one per line: {verbs}, final(answer).\n"
-            f"Emit final(answer) when done. Recent actions:\n{recent}\n"
+            "grep(text) finds the literal text, case-insensitive, in every document (not a regular expression: "
+            "one word or phrase per grep); slice(document_id, start, end) returns the characters of a document.\n"
+            "Answer only from the text the actions returned, and name the document it comes from; if the "
+            "documents do not say it, final() says so.\n"
+            f"Emit final(answer) when done. Recent actions and what they returned:\n{recent}\n"
         )
+
+    SHOWN_CHARACTERS = 600
+
+    def _shown(self, step: "TrajectoryStep", environment: ContextEnvironment) -> str:
+        """What an action returned, as the model reads it: the text of each fragment with its document and
+        offsets, the documents for describe(), the error of a failed action."""
+        if step.error:
+            return f"error: {step.error}"
+        if step.action.verb == VERB_DESCRIBE:
+            return "; ".join(f"{d['document_id']} ({d['characters']} characters)"
+                             for d in environment.describe()["documents"])
+        if step.fragments:
+            parts = []
+            for fragment in step.fragments:
+                where = fragment.get("provenance") or {}
+                text = str(fragment.get("text", ""))
+                if len(text) > self.SHOWN_CHARACTERS:
+                    text = text[: self.SHOWN_CHARACTERS] + " [...]"
+                parts.append(f"[{where.get('document_id', '')} {where.get('char_start', '')}-"
+                             f"{where.get('char_end', '')}] {text}")
+            return f"{step.result_summary}: " + " | ".join(parts)
+        if step.action.verb in (VERB_GREP, VERB_SEARCH):
+            return f"{step.result_summary}: nothing found"
+        return step.result_summary
 
     def _dispatch(
         self,

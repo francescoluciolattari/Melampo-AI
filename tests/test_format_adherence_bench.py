@@ -285,8 +285,11 @@ def test_every_candidate_with_an_unresolved_licence_is_marked_bench_only():
 
 def test_a_model_mixing_prose_with_actions_scores_between_the_extremes():
     """The realistic case: understands the format, wraps it in commentary."""
+    # the answer comes on the turn after the lookup it rests on (14 November 2026)
     result = bench_model(
-        "mixed", lambda p: "Let me search.\ngrep(prednisone)\nfinal(x)", CASES
+        "mixed",
+        lambda p: "Let me search.\ngrep(prednisone)" if "(none yet)" in p else "final(x)",
+        CASES,
     )
     assert 0.0 < result.adherence < 1.0
     assert result.completion_rate == 1.0, "commentary does not prevent completion"
