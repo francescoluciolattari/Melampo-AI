@@ -585,7 +585,7 @@ def test_every_candidate_models_entry_has_the_expected_shape(script):
         name, slug, disable_reasoning = entry
         assert isinstance(name, str) and name
         assert isinstance(slug, str) and "/" in slug
-        assert isinstance(disable_reasoning, bool)
+        assert isinstance(disable_reasoning, bool) or disable_reasoning == script.REASONING_ON
 
 
 def test_no_duplicate_candidate_names(script):
@@ -1113,3 +1113,44 @@ def test_gpt_oss_120b_is_in_the_shared_registry(script):
         model for name, model, _ in script.CANDIDATE_MODELS if name == "gpt-oss-120b"
     ]
     assert entries == ["openai/gpt-oss-120b"]
+
+
+def test_the_readers_are_benched_as_the_root_with_and_without_reasoning(monkeypatch, script):
+    """14 November 2026: Nemotron 3 Ultra and Muse Spark Open, the readers of the reports, are root candidates in
+    both registries; their reasoning variant asks reasoning on, with room and time for it, and its preflight only
+    asks whether the model is there."""
+    import json as _json
+
+    from melampo.models.rlm_model_adapter import DEFAULT_CANDIDATES
+
+    bench = script
+
+    names = {item.name for item in DEFAULT_CANDIDATES}
+    assert {"nemotron-3-ultra", "muse-spark-open", "gemma-4-31b"} <= names
+    table = {name: (slug, mode) for name, slug, mode in bench.CANDIDATE_MODELS}
+    assert table["muse-spark-open-reasoning"] == ("meta/muse-spark-open", bench.REASONING_ON)
+    assert table["nemotron-3-ultra"][1] is True
+    sent = []
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps({"choices": [{"message": {"content": "final(x)"}}]}).encode()
+
+    def urlopen(request, timeout):
+        sent.append((_json.loads(request.data), timeout))
+        return _Response()
+
+    monkeypatch.setattr(bench.urllib.request, "urlopen", urlopen)
+    bench._http_chat_completion("https://e", "k", "m", "p", timeout=30, disable_reasoning=bench.REASONING_ON)
+    body, timeout = sent[-1]
+    assert body["reasoning"] == {"enabled": True} and body["max_tokens"] == 8000 and timeout == 180
+    bench._http_chat_completion("https://e", "k", "m", "p", timeout=30, disable_reasoning=True)
+    assert sent[-1][0]["reasoning"] == {"enabled": False} and sent[-1][0]["max_tokens"] == 1024
+    bench._preflight("x", "https://e", "k", "m", disable_reasoning=bench.REASONING_ON)
+    assert sent[-1][0]["reasoning"] == {"enabled": False} and sent[-1][1] == bench.PREFLIGHT_TIMEOUT_SECONDS
