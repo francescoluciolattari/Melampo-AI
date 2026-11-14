@@ -96,6 +96,11 @@ Un dubbio resta nel percorso diagnostico con il suo dubbio; solo una discordanza
 (predefinito Muse). Un lettore con ragionamento ha 8000 token e il ragionamento è chiesto dal template della chat
 (`MELAMPO_LOCAL_CHAT_EXTRA` per un server che lo chiede in altro modo).
 
+**Il root model** del motore ricorsivo è Nemotron 3 Ultra con Gemma 4 31B, senza ragionamento
+(`root_model_cross_check.DEFAULT_PAIR`, 14 novembre 2026): su 25 casi valutati, con il motore che mostra al modello
+il testo che legge, entrambi hanno risposto giusto a tutti; Muse Spark Open non è passato, né in testo né con gli
+strumenti nativi. Il root usa pesi già scelti per i lettori.
+
 **Termini di Muse Spark Open** (come li legge il titolare del progetto il 14 novembre 2026; da confermare nella
 revisione legale): la dicitura "Built with Muse Spark Open" è obbligatoria ovunque Melampo sia distribuito o
 mostrato con il modello; un modello che ne deriva (un fine-tuning, anche gli adattatori LoRA) è un derivato con gli

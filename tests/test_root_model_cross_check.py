@@ -245,11 +245,12 @@ def test_the_second_model_does_not_see_the_first_models_prompts():
 
 
 def test_the_default_pair_is_the_two_most_efficient_benched_candidates():
-    assert DEFAULT_PAIR == ("nemotron-3-super", "gemma-3-27b")
+    # 14 November 2026: 25 of 25 graded cases right, the engine showing the text
+    assert DEFAULT_PAIR == ("nemotron-3-ultra", "gemma-4-31b")
 
 
 def test_the_alternative_pair_swaps_in_mistral():
-    assert ALTERNATIVE_PAIR == ("nemotron-3-super", "mistral-large-openrouter")
+    assert ALTERNATIVE_PAIR == ("nemotron-3-ultra", "mistral-large-openrouter")
     assert ALTERNATIVE_PAIR[0] == DEFAULT_PAIR[0], (
         "same primary, only the second opinion changes"
     )

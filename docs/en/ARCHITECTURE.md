@@ -95,6 +95,11 @@ A doubt stays in the diagnostic path with its doubt; only a discordance goes to 
 (default Muse). A reader with reasoning gets 8000 tokens and is asked to reason through the chat template
 (`MELAMPO_LOCAL_CHAT_EXTRA` for a server that asks it otherwise).
 
+**The root model** of the recursive engine is Nemotron 3 Ultra with Gemma 4 31B, without reasoning
+(`root_model_cross_check.DEFAULT_PAIR`, 14 November 2026): on 25 graded cases, the engine showing the model the
+text it reads, both answered every case right; Muse Spark Open did not pass, in text or as native tools. The root
+uses weights already chosen for the readers.
+
 **Muse Spark Open terms** (as read by the project owner on 14 November 2026; to confirm in the legal review):
 the notice "Built with Muse Spark Open" is mandatory wherever Melampo is distributed or shown with it; a model
 derived from it (a fine-tuning, LoRA adapters included) is a derivative under the same terms and notice; the

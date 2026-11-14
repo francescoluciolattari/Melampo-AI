@@ -25,16 +25,20 @@ reproducibility, not which one wins. A disagreement raises
 Silently preferring either would discard precisely the signal this module
 exists to produce.
 
-Model choice, and why it is configurable rather than hardcoded. Two live runs
-of the focused comparison bench put nemotron-3-super and gemma-3-27b as the
-two most efficient candidates at 100% adherence and 100% completion, with
-near-identical iteration counts -- the pairing with the least redundant cost.
-mistral-large-openrouter matched them on adherence and completion but at
-roughly twice the iterations; it is kept available as an alternative rather
-than dropped, because it is the only one of the three from an EU-based lab,
-which the bench cannot measure and which may matter for a system with MDR
-ambitions. `DEFAULT_PAIR` and `ALTERNATIVE_PAIR` name these; either can be
-passed to `cross_check` as two callables.
+Model choice, and why it is configurable rather than hardcoded. October's
+pair (nemotron-3-super, gemma-3-27b) was chosen on an engine that never showed
+the model the text it found, and on answers never graded: the quickest models
+won by answering from nothing. On 14 November 2026, with the engine that shows
+the text and every one of 25 cases graded (focused comparison bench, grader
+fixed before the run), nemotron-3-ultra and gemma-4-31b answered all 25 right
+without reasoning, the quickest of those that did (1.8 s and 1.3 s a case);
+nemotron-3-super answered 12, gemma-3-27b 21, and Muse Spark Open, the other
+reader of the reports, did not pass with either interface. Nemotron 3 Ultra
+also reads the reports, and Gemma 4 31B is the readers' option: the root uses
+models already chosen for Melampo. mistral-large-openrouter (EU) is kept as the
+alternative second opinion; it was not measured again on the corrected engine.
+`DEFAULT_PAIR` and `ALTERNATIVE_PAIR` name these; either can be passed to
+`cross_check` as two callables.
 """
 
 import difflib
@@ -51,8 +55,8 @@ from .rlm_engine import STOP_FINAL, Budget, RlmEngine, Trajectory
 # only -- the callables themselves are supplied by the caller, since this
 # module has no opinion about how a model is reached (OpenRouter, a local
 # endpoint, a scripted stand-in in tests).
-DEFAULT_PAIR = ("nemotron-3-super", "gemma-3-27b")
-ALTERNATIVE_PAIR = ("nemotron-3-super", "mistral-large-openrouter")
+DEFAULT_PAIR = ("nemotron-3-ultra", "gemma-4-31b")
+ALTERNATIVE_PAIR = ("nemotron-3-ultra", "mistral-large-openrouter")
 
 # Two answers are treated as agreeing when their similarity reaches this.
 # Not an exact string match: two correct answers to "what dose was started"
