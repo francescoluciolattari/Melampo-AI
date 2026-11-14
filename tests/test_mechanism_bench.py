@@ -21,6 +21,11 @@ is_a: GO:1 ! renal water absorption
 [Term]
 id: GO:3
 name: gluconeogenesis
+
+[Term]
+id: HP:9
+name: Edema
+synonym: "water retention" EXACT []
 """
 
 
@@ -47,6 +52,7 @@ def test_the_accepted_mechanisms_resolve_in_the_sources_and_a_named_one_is_right
     resolved = mb.resolve_case(SIADH, sources)
     water = next(r for r in resolved if r.accepted.label == "water retention")
     assert "GO:1" in water.ids                                  # "renal water absorption", a name it carries
+    assert "HP:9" not in water.ids          # a broader term holding the label only as a synonym is not the concept
     asked = []
     judges = {"j1": lambda p: asked.append(p) or "", "j2": lambda p: asked.append(p) or ""}
     got = mb.score_answer(SIADH, mb.read_candidate(_answer("known", "renal water retention diluting sodium")),
