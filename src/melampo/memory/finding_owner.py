@@ -288,6 +288,17 @@ class Anatomy:
         parts -= roots
         return {self._head(n) for u in parts for n in self._uberon_names.get(u, []) if n} - {""}
 
+    def organ_words_shared(self, many: int = 8) -> set[str]:
+        """The words that the names of many organs share ("gland", "lobe", "of"): they name no organ alone."""
+        if getattr(self, "_shared", None) is None:
+            from collections import Counter
+
+            seen = Counter()
+            for o in self.organs:
+                seen.update({_singular(w) for n in self._uberon_names.get(o, []) for w in _WORD.findall(n.lower())})
+            self._shared = {w for w, c in seen.items() if c >= many}
+        return self._shared
+
     def organs_of(self, ids: set[str]) -> set[str]:
         """The organs a structure is, or is a part of (UBERON's organ subsets, without the kinds of organ)."""
         return {o for u in ids if u.startswith("UBERON:") for o in self.up(u) | {u} if o in self.organs}
@@ -547,6 +558,14 @@ def window(clause: str, at: int, length: int, size: int = WINDOW) -> tuple[str, 
 KEEP = "keep"     # only other claims: normal, a measure, its past, a device, not assessable (or nothing)
 
 
+# a containing preposition, a part, and the word that links it to its whole, right before the mention
+_INSIDE_A_PART = {
+    "en": re.compile(r"\b(?:in|within|inside|into|at)\s+(?:the\s+)?(?P<part>[a-z]+(?:\s+[a-z]+)?)\s+of\s+(?:the\s+)?$",
+                     re.IGNORECASE),
+    "it": re.compile(r"\b(?:nel|nella|nello|nei|negli|nelle|in|entro|a\s+livello\s+del(?:la|lo)?)\s+"
+                     r"(?P<part>[a-zà-ÿ]+(?:\s+[a-zà-ÿ]+)?)\s+(?:del|della|dello|dei|degli|delle|di)\s+$",
+                     re.IGNORECASE),
+}
 _COORDINATORS_OF_PHRASES = {"en": ("and", "or", "with", "while"), "it": ("e", "ed", "o", "con", "mentre")}
 
 
@@ -718,7 +737,12 @@ class FindingOwner:
         if areas and cid:
             from .exam_area import OUTSIDE, ExamAreas
 
-            if ExamAreas.load().relation(self.anatomy.regions.get(cid, ""), areas) == OUTSIDE:
+            if ExamAreas.load().relation(self.anatomy.regions.get(cid, ""), areas) == OUTSIDE \
+                    and not self._names_its_organ(mention, cid):
+                # the area of the exam is an expectation: it weighs on a name that does not say its organ ("lobo
+                # medio" in a prostate MRI, a part whose whole the reader infers from the context), never on one
+                # that names it ("the right lobe of the thyroid gland": the sentence says the thyroid was seen;
+                # 14 November 2026, ctrate9 3429-en-0)
                 against.append(f"outside_the_exam:{'+'.join(sorted(areas))}")
         if cid:
             linked = set(site_anchors(cid)) | {f"class:{cid}"}
@@ -748,6 +772,13 @@ class FindingOwner:
                     # kidney": a coordinator between them opens a new phrase with its own head before the mention;
                     # the structure before it is in the other conjunct, not the bearer (13 November 2026, ctrate8
                     # 14068-en-1)
+                    first = []
+                if first and self._inside_a_part_of_it(before, linked, language):
+                    # "a 5 mm stone at the entrance of the cystic duct in the neck of the gallbladder": the last
+                    # place, "in the neck of" the mention's structure, is a part UBERON gives that structure; it
+                    # holds what is observed, and the structure named before it only marks a point within it, as a
+                    # reader builds the place from the innermost container outwards (14 November 2026, ctrate9
+                    # 2948-en-1)
                     first = []
                 if first and where is not None and _parallel_places(clause, base + where[0], at, language):
                     # "stones in the gallbladder lumen and, of 3 mm, in the middle zone of the left kidney": each
@@ -876,6 +907,33 @@ class FindingOwner:
                 said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
                                "error_text": str(error)[:160]}
         return self._with_anatomy(said, mention, cid, language)
+
+    def _names_its_organ(self, mention: str, cid: str) -> bool:
+        """Do the mention's words name the organ the linked structure is, or is a part of ("right lobe of the
+        thyroid gland": the thyroid gland; "middle lobe": no organ named)? Read from UBERON's names of the organ;
+        words shared by the names of many organs ("gland", "lobe") name none. Without UBERON, False."""
+        if self.anatomy is None or self.anatomy.uberon is None or not cid:
+            return False
+        from .hpo_candidates import site_anchors
+
+        organs = self.anatomy.organs_of({x for x in site_anchors(cid) if x.startswith("UBERON:")})
+        if not organs:
+            return False
+        common = self.anatomy.organ_words_shared()
+        said = {_singular(w) for w in _WORD.findall(mention.lower())}
+        for o in organs:
+            for name in self.anatomy._uberon_names.get(o, []):
+                own = {_singular(w) for w in _WORD.findall(name.lower()) if len(w) > 2} - common
+                if own and own <= said:
+                    return True
+        return False
+
+    def _inside_a_part_of_it(self, before: str, linked: set[str], language: str) -> bool:
+        """Do the words right before the mention place what is observed inside a part of the mention's own
+        structure ("in the neck of the", "within the wall of the", "nel collo della")? The part is the linked
+        structure's only if UBERON gives it that part (``Anatomy.part_of_linked``); without UBERON, False."""
+        m = _INSIDE_A_PART.get(language, _INSIDE_A_PART["en"]).search(before)
+        return bool(m) and self.anatomy is not None and self.anatomy.part_of_linked(m.group("part"), linked) is True
 
     def _phenotype_of_linked(self, findings: list[dict], cid: str) -> bool:
         """Does HPO give what is observed to the linked structure? The words, and what they are said to be, are
