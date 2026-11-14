@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -186,6 +188,13 @@ class ClinicalIngestionPipeline:
             note = str(payload.get(PHYSICIAN_NOTE_KEY, payload.get("report_text", "")) or "")
             graph, graph_notes = from_ingestion(str(payload["case_id"]), note, bundle,
                                                 provenance.get("report_reading") or {}, dict(payload))
+            drug_cache = os.environ.get("MELAMPO_DRUG_CACHE", "").strip()
+            if drug_cache and graph.medications:
+                # the drug branch reads the local cache only (scripts/drug_sources.py): nothing leaves the machine
+                from ..clinical.drug_branch import DrugKnowledge, drug_branch
+
+                graph_notes = list(graph_notes) + [
+                    f"drug branch: {json.dumps(drug_branch(graph, DrugKnowledge.load(drug_cache)), sort_keys=True)}"]
             provenance["case_graph"] = graph.as_dict()
             provenance["case_graph_summary"] = {**graph.summary(), "notes": graph_notes}
         except Exception as error:  # noqa: BLE001 -- the case is still ingested

@@ -1,0 +1,55 @@
+name: drug-sources
+
+# The local cache of the drug branch (15 November 2026): AIFA products, ATC -> international names (Wikidata,
+# EMA), US labels (openFDA). Open sources only, no patient's datum. Run it again to fetch the labels still to ask:
+# it resumes from the cache of the previous run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "openFDA labels to ask in this run (1,000 a day without OPENFDA_API_KEY)"
+        default: "400"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openpyxl
+      - name: The last successful run, if any
+        id: last
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "run=$(gh run list --workflow drug-sources.yml --status success --limit 1 \
+            --json databaseId -q '.[0].databaseId' 2>/dev/null)" >> "$GITHUB_OUTPUT"
+      - name: Its cache
+        if: steps.last.outputs.run != ''
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: drug-cache
+          path: drug_cache
+          run-id: ${{ steps.last.outputs.run }}
+          github-token: ${{ github.token }}
+      - name: Build
+        env:
+          OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
+        run: |
+          python3 scripts/drug_sources.py --out drug_cache --limit "${{ github.event.inputs.limit }}" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drug-cache
+          path: drug_cache
+          retention-days: 90

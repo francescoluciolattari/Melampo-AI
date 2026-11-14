@@ -253,5 +253,13 @@ def from_ingestion(case_id: str, note: str, bundle: Any, reading: dict[str, Any]
     return graph, sorted(set(notes))
 
 
-__all__ = ["add_declared_diseases", "from_ingestion", "add_document", "add_imprint", "add_laboratory", "add_medications",
-           "add_report", "build_case_graph"]
+__all__ = [
+    "add_declared_diseases",
+    "add_document",
+    "add_imprint",
+    "add_laboratory",
+    "add_medications",
+    "add_report",
+    "build_case_graph",
+    "from_ingestion",
+]
