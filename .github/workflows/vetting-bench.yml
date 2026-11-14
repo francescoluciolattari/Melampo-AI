@@ -17,7 +17,7 @@ on:
       judges:
         description: "Two judge models, of other families than every candidate"
         required: false
-        default: "muse-spark-open,claude-sonnet-5"
+        default: "muse-spark-open-reasoning,claude-sonnet-5"
       trials:
         description: "Times each case is asked (1: the lowest cost)"
         required: false
@@ -52,12 +52,20 @@ jobs:
         run: |
           uv run python scripts/run_mechanism_bench.py --resolution-only --sources sources/*.obo \
             --out resolution.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Check the judges on answers whose verdict is known (one misreading stops the run here)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          uv run python scripts/run_mechanism_bench.py --calibrate-only --judges '${{ inputs.judges }}' \
+            --roster '${{ inputs.roster }}' --sources sources/*.obo --out calibration.json | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: vetting-sources
           path: |
             sources/
             resolution.json
+            calibration.json
           retention-days: 7
 
   bench:
@@ -87,7 +95,7 @@ jobs:
         run: |
           case "$TRIALS" in ''|*[!0-9]*) echo "::error::trials must be a number"; exit 2 ;; esac
           uv run python scripts/run_mechanism_bench.py --candidate "${{ matrix.candidate }}" \
-            --judges "$JUDGES" --trials "$TRIALS" --sources sources/*.obo --out result.json
+            --judges "$JUDGES" --trials "$TRIALS" --sources sources/*.obo --calibrated --out result.json
       - name: Upload this candidate's result
         if: always()
         uses: actions/upload-artifact@v4

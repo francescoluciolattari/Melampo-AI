@@ -35,7 +35,9 @@ ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 # 14 November 2026: judges at least as strong as the candidates, of other families, at the lowest cost --
 # Muse Spark Open (Meta) and Claude Sonnet 5 (Anthropic; the cases are synthetic, no patient's data). Mistral Large 3
 # and gpt-oss-120b, the first choice, are weaker than both candidates on the general benchmarks.
-DEFAULT_JUDGES = ("muse-spark-open", "claude-sonnet-5")
+# Muse with reasoning (14 November 2026): without it, in the first run, Muse gave no readable verdict to 2 and 4 of
+# the 7 known answers; with reasoning it is the reader measured on ctrate8 and ctrate9
+DEFAULT_JUDGES = ("muse-spark-open-reasoning", "claude-sonnet-5")
 
 
 def _entry(name: str) -> tuple[str, str, object] | None:
@@ -69,6 +71,10 @@ def main() -> int:
     parser.add_argument("--trials", type=int, default=2)
     parser.add_argument("--out", type=Path, default=Path("result.json"))
     parser.add_argument("--resolution-only", action="store_true")
+    # the judges are checked once for the whole roster (--calibrate-only, before the candidates' jobs), and the
+    # candidates' jobs then say so (--calibrated): the known answers are not paid for once per candidate
+    parser.add_argument("--calibrate-only", action="store_true")
+    parser.add_argument("--calibrated", action="store_true")
     parser.add_argument("--list-candidates", action="store_true")
     parser.add_argument("--roster", default="nemotron-3-ultra,gemma-4-31b")
     args = parser.parse_args()
@@ -92,6 +98,29 @@ def main() -> int:
         return 0
 
     judge_names = [n.strip() for n in args.judges.split(",") if n.strip()]
+    if args.calibrate_only:
+        roster = [_entry(n.strip()) for n in args.roster.split(",") if n.strip()]
+        families = {_family(e[1]) for e in roster if e is not None}
+        if len(judge_names) < 2 or any(_entry(n) is None or _family(_entry(n)[1]) in families for n in judge_names):
+            payload.update(status="judges_refused", reason="two judges, known, of no candidate's family")
+            args.out.write_text(json.dumps(payload, indent=2))
+            print(payload["reason"], file=sys.stderr)
+            return 1
+        judges = {}
+        for name in judge_names:
+            judge, judge_reason = _bound(name, JUDGE_SYSTEM_PROMPT)
+            if judge is None:
+                payload.update(status="judges_refused", reason=f"judge {name}: {judge_reason}")
+                args.out.write_text(json.dumps(payload, indent=2))
+                print(payload["reason"], file=sys.stderr)
+                return 1
+            judges[name] = judge
+        misread = {name: calibrate(judge, sources) for name, judge in judges.items()}
+        payload.update(status="judges_refused" if any(misread.values()) else "judges_checked",
+                       calibration=misread)
+        args.out.write_text(json.dumps(payload, indent=2))
+        print(json.dumps(misread, indent=2))
+        return 1 if any(misread.values()) else 0
     candidate_entry = _entry(args.candidate or "")
     if candidate_entry is None:
         payload.update(status="no_candidates", reason=f"unknown candidate {args.candidate!r}")
@@ -123,8 +152,8 @@ def main() -> int:
         args.out.write_text(json.dumps(payload, indent=2))
         return 1
     # the judges are checked before any candidate is asked: one misreading stops the run
-    misread = {name: calibrate(judge, sources) for name, judge in judges.items()}
-    payload["calibration"] = misread
+    misread = {} if args.calibrated else {name: calibrate(judge, sources) for name, judge in judges.items()}
+    payload["calibration"] = misread or "checked before, once for the roster"
     if any(misread.values()):
         payload.update(status="no_candidates", reason=f"a judge misread known answers: {misread}")
         args.out.write_text(json.dumps(payload, indent=2))
