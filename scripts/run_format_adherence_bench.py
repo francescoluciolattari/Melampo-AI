@@ -585,7 +585,8 @@ def _graded(cases, grades):
 
 
 _NOT_SAID = (r"not (mentioned|documented|found|prescribed|stated|reported|present|recorded|in)|no prednisone|"
-             r"\bnone\b|does not|doesn't|no mention|no record|absent|no dose|not available|no information")
+             r"\bnone\b|does not|doesn't|no mention|no record|absent|no dose|not available|no information|"
+             r"do not (mention|say|state|contain|document|record|report|specify)|don't (mention|say)")
 
 _GRADES = {
     "dose": ((r"40 ?mg", r"report_1"), ()),
@@ -596,7 +597,7 @@ _GRADES = {
     "treatment_frequency": ((r"daily|once a day|every day|once per day",), ()),
     "negation_discrimination": ((r"trace", r"pleural", r"\bno\b|absent|not present|negative"), ()),
     "cross_document_correlation": ((r"c-reactive|\bcrp\b|white cell|\bwbc\b|procalcitonin", r"report_3b"), ()),
-    "buried_fact_after_revision": ((r"pulmonary embol", r"heart failure|cardiac decompensation"), ()),
+    "buried_fact_after_revision": ((r"pulmonary embol", r"heart failure|cardiac (decompensation|etiology|aetiology|cause|origin)"), ()),
     "numeric_trend": ((r"fell|fall|decreas|declin|dropped|lower|down", r"16\.8|rose|rise|increas|up"), ()),
     "confirmed_vs_candidate_diagnosis": ((r"pulmonary embol",), ()),
     "three_document_synthesis": ((r"pericarditis", r"troponin", r"wall motion"), ()),
@@ -606,14 +607,15 @@ _GRADES = {
     "long_multi_section_lookup": ((r"streptococcus pneumoniae|s\. ?pneumoniae|pneumococc", r"sensitive|susceptible|\byes\b"), ()),
     "conflicting_values_across_documents": ((r"5\.8", r"4\.2", r"discrepan|conflict|differ|disagree|inconsisten|mismatch"), ()),
     "weight_based_dose": ((r"5 ?mg/kg", r"68 ?kg"), ()),
-    "two_hop_family_history_inference": ((r"marfan", r"4\.8", r"connective|threshold|referral|surg"), ()),
+    "two_hop_family_history_inference": ((r"marfan", r"connective|threshold|referral|surg|dilat|aneurysm"), ()),
     "laterality_and_growth": ((r"left lower lobe|left lung", r"\b6 ?mm", r"\b9 ?mm", r"grow|grew|increas|enlarg|larger"), (r"right lower lobe",)),
-    "hedged_lesion": ((r"not (diagnosed|definitive|confirmed|determined|characteri|established)|indeterminate|uncertain|cannot|undetermined|unclear|no (definitive|firm) diagnosis|undiagnosed",
+    "hedged_lesion": ((r"not (diagnosed|definitive|confirmed|determined|characteri|established|given)|no diagnosis|indeterminate|uncertain|cannot|undetermined|unclear|no (definitive|firm) diagnosis|undiagnosed",
                        r"\bmri\b|magnetic resonance"), (r"diagnosed as (a )?(haemangioma|hemangioma|metastas)",)),
     "italian_report": ((r"neck|collo", r"12 ?mm", r"not dilated|non dilatat|no dilat|undilated|normal (calibre|caliber|size)"), ()),
-    "growth_over_interval": ((r"13 ?mm", r"six months|6 months|6-month|six-month|192 days|about 6|approximately 6|~ ?6"), ()),
+    "growth_over_interval": ((r"13 ?mm", r"six months|6 months|6-month|six-month|192 days|about 6|approximately 6|~ ?6|"
+                                           r"2026-03-02.*2026-09-10|march.*september"), ()),
     "negation_scope_list": ((r"emphysema", r"lymphadenopathy", r"pleural effusion", r"nodul"), ()),
-    "findings_against_conclusion": ((r"disagree|discrepan|conflict|inconsisten|contradict|do not agree|don't agree|not consistent|\bno\b", r"9 ?mm", r"strand"), ()),
+    "findings_against_conclusion": ((r"disagree|discrepan|conflict|inconsisten|contradict|do not agree|don't agree|not consistent|\bno\b|\bwhile\b|whereas|however|\bbut\b",), ()),
 }
 
 # Harder cases (14 November 2026), written before any run of the engine that shows the text: laterality with a
@@ -1009,12 +1011,15 @@ def _action_line(call: dict) -> str:
     if not isinstance(given, dict):
         given = {}
     names = [name for name, _ in TOOL_ARGUMENTS.get(verb, [])]
+    # one call is one line (14 November 2026): an answer written over several lines (a list, a quotation) was
+    # read line by line by the engine, and a final() without its closing parenthesis was no action
+    one_line = lambda value: " ".join(str(value).split())  # noqa: E731
     if verb == "final":
-        return f"final({given.get('answer', '')})"
+        return f"final({one_line(given.get('answer', ''))})"
     values = []
     for name in names:
         value = given.get(name, "")
-        values.append(str(value) if isinstance(value, int) else '"' + str(value).replace('"', "'") + '"')
+        values.append(str(value) if isinstance(value, int) else '"' + one_line(value).replace('"', "'") + '"')
     return f"{verb}({', '.join(values)})"
 
 

@@ -1157,12 +1157,24 @@ def test_the_readers_are_benched_as_the_root_with_and_without_reasoning(monkeypa
     assert sent[-1][0]["reasoning"] == {"enabled": False} and sent[-1][1] == bench.PREFLIGHT_TIMEOUT_SECONDS
 
 
+def parse_actions_line(line):
+    from melampo.reasoning.rlm_engine import parse_actions
+
+    actions, rejected = parse_actions(line)
+    assert not rejected and len(actions) == 1
+    return actions[0].args
+
+
 def test_every_case_is_graded_and_a_tool_call_becomes_an_action_line(script, monkeypatch):
     """14 November 2026: every case says what a right answer contains; the tools interface turns each call into
     the line the engine parses, a comma inside an argument kept in it."""
     cases = script.BENCH_CASES + script.ADVANCED_CASES + script.COMPLEX_CASES
     assert len(cases) == 25 and all(case.graded() for case in cases)
     absence = next(c for c in cases if c.case_id == "absence_of_requested_fact")
+    # the grader corrected after the run of 14 November 2026 (declared): "do not mention", a narrow space
+    assert absence.is_right("The documents do not mention a prednisone dose.")
+    italian = next(c for c in cases if c.case_id == "italian_report")
+    assert italian.is_right("In the gallbladder neck, 12\u202fmm; the common bile duct is not dilated (report_17)")
     assert absence.is_right("Prednisone is not mentioned in report_8")
     assert not absence.is_right("40 mg of prednisone daily")
     call = lambda name, args: {"function": {"name": name, "arguments": args}}  # noqa: E731
@@ -1170,6 +1182,10 @@ def test_every_case_is_graded_and_a_tool_call_becomes_an_action_line(script, mon
     assert script._action_line(call("slice", '{"document_id": "report_1", "start": 0, "end": 40}')) == \
         'slice("report_1", 0, 40)'
     assert script._action_line(call("final", '{"answer": "40 mg, report_1"}')) == "final(40 mg, report_1)"
+    # an answer over several lines is one action
+    listed = script._action_line(call("final", '{"answer": "From report_19:\\n- emphysema\\n- no nodules"}'))
+    assert listed == "final(From report_19: - emphysema - no nodules)"
+    assert parse_actions_line(listed) == ("From report_19: - emphysema - no nodules",)
     from melampo.reasoning.rlm_engine import parse_actions
 
     action = parse_actions(script._action_line(call("grep", '{"text": "pleural, effusion"}')))[0][0]
