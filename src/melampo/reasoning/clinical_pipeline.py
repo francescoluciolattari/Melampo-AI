@@ -942,13 +942,27 @@ class ClinicalInferencePipeline:
             area_signals=area_signals,
         )
         # D1's second step, now that real signals exist -- see
-        # ModelRouter.pick_mode's docstring for the table this implements
-        # and what it does not yet connect to (RlmEngine/dual-path).
+        # ModelRouter.pick_mode's docstring for the table this implements.
         routing_mode, routing_reason = self._model_router_instance().pick_mode(
             findings=list(payload.get("findings", [])),
             area_dynamics=area_dynamics,
             governance_scores=governance_scores,
         )
+        # The dual path, executed (14 November 2026): the two root models read the case again through the
+        # recursive engine and what they read is reconciled with the one-shot retrieval, which the rest of the
+        # case then uses. Not configured, it says so and the one-shot retrieval stands (reasoning/dual_path.py).
+        from .dual_path import case_documents, run_dual_path
+
+        dual_path = run_dual_path(
+            case.case_id,
+            case_documents(case.case_id, case.report_text,
+                           data_class=str(payload.get("data_class") or "patient")),
+            retrieval,
+            routing_mode,
+            question=str(payload.get("diagnostic_question") or ""),
+        )
+        if dual_path["status"] == "executed":
+            retrieval = dual_path["retrieval"]
         nexus = self._run_nexus_branch(
             components=components,
             payload=payload,
@@ -1054,5 +1068,6 @@ class ClinicalInferencePipeline:
         )
         pipeline_result["pending_case_routing"] = pending_case_routing.as_dict()
         pipeline_result["routing_mode"] = routing_mode
+        pipeline_result["dual_path"] = {k: v for k, v in dual_path.items() if k != "retrieval"}
         pipeline_result["routing_reason"] = routing_reason
         return pipeline_result
