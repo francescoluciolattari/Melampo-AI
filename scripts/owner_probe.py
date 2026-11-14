@@ -576,6 +576,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--skip", default="", help="arms not to run: owner, statement, claims")
     ap.add_argument("--hpo", help="hp-full.obo: what the reader knows of abnormalities (the claims arm)")
     ap.add_argument("--pato", help="pato.obo: the qualities of the abnormalities")
+    ap.add_argument("--concepts", action="store_true",
+                    help="the claims arm also chooses the HPO term of what is seen (14 November 2026): a different "
+                         "question from the one measured on ctrate9, so its answers are new ones")
     ap.add_argument("--corpus", action="append", default=[],
                     help="another corpus in PARROT's form (scripts/ctrate_corpus.py), for the reports' context")
     ap.add_argument("--references", help="the table of reference values (default data/reference/values.yml)")
@@ -702,8 +705,13 @@ def main(argv: list[str] | None = None) -> int:
 
     references = ReferenceValues.load(Path(args.references) if args.references else None,
                                       Path(args.passages) if args.passages else None)
+    phenotypes = None
+    if args.concepts and args.hpo and args.uberon:
+        from melampo.memory import hpo_candidates as hc
+
+        phenotypes = hc.load(Path(args.hpo), Path(args.uberon), Path(args.pato) if args.pato else None)
     claims = FindingOwner(reader_only.reader, chats, reader_only.anatomy, question="claims",
-                          anomalies=anomalies, references=references) if chats else None
+                          anomalies=anomalies, references=references, phenotypes=phenotypes) if chats else None
     from melampo.memory.finding_owner import report_context
     away = elsewhere_pairs()
     # the manual and the memory of verified examples (11 November 2026); the samples measured here never give

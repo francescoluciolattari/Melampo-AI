@@ -93,11 +93,14 @@ class Ownership:
     claims: dict = field(default_factory=dict)     # the claims the readers agree on (question="claims")
     review: str = ""                               # what a person should look at even when the readers agree
     doubt: dict = field(default_factory=dict)      # the doubt the finding keeps, or the one that was closed
+    # the concept of what is seen (14 November 2026): the HPO term the readers chose in the same reading, checked
+    # against the words; added to the words, never instead of them
+    concept: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {"verdict": self.verdict, "reader": self.reader, "models": self.models, "placed": self.placed,
                 "reason": self.reason, "statement": self.statement, "piece": self.piece, "claims": self.claims,
-                "review": self.review, "doubt": self.doubt}
+                "review": self.review, "doubt": self.doubt, "concept": self.concept}
 
 
 _COORDINATORS = frozenset("and or e ed o oppure".split())
@@ -715,8 +718,9 @@ class FindingOwner:
     the sentence say of this structure? 1 November 2026)."""
 
     def __init__(self, reader, chats: dict[str, Callable[[str], str]] | None = None, anatomy: Anatomy | None = None,
-                 question: str = "owner", anomalies=None, references=None):
+                 question: str = "owner", anomalies=None, references=None, phenotypes=None):
         self.reader = reader
+        self.phenotypes = phenotypes        # hpo_candidates.Phenotypes: the terms a finding may be named by
         self.chats = dict(chats or {})
         self.anatomy = anatomy if anatomy is not None else Anatomy()
         if question not in ("owner", "statement", "claims"):
@@ -891,7 +895,8 @@ class FindingOwner:
         rows = self._reference_rows(cid, context)
         passages = [f"[{p.get('id', '')}] {p.get('title', '')}, {p.get('section', '')}: {p.get('text', '')}"
                     for p in (self.references.passages_for(rows) if self.references else [])]
-        prompt = claims_prompt(clause, at, at + len(mention), linked, linked_names=names,
+        concepts = self._concept_options(clause, cid)
+        prompt = claims_prompt(clause, at, at + len(mention), linked, linked_names=names, concepts=concepts,
                                exam=context.get("exam", ""), section=context.get("section", ""), language=name,
                                references=[r.line() for r in rows], passages=passages,
                                section_kind=context.get("section_kind", ""),
@@ -901,7 +906,7 @@ class FindingOwner:
         for model, chat in self.chats.items():
             try:
                 said[model] = read_claims(chat(prompt), clause, mention, context.get("previous", ""),
-                                          context.get("conclusion", ""))
+                                          context.get("conclusion", ""), concepts=concepts)
                 if said[model].get("dropped"):
                     # words not in the sentence as written (13 November 2026, ctrate8 22424-en-2: a model joined
                     # pieces of a list into words the sentence does not hold, and its reading was empty): the
@@ -910,7 +915,8 @@ class FindingOwner:
                     # 2026, ctrate9: four answers asked again came back empty, and the first was lost with them)
                     try:
                         again = read_claims(chat(prompt + _COPY_AGAIN), clause, mention,
-                                            context.get("previous", ""), context.get("conclusion", ""))
+                                            context.get("previous", ""), context.get("conclusion", ""),
+                                            concepts=concepts)
                     except Exception:  # noqa: BLE001
                         again = {"valid": False}
                     if again.get("valid") and again.get("dropped", 0) < said[model]["dropped"]:
@@ -919,6 +925,52 @@ class FindingOwner:
                 said[model] = {"valid": False, "same": "unsure", "error": type(error).__name__,
                                "error_text": str(error)[:160]}
         return self._with_anatomy(said, mention, cid, language)
+
+    def _concept_options(self, clause: str, cid: str) -> list[tuple[str, str]]:
+        """The HPO terms offered for what is observed: the structure's candidates nearest the sentence's words,
+        with the organ's general terms (``hpo_candidates.Phenotypes.shortlist``). None without HPO."""
+        if self.phenotypes is None or not cid:
+            return []
+        from ..evaluation.llm_reading import CONCEPT_LETTERS
+        from .hpo_candidates import site_anchors
+
+        anchors = [x for x in site_anchors(cid) if x.startswith("UBERON:")]
+        if not anchors:
+            return []
+        ph = self.phenotypes
+        return [(h, ph.terms[h].name) for h in ph.shortlist(anchors, clause)[:len(CONCEPT_LETTERS)]]
+
+    def _concept(self, valid: dict[str, dict], claims: dict, cid: str) -> dict:
+        """The concept of what the readers agree is seen (14 November 2026), in three steps that each keep the
+        weaker reading: the models are one stream, so their choices give the most specific term common to all
+        of them (two different terms: the one both are); the words decide how far up it must go, the term being
+        kept only if the words state it (``Phenotypes.stated``: its distinctive words, or its PATO quality); a
+        model's "none" against another's term, or nothing stated, gives no concept, with why. Only the observed
+        words are read: what the sentence "says it is", a hypothesis, is never stated."""
+        if self.phenotypes is None or not cid:
+            return {}
+        findings = [o for o in claims.get("findings", []) if o.get("of") == "it"]
+        if not findings:
+            return {}
+        from .hpo_candidates import site_anchors
+
+        anchors = [x for x in site_anchors(cid) if x.startswith("UBERON:")]
+        words = " ".join(o["words"] for o in findings)
+        chosen: dict[str, list[str]] = {}
+        for model, answer in valid.items():
+            terms = [o.get("concept", "") for o in answer.get("observed", []) if o.get("of", "it") == "it"]
+            chosen[model] = [t for t in terms if t]
+        if not chosen or any(not terms for terms in chosen.values()):
+            return {"term": "", "why": "a_reader_gave_no_term", "chosen": chosen, "words": words}
+        ph = self.phenotypes
+        common = ph.common_ancestor([t for terms in chosen.values() for t in terms])
+        if common is None:
+            return {"term": "", "why": "the_readers_chose_unrelated_terms", "chosen": chosen, "words": words}
+        term, climbed = ph.stated(common, anchors, words)
+        if term is None:
+            return {"term": "", "why": "the_words_state_no_term", "chosen": chosen, "words": words}
+        return {"term": term, "name": ph.terms[term].name, "climbed": climbed, "chosen": chosen, "words": words,
+                "by": "readers_and_words" if climbed == 0 else "the_words_stated_a_more_general_term"}
 
     def _names_its_organ(self, mention: str, cid: str) -> bool:
         """Do the mention's words name the organ the linked structure is, or is a part of ("right lobe of the
@@ -1034,6 +1086,17 @@ class FindingOwner:
         return False
 
     def _by_claims(self, mention: str, clause: str, at: int, language: str, cid: str, context: dict) -> Ownership:
+        """The reading claim by claim, with the concept of what is seen when the readers agree it is seen at the
+        structure (``_concept``, 14 November 2026); a finding in doubt keeps its doubt and gets no concept."""
+        got = self._read_claims(mention, clause, at, language, cid, context)
+        if self.phenotypes is None or got.verdict != HERE or not got.claims.get("findings"):
+            return got
+        valid = {m: a for m, a in got.models.items() if a.get("valid")}
+        from dataclasses import replace
+
+        return replace(got, concept=self._concept(valid, got.claims, cid))
+
+    def _read_claims(self, mention: str, clause: str, at: int, language: str, cid: str, context: dict) -> Ownership:
         """What the sentence states of the structure, claim by claim, each with its words (``read_claims``).
         Nothing is chosen from a list: the readers agree when they would attach the same thing (a current
         finding at the structure, nothing at it because the finding is of another structure, or only other

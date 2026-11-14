@@ -182,7 +182,21 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
             references = ReferenceValues.load()
         except Exception as error:  # noqa: BLE001
             note += f"+references_unavailable:{type(error).__name__}"
-    return (FindingOwner(reader, chats, anatomy, question=question, anomalies=anomalies, references=references),
+    phenotypes = None
+    if question == "claims":
+        # the concept of what is seen, in the same reading (14 November 2026): HPO (MELAMPO_HPO_OBO), UBERON
+        # (MELAMPO_UBERON) and PATO (MELAMPO_PATO); without them the words are read and no term is chosen
+        hpo, pato = os.environ.get("MELAMPO_HPO_OBO", ""), os.environ.get("MELAMPO_PATO", "")
+        if hpo and uberon and Path(hpo).exists() and Path(uberon).exists():
+            from ..memory import hpo_candidates as hc
+
+            try:
+                phenotypes = hc.load(Path(hpo), Path(uberon), Path(pato) if pato else None)
+                note += "+concepts"
+            except Exception as error:  # noqa: BLE001
+                note += f"+concepts_unavailable:{type(error).__name__}"
+    return (FindingOwner(reader, chats, anatomy, question=question, anomalies=anomalies, references=references,
+                         phenotypes=phenotypes),
             "finding_owner:reader" + ("+models" if chats else "") + note + (f":{question}" if question != "owner" else ""))
 
 
