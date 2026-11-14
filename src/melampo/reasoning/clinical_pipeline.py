@@ -1070,4 +1070,6 @@ class ClinicalInferencePipeline:
         pipeline_result["routing_mode"] = routing_mode
         pipeline_result["dual_path"] = {k: v for k, v in dual_path.items() if k != "retrieval"}
         pipeline_result["routing_reason"] = routing_reason
+        # the graph of the case: counts only here, the graph itself stays in the case's provenance
+        pipeline_result["case_graph"] = dict(case.provenance.get("case_graph_summary") or {})
         return pipeline_result
