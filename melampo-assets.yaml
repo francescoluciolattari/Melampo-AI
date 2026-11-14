@@ -533,20 +533,21 @@ assets:
       Option in place of Nemotron 3 Ultra, beside Muse: on ctrate9 0 errors and 10 doubts. One 80 GB GPU.
 
   # --- Models through an API: nothing to download ---------------------------
-  - id: root-model-nemotron-3-super
+  # the root pair since 14 November 2026 (root_model_cross_check.DEFAULT_PAIR): the same weights as the readers
+  - id: root-model-nemotron-3-ultra
     kind: api_model
     manager: api
     status: present
-    source: OpenRouter (OPENROUTER_API_KEY)
-    licence: NVIDIA open model terms -- bench-only until licence review (models/rlm_model_adapter.py)
+    source: OpenRouter (OPENROUTER_API_KEY) for the benches; locally the reader-nemotron-3-ultra weights
+    licence: NVIDIA open model terms -- licence review open (models/rlm_model_adapter.py)
     consumers: [reasoning/rlm_engine.py, reasoning/root_model_cross_check.py]
 
-  - id: root-model-gemma-3-27b
+  - id: root-model-gemma-4-31b
     kind: api_model
     manager: api
     status: present
-    source: OpenRouter (OPENROUTER_API_KEY)
-    licence: Gemma terms -- see models/rlm_model_adapter.py
+    source: OpenRouter (OPENROUTER_API_KEY) for the benches; locally the reader-gemma-4-31b weights
+    licence: Gemma 4 terms -- to verify for this medical use
     consumers: [reasoning/rlm_engine.py, reasoning/root_model_cross_check.py]
 
   - id: root-model-mistral-large
