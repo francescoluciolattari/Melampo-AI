@@ -611,14 +611,21 @@ def claims_outcome(answer: dict) -> str:
     return KEEP
 
 
+# The reading of the uncertainty chosen by measure (14 November 2026): Muse Spark Open's, on ctrate8 and ctrate9
+# (0 lost, 0 given on 293 items), with Nemotron 3 Ultra as the second reader (VALIDATION).
+UNCERTAINTY_FROM = "muse"
+
+
 def uncertainty_readers(valid: dict[str, dict]) -> list[dict]:
-    """The answers whose uncertainty is read (11 November 2026): every model's (their union) by default; with
-    ``MELAMPO_UNCERTAINTY_FROM`` set to model names (comma separated), only theirs. The choice is measured, never
-    assumed: on ctrate5 one model gave the uncertainty to 13 stated findings, the other to 1, and the union lost
-    nothing either alone lost; ctrate6 measures the three readings with the rule fixed before (VALIDATION)."""
+    """The answers whose uncertainty is read (11 November 2026): with ``MELAMPO_UNCERTAINTY_FROM`` set to model
+    names (comma separated, a part of the name is enough), only theirs; unset, the reading chosen by measure
+    (``UNCERTAINTY_FROM``, 14 November 2026: Muse Spark Open); ``all`` or no chosen model among the readers,
+    every model's (their union). The choice is measured, never assumed: on ctrate5 one model gave the
+    uncertainty to 13 stated findings, the other to 1; on ctrate9 Muse lost none and gave none."""
     import os
 
-    chosen = [m.strip() for m in os.environ.get("MELAMPO_UNCERTAINTY_FROM", "").split(",") if m.strip()]
+    asked = os.environ.get("MELAMPO_UNCERTAINTY_FROM", UNCERTAINTY_FROM)
+    chosen = [m.strip() for m in asked.split(",") if m.strip() and m.strip().lower() != "all"]
     if not chosen:
         return list(valid.values())
     picked = [a for m, a in valid.items() if any(c in m for c in chosen)]

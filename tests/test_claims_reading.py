@@ -537,6 +537,13 @@ def test_the_uncertainty_is_read_from_the_chosen_models(monkeypatch):
     assert uncertainty_readers(valid) == [{"uncertainty": []}]
     monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "absent")
     assert len(uncertainty_readers(valid)) == 2   # a chosen model that did not answer: never no reading
+    # unset: the reading chosen by measure, Muse Spark Open's (14 November 2026); "all": the union
+    monkeypatch.delenv("MELAMPO_UNCERTAINTY_FROM")
+    pair = {"nvidia/nemotron-3-ultra+reasoning": {"uncertainty": ["or"]},
+            "meta/muse-spark-open+reasoning": {"uncertainty": []}}
+    assert uncertainty_readers(pair) == [{"uncertainty": []}]
+    monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "all")
+    assert len(uncertainty_readers(pair)) == 2
 
 
 def test_the_qualifiers_say_what_each_word_does_before_it_is_placed():

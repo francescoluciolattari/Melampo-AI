@@ -146,3 +146,45 @@ def test_the_models_kinds_are_joined_and_other_is_still_read():
     assert set(both.model_kinds) == {"other", "imaging_report"} and "narrative_reader" in both.interpreters
     broken = rr.route(text, [lambda p: "?", imaging])
     assert broken.model_kinds == ("imaging_report",) and "router_model_answer_unusable" in broken.notes
+
+
+def test_a_local_reader_reasons_with_the_room_its_answer_needs(monkeypatch):
+    """14 November 2026: the readers were measured reasoning, with 8000 tokens; the router's 300 cut them short."""
+    import json as _json
+
+    from melampo.data import report_reading as rd
+    from melampo.data import report_router as rr
+
+    sent = []
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps({"choices": [{"message": {"content": "{}"}}]}).encode()
+
+    def urlopen(request, timeout):
+        sent.append((_json.loads(request.data), timeout))
+        return _Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    rd._reader_chat("http://localhost:8000/v1", "muse-spark-open+reasoning")("p")
+    rd._reader_chat("http://localhost:8000/v1", "gemma-4-31b")("p")
+    (body, timeout), (plain, _) = sent
+    assert body["model"] == "muse-spark-open" and body["max_tokens"] == 8000 and timeout == 180.0
+    assert body["chat_template_kwargs"] == {"enable_thinking": True}
+    assert plain["max_tokens"] == 900 and "chat_template_kwargs" not in plain
+    monkeypatch.setenv("MELAMPO_LOCAL_CHAT_EXTRA", '{"reasoning": {"enabled": true}}')
+    rd._reader_chat("http://localhost:8000/v1", "muse-spark-open+reasoning")("p")
+    assert sent[-1][0]["reasoning"] == {"enabled": True} and "chat_template_kwargs" not in sent[-1][0]
+    # the router asks the kind without reasoning, and never sends the flag as a model name
+    monkeypatch.setenv("MELAMPO_LOCAL_CHAT_ENDPOINT", "http://localhost:8000/v1")
+    monkeypatch.setenv("MELAMPO_LOCAL_CHAT_MODELS", "muse-spark-open+reasoning")
+    rr.router_chat_from_env()("p")
+    assert sent[-1][0]["model"] == "muse-spark-open" and sent[-1][0]["max_tokens"] == 300
+    with pytest.raises(ValueError):
+        rd._reader_chat("https://api.example.com/v1", "m+reasoning")

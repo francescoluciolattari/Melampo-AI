@@ -32,7 +32,13 @@ Configuration (environment, read by ``ReportReaders.from_env``):
 * ``MELAMPO_CI_RESOURCES`` -- directory written by ``scripts/build_ci_resources.py``: the Kintsch reader, in
   "review" mode.
 * ``MELAMPO_LOCAL_CHAT_ENDPOINT`` and ``MELAMPO_LOCAL_CHAT_MODELS`` (comma-separated) -- the local models of the
-  linker's choice stage.
+  linker's choice stage and the readers of the claims. The readers chosen by measure (14 November 2026,
+  ctrate8 and ctrate9): Nemotron 3 Ultra and Muse Spark Open, both with reasoning, written with the server's
+  names and ``+reasoning`` (``nemotron-3-ultra+reasoning,muse-spark-open+reasoning``); Gemma 4 31B is an option.
+  ``MELAMPO_LOCAL_CHAT_EXTRA`` (JSON): how this server is asked to reason, when not through the chat template.
+* ``MELAMPO_OWNER_QUESTION`` -- ``claims`` (default since 14 November 2026), ``statement`` or ``owner``.
+* ``MELAMPO_UNCERTAINTY_FROM`` -- whose reading of the uncertainty is kept (default: Muse's; ``all``: every
+  model's).
 * ``MELAMPO_IMAGING_SEGMENTERS=voxtell`` -- VoxTell and TotalSegmentator (``MELAMPO_IMAGING_DEVICE``: cuda or cpu).
 """
 
@@ -48,7 +54,8 @@ VOLUME_MODALITIES = ("CT", "MR", "PT")
 IMAGING_KIND = "imaging_report"
 NARRATIVE = "narrative_reader"
 ENV = ("MELAMPO_NARRATIVE_READER", "MELAMPO_UBERON", "MELAMPO_CI_RESOURCES", "MELAMPO_LOCAL_CHAT_ENDPOINT",
-       "MELAMPO_LOCAL_CHAT_MODELS", "MELAMPO_IMAGING_SEGMENTERS", "MELAMPO_IMAGING_DEVICE")
+       "MELAMPO_LOCAL_CHAT_MODELS", "MELAMPO_IMAGING_SEGMENTERS", "MELAMPO_IMAGING_DEVICE",
+       "MELAMPO_OWNER_QUESTION", "MELAMPO_LOCAL_CHAT_EXTRA")
 _BUILT: dict[tuple[str, ...], "ReportReaders"] = {}
 
 
@@ -57,6 +64,22 @@ def _language(text: str) -> str:
 
     found = language_of(text)
     return found if found in ("it", "en") else "it"
+
+
+def _reader_chat(endpoint: str, spec: str):
+    """A local reader of the reports: ``<model>`` or ``<model>+reasoning`` (14 November 2026), with the room its
+    answer needs. The claims answer was measured with 900 tokens, and with 8000 when the model reasons first
+    (scripts/role_probe.make_chats); 300, the router's, cut it short."""
+    import json
+
+    from .report_router import local_chat
+
+    model, _, flag = spec.partition("+")
+    reasoning = flag == "reasoning"
+    extra = os.environ.get("MELAMPO_LOCAL_CHAT_EXTRA", "").strip()
+    return local_chat(endpoint, model, timeout=180.0 if reasoning else 60.0,
+                      max_tokens=8000 if reasoning else 900, reasoning=reasoning,
+                      extra=json.loads(extra) if extra else None)
 
 
 def build_linker(uberon: str | None = None, ci_resources: str | None = None, chat_endpoint: str | None = None,
@@ -98,10 +121,8 @@ def build_linker(uberon: str | None = None, ci_resources: str | None = None, cha
         except Exception as error:  # noqa: BLE001 -- missing resources: the linker reads without the reader
             notes.append(f"kintsch_reader_unavailable:{type(error).__name__}")
     if chat_endpoint and chat_models:
-        from .report_router import local_chat
-
         try:
-            kwargs["chats"] = {m: local_chat(chat_endpoint, m) for m in chat_models}
+            kwargs["chats"] = {m: _reader_chat(chat_endpoint, m) for m in chat_models}
             notes.append("models:" + ",".join(chat_models))
         except ValueError as error:   # not a local host: refused, patient reports never leave the machine
             notes.append(f"models_refused:{error}")
@@ -139,8 +160,10 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
     # does the sentence say of this structure?" (MELAMPO_OWNER_QUESTION=statement, 1 November 2026)
     # ... or claim by claim (MELAMPO_OWNER_QUESTION=claims, 2 November 2026), with what the reader knows of
     # abnormalities from HPO and PATO (MELAMPO_HPO, MELAMPO_PATO)
-    question = os.environ.get("MELAMPO_OWNER_QUESTION", "owner")
-    question = question if question in ("owner", "statement", "claims") else "owner"
+    # claim by claim is the default since 14 November 2026: on ctrate9 (293 items labelled before any reading)
+    # Nemotron 3 Ultra and Muse Spark Open, both with reasoning, read it with 0 errors and 3 doubts (VALIDATION)
+    question = os.environ.get("MELAMPO_OWNER_QUESTION", "claims")
+    question = question if question in ("owner", "statement", "claims") else "claims"
     anomalies = None
     if question == "claims":
         from ..memory.what_is_said import AnomalyWords
