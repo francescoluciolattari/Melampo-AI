@@ -49,7 +49,8 @@ on:
       roster:
         description: "Comma-separated candidate names to compare"
         required: false
-        default: "llama-4-maverick,gemma-4-31b,gemma-3-27b,mistral-large-openrouter,mistral-small-openrouter,grok-4.6,gemini-3-pro-preview,nemotron-3-super,claude-sonnet-5,claude-opus-5,claude-fable-5.1,qwen-3.5,qwen-3.7,qwen-3.8"
+        # 14 November 2026: the readers of the reports as the root, beside the pair chosen in October
+        default: "gemma-4-31b,nemotron-3-ultra,nemotron-3-ultra-reasoning,muse-spark-open,muse-spark-open-reasoning,nemotron-3-super,gemma-3-27b"
 
 jobs:
   prepare:
@@ -96,7 +97,9 @@ jobs:
     # margin over the breaker's few-minutes typical case, while remaining a
     # firm backstop rather than another number chosen to wait out whatever
     # was seen last time.
-    timeout-minutes: 15
+    # a candidate that reasons before each action (14 November 2026, "-reasoning") gets the time a reasoning answer
+    # takes: 600 s per case and 120 minutes per job; the others keep 90 s and 15 minutes
+    timeout-minutes: ${{ contains(matrix.candidate, '-reasoning') && 120 || 15 }}
     strategy:
       fail-fast: false
       matrix:
@@ -119,7 +122,7 @@ jobs:
           # this workflow's jobs -- root-model-bench.yml is unaffected, since
           # these are read with a fallback to the unchanged default when unset.
           BENCH_MAX_ITERATIONS: "16"
-          BENCH_WALL_CLOCK_SECONDS: "90"
+          BENCH_WALL_CLOCK_SECONDS: ${{ contains(matrix.candidate, '-reasoning') && '600' || '90' }}
         continue-on-error: true
         run: |
           uv run python scripts/run_format_adherence_bench.py \

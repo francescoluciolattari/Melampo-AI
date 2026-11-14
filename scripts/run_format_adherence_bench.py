@@ -170,7 +170,19 @@ CANDIDATE_MODELS: tuple[tuple[str, str, bool], ...] = (
     # as a candidate for the vetting role specifically (never tested on
     # anything in this project), not as a navigation candidate.
     ("gpt-oss-120b", "openai/gpt-oss-120b", True),
+    # The readers of the reports (14 November 2026), benched as the root for one set of models across Melampo:
+    # Nemotron 3 Ultra and Muse Spark Open, each without and with reasoning (REASONING_ON: asked on, with the
+    # room and the time a reasoning answer needs), beside gemma-4-31b above.
+    ("nemotron-3-ultra", "nvidia/nemotron-3-ultra-550b-a55b", True),
+    ("nemotron-3-ultra-reasoning", "nvidia/nemotron-3-ultra-550b-a55b", "on"),
+    ("muse-spark-open", "meta/muse-spark-open", True),
+    ("muse-spark-open-reasoning", "meta/muse-spark-open", "on"),
 )
+
+# The third field of a candidate: True asks reasoning off, False says nothing, REASONING_ON asks it on.
+REASONING_ON = "on"
+REASONING_MAX_TOKENS = 8000
+REASONING_CALL_TIMEOUT_SECONDS = 180
 
 ACTION_GRAMMAR = (
     "describe() | grep(pattern) | slice(document_id, start, end) | "
@@ -652,7 +664,7 @@ RATE_LIMIT_MAX_WAIT_SECONDS = 20.0
 
 
 def _http_chat_completion(
-    endpoint: str, api_key: str, model: str, prompt: str, *, timeout: int, disable_reasoning: bool = False,
+    endpoint: str, api_key: str, model: str, prompt: str, *, timeout: int, disable_reasoning: bool | str = False,
     system_prompt: str | None = None,
 ) -> str:
     """Minimal OpenAI-compatible chat completion call, stdlib only.
@@ -690,6 +702,10 @@ def _http_chat_completion(
     indefinitely.
     """
     active_system_prompt = system_prompt if system_prompt is not None else _SYSTEM_PROMPT
+    # REASONING_ON (14 November 2026): the model reasons before its action, with the room and the time for it
+    reasoning_on = disable_reasoning == REASONING_ON
+    if reasoning_on:
+        timeout = max(timeout, REASONING_CALL_TIMEOUT_SECONDS)
 
     def _build_body(with_reasoning_hint: bool) -> bytes:
         return json.dumps(
@@ -711,8 +727,8 @@ def _http_chat_completion(
                 # apart from "genuinely stuck" without more room to see the whole
                 # output. 1024 gives that room while staying a small fraction of
                 # a cent per call at every candidate's pricing.
-                "max_tokens": 1024,
-                **({"reasoning": {"enabled": False}} if with_reasoning_hint else {}),
+                "max_tokens": REASONING_MAX_TOKENS if reasoning_on else 1024,
+                **({"reasoning": {"enabled": reasoning_on}} if with_reasoning_hint else {}),
             }
         ).encode("utf-8")
 
@@ -943,9 +959,11 @@ def _preflight(name: str, endpoint: str, key: str, model: str, *, disable_reason
     fails, that reason is the entire useful output of the run.
     """
     try:
+        # the preflight asks only whether the model is there: a reasoning answer would outlast its timeout
         response = _http_chat_completion(
             endpoint, key, model, "final(preflight check -- respond with exactly this action)",
-            timeout=PREFLIGHT_TIMEOUT_SECONDS, disable_reasoning=disable_reasoning,
+            timeout=PREFLIGHT_TIMEOUT_SECONDS,
+            disable_reasoning=True if disable_reasoning == REASONING_ON else disable_reasoning,
         )
         if not response.strip():
             print(f"  [preflight] {model}: reachable but returned empty text", file=sys.stderr)

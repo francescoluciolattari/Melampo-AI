@@ -51,8 +51,8 @@ jobs:
     # Four cases per candidate, no wide budget or circuit breaker needed the
     # way the 19-case navigation bench does -- this is a much lighter run.
     # 10 minutes is ample margin over what four calls to any candidate,
-    # including a genuinely slow one, would take.
-    timeout-minutes: 10
+    # including a genuinely slow one, would take; a candidate that reasons (14 November 2026, "-reasoning"), 30.
+    timeout-minutes: ${{ contains(matrix.candidate, '-reasoning') && 30 || 10 }}
     strategy:
       fail-fast: false
       matrix:

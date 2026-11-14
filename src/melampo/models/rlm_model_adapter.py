@@ -386,6 +386,28 @@ DEFAULT_CANDIDATES = (
             "prompts and outputs may be used to improve Meta's products."
         ),
     ),
+    # the readers of the reports (14 November 2026), benched as the root for one set of models
+    RootModelCandidate(
+        name="nemotron-3-ultra",
+        provider="nvidia",
+        licence=LICENCE_NVIDIA_OPEN,
+        note=(
+            "A reader of the reports (14 November 2026, with Muse Spark Open): benched as the root, without and "
+            "with reasoning (nemotron-3-ultra-reasoning), so that one set of models serves Melampo if it "
+            "navigates as well as it reads. Licence review open, as for nemotron-3-super."
+        ),
+    ),
+    RootModelCandidate(
+        name="muse-spark-open",
+        provider="meta",
+        licence=LICENCE_UNVERIFIED,
+        note=(
+            "The other reader of the reports (14 November 2026), without and with reasoning "
+            "(muse-spark-open-reasoning). Its terms ask for the notice 'Built with Muse Spark Open', reach the "
+            "models derived from it (LoRA adapters included), and its user must not be a minor (the owner's "
+            "reading, legal review open)."
+        ),
+    ),
 )
 
 # Benching a model is not adopting it. A candidate whose licence is unresolved
