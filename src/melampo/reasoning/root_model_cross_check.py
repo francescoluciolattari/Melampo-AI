@@ -96,6 +96,9 @@ class CrossCheckResult:
     # relevance, or no graph available -- not that the check failed.
     mechanism_check: MechanismCrossCheck | None = None
     notes: list[str] = field(default_factory=list)
+    # what each model read, with its offsets (14 November 2026): the recursive path of the dual path
+    primary_evidence: list[dict[str, Any]] = field(default_factory=list)
+    secondary_evidence: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def both_completed(self) -> bool:
@@ -343,6 +346,8 @@ def cross_check(
             result.primary_answer, result.secondary_answer
         )
 
+    result.primary_evidence = list(primary_trajectory.evidence())
+    result.secondary_evidence = list(secondary_trajectory.evidence())
     primary_ids = {
         item.get("record_id", "")
         for item in primary_trajectory.evidence()
