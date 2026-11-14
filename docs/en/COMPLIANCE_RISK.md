@@ -53,7 +53,9 @@ with a physician.
   revision and status (`blocked_licence` where use is not allowed).
 - **Licences that constrain use:** PARROT and VoxTell weights are CC BY-NC-SA 4.0 (non-commercial, share-alike);
   VL-JEPA weights are research-only (FAIR licence); NVIDIA models are bench-only until a licence review; the
-  Gemma terms for this medical use are to verify. A commercial version would need each of these replaced.
+  Gemma terms for this medical use are to verify; Muse Spark Open asks for the notice "Built with Muse Spark Open"
+  and its terms reach the models derived from it (LoRA adapters included), and its user must not be a minor
+  (ARCHITECTURE, "Local readers"). A commercial version would need each of these replaced.
 - **Melampo's own licence:** GNU AGPLv3 with attribution terms under section 7(b) (see `LICENSE` and the root
   README). A decision record of 2 October 2026 recorded CC BY-NC 4.0 and the legal points of that change; which
   licence holds is for the legal review (open item).

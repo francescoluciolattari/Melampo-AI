@@ -292,13 +292,23 @@ def router_chat_from_env(environ: dict[str, str] | None = None) -> Callable[[str
     if not endpoint or not chosen:
         raise ValueError("MELAMPO_REPORT_ROUTER=model needs MELAMPO_LOCAL_CHAT_ENDPOINT and a model "
                          "(MELAMPO_ROUTER_MODEL or MELAMPO_LOCAL_CHAT_MODELS)")
-    chats = [local_chat(endpoint, m) for m in chosen]
+    # the router asks only the kind, as it was measured: without reasoning ("+reasoning" is the readers' flag)
+    chats = [local_chat(endpoint, m.partition("+")[0]) for m in chosen]
     return chats[0] if len(chats) == 1 else chats
 
 
-def local_chat(endpoint: str, model: str, timeout: float = 60.0) -> Callable[[str], str]:
+REASONING_REQUEST = {"chat_template_kwargs": {"enable_thinking": True}}
+
+
+def local_chat(endpoint: str, model: str, timeout: float = 60.0, max_tokens: int = 300,
+               reasoning: bool = False, extra: dict | None = None) -> Callable[[str], str]:
     """A chat callable for an OpenAI-compatible server on this machine (vLLM, llama.cpp, Ollama). Any other
-    host is refused: a patient report never leaves the machine without a legal basis (GDPR)."""
+    host is refused: a patient report never leaves the machine without a legal basis (GDPR).
+
+    ``reasoning`` (14 November 2026): the model reasons before it answers, as the readers were measured
+    (ctrate8, ctrate9); the request asks it through the chat template (``REASONING_REQUEST``, the form vLLM and
+    llama.cpp read), and ``extra`` (``MELAMPO_LOCAL_CHAT_EXTRA``, JSON) replaces it for a server that asks it
+    otherwise. Only the answer is read, never the reasoning."""
     import urllib.parse
     import urllib.request
 
@@ -308,8 +318,10 @@ def local_chat(endpoint: str, model: str, timeout: float = 60.0) -> Callable[[st
     url = endpoint.rstrip("/") + "/chat/completions"
 
     def chat(prompt: str) -> str:
-        body = json.dumps({"model": model, "temperature": 0, "max_tokens": 300,
-                           "messages": [{"role": "user", "content": prompt}]}).encode()
+        body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
+                           "messages": [{"role": "user", "content": prompt}],
+                           **(REASONING_REQUEST if reasoning and extra is None else {}),
+                           **(extra if reasoning and extra else {})}).encode()
         req = urllib.request.Request(url, body, {"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 -- local host checked above
             return json.loads(r.read())["choices"][0]["message"]["content"]

@@ -624,9 +624,9 @@ def main(argv: list[str] | None = None) -> int:
             def from_cache(name: str):
                 def call(prompt: str) -> str:
                     k = Cache.key(name, prompt)
-                    if k not in cache.data:
-                        raise LookupError(f"not in the run's answers: {name}")
-                    return cache.data[k]
+                    # a question the run asked and got no answer to (an empty answer is never kept) is an empty
+                    # answer here too, as it was in the run
+                    return cache.data.get(k, "")
                 return call
 
             chats = {m: from_cache(m) for m in models}

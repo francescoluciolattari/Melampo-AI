@@ -537,6 +537,13 @@ def test_the_uncertainty_is_read_from_the_chosen_models(monkeypatch):
     assert uncertainty_readers(valid) == [{"uncertainty": []}]
     monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "absent")
     assert len(uncertainty_readers(valid)) == 2   # a chosen model that did not answer: never no reading
+    # unset: the reading chosen by measure, Muse Spark Open's (14 November 2026); "all": the union
+    monkeypatch.delenv("MELAMPO_UNCERTAINTY_FROM")
+    pair = {"nvidia/nemotron-3-ultra+reasoning": {"uncertainty": ["or"]},
+            "meta/muse-spark-open+reasoning": {"uncertainty": []}}
+    assert uncertainty_readers(pair) == [{"uncertainty": []}]
+    monkeypatch.setenv("MELAMPO_UNCERTAINTY_FROM", "all")
+    assert len(uncertainty_readers(pair)) == 2
 
 
 def test_the_qualifiers_say_what_each_word_does_before_it_is_placed():
@@ -702,3 +709,47 @@ def test_a_model_asked_again_when_its_words_are_not_in_the_sentence():
     owner = FindingOwner(None, {"m0": chat, "m1": lambda p: json.dumps(good)}, question="claims")
     got = owner("right lung middle lobe", s, s.index("right lung middle lobe"), "en", "lung_middle_lobe_right")
     assert len(asked) == 2 and got.verdict == "here"
+
+    # the second answer lost (a timeout): the first answer stays, the model is not lost with it
+    def lost(prompt):
+        if "Asked again" in prompt:
+            raise TimeoutError("no answer")
+        return json.dumps(bad)
+
+    said = FindingOwner(None, {"m0": lost}, question="claims")._claim_answers(
+        "right lung middle lobe", s, s.index("right lung middle lobe"), "en", "lung_middle_lobe_right", {})
+    assert said["m0"].get("valid") and not said["m0"].get("asked_again")
+
+
+class _TinyUberonOrgans:
+    """The gallbladder with its neck, the cystic duct beside it, the thyroid with its lobe: three organs."""
+    labels = {"UBERON:0002110": "gallbladder", "UBERON:9100001": "neck of gallbladder",
+              "UBERON:0001152": "cystic duct", "UBERON:0002046": "thyroid gland",
+              "UBERON:9100002": "right lobe of thyroid gland"}
+    parents = {"UBERON:9100001": ["UBERON:0002110"], "UBERON:9100002": ["UBERON:0002046"]}
+    part_of = {"UBERON:9100001": {"UBERON:0002110"}, "UBERON:9100002": {"UBERON:0002046"}}
+    organs = {"UBERON:0002110", "UBERON:0001152", "UBERON:0002046"}
+
+
+def _anatomy_with_organs():
+    from melampo.memory.finding_owner import Anatomy
+
+    return Anatomy(_TinyUberonOrgans(), uberon_names={u: [n] for u, n in _TinyUberonOrgans.labels.items()})
+
+
+def test_inside_a_part_of_the_mentions_structure_it_bears_the_finding():
+    """14 November 2026, ctrate9 2948-en-1: "a 5 mm stone at the entrance of the cystic duct in the neck of the
+    gallbladder" was read as the cystic duct's."""
+    owner = FindingOwner(None, {}, _anatomy_with_organs())
+    gb = {"UBERON:0002110", "class:gallbladder"}
+    assert owner._inside_a_part_of_it("a 5 mm stone at the entrance of the cystic duct in the neck of the ", gb, "en")
+    assert not owner._inside_a_part_of_it("a lesion of the liver adjacent to the wall of the ", gb, "en")
+    assert not owner._inside_a_part_of_it("a stone in the lumen of the ", gb, "en")     # UBERON gives no lumen here
+
+
+def test_a_mention_that_names_its_organ_is_not_outside_the_exam():
+    """14 November 2026, ctrate9 3429-en-0: "the right lobe of the thyroid gland", with the exam read as
+    abdominal, was read as outside the exam; "lobo medio" in a prostate MRI stays an expectation's question."""
+    owner = FindingOwner(None, {}, _anatomy_with_organs())
+    assert owner._names_its_organ("right lobe of the thyroid gland", "thyroid_gland")
+    assert not owner._names_its_organ("right lobe", "thyroid_gland")

@@ -52,7 +52,9 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
   fissata e stato (`blocked_licence` dove l'uso non è permesso).
 - **Licenze che limitano l'uso:** PARROT e i pesi di VoxTell sono CC BY-NC-SA 4.0 (non commerciale, condivisione
   allo stesso modo); i pesi di VL-JEPA sono solo per ricerca (licenza FAIR); i modelli NVIDIA sono solo per i
-  benchmark fino a una revisione della licenza; i termini di Gemma per questo uso medico sono da verificare. Una
+  benchmark fino a una revisione della licenza; i termini di Gemma per questo uso medico sono da verificare; Muse Spark Open chiede la dicitura "Built with Muse
+  Spark Open", i suoi termini valgono per i modelli che ne derivano (anche gli adattatori LoRA) e chi lo usa non
+  deve essere minorenne (ARCHITECTURE, "Lettori locali"). Una
   versione commerciale dovrebbe sostituire ciascuno di questi.
 - **La licenza di Melampo:** GNU AGPLv3 con condizioni di attribuzione ai sensi della sezione 7(b) (vedi
   `LICENSE` e il README alla radice). Un decision record del 2 ottobre 2026 registrava CC BY-NC 4.0 e i punti

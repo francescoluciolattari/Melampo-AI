@@ -499,6 +499,39 @@ assets:
     licence: permissive per the repository -- exact licence to_verify
     consumers: [to_integrate]
 
+  # --- The local readers of the reports (14 November 2026, ARCHITECTURE "Local readers") -------------------
+  - id: reader-nemotron-3-ultra
+    kind: model_weights_reference
+    manager: weights
+    status: to_download
+    source: NVIDIA Nemotron 3 Ultra (OpenRouter nvidia/nemotron-3-ultra-550b-a55b for the public-corpus probes)
+    licence: NVIDIA open model terms -- licence review open
+    consumers: [memory/finding_owner.py, data/report_reading.py]
+    notes: >-
+      First reader of the claims, with reasoning; chosen by measure on ctrate8 and ctrate9. About 8 GPUs.
+
+  - id: reader-muse-spark-open
+    kind: model_weights_reference
+    manager: weights
+    status: to_download
+    source: Meta Muse Spark Open (OpenRouter meta/muse-spark-open for the public-corpus probes)
+    licence: >-
+      Muse Spark Open terms -- notice "Built with Muse Spark Open" mandatory; derivatives (LoRA adapters
+      included) under the same terms; the user must not be a minor (owner's reading, legal review open)
+    consumers: [memory/finding_owner.py, data/report_reading.py]
+    notes: >-
+      Second reader of the claims, with reasoning, and the reading of the uncertainty. About 1 TB of memory.
+
+  - id: reader-gemma-4-31b
+    kind: model_weights_reference
+    manager: weights
+    status: to_download
+    source: Google Gemma 4 31B (OpenRouter google/gemma-4-31b-it for the public-corpus probes)
+    licence: Gemma 4 terms -- to verify for this medical use
+    consumers: [memory/finding_owner.py, data/report_reading.py]
+    notes: >-
+      Option in place of Nemotron 3 Ultra, beside Muse: on ctrate9 0 errors and 10 doubts. One 80 GB GPU.
+
   # --- Models through an API: nothing to download ---------------------------
   - id: root-model-nemotron-3-super
     kind: api_model

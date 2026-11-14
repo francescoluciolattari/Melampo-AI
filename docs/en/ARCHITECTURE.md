@@ -15,7 +15,7 @@ flowchart LR
   hospital[("Hospital documents<br/>pseudonymised at source")] --> melampo
   subgraph melampo["Melampo (one installation, in the hospital)"]
     core["Ingestion, readers,<br/>graph, differential"]
-    local["Local language models<br/>(Gemma 4, Nemotron 3 Ultra)"]
+    local["Local language models<br/>(Nemotron 3 Ultra, Muse Spark Open;<br/>Gemma 4 as an option)"]
     graph[("FalkorDB<br/>concept graph")]
     stores[("Encrypted stores<br/>cases, confirmations")]
   end
@@ -44,7 +44,7 @@ flowchart TD
   rr --> ingest
   ingest --> nexus["nexus branch: graph candidates, mechanisms,<br/>counterfactuals"]
   nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
-  rr -.->|"not yet: HPO step below threshold"| graphnode[("concept graph")]
+  rr -.->|"not yet: finding → HPO step below threshold (90.1%, 95%)"| graphnode[("concept graph")]
   graphnode --> nexus
 ```
 
@@ -59,7 +59,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Report router | `data/report_router.py` | working: the deterministic cues and the reader's local model together (on when the local server is configured; the router probe: 1.1% and 0.4% of the texts with an interpreter missed, against 20.4% with the cues alone); an external model is refused for patients' texts |
 | Anatomical linker | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | working; abstains when unsure |
 | Kintsch reader | `memory/ci_reader.py`, `memory/spatial_relation.py` | working; second stage reads the landmark role |
-| Finding owner | `memory/finding_owner.py` | working with question v1; claim-by-claim reading built, off (`MELAMPO_OWNER_QUESTION=claims`) |
+| Finding owner | `memory/finding_owner.py` | working: claim by claim, on by default since 14 November 2026 (`MELAMPO_OWNER_QUESTION=owner` for question v1). Readers chosen by measure: Nemotron 3 Ultra and Muse Spark Open, both with reasoning, the uncertainty read from Muse (ctrate9: 0 errors, 3 doubts in 293 items); Gemma 4 31B is an option (see "Local readers" below) |
 | What the reader knows | `memory/what_is_said.py` | abnormalities from HPO and PATO, phrase heads, negation, coordination |
 | Reference library | `memory/reference_values.py`, `data/reference/` | built: reference values with their sources (to verify), paragraphs in a local copy; the models compare a measure only with a cited row, the reader recomputes it |
 | Pathology diagnosis to its finding | `data/pathology_findings.py` | working: the diagnosis with its TNM, grade, margins, nodes and markers on its finding; the clinical information is the question |
@@ -77,6 +77,28 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Review feedback | `evaluation/review_feedback.py` | a record becomes a label only after a second person confirms it |
 | Training | `training/dpo_config.py`, LoRA profiles in `evaluation/model_profiles.py` | never run |
 | Input and review mask | — | to build (local HTML/JS) |
+
+### Local readers of the reports
+
+The claims are read by two local models, chosen by measure on samples labelled before any reading
+([VALIDATION](VALIDATION.md), ctrate8 and ctrate9):
+
+| Readers | ctrate9, 293 items | Hardware (order of magnitude) |
+|---|---|---|
+| **Nemotron 3 Ultra + Muse Spark Open, both with reasoning** (default) | 0 errors, 3 doubts (1.0%); uncertainty from Muse: 0 lost, 0 given | Nemotron 3 Ultra about 8 GPUs; Muse Spark Open about 1 TB of memory |
+| Gemma 4 31B + Muse Spark Open with reasoning (option) | 0 errors, 10 doubts (3.4%) | Gemma 4 31B one 80 GB GPU; Muse as above |
+| Gemma 4 31B + Nemotron 3 Ultra with reasoning | 3 errors, 11 doubts (3.8%): not chosen | |
+
+A doubt stays in the diagnostic path with its doubt; only a discordance goes to a person. Configuration:
+`MELAMPO_LOCAL_CHAT_ENDPOINT` (this machine only), `MELAMPO_LOCAL_CHAT_MODELS` with the server's names and
+`+reasoning` (for example `nemotron-3-ultra+reasoning,muse-spark-open+reasoning`), `MELAMPO_UNCERTAINTY_FROM`
+(default Muse). A reader with reasoning gets 8000 tokens and is asked to reason through the chat template
+(`MELAMPO_LOCAL_CHAT_EXTRA` for a server that asks it otherwise).
+
+**Muse Spark Open terms** (as read by the project owner on 14 November 2026; to confirm in the legal review):
+the notice "Built with Muse Spark Open" is mandatory wherever Melampo is distributed or shown with it; a model
+derived from it (a fine-tuning, LoRA adapters included) is a derivative under the same terms and notice; the
+clause on minors concerns the user of the model: a person using Melampo must not be a minor.
 
 ## 4. Data model and interoperability
 

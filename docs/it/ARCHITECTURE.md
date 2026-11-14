@@ -15,7 +15,7 @@ flowchart LR
   hospital[("Documenti dell'ospedale<br/>pseudonimizzati alla fonte")] --> melampo
   subgraph melampo["Melampo (un'installazione, in ospedale)"]
     core["Acquisizione, lettori,<br/>grafo, differenziale"]
-    local["Modelli linguistici locali<br/>(Gemma 4, Nemotron 3 Ultra)"]
+    local["Modelli linguistici locali<br/>(Nemotron 3 Ultra, Muse Spark Open;<br/>Gemma 4 come opzione)"]
     graph[("FalkorDB<br/>grafo dei concetti")]
     stores[("Archivi cifrati<br/>casi, conferme")]
   end
@@ -44,7 +44,7 @@ flowchart TD
   rr --> ingest
   ingest --> nexus["ramo nexus: candidati dal grafo, meccanismi,<br/>controfattuali"]
   nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
-  rr -.->|"non ancora: passo HPO sotto soglia"| graphnode[("grafo dei concetti")]
+  rr -.->|"non ancora: passo reperto → HPO sotto soglia (90,1%, 95%)"| graphnode[("grafo dei concetti")]
   graphnode --> nexus
 ```
 
@@ -60,7 +60,7 @@ etichetta confermata).
 | Orchestratore dei referti | `data/report_router.py` | funziona: indizi deterministici e modello locale del lettore insieme (acceso quando il server locale è configurato; misura del router: 1,1% e 0,4% dei testi con un interprete mancato, contro il 20,4% dei soli indizi); un modello esterno è rifiutato per i testi dei pazienti |
 | Linker anatomico | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | funziona; si astiene quando non è sicuro |
 | Lettore Kintsch | `memory/ci_reader.py`, `memory/spatial_relation.py` | funziona; il secondo stadio legge il ruolo di riferimento |
-| Finding owner | `memory/finding_owner.py` | funziona con la domanda v1; lettura per affermazioni costruita, spenta (`MELAMPO_OWNER_QUESTION=claims`) |
+| Finding owner | `memory/finding_owner.py` | funziona: per affermazioni, accesa di default dal 14 novembre 2026 (`MELAMPO_OWNER_QUESTION=owner` per la domanda v1). Lettori scelti per misura: Nemotron 3 Ultra e Muse Spark Open, entrambi con ragionamento, l'incertezza letta da Muse (ctrate9: 0 errori, 3 dubbi su 293 item); Gemma 4 31B è un'opzione (vedi "Lettori locali" sotto) |
 | Ciò che sa il lettore | `memory/what_is_said.py` | anomalie da HPO e PATO, testa del sintagma, negazione, coordinazione |
 | Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | costruita: valori di riferimento con le fonti (da verificare), paragrafi in una copia locale; i modelli confrontano una misura solo con una riga citata, il lettore ricalcola il confronto |
 | Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | funziona: la diagnosi con TNM, grado, margini, linfonodi e marcatori sul suo reperto; le notizie cliniche sono il quesito |
@@ -78,6 +78,29 @@ etichetta confermata).
 | Feedback delle revisioni | `evaluation/review_feedback.py` | un record diventa etichetta solo dopo la conferma di una seconda persona |
 | Addestramento | `training/dpo_config.py`, profili LoRA in `evaluation/model_profiles.py` | mai eseguito |
 | Maschera di immissione e revisione | — | da costruire (HTML/JS in locale) |
+
+### Lettori locali dei referti
+
+Le affermazioni sono lette da due modelli locali, scelti per misura su campioni etichettati prima di ogni lettura
+([VALIDATION](VALIDATION.md), ctrate8 e ctrate9):
+
+| Lettori | ctrate9, 293 item | Hardware (ordine di grandezza) |
+|---|---|---|
+| **Nemotron 3 Ultra + Muse Spark Open, entrambi con ragionamento** (predefinita) | 0 errori, 3 dubbi (1,0%); incertezza da Muse: 0 perse, 0 date | Nemotron 3 Ultra circa 8 GPU; Muse Spark Open circa 1 TB di memoria |
+| Gemma 4 31B + Muse Spark Open con ragionamento (opzione) | 0 errori, 10 dubbi (3,4%) | Gemma 4 31B una GPU da 80 GB; Muse come sopra |
+| Gemma 4 31B + Nemotron 3 Ultra con ragionamento | 3 errori, 11 dubbi (3,8%): non scelta | |
+
+Un dubbio resta nel percorso diagnostico con il suo dubbio; solo una discordanza va a una persona. Configurazione:
+`MELAMPO_LOCAL_CHAT_ENDPOINT` (solo questa macchina), `MELAMPO_LOCAL_CHAT_MODELS` con i nomi del server e
+`+reasoning` (per esempio `nemotron-3-ultra+reasoning,muse-spark-open+reasoning`), `MELAMPO_UNCERTAINTY_FROM`
+(predefinito Muse). Un lettore con ragionamento ha 8000 token e il ragionamento è chiesto dal template della chat
+(`MELAMPO_LOCAL_CHAT_EXTRA` per un server che lo chiede in altro modo).
+
+**Termini di Muse Spark Open** (come li legge il titolare del progetto il 14 novembre 2026; da confermare nella
+revisione legale): la dicitura "Built with Muse Spark Open" è obbligatoria ovunque Melampo sia distribuito o
+mostrato con il modello; un modello che ne deriva (un fine-tuning, anche gli adattatori LoRA) è un derivato con gli
+stessi termini e la stessa dicitura; la clausola sui minori riguarda chi usa il modello: chi usa Melampo non deve
+essere minorenne.
 
 ## 4. Modello dei dati e interoperabilità
 
