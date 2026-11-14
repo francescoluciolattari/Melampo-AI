@@ -899,8 +899,13 @@ class FindingOwner:
                     # words not in the sentence as written (13 November 2026, ctrate8 22424-en-2: a model joined
                     # pieces of a list into words the sentence does not hold, and its reading was empty): the
                     # question is asked once more, saying why; the answer with fewer such words is kept
-                    again = read_claims(chat(prompt + _COPY_AGAIN), clause, mention, context.get("previous", ""),
-                                        context.get("conclusion", ""))
+                    # a second answer lost (an empty answer, a timeout) leaves the first as it was (14 November
+                    # 2026, ctrate9: four answers asked again came back empty, and the first was lost with them)
+                    try:
+                        again = read_claims(chat(prompt + _COPY_AGAIN), clause, mention,
+                                            context.get("previous", ""), context.get("conclusion", ""))
+                    except Exception:  # noqa: BLE001
+                        again = {"valid": False}
                     if again.get("valid") and again.get("dropped", 0) < said[model]["dropped"]:
                         said[model] = {**again, "asked_again": True}
             except Exception as error:  # noqa: BLE001 -- a lost answer is "cannot say", never a verdict

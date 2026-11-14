@@ -29,6 +29,11 @@ on:
         description: "a diagnosis on seen items: only these item ids, comma-separated (no measure)"
         required: false
         default: ""
+      replay:
+        description: "nothing is asked: the readers read again the answers a run on these samples already gave (no credit)"
+        type: boolean
+        required: false
+        default: false
       sample_only:
         description: "only draw the samples and upload them, for labelling before any reading (no reading call)"
         type: boolean
@@ -183,7 +188,11 @@ jobs:
         with:
           path: owner_probe_answers.jsonl
           key: owner-answers-${{ inputs.sets }}-${{ hashFiles('src/melampo/evaluation/llm_reading.py', 'src/melampo/memory/finding_owner.py', 'data/reading/manual.md') }}-${{ github.run_id }}
-          restore-keys: owner-answers-${{ inputs.sets }}-${{ hashFiles('src/melampo/evaluation/llm_reading.py', 'src/melampo/memory/finding_owner.py', 'data/reading/manual.md') }}-
+          # the answers are kept by model and prompt: an answer to another prompt is never read for this one, so the
+          # answers of a run before a change of the reader alone are still the answers to the same questions
+          restore-keys: |
+            owner-answers-${{ inputs.sets }}-${{ hashFiles('src/melampo/evaluation/llm_reading.py', 'src/melampo/memory/finding_owner.py', 'data/reading/manual.md') }}-
+            owner-answers-${{ inputs.sets }}-
 
       - name: Run the probe
         if: ${{ !inputs.sample_only }}
@@ -192,6 +201,7 @@ jobs:
           ONLY: ${{ inputs.only_items }}
           SETS: ${{ inputs.sets }}
           ARMS: ${{ inputs.arms }}
+          REPLAY: ${{ inputs.replay }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # Inputs go through the environment, never interpolated into the shell line.
         run: |
@@ -230,6 +240,14 @@ jobs:
           for arm in owner statement claims; do
             [[ ",${ARMS// /}," == *",$arm,"* ]] || SKIP="$SKIP,$arm"
           done
+          if [ "$REPLAY" = "true" ]; then
+            # a replay (14 November 2026): the reader changed, the questions did not; nothing is asked, nothing is paid
+            uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" --replay --skip "${SKIP#,}" \
+              --only "$ONLY" --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo --hpo hp-full.obo \
+              --pato pato.obo --cache owner_probe_answers.jsonl --questions owner_questions.jsonl --out owner_probe.json \
+              2> >(tee owner_probe.log >&2) | tee owner_probe_summary.json
+            exit 0
+          fi
           uv run --no-sync python -u scripts/owner_probe.py "${ITEMS[@]}" --models "$MODELS" --skip "${SKIP#,}" --only "$ONLY" \
             --parrot ext/PARROT/data/PARROT_v1_0.jsonl --uberon uberon.obo --hpo hp-full.obo --pato pato.obo \
             --endpoint https://openrouter.ai/api/v1/chat/completions --public-data \
@@ -254,7 +272,7 @@ jobs:
           fi
 
       - name: Keep the readers' answers
-        if: ${{ always() && !inputs.sample_only }}
+        if: ${{ always() && !inputs.sample_only && !inputs.replay }}
         uses: actions/cache/save@v4
         with:
           path: owner_probe_answers.jsonl

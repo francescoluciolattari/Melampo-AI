@@ -703,6 +703,16 @@ def test_a_model_asked_again_when_its_words_are_not_in_the_sentence():
     got = owner("right lung middle lobe", s, s.index("right lung middle lobe"), "en", "lung_middle_lobe_right")
     assert len(asked) == 2 and got.verdict == "here"
 
+    # the second answer lost (a timeout): the first answer stays, the model is not lost with it
+    def lost(prompt):
+        if "Asked again" in prompt:
+            raise TimeoutError("no answer")
+        return json.dumps(bad)
+
+    said = FindingOwner(None, {"m0": lost}, question="claims")._claim_answers(
+        "right lung middle lobe", s, s.index("right lung middle lobe"), "en", "lung_middle_lobe_right", {})
+    assert said["m0"].get("valid") and not said["m0"].get("asked_again")
+
 
 class _TinyUberonOrgans:
     """The gallbladder with its neck, the cystic duct beside it, the thyroid with its lobe: three organs."""
