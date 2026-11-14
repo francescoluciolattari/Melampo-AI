@@ -1,0 +1,32 @@
+name: Link coverage (no model is asked)
+
+# 14 November 2026: for fifty common diagnoses of imaging, how many disease -> finding links each source gives:
+# UMLS relations (SNOMED CT defining relationships, NCIt findings), Disease Ontology symptoms, Monarch phenotypes,
+# and whether StatPearls (NCBI Bookshelf, CC BY 4.0) has a chapter that describes the imaging. Counts and open
+# identifiers only: no SNOMED CT content, no chapter text.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: The open sources (MONDO, Disease Ontology)
+        run: |
+          curl -sSL --fail -o mondo.obo https://purl.obolibrary.org/obo/mondo.obo
+          curl -sSL --fail -o doid.obo https://purl.obolibrary.org/obo/doid.obo
+      - name: Count
+        env:
+          UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
+        run: |
+          python3 scripts/link_coverage.py --mondo mondo.obo --doid doid.obo --out link_coverage.json \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: link-coverage
+          path: link_coverage.json
+          retention-days: 30
