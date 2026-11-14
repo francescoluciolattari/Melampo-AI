@@ -100,7 +100,8 @@ class BenchCase:
         return bool(self.expected)
 
     def is_right(self, answer: str | None) -> bool:
-        text = (answer or "").lower()
+        # every space is a space (14 November 2026: "12\u202fmm", a narrow no-break space, failed "12 ?mm")
+        text = re.sub(r"\s", " ", (answer or "").lower())
         return (bool(text) and all(re.search(g, text) for g in self.expected)
                 and not any(re.search(f, text) for f in self.forbidden))
 
