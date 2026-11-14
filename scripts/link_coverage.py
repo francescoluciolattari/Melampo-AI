@@ -8,10 +8,16 @@ diagnoses (source_coverage.DIAGNOSES), the links each candidate source gives:
 - **UMLS relations** of the diagnosis's concept, by source and label: SNOMED CT's defining relationships (finding
   site, associated morphology), NCIt's (disease has finding, may have finding, anatomic site), MED-RT, and any
   other "manifestation" relation. Counts only: no SNOMED CT content is written.
-- **Disease Ontology**: ``has_symptom`` (doid.obo).
+- **Disease Ontology**: ``has_symptom`` (RO:0002452) axioms, which are in ``doid.owl`` only (corrected 14 November
+  2026: the first count read doid.obo, where the axioms are not, and found 0/50); names and exact synonyms from
+  doid.obo, the axioms from doid.owl through ``memory.symptom_sources.parse_doid_owl``.
 - **Monarch**: disease-to-phenotype associations of the MONDO concept (Monarch API v3).
 - **StatPearls** (NCBI Bookshelf, CC BY 4.0): is there a chapter for the diagnosis, and does it describe imaging
-  (its "Evaluation" with CT, MRI, ultrasound or radiography). The chapter's text is not kept.
+  (its "Evaluation" with CT, MRI, ultrasound or radiography). The chapter's text is not kept. Corrected 14 November
+  2026: the first count took a page it could not read (a browser check, or no "Evaluation" heading) as a chapter
+  without imaging, and found 0/50. Now each chapter says whether its text was read (``text``: read, blocked,
+  no_evaluation_section, not_fetched), the printable page is tried before the plain one, and the imaging share is
+  counted only over the chapters whose text was read.
 
 SemMedDB (relations read from PubMed, under the UMLS licence) needs its own download: not counted here.
 """
@@ -43,6 +49,8 @@ BOOKS = "https://www.ncbi.nlm.nih.gov/books"
 # relations that link a disease to what is found in it (either direction's name)
 FINDING_LABELS = re.compile(r"finding|manifestation|morphology|symptom|sign|anatomic_site|finding_site|"
                             r"associated_with|pathological_process|clinical_course", re.I)
+BLOCKED = re.compile(r"checking your browser|captcha|access denied|unusual traffic", re.I)
+EVALUATION = re.compile(r">\s*Evaluation\s*<", re.I)
 IMAGING = re.compile(r"\b(CT|computed tomography|MRI|magnetic resonance|ultrasound|ultrasonograph\w*|"
                      r"radiograph\w*|x-ray|sonograph\w*|imaging)\b", re.I)
 
@@ -92,8 +100,9 @@ def umls_relations(fetch: Fetch, key: str, cui: str) -> Counter:
     return counts
 
 
-def doid_symptoms(path: Path) -> tuple[dict[str, set[str]], dict[str, int]]:
-    """name or exact synonym -> DOID ids; DOID id -> number of has_symptom relations."""
+def doid_symptoms(path: Path, owl: Path | None = None) -> tuple[dict[str, set[str]], dict[str, int]]:
+    """name or exact synonym -> DOID ids (doid.obo); DOID id -> number of has_symptom axioms (doid.owl, where they
+    are; a ``relationship: has_symptom`` line of the OBO file is counted too, in case a release carries it)."""
     by_name: dict[str, set[str]] = {}
     symptoms: Counter = Counter()
     current = ""
@@ -108,6 +117,13 @@ def doid_symptoms(path: Path) -> tuple[dict[str, set[str]], dict[str, int]]:
                 by_name.setdefault(sc._norm(m.group(1)), set()).add(current)
         elif line.startswith("relationship: has_symptom") and current:
             symptoms[current] += 1
+    if owl is not None:
+        sys.path.insert(0, str(HERE.parent / "src"))
+        from melampo.memory.symptom_sources import parse_doid_owl
+
+        for cls in parse_doid_owl(owl):
+            if cls.symptom_ids and not cls.deprecated:
+                symptoms[cls.doid] = max(symptoms[cls.doid], len(cls.symptom_ids))
     return by_name, symptoms
 
 
@@ -129,15 +145,27 @@ def statpearls(fetch: Fetch, name: str) -> dict:
     nbk = doc.get("chapteraccessionid") or doc.get("accessionid") or ""
     if not nbk:
         return {"chapter": "", "imaging": False}
-    page = fetch.text(f"{BOOKS}/{nbk}/")
-    evaluation = page.split("Evaluation", 1)[1][:20000] if "Evaluation" in page else ""
-    return {"chapter": nbk, "title": doc.get("title", ""), "imaging": bool(IMAGING.search(evaluation)),
-            "imaging_mentions": len(IMAGING.findall(evaluation))}
+    status, evaluation = "not_fetched", ""
+    for url in (f"{BOOKS}/{nbk}/?report=printable", f"{BOOKS}/{nbk}/"):
+        page = fetch.text(url)
+        if not page:
+            continue
+        if BLOCKED.search(page[:5000]) and "Evaluation" not in page:
+            status = "blocked"
+            continue
+        heading = EVALUATION.search(page)
+        if heading is None:
+            status = "no_evaluation_section"
+            continue
+        status, evaluation = "read", page[heading.end():heading.end() + 20000]
+        break
+    return {"chapter": nbk, "title": doc.get("title", ""), "text": status,
+            "imaging": bool(IMAGING.search(evaluation)), "imaging_mentions": len(IMAGING.findall(evaluation))}
 
 
-def count(fetch: Fetch, umls_key: str, mondo: Path, doid: Path, diagnoses=None) -> dict:
+def count(fetch: Fetch, umls_key: str, mondo: Path, doid: Path, diagnoses=None, doid_owl: Path | None = None) -> dict:
     _, mondo_by_name, _ = sc.read_obo_names(mondo)
-    doid_by_name, doid_symptom_counts = doid_symptoms(doid)
+    doid_by_name, doid_symptom_counts = doid_symptoms(doid, doid_owl)
     labels_total: Counter = Counter()
     rows = []
     for name in diagnoses or sc.DIAGNOSES:
@@ -173,7 +201,11 @@ def count(fetch: Fetch, umls_key: str, mondo: Path, doid: Path, diagnoses=None) 
         "with_doid_symptoms": share(lambda r: r["doid_symptoms"] > 0),
         "with_monarch_phenotypes": share(lambda r: r["monarch_phenotypes"] > 0),
         "with_statpearls_chapter": share(lambda r: r["statpearls"]["chapter"]),
-        "with_statpearls_imaging": share(lambda r: r["statpearls"]["imaging"]),
+        "statpearls_text_read": share(lambda r: r["statpearls"].get("text") == "read"),
+        "statpearls_text_status": dict(Counter(r["statpearls"].get("text", "no_chapter") for r in rows)),
+        "with_statpearls_imaging_of_read": (
+            f"{sum(1 for r in rows if r['statpearls'].get('text') == 'read' and r['statpearls']['imaging'])}"
+            f"/{sum(1 for r in rows if r['statpearls'].get('text') == 'read')}"),
         "median_monarch_phenotypes": sorted(r["monarch_phenotypes"] for r in rows)[len(rows) // 2] if rows else 0,
         "calls": fetch.calls,
     }
@@ -189,13 +221,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--mondo", required=True)
     ap.add_argument("--doid", required=True)
+    ap.add_argument("--doid-owl", default="", help="doid.owl: the has_symptom axioms are only there")
     ap.add_argument("--out", default="link_coverage.json")
     args = ap.parse_args(argv)
     key = os.environ.get("UMLS_API_KEY", "")
     if not key:
         print("UMLS_API_KEY is not set", file=sys.stderr)
         return 1
-    result = count(Fetch(), key, Path(args.mondo), Path(args.doid))
+    result = count(Fetch(), key, Path(args.mondo), Path(args.doid),
+                   doid_owl=Path(args.doid_owl) if args.doid_owl else None)
     Path(args.out).write_text(json.dumps(result, indent=2))
     print(json.dumps({"summary": result["summary"], "finding_relation_labels": result["finding_relation_labels"]},
                      indent=2))
