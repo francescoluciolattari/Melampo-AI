@@ -294,6 +294,20 @@ def judge_prompt(case: MechanismCase, answer: dict, resolved: Sequence[ResolvedA
     )
 
 
+ONLY_THE_JSON = "\n\nYour previous answer could not be read. Answer with the JSON object only, nothing before or after."
+
+
+def ask_judge(judge: Callable[[str], str], prompt: str, n_accepted: int) -> tuple[dict | None, str]:
+    """A judge's verdict, asked again once when its answer is not a readable verdict (the form, never the
+    judgement, is asked again), with what it last said."""
+    raw = judge(prompt)
+    verdict = read_judge(raw, n_accepted)
+    if verdict is None:
+        raw = judge(prompt + ONLY_THE_JSON)
+        verdict = read_judge(raw, n_accepted)
+    return verdict, raw or ""
+
+
 def read_judge(raw: str, n_accepted: int) -> dict | None:
     value = _json_object(raw)
     if value is None:
@@ -374,7 +388,7 @@ def score_answer(case: MechanismCase, answer: dict | None, resolved: Sequence[Re
     prompt = judge_prompt(case, answer, resolved, nearby)
     verdicts = {}
     for name, judge in judges.items():
-        verdicts[name] = read_judge(judge(prompt), len(resolved))
+        verdicts[name] = ask_judge(judge, prompt, len(resolved))[0]
     if not verdicts or any(v is None for v in verdicts.values()):
         return {"outcome": DOUBT, "by": "judges", "why": "a judge did not answer", "verdicts": verdicts}
     if case.has_link:
@@ -606,9 +620,9 @@ def calibrate(judge: Callable[[str], str], sources: Sources | None) -> list[str]
         resolved = resolve_case(case, sources)
         answer = {"link": LINK_KNOWN, "mechanism": mechanism, "chain": []}
         nearby = sources.nearest(mechanism) if sources is not None else []
-        verdict = read_judge(judge(judge_prompt(case, answer, resolved, nearby)), len(resolved))
+        verdict, raw = ask_judge(judge, judge_prompt(case, answer, resolved, nearby), len(resolved))
         if verdict is None:
-            failures.append(f"{case_id}: no readable verdict")
+            failures.append(f"{case_id}: no readable verdict: {' '.join(raw.split())[:240]!r}")
         elif _judged_right(verdict, sources, resolved) != right:
             failures.append(f"{case_id}: \"{mechanism}\" read as {'right' if not right else 'wrong'}")
     return failures

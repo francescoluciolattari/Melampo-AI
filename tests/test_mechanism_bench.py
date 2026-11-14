@@ -129,3 +129,13 @@ def test_a_judge_that_misreads_a_known_answer_judges_nothing():
     yes_to_all = _judge(matches="A", relation="same")
     assert len(mb.calibrate(yes_to_all, None)) == 3          # the three plausible but wrong mechanisms
     assert len(mb.calibrate(lambda p: "", None)) == len(mb.CALIBRATION)
+    # an unreadable answer is asked again once, for its form only
+    asked = []
+
+    def late(prompt):
+        asked.append(prompt)
+        return careful(prompt) if mb.ONLY_THE_JSON in prompt else "Let me think about it."
+
+    assert mb.calibrate(late, None) == [] and len(asked) == 2 * len(mb.CALIBRATION)
+    failures = mb.calibrate(lambda p: "I believe it is right.", None)
+    assert "I believe it is right." in failures[0]
