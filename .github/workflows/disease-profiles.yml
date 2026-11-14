@@ -1,0 +1,58 @@
+name: disease-profiles
+
+# The pilot of the disease profiles (15 November 2026): ten diagnoses written before the run, structured sources
+# first, one open review per diagnosis (CC BY / CC0), the reading pair, the words, the judges only on the rest.
+# The run stops before the budget; the cost of every call is the one OpenRouter reports.
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "USD, the run stops before passing it"
+        default: "1.5"
+      diagnoses:
+        description: "comma-separated; empty = the ten of the pilot"
+        default: ""
+      statpearls:
+        description: "also StatPearls (CC BY-NC-ND, research only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The open sources
+        run: |
+          curl -sSL --fail -o mondo.obo https://purl.obolibrary.org/obo/mondo.obo
+          curl -sSL --fail -o hp.obo https://purl.obolibrary.org/obo/hp.obo
+          curl -sSL --fail -o phenotype.hpoa \
+            https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/phenotype.hpoa
+          curl -sSL --fail -o doid.owl https://purl.obolibrary.org/obo/doid.owl
+          curl -sSL --fail -o symp.obo https://purl.obolibrary.org/obo/symp.obo
+      - name: Pilot
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          mkdir -p out
+          extra=""
+          if [ "${{ github.event.inputs.statpearls }}" = "true" ]; then extra="--statpearls"; fi
+          diagnoses="${{ github.event.inputs.diagnoses }}"
+          if [ -n "$diagnoses" ]; then extra="$extra --diagnoses"; fi
+          python3 scripts/disease_profiles.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
+            --doid-owl doid.owl --symp symp.obo --budget "${{ github.event.inputs.budget }}" \
+            --out out/profiles.json $extra ${diagnoses:+"$diagnoses"} | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: disease-profiles
+          path: out
+          retention-days: 30

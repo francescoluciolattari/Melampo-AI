@@ -12,8 +12,8 @@ diagnoses (source_coverage.DIAGNOSES), the links each candidate source gives:
   2026: the first count read doid.obo, where the axioms are not, and found 0/50); names and exact synonyms from
   doid.obo, the axioms from doid.owl through ``memory.symptom_sources.parse_doid_owl``.
 - **Monarch**: disease-to-phenotype associations of the MONDO concept (Monarch API v3).
-- **StatPearls** (NCBI Bookshelf, CC BY 4.0): is there a chapter for the diagnosis, and does it describe imaging
-  (its "Evaluation" with CT, MRI, ultrasound or radiography). The chapter's text is not kept. Corrected 14 November
+- **StatPearls** (NCBI Bookshelf, CC BY-NC-ND 4.0, research only: corrected 15 November 2026, it was written CC
+  BY 4.0): is there a chapter for the diagnosis, and does it describe imaging (its "Evaluation" with CT, MRI, ultrasound or radiography). The chapter's text is not kept. Corrected 14 November
   2026: the first count took a page it could not read (a browser check, or no "Evaluation" heading) as a chapter
   without imaging, and found 0/50. Now each chapter says whether its text was read (``text``: read, blocked,
   no_evaluation_section, not_fetched), the printable page is tried before the plain one, and the imaging share is
@@ -48,11 +48,11 @@ EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 BOOKS = "https://www.ncbi.nlm.nih.gov/books"
 # relations that link a disease to what is found in it (either direction's name)
 FINDING_LABELS = re.compile(r"finding|manifestation|morphology|symptom|sign|anatomic_site|finding_site|"
-                            r"associated_with|pathological_process|clinical_course", re.I)
-BLOCKED = re.compile(r"checking your browser|captcha|access denied|unusual traffic", re.I)
-EVALUATION = re.compile(r">\s*Evaluation\s*<", re.I)
+                            r"associated_with|pathological_process|clinical_course", re.IGNORECASE)
+BLOCKED = re.compile(r"checking your browser|captcha|access denied|unusual traffic", re.IGNORECASE)
+EVALUATION = re.compile(r">\s*Evaluation\s*<", re.IGNORECASE)
 IMAGING = re.compile(r"\b(CT|computed tomography|MRI|magnetic resonance|ultrasound|ultrasonograph\w*|"
-                     r"radiograph\w*|x-ray|sonograph\w*|imaging)\b", re.I)
+                     r"radiograph\w*|x-ray|sonograph\w*|imaging)\b", re.IGNORECASE)
 
 
 class Fetch:
