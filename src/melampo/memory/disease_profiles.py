@@ -41,9 +41,10 @@ SECTION_EXCLUDED = re.compile(r"method|statistic|search|selection|result|discuss
 # something: it goes to the judges even when it names the manifestation
 NOT_A_MANIFESTATION = re.compile(r"predict|prognos|mortality|outcome|risk factor|little value|no (significant )?"
                                  r"(difference|association)|not associated|sensitivity|specificity|accuracy|"
-                                 r"diagnostic value|was defined as|score|surveillance|screening|significantly "
-                                 r"associated|\bin (rats|mice|pigs|dogs|animals?)\b|animal model|experimental",
-                                 re.IGNORECASE)
+                                 r"diagnostic value|defined|score|surveillance|screening|associated with|"
+                                 r"correlat|usefulness|criteria|\b(rats?|mice|mouse|murine|rodents?|pigs?|dogs?|"
+                                 r"animals?)\b|animal model|experimental|in vitro|placebo|randomi[sz]ed|\btrial|"
+                                 r"mg/day|treat(ed|ment)", re.IGNORECASE)
 SECTION_WORDS = re.compile(r"clinical|present|symptom|sign|manifest|feature|diagnos|imaging|radiolog|evaluat|"
                            r"examination|history|laborator|finding|course", re.IGNORECASE)
 # HPO frequency classes (HP:0040279 subtree): the middle of each band
@@ -319,8 +320,11 @@ def typicality_of(quote: str) -> str:
 
 def judge_prompt(disease: str, item: dict[str, str]) -> str:
     return (f"Disease: {disease}\nSentence from a published text: \"{item['quote']}\"\n"
-            f"Claim: the sentence states that {disease} presents with \"{item['manifestation']}\".\n"
-            'Does the sentence state it? Answer with JSON only: {"states": "yes" | "no" | "unclear"}')
+            f"Claim: the sentence states that patients with {disease} present with \"{item['manifestation']}\" "
+            "as a sign, symptom, laboratory or imaging finding of the disease.\n"
+            "Answer no when the sentence speaks of another disease, of animals or experiments, of a treatment or a "
+            "trial, of a test's accuracy, or of what predicts an outcome or severity.\n"
+            'Does the sentence state the claim? Answer with JSON only: {"states": "yes" | "no" | "unclear"}')
 
 
 def read_judgment(answer: str) -> str:
@@ -342,10 +346,37 @@ class Link:
     judges: dict[str, str] = field(default_factory=dict)
 
 
+def disease_words(name: str, synonyms: Iterable[str], sections: list[tuple[str, str]]) -> set[str]:
+    """How the text may name the disease: its name and exact synonyms, the initials of its name ("AC" for acute
+    cholecystitis) and any abbreviation the text defines for it ("acute pancreatitis (AP)")."""
+    words = {n for n in [name, *synonyms] if n}
+    initials = "".join(w[0] for w in name.split() if w)
+    if len(initials) >= 2:
+        words.add(initials.upper())
+    text = " ".join(x for _, x in sections)
+    for n in list(words):
+        for m in re.finditer(rf"{re.escape(n)}\s*\(([A-Z][A-Za-z]{{1,6}})\)", text, re.IGNORECASE):
+            words.add(m.group(1))
+    return words
+
+
+def names_the_disease(quote: str, words: Iterable[str]) -> bool:
+    for w in words:
+        if w.isupper():            # an abbreviation: as written, a word of its own
+            if re.search(rf"(?<![A-Za-z]){re.escape(w)}(?![A-Za-z])", quote):
+                return True
+        elif re.search(rf"(?<![a-z]){re.escape(w.lower())}(?![a-z])", quote.lower()):
+            return True
+    return False
+
+
 def merge_readings(readings: dict[str, list[dict[str, str]]], sections: list[tuple[str, str]],
-                   source: dict[str, Any], hpo: Terms) -> list[Link]:
-    """One link per (manifestation, quote); refused when its quote is not in the text, verified by the words when
-    the quote names it, else left for the judges (verdict '')."""
+                   source: dict[str, Any], hpo: Terms, disease: Iterable[str] | None = None) -> list[Link]:
+    """One link per (manifestation, quote); refused when its quote is not in the text; verified by the words when
+    the quote names the manifestation and, when ``disease`` gives its words, the disease too (15 November 2026,
+    third run: a sentence of a nephrolithiasis review that named "hypokalemic alkalosis" spoke of Bartter
+    syndrome); else left for the judges (verdict '')."""
+    disease = set(disease or ())
     links: dict[tuple[str, str], Link] = {}
     for reader, items in readings.items():
         for item in items:
@@ -358,7 +389,8 @@ def merge_readings(readings: dict[str, list[dict[str, str]]], sections: list[tup
             link.typicality[reader] = item["typicality"]
             if not quote_in(item["quote"], sections):
                 link.verdict = "refused_quote"
-            elif link.verdict != "refused_quote" and names_it(item, hpo):
+            elif link.verdict != "refused_quote" and names_it(item, hpo) and (
+                    not disease or names_the_disease(item["quote"], disease)):
                 link.verdict = "names"
     return list(links.values())
 

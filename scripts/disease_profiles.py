@@ -209,7 +209,8 @@ def main(argv=None) -> int:
                     (answers_dir / f"{stem}.txt").write_text(answer, "utf-8")
                     row.setdefault("readers", {})[f"{source.get('id', '')}:{r}"] = {
                         **router.last, "items": len(readings[r]), "section_chars": sum(len(x) for _, x in sections)}
-                links = dp.merge_readings(readings, sections, source, hpo)
+                names = dp.disease_words(name, mondo.synonyms.get(mondo_id, []), sections)
+                links = dp.merge_readings(readings, sections, source, hpo, names)
                 for link in links:
                     if link.verdict == "":
                         votes = {j: dp.read_judgment(router.chat(m, dp.judge_prompt(name, link.__dict__),

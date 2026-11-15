@@ -191,3 +191,16 @@ def test_the_anagrafica_without_ingredient_names_is_joined_with_the_ingredients_
     products, report = ds.read_aifa(ANAGRAFICA, by_package)
     assert [p.ingredient for p in products] == ["ATORVASTATINA CALCIO TRIIDRATO", "AMLODIPINA BESILATO"]
     assert report["joined_from_ingredients_file"] == 2 and products[0].atc == "C10AA05"
+
+
+def test_salts_stereochemistry_and_minerals_are_read_as_the_ingredient_they_are():
+    assert ds.ingredient_core("ROSUVASTATINA SALE DI CALCIO") == "rosuvastatina"
+    assert ds.ingredient_core("OLMESARTAN MEDOXOMIL") == "olmesartan"
+    assert ds.ingredient_core("MAGNESIO PIDOLATO") == "magnesio pidolato"      # the cation is the ingredient
+    assert ds.base_name("(RS)-mexiletine") == "mexiletine" and ds.base_name("17β-estradiol") == "estradiol"
+    assert ds.base_name("olmesartan medoxomil") == "olmesartan"
+
+
+def test_a_name_is_never_decided_by_which_label_is_in_the_cache():
+    text = (ROOT / "scripts/drug_sources.py").read_text("utf-8")
+    assert 'basis="label"' not in text and "entry.update(inn=with_label" not in text
