@@ -54,6 +54,7 @@ class OpenRouter:
     def __init__(self, key: str, budget: float):
         self.key, self.budget, self.cost, self.calls = key, budget, 0.0, Counter()
         self.tokens = Counter()
+        self.last: dict = {}
 
     def chat(self, model: str, prompt: str, *, reasoning: bool = False, max_tokens: int = 3000) -> str:
         if self.cost >= self.budget:
@@ -84,7 +85,11 @@ class OpenRouter:
         self.tokens[f"{model}:in"] += int(usage.get("prompt_tokens") or 0)
         self.tokens[f"{model}:out"] += int(usage.get("completion_tokens") or 0)
         choices = got.get("choices") or [{}]
-        return str((choices[0].get("message") or {}).get("content") or "")
+        message = choices[0].get("message") or {}
+        content = str(message.get("content") or "")
+        self.last = {"model": model, "finish_reason": choices[0].get("finish_reason", ""),
+                     "content_chars": len(content), "reasoning_chars": len(str(message.get("reasoning") or ""))}
+        return content
 
 
 def get(url: str, accept: str = "application/json") -> str:
@@ -97,13 +102,22 @@ def get(url: str, accept: str = "application/json") -> str:
         return ""
 
 
+CLINICAL_TITLE = ('(TITLE:"diagnosis" OR TITLE:"clinical" OR TITLE:"presentation" OR TITLE:"imaging" '
+                  'OR TITLE:"evaluation" OR TITLE:"approach")')
+
+
 def review_for(name: str) -> tuple[dict, list[tuple[str, str]]]:
-    """The most cited open review on the diagnosis under CC BY or CC0, and its sections."""
-    query = (f'TITLE:"{name}" AND PUB_TYPE:"review" AND OPEN_ACCESS:y AND IN_EPMC:y '
-             f'AND (LICENSE:"cc by" OR LICENSE:"cc0")')
-    q = {"query": query, "format": "json", "resultType": "core", "pageSize": 8, "sort": "CITED desc"}
-    got = json.loads(get(f"{EPMC}/search?{urllib.parse.urlencode(q)}") or "{}")
-    for r in got.get("resultList", {}).get("result", []):
+    """The most cited open review (CC BY or CC0) on the diagnosis whose title speaks of its diagnosis, clinical
+    picture or imaging; any open review on it only when there is none. (Corrected 15 November 2026: the first pilot
+    took the most cited review whatever it was about, and read cirrhosis from a review of cancer surveillance.)"""
+    base = (f'TITLE:"{name}" AND PUB_TYPE:"review" AND OPEN_ACCESS:y AND IN_EPMC:y '
+            f'AND (LICENSE:"cc by" OR LICENSE:"cc0")')
+    results = []
+    for query in (f"{base} AND {CLINICAL_TITLE}", base):
+        q = {"query": query, "format": "json", "resultType": "core", "pageSize": 8, "sort": "CITED desc"}
+        got = json.loads(get(f"{EPMC}/search?{urllib.parse.urlencode(q)}") or "{}")
+        results += got.get("resultList", {}).get("result", [])
+    for r in results:
         licence = str(r.get("license", "")).lower()
         pmcid = r.get("pmcid", "")
         if not pmcid or not any(licence.startswith(x) for x in OPEN_LICENCES):
@@ -149,6 +163,7 @@ def main(argv=None) -> int:
     hpoa = read(args.hpoa)
     doid_symptoms = {c.doid: c.symptom_ids for c in parse_doid_owl(Path(args.doid_owl)) if not c.deprecated}
     router = OpenRouter(key, args.budget)
+    answers_dir = Path(args.out).with_name("answers")
     profiles, rows, links_all = [], [], []
     stopped = ""
     for name in [d.strip() for d in args.diagnoses.split(",") if d.strip()]:
@@ -172,7 +187,14 @@ def main(argv=None) -> int:
                 if not sections:
                     continue
                 prompt = dp.extraction_prompt(name, sections)
-                readings = {r: dp.read_extraction(router.chat(m, prompt)) for r, m in READERS.items()}
+                readings = {}
+                for r, m in READERS.items():
+                    answer = router.chat(m, prompt, max_tokens=6000)
+                    readings[r] = dp.read_extraction(answer)
+                    answers_dir.mkdir(parents=True, exist_ok=True)       # public text read: kept to see why
+                    (answers_dir / f"{re.sub(r'[^a-z0-9]+', '_', name)}__{r}.txt").write_text(answer, "utf-8")
+                    row.setdefault("readers", {})[r] = {**router.last, "items": len(readings[r]),
+                                                        "section_chars": sum(len(x) for _, x in sections)}
                 links = dp.merge_readings(readings, sections, source, hpo)
                 for link in links:
                     if link.verdict == "":

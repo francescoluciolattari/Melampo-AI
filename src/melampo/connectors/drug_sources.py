@@ -57,7 +57,8 @@ AIFA_COLUMNS = {
     "aic": ("codice_aic", "aic"),
     "name": ("denominazione", "nome_commerciale", "farmaco", "medicinale", "nome"),
     "package": ("confezione", "descrizione_confezione"),
-    "ingredient": ("principio_attivo", "principi_attivi", "principio", "sostanza"),
+    "ingredient": ("principio_attivo", "principi_attivi", "pa_associati", "principio", "sostanza",
+                   "descrizione_pa"),
     "atc": ("codice_atc", "atc"),
     "holder": ("ragione_sociale", "titolare", "azienda", "ditta"),
     "status": ("stato_amministrativo", "stato"),
@@ -119,20 +120,82 @@ def map_columns(header: list[str]) -> dict[str, int]:
     return found
 
 
-def read_aifa(text: str) -> tuple[list[AifaProduct], dict[str, Any]]:
-    """The products of an AIFA list, and what the reader recognised (the header, the columns it mapped)."""
+def _samples(rows: list[list[str]], columns: dict[str, int], header: list[str]) -> dict[str, list[str]]:
+    """The first three distinct values of each recognised column: what the column really holds, for the report."""
+    out: dict[str, list[str]] = {}
+    for name, i in columns.items():
+        seen: list[str] = []
+        for row in rows:
+            value = row[i].strip() if i < len(row) else ""
+            if value and value not in seen:
+                seen.append(value)
+            if len(seen) == 3:
+                break
+        out[f"{name} ({header[i]})"] = seen
+    return out
+
+
+def _holds_names(rows: list[list[str]], i: int, n: int = 200) -> bool:
+    """Most of the first ``n`` filled cells of the column are words of four letters or more."""
+    values = [row[i].strip() for row in rows[: n * 3] if i < len(row) and row[i].strip()][:n]
+    named = sum(1 for v in values if re.search(r"[A-Za-z]{4,}", v))
+    return bool(values) and named >= 0.8 * len(values)
+
+
+def read_aifa(text: str, ingredients: dict[str, str] | None = None) -> tuple[list[AifaProduct], dict[str, Any]]:
+    """The products of an AIFA list, and what the reader recognised (the header, the columns it mapped, three values
+    of each). Without an ingredient column the ingredients come from ``ingredients`` (``read_aifa_ingredients``:
+    AIC code or package code -> ingredients), when given (15 November 2026: the "Anagrafica farmaci" has none)."""
     header, rows = read_csv(text)
     columns = map_columns(header)
-    report = {"header": header, "columns": {k: header[i] for k, i in columns.items()}, "rows": len(rows)}
-    if "ingredient" not in columns or not ({"name", "aic"} & set(columns)):
-        report["problem"] = "no ingredient column, or neither a name nor an AIC column: nothing taken"
+    samples = _samples(rows, columns, header)
+    if "ingredient" in columns and not _holds_names(rows, columns["ingredient"]):
+        # a column called like the ingredients that holds flags or counts ("S", "2"): not taken as names
+        samples["ingredient_not_names"] = samples.pop(f"ingredient ({header[columns.pop('ingredient')]})")
+    report = {"header": header, "columns": {k: header[i] for k, i in columns.items()}, "rows": len(rows),
+              "samples": samples}
+    if not ({"name", "aic"} & set(columns)) or ("ingredient" not in columns and not ingredients):
+        report["problem"] = "no ingredient column (and no ingredients file), or neither a name nor an AIC column"
         return [], report
-    products = []
+    products, joined = [], 0
     for row in rows:
         values = {k: (row[i].strip() if i < len(row) else "") for k, i in columns.items()}
+        if not values.get("ingredient") and ingredients:
+            values["ingredient"] = ingredients.get(values.get("aic", "").zfill(9)) or ingredients.get(
+                values.get("package", ""), "")
+            joined += bool(values["ingredient"])
         if values.get("ingredient"):
             products.append(AifaProduct(**values))
+    if ingredients is not None:
+        report["joined_from_ingredients_file"] = joined
+    report["products"] = len(products)
     return products, report
+
+
+def read_aifa_ingredients(text: str) -> tuple[dict[str, str], dict[str, Any]]:
+    """"Principi attivi per confezione": AIC code (nine digits) and package code -> the ingredients of the package,
+    joined by "/" in the order of the file."""
+    header, rows = read_csv(text)
+    columns = map_columns(header)
+    report = {"header": header, "columns": {k: header[i] for k, i in columns.items()}, "rows": len(rows),
+              "samples": _samples(rows, columns, header)}
+    if "ingredient" not in columns or not ({"aic", "package"} & set(columns)):
+        report["problem"] = "no ingredient column, or neither an AIC nor a package column"
+        return {}, report
+    parts: dict[str, list[str]] = {}
+    def cell(row: list[str], name: str) -> str:
+        i = columns.get(name)
+        return row[i].strip() if i is not None and i < len(row) else ""
+
+    for row in rows:
+        ingredient = cell(row, "ingredient")
+        if not ingredient:
+            continue
+        for key in (cell(row, "aic").zfill(9) if cell(row, "aic") else "", cell(row, "package")):
+            if key and ingredient not in parts.setdefault(key, []):
+                parts[key].append(ingredient)
+    report["keys"] = len(parts)
+    return {k: "/".join(v) for k, v in parts.items()}, report
 
 
 def wikidata_atc_query() -> str:
