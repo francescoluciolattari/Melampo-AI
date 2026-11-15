@@ -106,27 +106,40 @@ CLINICAL_TITLE = ('(TITLE:"diagnosis" OR TITLE:"clinical" OR TITLE:"presentation
                   'OR TITLE:"evaluation" OR TITLE:"approach")')
 
 
-def review_for(name: str) -> tuple[dict, list[tuple[str, str]]]:
-    """The most cited open review (CC BY or CC0) on the diagnosis whose title speaks of its diagnosis, clinical
-    picture or imaging; any open review on it only when there is none. (Corrected 15 November 2026: the first pilot
-    took the most cited review whatever it was about, and read cirrhosis from a review of cancer surveillance.)"""
+MIN_SECTION_CHARACTERS = 6000     # less than this of clinical text is not enough to read a disease from
+MAX_REVIEWS = 3
+
+
+def reviews_for(name: str) -> list[tuple[dict, list[tuple[str, str]]]]:
+    """Open reviews (CC BY or CC0) on the diagnosis, those whose title speaks of its diagnosis, clinical picture or
+    imaging first, systematic reviews and meta-analyses left out, until their clinical sections reach
+    ``MIN_SECTION_CHARACTERS`` (at most ``MAX_REVIEWS``). (Corrected 15 November 2026: the first pilot took the most
+    cited review whatever it was about; the second took one review only, and four diagnoses had 500 to 1,300
+    characters of clinical text, from a meta-analysis or a guideline's questions.)"""
     base = (f'TITLE:"{name}" AND PUB_TYPE:"review" AND OPEN_ACCESS:y AND IN_EPMC:y '
-            f'AND (LICENSE:"cc by" OR LICENSE:"cc0")')
-    results = []
+            f'AND (LICENSE:"cc by" OR LICENSE:"cc0") AND NOT TITLE:"meta-analysis" AND NOT TITLE:"systematic"')
+    results, seen = [], set()
     for query in (f"{base} AND {CLINICAL_TITLE}", base):
-        q = {"query": query, "format": "json", "resultType": "core", "pageSize": 8, "sort": "CITED desc"}
+        q = {"query": query, "format": "json", "resultType": "core", "pageSize": 15, "sort": "CITED desc"}
         got = json.loads(get(f"{EPMC}/search?{urllib.parse.urlencode(q)}") or "{}")
         results += got.get("resultList", {}).get("result", [])
+    out, total = [], 0
     for r in results:
         licence = str(r.get("license", "")).lower()
         pmcid = r.get("pmcid", "")
-        if not pmcid or not any(licence.startswith(x) for x in OPEN_LICENCES):
+        if not pmcid or pmcid in seen or not any(licence.startswith(x) for x in OPEN_LICENCES):
             continue
+        seen.add(pmcid)
         sections = dp.sections_from_jats(get(f"{EPMC}/{pmcid}/fullTextXML", "application/xml"))
-        if sections:
-            return ({"source": "Europe PMC review", "id": pmcid, "title": r.get("title", ""),
-                     "licence": r.get("license", ""), "year": r.get("pubYear", "")}, sections)
-    return {}, []
+        size = sum(len(x) for _, x in sections)
+        if size < 1500:                    # a review that says almost nothing of the presentation is skipped
+            continue
+        out.append(({"source": "Europe PMC review", "id": pmcid, "title": r.get("title", ""),
+                     "licence": r.get("license", ""), "year": r.get("pubYear", "")}, sections))
+        total += size
+        if total >= MIN_SECTION_CHARACTERS or len(out) >= MAX_REVIEWS:
+            break
+    return out
 
 
 def statpearls_for(name: str) -> tuple[dict, list[tuple[str, str]]]:
@@ -168,7 +181,7 @@ def main(argv=None) -> int:
     stopped = ""
     for name in [d.strip() for d in args.diagnoses.split(",") if d.strip()]:
         row = {"diagnosis": name}
-        mondo_id = mondo.find(name)
+        mondo_id = mondo.find(name, prefix="MONDO:")
         xrefs = mondo.xrefs.get(mondo_id, set())
         ids = {x.replace("Orphanet:", "ORPHA:") for x in xrefs if x.startswith(("OMIM:", "Orphanet:", "ORPHA:"))}
         doids = sorted(x for x in xrefs if x.startswith("DOID:"))
@@ -177,7 +190,7 @@ def main(argv=None) -> int:
         from_doid = [m for d in doids for m in dp.from_doid(d, doid_symptoms.get(d, ()), symp, hpo)]
         row["doid"] = len(from_doid)
         parts += from_doid
-        texts = [review_for(name)]
+        texts = reviews_for(name)
         if args.statpearls:
             texts.append(statpearls_for(name))
         row["texts"] = [t[0].get("id", "") for t in texts if t[0]]
@@ -192,9 +205,10 @@ def main(argv=None) -> int:
                     answer = router.chat(m, prompt, max_tokens=6000)
                     readings[r] = dp.read_extraction(answer)
                     answers_dir.mkdir(parents=True, exist_ok=True)       # public text read: kept to see why
-                    (answers_dir / f"{re.sub(r'[^a-z0-9]+', '_', name)}__{r}.txt").write_text(answer, "utf-8")
-                    row.setdefault("readers", {})[r] = {**router.last, "items": len(readings[r]),
-                                                        "section_chars": sum(len(x) for _, x in sections)}
+                    stem = f"{re.sub(r'[^a-z0-9]+', '_', name)}__{source.get('id', '')}__{r}"
+                    (answers_dir / f"{stem}.txt").write_text(answer, "utf-8")
+                    row.setdefault("readers", {})[f"{source.get('id', '')}:{r}"] = {
+                        **router.last, "items": len(readings[r]), "section_chars": sum(len(x) for _, x in sections)}
                 links = dp.merge_readings(readings, sections, source, hpo)
                 for link in links:
                     if link.verdict == "":
