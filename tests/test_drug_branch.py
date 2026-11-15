@@ -31,34 +31,41 @@ def test_aifa_columns_are_recognised_by_their_words_and_an_unknown_file_is_refus
     assert ds.ingredient_core("atorvastatina calcio triidrato") == "atorvastatina"
 
 
-def test_ingredients_resolve_through_their_atc_and_disagreement_stays_in_doubt():
+def test_ingredients_resolve_only_to_their_own_name():
     products, _ = ds.read_aifa(AIFA)
-    wikidata = {"C10AA05": ["atorvastatin"], "C08CA01": ["amlodipine"], "J01FA09": ["clarithromycin"],
-                "C09CA03": ["valsartan"]}
-    ema = {"C10AA05": ["atorvastatin"], "J01FA09": ["clarithromycine"]}
-    got = script.resolve(ds.ingredients_of(products), wikidata, ema)
-    assert got["atorvastatina calcio triidrato"] == {"atc": ["C10AA05"], "inn": ["atorvastatin"],
-                                                     "basis": "wikidata+ema"}
-    assert got["amlodipina besilato"]["basis"] == "wikidata"
-    assert got["claritromicina"]["basis"] == "doubt"
-    assert got["amlodipina besilato/valsartan"]["inn"] == ["amlodipine", "valsartan"]
-    assert got["amlodipina besilato/valsartan"]["basis"] == "stem"
+    ingredients = ds.ingredients_of(products)
+    ingredients["ACETILSALICILATO DI LISINA"] = {"B01AC06"}
+    ingredients["ACENOCUMAROLO"] = {"B01AA07"}
+    ingredients["ATROPINA SOLFATO"] = {"S01FA01"}
+    ingredients["MISTERIOSINA"] = {"Z99ZZ99"}
+    wikidata = {"C10AA05": [{"en": "atorvastatin", "it": "atorvastatina"}],
+                "C08CA01": [{"en": "amlodipine", "it": ""}],
+                "C09CA03": [{"en": "valsartan", "it": "valsartan"}],
+                "B01AC06": [{"en": "aspirin", "it": "acido acetilsalicilico"}],
+                "B01AA07": [{"en": "acenocoumarol", "it": "acenocumarolo"}],
+                "S01FA01": [{"en": "atropine", "it": "atropina"}]}
+    ema = {"C10AA05": ["atorvastatin"], "J01FA09": ["clarithromycine"], "B01AC06": ["clopidogrel"],
+           "S01FA01": ["atropine sulfate"]}
+    got = script.resolve(ingredients, wikidata, ema)
+    assert got["atorvastatina calcio triidrato"]["inn"] == ["atorvastatin"]
+    assert got["atorvastatina calcio triidrato"]["basis"] == "wikidata_it"
+    assert got["amlodipina besilato"] == {"atc": ["C08CA01"], "inn": ["amlodipine"], "basis": "stem"}
+    assert got["claritromicina"]["inn"] == ["clarithromycine"]           # the stem of the one name EMA gives
+    # the error of the second run: the one EMA name of the ATC code is another drug, and is not taken
+    aspirin = got["ACETILSALICILATO DI LISINA"]
+    assert aspirin["inn"] == [] and aspirin["basis"] == "doubt" and "clopidogrel" in aspirin["candidates"]
+    assert got["ACENOCUMAROLO"]["inn"] == ["acenocoumarol"]             # by the Italian label, not by the stem
+    assert got["ATROPINA SOLFATO"]["inn"] == ["atropine"]               # one name, salts aside
+    assert got["MISTERIOSINA"]["basis"] == "unresolved"
+    combo = got["amlodipina besilato/valsartan"]
+    assert combo["inn"] == ["amlodipine", "valsartan"] and combo["basis"] == "combination"
 
 
-def test_a_label_is_taken_only_for_the_exact_single_ingredient_and_the_most_recent():
-    rows = [
-        {"set_id": "a", "version": "3", "effective_time": "20250101", "openfda": {"generic_name": ["ATORVASTATIN"]},
-         "drug_interactions": ["old"]},
-        {"set_id": "b", "version": "9", "effective_time": "20260301", "openfda": {"generic_name": ["ATORVASTATIN"]},
-         "drug_interactions": ["new"], "adverse_reactions": ["myalgia"]},
-        {"set_id": "c", "effective_time": "20261001",
-         "openfda": {"generic_name": ["AMLODIPINE AND ATORVASTATIN"]}, "drug_interactions": ["combo"]},
-    ]
-    label = ds.pick_label("atorvastatin", rows)
-    assert label.set_id == "b" and label.sections["drug_interactions"] == ["new"]
-    assert label.citation["licence"].startswith("CC0")
-    assert ds.pick_label("simvastatin", rows) is None
-    assert ds.label_query("atorvastatin") == 'openfda.generic_name.exact:"ATORVASTATIN"'
+def test_a_label_is_found_by_its_ingredient_whatever_its_salt():
+    rows = [{"set_id": "s", "effective_time": "20260101",
+             "openfda": {"generic_name": ["ATORVASTATIN CALCIUM"]}, "adverse_reactions": ["myalgia"]}]
+    assert ds.pick_label("atorvastatin", rows).set_id == "s"
+    assert ds.label_query("atorvastatin calcium trihydrate") == 'openfda.generic_name:"atorvastatin"'
 
 
 def _cache(tmp_path):

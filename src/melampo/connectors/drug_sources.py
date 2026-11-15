@@ -198,21 +198,47 @@ def read_aifa_ingredients(text: str) -> tuple[dict[str, str], dict[str, Any]]:
     return {k: "/".join(v) for k, v in parts.items()}, report
 
 
-def wikidata_atc_query() -> str:
-    """Every Wikidata item with an ATC code (P267) and its English label."""
-    return ("SELECT ?item ?atc ?label WHERE { ?item wdt:P267 ?atc . "
-            "?item rdfs:label ?label . FILTER(LANG(?label) = 'en') }")
+ATC_GROUPS = tuple("ABCDGHJLMNPRSV")
 
 
-def read_wikidata_atc(payload: dict[str, Any]) -> dict[str, list[str]]:
-    """ATC code -> English names (an ATC code may be carried by more than one item)."""
-    out: dict[str, list[str]] = {}
+def wikidata_atc_query(group: str = "") -> str:
+    """The Wikidata items with an ATC code (P267) of one anatomical group (its first letter), with their English
+    and Italian labels. One query per group keeps each answer small (15 November 2026: the single query of the
+    second run did not come back)."""
+    where = f'FILTER(STRSTARTS(?atc, "{group}")) ' if group else ""
+    return ("SELECT ?atc ?en ?it WHERE { ?item wdt:P267 ?atc . " + where +
+            "OPTIONAL { ?item rdfs:label ?en . FILTER(LANG(?en) = 'en') } "
+            "OPTIONAL { ?item rdfs:label ?it . FILTER(LANG(?it) = 'it') } }")
+
+
+def read_wikidata_atc(payload: dict[str, Any]) -> dict[str, list[dict[str, str]]]:
+    """ATC code -> the items carrying it, each with its English and Italian label (an ATC code may be carried by
+    more than one item)."""
+    out: dict[str, list[dict[str, str]]] = {}
     for row in payload.get("results", {}).get("bindings", []):
         atc = row.get("atc", {}).get("value", "").strip().upper()
-        label = row.get("label", {}).get("value", "").strip()
-        if atc and label and label not in out.setdefault(atc, []):
-            out[atc].append(label)
+        pair = {"en": row.get("en", {}).get("value", "").strip(), "it": row.get("it", {}).get("value", "").strip()}
+        if atc and (pair["en"] or pair["it"]) and pair not in out.setdefault(atc, []):
+            out[atc].append(pair)
     return out
+
+
+_EN_SALT_WORDS = {
+    "sulfate", "sulphate", "acetate", "hydrochloride", "dihydrochloride", "sodium", "disodium", "potassium",
+    "calcium", "magnesium", "maleate", "fumarate", "hemifumarate", "besylate", "besilate", "mesylate", "mesilate",
+    "dimesylate", "tartrate", "bitartrate", "citrate", "phosphate", "succinate", "hydrobromide", "bromide",
+    "chloride", "nitrate", "lactate", "gluconate", "dipropionate", "propionate", "valerate", "furoate",
+    "tosylate", "hydrate", "monohydrate", "dihydrate", "trihydrate", "sesquihydrate", "hemihydrate", "anhydrous",
+    "pentahydrate", "hexahydrate", "heptahydrate", "hemiheptahydrate", "ethanolate", "hyclate",
+    "lysine", "arginine", "meglumine", "trometamol", "tromethamine", "carbonate", "oxide", "pivalate",
+}
+
+
+def base_name(name: str) -> str:
+    """An international name without its salt and hydration words, lower case ("atorvastatin calcium trihydrate"
+    -> "atorvastatin")."""
+    words = [w for w in norm(name).split() if w not in _EN_SALT_WORDS]
+    return " ".join(words)
 
 
 def read_ema_medicines(path: Path) -> tuple[dict[str, list[str]], dict[str, Any]]:
@@ -228,7 +254,7 @@ def read_ema_medicines(path: Path) -> tuple[dict[str, list[str]], dict[str, Any]
         if any("atc" in k for k in keys) and any("inn" in k or "active_substance" in k for k in keys):
             header_row, header = index, cells
             break
-    report: dict[str, Any] = {"header": header}
+    report: dict[str, Any] = {"header": [h for h in header if h.strip()]}
     if header_row is None:
         report["problem"] = "no header with an ATC column and an INN / active substance column"
         return {}, report
@@ -282,17 +308,18 @@ class DrugLabel:
 
 
 def label_query(name: str) -> str:
-    """The openFDA search for a single-ingredient label of this generic name."""
-    return f'openfda.generic_name.exact:"{name.upper()}"'
+    """The openFDA search for the labels whose generic name holds this name (as a phrase): "atorvastatin" finds
+    "ATORVASTATIN CALCIUM", which an exact search would not (15 November 2026)."""
+    return f'openfda.generic_name:"{base_name(name)}"'
 
 
 def pick_label(name: str, results: list[dict[str, Any]]) -> DrugLabel | None:
-    """Of the labels found, one whose generic name is exactly the ingredient (not a combination), the most recent;
-    ties broken by set id so the choice is the same every time."""
-    wanted = norm(name)
+    """Of the labels found, one whose generic name is the ingredient itself, salts aside (not a combination), the
+    most recent; ties broken by set id so the choice is the same every time."""
+    wanted = base_name(name)
     fitting = []
     for r in results:
-        generic = [norm(g) for g in r.get("openfda", {}).get("generic_name", [])]
+        generic = [base_name(g) for g in r.get("openfda", {}).get("generic_name", [])]
         if wanted in generic and (r.get("drug_interactions") or r.get("adverse_reactions")):
             fitting.append(r)
     if not fitting:
@@ -333,7 +360,7 @@ class Http:
 
 
 def fetch_label(http: Http, name: str, api_key: str = "") -> DrugLabel | None:
-    q = {"search": label_query(name), "limit": 20}
+    q = {"search": label_query(name), "limit": 50}
     if api_key:
         q = {"api_key": api_key, **q}
     raw = http.get(f"{OPENFDA_LABEL}?{urllib.parse.urlencode(q)}")

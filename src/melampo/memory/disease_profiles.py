@@ -41,7 +41,9 @@ SECTION_EXCLUDED = re.compile(r"method|statistic|search|selection|result|discuss
 # something: it goes to the judges even when it names the manifestation
 NOT_A_MANIFESTATION = re.compile(r"predict|prognos|mortality|outcome|risk factor|little value|no (significant )?"
                                  r"(difference|association)|not associated|sensitivity|specificity|accuracy|"
-                                 r"diagnostic value|was defined as|score|surveillance|screening", re.IGNORECASE)
+                                 r"diagnostic value|was defined as|score|surveillance|screening|significantly "
+                                 r"associated|\bin (rats|mice|pigs|dogs|animals?)\b|animal model|experimental",
+                                 re.IGNORECASE)
 SECTION_WORDS = re.compile(r"clinical|present|symptom|sign|manifest|feature|diagnos|imaging|radiolog|evaluat|"
                            r"examination|history|laborator|finding|course", re.IGNORECASE)
 # HPO frequency classes (HP:0040279 subtree): the middle of each band
@@ -114,16 +116,18 @@ class Terms:
                     t.by_own_name.setdefault(norm(words), set()).add(term)
         return t
 
-    def find(self, words: str) -> str:
+    def find(self, words: str, prefix: str = "") -> str:
         """The one term whose name is these words; else the one term with them as an exact synonym; else ''.
         (Corrected 15 November 2026: "pneumonia" is MONDO's name of one term and an exact synonym of others, and
         the first pilot, which looked at names and synonyms together, found no term for 7 of its 10 diagnoses.)"""
-        own = self.by_own_name.get(norm(words), set())
+        # (15 November 2026, second run: mondo.obo carries HPO classes too, and "pneumonia" is the name of a MONDO
+        # term and of an HP term; the caller says which ontology it means)
+        own = {t for t in self.by_own_name.get(norm(words), set()) if t.startswith(prefix)}
         if len(own) == 1:
             return next(iter(own))
         if own:
             return ""
-        hits = self.by_name.get(norm(words), set())
+        hits = {t for t in self.by_name.get(norm(words), set()) if t.startswith(prefix)}
         return next(iter(hits)) if len(hits) == 1 else ""
 
     def words_of(self, term: str) -> list[str]:

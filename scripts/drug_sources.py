@@ -33,12 +33,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from melampo.connectors import drug_sources as ds
 
+_COMBINED = re.compile(r"/|;|\+|\band\b", re.IGNORECASE)   # a comma may only list a salt
 _SPLIT = re.compile(r"\s*(?:/|\+|;|,)\s*")
 
 
+def _spelling(word: str) -> str:
+    """Italian and English spellings of an international name brought together for the stem only: th -> t,
+    ph -> f, y -> i, ae -> e, k -> c ("claritromicina" / "clarithromycin")."""
+    word = word.replace(" ", "")
+    for a, b in (("th", "t"), ("ph", "f"), ("ae", "e"), ("y", "i"), ("k", "c")):
+        word = word.replace(a, b)
+    return word
+
+
 def stem_matches(ingredient: str, name: str) -> bool:
-    a, b = ds.ingredient_core(ingredient).replace(" ", ""), ds.norm(name).replace(" ", "")
+    """The Italian ingredient and the international name share their stem: the common beginning is at least five
+    letters and all but three of the shorter ("atorvastatina" / "atorvastatin", "acarbosio" / "acarbose")."""
+    a, b = _spelling(ds.ingredient_core(ingredient)), _spelling(ds.base_name(name))
     if not a or not b:
+        return False
+    if abs(len(a) - len(b)) > 4:          # "cedazuridina" is not "cedazuridine / decitabine"
         return False
     common = 0
     for x, y in zip(a, b):
@@ -48,46 +62,63 @@ def stem_matches(ingredient: str, name: str) -> bool:
     return common >= max(5, min(len(a), len(b)) - 3)
 
 
-def choose(ingredient: str, names: list[str]) -> list[str]:
-    distinct = sorted({n for n in names}, key=ds.norm)
-    by_norm = {}
-    for n in distinct:
-        by_norm.setdefault(ds.norm(n), n)
-    distinct = list(by_norm.values())
-    if len(distinct) <= 1:
-        return distinct
-    stemmed = [n for n in distinct if stem_matches(ingredient, n)]
-    return stemmed or distinct
+def _one(names: list[str]) -> list[str]:
+    """Distinct international names by their base (salts aside), the shortest spelling of each."""
+    by_base: dict[str, str] = {}
+    for n in sorted(names, key=lambda x: (len(x), ds.norm(x))):
+        by_base.setdefault(ds.base_name(n), n)
+    return [ds.base_name(n) for n in by_base.values() if ds.base_name(n)]
 
 
-def resolve(ingredients: dict[str, set[str]], wikidata: dict[str, list[str]], ema: dict[str, list[str]]) -> dict:
-    all_names = sorted({n for names in list(wikidata.values()) + list(ema.values()) for n in names}, key=ds.norm)
+def resolve_one(ingredient: str, pairs: list[dict[str, str]], ema_names: list[str]) -> dict:
+    """The international name of one Italian ingredient from the names its ATC codes carry. A name is taken only
+    when it is the ingredient's own (15 November 2026: the second run took the single EMA name of B01AC06,
+    "clopidogrel", for "acetilsalicilato di lisina", whose ATC an EMA combination product also carries):
+
+    1. ``wikidata_it``: an item whose Italian label is the ingredient (salts aside) gives its English label;
+    2. ``stem``: an English name (Wikidata or EMA) shares the ingredient's stem;
+    3. ``wikidata+ema``: the two sources give one and the same name;
+    otherwise ``doubt`` with the candidates, or ``unresolved`` when there is none."""
+    core = ds.ingredient_core(ingredient)
+    italian = _one([p["en"] for p in pairs if p["en"] and p["it"] and ds.ingredient_core(p["it"]) == core])
+    if len(italian) == 1:
+        return {"inn": italian, "basis": "wikidata_it"}
+    # a combination's name ("cedazuridine / decitabine") is never the name of a single ingredient
+    english = [n for n in [p["en"] for p in pairs if p["en"]] + list(ema_names) if not _COMBINED.search(n)]
+    stemmed = _one([n for n in english if stem_matches(ingredient, n)])
+    if len(stemmed) == 1:
+        return {"inn": stemmed, "basis": "stem"}
+    w, e = _one([p["en"] for p in pairs if p["en"]]), _one(list(ema_names))
+    if len(w) == 1 and w == e:
+        return {"inn": w, "basis": "wikidata+ema"}
+    candidates = sorted(set(italian + stemmed + w + e))
+    return {"inn": [], "basis": "doubt", "candidates": candidates} if candidates else {"inn": [],
+                                                                                        "basis": "unresolved"}
+
+
+def resolve(ingredients: dict[str, set[str]], wikidata: dict[str, list[dict[str, str]]],
+            ema: dict[str, list[str]]) -> dict:
+    """Each AIFA ingredient -> its international name(s) with the basis; a combination ("A/B") part by part,
+    each part against all the names (its ATC is the combination's)."""
+    all_pairs = [p for pairs in wikidata.values() for p in pairs]
+    all_ema = sorted({n for names in ema.values() for n in names})
     out = {}
     for ingredient, codes in sorted(ingredients.items()):
-        parts = [p for p in _SPLIT.split(ingredient) if p.strip()]
-        if len(parts) > 1:
-            inns = []
-            for part in parts:
-                hits = [n for n in all_names if stem_matches(part, n)]
-                hits = list({ds.norm(h): h for h in hits}.values())
-                inns.append(hits[0] if len(hits) == 1 else "")
-            ok = all(inns)
-            out[ingredient] = {"atc": sorted(codes), "inn": inns if ok else [], "basis": "stem" if ok else "unresolved",
-                               "parts": parts}
+        parts = list(dict.fromkeys(p for p in _SPLIT.split(ingredient) if p.strip() and ds.norm(p) not in ("n d", "nd")))
+        if len(parts) == 1 and parts[0] != ingredient:
+            pairs = [p for c in codes for p in wikidata.get(c, [])]
+            names = [n for c in codes for n in ema.get(c, [])]
+            out[ingredient] = {"atc": sorted(codes), **resolve_one(parts[0], pairs, names)}
             continue
-        w = choose(ingredient, [n for c in codes for n in wikidata.get(c, [])])
-        e = choose(ingredient, [n for c in codes for n in ema.get(c, [])])
-        if len(w) == 1 and len(e) == 1 and ds.norm(w[0]) == ds.norm(e[0]):
-            entry = {"inn": [w[0]], "basis": "wikidata+ema"}
-        elif len(w) == 1 and not e:
-            entry = {"inn": [w[0]], "basis": "wikidata"}
-        elif len(e) == 1 and not w:
-            entry = {"inn": [e[0]], "basis": "ema"}
-        elif w or e:
-            entry = {"inn": [], "basis": "doubt", "candidates": sorted(set(w + e), key=ds.norm)}
-        else:
-            entry = {"inn": [], "basis": "unresolved"}
-        out[ingredient] = {"atc": sorted(codes), **entry}
+        if len(parts) > 1:
+            got = [resolve_one(part, all_pairs, all_ema) for part in parts]
+            ok = all(g["inn"] and g["basis"] in ("wikidata_it", "stem") for g in got)
+            out[ingredient] = {"atc": sorted(codes), "inn": [g["inn"][0] for g in got] if ok else [],
+                               "basis": "combination" if ok else "unresolved", "parts": parts}
+            continue
+        pairs = [p for c in codes for p in wikidata.get(c, [])]
+        names = [n for c in codes for n in ema.get(c, [])]
+        out[ingredient] = {"atc": sorted(codes), **resolve_one(ingredient, pairs, names)}
     return out
 
 
@@ -124,30 +155,52 @@ def main(argv=None) -> int:
         return 1
     cache.write_json("products.json", [ds.asdict(p) for p in products])
 
-    if args.wikidata:
-        payload = json.loads(Path(args.wikidata).read_text("utf-8"))
-    else:
-        url = f"{ds.WIKIDATA_SPARQL}?{urllib.parse.urlencode({'query': ds.wikidata_atc_query(), 'format': 'json'})}"
-        payload = json.loads(http.get(url, accept="application/sparql-results+json", timeout=180))
-    wikidata = ds.read_wikidata_atc(payload)
-    manifest["wikidata"] = {"url": ds.WIKIDATA_SPARQL, "taken": today, "licence": ds.WIKIDATA_LICENCE,
-                            "codes": len(wikidata)}
-    ema_path = Path(args.ema) if args.ema else Path(args.out) / "ema_medicines.xlsx"
-    if not args.ema:
-        ema_path.write_bytes(http.get(ds.EMA_MEDICINES, accept="*/*", timeout=180))
-    ema, ema_report = ds.read_ema_medicines(ema_path)
-    manifest["ema"] = {"url": ds.EMA_MEDICINES, "taken": today, "licence": ds.EMA_LICENCE, **ema_report}
+    # each source may fail on its own (15 November 2026: the second run stopped after AIFA and EMA without saying
+    # why); a source that fails is reported and the others go on
+    wikidata: dict = {}
+    try:
+        if args.wikidata:
+            wikidata = ds.read_wikidata_atc(json.loads(Path(args.wikidata).read_text("utf-8")))
+        else:
+            for group in ds.ATC_GROUPS:
+                url = (f"{ds.WIKIDATA_SPARQL}?"
+                       f"{urllib.parse.urlencode({'query': ds.wikidata_atc_query(group), 'format': 'json'})}")
+                part = ds.read_wikidata_atc(json.loads(http.get(url, accept="application/sparql-results+json",
+                                                                timeout=120)))
+                for code, pairs in part.items():
+                    wikidata.setdefault(code, []).extend(p for p in pairs if p not in wikidata.get(code, []))
+        manifest["wikidata"] = {"url": ds.WIKIDATA_SPARQL, "taken": today, "licence": ds.WIKIDATA_LICENCE,
+                                "codes": len(wikidata)}
+    except Exception as error:  # noqa: BLE001
+        manifest["wikidata"] = {"url": ds.WIKIDATA_SPARQL, "problem": f"{type(error).__name__}: {error}"[:500]}
+    cache.write_json("manifest.json", manifest)
+    ema: dict = {}
+    ema_report: dict = {}
+    try:
+        ema_path = Path(args.ema) if args.ema else Path(args.out) / "ema_medicines.xlsx"
+        if not args.ema:
+            ema_path.write_bytes(http.get(ds.EMA_MEDICINES, accept="*/*", timeout=180))
+        ema, ema_report = ds.read_ema_medicines(ema_path)
+        manifest["ema"] = {"url": ds.EMA_MEDICINES, "taken": today, "licence": ds.EMA_LICENCE, **ema_report}
+    except Exception as error:  # noqa: BLE001
+        manifest["ema"] = {"url": ds.EMA_MEDICINES, "problem": f"{type(error).__name__}: {error}"[:500]}
+    cache.write_json("manifest.json", manifest)
 
     ingredients = resolve(ds.ingredients_of(products), wikidata, ema)
     key = os.environ.get("OPENFDA_API_KEY", "")
     names = sorted({n for e in ingredients.values() for n in e["inn"]}, key=ds.norm)
-    asked = 0
+    asked, failures = 0, {}
     for name in names:
         if cache.has_label_entry(name):
             continue
         if asked >= args.limit:
             break
-        cache.put_label(name, ds.fetch_label(http, name, key))
+        try:
+            cache.put_label(name, ds.fetch_label(http, name, key))
+        except Exception as error:  # noqa: BLE001 -- asked again next run
+            failures[name] = f"{type(error).__name__}: {error}"[:200]
+            if len(failures) >= 25:
+                break                      # openFDA refuses repeatedly (limit reached): the next run resumes
         asked += 1
     # the label decides between two names that disagree, when exactly one of them has a label
     for entry in ingredients.values():
@@ -158,7 +211,8 @@ def main(argv=None) -> int:
     cache.write_json("ingredients.json", ingredients)
     labels = {n: cache.label(n) for n in names if cache.has_label_entry(n)}
     manifest["openfda"] = {"url": ds.OPENFDA_LABEL, "taken": today, "licence": ds.OPENFDA_LICENCE,
-                           "asked_this_run": asked, "with_key": bool(key)}
+                           "asked_this_run": asked, "with_key": bool(key),
+                           "failures": dict(list(failures.items())[:25])}
     cache.write_json("manifest.json", manifest)
     summary = {
         "products": len(products), "ingredients": len(ingredients),
@@ -168,6 +222,7 @@ def main(argv=None) -> int:
         "labels_with_interactions": sum(1 for v in labels.values() if v and v.sections.get("drug_interactions")),
         "labels_still_to_ask": len(names) - len(labels),
         "aifa_columns": aifa_report.get("columns"), "ema_columns": ema_report.get("columns"),
+        "wikidata_codes": len(wikidata), "ema_codes": len(ema), "label_failures": len(failures),
         "http_calls": http.calls,
     }
     cache.write_json("summary.json", summary)

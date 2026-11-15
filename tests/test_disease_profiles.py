@@ -183,3 +183,11 @@ def test_a_sentence_about_a_tests_value_or_an_outcome_goes_to_the_judges_even_wh
            "<sec><title>Clinical features</title><p>Pain.</p></sec>"
            "<sec><title>Risk factors and prognosis</title><p>Age.</p></sec></article>")
     assert [t for t, _ in dp.sections_from_jats(xml)] == ["Clinical features"]
+
+
+def test_mondo_is_looked_up_among_its_own_terms():
+    obo = ["[Term]", "id: MONDO:0005249", "name: pneumonia", "", "[Term]", "id: HP:0002090", "name: Pneumonia"]
+    terms = dp.Terms.from_obo(obo)
+    assert terms.find("pneumonia") == ""                        # two terms with that name: none chosen
+    assert terms.find("pneumonia", prefix="MONDO:") == "MONDO:0005249"
+    assert dp.NOT_A_MANIFESTATION.search("SAP was associated with increased vWF in rats")
