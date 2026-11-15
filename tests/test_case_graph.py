@@ -8,9 +8,18 @@ from types import SimpleNamespace
 import pytest
 
 from melampo.clinical import case_graph as cg
-from melampo.clinical.case_graph_builder import (add_declared_diseases, add_laboratory, add_medications, add_report,
-                                                 build_case_graph)
-from melampo.clinical.manifestation_state import assess, assess_case, unexplained_findings
+from melampo.clinical.case_graph_builder import (
+    add_declared_diseases,
+    add_laboratory,
+    add_medications,
+    add_report,
+    build_case_graph,
+)
+from melampo.clinical.manifestation_state import (
+    assess,
+    assess_case,
+    unexplained_findings,
+)
 from melampo.clinical.phenopacket import from_phenopacket, to_phenopacket
 from melampo.data.lab_results import extract_lab_results
 from melampo.memory.exam_area import ExamAreas
@@ -163,7 +172,7 @@ def test_a_more_specific_finding_counts_and_disagreeing_facts_stay_in_doubt():
     graph, _ = _case()
     general = _manifestation("thick", "Abnormal gallbladder", "HP:0005264", "common")
     assert assess(general, graph).state == cg.NOT_ASSESSED
-    below = lambda child, parent: (child, parent) == ("HP:0025566", "HP:0005264")  # noqa: E731
+    below = lambda child, parent: (child, parent) == ("HP:0025566", "HP:0005264")
     assert assess(general, graph, below=below).state == cg.PRESENT
     at = REPORT.index("Pancreas nei limiti")
     graph.findings.append(cg.Finding("f-asc", "rep-1", "Pancreas nei limiti",
@@ -179,7 +188,7 @@ def _profile(did, words, *manifestations):
 
 def test_an_absent_hallmark_lowers_a_disease_and_an_excluding_finding_sinks_it():
     graph, _ = _case()
-    wall = lambda: _manifestation("wall", "Gallbladder wall thickening", "HP:0025566", "hallmark")  # noqa: E731
+    wall = lambda: _manifestation("wall", "Gallbladder wall thickening", "HP:0025566", "hallmark")
     cholecystitis = _profile("chole", "acute cholecystitis", wall(),
                              _manifestation("bili", "Hyperbilirubinemia", "HP:0002904", "common",
                                             verified_by=[{"kind": "laboratory", "analyte": "bilirubina totale",
@@ -250,7 +259,7 @@ def test_the_case_is_written_to_falkordb_and_read_back(tmp_path):
     assert load_case(store, graph)["findings"] == 2
     load_case(store, graph)                                     # written again: replaced, not doubled
     back = read_case(store, "case-1")
-    key = lambda xs: sorted((x.as_dict() for x in xs), key=json.dumps)  # noqa: E731
+    key = lambda xs: sorted((x.as_dict() for x in xs), key=json.dumps)
     for name in ("documents", "findings", "measurements", "medications", "diseases"):
         assert key(getattr(back, name)) == key(getattr(graph, name)), name
 

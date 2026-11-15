@@ -30,7 +30,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, fields
 from typing import Any
 
-SCHEMA_VERSION = "case-graph/1"
+SCHEMA_VERSION = "case-graph/2"
+READABLE_SCHEMAS = ("case-graph/1", "case-graph/2")   # /2 adds the drug knowledge and its inferences
 
 FACT, KNOWLEDGE, INFERENCE = "fact", "knowledge", "inference"
 
@@ -240,6 +241,48 @@ class Disease(_Record):
 
 
 @dataclass
+class DrugProfile(_Record):
+    """What the sources say of a drug the patient takes (knowledge): the ingredient as AIFA writes it, its
+    international name, its ATC code, and the sections of its label with their citation (``connectors.
+    drug_sources``). ``resolution`` says how the name was reached and whether it is in doubt."""
+
+    medication_id: str
+    ingredient: str
+    inn: str = ""
+    atc: str = ""
+    resolution: str = ""                        # wikidata+ema, wikidata, ema, doubt, unresolved
+    sections: dict[str, list[str]] = field(default_factory=dict)
+    citations: list[dict[str, Any]] = field(default_factory=list)
+    level: str = KNOWLEDGE
+
+
+@dataclass
+class DrugInteraction(_Record):
+    """A label that names another drug of the patient (inference): the sentence, its section, its citation."""
+
+    medication: str
+    other: str
+    section: str
+    sentence: str
+    citation: dict[str, Any] = field(default_factory=dict)
+    level: str = INFERENCE
+
+
+@dataclass
+class DrugEffect(_Record):
+    """A label that names a finding of the patient among a drug's effects (inference), with the time between the
+    start of the drug and the finding: ``after_start``, ``before_start`` or ``unknown``."""
+
+    medication: str
+    finding: str
+    section: str
+    sentence: str
+    timing: str = "unknown"
+    citation: dict[str, Any] = field(default_factory=dict)
+    level: str = INFERENCE
+
+
+@dataclass
 class KnowledgeSnapshot(_Record):
     """What knowledge the case used: each source with its version, and when it was taken."""
 
@@ -272,6 +315,9 @@ class CaseGraph(_Record):
     diseases: list[Disease] = field(default_factory=list)
     snapshot: KnowledgeSnapshot = field(default_factory=KnowledgeSnapshot)
     schema: str = SCHEMA_VERSION
+    drug_profiles: list[DrugProfile] = field(default_factory=list)
+    drug_interactions: list[DrugInteraction] = field(default_factory=list)
+    drug_effects: list[DrugEffect] = field(default_factory=list)
 
     # -- the branches ---------------------------------------------------------------------------------------------
     def branch(self, name: str) -> list[Any]:
@@ -360,6 +406,21 @@ class CaseGraph(_Record):
             p = finding.provenance
             if p.start is not None and p.end is not None and p.end - p.start != len(p.words):
                 problems.append(f"{finding.finding_id}: offsets {p.start}..{p.end} do not hold the words")
+        medications = {m.medication_id for m in self.medications}
+        for profile in self.drug_profiles:
+            if profile.medication_id not in medications:
+                problems.append(f"drug profile of an unknown medication {profile.medication_id}")
+        for x in self.drug_interactions:
+            if x.medication not in medications or x.other not in medications:
+                problems.append(f"interaction between drugs not in the case: {x.medication}, {x.other}")
+            if not x.sentence.strip():
+                problems.append(f"interaction {x.medication}-{x.other} without its sentence")
+        findings = {f.finding_id for f in self.findings}
+        for x in self.drug_effects:
+            if x.medication not in medications or x.finding not in findings:
+                problems.append(f"drug effect on facts not in the case: {x.medication}, {x.finding}")
+            if not x.sentence.strip():
+                problems.append(f"drug effect {x.medication}-{x.finding} without its sentence")
         for disease in self.diseases:
             if disease.branch == CANDIDATE_DISEASES and disease.origin != DIAGNOSTIC_PATH:
                 problems.append(f"{disease.disease_id}: a candidate not found by the diagnostic path")
@@ -386,8 +447,8 @@ class CaseGraph(_Record):
     # -- plain data -----------------------------------------------------------------------------------------------
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CaseGraph:
-        if data.get("schema", SCHEMA_VERSION) != SCHEMA_VERSION:
-            raise CaseGraphError(f"schema {data.get('schema')!r}, expected {SCHEMA_VERSION}")
+        if data.get("schema", SCHEMA_VERSION) not in READABLE_SCHEMAS:
+            raise CaseGraphError(f"schema {data.get('schema')!r}, expected one of {READABLE_SCHEMAS}")
         return cls(
             case_id=data["case_id"],
             documents=[Document.from_dict(d) for d in data.get("documents", [])],
@@ -397,7 +458,10 @@ class CaseGraph(_Record):
             medications=[Medication.from_dict(d) for d in data.get("medications", [])],
             diseases=[Disease.from_dict(d) for d in data.get("diseases", [])],
             snapshot=KnowledgeSnapshot.from_dict(data.get("snapshot", {})),
-            schema=data.get("schema", SCHEMA_VERSION),
+            schema=SCHEMA_VERSION,
+            drug_profiles=[DrugProfile.from_dict(d) for d in data.get("drug_profiles", [])],
+            drug_interactions=[DrugInteraction.from_dict(d) for d in data.get("drug_interactions", [])],
+            drug_effects=[DrugEffect.from_dict(d) for d in data.get("drug_effects", [])],
         )
 
     def summary(self) -> dict[str, Any]:
@@ -408,6 +472,8 @@ class CaseGraph(_Record):
                 **{name: len(self.branch(name)) for name in DISEASE_BRANCHES},
                 "manifestations": sum(len(d.manifestations) for d in self.diseases),
                 "states": {s: sum(1 for d in self.diseases for x in d.states if x.state == s) for s in STATES},
+                "drug_profiles": len(self.drug_profiles), "drug_interactions": len(self.drug_interactions),
+                "drug_effects": len(self.drug_effects),
                 "knowledge_sources": dict(self.snapshot.sources)}
 
     # -- Phenopacket v2 ---------------------------------------------------------------------------------------------

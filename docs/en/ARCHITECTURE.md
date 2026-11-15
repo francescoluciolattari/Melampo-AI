@@ -131,6 +131,19 @@ silent in an exam that studies its region; not assessed otherwise. `reasoning/li
 and absent manifestations as likelihood ratios (LIRICAL's method), absences included. The result carries only the
 counts (`case_graph`); the graph stays with the case.
 
+### The drug branch and the disease profiles (15 November 2026)
+
+`clinical/drug_branch` resolves each drug of the case through a local cache built from open sources only
+(`scripts/drug_sources.py`, workflow `drug-sources`): AIFA's lists (Italian name or AIC -> ingredient, ATC; CC BY
+4.0), ATC -> international name (Wikidata CC0, EMA medicines table), the US label (openFDA, CC0). It finds the
+sentences of a label that name another drug of the patient (`DrugInteraction`) or a finding of the patient among
+the drug's effects, with the timing against the drug's start (`DrugEffect`). The patient's list of drugs never
+leaves the machine. DDInter (CC BY-NC-SA) and StatPearls (CC BY-NC-ND) are non-commercial and are not used in
+production. `memory/disease_profiles` builds the profile of a disease from the HPO annotations and the Disease
+Ontology first, then from one open review (CC BY / CC0): the reading pair lists the manifestations with their
+sentence, an invented sentence is refused, a sentence that names the manifestation is verified without a model,
+and only the rest goes to the two judges (workflow `disease-profiles`, pilot of ten diagnoses with a budget).
+
 ## 5. Data boundaries
 
 | Data | May go to | Never goes to | Enforced by |

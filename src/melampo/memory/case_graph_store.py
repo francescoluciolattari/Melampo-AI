@@ -8,7 +8,9 @@ Edges: ``(Case)-[:HAS]->(Document)``, ``(Document)-[:STATES]->(Finding)``, ``(Do
 ``(Document)-[:IMAGES]->(Imprint)``, ``(Case)-[:TAKES]->(Medication)``, ``(Case)-[:BRANCH {name}]->(Disease)``,
 ``(Disease)-[:MANIFESTS]->(Manifestation)``, ``(Manifestation)-[:STATE {state, basis, case}]->(fact)`` for each fact
 a state rests on (a state with no fact, such as "not assessed", is kept on the MANIFESTS edge), and
-``(Finding)-[:AT]->(:Structure {cid})``, the same Structure nodes the SITE edges of ``report_graph`` use.
+``(Finding)-[:AT]->(:Structure {cid})``, the same Structure nodes the SITE edges of ``report_graph`` use; the drug
+branch (15 November 2026): ``(Medication)-[:PROFILE]->(:DrugProfile)``, ``(Medication)-[:INTERACTS {section,
+sentence}]->(Medication)``, ``(Medication)-[:MAY_CAUSE {section, sentence, timing}]->(Finding)``.
 
 Writing a case replaces what the graph held for it, so the graph always says what the case's graph says; the full
 record stays in ``CaseGraph.to_dict`` (a JSON document), and ``read_case`` gives it back from the graph.
@@ -87,6 +89,29 @@ def load_case(graph, case: cg.CaseGraph) -> dict[str, int]:
                         "MATCH (f {case: $case, id: row.fact}) "
                         "CREATE (m)-[:STATE {case: $case, state: row.state, basis: row.basis}]->(f)",
                         params={"case": cid, "rows": evidence})
+    if case.drug_profiles:
+        graph.query("UNWIND $rows AS row MATCH (m:Medication {case: $case, id: row.med}) "
+                    "CREATE (m)-[:PROFILE]->(:DrugProfile {case: $case, id: row.id, words: row.words, "
+                    "record: row.record})",
+                    params={"case": cid, "rows": [{"med": d.medication_id, "id": f"{d.medication_id}/{i}",
+                                                   "words": d.inn or d.ingredient, "record": _json(d.as_dict())}
+                                                  for i, d in enumerate(case.drug_profiles)]})
+    if case.drug_interactions:
+        graph.query("UNWIND $rows AS row MATCH (a:Medication {case: $case, id: row.a}) "
+                    "MATCH (b:Medication {case: $case, id: row.b}) "
+                    "CREATE (a)-[:INTERACTS {case: $case, section: row.section, sentence: row.sentence, "
+                    "record: row.record}]->(b)",
+                    params={"case": cid, "rows": [{"a": x.medication, "b": x.other, "section": x.section,
+                                                   "sentence": x.sentence, "record": _json(x.as_dict())}
+                                                  for x in case.drug_interactions]})
+    if case.drug_effects:
+        graph.query("UNWIND $rows AS row MATCH (m:Medication {case: $case, id: row.m}) "
+                    "MATCH (f:Finding {case: $case, id: row.f}) "
+                    "CREATE (m)-[:MAY_CAUSE {case: $case, section: row.section, sentence: row.sentence, "
+                    "timing: row.timing, record: row.record}]->(f)",
+                    params={"case": cid, "rows": [{"m": x.medication, "f": x.finding, "section": x.section,
+                                                   "sentence": x.sentence, "timing": x.timing,
+                                                   "record": _json(x.as_dict())} for x in case.drug_effects]})
     return {"documents": len(case.documents), "findings": len(case.findings),
             "measurements": len(case.measurements), "imprints": len(case.imprints),
             "medications": len(case.medications), "diseases": len(case.diseases),
@@ -112,7 +137,14 @@ def read_case(graph, case_id: str) -> cg.CaseGraph:
         record["manifestations"] = [json.loads(m) for m, _ in got.result_set]
         record["states"] = [json.loads(s) for _, s in got.result_set if s]
         diseases.append(record)
+    def edges(kind: str) -> list[dict[str, Any]]:
+        got = graph.query(f"MATCH ()-[e:{kind} {{case: $case}}]->() RETURN e.record ORDER BY e.record",
+                          params={"case": case_id})
+        return [json.loads(r[0]) for r in got.result_set]
+
     return cg.CaseGraph.from_dict({
+        "drug_profiles": records("DrugProfile"), "drug_interactions": edges("INTERACTS"),
+        "drug_effects": edges("MAY_CAUSE"),
         "case_id": case_id, "schema": schema, "snapshot": json.loads(snapshot),
         "documents": records("Document"), "findings": records("Finding"), "measurements": records("Measurement"),
         "imprints": records("Imprint"), "medications": records("Medication"), "diseases": diseases})

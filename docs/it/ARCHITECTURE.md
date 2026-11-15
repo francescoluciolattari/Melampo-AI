@@ -133,6 +133,19 @@ un esame che ne studia la regione; altrimenti non valutato. `reasoning/likelihoo
 presenti e assenti come rapporti di verosimiglianza (il metodo di LIRICAL), assenze comprese. Il risultato porta solo
 i conteggi (`case_graph`); il grafo resta con il caso.
 
+### Il ramo dei farmaci e i profili delle malattie (15 novembre 2026)
+
+`clinical/drug_branch` risolve ogni farmaco del caso attraverso una cache locale costruita solo da fonti aperte
+(`scripts/drug_sources.py`, workflow `drug-sources`): le liste AIFA (nome italiano o AIC -> principio attivo, ATC;
+CC BY 4.0), ATC -> nome internazionale (Wikidata CC0, tabella dei medicinali EMA), l'etichetta statunitense (openFDA,
+CC0). Trova le frasi di un'etichetta che nominano un altro farmaco del paziente (`DrugInteraction`) o un reperto del
+paziente tra gli effetti del farmaco, con il tempo rispetto all'inizio (`DrugEffect`). L'elenco dei farmaci del
+paziente non lascia mai la macchina. DDInter (CC BY-NC-SA) e StatPearls (CC BY-NC-ND) sono non commerciali e non si
+usano in produzione. `memory/disease_profiles` costruisce il profilo di una malattia prima dalle annotazioni HPO e
+dalla Disease Ontology, poi da una revisione aperta (CC BY / CC0): la coppia di lettori elenca le manifestazioni con
+la loro frase, una frase inventata è rifiutata, una frase che nomina la manifestazione è verificata senza modello, e
+solo il resto va ai due giudici (workflow `disease-profiles`, pilota di dieci diagnosi con un budget).
+
 ## 5. Confini dei dati
 
 | Dati | Possono andare a | Non vanno mai a | Garantito da |
