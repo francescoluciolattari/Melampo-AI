@@ -228,3 +228,56 @@ def test_wikipedia_gives_its_presentation_and_diagnosis_sections_without_referen
     assert "most common symptom." in symptoms and "[2]" not in symptoms and "Fever" in symptoms
     assert "Murphy sign" in symptoms                       # a subsection belongs to its section
     assert "score" not in sections[1][1] and "thickened gallbladder wall" in sections[1][1]
+
+
+def test_only_licences_open_for_a_commercial_product_are_read():
+    assert dp.open_for_use("cc by") and dp.open_for_use("CC BY 4.0") and dp.open_for_use("cc0")
+    assert dp.open_for_use("cc by-sa")
+    assert not dp.open_for_use("cc by-nc") and not dp.open_for_use("cc by-nc-nd") and not dp.open_for_use("")
+    assert not dp.open_for_use("cc by-nd")
+
+
+WIKI_REFS = ('<h2>Signs and symptoms</h2><p>Fever.<sup class="reference"><a href="#cite_note-a">[1]</a></sup> Pain.'
+             '<sup class="reference"><a href="#cite_note-b">[2]</a></sup></p><h2>Treatment</h2><p>Drugs.'
+             '<sup class="reference"><a href="#cite_note-c">[3]</a></sup></p><h2>References</h2><ol>'
+             '<li id="cite_note-a"><a href="https://pubmed.ncbi.nlm.nih.gov/111/">PMID 111</a> '
+             '<a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC222/">PMC222</a></li>'
+             '<li id="cite_note-b"><a href="https://doi.org/10.1000/xyz.1">doi</a></li>'
+             '<li id="cite_note-c"><a href="https://pubmed.ncbi.nlm.nih.gov/333/">PMID 333</a></li></ol>')
+
+
+def test_wikipedia_gives_the_publications_its_presentation_sections_cite_never_its_own_text_as_a_source():
+    refs = dp.wikipedia_references(WIKI_REFS)
+    assert refs == [{"pmid": "111", "pmcid": "PMC222", "doi": ""}, {"pmid": "", "pmcid": "", "doi": "10.1000/xyz.1"}]
+    text = ("Acute cholecystitis is common. In acute cholecystitis, fever was present in 30% of patients. "
+            "Fever predicted mortality in acute cholecystitis. Fever is frequent in sepsis.")
+    found = dp.supporting_sentences(text, "Fever", _hpo(), {"acute cholecystitis"})
+    assert found == ["In acute cholecystitis, fever was present in 30% of patients."]
+    assert dp.supporting_sentences("Fever is frequent.", "Fever", _hpo(), {"acute cholecystitis"},
+                                   title="Fever in acute cholecystitis") == ["Fever is frequent."]
+    body = ("<article><body><sec><title>Methods</title><p>We enrolled.</p></sec><sec><title>Results</title>"
+            "<p>Fever in 30%.</p></sec></body><back><ref-list><ref>x</ref></ref-list></back></article>")
+    assert dp.body_text(body) == "Fever in 30%."
+
+
+def test_two_independent_sources_establish_a_manifestation_one_reports_it():
+    one = cg.Manifestation("HP:1", "x", citations=[{"source": "Europe PMC review", "id": "PMC1"},
+                                                   {"source": "Europe PMC review", "id": "PMC1"}])
+    two = cg.Manifestation("HP:1", "x", citations=[{"source": "Europe PMC review", "id": "PMC1"},
+                                                   {"source": "HPO annotations", "id": "OMIM:1", "reference": "PMID:9"}])
+    assert dp.evidence_of(one) == "reported" and dp.evidence_of(two) == "established"
+    profile = dp.merge_profile("MONDO:1", "d", [two])
+    assert profile.manifestations[0].evidence == "established"
+
+
+def test_a_term_read_agrees_with_a_curated_profile_when_it_is_the_same_more_specific_or_a_little_more_general():
+    obo = ["[Term]", "id: HP:1", "name: root", "", "[Term]", "id: HP:2", "name: mid", "is_a: HP:1", "",
+           "[Term]", "id: HP:3", "name: leaf", "is_a: HP:2", "", "[Term]", "id: HP:4", "name: deep", "is_a: HP:3", "",
+           "[Term]", "id: HP:9", "name: other", "is_a: HP:1"]
+    hpo = dp.Terms.from_obo(obo)
+    assert hpo.ancestors("HP:4") == {"HP:3", "HP:2", "HP:1"}
+    assert dp.agrees_with_curation("HP:3", {"HP:3"}, hpo)
+    assert dp.agrees_with_curation("HP:4", {"HP:2"}, hpo)          # more specific than the curators
+    assert dp.agrees_with_curation("HP:2", {"HP:4"}, hpo)          # two steps more general
+    assert not dp.agrees_with_curation("HP:1", {"HP:4"}, hpo)      # three steps: too general to agree
+    assert not dp.agrees_with_curation("HP:9", {"HP:4"}, hpo)

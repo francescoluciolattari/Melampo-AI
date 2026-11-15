@@ -207,6 +207,7 @@ class Manifestation(_Record):
     region: str = ""
     verified_by: list[dict[str, Any]] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
+    evidence: str = ""                          # established (two independent sources or more), reported (one)
     level: str = KNOWLEDGE
 
 

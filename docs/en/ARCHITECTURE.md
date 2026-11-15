@@ -139,10 +139,13 @@ counts (`case_graph`); the graph stays with the case.
 sentences of a label that name another drug of the patient (`DrugInteraction`) or a finding of the patient among
 the drug's effects, with the timing against the drug's start (`DrugEffect`). The patient's list of drugs never
 leaves the machine. DDInter (CC BY-NC-SA) and StatPearls (CC BY-NC-ND) are non-commercial and are not used in
-production. `memory/disease_profiles` builds the profile of a disease from the HPO annotations and the Disease
-Ontology first, then from one open review (CC BY / CC0): the reading pair lists the manifestations with their
-sentence, an invented sentence is refused, a sentence that names the manifestation is verified without a model,
-and only the rest goes to the two judges (workflow `disease-profiles`, pilot of ten diagnoses with a budget).
+production. `memory/disease_profiles` builds the profile of a disease from curated sources (HPO annotations, which carry
+Orphanet's, and the Disease Ontology) and from publications open for a commercial product (CC0, CC BY, CC BY-SA:
+NC and ND left out): the reading pair lists the manifestations with their sentence, an invented sentence is
+refused, and the judges decide what the words do not. Wikipedia is only an index: its candidates enter with a
+sentence of a publication it cites, never with its own text. Each manifestation carries its level of evidence
+(established by two independent sources, reported by one), and the reading is measured against curated profiles
+of rare diseases instead of by a person (workflow `disease-profiles`, with a budget).
 
 ## 5. Data boundaries
 

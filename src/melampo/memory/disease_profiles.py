@@ -85,6 +85,7 @@ class Terms:
     by_own_name: dict[str, set[str]] = field(default_factory=dict)
     synonyms: dict[str, list[str]] = field(default_factory=dict)
     xrefs: dict[str, set[str]] = field(default_factory=dict)
+    parents: dict[str, set[str]] = field(default_factory=dict)
 
     @classmethod
     def from_obo(cls, lines: Iterable[str]) -> Terms:
@@ -110,6 +111,8 @@ class Terms:
                         pending.append((current, m.group(1), "synonym"))
                 elif line.startswith("xref: "):
                     t.xrefs.setdefault(current, set()).add(line[6:].split()[0])
+                elif line.startswith("is_a: "):
+                    t.parents.setdefault(current, set()).add(line[6:].split()[0])
         for term, words, kind in pending:
             if term in t.names:
                 t.by_name.setdefault(norm(words), set()).add(term)
@@ -130,6 +133,16 @@ class Terms:
             return ""
         hits = {t for t in self.by_name.get(norm(words), set()) if t.startswith(prefix)}
         return next(iter(hits)) if len(hits) == 1 else ""
+
+    def ancestors(self, term: str) -> set[str]:
+        """Every term above this one by is_a."""
+        out, todo = set(), list(self.parents.get(term, ()))
+        while todo:
+            t = todo.pop()
+            if t not in out:
+                out.add(t)
+                todo += self.parents.get(t, ())
+        return out
 
     def words_of(self, term: str) -> list[str]:
         return [self.names.get(term, "")] + self.synonyms.get(term, [])
@@ -458,9 +471,25 @@ def to_manifestation(link: Link, hpo: Terms, index: int) -> cg.Manifestation:
                     "judges": link.judges}])
 
 
+def source_key(citation: dict[str, Any]) -> str:
+    """What makes two citations independent: the publication (PMID, PMC, DOI) or the curated reference."""
+    for k in ("reference", "pmid", "id"):
+        value = str(citation.get(k) or "").strip()
+        if value:
+            return value
+    return str(citation.get("source", ""))
+
+
+def evidence_of(m: cg.Manifestation) -> str:
+    """``established`` when two independent sources or more state it, ``reported`` when one does."""
+    keys = {source_key(c) for c in m.citations if source_key(c)}
+    return "established" if len(keys) >= 2 else ("reported" if keys else "")
+
+
 def merge_profile(disease_id: str, words: str, parts: Iterable[cg.Manifestation]) -> cg.Disease:
     """One manifestation per concept (or per words when there is none), every citation kept; the highest stated
-    frequency, and a typicality only when the sources do not contradict each other."""
+    frequency, a typicality only when the sources do not contradict each other, and the level of evidence by the
+    number of independent sources (``evidence_of``)."""
     merged: dict[str, cg.Manifestation] = {}
     for m in parts:
         key = m.concept.curie if m.concept and m.concept.code else norm(m.words)
@@ -478,8 +507,133 @@ def merge_profile(disease_id: str, words: str, parts: Iterable[cg.Manifestation]
         elif m.typicality and not have.typicality:
             have.typicality = m.typicality
         have.region = have.region or m.region
+    for m in merged.values():
+        m.evidence = evidence_of(m)
     return cg.Disease(disease_id=disease_id, branch=cg.HYPOTHESIZED_DISEASES, words=words,
                       origin=cg.PHYSICIAN, manifestations=list(merged.values()))
+
+
+# -- the licence of a text ---------------------------------------------------------------------------------------
+
+def open_for_use(licence: str) -> bool:
+    """CC0, CC BY and CC BY-SA allow use in a commercial product; NC (non-commercial) and ND do not serve here.
+    (Corrected 15 November 2026: the pilot accepted any licence beginning with "cc by", CC BY-NC included.)"""
+    text = norm(licence)
+    if not text:
+        return False
+    if "nc" in text.split() or "nd" in text.split() or "noncommercial" in text or "noderiv" in text:
+        return False
+    return text.startswith(("cc0", "cc by", "cc zero", "public domain")) or text in ("cc by sa", "cc by 4 0")
+
+
+# -- Wikipedia as an index of its references ---------------------------------------------------------------------
+
+_CITE_NOTE = re.compile(r'href="#(cite_note-[^"]+)"')
+_REF_ITEM = re.compile(r'<li id="(cite_note-[^"]+)"[^>]*>(.*?)</li>', re.DOTALL)
+_PMID = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)|PMID[^0-9]{0,40}(\d{5,9})")
+_PMC = re.compile(r"\b(PMC\d{1,9})\b")
+_DOI = re.compile(r'doi\.org/(10\.\d{4,9}/[^\s"<>&]+)')
+
+
+def wikipedia_references(html: str) -> list[dict[str, str]]:
+    """The publications cited in the sections ``wikipedia_sections`` reads (presentation, diagnosis, imaging): each
+    with its PMID, PMCID and DOI when the reference gives them. Wikipedia is an index here, never the source: the
+    text that enters a profile is the publication's own (15 November 2026)."""
+    html = html or ""
+    marks = list(_HEADING.finditer(html))
+    cited: list[str] = []
+    taken_until = -1
+    for i, m in enumerate(marks):
+        if m.start() < taken_until:
+            continue
+        title = " ".join(re.sub(r"<[^>]+>", " ", m.group(2)).split())
+        if not SECTION_WORDS.search(title) or SECTION_EXCLUDED.search(title):
+            continue
+        end = next((later.start() for later in marks[i + 1:] if later.group(1) <= m.group(1)), len(html))
+        taken_until = end
+        for note in _CITE_NOTE.findall(html[m.end():end]):
+            if note not in cited:
+                cited.append(note)
+    items = {k: v for k, v in _REF_ITEM.findall(html)}
+    out = []
+    for note in cited:
+        body = items.get(note, "")
+        pmid = next((a or b for a, b in _PMID.findall(body)), "")
+        pmc = next(iter(_PMC.findall(body)), "")
+        doi = next(iter(_DOI.findall(body)), "").rstrip(".")
+        if pmid or pmc or doi:
+            ref = {"pmid": pmid, "pmcid": pmc, "doi": doi}
+            if ref not in out:
+                out.append(ref)
+    return out
+
+
+def body_text(xml: str, limit: int = 80000) -> str:
+    """The paragraphs of a JATS article's body (methods, references and tables left out), at most ``limit``."""
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return ""
+    body = root.find(".//body")
+    if body is None:
+        return ""
+    parts, used = [], 0
+    for sec in body.iter("sec"):
+        title_el = sec.find("title")
+        title = _text(title_el) if title_el is not None else ""
+        if re.search(r"method|statistic|reference|acknowledg|funding|conflict", title, re.IGNORECASE):
+            continue
+        for p in sec.findall("p"):
+            text = _text(p)
+            if text and used < limit:
+                parts.append(text)
+                used += len(text)
+    if not parts:
+        parts = [_text(p) for p in body.findall(".//p")]
+    return " ".join(parts)[:limit]
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z(])")
+
+
+def supporting_sentences(text: str, manifestation: str, hpo: Terms, disease: Iterable[str],
+                         title: str = "") -> list[str]:
+    """The sentences of a publication that name the manifestation (its words or its HPO term's name or synonym)
+    and say something of the disease (they name it, or the publication's title does), and are not about a test's
+    value, an outcome, animals or a treatment."""
+    disease = list(disease)
+    about = names_the_disease(title, disease)
+    out = []
+    for sentence in _SENTENCE_END.split(" ".join(text.split())):
+        if len(sentence) > 600:
+            continue
+        item = {"manifestation": manifestation, "quote": sentence}
+        if names_it(item, hpo) and (about or names_the_disease(sentence, disease)):
+            out.append(sentence)
+    return out
+
+
+# -- the reading measured against a curated profile --------------------------------------------------------------
+
+def _within(term: str, below: str, hpo: Terms, steps: int) -> bool:
+    """``term`` is at most ``steps`` is_a steps above ``below``."""
+    level = {below}
+    for _ in range(steps):
+        level = {p for t in level for p in hpo.parents.get(t, ())}
+        if term in level:
+            return True
+    return False
+
+
+def agrees_with_curation(term: str, curated: set[str], hpo: Terms) -> bool:
+    """A term read from a publication agrees with a curated profile when the profile has it, a term above it (the
+    reading is more specific than the curators), or a term at most two steps below it (the reading is a little more
+    general). A term far above ("Abnormality of the abdomen") does not agree with everything below it."""
+    if not term:
+        return False
+    if term in curated or hpo.ancestors(term) & curated:
+        return True
+    return any(_within(term, c, hpo, 2) for c in curated)
 
 
 __all__ = [n for n in dir() if not n.startswith("_")]
