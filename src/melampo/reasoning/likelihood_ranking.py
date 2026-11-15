@@ -19,6 +19,8 @@ The weights that are not measured yet are named constants, not hidden numbers, t
   common 0.5, rare 0.1). GraphDx uses the same four levels with fixed weights.
 - ``SILENCE_WEIGHT``: how much of an absence a silent covering exam is worth, in log space (0.5: half). A report
   that does not mention a finding is weaker evidence than one that says it is not there.
+- ``EVIDENCE_WEIGHT``: a manifestation stated by one source only (``reported``) weighs half, in log space, of one
+  two independent sources state (``established``).
 - ``FLOOR``: no frequency is taken as exactly 0 or 1, so no single fact decides alone (except ``EXCLUDES``).
 
 Not assessed and doubtful manifestations weigh nothing: the first become the exams to propose, the second stay in
@@ -37,6 +39,8 @@ from ..clinical import case_graph as cg
 
 TYPICALITY_FREQUENCY = {"hallmark": 0.9, "common": 0.5, "rare": 0.1, "excluding": 0.0}
 SILENCE_WEIGHT = 0.5
+# a manifestation one source only states weighs less than one two independent sources state (15 November 2026)
+EVIDENCE_WEIGHT = {"established": 1.0, "reported": 0.5, "": 1.0}
 FLOOR = 0.01
 EXCLUDES = 1e-3
 BACKGROUND_DEFAULT = 0.05
@@ -139,6 +143,10 @@ def score(disease: cg.Disease, bg: dict[str, float], prior: float | None = None)
             if state.basis == cg.SILENT:
                 lr = lr ** SILENCE_WEIGHT
                 note = f"silent covering exam, weight {SILENCE_WEIGHT}"
+        weight = EVIDENCE_WEIGHT.get(m.evidence, 1.0)
+        if weight != 1.0:
+            lr = lr ** weight
+            note = (note + "; " if note else "") + f"{m.evidence} by one source, weight {weight}"
         value = math.log10(lr)
         out.log10_odds += value
         out.contributions.append(Contribution(m.manifestation_id, m.words, state.state, state.basis, value, note))
@@ -163,5 +171,5 @@ def rank(diseases: Iterable[cg.Disease], *, profiles: Iterable[cg.Disease] | Non
     return sorted(ranked, key=lambda r: (-r.log10_odds, r.disease_id))
 
 
-__all__ = ["BACKGROUND_DEFAULT", "EXCLUDES", "FLOOR", "SILENCE_WEIGHT", "TYPICALITY_FREQUENCY", "Contribution",
+__all__ = ["BACKGROUND_DEFAULT", "EVIDENCE_WEIGHT", "EXCLUDES", "FLOOR", "SILENCE_WEIGHT", "TYPICALITY_FREQUENCY", "Contribution",
            "Ranked", "background", "frequency", "rank", "score"]

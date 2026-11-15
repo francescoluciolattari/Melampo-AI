@@ -293,3 +293,18 @@ def test_the_graph_is_built_from_what_ingestion_already_holds():
     assert graph.measurements[0].code.code == "LOINC:1975-2"
     assert graph.findings[0].polarity == cg.NEGATED
     assert graph.summary()[cg.HYPOTHESIZED_DISEASES] == 1 and graph.summary()[cg.CANDIDATE_DISEASES] == 0
+
+
+def test_a_manifestation_reported_by_one_source_weighs_less_than_one_established():
+    graph, _ = _case()
+    reported = _manifestation("wall", "Gallbladder wall thickening", "HP:0025566", "hallmark")
+    reported.evidence = "reported"
+    established = _manifestation("wall", "Gallbladder wall thickening", "HP:0025566", "hallmark")
+    established.evidence = "established"
+    a, b = _profile("a", "a", reported), _profile("b", "b", established)
+    graph.add_disease(a)
+    graph.add_disease(b)
+    assess_case(graph)
+    by = {r.disease_id: r for r in rank([a, b], background_frequencies={})}
+    assert 0 < by["a"].log10_odds < by["b"].log10_odds
+    assert "reported by one source" in by["a"].contributions[0].note

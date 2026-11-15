@@ -141,10 +141,13 @@ CC BY 4.0), ATC -> nome internazionale (Wikidata CC0, tabella dei medicinali EMA
 CC0). Trova le frasi di un'etichetta che nominano un altro farmaco del paziente (`DrugInteraction`) o un reperto del
 paziente tra gli effetti del farmaco, con il tempo rispetto all'inizio (`DrugEffect`). L'elenco dei farmaci del
 paziente non lascia mai la macchina. DDInter (CC BY-NC-SA) e StatPearls (CC BY-NC-ND) sono non commerciali e non si
-usano in produzione. `memory/disease_profiles` costruisce il profilo di una malattia prima dalle annotazioni HPO e
-dalla Disease Ontology, poi da una revisione aperta (CC BY / CC0): la coppia di lettori elenca le manifestazioni con
-la loro frase, una frase inventata è rifiutata, una frase che nomina la manifestazione è verificata senza modello, e
-solo il resto va ai due giudici (workflow `disease-profiles`, pilota di dieci diagnosi con un budget).
+usano in produzione. `memory/disease_profiles` costruisce il profilo di una malattia da fonti curate (annotazioni HPO, che contengono
+quelle di Orphanet, e Disease Ontology) e da pubblicazioni utilizzabili in un prodotto commerciale (CC0, CC BY,
+CC BY-SA: NC e ND esclusi): la coppia di lettori elenca le manifestazioni con la loro frase, una frase inventata è
+rifiutata, e i giudici decidono ciò che le parole non decidono. Wikipedia è solo un indice: le sue candidate entrano
+con una frase di una pubblicazione che cita, mai con il suo testo. Ogni manifestazione porta il livello di evidenza
+(stabilita da due fonti indipendenti, riportata da una), e la lettura si misura contro i profili curati di malattie
+rare invece che da una persona (workflow `disease-profiles`, con un budget).
 
 ## 5. Confini dei dati
 

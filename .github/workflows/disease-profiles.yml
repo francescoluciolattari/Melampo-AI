@@ -1,7 +1,8 @@
 name: disease-profiles
 
-# The pilot of the disease profiles (15 November 2026): ten diagnoses written before the run, structured sources
-# first, one open review per diagnosis (CC BY / CC0), the reading pair, the words, the judges only on the rest.
+# The pilot of the disease profiles (15 November 2026): ten diagnoses written before the run; every link from a
+# curated source or a publication open for use (Wikipedia only as an index of the publications it cites); the
+# reading measured against curated profiles of rare diseases (--gold).
 # The run stops before the budget; the cost of every call is the one OpenRouter reports.
 
 on:
@@ -13,6 +14,9 @@ on:
       diagnoses:
         description: "comma-separated; empty = the ten of the pilot"
         default: ""
+      gold:
+        description: "rare diseases read to measure the reading against curated profiles (0: none)"
+        default: "5"
       statpearls:
         description: "also StatPearls (CC BY-NC-ND, research only)"
         type: boolean
@@ -48,7 +52,7 @@ jobs:
           diagnoses="${{ github.event.inputs.diagnoses }}"
           if [ -n "$diagnoses" ]; then extra="$extra --diagnoses"; fi
           python3 scripts/disease_profiles.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
-            --doid-owl doid.owl --symp symp.obo --budget "${{ github.event.inputs.budget }}" \
+            --doid-owl doid.owl --symp symp.obo --budget "${{ github.event.inputs.budget }}" --gold "${{ github.event.inputs.gold }}" \
             --out out/profiles.json $extra ${diagnoses:+"$diagnoses"} | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
