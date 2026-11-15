@@ -232,10 +232,11 @@ _EN_SALT_WORDS = {
     "pentahydrate", "hexahydrate", "heptahydrate", "hemiheptahydrate", "ethanolate", "hyclate",
     "lysine", "arginine", "meglumine", "trometamol", "tromethamine", "carbonate", "oxide", "pivalate",
     "medoxomil", "olamine", "malate", "epolamine", "diethylamine", "dimeglumine",
+    "oxalate", "cilexetil", "tert", "butylamine", "erbumine", "axetil", "pamoate", "embonate", "decanoate",
 }
 
 
-_STEREO = re.compile(r"^(\d+|[rsdl]|rs|dl|alpha|beta|cis|trans)$")
+_STEREO = re.compile(r"^(\d+|[rsdl]|rs|dl|rac|alpha|beta|cis|trans)$")
 
 
 def base_name(name: str) -> str:
@@ -382,6 +383,7 @@ _SALT_WORDS = {
     "sesquiidrato", "anidro", "anidra", "idrato", "pentaidrato", "eptaidrato", "esaidrato", "tosilato", "valerato",
     "furoato", "butirrato", "pivalato", "dicloridrato", "trometamolo", "lisina", "arginina", "meglumina",
     "nitrato", "lattato", "gluconato", "carbonato", "ossido", "bitartrato", "dimesilato", "etabonato",
+    "ossalato", "cilexetil", "tert", "butilamina", "erbumina", "axetil", "pamoato", "embonato", "decanoato",
     "medoxomil", "emiidrata", "cloridrata", "dimeglumina", "olamina", "malato", "tartarato", "disodico",
     "potassico", "etanolato", "iclato", "epolamina", "dietilamina", "acida",
 }

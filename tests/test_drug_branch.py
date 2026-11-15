@@ -204,3 +204,10 @@ def test_salts_stereochemistry_and_minerals_are_read_as_the_ingredient_they_are(
 def test_a_name_is_never_decided_by_which_label_is_in_the_cache():
     text = (ROOT / "scripts/drug_sources.py").read_text("utf-8")
     assert 'basis="label"' not in text and "entry.update(inn=with_label" not in text
+
+
+def test_more_salts_and_the_racemic_prefix():
+    assert ds.ingredient_core("ESCITALOPRAM OSSALATO") == "escitalopram"
+    assert ds.ingredient_core("CANDESARTAN CILEXETIL") == "candesartan"
+    assert ds.ingredient_core("PERINDOPRIL TERT-BUTILAMINA") == "perindopril"
+    assert ds.base_name("rac-warfarin") == "warfarin"

@@ -41,7 +41,7 @@ SECTION_EXCLUDED = re.compile(r"method|statistic|search|selection|result|discuss
 # something: it goes to the judges even when it names the manifestation
 NOT_A_MANIFESTATION = re.compile(r"predict|prognos|mortality|outcome|risk factor|little value|no (significant )?"
                                  r"(difference|association)|not associated|sensitivity|specificity|accuracy|"
-                                 r"diagnostic value|defined|score|surveillance|screening|associated with|"
+                                 r"diagnostic value|defined|score|surveillance|screening|associated with|accura|coinciden|"
                                  r"correlat|usefulness|criteria|\b(rats?|mice|mouse|murine|rodents?|pigs?|dogs?|"
                                  r"animals?)\b|animal model|experimental|in vitro|placebo|randomi[sz]ed|\btrial|"
                                  r"mg/day|treat(ed|ment)", re.IGNORECASE)
@@ -233,6 +233,40 @@ def html_sections(page: str, titles: Iterable[str], limit: int = SECTION_CHARACT
         text = " ".join(re.sub(r"<[^>]+>", " ", m.group(1)).split())
         text = text[: max(0, limit - used)]
         if text:
+            out.append((title, text))
+            used += len(text)
+    return out
+
+
+_HEADING = re.compile(r"<h([23])\b[^>]*>(.*?)</h\1>", re.DOTALL | re.IGNORECASE)
+_NOISE = re.compile(r"<(sup|style|table|figure|math)\b.*?</\1>", re.DOTALL | re.IGNORECASE)
+
+
+def wikipedia_sections(html: str, limit: int = SECTION_CHARACTERS) -> list[tuple[str, str]]:
+    """The sections of a Wikipedia article (the HTML of ``action=parse``) whose heading speaks of the presentation,
+    the diagnosis or the imaging, with the paragraphs and list items only: references, tables, figures and
+    formulas left out."""
+    html = _NOISE.sub(" ", html or "")
+    marks = list(_HEADING.finditer(html))
+    out, used, taken_until = [], 0, -1
+    for i, m in enumerate(marks):
+        if m.start() < taken_until:                  # a subsection of a section already taken: read with it
+            continue
+        title = " ".join(re.sub(r"<[^>]+>", " ", m.group(2)).split())
+        if not SECTION_WORDS.search(title) or SECTION_EXCLUDED.search(title):
+            continue
+        end = len(html)
+        for later in marks[i + 1:]:
+            if later.group(1) <= m.group(1):         # the next heading of the same or a higher level ends it
+                end = later.start()
+                break
+        body = html[m.end():end]
+        taken_until = end
+        parts = re.findall(r"<(p|li)\b[^>]*>(.*?)</\1>", body, re.DOTALL | re.IGNORECASE)
+        text = " ".join(" ".join(re.sub(r"<[^>]+>", " ", x).split()) for _, x in parts)
+        text = re.sub(r"\s+([.,;:])", r"\1", text).replace("&amp;", "&").replace("&#160;", " ")
+        text = text[: max(0, limit - used)]
+        if text and title not in [t for t, _ in out]:
             out.append((title, text))
             used += len(text)
     return out
