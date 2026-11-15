@@ -149,7 +149,10 @@ def test_the_drug_branch_is_written_to_falkordb(tmp_path):
 
 
 def test_the_ema_table_gives_atc_to_inn_for_human_medicines(tmp_path):
-    from openpyxl import Workbook
+    import pytest
+
+    # openpyxl is installed by the drug-sources workflow, which reads the EMA table; the test suite may not have it
+    Workbook = pytest.importorskip("openpyxl").Workbook
 
     wb = Workbook()
     ws = wb.active
