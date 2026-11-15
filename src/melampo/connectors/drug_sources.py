@@ -231,13 +231,20 @@ _EN_SALT_WORDS = {
     "tosylate", "hydrate", "monohydrate", "dihydrate", "trihydrate", "sesquihydrate", "hemihydrate", "anhydrous",
     "pentahydrate", "hexahydrate", "heptahydrate", "hemiheptahydrate", "ethanolate", "hyclate",
     "lysine", "arginine", "meglumine", "trometamol", "tromethamine", "carbonate", "oxide", "pivalate",
+    "medoxomil", "olamine", "malate", "epolamine", "diethylamine", "dimeglumine",
 }
 
 
+_STEREO = re.compile(r"^(\d+|[rsdl]|rs|dl|alpha|beta|cis|trans)$")
+
+
 def base_name(name: str) -> str:
-    """An international name without its salt and hydration words, lower case ("atorvastatin calcium trihydrate"
-    -> "atorvastatin")."""
+    """An international name without its salt and hydration words and without the stereochemical or numeric
+    words Wikidata labels may begin with, lower case ("atorvastatin calcium trihydrate" -> "atorvastatin",
+    "(RS)-mexiletine" -> "mexiletine", "17β-estradiol" -> "estradiol")."""
     words = [w for w in norm(name).split() if w not in _EN_SALT_WORDS]
+    while len(words) > 1 and _STEREO.match(words[0]):
+        words = words[1:]
     return " ".join(words)
 
 
@@ -375,12 +382,25 @@ _SALT_WORDS = {
     "sesquiidrato", "anidro", "anidra", "idrato", "pentaidrato", "eptaidrato", "esaidrato", "tosilato", "valerato",
     "furoato", "butirrato", "pivalato", "dicloridrato", "trometamolo", "lisina", "arginina", "meglumina",
     "nitrato", "lattato", "gluconato", "carbonato", "ossido", "bitartrato", "dimesilato", "etabonato",
+    "medoxomil", "emiidrata", "cloridrata", "dimeglumina", "olamina", "malato", "tartarato", "disodico",
+    "potassico", "etanolato", "iclato", "epolamina", "dietilamina", "acida",
 }
+
+
+# what is left when a mineral's cation is taken away is only its anion: then the cation is the ingredient
+# ("magnesio pidolato" is magnesium, not "pidolate")
+_ANION_ONLY = {"pidolato", "cloruro", "solfato", "carbonato", "bicarbonato", "citrato", "gluconato", "lattato",
+               "ossido", "idrossido", "fosfato", "glicerofosfato", "aspartato", "acetato", "fumarato", "ioduro",
+               "fluoruro", "orotato", "ascorbato"}
+_CATIONS = {"calcio", "sodio", "potassio", "magnesio", "zinco", "ferro", "ferroso", "ferrico", "litio"}
 
 
 def ingredient_core(ingredient: str) -> str:
     """The ingredient without its salt and hydration words, lower case."""
-    words = [w for w in norm(ingredient).split() if w not in _SALT_WORDS]
+    all_words = norm(ingredient).split()
+    words = [w for w in all_words if w not in _SALT_WORDS and w not in ("sale", "di", "de")]
+    if not words or (set(words) <= _ANION_ONLY and _CATIONS & set(all_words)):
+        return " ".join(w for w in all_words if w not in ("sale", "di", "de"))
     return " ".join(words)
 
 

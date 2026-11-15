@@ -8,7 +8,7 @@ later read it.
 2. ATC -> international name in English: Wikidata (P267, CC0) and the EMA medicines table. For each AIFA
    ingredient: the names its ATC codes carry; one distinct name -> taken; several -> those that share the
    ingredient's stem; the two sources agree -> ``wikidata+ema``; one source only -> that source; they disagree
-   -> the label decides if exactly one of the names has a US label (``label``), else ``doubt``. A combination
+   -> ``doubt``, with the candidates (never decided by which name has a label in the cache). A combination
    ("A/B") is resolved part by part by the stem among all the names (``stem``), a weaker basis, stated.
 3. openFDA: the label of each international name (``--limit`` labels per run; the cache resumes: a name already
    asked is not asked again). Without OPENFDA_API_KEY openFDA allows 1,000 requests a day.
@@ -171,6 +171,7 @@ def main(argv=None) -> int:
                     wikidata.setdefault(code, []).extend(p for p in pairs if p not in wikidata.get(code, []))
         manifest["wikidata"] = {"url": ds.WIKIDATA_SPARQL, "taken": today, "licence": ds.WIKIDATA_LICENCE,
                                 "codes": len(wikidata)}
+        cache.write_json("wikidata_atc.json", wikidata)      # kept, so that the resolution can be checked again
     except Exception as error:  # noqa: BLE001
         manifest["wikidata"] = {"url": ds.WIKIDATA_SPARQL, "problem": f"{type(error).__name__}: {error}"[:500]}
     cache.write_json("manifest.json", manifest)
@@ -202,12 +203,9 @@ def main(argv=None) -> int:
             if len(failures) >= 25:
                 break                      # openFDA refuses repeatedly (limit reached): the next run resumes
         asked += 1
-    # the label decides between two names that disagree, when exactly one of them has a label
-    for entry in ingredients.values():
-        if entry["basis"] == "doubt":
-            with_label = [c for c in entry.get("candidates", []) if cache.label(c) is not None]
-            if len(with_label) == 1:
-                entry.update(inn=with_label, basis="label")
+    # (15 November 2026, third run: "the label decides between two names when exactly one has a label" is gone.
+    # Whether a label is in the cache says when it was asked, not which name is right: it gave "clopidogrel" to
+    # "acetilsalicilato di lisina", "aprepitant" to "fosaprepitant", "diphenhydramine" to "dimenidrinato".)
     cache.write_json("ingredients.json", ingredients)
     labels = {n: cache.label(n) for n in names if cache.has_label_entry(n)}
     manifest["openfda"] = {"url": ds.OPENFDA_LABEL, "taken": today, "licence": ds.OPENFDA_LICENCE,

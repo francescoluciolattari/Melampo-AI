@@ -191,3 +191,21 @@ def test_mondo_is_looked_up_among_its_own_terms():
     assert terms.find("pneumonia") == ""                        # two terms with that name: none chosen
     assert terms.find("pneumonia", prefix="MONDO:") == "MONDO:0005249"
     assert dp.NOT_A_MANIFESTATION.search("SAP was associated with increased vWF in rats")
+
+
+def test_a_sentence_is_verified_by_its_words_only_when_it_names_the_disease_too():
+    text = ("Acute cholecystitis (AC) presents with fever. Bartter syndrome presents with hypokalemic alkalosis. "
+            "Fever occurs in rats with AC.")
+    sections = [("Clinical presentation", text)]
+    words = dp.disease_words("acute cholecystitis", ["cholecystitis, acute"], sections)
+    assert {"AC", "acute cholecystitis"} <= words
+    readings = {"r": [{"manifestation": "Fever", "quote": "Acute cholecystitis (AC) presents with fever.",
+                       "typicality": "", "kind": "symptom", "modality": "", "region": ""},
+                      {"manifestation": "Hypokalemic alkalosis",
+                       "quote": "Bartter syndrome presents with hypokalemic alkalosis.", "typicality": "",
+                       "kind": "laboratory", "modality": "", "region": ""},
+                      {"manifestation": "Fever", "quote": "Fever occurs in rats with AC.", "typicality": "",
+                       "kind": "symptom", "modality": "", "region": ""}]}
+    links = dp.merge_readings(readings, sections, {}, _hpo(), words)
+    assert [link.verdict for link in links] == ["names", "", ""]     # Bartter and the rats go to the judges
+    assert "animals" in dp.judge_prompt("acute cholecystitis", {"quote": "q", "manifestation": "m"})
