@@ -209,3 +209,22 @@ def test_a_sentence_is_verified_by_its_words_only_when_it_names_the_disease_too(
     links = dp.merge_readings(readings, sections, {}, _hpo(), words)
     assert [link.verdict for link in links] == ["names", "", ""]     # Bartter and the rats go to the judges
     assert "animals" in dp.judge_prompt("acute cholecystitis", {"quote": "q", "manifestation": "m"})
+
+
+WIKI = """<div class="mw-parser-output"><p>Cholecystitis is inflammation of the gallbladder.<sup class="reference">[1]
+</sup></p><div class="mw-heading mw-heading2"><h2 id="Signs_and_symptoms">Signs and symptoms</h2></div>
+<p>Pain in the right upper abdomen is the most common symptom.<sup class="reference">[2]</sup></p>
+<ul><li>Fever</li><li>Nausea and vomiting</li></ul>
+<div class="mw-heading mw-heading3"><h3 id="Murphy">Murphy's sign</h3></div><p>A positive Murphy sign.</p>
+<div class="mw-heading mw-heading2"><h2 id="Diagnosis">Diagnosis</h2></div><table><tr><td>score</td></tr></table>
+<p>Ultrasound shows a thickened gallbladder wall.</p>
+<div class="mw-heading mw-heading2"><h2 id="Treatment">Treatment</h2></div><p>Surgery.</p></div>"""
+
+
+def test_wikipedia_gives_its_presentation_and_diagnosis_sections_without_references_or_tables():
+    sections = dp.wikipedia_sections(WIKI)
+    assert [t for t, _ in sections] == ["Signs and symptoms", "Diagnosis"]
+    symptoms = sections[0][1]
+    assert "most common symptom." in symptoms and "[2]" not in symptoms and "Fever" in symptoms
+    assert "Murphy sign" in symptoms                       # a subsection belongs to its section
+    assert "score" not in sections[1][1] and "thickened gallbladder wall" in sections[1][1]

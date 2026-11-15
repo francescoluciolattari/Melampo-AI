@@ -39,7 +39,9 @@ PILOT = ("pneumonia", "pulmonary embolism", "acute appendicitis", "acute cholecy
 READERS = {"nemotron-3-ultra": "nvidia/nemotron-3-ultra-550b-a55b", "gemma-4-31b": "google/gemma-4-31b-it"}
 JUDGES = {"muse-spark-open-reasoning": ("meta/muse-spark-open", True), "claude-sonnet-5": ("anthropic/claude-sonnet-5",
                                                                                            False)}
+CONFIRMING_JUDGE = "claude-sonnet-5"
 OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
+WIKIPEDIA = "https://en.wikipedia.org/w/api.php"
 EPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 OPEN_LICENCES = ("cc by", "cc0", "cc-by", "cc by 4.0")
@@ -142,6 +144,22 @@ def reviews_for(name: str) -> list[tuple[dict, list[tuple[str, str]]]]:
     return out
 
 
+def wikipedia_for(name: str) -> tuple[dict, list[tuple[str, str]]]:
+    """The English Wikipedia article of the diagnosis (redirects followed: "acute cholecystitis" -> its article),
+    its presentation, diagnosis and imaging sections, with the revision read (CC BY-SA 4.0: commercial use
+    allowed, adapted text shared alike; the facts taken from it are not text)."""
+    q = {"action": "parse", "page": name, "prop": "text|revid", "redirects": 1, "format": "json",
+         "formatversion": 2}
+    got = json.loads(get(f"{WIKIPEDIA}?{urllib.parse.urlencode(q)}") or "{}").get("parse") or {}
+    sections = dp.wikipedia_sections(str(got.get("text") or ""))
+    if not sections:
+        return {}, []
+    title = got.get("title", name)
+    return ({"source": "Wikipedia", "id": f"{title} (rev {got.get('revid', '')})", "title": title,
+             "url": f"https://en.wikipedia.org/w/index.php?oldid={got.get('revid', '')}",
+             "licence": "CC BY-SA 4.0"}, sections)
+
+
 def statpearls_for(name: str) -> tuple[dict, list[tuple[str, str]]]:
     q = {"db": "books", "term": f'statpearls[book] AND "{name}"[title]', "retmode": "json", "retmax": 3}
     ids = json.loads(get(f"{EUTILS}/esearch.fcgi?{urllib.parse.urlencode(q)}") or "{}").get(
@@ -190,7 +208,7 @@ def main(argv=None) -> int:
         from_doid = [m for d in doids for m in dp.from_doid(d, doid_symptoms.get(d, ()), symp, hpo)]
         row["doid"] = len(from_doid)
         parts += from_doid
-        texts = reviews_for(name)
+        texts = [t for t in [wikipedia_for(name)] if t[0]] + reviews_for(name)
         if args.statpearls:
             texts.append(statpearls_for(name))
         row["texts"] = [t[0].get("id", "") for t in texts if t[0]]
@@ -212,10 +230,20 @@ def main(argv=None) -> int:
                 names = dp.disease_words(name, mondo.synonyms.get(mondo_id, []), sections)
                 links = dp.merge_readings(readings, sections, source, hpo, names)
                 for link in links:
+                    if link.verdict == "names":
+                        # the words name the manifestation and the disease; one judge confirms that the sentence
+                        # says the disease shows it (15 November 2026, fourth run: a sentence naming Bartter
+                        # syndrome and nephrolithiasis, a "coincidence" between pancreatitis and TTP)
+                        model, reasoning = JUDGES[CONFIRMING_JUDGE]
+                        vote = dp.read_judgment(router.chat(model, dp.judge_prompt(name, link.__dict__),
+                                                            reasoning=reasoning, max_tokens=60))
+                        link.judges = {CONFIRMING_JUDGE: vote}
+                        if vote != "yes":
+                            link.verdict = ""
                     if link.verdict == "":
-                        votes = {j: dp.read_judgment(router.chat(m, dp.judge_prompt(name, link.__dict__),
-                                                                 reasoning=r, max_tokens=1600 if r else 60))
-                                 for j, (m, r) in JUDGES.items()}
+                        votes = {j: link.judges.get(j) or dp.read_judgment(router.chat(
+                                     m, dp.judge_prompt(name, link.__dict__), reasoning=r,
+                                     max_tokens=1600 if r else 60)) for j, (m, r) in JUDGES.items()}
                         link.verdict = dp.judged(link, votes)
                     verdicts[link.verdict] += 1
                 accepted = [l for l in links if l.verdict in ("names", "judges")]
