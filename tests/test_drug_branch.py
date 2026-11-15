@@ -166,3 +166,21 @@ def test_the_ema_table_gives_atc_to_inn_for_human_medicines(tmp_path):
     got, report = ds.read_ema_medicines(tmp_path / "ema.xlsx")
     assert got["C10AA05"] == ["atorvastatin"] and "QJ01AA02" not in got
     assert report["columns"]["atc"] == "ATC code"
+
+
+ANAGRAFICA = ("CODICE_AIC;COD_FARMACO;COD_CONFEZIONE;DENOMINAZIONE;DESCRIZIONE;RAGIONE_SOCIALE;"
+              "STATO_AMMINISTRATIVO;CODICE_ATC;PA_ASSOCIATI\n"
+              "035362018;035362;018;TORVAST;20 MG COMPRESSE;VIATRIS;A;C10AA05;S\n"
+              "027353010;027353;010;NORVASC;5 MG COMPRESSE;VIATRIS;A;C08CA01;S\n")
+PA = ("CODICE_AIC;PRINCIPIO_ATTIVO\n035362018;ATORVASTATINA CALCIO TRIIDRATO\n027353010;AMLODIPINA BESILATO\n")
+
+
+def test_the_anagrafica_without_ingredient_names_is_joined_with_the_ingredients_file():
+    products, report = ds.read_aifa(ANAGRAFICA)
+    assert products == [] and "problem" in report
+    assert report["samples"]["ingredient_not_names"] == ["S"]           # PA_ASSOCIATI holds a flag, not names
+    by_package, pa_report = ds.read_aifa_ingredients(PA)
+    assert by_package["035362018"] == "ATORVASTATINA CALCIO TRIIDRATO" and "problem" not in pa_report
+    products, report = ds.read_aifa(ANAGRAFICA, by_package)
+    assert [p.ingredient for p in products] == ["ATORVASTATINA CALCIO TRIIDRATO", "AMLODIPINA BESILATO"]
+    assert report["joined_from_ingredients_file"] == 2 and products[0].atc == "C10AA05"

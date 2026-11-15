@@ -153,3 +153,33 @@ def test_the_pilot_list_was_written_before_the_run_and_comes_from_the_common_dia
     assert len(script.PILOT) == 10 and set(script.PILOT) <= set(sc.DIAGNOSES)
     assert set(script.READERS) == {"nemotron-3-ultra", "gemma-4-31b"}
     assert json.dumps(script.JUDGES)
+
+
+def test_a_term_named_by_its_own_name_wins_over_the_terms_that_carry_it_as_a_synonym():
+    obo = ["[Term]", "id: MONDO:1", "name: pneumonia", "", "[Term]", "id: MONDO:2", "name: lung inflammation",
+           'synonym: "pneumonia" EXACT []', "", "[Term]", "id: MONDO:3", "name: pneumonitis",
+           'synonym: "pneumonia" EXACT []']
+    terms = dp.Terms.from_obo(obo)
+    assert terms.find("pneumonia") == "MONDO:1"                 # the first pilot found nothing here
+    assert terms.find("lung inflammation") == "MONDO:2"
+    two = dp.Terms.from_obo(["[Term]", "id: A:1", 'name: x', 'synonym: "y" EXACT []', "", "[Term]", "id: A:2",
+                             "name: z", 'synonym: "y" EXACT []'])
+    assert two.find("y") == ""                                  # two synonyms, no name: nothing chosen
+
+
+def test_an_answer_with_prose_and_citations_before_its_list_is_read():
+    answer = ('Based on the text [1], here is the list:\n```json\n[{"manifestation": "Fever", "quote": "Fever is '
+              'rare at onset."}]\n```')
+    assert [i["manifestation"] for i in dp.read_extraction(answer)] == ["Fever"]
+    assert dp.read_extraction('{"manifestations": [{"manifestation": "Fever", "quote": "x."}]}')[0]["quote"] == "x."
+
+
+def test_a_sentence_about_a_tests_value_or_an_outcome_goes_to_the_judges_even_when_it_names_the_finding():
+    hpo = _hpo()
+    item = {"manifestation": "Fever", "quote": "Fever was an independent predictor of mortality."}
+    assert not dp.names_it(item, hpo)
+    assert dp.names_it({"manifestation": "Fever", "quote": "Fever is rare at onset."}, hpo)
+    xml = ("<article><sec><title>Diagnostic accuracy of CT</title><p>CT had 95% sensitivity.</p></sec>"
+           "<sec><title>Clinical features</title><p>Pain.</p></sec>"
+           "<sec><title>Risk factors and prognosis</title><p>Age.</p></sec></article>")
+    assert [t for t, _ in dp.sections_from_jats(xml)] == ["Clinical features"]

@@ -33,6 +33,15 @@ from typing import Any
 from ..clinical import case_graph as cg
 
 SECTION_CHARACTERS = 24000
+# sections about how the evidence was gathered or what follows the diagnosis say little of how the disease shows
+SECTION_EXCLUDED = re.compile(r"method|statistic|search|selection|result|discussion|limitation|prognos|outcome|"
+                              r"treatment|therap|management|surveillance|screening|accuracy|biomarker|score|"
+                              r"risk factor|epidemiolog|conclusion|future", re.IGNORECASE)
+# a sentence that speaks of a test's value or of what predicts an outcome is not a sentence that the disease shows
+# something: it goes to the judges even when it names the manifestation
+NOT_A_MANIFESTATION = re.compile(r"predict|prognos|mortality|outcome|risk factor|little value|no (significant )?"
+                                 r"(difference|association)|not associated|sensitivity|specificity|accuracy|"
+                                 r"diagnostic value|was defined as|score|surveillance|screening", re.IGNORECASE)
 SECTION_WORDS = re.compile(r"clinical|present|symptom|sign|manifest|feature|diagnos|imaging|radiolog|evaluat|"
                            r"examination|history|laborator|finding|course", re.IGNORECASE)
 # HPO frequency classes (HP:0040279 subtree): the middle of each band
@@ -70,6 +79,7 @@ class Terms:
 
     names: dict[str, str] = field(default_factory=dict)
     by_name: dict[str, set[str]] = field(default_factory=dict)
+    by_own_name: dict[str, set[str]] = field(default_factory=dict)
     synonyms: dict[str, list[str]] = field(default_factory=dict)
     xrefs: dict[str, set[str]] = field(default_factory=dict)
 
@@ -97,13 +107,22 @@ class Terms:
                         pending.append((current, m.group(1), "synonym"))
                 elif line.startswith("xref: "):
                     t.xrefs.setdefault(current, set()).add(line[6:].split()[0])
-        for term, words, _ in pending:
+        for term, words, kind in pending:
             if term in t.names:
                 t.by_name.setdefault(norm(words), set()).add(term)
+                if kind == "name":
+                    t.by_own_name.setdefault(norm(words), set()).add(term)
         return t
 
     def find(self, words: str) -> str:
-        """The one term with this exact name or exact synonym, or ''."""
+        """The one term whose name is these words; else the one term with them as an exact synonym; else ''.
+        (Corrected 15 November 2026: "pneumonia" is MONDO's name of one term and an exact synonym of others, and
+        the first pilot, which looked at names and synonyms together, found no term for 7 of its 10 diagnoses.)"""
+        own = self.by_own_name.get(norm(words), set())
+        if len(own) == 1:
+            return next(iter(own))
+        if own:
+            return ""
         hits = self.by_name.get(norm(words), set())
         return next(iter(hits)) if len(hits) == 1 else ""
 
@@ -185,7 +204,7 @@ def sections_from_jats(xml: str, limit: int = SECTION_CHARACTERS) -> list[tuple[
     for sec in root.iter("sec"):
         title_el = sec.find("title")
         title = _text(title_el) if title_el is not None else ""
-        if not SECTION_WORDS.search(title):
+        if not SECTION_WORDS.search(title) or SECTION_EXCLUDED.search(title):
             continue
         paragraphs = [_text(p) for p in sec.findall("p")]
         text = " ".join(p for p in paragraphs if p)
@@ -227,20 +246,33 @@ def extraction_prompt(disease: str, sections: list[tuple[str, str]]) -> str:
         '"typicality": "hallmark|common|rare|excluding|", "kind": "symptom|sign|laboratory|imaging", '
         '"modality": "CT|MR|US|XR|NM|", "region": "head|neck|chest|abdomen|pelvis|spine|upper_limb|lower_limb|'
         'whole_body|"}\n'
+        "Not a manifestation: a test studied for its accuracy, a predictor of an outcome or of severity, a "
+        "complication of treatment. "
         "typicality only when the quote says how often or how typical; otherwise an empty string. "
         "modality and region only for an imaging finding.")
 
 
+def _json_list(text: str) -> list:
+    """The first JSON array of objects in the text (fenced or not, after prose, "[1]" citations skipped), or the
+    list under a key of a JSON object ({"manifestations": [...]})."""
+    decoder = json.JSONDecoder()
+    for m in re.finditer(r"[\[{]", text):
+        try:
+            value, _ = decoder.raw_decode(text, m.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            value = next((v for v in value.values() if isinstance(v, list)), None)
+        if isinstance(value, list) and any(isinstance(v, dict) for v in value):
+            return value
+    return []
+
+
 def read_extraction(answer: str) -> list[dict[str, str]]:
-    """The items of a reader's answer; anything that is not a list of objects is an empty answer."""
-    text = (answer or "").strip()
-    m = re.search(r"\[.*\]", text, re.DOTALL)
-    if not m:
-        return []
-    try:
-        items = json.loads(m.group(0))
-    except json.JSONDecodeError:
-        return []
+    """The items of a reader's answer; anything that is not a list of objects is an empty answer. (Corrected 15
+    November 2026: the first pilot took the text from the first "[" to the last "]", and lost every answer whose
+    prose cited "[1]" before the list.)"""
+    items = _json_list((answer or "").strip())
     out = []
     for item in items if isinstance(items, list) else []:
         if not isinstance(item, dict):
@@ -263,6 +295,8 @@ def quote_in(quote: str, sections: list[tuple[str, str]]) -> bool:
 def names_it(item: dict[str, str], hpo: Terms) -> bool:
     """The quote names the manifestation: all its content words (by their first five letters), or the name or an
     exact synonym of its HPO term."""
+    if NOT_A_MANIFESTATION.search(item["quote"]):
+        return False
     quote = norm(item["quote"])
     stems = content_stems(item["manifestation"])
     quote_stems = content_stems(item["quote"])

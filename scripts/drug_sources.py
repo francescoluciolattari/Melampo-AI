@@ -96,6 +96,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default="drug_cache")
     ap.add_argument("--limit", type=int, default=400, help="labels to ask openFDA in this run")
     ap.add_argument("--aifa", default="", help="a local copy of confezioni_fornitura.csv")
+    ap.add_argument("--aifa-pa", default="", help="a local copy of PA_confezioni.csv")
     ap.add_argument("--ema", default="", help="a local copy of the EMA medicines table (.xlsx)")
     ap.add_argument("--wikidata", default="", help="a local copy of the Wikidata ATC answer (.json)")
     args = ap.parse_args(argv)
@@ -104,12 +105,22 @@ def main(argv=None) -> int:
     manifest = cache.read_json("manifest.json", {})
 
     raw = Path(args.aifa).read_bytes() if args.aifa else http.get(ds.AIFA_LISTS["anagrafica"], accept="text/csv")
-    products, aifa_report = ds.read_aifa(ds.decode(raw))
+    anagrafica = ds.decode(raw)
+    products, aifa_report = ds.read_aifa(anagrafica)
+    if not products and "ingredient" not in aifa_report.get("columns", {}):
+        # the "Anagrafica farmaci" names no ingredient: they are in "Principi attivi per confezione"
+        pa_raw = Path(args.aifa_pa).read_bytes() if args.aifa_pa else http.get(ds.AIFA_LISTS["principi_attivi"],
+                                                                               accept="text/csv")
+        by_package, pa_report = ds.read_aifa_ingredients(ds.decode(pa_raw))
+        manifest["aifa_principi_attivi"] = {"url": ds.AIFA_LISTS["principi_attivi"], "taken": today,
+                                            "licence": ds.AIFA_LICENCE, **pa_report}
+        products, aifa_report = ds.read_aifa(anagrafica, by_package)
     manifest["aifa"] = {"url": ds.AIFA_LISTS["anagrafica"], "taken": today, "licence": ds.AIFA_LICENCE,
                         **aifa_report}
     if not products:
         cache.write_json("manifest.json", manifest)
-        print(json.dumps({"problem": aifa_report}, indent=2, ensure_ascii=False))
+        print(json.dumps({"problem": aifa_report, "principi_attivi": manifest.get("aifa_principi_attivi")},
+                         indent=2, ensure_ascii=False))
         return 1
     cache.write_json("products.json", [ds.asdict(p) for p in products])
 
