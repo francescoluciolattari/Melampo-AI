@@ -112,7 +112,7 @@ MIN_SECTION_CHARACTERS = 6000     # less than this of clinical text is not enoug
 MAX_REVIEWS = 3
 
 
-def reviews_for(name: str) -> list[tuple[dict, list[tuple[str, str]]]]:
+def reviews_for(name: str, at_most: int = 3) -> list[tuple[dict, list[tuple[str, str]]]]:
     """Open reviews (CC BY or CC0) on the diagnosis, those whose title speaks of its diagnosis, clinical picture or
     imaging first, systematic reviews and meta-analyses left out, until their clinical sections reach
     ``MIN_SECTION_CHARACTERS`` (at most ``MAX_REVIEWS``). (Corrected 15 November 2026: the first pilot took the most
@@ -139,7 +139,7 @@ def reviews_for(name: str) -> list[tuple[dict, list[tuple[str, str]]]]:
         out.append(({"source": "Europe PMC review", "id": pmcid, "title": r.get("title", ""),
                      "licence": r.get("license", ""), "year": r.get("pubYear", "")}, sections))
         total += size
-        if total >= MIN_SECTION_CHARACTERS or len(out) >= MAX_REVIEWS:
+        if total >= MIN_SECTION_CHARACTERS or len(out) >= at_most:
             break
     return out
 
@@ -208,11 +208,14 @@ def main(argv=None) -> int:
         from_doid = [m for d in doids for m in dp.from_doid(d, doid_symptoms.get(d, ()), symp, hpo)]
         row["doid"] = len(from_doid)
         parts += from_doid
-        texts = [t for t in [wikipedia_for(name)] if t[0]] + reviews_for(name)
+        wiki = [t for t in [wikipedia_for(name)] if t[0]]
+        # with Wikipedia read, one review adds the depth (imaging, laboratory); without it, up to three
+        texts = wiki + reviews_for(name, at_most=1 if wiki else MAX_REVIEWS)
         if args.statpearls:
             texts.append(statpearls_for(name))
         row["texts"] = [t[0].get("id", "") for t in texts if t[0]]
         verdicts: Counter = Counter()
+        in_profile: set[str] = set()
         try:
             for source, sections in texts:
                 if not sections:
@@ -230,6 +233,11 @@ def main(argv=None) -> int:
                 names = dp.disease_words(name, mondo.synonyms.get(mondo_id, []), sections)
                 links = dp.merge_readings(readings, sections, source, hpo, names)
                 for link in links:
+                    key = hpo.find(link.manifestation, prefix="HP:") or dp.norm(link.manifestation)
+                    if link.verdict in ("names", "") and key in in_profile:
+                        # already in the profile from another sentence: no judge is asked again (15 November
+                        # 2026, fifth run: 0.25 USD a diagnosis, most of it judging the same manifestation twice)
+                        link.verdict = "already_in_profile"
                     if link.verdict == "names":
                         # the words name the manifestation and the disease; one judge confirms that the sentence
                         # says the disease shows it (15 November 2026, fourth run: a sentence naming Bartter
@@ -241,10 +249,22 @@ def main(argv=None) -> int:
                         if vote != "yes":
                             link.verdict = ""
                     if link.verdict == "":
-                        votes = {j: link.judges.get(j) or dp.read_judgment(router.chat(
-                                     m, dp.judge_prompt(name, link.__dict__), reasoning=r,
-                                     max_tokens=1600 if r else 60)) for j, (m, r) in JUDGES.items()}
-                        link.verdict = dp.judged(link, votes)
+                        # the confirming judge first; the second judge only when the first says yes, since a link
+                        # enters only when both say yes (a "no" or "unclear" of the first leaves it out either way)
+                        votes = dict(link.judges)
+                        for j in (CONFIRMING_JUDGE, *[x for x in JUDGES if x != CONFIRMING_JUDGE]):
+                            if j not in votes:
+                                m, r = JUDGES[j]
+                                votes[j] = dp.read_judgment(router.chat(m, dp.judge_prompt(name, link.__dict__),
+                                                                        reasoning=r, max_tokens=1600 if r else 60))
+                            if votes[j] != "yes":
+                                break
+                        link.verdict = dp.judged(link, votes) if len(votes) == len(JUDGES) else (
+                            "one_judge_no" if "no" in votes.values() else "doubt")
+                        if link.verdict == "one_judge_no":
+                            link.judges = votes
+                    if link.verdict in ("names", "judges"):
+                        in_profile.add(key)
                     verdicts[link.verdict] += 1
                 accepted = [l for l in links if l.verdict in ("names", "judges")]
                 parts += [dp.to_manifestation(l, hpo, i) for i, l in enumerate(accepted)]
