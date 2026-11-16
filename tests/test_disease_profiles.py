@@ -281,3 +281,19 @@ def test_a_term_read_agrees_with_a_curated_profile_when_it_is_the_same_more_spec
     assert dp.agrees_with_curation("HP:2", {"HP:4"}, hpo)          # two steps more general
     assert not dp.agrees_with_curation("HP:1", {"HP:4"}, hpo)      # three steps: too general to agree
     assert not dp.agrees_with_curation("HP:9", {"HP:4"}, hpo)
+
+
+PARSOID = ('<section data-mw-section-id="1"><div class="mw-heading mw-heading2"><h2 id="Signs_and_symptoms">Signs and '
+           'symptoms</h2></div><p>Cough.<sup about="#mwt1" class="mw-ref reference" id="cite_ref-a_1-0" rel="dc:references"'
+           ' typeof="mw:Extension/ref"><a href="./Pneumonia#cite_note-a-1"><span class="mw-reflink-text">[1]</span></a>'
+           '</sup></p></section><section><h2 id="References">References</h2><div class="mw-references-wrap"><ol '
+           'class="mw-references references"><li about="#cite_note-a-1" id="cite_note-a-1"><span class="mw-cite-'
+           'backlink"><a href="./Pneumonia#cite_ref-a_1-0">↑</a></span> <span class="mw-reference-text">Smith. '
+           '<a rel="mw:ExtLink nofollow" href="https://doi.org/10.1016%2Fj.x.2020.01.002" class="external">doi</a> '
+           '<a href="https://pubmed.ncbi.nlm.nih.gov/31234567" class="external">31234567</a> <ul><li>nested</li></ul>'
+           '</span></li></ol></div></section>')
+
+
+def test_the_references_are_found_in_the_parsoid_html_wikipedia_serves_today():
+    assert dp.reference_marks(PARSOID) == {"marks": 1, "items": 1}
+    assert dp.wikipedia_references(PARSOID) == [{"pmid": "31234567", "pmcid": "", "doi": "10.1016/j.x.2020.01.002"}]
