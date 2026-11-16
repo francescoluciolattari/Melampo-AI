@@ -55,6 +55,7 @@ OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
 WIKIPEDIA = "https://en.wikipedia.org/w/api.php"
 EPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+ANSWERS = Path("answers")
 MAX_CITED = 25             # publications of a Wikipedia article followed per diagnosis
 
 
@@ -166,8 +167,11 @@ def wikipedia_for(name: str) -> tuple[dict, list[tuple[str, str]], list[dict[str
     if not sections:
         return {}, [], []
     title = got.get("title", name)
-    return ({"index": "Wikipedia", "title": title, "revision": got.get("revid", "")}, sections,
-            dp.wikipedia_references(html))
+    refs = dp.wikipedia_references(html)
+    ANSWERS.mkdir(parents=True, exist_ok=True)              # public text: kept to see why references are missing
+    (ANSWERS / f"wikipedia__{re.sub(r'[^A-Za-z0-9]+', '_', title)}.html").write_text(html, "utf-8")
+    return ({"index": "Wikipedia", "title": title, "revision": got.get("revid", ""),
+             "references": {**dp.reference_marks(html), "with_identifier": len(refs)}}, sections, refs)
 
 
 def publication(ref: dict[str, str]) -> tuple[dict, str]:
@@ -377,7 +381,9 @@ def main(argv=None) -> int:
     doid_symptoms = {c.doid: c.symptom_ids for c in parse_doid_owl(Path(args.doid_owl)) if not c.deprecated}
     gold_budget = args.budget * args.gold_share if args.gold else 0.0
     router = OpenRouter(key, args.budget - gold_budget)
-    pilot = Pilot(router, hpo, Path(args.out).with_name("answers"))
+    global ANSWERS
+    ANSWERS = Path(args.out).with_name("answers")
+    pilot = Pilot(router, hpo, ANSWERS)
     profiles, rows, stopped = [], [], ""
     for name in [d.strip() for d in args.diagnoses.split(",") if d.strip()]:
         row: dict = {"diagnosis": name}
@@ -397,6 +403,7 @@ def main(argv=None) -> int:
             reviews = [r for r in reviews if r[0]]
             wiki = wikipedia_for(name)
             index = f"Wikipedia index: {wiki[0].get('title', '')}, {len(wiki[2])} cited"
+            row["wikipedia_references"] = wiki[0].get("references", {})
             row["texts"] = [r[0]["id"] for r in reviews] + ([index] if wiki[1] else [])
             words = dp.disease_words(name, mondo.synonyms.get(mondo_id, []),
                                      [s for _, ss in reviews for s in ss] + list(wiki[1]))

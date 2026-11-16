@@ -28,7 +28,9 @@ import re
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from html import unescape
 from typing import Any
+from urllib.parse import unquote
 
 from ..clinical import case_graph as cg
 
@@ -528,11 +530,21 @@ def open_for_use(licence: str) -> bool:
 
 # -- Wikipedia as an index of its references ---------------------------------------------------------------------
 
-_CITE_NOTE = re.compile(r'href="#(cite_note-[^"]+)"')
-_REF_ITEM = re.compile(r'<li id="(cite_note-[^"]+)"[^>]*>(.*?)</li>', re.DOTALL)
-_PMID = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)|PMID[^0-9]{0,40}(\d{5,9})")
+# both forms Wikipedia serves: the classic parser ('href="#cite_note-X-1"', '<li id="cite_note-X-1">') and Parsoid
+# ('href="./Pneumonia#cite_note-X-1"', '<li about="#cite_note-X-1" id="cite_note-X-1">'). (16 November 2026: the
+# first run with Wikipedia as an index found no reference in any article, so every candidate stayed without a
+# publication.)
+_CITE_NOTE = re.compile(r'href="[^"]*#(cite_note-[^"]+)"')
+_REF_ID = re.compile(r'<li\b[^>]*\bid="(cite_note-[^"]+)"[^>]*>')
+_PMID = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)|nih\.gov/pubmed/(\d+)|PMID[^0-9]{0,40}(\d{5,9})")
 _PMC = re.compile(r"\b(PMC\d{1,9})\b")
 _DOI = re.compile(r'doi\.org/(10\.\d{4,9}/[^\s"<>&]+)')
+
+
+def reference_marks(html: str) -> dict[str, int]:
+    """How many citation marks and reference items an article's HTML holds: what to look at when no reference is
+    found."""
+    return {"marks": len(_CITE_NOTE.findall(html or "")), "items": len(_REF_ID.findall(html or ""))}
 
 
 def wikipedia_references(html: str) -> list[dict[str, str]]:
@@ -554,11 +566,17 @@ def wikipedia_references(html: str) -> list[dict[str, str]]:
         for note in _CITE_NOTE.findall(html[m.end():end]):
             if note not in cited:
                 cited.append(note)
-    items = {k: v for k, v in _REF_ITEM.findall(html)}
+    starts = list(_REF_ID.finditer(html))
+    items: dict[str, str] = {}
+    for i, m in enumerate(starts):
+        end = starts[i + 1].start() if i + 1 < len(starts) else len(html)
+        body = html[m.end():end]
+        cut = body.find("</ol>")
+        items[m.group(1)] = unquote(unescape(body[:cut] if cut >= 0 else body))
     out = []
     for note in cited:
         body = items.get(note, "")
-        pmid = next((a or b for a, b in _PMID.findall(body)), "")
+        pmid = next((a or b or c for a, b, c in _PMID.findall(body)), "")
         pmc = next(iter(_PMC.findall(body)), "")
         doi = next(iter(_DOI.findall(body)), "").rstrip(".")
         if pmid or pmc or doi:
