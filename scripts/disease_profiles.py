@@ -389,6 +389,8 @@ def main(argv=None) -> int:
         row: dict = {"diagnosis": name}
         mondo_id = mondo.find(name, prefix="MONDO:")
         row["mondo"] = mondo_id
+        if not mondo_id:
+            row["mondo_candidates"] = mondo.candidates(name, prefix="MONDO:")
         xrefs = mondo.xrefs.get(mondo_id, set())
         ids = {x.replace("Orphanet:", "ORPHA:") for x in xrefs if x.startswith(("OMIM:", "Orphanet:", "ORPHA:"))}
         structured = dp.from_hpoa(hpoa, ids, hpo)

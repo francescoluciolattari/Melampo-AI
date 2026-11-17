@@ -297,3 +297,11 @@ PARSOID = ('<section data-mw-section-id="1"><div class="mw-heading mw-heading2">
 def test_the_references_are_found_in_the_parsoid_html_wikipedia_serves_today():
     assert dp.reference_marks(PARSOID) == {"marks": 1, "items": 1}
     assert dp.wikipedia_references(PARSOID) == [{"pmid": "31234567", "pmcid": "", "doi": "10.1016/j.x.2020.01.002"}]
+
+
+def test_the_ids_written_with_entities_still_lead_to_their_reference():
+    html = PARSOID.replace('id="cite_note-a-1"', 'id="cite&#95;note-a-1"')
+    assert dp.reference_marks(html)["items"] == 1
+    assert dp.wikipedia_references(html)[0]["pmid"] == "31234567"
+    prompt = dp.judge_prompt("acute cholecystitis", {"quote": "q", "manifestation": "Murphy sign"})
+    assert "complication" in prompt and "suggestive" in prompt
