@@ -136,6 +136,12 @@ class Terms:
         hits = {t for t in self.by_name.get(norm(words), set()) if t.startswith(prefix)}
         return next(iter(hits)) if len(hits) == 1 else ""
 
+    def candidates(self, words: str, prefix: str = "") -> dict[str, list[str]]:
+        """The terms carrying these words as a name or an exact synonym: why ``find`` chose none."""
+        own = sorted(t for t in self.by_own_name.get(norm(words), set()) if t.startswith(prefix))
+        any_ = sorted(t for t in self.by_name.get(norm(words), set()) if t.startswith(prefix))
+        return {"by_name": own, "by_name_or_synonym": any_}
+
     def ancestors(self, term: str) -> set[str]:
         """Every term above this one by is_a."""
         out, todo = set(), list(self.parents.get(term, ()))
@@ -368,11 +374,18 @@ def typicality_of(quote: str) -> str:
 
 
 def judge_prompt(disease: str, item: dict[str, str]) -> str:
+    """The question to a judge. (17 November 2026: the first wording, "a sign, symptom, laboratory or imaging finding
+    of the disease", made the judges refuse complications seen in the patients and sentences that also speak of a
+    sign's value: "a positive Murphy sign is very suggestive of acute cholecystitis", "pericardial effusion, a
+    complication of aortic dissection".)"""
     return (f"Disease: {disease}\nSentence from a published text: \"{item['quote']}\"\n"
-            f"Claim: the sentence states that patients with {disease} present with \"{item['manifestation']}\" "
-            "as a sign, symptom, laboratory or imaging finding of the disease.\n"
-            "Answer no when the sentence speaks of another disease, of animals or experiments, of a treatment or a "
-            "trial, of a test's accuracy, or of what predicts an outcome or severity.\n"
+            f"Claim: the sentence states that \"{item['manifestation']}\" is found in patients with {disease}: a "
+            "symptom, a sign, a laboratory or imaging finding, or a complication of the disease. A sentence saying the "
+            "finding is typical of the disease, suggestive of it or seen in it states the claim, even when it also "
+            "speaks of how useful the finding is.\n"
+            "Answer no when the finding belongs to another disease, to animals or experiments, or to the effect of a "
+            "treatment; when the sentence only reports a test's accuracy or what predicts an outcome; or when it "
+            "describes one patient's feature that it does not attribute to the disease.\n"
             'Does the sentence state the claim? Answer with JSON only: {"states": "yes" | "no" | "unclear"}')
 
 
@@ -544,14 +557,17 @@ _DOI = re.compile(r'doi\.org/(10\.\d{4,9}/[^\s"<>&]+)')
 def reference_marks(html: str) -> dict[str, int]:
     """How many citation marks and reference items an article's HTML holds: what to look at when no reference is
     found."""
-    return {"marks": len(_CITE_NOTE.findall(html or "")), "items": len(_REF_ID.findall(html or ""))}
+    html = unescape(html or "")
+    return {"marks": len(_CITE_NOTE.findall(html)), "items": len(_REF_ID.findall(html))}
 
 
 def wikipedia_references(html: str) -> list[dict[str, str]]:
     """The publications cited in the sections ``wikipedia_sections`` reads (presentation, diagnosis, imaging): each
     with its PMID, PMCID and DOI when the reference gives them. Wikipedia is an index here, never the source: the
     text that enters a profile is the publication's own (15 November 2026)."""
-    html = html or ""
+    # the ids of the reference items are written with entities ("cite&#95;note-NIH2-1") where the links write them
+    # plainly (17 November 2026: 407 marks and 0 items in the article on pneumonia)
+    html = unescape(html or "")
     marks = list(_HEADING.finditer(html))
     cited: list[str] = []
     taken_until = -1
@@ -572,7 +588,7 @@ def wikipedia_references(html: str) -> list[dict[str, str]]:
         end = starts[i + 1].start() if i + 1 < len(starts) else len(html)
         body = html[m.end():end]
         cut = body.find("</ol>")
-        items[m.group(1)] = unquote(unescape(body[:cut] if cut >= 0 else body))
+        items[m.group(1)] = unquote(body[:cut] if cut >= 0 else body)
     out = []
     for note in cited:
         body = items.get(note, "")
