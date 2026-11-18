@@ -151,8 +151,12 @@ def test_the_pilot_list_was_written_before_the_run_and_comes_from_the_common_dia
     sc = importlib.util.module_from_spec(sspec)
     sspec.loader.exec_module(sc)
     assert len(script.PILOT) == 10 and set(script.PILOT) <= set(sc.DIAGNOSES)
-    assert set(script.READERS) == {"nemotron-3-ultra", "gemma-4-31b"}
-    assert json.dumps(script.JUDGES)
+    # 14 November 2026: the report readers, both with reasoning; the judges independent of them (12 November)
+    assert set(script.READERS) == {"nemotron-3-ultra-reasoning", "muse-spark-open-reasoning"}
+    assert all(reasoning for _, reasoning in script.READERS.values())
+    assert json.dumps(script.JUDGES) and script.CONFIRMING_JUDGE in script.JUDGES
+    reader_models = {m for m, _ in script.READERS.values()}
+    assert not reader_models & {m for m, _ in script.JUDGES.values()}
 
 
 def test_a_term_named_by_its_own_name_wins_over_the_terms_that_carry_it_as_a_synonym():

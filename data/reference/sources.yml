@@ -3,7 +3,7 @@
 # Kept up to date by hand (scripts/sources_mask.py, or scripts/sources_index.py add) and by the project's weekly
 # search (workflow sources-index), which adds documents as candidates only.
 #
-# kind: database, journal, guideline, textbook, open_textbook, reference_site, terminology, document
+# kind: database, journal, guideline, textbook, open_textbook, reference_site, terminology, library, document
 # access: open, free_registration, subscription, institutional, public_domain, purchase
 # status: in_use (rows or paragraphs come from it), available (reachable now, not yet used), to_register (a
 #   person must register or subscribe first: how_to_reach says how), not_reachable, candidate (found by the
@@ -11,7 +11,11 @@
 # The terms of each publisher change: what is written here was read on the date in last_checked, and the
 # publisher's own page decides. Reading a source lawfully does not by itself allow copying it: only facts with
 # their citation go into the repository, never paragraphs of closed sources.
-version: '2026-11-09'
+# Read for the disease profiles (18 November 2026): profiles: true, with the connector that reads the source
+#   (europe_pmc_reviews, pubmed_abstracts, ncbi_bookshelf, documents, pdf_folder, wikipedia_index), max_documents
+#   per disease, research_only when the licence allows research only, path for a folder of PDFs, query to narrow
+#   the search; a document added by its link names the diseases it is read for (diseases).
+version: '2026-11-18'
 sources:
 - id: europe-pmc
   kind: database
@@ -31,6 +35,9 @@ sources:
   note: indexes PubMed with the full text of PMC and preprints
   added: '2026-11-08'
   added_by: claude
+  profiles: true
+  connector: europe_pmc_reviews
+  max_documents: 5
 - id: pubmed
   kind: database
   title: PubMed
@@ -48,6 +55,10 @@ sources:
   how_to_reach: open; an NCBI account gives an E-utilities API key (10 instead of 3 requests per second)
   added: '2026-11-08'
   added_by: claude
+  profiles: true
+  connector: pubmed_abstracts
+  max_documents: 10
+  research_only: true
 - id: pmc-open-access
   kind: database
   title: PubMed Central, open-access subset
@@ -78,6 +89,11 @@ sources:
   how_to_reach: open to read; text mining only where the book's licence allows
   added: '2026-11-08'
   added_by: claude
+  profiles: true
+  connector: ncbi_bookshelf
+  max_documents: 1
+  research_only: true
+  query: statpearls
 - id: openstax-anatomy-physiology
   kind: open_textbook
   title: Anatomy and Physiology 2e
@@ -1294,3 +1310,72 @@ sources:
     AND volume'
   added: '2026-11-09'
   added_by: search
+- id: wikipedia-index
+  kind: reference_site
+  title: Wikipedia (index of the publications it cites)
+  publisher: Wikimedia Foundation
+  url: https://en.wikipedia.org
+  access: open
+  licence: 'CC BY-SA 4.0 (never cited: only the publications it cites are read)'
+  status: in_use
+  fields:
+  - clinical
+  note: 'Not a certain source (15 November 2026): its presentation and diagnosis sections give candidates and the
+    publications they cite; a candidate enters only with the sentence of a cited publication open for use.'
+  added: '2026-11-18'
+  added_by: claude
+  profiles: true
+  connector: wikipedia_index
+  max_documents: 25
+- id: linked-documents
+  kind: library
+  title: Documents added by their link
+  url: https://europepmc.org
+  access: open
+  licence: each document its own
+  status: available
+  fields:
+  - clinical
+  note: 'A publication, a guideline or a page added in the mask by its PMID, PMCID, DOI or address (kind: document,
+    of: linked-documents), read for the diseases it names.'
+  added: '2026-11-18'
+  added_by: claude
+  profiles: true
+  connector: documents
+  max_documents: 10
+- id: open-pdfs
+  kind: library
+  title: Open PDFs in the repository
+  url: https://github.com/francescoluciolattari/Melampo-AI/tree/main/data/reference/documents
+  access: open
+  licence: 'CC0, CC BY or CC BY-SA only: the files are versioned and public'
+  status: available
+  fields:
+  - clinical
+  note: A PDF whose licence allows it to be published, with a .yml beside it (title, identifier, licence, diseases).
+  added: '2026-11-18'
+  added_by: claude
+  profiles: true
+  connector: pdf_folder
+  max_documents: 10
+  path: data/reference/documents
+- id: private-pdfs
+  kind: library
+  title: Personal library of PDFs (this computer only)
+  url: https://github.com/francescoluciolattari/Melampo-AI
+  access: purchase
+  licence: each file its own (subscription, purchase, institutional access)
+  status: available
+  fields:
+  - clinical
+  - pathology
+  - radiology
+  how_to_reach: PDFs obtained lawfully by the user (subscription, purchase, institutional access), put in data/private/pdfs
+    through the mask; never committed, so read only by a run on the computer that has them.
+  added: '2026-11-18'
+  added_by: claude
+  profiles: true
+  connector: pdf_folder
+  max_documents: 10
+  research_only: true
+  path: data/private/pdfs

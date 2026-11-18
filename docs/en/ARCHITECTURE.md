@@ -63,7 +63,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | What the reader knows | `memory/what_is_said.py` | abnormalities from HPO and PATO, phrase heads, negation, coordination |
 | Reference library | `memory/reference_values.py`, `data/reference/` | built: reference values with their sources (to verify), paragraphs in a local copy; the models compare a measure only with a cited row, the reader recomputes it |
 | Pathology diagnosis to its finding | `data/pathology_findings.py` | working: the diagnosis with its TNM, grade, margins, nodes and markers on its finding; the clinical information is the question |
-| Index of the sources | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | working: the literature, textbooks and documentation Melampo reads, how each is reached and under which licence; a mask on this computer to add and edit; a weekly search adds candidate documents; the reference rows are verified by their words found on their pages |
+| Index of the sources | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | working: the literature, textbooks and documentation Melampo reads, how each is reached and under which licence; a mask on this computer to add, edit and remove sources, switch them on for the disease profiles and add PDFs; a weekly search adds candidate documents; the reference rows are verified by their words found on their pages |
 | Sections of the report | `memory/report_sections.py` | built: indication, history, comparison, technique, findings, impression (the LOINC report sections); the conclusion and the sentence before given as context |
 | Question for a person | `memory/review_question.py` | working; shown in the case reading as `questions` |
 | Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | working when a volume and the segmenters are configured |
@@ -146,6 +146,19 @@ refused, and the judges decide what the words do not. Wikipedia is only an index
 sentence of a publication it cites, never with its own text. Each manifestation carries its level of evidence
 (established by two independent sources, reported by one), and the reading is measured against curated profiles
 of rare diseases instead of by a person (workflow `disease-profiles`, with a budget).
+
+**The sources of the profiles (18 November 2026).** The pilot read at most two reviews per disease, and 211 of its
+212 manifestations had one source. The profiles now read every source the index marks for them
+(`data/reference/sources.yml`, `profiles: true`), each through its connector (`memory/literature_connectors.py`):
+open reviews and guidelines of Europe PMC (as many as `max_documents`), documents added by their link (PMID, PMCID,
+DOI, address), PDFs of a folder; PubMed abstracts, StatPearls and the personal PDFs only in a research run
+(`--research`). A source is switched on or off, added, removed, or given a PDF in the mask
+(`scripts/sources_mask.py`); a new kind of source is one class in the connectors' module. A closed PDF stays on the
+computer that has it (`data/private/`, never committed). The readers are the report readers (Nemotron 3 Ultra and
+Muse Spark Open, with reasoning) and the judges are independent of them (Claude Sonnet 5, Gemma 4). The HPO term is
+chosen in the same reading (each reader proposes one, it must exist in HPO, the judges confirm it in the question
+they already answer) and is added beside the source's words, which never disappear; what the readers call a risk
+factor, a subtype or a mechanism is not a manifestation; the same finding in other words is one manifestation.
 
 ## 5. Data boundaries
 

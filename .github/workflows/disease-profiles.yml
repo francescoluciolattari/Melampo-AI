@@ -4,6 +4,8 @@ name: disease-profiles
 # curated source or a publication open for use (Wikipedia only as an index of the publications it cites); the
 # reading measured against curated profiles of rare diseases (--gold).
 # The run stops before the budget; the cost of every call is the one OpenRouter reports.
+# The sources are those the index marks for the profiles (data/reference/sources.yml, profiles: true), switched on
+# and off in its mask (scripts/sources_mask.py) without touching this workflow (18 November 2026).
 
 on:
   workflow_dispatch:
@@ -17,8 +19,8 @@ on:
       gold:
         description: "rare diseases read to measure the reading against curated profiles (0: none)"
         default: "5"
-      statpearls:
-        description: "also StatPearls (CC BY-NC-ND, research only)"
+      research:
+        description: "also the research-only sources (PubMed abstracts, StatPearls)"
         type: boolean
         default: false
 
@@ -48,7 +50,7 @@ jobs:
         run: |
           mkdir -p out
           extra=""
-          if [ "${{ github.event.inputs.statpearls }}" = "true" ]; then extra="--statpearls"; fi
+          if [ "${{ github.event.inputs.research }}" = "true" ]; then extra="--research"; fi
           diagnoses="${{ github.event.inputs.diagnoses }}"
           if [ -n "$diagnoses" ]; then extra="$extra --diagnoses"; fi
           python3 scripts/disease_profiles.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \

@@ -64,7 +64,7 @@ etichetta confermata).
 | Ciò che sa il lettore | `memory/what_is_said.py` | anomalie da HPO e PATO, testa del sintagma, negazione, coordinazione |
 | Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | costruita: valori di riferimento con le fonti (da verificare), paragrafi in una copia locale; i modelli confrontano una misura solo con una riga citata, il lettore ricalcola il confronto |
 | Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | funziona: la diagnosi con TNM, grado, margini, linfonodi e marcatori sul suo reperto; le notizie cliniche sono il quesito |
-| Indice delle fonti | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | funziona: letteratura, trattati e documentazione che Melampo legge, come si raggiunge ciascuna e con quale licenza; una maschera su questo computer per aggiungere e modificare; una ricerca settimanale aggiunge documenti candidati; le righe dei riferimenti sono verificate dalle loro parole trovate sulle loro pagine |
+| Indice delle fonti | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | funziona: letteratura, trattati e documentazione che Melampo legge, come si raggiunge ciascuna e con quale licenza; una maschera su questo computer per aggiungere, modificare e rimuovere le fonti, attivarle per i profili delle malattie e aggiungere PDF; una ricerca settimanale aggiunge documenti candidati; le righe dei riferimenti sono verificate dalle loro parole trovate sulle loro pagine |
 | Sezioni del referto | `memory/report_sections.py` | costruito: indicazione, storia, confronto, tecnica, reperti, conclusioni (le sezioni LOINC dei referti); le conclusioni e la frase precedente date come contesto |
 | Domanda per una persona | `memory/review_question.py` | funziona; nella lettura del caso come `questions` |
 | Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | funziona quando volume e segmentatori sono configurati |
@@ -148,6 +148,20 @@ rifiutata, e i giudici decidono ciò che le parole non decidono. Wikipedia è so
 con una frase di una pubblicazione che cita, mai con il suo testo. Ogni manifestazione porta il livello di evidenza
 (stabilita da due fonti indipendenti, riportata da una), e la lettura si misura contro i profili curati di malattie
 rare invece che da una persona (workflow `disease-profiles`, con un budget).
+
+**Le fonti dei profili (18 novembre 2026).** Il pilota leggeva al massimo due review per malattia, e 211 delle sue
+212 manifestazioni avevano una sola fonte. Ora i profili leggono tutte le fonti che l'indice segna per loro
+(`data/reference/sources.yml`, `profiles: true`), ciascuna con il suo connettore
+(`memory/literature_connectors.py`): review e linee guida aperte di Europe PMC (quante ne dice `max_documents`),
+documenti aggiunti col loro link (PMID, PMCID, DOI, indirizzo), PDF di una cartella; abstract di PubMed, StatPearls e
+i PDF personali solo in un'esecuzione di ricerca (`--research`). Una fonte si attiva o disattiva, si aggiunge, si
+rimuove o riceve un PDF nella maschera (`scripts/sources_mask.py`); un nuovo tipo di fonte è una classe nel modulo
+dei connettori. Un PDF chiuso resta sul computer che lo ha (`data/private/`, mai committata). I lettori sono quelli
+dei referti (Nemotron 3 Ultra e Muse Spark Open, con ragionamento) e i giudici sono indipendenti da loro (Claude
+Sonnet 5, Gemma 4). Il termine HPO si sceglie nella stessa lettura (ogni lettore ne propone uno, deve esistere in
+HPO, i giudici lo confermano nella domanda a cui già rispondono) e si aggiunge accanto alle parole della fonte, che
+non scompaiono mai; ciò che i lettori chiamano fattore di rischio, sottotipo o meccanismo non è una manifestazione;
+lo stesso reperto in altre parole è una sola manifestazione.
 
 ## 5. Confini dei dati
 

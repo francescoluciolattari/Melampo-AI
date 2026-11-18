@@ -15,6 +15,13 @@ The same workflow checks the library's rows against their pages (``check_quote``
 compared with the words the row cites (``quoted`` in ``values.yml``); found word for word, the row is
 ``verified`` with the date and the fingerprint of the page; a page that has changed since is said so.
 
+A source can also be **read for the disease profiles** (18 November 2026): ``profiles: true`` and a ``connector``
+(``memory/literature_connectors.py``) say how; ``max_documents`` how many documents per disease; ``research_only``
+that its licence allows research only (it is read only by a run that asks for research sources); ``path`` the
+folder of its PDFs; ``query`` what narrows its search. A document added by its link (``kind: document``) names the
+diseases it is read for (``diseases``), or its title does. The mask switches a source on and off for the profiles,
+adds, edits and removes sources, and takes a PDF.
+
 Nothing here decides a diagnosis. The file is ``data/reference/sources.yml``: one place, versioned, readable.
 """
 
@@ -33,9 +40,13 @@ ROOT = Path(__file__).resolve().parents[3]
 SOURCES = ROOT / "data" / "reference" / "sources.yml"
 
 KINDS = ("database", "journal", "guideline", "textbook", "open_textbook", "reference_site", "terminology",
-         "document")
+         "library", "document")
 ACCESS = ("open", "free_registration", "subscription", "institutional", "public_domain", "purchase")
 STATUS = ("in_use", "available", "to_register", "not_reachable", "candidate", "rejected")
+# the connectors of memory/literature_connectors.py (kept here so that the index is checked without importing them)
+# (wikipedia_index is read by the profiles script itself: an index of publications, never a source of text)
+CONNECTOR_NAMES = ("europe_pmc_reviews", "pubmed_abstracts", "ncbi_bookshelf", "documents", "pdf_folder",
+                   "wikipedia_index")
 FIELDS = ("anatomy", "physiology", "pathology", "radiology", "reference_values", "clinical", "terminology",
           "guidelines", "oncology", "cardiology", "laboratory")
 
@@ -62,6 +73,14 @@ class Source:
     added: str = ""
     added_by: str = ""          # "manual", "search", "claude"
     last_checked: str = ""
+    # how the disease profiles read it (18 November 2026)
+    profiles: bool = False      # read for the disease profiles
+    connector: str = ""         # one of CONNECTOR_NAMES
+    max_documents: int = 0      # documents per disease (0: the connector's default)
+    research_only: bool = False  # its licence allows research only
+    path: str = ""              # a folder of PDFs, or a document's file
+    query: str = ""             # what narrows the connector's search
+    diseases: list[str] = field(default_factory=list)   # for a document: the diseases it is read for
 
     def problems(self) -> list[str]:
         out = []
@@ -81,13 +100,47 @@ class Source:
             out.append("of: a document belongs to a source")
         if self.access in ("subscription", "institutional", "purchase") and not self.how_to_reach.strip():
             out.append("how_to_reach: say how a person reaches a closed source")
+        if self.connector and self.connector not in CONNECTOR_NAMES:
+            out.append(f"connector: one of {', '.join(CONNECTOR_NAMES)}")
+        if self.profiles and not self.connector and self.kind != "document":
+            out.append("connector: a source read for the profiles says how it is read")
+        if self.connector == "pdf_folder" and not self.path.strip():
+            out.append("path: the folder of the PDFs")
+        if not 0 <= int(self.max_documents or 0) <= 100:
+            out.append("max_documents: from 0 to 100")
+        if self.path and re.match(r"https?://", self.path):
+            out.append("path: a file or folder on this computer (an address goes in url)")
         return out
 
     def as_dict(self) -> dict[str, Any]:
         d = {k: v for k, v in self.__dict__.items() if v not in ("", [], None)}
         return {k: d[k] for k in ("id", "kind", "title", "publisher", "url", "access", "licence", "status",
                                   "fields", "how_to_reach", "of", "identifier", "note", "added", "added_by",
-                                  "last_checked") if k in d}
+                                  "last_checked", "profiles", "connector", "max_documents", "research_only", "path",
+                                  "query", "diseases") if k in d and d[k] is not False and d[k] != 0}
+
+
+def _flag(value: Any) -> bool:
+    return value is True or str(value).strip().lower() in ("true", "yes", "1", "on", "si", "sì")
+
+
+def source_from(row: dict[str, Any]) -> Source:
+    """A row of the file, or of the mask's form, as a Source: lists, flags and numbers in their own type."""
+    known = {k: row[k] for k in Source.__dataclass_fields__ if k in row and row[k] is not None}
+    out: dict[str, Any] = {k: "" for k in ("id", "kind", "title", "url", "access", "status")}
+    for k, v in known.items():
+        if k in ("fields", "diseases"):
+            out[k] = [str(x).strip() for x in (v if isinstance(v, list) else str(v).split(",")) if str(x).strip()]
+        elif k in ("profiles", "research_only"):
+            out[k] = _flag(v)
+        elif k == "max_documents":
+            try:
+                out[k] = int(v or 0)
+            except (TypeError, ValueError):
+                out[k] = -1                       # reported by problems()
+        else:
+            out[k] = str(v)
+    return Source(**out)
 
 
 class SourcesIndex:
@@ -107,10 +160,19 @@ class SourcesIndex:
         out = []
         for row in data.get("sources", []):
             row = dict(row)
-            row["fields"] = list(row.get("fields") or [])
-            known = {k: row[k] for k in Source.__dataclass_fields__ if k in row}
-            out.append(Source(**{k: (str(v) if k != "fields" else v) for k, v in known.items()}))
+            out.append(source_from(row))
         return cls(out, p, header)
+
+    def remove(self, source_id: str) -> list[str]:
+        """Take a source out of the index; not one that documents still belong to."""
+        if source_id not in self.by_id():
+            return [f"{source_id}: not in the index"]
+        children = [s.id for s in self.sources if s.of == source_id]
+        if children:
+            return [f"{source_id}: its documents first ({', '.join(children[:5])})"]
+        self.sources = [s for s in self.sources if s.id != source_id]
+        self.save()
+        return []
 
     def by_id(self) -> dict[str, Source]:
         return {s.id: s for s in self.sources}
@@ -281,6 +343,6 @@ def mark_rows(values: Path, results: dict[str, dict[str, Any]], today: str | Non
     return changed
 
 
-__all__ = ["ACCESS", "FIELDS", "KINDS", "SOURCES", "STATUS", "Source", "SourcesIndex", "add_candidates",
+__all__ = ["ACCESS", "CONNECTOR_NAMES", "FIELDS", "source_from", "KINDS", "SOURCES", "STATUS", "Source", "SourcesIndex", "add_candidates",
            "candidates_from_europe_pmc", "check_quote", "mark_rows", "page_text", "quoted_pieces",
            "search_queries"]
