@@ -2,15 +2,20 @@
 reading measured against curated profiles, the real cost.
 
     python3 scripts/disease_profiles.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
-        --doid-owl doid.owl --symp symp.obo --out profiles.json [--budget 1.5] [--gold 5] [--statpearls]
+        --doid-owl doid.owl --symp symp.obo --out profiles.json [--budget 1.5] [--gold 5] [--research]
 
 The ten diagnoses (``PILOT``) were written before the run. For each, a manifestation enters the profile only with
 a source that can be checked:
 
 1. **Curated sources, no model**: the HPO annotations (which carry Orphanet's), the Disease Ontology's axioms.
-2. **Publications**: open reviews and guidelines from Europe PMC under CC0, CC BY or CC BY-SA (NC and ND left
-   out), their presentation, diagnosis and imaging sections; the reading pair lists manifestations with their
-   sentence; an invented sentence is refused; the judges decide what the words do not.
+2. **Publications**: the sources the index marks for the profiles (``data/reference/sources.yml``,
+   ``profiles: true``), each read by its connector (``memory/literature_connectors.py``): open reviews and
+   guidelines of Europe PMC (CC0, CC BY), documents added by their link, PDFs of a folder; PubMed abstracts,
+   StatPearls and the personal PDFs only with ``--research``. Their presentation, diagnosis and imaging sections;
+   the reading pair lists manifestations with their sentence and their HPO term; an invented sentence is refused;
+   the judges decide what the words do not. (18 November 2026: until then two reviews at most, and 211 of the 212
+   manifestations of the pilot had one source.) Sources are added and switched off in the index's mask
+   (``scripts/sources_mask.py``), without touching this script.
 3. **Wikipedia only as an index**: its presentation and diagnosis sections give candidate manifestations and the
    publications they cite; a candidate enters only with a sentence of a cited publication open for use, judged
    like any other, and the citation is the publication's (PMID, PMCID, DOI). Wikipedia is never cited.
@@ -43,20 +48,26 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "src"))
 
 from melampo.memory import disease_profiles as dp
+from melampo.memory import literature_connectors as lc
+from melampo.memory import sources_index as si
 from melampo.memory.symptom_sources import parse_doid_owl
 
 PILOT = ("pneumonia", "pulmonary embolism", "acute appendicitis", "acute cholecystitis", "acute pancreatitis",
          "diverticulitis", "cirrhosis", "nephrolithiasis", "ischemic stroke", "aortic dissection")
-READERS = {"nemotron-3-ultra": "nvidia/nemotron-3-ultra-550b-a55b", "gemma-4-31b": "google/gemma-4-31b-it"}
-JUDGES = {"muse-spark-open-reasoning": ("meta/muse-spark-open", True), "claude-sonnet-5": ("anthropic/claude-sonnet-5",
-                                                                                           False)}
+# the readers are the report readers chosen on 14 November 2026, both with reasoning; the judges are independent of
+# them (12 November 2026: a labeller absolutely independent of the readers): Claude Sonnet 5, and Gemma 4, which
+# no longer reads. (model, reasoning)
+READERS = {"nemotron-3-ultra-reasoning": ("nvidia/nemotron-3-ultra-550b-a55b", True),
+           "muse-spark-open-reasoning": ("meta/muse-spark-open", True)}
+JUDGES = {"claude-sonnet-5": ("anthropic/claude-sonnet-5", False), "gemma-4-31b": ("google/gemma-4-31b-it", False)}
 CONFIRMING_JUDGE = "claude-sonnet-5"
+READER_TOKENS, READER_REASONING_TOKENS = 14000, 4000
 OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
 WIKIPEDIA = "https://en.wikipedia.org/w/api.php"
 EPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 ANSWERS = Path("answers")
-MAX_CITED = 25             # publications of a Wikipedia article followed per diagnosis
+MAX_CITED = 25             # publications of a Wikipedia article followed per diagnosis (the index's max_documents)
 
 
 class OverBudget(RuntimeError):
@@ -69,12 +80,13 @@ class OpenRouter:
         self.tokens = Counter()
         self.last: dict = {}
 
-    def chat(self, model: str, prompt: str, *, reasoning: bool = False, max_tokens: int = 3000) -> str:
+    def chat(self, model: str, prompt: str, *, reasoning: bool = False, max_tokens: int = 3000,
+             reasoning_tokens: int = 1200) -> str:
         if self.cost >= self.budget:
             raise OverBudget(f"{self.cost:.4f} USD spent, budget {self.budget}")
         body = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0,
                 "max_tokens": max_tokens, "usage": {"include": True},
-                "reasoning": {"enabled": True, "max_tokens": 1200} if reasoning else {"enabled": False}}
+                "reasoning": {"enabled": True, "max_tokens": reasoning_tokens} if reasoning else {"enabled": False}}
         got: dict = {}
         for attempt in range(3):
             req = urllib.request.Request(OPENROUTER, data=json.dumps(body).encode(), method="POST",
@@ -115,44 +127,12 @@ def get(url: str, accept: str = "application/json") -> str:
         return ""
 
 
-CLINICAL_TITLE = ('(TITLE:"diagnosis" OR TITLE:"clinical" OR TITLE:"presentation" OR TITLE:"imaging" '
-                  'OR TITLE:"evaluation" OR TITLE:"approach")')
-
-
-MIN_SECTION_CHARACTERS = 6000     # less than this of clinical text is not enough to read a disease from
-MAX_REVIEWS = 3
-
-
 def reviews_for(name: str, at_most: int = 3) -> list[tuple[dict, list[tuple[str, str]]]]:
-    """Open reviews (CC BY or CC0) on the diagnosis, those whose title speaks of its diagnosis, clinical picture or
-    imaging first, systematic reviews and meta-analyses left out, until their clinical sections reach
-    ``MIN_SECTION_CHARACTERS`` (at most ``MAX_REVIEWS``). (Corrected 15 November 2026: the first pilot took the most
-    cited review whatever it was about; the second took one review only, and four diagnoses had 500 to 1,300
-    characters of clinical text, from a meta-analysis or a guideline's questions.)"""
-    base = (f'TITLE:"{name}" AND PUB_TYPE:"review" AND OPEN_ACCESS:y AND IN_EPMC:y '
-            f'AND (LICENSE:"cc by" OR LICENSE:"cc0") AND NOT TITLE:"meta-analysis" AND NOT TITLE:"systematic"')
-    results, seen = [], set()
-    for query in (f"{base} AND {CLINICAL_TITLE}", base):
-        q = {"query": query, "format": "json", "resultType": "core", "pageSize": 15, "sort": "CITED desc"}
-        got = json.loads(get(f"{EPMC}/search?{urllib.parse.urlencode(q)}") or "{}")
-        results += got.get("resultList", {}).get("result", [])
-    out, total = [], 0
-    for r in results:
-        pmcid = r.get("pmcid", "")
-        if not pmcid or pmcid in seen or not dp.open_for_use(str(r.get("license", ""))):
-            continue
-        seen.add(pmcid)
-        sections = dp.sections_from_jats(get(f"{EPMC}/{pmcid}/fullTextXML", "application/xml"))
-        size = sum(len(x) for _, x in sections)
-        if size < 1500:                    # a review that says almost nothing of the presentation is skipped
-            continue
-        out.append(({"source": "Europe PMC review", "id": pmcid, "pmid": r.get("pmid", ""), "doi": r.get("doi", ""),
-                     "title": r.get("title", ""), "licence": r.get("license", ""), "year": r.get("pubYear", "")},
-                    sections))
-        total += size
-        if total >= MIN_SECTION_CHARACTERS or len(out) >= at_most:
-            break
-    return out
+    """Open reviews of Europe PMC on the diagnosis (kept for the scripts that read them alone): the connector
+    ``europe_pmc_reviews`` with ``at_most`` documents."""
+    source = si.Source(id="europe-pmc", kind="database", title="Europe PMC", url="https://europepmc.org",
+                       access="open", status="in_use", connector="europe_pmc_reviews", max_documents=at_most)
+    return [(d.citation, d.sections) for d in lc.EuropePmcReviews(source, get).documents(name, [name])]
 
 
 def wikipedia_for(name: str) -> tuple[dict, list[tuple[str, str]], list[dict[str, str]]]:
@@ -201,21 +181,6 @@ def publication(ref: dict[str, str]) -> tuple[dict, str]:
     return ({**meta, "read": "read" if text else "no_text"}, text)
 
 
-def statpearls_for(name: str) -> tuple[dict, list[tuple[str, str]]]:
-    q = {"db": "books", "term": f'statpearls[book] AND "{name}"[title]', "retmode": "json", "retmax": 3}
-    ids = json.loads(get(f"{EUTILS}/esearch.fcgi?{urllib.parse.urlencode(q)}") or "{}").get(
-        "esearchresult", {}).get("idlist", [])
-    if not ids:
-        return {}, []
-    doc = json.loads(get(f"{EUTILS}/esummary.fcgi?db=books&retmode=json&id={ids[0]}") or "{}").get(
-        "result", {}).get(ids[0], {})
-    nbk = doc.get("chapteraccessionid") or doc.get("accessionid") or ""
-    page = get(f"https://www.ncbi.nlm.nih.gov/books/{nbk}/?report=printable", "text/html") if nbk else ""
-    sections = dp.html_sections(page, ("History and Physical", "Evaluation"))
-    return ({"source": "StatPearls", "id": nbk, "title": doc.get("title", ""),
-             "licence": "CC BY-NC-ND 4.0 (research only)"}, sections) if sections else ({}, [])
-
-
 class Pilot:
     """The reading of one run: the judges, what each diagnosis's profile holds, every link with its verdict."""
 
@@ -227,8 +192,9 @@ class Pilot:
         """The pair's reading of a text: the items each reader lists, kept (public text) to see why one is empty."""
         prompt = dp.extraction_prompt(name, sections)
         readings = {}
-        for r, m in READERS.items():
-            answer = self.router.chat(m, prompt, max_tokens=6000)
+        for r, (m, reasoning) in READERS.items():
+            answer = self.router.chat(m, prompt, reasoning=reasoning, max_tokens=READER_TOKENS,
+                                      reasoning_tokens=READER_REASONING_TOKENS)
             readings[r] = dp.read_extraction(answer)
             self.answers_dir.mkdir(parents=True, exist_ok=True)
             label = source.get("id") or source.get("index", "")
@@ -239,9 +205,20 @@ class Pilot:
         return readings
 
     def ask(self, judge: str, name: str, link: dp.Link) -> str:
+        """A judge's answer on the claim; and, when the readers proposed HPO terms that the finding's own words
+        are not, which of them means the finding (one question, one call)."""
         model, reasoning = JUDGES[judge]
-        return dp.read_judgment(self.router.chat(model, dp.judge_prompt(name, link.__dict__), reasoning=reasoning,
-                                                 max_tokens=1600 if reasoning else 60))
+        terms = link.proposed if link.proposed and not self.hpo.find(link.manifestation, prefix="HP:") else None
+        answer = self.router.chat(model, dp.judge_prompt(name, link.__dict__, terms), reasoning=reasoning,
+                                  max_tokens=1600 if reasoning else 120)
+        if terms:
+            link.term_votes[judge] = dp.read_term(answer, terms)
+        return dp.read_judgment(answer)
+
+    def settle_term(self, link: dp.Link) -> None:
+        """The proposed term enters only when every judge asked chose it."""
+        votes = set(link.term_votes.values())
+        link.term = next(iter(votes)) if len(votes) == 1 and next(iter(votes)) in link.proposed else ""
 
     def decide(self, name: str, link: dp.Link) -> str:
         """``names`` (words, confirmed by one judge), ``judges`` (both say yes), or why not: a link enters only
@@ -265,21 +242,24 @@ class Pilot:
         return link.verdict
 
     def record(self, name: str, link: dp.Link, how: str) -> None:
+        self.settle_term(link)
         self.links.append({"diagnosis": name, "how": how, **{k: v for k, v in link.__dict__.items() if k != "source"},
                            "source": link.source.get("id", ""), "licence": link.source.get("licence", "")})
 
 
-def profile_of(pilot: Pilot, name: str, words: set[str], *, structured: list, wiki, reviews, row: dict) -> dp.cg.Disease:
+def profile_of(pilot: Pilot, name: str, words: set[str], *, structured: list, wiki, documents: list[lc.Document],
+               row: dict) -> dp.cg.Disease:
     """One diagnosis: curated sources, then the reviews, then Wikipedia's candidates through the publications it
     cites. A manifestation already in the profile is not judged again; another source that states it in its own
     sentence (words, confirmed by one judge) corroborates it."""
     hpo, parts, verdicts = pilot.hpo, list(structured), Counter()
+    max_cited = int(row.pop("_max_cited", MAX_CITED))
     in_profile: dict[str, int] = {}
     for m in structured:
         in_profile[m.concept.curie if m.concept and m.concept.code else dp.norm(m.words)] = len(in_profile)
 
     def key_of(manifestation: str) -> str:
-        return hpo.find(manifestation, prefix="HP:") or dp.norm(manifestation)
+        return hpo.find(manifestation, prefix="HP:") or dp.words_key(manifestation)
 
     def take(link: dp.Link, how: str) -> bool:
         key = key_of(link.manifestation)
@@ -296,13 +276,16 @@ def profile_of(pilot: Pilot, name: str, words: set[str], *, structured: list, wi
         if link.verdict in ("names", "judges", "corroborated"):
             parts.append(dp.to_manifestation(link, hpo, len(parts)))
             in_profile.setdefault(key, len(in_profile))
+            if link.term:
+                in_profile.setdefault(link.term, len(in_profile))
             return True
         return False
 
-    for source, sections in reviews:
-        readings = pilot.read(name, source, sections, row)
-        for link in dp.merge_readings(readings, sections, source, hpo, words):
-            take(link, "review")
+    for document in documents:
+        readings = pilot.read(name, document.citation, document.sections, row)
+        for link in dp.merge_readings(readings, document.sections, document.citation, hpo, words):
+            take(link, "review" if document.citation.get("source") == "Europe PMC review" else
+                 document.citation.get("source_id", "document"))
     _, sections, refs = wiki
     if sections:
         readings = pilot.read(name, {"index": "Wikipedia"}, sections, row)
@@ -311,7 +294,7 @@ def profile_of(pilot: Pilot, name: str, words: set[str], *, structured: list, wi
             for item in items:
                 candidates.setdefault(key_of(item["manifestation"]), {**item, "readers": []})["readers"].append(reader)
         publications = []
-        for ref in refs[:MAX_CITED]:
+        for ref in refs[:max_cited]:
             pub, text = publication(ref)
             row.setdefault("cited", Counter())[pub.get("read", "")] += 1
             if text:
@@ -367,7 +350,10 @@ def main(argv=None) -> int:
     ap.add_argument("--budget", type=float, default=1.5, help="USD; the run stops before passing it")
     ap.add_argument("--gold", type=int, default=5, help="rare diseases read to measure the reading (0: none)")
     ap.add_argument("--gold-share", type=float, default=0.4, help="share of the budget kept for the measure")
-    ap.add_argument("--statpearls", action="store_true", help="also StatPearls (CC BY-NC-ND, research only)")
+    ap.add_argument("--research", action="store_true",
+                    help="also the research-only sources of the index (PubMed abstracts, StatPearls, personal PDFs)")
+    ap.add_argument("--statpearls", action="store_true", help="the same as --research (kept for old commands)")
+    ap.add_argument("--sources", default=str(si.SOURCES), help="the index of the sources")
     ap.add_argument("--out", default="profiles.json")
     args = ap.parse_args(argv)
     key = os.environ.get("OPENROUTER_API_KEY", "")
@@ -384,6 +370,13 @@ def main(argv=None) -> int:
     global ANSWERS
     ANSWERS = Path(args.out).with_name("answers")
     pilot = Pilot(router, hpo, ANSWERS)
+    index = si.SourcesIndex.load(Path(args.sources))
+    research = args.research or args.statpearls
+    wiki_source = next((s for s in index.sources if s.connector == "wikipedia_index" and s.profiles
+                        and s.status in ("in_use", "available")), None)
+    sources_used, sources_skipped = lc.profile_sources(index, research)
+    print(json.dumps({"sources": [s.id for s in sources_used] + ([wiki_source.id] if wiki_source else []),
+                      "skipped": {x.source: x.reason for x in sources_skipped}}), flush=True)
     profiles, rows, stopped = [], [], ""
     for name in [d.strip() for d in args.diagnoses.split(",") if d.strip()]:
         row: dict = {"diagnosis": name}
@@ -399,18 +392,21 @@ def main(argv=None) -> int:
                      for m in dp.from_doid(d, doid_symptoms.get(d, ()), symp, hpo)]
         row["doid"] = len(from_doid)
         try:
-            reviews = reviews_for(name, at_most=2)
-            if args.statpearls:
-                reviews.append(statpearls_for(name))
-            reviews = [r for r in reviews if r[0]]
-            wiki = wikipedia_for(name)
-            index = f"Wikipedia index: {wiki[0].get('title', '')}, {len(wiki[2])} cited"
+            first = dp.disease_words(name, mondo.synonyms.get(mondo_id, []), [])
+            reading = lc.read_sources(name, first, index, research=research, get=get)
+            documents = reading.documents
+            row["sources"] = reading.per_source
+            if reading.skipped:
+                row["sources_skipped"] = {x.source: x.reason for x in reading.skipped}
+            wiki = wikipedia_for(name) if wiki_source else ({}, [], [])
+            row["_max_cited"] = int(wiki_source.max_documents or MAX_CITED) if wiki_source else 0
+            listed = f"Wikipedia index: {wiki[0].get('title', '')}, {len(wiki[2])} cited"
             row["wikipedia_references"] = wiki[0].get("references", {})
-            row["texts"] = [r[0]["id"] for r in reviews] + ([index] if wiki[1] else [])
+            row["texts"] = [d.citation.get("id", "") for d in documents] + ([listed] if wiki[1] else [])
             words = dp.disease_words(name, mondo.synonyms.get(mondo_id, []),
-                                     [s for _, ss in reviews for s in ss] + list(wiki[1]))
-            profile = profile_of(pilot, name, words, structured=structured + from_doid, wiki=wiki, reviews=reviews,
-                                 row=row)
+                                     [s for d in documents for s in d.sections] + list(wiki[1]))
+            profile = profile_of(pilot, name, words, structured=structured + from_doid, wiki=wiki,
+                                 documents=documents, row=row)
         except OverBudget as error:
             stopped = str(error)
             profile = dp.merge_profile(mondo_id or name, name, structured + from_doid)
@@ -428,7 +424,7 @@ def main(argv=None) -> int:
         if stopped:
             break
     cost_profiles = router.cost
-    gold = measure(pilot, router, hpoa, mondo, hpo, args.gold, gold_budget) if args.gold else {}
+    gold = measure(pilot, router, hpoa, mondo, hpo, args.gold, gold_budget, index) if args.gold else {}
     summary = {
         "diagnoses": len(rows), "stopped": stopped, "cost_usd": round(router.cost, 4),
         "cost_profiles_usd": round(cost_profiles, 4),
@@ -437,6 +433,8 @@ def main(argv=None) -> int:
         "verdicts": dict(sum((Counter(r.get("verdicts", {})) for r in rows), Counter())),
         "manifestations": sum(r["manifestations"] for r in rows),
         "established": sum(r["established"] for r in rows), "reported": sum(r["reported"] for r in rows),
+        "with_concept": sum(r["with_concept"] for r in rows),
+        "sources_per_diagnosis": {r["diagnosis"]: r.get("sources", {}) for r in rows},
         "reading_against_curation": {k: v for k, v in gold.items() if k != "diseases"}, "rows": rows,
     }
     Path(args.out).write_text(json.dumps({"summary": summary, "profiles": profiles, "links": pilot.links,
@@ -447,7 +445,7 @@ def main(argv=None) -> int:
 
 
 def measure(pilot: Pilot, router: OpenRouter, hpoa: list[str], mondo: dp.Terms, hpo: dp.Terms, count: int,
-            budget: float) -> dict:
+            budget: float, index: si.SourcesIndex | None = None) -> dict:
     """The reading measured against curated profiles: rare diseases read from their open publications only (no
     curated source in the reading), every HPO term read compared with the curated profile."""
     router.budget += budget
@@ -455,13 +453,16 @@ def measure(pilot: Pilot, router: OpenRouter, hpoa: list[str], mondo: dp.Terms, 
     for mondo_id, name, curated in rare_diseases_with_curation(hpoa, mondo):
         if len(diseases) >= count:
             break
-        reviews = [r for r in reviews_for(name, at_most=2) if r[0]]
-        if not reviews:
+        # the open publications only: what is measured is the reading, against curators who read the same kind
+        open_only = si.SourcesIndex([s for s in (index or si.SourcesIndex.load()).sources
+                                     if s.connector == "europe_pmc_reviews"])
+        documents = lc.read_sources(name, [name], open_only, get=get).documents
+        if not documents:
             continue
         row: dict = {"diagnosis": name, "mondo": mondo_id, "curated": len(curated)}
-        words = dp.disease_words(name, mondo.synonyms.get(mondo_id, []), [s for _, ss in reviews for s in ss])
+        words = dp.disease_words(name, mondo.synonyms.get(mondo_id, []), [s for d in documents for s in d.sections])
         try:
-            profile = profile_of(pilot, name, words, structured=[], wiki=({}, [], []), reviews=reviews, row=row)
+            profile = profile_of(pilot, name, words, structured=[], wiki=({}, [], []), documents=documents, row=row)
         except OverBudget as error:
             row["stopped"] = str(error)
             diseases.append(row)

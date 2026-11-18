@@ -10,11 +10,21 @@ identifier, licence, the sentence). It is built cheapest first:
 2. **Text, only the sections that describe the disease.** A review under CC BY or CC0 from Europe PMC (its
    clinical presentation, diagnosis and imaging sections, at most ``SECTION_CHARACTERS``). StatPearls is CC
    BY-NC-ND: only on request, for research, and its licence travels with every citation taken from it.
-3. **Two readers, then the words, then two judges.** The reading pair (Nemotron 3 Ultra, Gemma 4 31B) lists the
-   manifestations with the sentence each comes from. A sentence that is not in the text is refused: an invented
-   quote. A sentence that names the manifestation (its words, or the name or a synonym of its HPO term) is
-   verified without a model. Only the rest goes to the two judges (Muse Spark Open with reasoning, Claude
-   Sonnet 5), who must agree; when they do not, the link stays out of the profile, listed as a doubt.
+3. **Two readers, then the words, then two judges.** The reading pair (Nemotron 3 Ultra and Muse Spark Open,
+   both with reasoning: the report readers chosen on 14 November 2026) lists the manifestations with the sentence
+   each comes from. A sentence that is not in the text is refused: an invented quote. A sentence that names the
+   manifestation (its words, or the name or a synonym of its HPO term) is verified without a model. Only the rest
+   goes to the two judges (Claude Sonnet 5, and Gemma 4 31B, which no longer reads and so judges independently of
+   the readers), who must agree; when they do not, the link stays out of the profile, listed as a doubt.
+
+The concept is chosen in the same reading (18 November 2026: one pass, the finding->HPO step fused into it): each
+reader names the HPO term that means the same finding, never a broader or a narrower one; a name that is not an HPO
+name or exact synonym is dropped; the judges, in the question they already answer, say which proposed term means
+the finding, and the term enters only when every judge asked chooses it. The words of the source never disappear:
+the concept is added beside them. What the readers call a risk factor, a subtype or a mechanism is not a
+manifestation (``not_a_manifestation``); when the readers disagree on it the judges decide. Findings written in
+different words with the same content words ("right upper quadrant pain", "pain in the right upper quadrant") are
+one manifestation (``words_key``).
 
 Typicality comes from the words of the sentence ("pathognomonic", "most common", "rare", ...) or from the two
 readers when they agree; otherwise it is left empty and the manifestation is not weighed
@@ -60,6 +70,10 @@ TYPICALITY_WORDS = (
     ("common", re.compile(r"\bcommon(ly)?\b|frequent(ly)?|\boften\b|usually|majority", re.IGNORECASE)),
 )
 KINDS = ("symptom", "sign", "laboratory", "imaging")
+# what a reader may call an item that is not a manifestation (18 November 2026: the pilot's profiles held "older age"
+# and "type 2 diabetes" for cirrhosis, the kinds of stone for nephrolithiasis, "increased vascular permeability" for
+# acute pancreatitis)
+NOT_MANIFESTATION_KINDS = ("risk_factor", "subtype", "mechanism")
 REGIONS = ("head", "neck", "chest", "abdomen", "pelvis", "spine", "upper_limb", "lower_limb", "whole_body")
 MODALITIES = ("CT", "MR", "US", "XR", "NM", "")
 _WORD = re.compile(r"[a-z0-9]+")
@@ -70,6 +84,26 @@ _STOP = {"with", "from", "that", "this", "which", "their", "there", "patients", 
 
 def norm(text: str) -> str:
     return " ".join(_WORD.findall(str(text).lower()))
+
+
+_FUNCTION_WORDS = {"the", "of", "in", "on", "a", "an", "and", "or", "with", "to", "at", "by", "for", "from", "its"}
+
+
+def words_key(text: str) -> str:
+    """The content words of a finding, without order or plural: "right upper quadrant pain" and "pain in the right
+    upper quadrant" are one finding; "tenderness in the right upper quadrant" is another (a sign, not a symptom),
+    and "mild" or "severe" are kept, since they change the finding. (18 November 2026: the pilot listed the same
+    finding two or three times in different words.)"""
+    words = []
+    for w in _WORD.findall(str(text).lower()):
+        if w in _FUNCTION_WORDS:
+            continue
+        if len(w) > 5 and w.endswith(("sses", "xes", "ches", "shes")):
+            w = w[:-2]
+        elif len(w) > 4 and w.endswith("s") and not w.endswith(("ss", "us", "is")):
+            w = w[:-1]
+        words.append(w)
+    return "w:" + " ".join(sorted(set(words)))
 
 
 def content_stems(text: str) -> set[str]:
@@ -299,15 +333,22 @@ def extraction_prompt(disease: str, sections: list[tuple[str, str]]) -> str:
     body = "\n\n".join(f"## {t}\n{x}" for t, x in sections)
     return (
         f"Text about the disease: {disease}.\n\n{body}\n\n"
-        "List every manifestation of this disease that the text states: symptoms, signs, laboratory findings and "
-        "imaging findings. Only what the text says; nothing from your own knowledge.\n"
+        "List every manifestation of this disease that the text states: symptoms, signs, laboratory findings, "
+        "imaging findings and complications seen in the patients. Only what the text says; nothing from your own "
+        "knowledge. Each finding once: the same finding in other words is one item.\n"
         "Answer with a JSON array only. Each item:\n"
         '{"manifestation": "<short English name>", "quote": "<one sentence copied exactly from the text>", '
-        '"typicality": "hallmark|common|rare|excluding|", "kind": "symptom|sign|laboratory|imaging", '
+        '"hpo": "<the exact name of the Human Phenotype Ontology term that means this same finding, or empty>", '
+        '"typicality": "hallmark|common|rare|excluding|", '
+        '"kind": "symptom|sign|laboratory|imaging|risk_factor|subtype|mechanism", '
         '"modality": "CT|MR|US|XR|NM|", "region": "head|neck|chest|abdomen|pelvis|spine|upper_limb|lower_limb|'
         'whole_body|"}\n'
-        "Not a manifestation: a test studied for its accuracy, a predictor of an outcome or of severity, a "
-        "complication of treatment. "
+        "hpo: only a term with the same meaning as the finding, never a broader or a narrower one; empty when you "
+        "are not sure such a term exists.\n"
+        "kind: risk_factor for an age, a sex, a habit or a condition that makes the disease more likely; subtype for "
+        "a form or a type of the disease itself; mechanism for a process inside the body that is not observed in "
+        "the patient. Not a manifestation at all (leave it out): a test studied for its accuracy, a predictor of an "
+        "outcome or of severity, a complication of treatment. "
         "typicality only when the quote says how often or how typical; otherwise an empty string. "
         "modality and region only for an imaging finding.")
 
@@ -339,7 +380,7 @@ def read_extraction(answer: str) -> list[dict[str, str]]:
             continue
         name, quote = str(item.get("manifestation", "")).strip(), str(item.get("quote", "")).strip()
         if name and quote:
-            out.append({"manifestation": name, "quote": quote,
+            out.append({"manifestation": name, "quote": quote, "hpo": str(item.get("hpo") or "").strip(),
                         "typicality": str(item.get("typicality", "")).strip().lower(),
                         "kind": str(item.get("kind", "")).strip().lower(),
                         "modality": str(item.get("modality", "")).strip().upper(),
@@ -373,7 +414,7 @@ def typicality_of(quote: str) -> str:
     return ""
 
 
-def judge_prompt(disease: str, item: dict[str, str]) -> str:
+def judge_prompt(disease: str, item: dict[str, Any], terms: dict[str, str] | None = None) -> str:
     """The question to a judge. (17 November 2026: the first wording, "a sign, symptom, laboratory or imaging finding
     of the disease", made the judges refuse complications seen in the patients and sentences that also speak of a
     sign's value: "a positive Murphy sign is very suggestive of acute cholecystitis", "pericardial effusion, a
@@ -385,8 +426,30 @@ def judge_prompt(disease: str, item: dict[str, str]) -> str:
             "speaks of how useful the finding is.\n"
             "Answer no when the finding belongs to another disease, to animals or experiments, or to the effect of a "
             "treatment; when the sentence only reports a test's accuracy or what predicts an outcome; or when it "
-            "describes one patient's feature that it does not attribute to the disease.\n"
-            'Does the sentence state the claim? Answer with JSON only: {"states": "yes" | "no" | "unclear"}')
+            "describes one patient's feature that it does not attribute to the disease; when the finding is a risk "
+            "factor (an age, a sex, a habit, a condition that makes the disease more likely), a subtype of the "
+            "disease, or a mechanism inside the body that is not observed in the patient.\n"
+            + (_term_question(terms).replace("{finding}", str(item["manifestation"])) if terms else
+               'Does the sentence state the claim? Answer with JSON only: {"states": "yes" | "no" | "unclear"}'))
+
+
+def _term_question(terms: dict[str, str]) -> str:
+    listed = "; ".join(f"{t} ({name})" for t, name in sorted(terms.items()))
+    return ("Does the sentence state the claim? Then: which of these Human Phenotype Ontology terms means exactly "
+            f"the finding \"{{finding}}\" as the sentence uses it, not a broader or a narrower one: {listed}? "
+            'Answer with JSON only: {"states": "yes" | "no" | "unclear", "term": "<one of the ids>" | "none"}')
+
+
+def read_term(answer: str, allowed: Iterable[str]) -> str:
+    """The HPO term a judge chose among those proposed: its id, ``none``, or '' when the answer names none of them.
+    (18 November 2026)"""
+    m = re.search(r'"term"\s*:\s*"([^"]*)"', answer or "", re.IGNORECASE)
+    if not m:
+        return ""
+    value = m.group(1).strip()
+    if value.lower() == "none":
+        return "none"
+    return value if value in set(allowed) else ""
 
 
 def read_judgment(answer: str) -> str:
@@ -404,8 +467,13 @@ class Link:
     kind: str = ""
     modality: str = ""
     region: str = ""
-    verdict: str = ""                 # names, judges, refused_quote, judges_no, doubt
+    verdict: str = ""                 # names, judges, refused_quote, judges_no, doubt, not_a_manifestation
     judges: dict[str, str] = field(default_factory=dict)
+    kinds: dict[str, str] = field(default_factory=dict)          # reader -> the kind it gave
+    proposed: dict[str, str] = field(default_factory=dict)       # HPO id -> name, proposed by the readers
+    unknown_terms: list[str] = field(default_factory=list)       # names given by a reader that are not HPO's
+    term_votes: dict[str, str] = field(default_factory=dict)     # judge -> the term it chose ("none", '')
+    term: str = ""                                               # the HPO term every judge asked chose
 
 
 def disease_words(name: str, synonyms: Iterable[str], sections: list[tuple[str, str]]) -> set[str]:
@@ -442,19 +510,48 @@ def merge_readings(readings: dict[str, list[dict[str, str]]], sections: list[tup
     links: dict[tuple[str, str], Link] = {}
     for reader, items in readings.items():
         for item in items:
-            key = (hpo.find(item["manifestation"]) or norm(item["manifestation"]), norm(item["quote"]))
+            key = (hpo.find(item["manifestation"]) or words_key(item["manifestation"]), norm(item["quote"]))
             link = links.get(key)
             if link is None:
                 link = links[key] = Link(item["manifestation"], item["quote"], source, kind=item["kind"],
                                          modality=item["modality"], region=item["region"])
             link.readers.append(reader)
             link.typicality[reader] = item["typicality"]
+            link.kinds[reader] = item.get("kind", "")
+            propose(link, item.get("hpo", ""), hpo)
             if not quote_in(item["quote"], sections):
                 link.verdict = "refused_quote"
             elif link.verdict != "refused_quote" and names_it(item, hpo) and (
                     not disease or names_the_disease(item["quote"], disease)):
                 link.verdict = "names"
+    for link in links.values():
+        if link.verdict == "refused_quote":
+            continue
+        excluded = [r for r, k in link.kinds.items() if k in NOT_MANIFESTATION_KINDS]
+        if excluded and len(excluded) == len(link.kinds):
+            link.verdict = "not_a_manifestation"          # every reader that listed it says it is not one
+        elif excluded:
+            link.verdict = ""                             # the readers disagree: the judges decide
     return list(links.values())
+
+
+def propose(link: Link, name: str, hpo: Terms) -> None:
+    """A reader's HPO term for a finding: kept only when it is an HPO name or exact synonym (a term the reader
+    remembers wrongly is not invented into the profile); its words are kept as written otherwise, to be seen."""
+    name = (name or "").strip()
+    if not name:
+        return
+    term = hpo.find(name, prefix="HP:") or (name if name in hpo.names and name.startswith("HP:") else "")
+    if term:
+        link.proposed[term] = hpo.names.get(term, "")
+    elif name not in link.unknown_terms:
+        link.unknown_terms.append(name)
+
+
+def term_of(link: Link, hpo: Terms) -> str:
+    """The concept of a finding: the HPO term its own words are the name or an exact synonym of; else the term the
+    readers proposed and every judge asked chose (``Link.term``); else none, and the words stay alone."""
+    return hpo.find(link.manifestation, prefix="HP:") or link.term
 
 
 def judged(link: Link, verdicts: dict[str, str]) -> str:
@@ -468,7 +565,7 @@ def judged(link: Link, verdicts: dict[str, str]) -> str:
 
 
 def to_manifestation(link: Link, hpo: Terms, index: int) -> cg.Manifestation:
-    term = hpo.find(link.manifestation)
+    term = term_of(link, hpo)
     stated = typicality_of(link.quote)
     readers = {t for t in link.typicality.values() if t}
     typicality = stated or (readers.pop() if len(readers) == 1 and len(link.readers) >= 2 else "")
@@ -483,7 +580,8 @@ def to_manifestation(link: Link, hpo: Terms, index: int) -> cg.Manifestation:
         concept=cg.Concept("HP", term, hpo.names[term]) if term else None, typicality=typicality,
         region=link.region if link.region in REGIONS else "", verified_by=verified,
         citations=[{**link.source, "quote": link.quote, "verified_by": link.verdict, "readers": link.readers,
-                    "judges": link.judges}])
+                    "judges": link.judges,
+                    **({"hpo_proposed": link.proposed, "hpo_votes": link.term_votes} if link.proposed else {})}])
 
 
 def source_key(citation: dict[str, Any]) -> str:
@@ -507,7 +605,7 @@ def merge_profile(disease_id: str, words: str, parts: Iterable[cg.Manifestation]
     number of independent sources (``evidence_of``)."""
     merged: dict[str, cg.Manifestation] = {}
     for m in parts:
-        key = m.concept.curie if m.concept and m.concept.code else norm(m.words)
+        key = m.concept.curie if m.concept and m.concept.code else words_key(m.words)
         have = merged.get(key)
         if have is None:
             merged[key] = cg.Manifestation(**{**m.__dict__, "citations": list(m.citations),
