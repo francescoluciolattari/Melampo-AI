@@ -24,6 +24,7 @@ jobs:
           UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
           BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
         run: |
+          set -o pipefail   # a failing script fails the job, not hidden by tee (19 November 2026)
           python3 scripts/source_coverage.py --hpo hp.obo --mondo mondo.obo --hpoa phenotype.hpoa \
             --out source_coverage.json | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
