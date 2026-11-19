@@ -45,6 +45,7 @@ jobs:
         env:
           OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
         run: |
+          set -o pipefail   # a failing script fails the job, not hidden by tee (19 November 2026)
           python3 scripts/drug_sources.py --out drug_cache --limit "${{ github.event.inputs.limit }}" \
             | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

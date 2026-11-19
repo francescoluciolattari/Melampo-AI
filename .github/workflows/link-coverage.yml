@@ -23,6 +23,7 @@ jobs:
         env:
           UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
         run: |
+          set -o pipefail   # a failing script fails the job, not hidden by tee (19 November 2026)
           python3 scripts/link_coverage.py --mondo mondo.obo --doid doid.obo --doid-owl doid.owl --out link_coverage.json \
             | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
