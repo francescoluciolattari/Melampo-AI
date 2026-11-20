@@ -24,6 +24,11 @@ measures, before choosing. Written before the run:
 * **Budget.** Reading may spend at most ``READING_SHARE`` of it, text by text for every configuration together, so
   a run that stops early still compares the same texts; the rest goes to the judges, who take the links in an order
   fixed by a hash, so a judging cut short is a sample drawn alike from every configuration.
+* **Resuming (20 November 2026, after the first run).** The first run read 14 texts with every configuration, then
+  OpenRouter answered 402 (no credit) to every judge and the run reached its timeout with nothing written. Now a
+  402 or 401 stops the run at once, the readings are written as soon as they are done, every verdict is written as
+  it is given, and ``--resume DIR`` takes the texts, the answers and the verdicts of a previous run: what was read is
+  not read again, what was judged is not judged again. Only texts every configuration read are compared.
 * **Rule.** The highest coverage wins, provided no quote is invented and its precision is not more than 2 points
   below the best precision; on equal terms, the cheaper.
 """
@@ -97,6 +102,9 @@ class Router:
                 if isinstance(error, urllib.error.HTTPError) and error.code == 400 and "reasoning" in body:
                     body.pop("reasoning")
                     continue
+                if isinstance(error, urllib.error.HTTPError) and error.code in (401, 402):
+                    raise OverBudget(f"OpenRouter answered {error.code}: no credit or no key "
+                                     f"({self.cost:.4f} USD spent in this run)") from error
                 if attempt == 2:
                     print(f"  {model}: {error}", file=sys.stderr)
                 time.sleep(5 * (attempt + 1))
@@ -222,6 +230,45 @@ def read_one(router: Router, t: dict, review: dict, readings: dict, answers: Pat
                               "spent": round(router.cost, 4)}), flush=True)
 
 
+def resumed_readings(folder: Path, texts: list[dict]) -> dict:
+    """The readings of a previous run, from its readings.json or else from its log and its answers (the first run
+    wrote only those); an answer cut by an error (no finish reason) is not a reading."""
+    if (folder / "readings.json").exists():
+        return json.loads((folder / "readings.json").read_text("utf-8"))
+    diagnosis = {r["id"]: t["diagnosis"] for t in texts for r in t["reviews"]}
+    readings: dict = {c: [] for c in CONFIGS}
+    log = folder / "run.log"
+    for line in log.read_text("utf-8", errors="replace").splitlines() if log.exists() else []:
+        if not line.startswith('{"read"'):
+            continue
+        row = json.loads(line)
+        config, reader, text = row["read"].split("__")
+        answer = folder / "answers" / f"{row['read']}.txt"
+        if config not in readings or not row["finish"] or not answer.exists() or text not in diagnosis:
+            continue
+        readings[config].append({"diagnosis": diagnosis[text], "text": text, "reader": reader,
+                                 "items": dp.read_extraction(answer.read_text("utf-8")),
+                                 "finish_reason": row["finish"], "reasoning_chars": 0, "cost": row["cost"],
+                                 "seconds": row["seconds"], "tokens_out": 0})
+    return readings
+
+
+def only_complete(readings: dict) -> dict:
+    """Only the texts every reader of every configuration read: the configurations are compared on the same texts."""
+    want = sum(len(r) for r in CONFIGS.values())
+    count = Counter(row["text"] for rows in readings.values() for row in rows)
+    return {c: [row for row in rows if count[row["text"]] == want] for c, rows in readings.items()}
+
+
+def earlier_verdicts(folder: Path) -> dict[str, list[str]]:
+    path = folder / "verdicts.jsonl"
+    out = {}
+    for line in path.read_text("utf-8").splitlines() if path.exists() else []:
+        row = json.loads(line)
+        out[row["link"]] = row["votes"]
+    return out
+
+
 def link_key(hpo: dp.Terms, diagnosis: str, item: dict) -> tuple[str, str]:
     return diagnosis, hpo.find(item["manifestation"], prefix="HP:") or dp.norm(item["manifestation"])
 
@@ -232,6 +279,7 @@ def main(argv=None) -> int:
         ap.add_argument(f"--{name}", required=True)
     ap.add_argument("--budget", type=float, default=5.0)
     ap.add_argument("--out", default="out/bench.json")
+    ap.add_argument("--resume", default="", help="the folder of a previous run: its texts, answers and verdicts")
     args = ap.parse_args(argv)
     missing = [n for n in NEEDED if not hasattr(dp, n)]
     if missing:
@@ -245,13 +293,22 @@ def main(argv=None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     read = lambda p: Path(p).read_text("utf-8", errors="replace").splitlines()  # noqa: E731
     mondo, hpo, hpoa = dp.Terms.from_obo(read(args.mondo)), dp.Terms.from_obo(read(args.hpo)), read(args.hpoa)
+    previous = Path(args.resume) if args.resume else None
+    if previous and (previous / "texts.json").exists() and previous.resolve() != out.parent.resolve():
+        out.with_name("texts.json").write_text((previous / "texts.json").read_text("utf-8"), "utf-8")
     texts = gather_texts(hpoa, mondo, out.with_name("texts.json"))
     router = Router(key, args.budget)
     stopped = ""
+    earlier = only_complete(resumed_readings(previous, texts)) if previous else {c: [] for c in CONFIGS}
+    already = {row["text"] for rows in earlier.values() for row in rows}
     router.limit = args.budget * READING_SHARE
-    readings = read_all(router, texts, out.with_name("answers"))
+    todo = [{**t, "reviews": [r for r in t["reviews"] if r["id"] not in already]} for t in texts]
+    fresh = read_all(router, todo, out.with_name("answers"))
+    readings = {c: earlier[c] + fresh[c] for c in CONFIGS}
+    readings = only_complete(readings)
     router.limit = args.budget
-    cost_reading = router.cost
+    cost_reading = router.cost + sum(r["cost"] for rows in earlier.values() for r in rows)
+    out.with_name("readings.json").write_text(json.dumps(readings, ensure_ascii=False), "utf-8")
     read_texts = {row["text"] for rows in readings.values() for row in rows}
     sections_of = {r["id"]: [tuple(s) for s in r["sections"]] for t in texts for r in t["reviews"]}
 
@@ -271,20 +328,40 @@ def main(argv=None) -> int:
                                            "quote": item["quote"], "text": row["text"]})
                 by_config[config].add(lid)
     verdicts: dict[str, bool] = {}
+    given = earlier_verdicts(previous) if previous else {}
+    log = out.with_name("verdicts.jsonl")
+    with log.open("a", encoding="utf-8") as kept:
+        for lid, votes in given.items():
+            if lid in proposals and log.resolve() != (previous / "verdicts.jsonl").resolve():
+                kept.write(json.dumps({"link": lid, "votes": votes}) + "\n")
     order = sorted(proposals, key=lambda lid: hashlib.sha1(lid.encode()).hexdigest())
+    silent = 0
     try:
-        for lid in order:
-            p = proposals[lid]
-            votes = []
-            for _, model, reasoning, room in JUDGES:
-                got = router.chat(model, dp.judge_prompt(p["diagnosis"], p), reasoning, room)
-                votes.append(dp.read_judgment(got["content"]))
-                if votes[-1] != "yes":
-                    break
-            verdicts[lid] = votes == ["yes"] * len(JUDGES)
-            p["votes"] = votes
+        with log.open("a", encoding="utf-8") as kept:
+            for lid in order:
+                p = proposals[lid]
+                if lid in given:
+                    votes = given[lid]
+                else:
+                    votes = []
+                    for _, model, reasoning, room in JUDGES:
+                        got = router.chat(model, dp.judge_prompt(p["diagnosis"], p), reasoning, room)
+                        votes.append(dp.read_judgment(got["content"]))
+                        if votes[-1] != "yes":
+                            break
+                    if votes and votes[-1] == "":
+                        silent += 1           # no readable answer: not a verdict
+                        if silent >= 10:
+                            raise OverBudget("ten judges' answers in a row could not be read")
+                        continue
+                    silent = 0
+                    kept.write(json.dumps({"link": lid, "votes": votes}) + "\n")
+                    kept.flush()
+                verdicts[lid] = votes == ["yes"] * len(JUDGES)
+                p["votes"] = votes
     except OverBudget as error:
         stopped = str(error)
+        print(json.dumps({"judging_stopped": stopped, "judged": len(verdicts)}), flush=True)
     judged = set(verdicts)
     accepted = {lid for lid, ok in verdicts.items() if ok}
     accepted_keys = {tuple(json.loads(lid)[:2]) for lid in accepted}

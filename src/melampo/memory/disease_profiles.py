@@ -388,9 +388,24 @@ def read_extraction(answer: str) -> list[dict[str, str]]:
     return out
 
 
+TYPOGRAPHY = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201a": "'", "\u2032": "'", "\u00b4": "'",
+                            "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u2033": '"',
+                            "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-",
+                            "\u2212": "-", "\u00a0": " ", "\u2009": " ", "\u202f": " ", "\u2026": "...",
+                            "\u2022": " "})
+
+
+def _plain(text: str) -> str:
+    return " ".join(text.translate(TYPOGRAPHY).split()).lower()
+
+
 def quote_in(quote: str, sections: list[tuple[str, str]]) -> bool:
-    q = " ".join(quote.split()).strip(" .")
-    return bool(q) and any(q.lower() in " ".join(x.split()).lower() for _, x in sections)
+    """The quote is in the text, word for word. Typographic variants count as the same character: a reader that
+    writes "Blumberg's sign" for the text's "Blumberg\u2019s sign" has not invented the sentence. (Corrected 20
+    November 2026, after the reader bench: 25 of Nemotron's 444 quotes differed from the text only in an apostrophe
+    or a dash; one more dropped a list bullet that the full text puts inside a sentence.)"""
+    q = _plain(quote).strip(" .")
+    return bool(q) and any(q in _plain(x) for _, x in sections)
 
 
 def names_it(item: dict[str, str], hpo: Terms) -> bool:

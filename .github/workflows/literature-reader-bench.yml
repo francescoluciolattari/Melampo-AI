@@ -3,7 +3,9 @@ name: literature-reader-bench
 # Which readers read the literature best (20 November 2026): the same texts, the same two judges (neither a reader),
 # three configurations (A: Nemotron + Gemma without reasoning; B: Nemotron + Muse with reasoning and room to
 # finish; C: the same with the reasoning capped). The rule was written before the run (scripts/literature_reader_
-# bench.py). The run stops before the budget.
+# bench.py). The run stops before the budget, and at once if OpenRouter has no credit (402).
+# resume_run: the number of a previous run of this workflow (in its address, .../actions/runs/<number>): its
+# texts, answers and verdicts are kept, and only what is missing is read or judged.
 
 on:
   workflow_dispatch:
@@ -11,14 +13,18 @@ on:
       budget:
         description: "USD, the run stops before passing it"
         default: "5"
+      resume_run:
+        description: "number of a previous run to resume (empty = start again)"
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   bench:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,6 +37,14 @@ jobs:
           curl -sSL --fail -o hp.obo https://purl.obolibrary.org/obo/hp.obo
           curl -sSL --fail -o phenotype.hpoa \
             https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/phenotype.hpoa
+      - name: The previous run
+        if: github.event.inputs.resume_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: literature-reader-bench
+          path: previous
+          run-id: ${{ github.event.inputs.resume_run }}
+          github-token: ${{ github.token }}
       - name: Bench
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -41,8 +55,14 @@ jobs:
             echo "The secret OPENROUTER_API_KEY is empty or missing." | tee out/run.log
             exit 1
           fi
+          RESUME=""
+          if [ -d previous ]; then
+            RESUME="--resume previous"
+            [ -d previous/answers ] && cp -r previous/answers out/
+            [ -f previous/run.log ] && cp previous/run.log out/previous_run.log
+          fi
           python3 scripts/literature_reader_bench.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
-            --budget "${{ github.event.inputs.budget }}" --out out/bench.json 2>&1 | tee out/run.log
+            --budget "${{ github.event.inputs.budget }}" --out out/bench.json $RESUME 2>&1 | tee out/run.log
           tail -40 out/run.log >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()

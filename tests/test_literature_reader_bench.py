@@ -96,3 +96,38 @@ def test_reading_stops_at_its_share_and_keeps_configurations_comparable(tmp_path
 @pytest.mark.parametrize("config", ["A", "B", "C"])
 def test_every_configuration_has_two_readers(config):
     assert len(bench.CONFIGS[config]) == 2
+
+
+def test_a_run_resumes_what_was_read_and_judged(tmp_path, monkeypatch):
+    answers = {bench.NEMOTRON: json.dumps([PAIN]), bench.GEMMA: json.dumps([PAIN]), bench.MUSE: json.dumps([PAIN, FEVER]),
+               "judge": lambda p: '{"states": "yes"}'}
+    code, first = run(tmp_path, monkeypatch, answers)
+    assert code == 0 and (tmp_path / "verdicts.jsonl").exists() and (tmp_path / "readings.json").exists()
+    previous = tmp_path / "previous"
+    previous.mkdir()
+    for name in ("texts.json", "readings.json", "verdicts.jsonl"):
+        (previous / name).write_text((tmp_path / name).read_text())
+        (tmp_path / name).unlink()
+    asked = []
+
+    def nothing_new(self, model, prompt, reasoning, max_tokens):
+        asked.append(model)
+        raise AssertionError("asked again")
+    monkeypatch.setattr(bench.Router, "chat", nothing_new)
+    code = bench.main(["--mondo", str(tmp_path / "mondo.obo"), "--hpo", str(tmp_path / "hp.obo"),
+                       "--hpoa", str(tmp_path / "phenotype.hpoa"), "--out", str(tmp_path / "bench.json"),
+                       "--resume", str(previous)])
+    again = json.loads((tmp_path / "bench_summary.json").read_text())
+    assert code == 0 and not asked and again["table"] == first["table"]
+
+
+def test_no_credit_stops_at_once(monkeypatch):
+    import urllib.error
+    import urllib.request
+
+    def refuse(*a, **k):
+        raise urllib.error.HTTPError("u", 402, "Payment Required", {}, None)
+    monkeypatch.setattr(urllib.request, "urlopen", refuse)
+    monkeypatch.setattr(bench.time, "sleep", lambda s: pytest.fail("it waited and retried"))
+    with pytest.raises(bench.OverBudget):
+        bench.Router("x", 5).chat("m", "p", None, 10)
