@@ -15,7 +15,7 @@
 #   (europe_pmc_reviews, pubmed_abstracts, ncbi_bookshelf, documents, pdf_folder, wikipedia_index), max_documents
 #   per disease, research_only when the licence allows research only, path for a folder of PDFs, query to narrow
 #   the search; a document added by its link names the diseases it is read for (diseases).
-version: '2026-11-18'
+version: '2026-11-20'
 sources:
 - id: europe-pmc
   kind: database
@@ -1379,3 +1379,18 @@ sources:
   max_documents: 10
   research_only: true
   path: data/private/pdfs
+- id: doc-pmc6530037
+  kind: document
+  title: Why primary obesity is a disease?
+  publisher: J Transl Med
+  url: https://europepmc.org/article/PMC/PMC6530037
+  access: open
+  status: candidate
+  fields:
+  - reference_values
+  of: europe-pmc
+  identifier: PMC6530037
+  note: 'found by the weekly search: ("reference values" OR "normal values" OR "normal range") AND "gallbladder"
+    AND thickness'
+  added: '2026-11-20'
+  added_by: search
