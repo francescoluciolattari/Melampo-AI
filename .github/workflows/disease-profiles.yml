@@ -51,6 +51,7 @@ jobs:
         # green, after 20 seconds, with no artifact and no reason given); the log always goes in the artifact
         run: |
           set -o pipefail
+          python3 -m pip install --quiet pyyaml   # the sources index is read from YAML
           mkdir -p out
           if [ -z "$OPENROUTER_API_KEY" ]; then
             echo "The secret OPENROUTER_API_KEY is empty or missing: nothing can be read." | tee out/run.log
