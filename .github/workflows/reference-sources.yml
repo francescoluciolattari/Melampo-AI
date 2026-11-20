@@ -1,0 +1,67 @@
+name: reference-sources
+
+# The reference library from primary, open sources (21 November 2026): every row taken from Radiopaedia checked in
+# the publication it cites (Radiopaedia as an index, like Wikipedia), and every structure Melampo reads searched
+# for its reference values in open reviews and guidelines. Readers as for the reports (Nemotron 3 Ultra + Muse
+# Spark Open, full reasoning), two judges independent of them, no person. Rules fixed before the run:
+# scripts/reference_sources.py. The run stops before the budget, and at once if OpenRouter has no credit.
+# resume_run: the number of a previous run of this workflow (.../actions/runs/<number>): what it read and judged
+# is kept, only what is missing is done.
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "USD, the run stops before passing it"
+        default: "5"
+      only:
+        description: "primary | structures | empty = both"
+        default: ""
+      resume_run:
+        description: "number of a previous run to resume (empty = start)"
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  references:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m pip install --quiet pyyaml
+      - name: The previous run
+        if: github.event.inputs.resume_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-sources
+          path: previous
+          run-id: ${{ github.event.inputs.resume_run }}
+          github-token: ${{ github.token }}
+      - name: Read and judge
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          mkdir -p out
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "The secret OPENROUTER_API_KEY is empty or missing." | tee out/run.log
+            exit 1
+          fi
+          RESUME=""
+          [ -d previous ] && RESUME="--resume previous"
+          python3 scripts/reference_sources.py --out out/reference.json --budget "${{ github.event.inputs.budget }}" \
+            --only "${{ github.event.inputs.only }}" $RESUME 2>&1 | tee out/run.log
+          tail -60 out/run.log >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reference-sources
+          path: out
+          if-no-files-found: error
+          retention-days: 30
