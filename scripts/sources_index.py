@@ -101,6 +101,12 @@ def cmd_check_quotes(args: argparse.Namespace) -> int:
         text, error = pages[url]
         res = si.check_quote(quoted, text) if text else {"found": False, "error": error or "no text"}
         results[row["id"]] = res
+        if args.pages_out and not res.get("found"):
+            # the words the check read, for a row it did not find (20 November 2026): what the check saw can be
+            # compared with the page; never committed (the pages are the authors' work)
+            out = Path(args.pages_out)
+            out.mkdir(parents=True, exist_ok=True)
+            (out / f"{row['id']}.txt").write_text(f"{url}\n\n{text}", "utf-8")
         print(f"- {row['id']}: {'found' if res.get('found') else 'not found'} "
               f"{res.get('error', '') or res.get('missing', '')}")
         for piece, near in (res.get("nearest") or {}).items():
@@ -134,6 +140,7 @@ def main(argv: list[str]) -> int:
     se.add_argument("--limit", type=int, default=5)
     q = sub.add_parser("check-quotes")
     q.add_argument("--values", default=str(VALUES))
+    q.add_argument("--pages-out", default="", help="folder for the words read of the pages of rows not found")
     sub.add_parser("check")
     args = ap.parse_args(argv)
     return {"list": cmd_list, "add": cmd_add, "search": cmd_search, "check-quotes": cmd_check_quotes,

@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[3]
 VALUES = ROOT / "data" / "reference" / "values.yml"
 
 BELOW, WITHIN, ABOVE, UNKNOWN = "below", "within", "above", "unknown"
+VERIFIED = "verified"
 
 # units the rows use, and the factor to them from what a report writes
 _LENGTH = {"mm": 1.0, "cm": 10.0, "m": 1000.0}
@@ -54,6 +55,8 @@ class Row:
     source: dict[str, str] = field(default_factory=dict)
     status: str = "to_verify"
     note: str = ""
+    above_hpo: str = ""                  # the HPO term whose name is the source's word for "above" (above_means)
+    below_hpo: str = ""
 
     def applies(self, cid: str, technique: str = "", sex: str = "") -> bool:
         if cid not in self.structures:
@@ -99,15 +102,19 @@ class ReferenceValues:
                 low=_float(normal.get("low")), high=_float(normal.get("high", r.get("above"))),
                 unit=r.get("unit", "mm"), above_means=str(r.get("above_means", "")),
                 below_means=str(r.get("below_means", "")), source=dict(r.get("source") or {}),
-                status=r.get("status", "to_verify"), note=str(r.get("note", ""))))
+                status=r.get("status", "to_verify"), note=str(r.get("note", "")),
+                above_hpo=str(r.get("above_hpo", "")), below_hpo=str(r.get("below_hpo", ""))))
         path = passages or os.environ.get("MELAMPO_REFERENCE_PASSAGES")
         found = []
         if path and Path(path).exists():
             found = [json.loads(line) for line in Path(path).read_text("utf-8").splitlines() if line.strip()]
         return cls(rows, found)
 
-    def rows_for(self, cid: str, technique: str = "", sex: str = "") -> list[Row]:
-        return [r for r in self.rows if r.applies(cid, technique, sex)]
+    def rows_for(self, cid: str, technique: str = "", sex: str = "", *, verified_only: bool = True) -> list[Row]:
+        """The rows that apply. Only verified rows by default (20 November 2026): a row whose words were not found
+        on its page is not given to the models, and no measure is compared with it."""
+        return [r for r in self.rows if r.applies(cid, technique, sex)
+                and (r.status == VERIFIED or not verified_only)]
 
     def passages_for(self, rows: list[Row], limit: int = 3) -> list[dict[str, Any]]:
         """The paragraphs of the rows' sources (same URL and section), then the sections they link to; never
@@ -168,4 +175,4 @@ def check(words: str, row_id: str, said: str, rows: list[Row]) -> str:
     return "" if got == said else f"the_reference_says_{got}"
 
 
-__all__ = ["ABOVE", "BELOW", "UNKNOWN", "WITHIN", "ReferenceValues", "Row", "check", "compare", "measures_in"]
+__all__ = ["ABOVE", "BELOW", "UNKNOWN", "VERIFIED", "WITHIN", "ReferenceValues", "Row", "check", "compare", "measures_in"]

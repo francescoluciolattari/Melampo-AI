@@ -44,7 +44,17 @@ jobs:
         if: ${{ github.event_name == 'schedule' || inputs.check_quotes }}
         run: |
           set -o pipefail
-          uv run --no-sync python scripts/sources_index.py check-quotes | tee -a "$GITHUB_STEP_SUMMARY"
+          uv run --no-sync python scripts/sources_index.py check-quotes --pages-out pages_not_found \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # the words the check read for the rows it did not find (20 November 2026), to see why; not committed
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && (github.event_name == 'schedule' || inputs.check_quotes) }}
+        with:
+          name: pages-not-found
+          path: pages_not_found
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: The index is well formed
         run: uv run --no-sync python scripts/sources_index.py check

@@ -72,9 +72,35 @@ def _covering(graph: cg.CaseGraph, manifestation: cg.Manifestation) -> list[cg.D
     return out
 
 
-def _laboratory(graph: cg.CaseGraph, manifestation: cg.Manifestation) -> list[tuple[cg.Measurement, str]]:
-    """The values that measure the manifestation, each with what it says: present, absent or doubtful."""
+def _deviation(measurement: cg.Measurement, manifestation: cg.Manifestation,
+               below: Callable[[str, str], bool] | None) -> str:
+    """Which side of a reference row the manifestation is (20 November 2026): ``above`` when it is the row's
+    deviation above (``above_hpo``, or its words when neither has a concept), ``below`` likewise, else ""."""
+    ref = measurement.reference or {}
+    for side, code_key, words_key in ((_ABOVE, "above_hpo", "above_means"), (_BELOW, "below_hpo", "below_means")):
+        code, words = str(ref.get(code_key) or ""), str(ref.get(words_key) or "")
+        concept = cg.Concept("HPO", code) if code else None
+        if (code or words) and _same_concept(concept, manifestation.concept, below, words, manifestation.words):
+            return side
+    return ""
+
+
+def _laboratory(graph: cg.CaseGraph, manifestation: cg.Manifestation,
+                below: Callable[[str, str], bool] | None = None) -> list[tuple[cg.Measurement, str]]:
+    """The values that measure the manifestation, each with what it says: present, absent or doubtful. A laboratory
+    value by the exam that verifies it; a measure of a report by the deviation of its reference row (20 November
+    2026: "spleen 15 cm" against a verified row whose deviation above is Splenomegaly)."""
     out = []
+    for m in graph.measurements:
+        side = _deviation(m, manifestation, below)
+        if not side:
+            continue
+        if m.interpretation == side:
+            out.append((m, cg.PRESENT))
+        elif m.interpretation in (_WITHIN, _ABOVE, _BELOW):
+            out.append((m, cg.ABSENT))
+        else:
+            out.append((m, cg.DOUBTFUL))
     for v in manifestation.verified_by:
         if v.get("kind") != "laboratory":
             continue
@@ -108,7 +134,7 @@ def assess(manifestation: cg.Manifestation, graph: cg.CaseGraph, *,
             doubtful.append(f.finding_id)
         else:
             present.append(f.finding_id)
-    measured = _laboratory(graph, manifestation)
+    measured = _laboratory(graph, manifestation, below)
     present += [m.measurement_id for m, s in measured if s == cg.PRESENT]
     absent_measured = [m.measurement_id for m, s in measured if s == cg.ABSENT]
     doubtful += [m.measurement_id for m, s in measured if s == cg.DOUBTFUL]

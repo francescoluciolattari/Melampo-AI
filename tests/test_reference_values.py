@@ -20,7 +20,8 @@ def _row(**kw):
     base = {"id": "pv", "structures": ("portal_vein_and_splenic_vein",), "aspect": "diameter",
             "detail": "main portal vein", "techniques": ("any",), "population": {"age": "adult", "sex": "any"},
             "low": 7.0, "high": 13.0, "unit": "mm",
-            "source": {"publisher": "Radiopaedia", "title": "Portal vein", "section": "gross anatomy"}}
+            "source": {"publisher": "Radiopaedia", "title": "Portal vein", "section": "gross anatomy"},
+            "status": "verified"}      # only verified rows are given to the models (20 November 2026)
     base.update(kw)
     return Row(**base)
 
@@ -30,7 +31,7 @@ def test_every_row_of_the_table_has_its_source_and_a_status():
     assert table.rows
     for r in table.rows:
         assert r.source.get("url") and r.source.get("licence"), r.id
-        assert r.status in ("to_verify", "verified", "reviewed"), r.id
+        assert r.status in ("to_verify", "verified", "reviewed", "doubt"), r.id
         assert r.low is not None or r.high is not None, r.id
     assert len({r.id for r in table.rows}) == len(table.rows)
 
@@ -115,3 +116,13 @@ def test_paragraphs_never_a_chapter_and_their_links(tmp_path):
     rows = [json.loads(x) for x in out.read_text("utf-8").splitlines()]
     table = ReferenceValues([_row(source={"url": "u", "section": "s"})], rows)
     assert [p["text"] for p in table.passages_for(table.rows)] == ["The main portal vein has a normal diameter."]
+
+
+def test_a_row_not_verified_is_not_given_and_a_row_in_doubt_says_why():
+    table = ReferenceValues([_row(), _row(id="pv-unverified", status="to_verify"), _row(id="pv-doubt", status="doubt")])
+    assert [r.id for r in table.rows_for("portal_vein_and_splenic_vein")] == ["pv"]
+    assert len(table.rows_for("portal_vein_and_splenic_vein", verified_only=False)) == 3
+    import yaml
+    from melampo.memory.reference_values import VALUES
+    rows = yaml.safe_load(VALUES.read_text("utf-8"))["rows"]
+    assert all(r.get("doubt") for r in rows if r["status"] == "doubt")

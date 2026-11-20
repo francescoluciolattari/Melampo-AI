@@ -13,6 +13,11 @@
 #              of the page read. A value is valid because its source says it, not because someone remembers it
 #              (Frank, 8 November 2026): no person's memory is a status; a source that is better or more recent
 #              replaces the row, it does not confirm it.
+#   doubt      (20 November 2026) the words are on the page but do not say what the row says (a mean taken for a
+#              limit, a definition the page calls past): never given to the models, never promoted by the check;
+#              the field `doubt` says why. Only verified rows are given to the models.
+# above_hpo / below_hpo (20 November 2026): the HPO term whose name is the source's own word for the deviation; a
+#              measure beyond the row becomes that manifestation in the graph of the case.
 #
 # Fields: id; structures (linker classes); aspect (length, diameter, thickness, volume, volume_index); detail
 # (how it is measured); techniques (US, CT, MR, RX, XA, any); population (age, sex: male, female, any);
@@ -32,6 +37,7 @@ rows:
     normal: {high: 120}
     unit: mm
     above_means: splenomegaly
+    above_hpo: HP:0001744   # Splenomegaly: the HPO name is the source's word (20 November 2026)
     note: "the source adds that lengths upwards of 14 cm can be seen in normal, taller males; men and taller or heavier individuals have longer spleens"
     source: {title: "Splenomegaly", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/splenomegaly",
              section: "sonographic assessment", ref: "15", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
@@ -129,14 +135,14 @@ rows:
   - id: portal-vein-diameter
     structures: [portal_vein_and_splenic_vein]
     aspect: diameter
-    detail: "main portal vein; the source adds that it may vary up to 15 mm"
+    detail: "main portal vein; the source adds that it may vary up to 15 mm and more (ref 13)"
     techniques: [any]
     population: {age: adult, sex: any}
     normal: {low: 7, high: 13}
     unit: mm
     source: {title: "Portal vein", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/portal-vein",
              section: "gross anatomy: origin and course", ref: "2, 11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    quoted: '"with a normal diameter of 7-13 mm 2,11" ... "but may vary up to 15 mm 11" (2026-11-08)'
+    quoted: '"with a normal diameter of 7-13 mm 2,11" ... "but may vary up to 15 mm and more 13" (2026-11-08; corrected 2026-11-20 to the words the check found on the page: "and more", reference 13)'
     status: to_verify
     checked_by: ""
     page_check: "2026-11-16, not found on the page; the nearest words of the page: {\"but may vary up to 15 mm 11\": \"Gross anatomy Origin and course The portal vein usually measures ~8 cm in length in adults with a normal diameter of 7-13 mm 2,11 but may vary up to 15 mm and more 13 .\"}"
@@ -151,7 +157,8 @@ rows:
     source: {title: "Portal vein", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/portal-vein",
              section: "radiographic features: CT", ref: "13", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"Mean portal vein diameter is typically larger on CT, measuring up to 1.55 cm" (2026-11-08)'
-    status: to_verify
+    status: doubt
+    doubt: "the page gives a MEAN on CT, 15.5 ± 1.9 mm (ref 13), not an upper limit of normal: a mean is not a limit (20 November 2026)"
     checked_by: ""
     page_check: "2026-11-16, not found on the page; the nearest words of the page: {\"Mean portal vein diameter is typically larger on CT, measuring up to 1.55 cm\": \"CT Mean portal vein diameter is typically larger on CT, measuring up to 15.5 ± 1.9 mm, and the enhanced portal vein is typically 0.56 mm larger than the unenhanced portal vein 13 .\"}"
   - id: aorta-infrarenal-diameter
@@ -177,6 +184,7 @@ rows:
     above: 3
     unit: mm
     above_means: gallbladder wall thickening
+    above_hpo: HP:0034505   # Gallbladder wall thickening: the HPO name is the source's word (20 November 2026)
     source: {title: "Acute cholecystitis", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/acute-cholecystitis",
              section: "radiographic features: ultrasound", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"Both gallbladder wall thickening (>3 mm) and pericholecystic fluid are secondary findings." (no reference number; 2026-11-08)'
@@ -194,7 +202,7 @@ rows:
     above_means: dilated small bowel
     source: {title: "Small bowel obstruction", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/small-bowel-obstruction",
              section: "radiographic features: CT", ref: "3", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
-    quoted: '"dilated small bowel loops >2.5 cm up from outer wall to outer wall", in the features on CT that cite 3 (2026-11-08)'
+    quoted: '"dilated small bowel loops >2.5 cm from outer wall to outer wall", in the features on CT that cite 3 (2026-11-08; corrected 2026-11-20 to the words the check found on the page: the copy had an extra "up")'
     status: to_verify
     checked_by: ""
     page_check: "2026-11-16, not found on the page; the nearest words of the page: {\"dilated small bowel loops >2.5 cm up from outer wall to outer wall\": \"dilated small bowel loops >2.5 cm from outer wall to outer wall\"}"
@@ -222,6 +230,7 @@ rows:
     normal: {low: 16, high: 34}
     unit: mL/m2
     above_means: left atrial enlargement
+    above_hpo: HP:0031295   # Left atrial enlargement: the HPO name is the source's word (20 November 2026)
     source: {title: "Recommendations for cardiac chamber quantification by echocardiography in adults (Lang et al.)",
              publisher: "European Heart Journal - Cardiovascular Imaging 2015;16:233-271",
              url: "https://orbi.uliege.be/bitstream/2268/181887/1/eur%20hj%20ci%202015%2016%20233%20lang%20badano.pdf",
@@ -340,7 +349,8 @@ rows:
     source: {title: "Thoracic aortic aneurysm", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thoracic-aortic-aneurysm",
              section: "terminology", ref: "12", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"the axial diameter is >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta" (2026-11-08)'
-    status: to_verify
+    status: doubt
+    doubt: "the page writes 'Previously, the term aneurysm was used when the axial diameter exceeded >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta 12': a definition the page calls past; the current one is to be read in a guideline (20 November 2026)"
     checked_by: ""
     page_check: "2026-11-16, not found on the page; the nearest words of the page: {\"the axial diameter is >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta\": \"Previously, the term aneurysm was used when the axial diameter exceeded >5.0 cm for the ascending aorta and >4.0 cm for the descending aorta 12 .\"}"
   - id: adrenal-limb-width

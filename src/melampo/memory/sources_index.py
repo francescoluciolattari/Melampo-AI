@@ -276,9 +276,39 @@ def page_text(raw: bytes, content_type: str = "") -> str:
                                       timeout=120).stdout.decode("utf-8", "replace")
             except (OSError, subprocess.SubprocessError):
                 return ""
-    text = raw.decode("utf-8", "replace")
-    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
-    return html.unescape(re.sub(r"<[^>]+>", " ", text))
+    return _html_words(raw.decode("utf-8", "replace"))
+
+
+def _html_words(page: str) -> str:
+    """The words of an HTML page, by an HTML parser (20 November 2026): the regular expression that removed
+    "<...>" also removed the words after a bare "<" written in the text ("depth: <2 cm"), up to the next ">", and
+    rows whose words are on the page were reported missing."""
+    from html.parser import HTMLParser
+
+    class Words(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.out: list[str] = []
+            self.skip = 0
+
+        def handle_starttag(self, tag, attrs):
+            if tag in ("script", "style", "noscript", "template"):
+                self.skip += 1
+            self.out.append(" ")
+
+        def handle_endtag(self, tag):
+            if tag in ("script", "style", "noscript", "template") and self.skip:
+                self.skip -= 1
+            self.out.append(" ")
+
+        def handle_data(self, data):
+            if not self.skip:
+                self.out.append(data)
+
+    parser = Words()
+    parser.feed(page)
+    parser.close()
+    return "".join(parser.out)
 
 
 def _squash(text: str) -> str:
@@ -326,6 +356,8 @@ def mark_rows(values: Path, results: dict[str, dict[str, Any]], today: str | Non
         if not m:
             continue
         block = m.group(0)
+        if re.search(r"(?m)^    status: doubt$", block):
+            continue        # a row in doubt says why; the check does not promote it (20 November 2026)
         new = re.sub(r"(?m)^    (status|checked_by|page_check): .*\n", "", block)
         if res.get("found"):
             line = (f"    status: verified\n    checked_by: \"the words found on the page by the sources-index check, "

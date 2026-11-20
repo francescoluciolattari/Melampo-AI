@@ -9,6 +9,11 @@ its branch, with the words and their place.
   (``memory.exam_area``).
 - ``add_laboratory``: the rows of ``data.lab_results.extract_lab_results`` -> one measurement per row, its words
   the printed line.
+- ``add_measures``: the measures of the reports that the readers compared with a verified row of the reference
+  library (``memory.reference_values``; the reading's ``statements`` of kind ``measure``) -> one measurement each,
+  its words the report's, the row's range beside it and the comparison computed again from the number, never
+  taken from a model (20 November 2026). The row's deviation (``above_hpo``: "Splenomegaly") lets the diagnostic
+  path count the manifestation present, or absent when the measure is within the range.
 - ``add_imprint``: an image's imprint (``memory.visual_imprint``) -> one imprint node under its study.
 - ``add_medications``: the drugs and supplements as the payload lists them; a drug without the words it was
   written with is refused, never invented.
@@ -119,6 +124,52 @@ def add_laboratory(graph: cg.CaseGraph, document_id: str, text: str, extraction:
         graph.measurements.append(m)
         out.append(m)
     return out
+
+
+def add_measures(graph: cg.CaseGraph, statements: Iterable[dict[str, Any]], texts: dict[str, str],
+                 references: Any = None) -> tuple[list[cg.Measurement], list[str]]:
+    """One measurement per measure a reader compared with a row of the reference library. Only verified rows; the
+    number is read again from the report's words and compared with the row here. Returns the measurements and the
+    notes of what was left out (a row not verified, no number in the row's unit)."""
+    from ..memory import reference_values as rv
+
+    measures = [s for s in statements if s.get("statement") == "measure" and s.get("reference")]
+    if not measures:
+        return [], []
+    references = references or rv.ReferenceValues.load()
+    added, notes = [], []
+    for st in measures:
+        row = references.by_id.get(st["reference"])
+        words, document = str(st.get("piece") or "").strip(), str(st.get("report") or "")
+        if row is None or row.status != rv.VERIFIED:
+            notes.append(f"measure {words!r}: row {st['reference']!r} is not a verified row of the library")
+            continue
+        found = [m for m in rv.measures_in(words) if m["unit"] == row.unit]
+        if not words or not found or document not in texts:
+            notes.append(f"measure {words!r}: no number in {row.unit} or no document")
+            continue
+        text = texts[document]
+        start = text.find(words)
+        clause = str(st.get("clause") or "")
+        if start < 0 and clause:
+            at = text.find(clause)
+            start = at + clause.find(words) if at >= 0 and words in clause else -1
+        add_document(graph, document, "imaging_report")
+        value = found[0]["value"]
+        m = cg.Measurement(
+            measurement_id=f"{document}#r{_digest(document, words, row.id)}", document=document,
+            analyte=f"{st.get('structure', '')} {row.aspect}".strip(), value=value,
+            provenance=cg.Provenance(document=document, words=words, start=start if start >= 0 else None,
+                                     end=start + len(words) if start >= 0 else None),
+            unit=row.unit,
+            reference={"row": row.id, "low": row.low, "high": row.high, "above_means": row.above_means,
+                       "below_means": row.below_means, "above_hpo": row.above_hpo, "below_hpo": row.below_hpo,
+                       "source": {k: row.source.get(k, "") for k in ("title", "publisher", "url", "section", "ref")}},
+            interpretation=rv.compare(value, row))
+        if graph.facts().get(m.measurement_id) is None:
+            graph.measurements.append(m)
+            added.append(m)
+    return added, notes
 
 
 def add_imprint(graph: cg.CaseGraph, document_id: str, imprint: dict[str, Any], *, study: str = "",
@@ -249,12 +300,17 @@ def from_ingestion(case_id: str, note: str, bundle: Any, reading: dict[str, Any]
         exam_areas=exam_areas)
     for r in reports:
         add_report(graph, r["document"], r["text"], r["reading"], kind=r["kind"], exam_areas=exam_areas)
+    try:
+        notes += add_measures(graph, (reading or {}).get("statements") or [], texts)[1]
+    except (OSError, ValueError, ImportError) as error:      # the library could not be read: the case goes on
+        notes.append(f"measures not added: {type(error).__name__}")
     notes = [n for n in notes if "is not in the case" not in n] + graph.validate()
     return graph, sorted(set(notes))
 
 
 __all__ = [
     "add_declared_diseases",
+    "add_measures",
     "add_document",
     "add_imprint",
     "add_laboratory",

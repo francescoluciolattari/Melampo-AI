@@ -46,3 +46,4 @@ data/loinc/index.json
 
 # Closed PDFs of the personal library (scripts/sources_mask.py): read on this computer, never committed
 data/private/
+pages_not_found/

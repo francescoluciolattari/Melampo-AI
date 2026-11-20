@@ -308,3 +308,29 @@ def test_a_manifestation_reported_by_one_source_weighs_less_than_one_established
     by = {r.disease_id: r for r in rank([a, b], background_frequencies={})}
     assert 0 < by["a"].log10_odds < by["b"].log10_odds
     assert "reported by one source" in by["a"].contributions[0].note
+
+
+def test_a_measure_against_a_verified_row_becomes_the_manifestation_present_or_absent():
+    """20 November 2026: "spleen 15 cm" compared with the verified row whose deviation above is Splenomegaly."""
+    from melampo.clinical.case_graph_builder import add_measures
+    from melampo.clinical.manifestation_state import assess
+
+    text = "Milza di dimensioni aumentate, diametro longitudinale 15 cm."
+    piece = "diametro longitudinale 15 cm"
+    statements = [{"statement": "measure", "structure": "spleen", "piece": piece, "reference": "spleen-length-us",
+                   "against": "above", "clause": text, "report": "rep-1"},
+                  {"statement": "measure", "structure": "portal_vein_and_splenic_vein", "piece": "calibro 16 mm",
+                   "reference": "portal-vein-diameter-ct", "against": "above", "clause": "", "report": "rep-1"}]
+    graph = cg.CaseGraph("case-m")
+    added, notes = add_measures(graph, statements, {"rep-1": text})
+    assert len(added) == 1 and "not a verified row" in notes[0]          # the row in doubt is left out
+    m = added[0]
+    assert (m.value, m.unit, m.interpretation) == (150.0, "mm", "above")
+    assert text[m.provenance.start:m.provenance.end] == piece and graph.validate() == []
+    spleno = cg.Manifestation("s", "Splenomegaly", cg.Concept("HPO", "HP:0001744"), citations=[{"id": "x"}])
+    assert assess(spleno, graph).state == cg.PRESENT
+    normal = cg.CaseGraph("case-n")
+    add_measures(normal, [{**statements[0], "piece": "diametro longitudinale 10 cm"}],
+                 {"rep-1": "Milza nei limiti, diametro longitudinale 10 cm."})
+    state = assess(spleno, normal)
+    assert (state.state, state.basis) == (cg.ABSENT, cg.MEASURED)

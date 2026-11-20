@@ -90,3 +90,26 @@ def test_a_missing_quotation_shows_what_the_page_says():
     assert not res["found"] and res["missing"] == ["normal diameter of 7-13 mm", "but may vary up to 15 mm 11"]
     assert "up to 15 mm in deep inspiration" in res["nearest"]["but may vary up to 15 mm 11"]
     assert si.quoted_pieces('table 4, "16-34" mL/m2') == ["16-34"]       # a short piece with a number counts
+
+
+def test_a_bare_less_than_sign_does_not_hide_the_words_after_it():
+    """20 November 2026: the regular expression that removed tags also removed "<2 cm ... >" from the page, and
+    rows whose words were there were reported missing."""
+    from melampo.memory import sources_index as si
+
+    page = (b"<ul><li>depth or anterior-posterior dimension: <2 cm</li><li>isthmus <0.5 cm deep</li></ul>"
+            b"<p>body should measure &le;8 mm and limbs &#8804;5 mm <sup>9</sup></p><script>a<b</script>")
+    text = si.page_text(page, "text/html")
+    for quoted in ('"depth or anterior-posterior dimension: <2 cm"', '"isthmus <0.5 cm deep"',
+                   '"body should measure ≤8 mm and limbs ≤5 mm 9"'):
+        assert si.check_quote(quoted, text)["found"], quoted
+    assert "a<b" not in text
+
+
+def test_a_row_in_doubt_is_not_promoted_by_the_check(tmp_path):
+    from melampo.memory import sources_index as si
+
+    values = tmp_path / "values.yml"
+    values.write_text("rows:\n  - id: r1\n    unit: mm\n    status: doubt\n    doubt: \"a mean, not a limit\"\n")
+    si.mark_rows(values, {"r1": {"found": True, "page_sha256": "x"}}, today="2026-11-20")
+    assert "status: doubt" in values.read_text() and "verified" not in values.read_text()
