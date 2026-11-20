@@ -1,0 +1,53 @@
+name: literature-reader-bench
+
+# Which readers read the literature best (20 November 2026): the same texts, the same two judges (neither a reader),
+# three configurations (A: Nemotron + Gemma without reasoning; B: Nemotron + Muse with reasoning and room to
+# finish; C: the same with the reasoning capped). The rule was written before the run (scripts/literature_reader_
+# bench.py). The run stops before the budget.
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "USD, the run stops before passing it"
+        default: "5"
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The open sources
+        run: |
+          set -e
+          curl -sSL --fail -o mondo.obo https://purl.obolibrary.org/obo/mondo.obo
+          curl -sSL --fail -o hp.obo https://purl.obolibrary.org/obo/hp.obo
+          curl -sSL --fail -o phenotype.hpoa \
+            https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/phenotype.hpoa
+      - name: Bench
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          mkdir -p out
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "The secret OPENROUTER_API_KEY is empty or missing." | tee out/run.log
+            exit 1
+          fi
+          python3 scripts/literature_reader_bench.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
+            --budget "${{ github.event.inputs.budget }}" --out out/bench.json 2>&1 | tee out/run.log
+          tail -40 out/run.log >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: literature-reader-bench
+          path: out
+          if-no-files-found: error
+          retention-days: 30
