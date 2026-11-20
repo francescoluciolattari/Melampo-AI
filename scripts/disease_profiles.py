@@ -61,7 +61,11 @@ READERS = {"nemotron-3-ultra-reasoning": ("nvidia/nemotron-3-ultra-550b-a55b", T
            "muse-spark-open-reasoning": ("meta/muse-spark-open", True)}
 JUDGES = {"claude-sonnet-5": ("anthropic/claude-sonnet-5", False), "gemma-4-31b": ("google/gemma-4-31b-it", False)}
 CONFIRMING_JUDGE = "claude-sonnet-5"
-READER_TOKENS, READER_REASONING_TOKENS = 14000, 4000
+# The readers read as they read the reports (owner's choice, 20 November 2026, after the reader bench): both with
+# their own reasoning, not capped, and room enough for Nemotron to finish. With the reasoning capped at 4,000 tokens
+# (configuration C of scripts/literature_reader_bench.py) Nemotron rewrote 20 sentences of 14 texts instead of
+# copying them, and ran out of room once; with the reasoning free and 60,000 tokens (configuration B) it rewrote one.
+READER_TOKENS, READER_REASONING_TOKENS = 60000, None
 OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
 WIKIPEDIA = "https://en.wikipedia.org/w/api.php"
 EPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
@@ -81,25 +85,30 @@ class OpenRouter:
         self.last: dict = {}
 
     def chat(self, model: str, prompt: str, *, reasoning: bool = False, max_tokens: int = 3000,
-             reasoning_tokens: int = 1200) -> str:
+             reasoning_tokens: int | None = 1200) -> str:
         if self.cost >= self.budget:
             raise OverBudget(f"{self.cost:.4f} USD spent, budget {self.budget}")
         body = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0,
                 "max_tokens": max_tokens, "usage": {"include": True},
-                "reasoning": {"enabled": True, "max_tokens": reasoning_tokens} if reasoning else {"enabled": False}}
+                "reasoning": ({"enabled": True, "effort": "high"} if reasoning_tokens is None else
+                              {"enabled": True, "max_tokens": reasoning_tokens}) if reasoning else {"enabled": False}}
         got: dict = {}
         for attempt in range(3):
             req = urllib.request.Request(OPENROUTER, data=json.dumps(body).encode(), method="POST",
                                          headers={"Authorization": f"Bearer {self.key}",
                                                   "Content-Type": "application/json"})
             try:
-                with urllib.request.urlopen(req, timeout=240) as r:
+                with urllib.request.urlopen(req, timeout=900 if reasoning else 240) as r:
                     got = json.loads(r.read())
                 break
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
                 if isinstance(error, urllib.error.HTTPError) and error.code == 400 and "reasoning" in body:
                     body.pop("reasoning")          # a provider that does not take the reasoning switch
                     continue
+                if isinstance(error, urllib.error.HTTPError) and error.code in (401, 402):
+                    # no credit or no key: every further call would fail the same way (20 November 2026: the
+                    # reader bench retried 402s for hours until its timeout)
+                    raise OverBudget(f"OpenRouter answered {error.code}: no credit or no key") from error
                 if attempt == 2:
                     print(f"  {model}: {error}", file=sys.stderr)
                     return ""
@@ -421,6 +430,9 @@ def main(argv=None) -> int:
             row["cited"] = dict(row["cited"])
         rows.append(row)
         print(json.dumps(row), flush=True)
+        # what is done is kept at once: an interrupted run loses nothing (20 November 2026)
+        Path(args.out).write_text(json.dumps({"summary": {"partial": True, "rows": rows}, "profiles": profiles,
+                                              "links": pilot.links}, indent=1, ensure_ascii=False))
         if stopped:
             break
     cost_profiles = router.cost

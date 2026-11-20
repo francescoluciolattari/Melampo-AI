@@ -1000,6 +1000,7 @@ class ClinicalInferencePipeline:
             governance_scores=governance_scores,
         )
         intuition_engine = components["intuition_engine"]
+        graph_candidates = self._graph_candidates_for(payload.get("findings") or [])
         intuition = intuition_engine.infer(
             case_id=case.case_id,
             ranked_evidence=ranked_evidence,
@@ -1007,7 +1008,7 @@ class ClinicalInferencePipeline:
             quantum_allowed=quantum_allowed,
             area_signals=area_signals,
             area_dynamics=area_dynamics,
-            graph_candidates=self._graph_candidates_for(payload.get("findings") or []),
+            graph_candidates=graph_candidates,
         )
         evidence = self._coordination_evidence(
             bundle=bundle,
@@ -1072,4 +1073,30 @@ class ClinicalInferencePipeline:
         pipeline_result["routing_reason"] = routing_reason
         # the graph of the case: counts only here, the graph itself stays in the case's provenance
         pipeline_result["case_graph"] = dict(case.provenance.get("case_graph_summary") or {})
+        # the diagnostic path on the graph: profiles, candidates, states, ranking (20 November 2026)
+        pipeline_result["case_diagnosis"] = self._case_diagnosis(case, graph_candidates)
         return pipeline_result
+
+    def _case_diagnosis(self, case: Any, proposals: list[dict[str, Any]]) -> dict[str, Any]:
+        """``reasoning.case_diagnosis`` on the case's graph, with the profiles of ``MELAMPO_DISEASE_PROFILES``
+        (loaded once per pipeline) and HPO's is_a from ``MELAMPO_HPO_OBO``. Without profiles it says so; an error
+        is reported, never raised: the diagnosis of the pipeline does not depend on it."""
+        data = (getattr(case, "provenance", None) or {}).get("case_graph")
+        if not data:
+            return {"status": "no_case_graph"}
+        try:
+            from ..clinical.case_graph import CaseGraph
+            from ..memory.profile_library import ProfileLibrary
+            from .case_diagnosis import diagnose, hpo_below
+
+            if not hasattr(self, "_profile_library"):
+                self._profile_library = ProfileLibrary.from_env()
+                self._hpo_below = hpo_below(os.environ.get("MELAMPO_HPO_OBO", "").strip())
+            if self._profile_library is None:
+                return {"status": "no_profiles_configured"}
+            graph = CaseGraph.from_dict(data)
+            result = diagnose(graph, self._profile_library, proposals=proposals, below=self._hpo_below)
+            case.provenance["case_graph"] = graph.as_dict()
+            return {"status": "ok", **result}
+        except Exception as error:  # noqa: BLE001
+            return {"status": f"failed:{type(error).__name__}:{error}"[:300]}

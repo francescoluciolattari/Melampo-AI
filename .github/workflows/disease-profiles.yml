@@ -30,7 +30,7 @@ permissions:
 jobs:
   pilot:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,6 +67,13 @@ jobs:
           python3 scripts/disease_profiles.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
             --doid-owl doid.owl --symp symp.obo --budget "${{ github.event.inputs.budget }}" --gold "${{ github.event.inputs.gold }}" \
             --out out/profiles.json $extra ${diagnoses:+"$diagnoses"} 2>&1 | tee -a out/run.log "$GITHUB_STEP_SUMMARY"
+      - name: The names of the profiled diseases (MONDO, Wikidata in Italian and English)
+        if: always()
+        run: |
+          if [ -f out/profiles.json ]; then
+            python3 scripts/disease_names.py --profiles out/profiles.json --mondo mondo.obo --out out/names.json \
+              2>&1 | tee -a out/run.log || true
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
