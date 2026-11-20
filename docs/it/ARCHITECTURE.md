@@ -73,6 +73,10 @@ etichetta confermata).
 | Memory retriever | `memory/retriever.py` | **difetto**: inventa prove quando la memoria è vuota |
 | Aree funzionali | `areas/*` | contano chiavi di dizionario, non il contenuto: da rifare |
 | Ramo nexus, intuizione, differenziale | `training/nexus_*`, `reasoning/*` | funziona |
+| Grafo del caso | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | funziona: costruito nell'ingestione di ogni caso; quattro stati di una manifestazione |
+| Ramo dei farmaci | `clinical/drug_branch.py`, `scripts/drug_sources.py` | funziona quando la cache locale è configurata (`MELAMPO_DRUG_CACHE`) |
+| Profili delle malattie | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | costruiti: solo fonti certe, nessuna persona conferma; il run con i lettori definitivi è da fare |
+| Percorso diagnostico sul grafo | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | funziona quando i profili sono configurati (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` accanto alla diagnosi; il ciclo è da costruire |
 | Conferma e unione dei casi | `training/case_confirmation.py`, `training/patient_matching.py` | funziona |
 | Archivio dei casi confermati | `training/confirmed_case_store.py` | cifrato, anonimizzato (HMAC-SHA256) |
 | Feedback delle revisioni | `evaluation/review_feedback.py` | un record diventa etichetta solo dopo la conferma di una seconda persona |
@@ -157,11 +161,42 @@ documenti aggiunti col loro link (PMID, PMCID, DOI, indirizzo), PDF di una carte
 i PDF personali solo in un'esecuzione di ricerca (`--research`). Una fonte si attiva o disattiva, si aggiunge, si
 rimuove o riceve un PDF nella maschera (`scripts/sources_mask.py`); un nuovo tipo di fonte è una classe nel modulo
 dei connettori. Un PDF chiuso resta sul computer che lo ha (`data/private/`, mai committata). I lettori sono quelli
-dei referti (Nemotron 3 Ultra e Muse Spark Open, con ragionamento) e i giudici sono indipendenti da loro (Claude
+dei referti (Nemotron 3 Ultra e Muse Spark Open, con ragionamento; senza tetto dal 20 novembre 2026) e i giudici sono indipendenti da loro (Claude
 Sonnet 5, Gemma 4). Il termine HPO si sceglie nella stessa lettura (ogni lettore ne propone uno, deve esistere in
 HPO, i giudici lo confermano nella domanda a cui già rispondono) e si aggiunge accanto alle parole della fonte, che
 non scompaiono mai; ciò che i lettori chiamano fattore di rischio, sottotipo o meccanismo non è una manifestazione;
 lo stesso reperto in altre parole è una sola manifestazione.
+
+### I lettori della letteratura e il percorso diagnostico (20 novembre 2026)
+
+**Lettori.** La letteratura si legge come i referti: Nemotron 3 Ultra e Muse Spark Open, entrambi con il proprio
+ragionamento, senza tetto, e spazio sufficiente per finire (60.000 token). Il banco dei lettori
+(`scripts/literature_reader_bench.py`, workflow `literature-reader-bench`) ha letto gli stessi 14 testi con tre
+configurazioni; le frasi non presenti nel testo sono state 5 per Nemotron + Gemma senza ragionamento, 1 per
+Nemotron + Muse con ragionamento pieno, 20 con il ragionamento limitato a 4.000 token (Nemotron riscriveva le frasi
+invece di copiarle). I giudici del banco non sono partiti (credito finito): il proprietario ha scelto la
+configurazione dei referti. Una citazione che differisce dal testo solo per un apostrofo, un trattino o un punto
+elenco è la citazione del testo (correzione dichiarata dopo il run). Lo script dei profili si ferma subito quando
+OpenRouter non ha credito e scrive il suo file dopo ogni diagnosi.
+
+**Conoscenza.** I profili sono conoscenza, mai appresa dai pazienti: `memory/profile_library` li carica da
+`MELAMPO_DISEASE_PROFILES` (un `profiles.json` del workflow, o una cartella di file), con la versione data
+dall'hash del contenuto, che il grafo del caso registra nella sua fotografia. Una patologia si trova per concetto
+MONDO o per nome: i nomi in italiano e in inglese vengono da MONDO e Wikidata (`scripts/disease_names.py`, un passo
+di `disease-profiles`; `MELAMPO_DISEASE_NAMES`), così "sospetta appendicite acuta" trova "acute appendicitis"; un
+nome condiviso da due patologie non ne sceglie nessuna.
+
+**Il percorso diagnostico sul grafo** (`reasoning/case_diagnosis`, eseguito dalla pipeline e restituito come
+`case_diagnosis`, accanto alla diagnosi della pipeline, non al suo posto): le patologie presenti e ipotizzate
+ricevono il loro profilo; le candidate entrano solo dal percorso, dal differenziale che la pipeline calcola dai
+reperti e dai profili che spiegano reperti che nient'altro spiega (almeno due manifestazioni presenti); ogni
+manifestazione riceve il suo stato; ipotizzate e candidate sono ordinate insieme per rapporti di verosimiglianza,
+con il fondo calcolato su tutta la libreria. Il risultato dà i contributi di ogni patologia, i dubbi, gli esami da
+proporre (le manifestazioni non valutate delle prime tre patologie), i reperti ancora non spiegati e la versione
+della conoscenza. Ancora da fare: il ciclo fino a quando il differenziale non cambia più, l'esame successivo per
+informazione attesa, i farmaci come causa di una candidata, la valutazione sui casi pubblicati. Limite noto: una
+manifestazione senza frequenza né tipicità è registrata ma non pesa; i reperti senza concetto HPO si confrontano
+solo per parole (il passo reperto → termine HPO non è collegato).
 
 ## 5. Confini dei dati
 

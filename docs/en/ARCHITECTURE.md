@@ -72,6 +72,10 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Memory retriever | `memory/retriever.py` | **defect**: invents evidence when the memory is empty |
 | Functional areas | `areas/*` | count dictionary keys, not content: to redo |
 | Nexus branch, intuition, differential | `training/nexus_*`, `reasoning/*` | working |
+| Graph of the case | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | working: built in the ingestion of every case; four states of a manifestation |
+| Drug branch | `clinical/drug_branch.py`, `scripts/drug_sources.py` | working when the local cache is configured (`MELAMPO_DRUG_CACHE`) |
+| Disease profiles | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | built: certain sources only, no person confirms; the run with the final readers is to do |
+| Diagnostic path on the graph | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | working when the profiles are configured (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` beside the diagnosis; the cycle is to build |
 | Case confirmation and merge | `training/case_confirmation.py`, `training/patient_matching.py` | working |
 | Confirmed-case store | `training/confirmed_case_store.py` | encrypted, anonymised (HMAC-SHA256) |
 | Review feedback | `evaluation/review_feedback.py` | a record becomes a label only after a second person confirms it |
@@ -155,10 +159,40 @@ DOI, address), PDFs of a folder; PubMed abstracts, StatPearls and the personal P
 (`--research`). A source is switched on or off, added, removed, or given a PDF in the mask
 (`scripts/sources_mask.py`); a new kind of source is one class in the connectors' module. A closed PDF stays on the
 computer that has it (`data/private/`, never committed). The readers are the report readers (Nemotron 3 Ultra and
-Muse Spark Open, with reasoning) and the judges are independent of them (Claude Sonnet 5, Gemma 4). The HPO term is
+Muse Spark Open, with reasoning; uncapped since 20 November 2026) and the judges are independent of them (Claude Sonnet 5, Gemma 4). The HPO term is
 chosen in the same reading (each reader proposes one, it must exist in HPO, the judges confirm it in the question
 they already answer) and is added beside the source's words, which never disappear; what the readers call a risk
 factor, a subtype or a mechanism is not a manifestation; the same finding in other words is one manifestation.
+
+### The readers of the literature and the diagnostic path (20 November 2026)
+
+**Readers.** The literature is read as the reports are: Nemotron 3 Ultra and Muse Spark Open, both with their own
+reasoning, uncapped, and room enough to finish (60,000 tokens). The reader bench (`scripts/literature_reader_bench.py`,
+workflow `literature-reader-bench`) read the same 14 texts with three configurations; the sentences not found in the
+text were 5 for Nemotron + Gemma without reasoning, 1 for Nemotron + Muse with full reasoning, 20 with the reasoning
+capped at 4,000 tokens (Nemotron rewrote sentences instead of copying them). The judges of the bench did not run
+(no credit left): the owner chose the configuration of the reports. A quote that differs from the text only in an
+apostrophe, a dash or a list bullet is the text's quote (declared correction after the run). The profiles script
+stops at once when OpenRouter has no credit and writes its file after every diagnosis.
+
+**Knowledge.** The profiles are knowledge, never learnt from patients: `memory/profile_library` loads them from
+`MELAMPO_DISEASE_PROFILES` (a `profiles.json` of the workflow, or a folder of them), versioned by the hash of their
+content, which the case's graph records in its snapshot. A disease is found by its MONDO concept or by its name:
+the names in Italian and English come from MONDO and Wikidata (`scripts/disease_names.py`, a step of
+`disease-profiles`; `MELAMPO_DISEASE_NAMES`), so "sospetta appendicite acuta" finds "acute appendicitis"; a name
+shared by two diseases chooses neither.
+
+**The diagnostic path on the graph** (`reasoning/case_diagnosis`, run by the pipeline and returned as
+`case_diagnosis`, beside the pipeline's diagnosis, not in its place): the present and hypothesized diseases take
+their profile; candidates enter only from the path, from the differential the pipeline computes from the findings
+and from the profiles that account for findings nothing else explains (at least two of their manifestations
+present); every manifestation takes its state; hypothesized and candidate diseases are ranked together by
+likelihood ratios, the background taken from the whole library. The result gives each disease's contributions, the
+doubts, the exams to propose (the not-assessed manifestations of the first three diseases), the findings still
+unexplained and the version of the knowledge. Not yet done: the cycle until the differential stops changing, the
+next exam by expected information, the drugs as causes of a candidate, the evaluation on published cases. Known
+limit: a manifestation with neither a frequency nor a typicality is recorded but does not weigh; findings without
+an HPO concept are compared by their words only (the finding → HPO term step is not connected).
 
 ## 5. Data boundaries
 
