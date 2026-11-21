@@ -1,0 +1,76 @@
+name: disease-frequencies
+
+# How much each manifestation weighs (21 November 2026): frequencies, sensitivities, specificities and likelihood
+# ratios measured in studies of diagnostic accuracy and in descriptive studies, read for every disease of a
+# disease-profiles run, pooled by a random-effects model, kept apart by setting. Readers as for the reports, two
+# judges independent of them, no person. Rules fixed before the run: scripts/disease_frequencies.py.
+# profiles_run: the number of the disease-profiles run whose profiles.json is weighed (.../actions/runs/<number>).
+# resume_run: the number of a previous run of this workflow, to resume.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profiles_run:
+        description: "number of the disease-profiles run to weigh"
+        required: true
+      budget:
+        description: "USD, the run stops before passing it"
+        default: "5"
+      resume_run:
+        description: "number of a previous run of this workflow to resume (empty = start)"
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  weigh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m pip install --quiet pyyaml
+      - name: hp.obo
+        run: curl -sSL --fail -o hp.obo https://purl.obolibrary.org/obo/hp.obo
+      - name: The profiles
+        uses: actions/download-artifact@v4
+        with:
+          name: disease-profiles
+          path: profiles
+          run-id: ${{ github.event.inputs.profiles_run }}
+          github-token: ${{ github.token }}
+      - name: The previous run
+        if: github.event.inputs.resume_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: disease-frequencies
+          path: previous
+          run-id: ${{ github.event.inputs.resume_run }}
+          github-token: ${{ github.token }}
+      - name: Read, judge, pool
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          mkdir -p out
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "The secret OPENROUTER_API_KEY is empty or missing." | tee out/run.log
+            exit 1
+          fi
+          RESUME=""
+          [ -d previous ] && RESUME="--resume previous"
+          python3 scripts/disease_frequencies.py --profiles profiles/profiles.json --hpo hp.obo \
+            --out out/frequencies.json --budget "${{ github.event.inputs.budget }}" $RESUME 2>&1 | tee out/run.log
+          [ -f profiles/names.json ] && cp profiles/names.json out/
+          tail -40 out/run.log >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: disease-frequencies
+          path: out
+          if-no-files-found: error
+          retention-days: 30

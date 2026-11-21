@@ -198,6 +198,15 @@ informazione attesa, i farmaci come causa di una candidata, la valutazione sui c
 manifestazione senza frequenza né tipicità è registrata ma non pesa; i reperti senza concetto HPO si confrontano
 solo per parole (il passo reperto → termine HPO non è collegato).
 
+**Pesi misurati (21 novembre 2026).** `scripts/disease_frequencies.py` (workflow `disease-frequencies`) legge, per
+ogni patologia di un run dei profili, gli studi di accuratezza diagnostica (sensibilità, specificità, rapporti di
+verosimiglianza, con il contesto clinico e i pazienti senza la malattia su cui sono stati misurati) e gli studi
+descrittivi (quanti pazienti con la malattia hanno ogni manifestazione); i valori combinati di una meta-analisi si
+prendono come sono, gli studi singoli si combinano con un modello a effetti casuali sulla scala logit, i contesti
+restano separati; una parola di frequenza ("spesso") si usa solo quando manca un numero, tradotta nelle classi di
+frequenza di HPO, e pesa la metà. La classifica usa un rapporto di verosimiglianza misurato prima di qualsiasi
+frequenza, con il fondo dato dai pazienti che lo studio ha misurato.
+
 ## 5. Confini dei dati
 
 | Dati | Possono andare a | Non vanno mai a | Garantito da |

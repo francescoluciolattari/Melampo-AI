@@ -21,6 +21,11 @@ The weights that are not measured yet are named constants, not hidden numbers, t
   that does not mention a finding is weaker evidence than one that says it is not there.
 - ``EVIDENCE_WEIGHT``: a manifestation stated by one source only (``reported``) weighs half, in log space, of one
   two independent sources state (``established``).
+- ``VERBAL_WEIGHT``: a frequency given only by a word ("often", "rarely") weighs half, in log space (21 November
+  2026): such words are read very differently by different readers.
+- A manifestation with ``accuracy`` (sensitivity, specificity or likelihood ratios measured by studies of
+  diagnostic accuracy) weighs by those, its background being the patients without the disease the study measured,
+  not the library (21 November 2026).
 - ``FLOOR``: no frequency is taken as exactly 0 or 1, so no single fact decides alone (except ``EXCLUDES``).
 
 Not assessed and doubtful manifestations weigh nothing: the first become the exams to propose, the second stay in
@@ -39,6 +44,7 @@ from ..clinical import case_graph as cg
 
 TYPICALITY_FREQUENCY = {"hallmark": 0.9, "common": 0.5, "rare": 0.1, "excluding": 0.0}
 SILENCE_WEIGHT = 0.5
+VERBAL_WEIGHT = 0.5
 # a manifestation one source only states weighs less than one two independent sources state (15 November 2026)
 EVIDENCE_WEIGHT = {"established": 1.0, "reported": 0.5, "": 1.0}
 FLOOR = 0.01
@@ -75,6 +81,25 @@ def background(profiles: Iterable[cg.Disease]) -> dict[str, float]:
 
 def _clip(x: float) -> float:
     return min(1 - FLOOR, max(FLOOR, x))
+
+
+def _measured_lr(m: cg.Manifestation, state: str) -> tuple[float, str] | None:
+    """LR+ for a present manifestation, LR- for an absent one, from ``accuracy``: the likelihood ratio a study gives,
+    or the one its sensitivity and specificity give; None when the studies did not measure it."""
+    acc = m.accuracy or {}
+    sens, spec = acc.get("sensitivity"), acc.get("specificity")
+    where = f"measured ({acc.get('design', 'study')}, {acc.get('setting', 'setting not stated')})"
+    if state == cg.PRESENT:
+        lr = acc.get("lr_positive")
+        if lr is None and sens is not None and spec is not None:
+            lr = _clip(float(sens)) / _clip(1 - float(spec))
+        return (max(FLOOR, float(lr)), f"LR+ {float(lr):.2f} {where}") if lr is not None else None
+    if state == cg.ABSENT:
+        lr = acc.get("lr_negative")
+        if lr is None and sens is not None and spec is not None:
+            lr = _clip(1 - float(sens)) / _clip(float(spec))
+        return (max(FLOOR, float(lr)), f"LR- {float(lr):.2f} {where}") if lr is not None else None
+    return None
 
 
 @dataclass
@@ -129,6 +154,17 @@ def score(disease: cg.Disease, bg: dict[str, float], prior: float | None = None)
         if state.state == cg.DOUBTFUL:
             out.doubts.append(m.manifestation_id)
             continue
+        measured = _measured_lr(m, state.state)
+        if measured is not None:
+            # the likelihood ratio a study of diagnostic accuracy measured: its background is the patients without
+            # the disease it was measured against, not the library (21 November 2026)
+            lr, note = measured
+            if state.basis == cg.SILENT and state.state != cg.PRESENT:
+                lr, note = lr ** SILENCE_WEIGHT, note + f"; silent covering exam, weight {SILENCE_WEIGHT}"
+            out.contributions.append(Contribution(m.manifestation_id, m.words, state.state, state.basis,
+                                                  math.log10(lr), note))
+            out.log10_odds += math.log10(lr)
+            continue
         if f is None:
             out.contributions.append(Contribution(m.manifestation_id, m.words, state.state, state.basis, 0.0,
                                                   "no frequency or typicality: not weighed"))
@@ -144,6 +180,10 @@ def score(disease: cg.Disease, bg: dict[str, float], prior: float | None = None)
                 lr = lr ** SILENCE_WEIGHT
                 note = f"silent covering exam, weight {SILENCE_WEIGHT}"
         weight = EVIDENCE_WEIGHT.get(m.evidence, 1.0)
+        if m.frequency_basis == "verbal":
+            # a word of frequency ("often") is read very differently by different readers: the weakest evidence
+            weight *= VERBAL_WEIGHT
+            note = (note + "; " if note else "") + f"frequency from a word, weight {VERBAL_WEIGHT}"
         if weight != 1.0:
             lr = lr ** weight
             note = (note + "; " if note else "") + f"{m.evidence} by one source, weight {weight}"

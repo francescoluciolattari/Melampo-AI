@@ -208,6 +208,12 @@ class Manifestation(_Record):
     verified_by: list[dict[str, Any]] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
     evidence: str = ""                          # established (two independent sources or more), reported (one)
+    # what studies of diagnostic accuracy measured (21 November 2026): sensitivity, specificity, lr_positive,
+    # lr_negative, the setting and the patients without the disease they were measured against (comparator),
+    # studies, patients, design, ci, sources; the frequency it gives comes from the patients with the disease, the
+    # background from those without, both measured, none estimated
+    accuracy: dict[str, Any] = field(default_factory=dict)
+    frequency_basis: str = ""                   # pooled_studies, one_study, verbal (a word of frequency), typicality
     level: str = KNOWLEDGE
 
 

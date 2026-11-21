@@ -194,6 +194,15 @@ next exam by expected information, the drugs as causes of a candidate, the evalu
 limit: a manifestation with neither a frequency nor a typicality is recorded but does not weigh; findings without
 an HPO concept are compared by their words only (the finding → HPO term step is not connected).
 
+**Weights measured (21 November 2026).** `scripts/disease_frequencies.py` (workflow `disease-frequencies`) reads,
+for every disease of a profiles run, the studies of diagnostic accuracy (sensitivity, specificity, likelihood
+ratios, with their setting and the patients without the disease they were measured in) and the descriptive
+studies (how many patients with the disease have each manifestation); a meta-analysis's pooled values are taken
+as they are, single studies are pooled by a random-effects model on the logit scale, settings are kept apart; a
+word of frequency ("often") is used only when there is no number, mapped to HPO's frequency classes and weighing
+half. The ranking uses a measured likelihood ratio before any frequency, its background being the patients the
+study measured.
+
 ## 5. Data boundaries
 
 | Data | May go to | Never goes to | Enforced by |
