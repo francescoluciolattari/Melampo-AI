@@ -30,15 +30,38 @@ sys.path.insert(0, str(HERE.parent / "src"))
 from melampo.memory import disease_profiles as dp  # noqa: E402
 
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
-BATCH = 150
+BATCH = 40
 
 
-def query(ids: list[str]) -> str:
-    """The Wikidata items carrying these MONDO ids (P5270, written with or without the prefix), with their Italian
-    and English labels and aliases."""
-    values = " ".join(f'"{i}" "{i.split(":", 1)[1]}"' for i in ids)
-    return ("SELECT ?mondo ?name WHERE { VALUES ?mondo { " + values + " } ?item wdt:P5270 ?mondo . "
-            "{ ?item rdfs:label ?name } UNION { ?item skos:altLabel ?name } "
+# Wikidata properties by which an item is found, from the MONDO id or its cross-references (21 November 2026: the
+# first run found no item by the MONDO id alone; the Disease Ontology, MeSH and UMLS ids of the same disease are
+# carried by more items)
+PROPERTIES = {"MONDO": "P5270", "DOID": "P699", "MESH": "P486", "UMLS": "P2892"}
+
+
+def identifiers(mondo_id: str, xrefs: list[str]) -> list[tuple[str, str]]:
+    """(property, value as Wikidata writes it) for a disease: MONDO with and without its prefix, DOID with it,
+    MeSH and UMLS without."""
+    out = [("P5270", mondo_id), ("P5270", mondo_id.split(":", 1)[1])]
+    for x in xrefs:
+        prefix, _, local = x.partition(":")
+        prefix = prefix.upper()
+        if prefix == "DOID":
+            out.append(("P699", x))
+        elif prefix in ("MESH", "UMLS", "UMLS_CUI") and local:
+            out.append((PROPERTIES["MESH" if prefix == "MESH" else "UMLS"], local))
+    return out
+
+
+def query(ids: list[str], xrefs: dict[str, list[str]] | None = None) -> str:
+    """The Wikidata items carrying these diseases' identifiers, with their Italian and English labels and aliases;
+    each answer says which disease it is for (?mondo)."""
+    rows = []
+    for i in ids:
+        for prop, value in identifiers(i, (xrefs or {}).get(i, [])):
+            rows.append(f'("{i}" wdt:{prop} "{value}")')
+    return ("SELECT ?mondo ?name WHERE { VALUES (?mondo ?p ?v) { " + " ".join(rows) + " } "
+            "?item ?p ?v . { ?item rdfs:label ?name } UNION { ?item skos:altLabel ?name } "
             "FILTER(LANG(?name) = 'it' || LANG(?name) = 'en') }")
 
 
@@ -59,10 +82,14 @@ def ask(sparql: str) -> dict:
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
-                return json.loads(r.read())
+                raw = r.read()
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                print(f"wikidata: not JSON ({len(raw)} bytes): {raw[:200]!r}", flush=True)
+                return {}
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
-            if attempt == 2:
-                print(f"wikidata: {error}", file=sys.stderr)
+            print(f"wikidata: attempt {attempt + 1}: {error}", flush=True)
             time.sleep(5 * (attempt + 1))
     return {}
 
@@ -84,7 +111,9 @@ def main(argv=None) -> int:
     if not args.no_wikidata:
         ordered = sorted(ids)
         for start in range(0, len(ordered), BATCH):
-            for mondo_id, words in read(ask(query(ordered[start:start + BATCH]))).items():
+            got = ask(query(ordered[start:start + BATCH], mondo.xrefs))
+            print(json.dumps({"wikidata_answers": len(got.get("results", {}).get("bindings", []))}), flush=True)
+            for mondo_id, words in read(got).items():
                 if mondo_id in names:
                     names[mondo_id] |= words
                     found += 1

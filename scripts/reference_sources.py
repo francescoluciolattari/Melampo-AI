@@ -388,7 +388,8 @@ def main(argv=None) -> int:
         if task["kind"] == "primary":
             r = task["row"]
             refs = radiopaedia_references(r["source"].get("url", "")) if r["source"].get("url") else {}
-            wanted = [x.strip() for x in str(r["source"].get("ref", "")).split(",") if x.strip()]
+            # check_ref: the reference a revised page cites now for this measure (21 November 2026)
+            wanted = [x.strip() for x in str(r.get("check_ref") or r["source"].get("ref", "")).split(",") if x.strip()]
             found["refs"] = {n: refs.get(n) for n in wanted}
             for n in wanted:
                 ref = refs.get(n)

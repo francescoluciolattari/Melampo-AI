@@ -188,7 +188,9 @@ rows:
     source: {title: "Acute cholecystitis", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/acute-cholecystitis",
              section: "radiographic features: ultrasound", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"Both gallbladder wall thickening (>3 mm) and pericholecystic fluid are secondary findings." (no reference number; 2026-11-08)'
-    status: to_verify
+    status: doubt
+    doubt: "the page, revised, now writes 'gallbladder wall thickening ≥4 mm 20' among the signs of acute cholecystitis, no longer the >3 mm of this row: the value is to be read in the publication the page cites (ref 20) (21 November 2026)"
+    check_ref: "20"   # the reference the revised page cites now, read by reference-sources
     checked_by: ""
     page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"Both gallbladder wall thickening (>3 mm) and pericholecystic fluid are secondary findings.\": \"MRI MRI is sensitive in the detection of acute cholecystitis, with findings similar to those seen on ultrasound and CT 3 .\"}"
   - id: small-bowel-diameter-ct
@@ -364,7 +366,9 @@ rows:
     source: {title: "Adrenal gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/adrenal-gland",
              section: "radiographic appearance: cross-sectional imaging", ref: "9", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"body should measure ≤8 mm and limbs ≤5 mm 9" (right), "body should measure ≤10 mm and limbs ≤5 mm 9" (left) (2026-11-08)'
-    status: to_verify
+    status: doubt
+    doubt: "the page, rewritten, no longer gives the body and limb widths of this row (ref 9); it now writes 'The right adrenal gland has a maximum width of 6.1 mm and the left adrenal gland has a maximum width of 7.9 mm 6', which may be a mean of normal glands rather than a limit: to be read in the publication it cites (ref 6, Vincent 1994) (21 November 2026)"
+    check_ref: "6"   # the reference the revised page cites now, read by reference-sources
     checked_by: ""
     page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"body should measure ≤8 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\", \"body should measure ≤10 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\"}"
   - id: adrenal-body-width-right
@@ -378,7 +382,9 @@ rows:
     source: {title: "Adrenal gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/adrenal-gland",
              section: "radiographic appearance: cross-sectional imaging, right adrenal gland", ref: "9", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"body should measure ≤8 mm and limbs ≤5 mm 9" (2026-11-08)'
-    status: to_verify
+    status: doubt
+    doubt: "the page, rewritten, no longer gives the body and limb widths of this row (ref 9); it now writes 'The right adrenal gland has a maximum width of 6.1 mm and the left adrenal gland has a maximum width of 7.9 mm 6', which may be a mean of normal glands rather than a limit: to be read in the publication it cites (ref 6, Vincent 1994) (21 November 2026)"
+    check_ref: "6"   # the reference the revised page cites now, read by reference-sources
     checked_by: ""
     page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"body should measure ≤8 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\"}"
   - id: adrenal-body-width-left
@@ -392,7 +398,9 @@ rows:
     source: {title: "Adrenal gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/adrenal-gland",
              section: "radiographic appearance: cross-sectional imaging, left adrenal gland", ref: "9", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"body should measure ≤10 mm and limbs ≤5 mm 9" (2026-11-08)'
-    status: to_verify
+    status: doubt
+    doubt: "the page, rewritten, no longer gives the body and limb widths of this row (ref 9); it now writes 'The right adrenal gland has a maximum width of 6.1 mm and the left adrenal gland has a maximum width of 7.9 mm 6', which may be a mean of normal glands rather than a limit: to be read in the publication it cites (ref 6, Vincent 1994) (21 November 2026)"
+    check_ref: "6"   # the reference the revised page cites now, read by reference-sources
     checked_by: ""
     page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"body should measure ≤10 mm and limbs ≤5 mm 9\": \"Arterial supply The arterial supply is via three adrenal arteries 5 :\"}"
   - id: thyroid-lobe-length-us
@@ -419,7 +427,7 @@ rows:
     unit: mm
     source: {title: "Thyroid gland", publisher: Radiopaedia, url: "https://radiopaedia.org/articles/thyroid-gland",
              section: "radiographic appearance: ultrasound", ref: "10", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
-    quoted: '"depth or anterior-posterior dimension: <2 cm" (2026-11-08)'
+    quoted: '"depth or anteroposterior dimension: <2 cm" (2026-11-08; corrected 2026-11-21 to the words the check read on the page: "anteroposterior", not "anterior-posterior")'
     status: to_verify
     checked_by: ""
     page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"depth or anterior-posterior dimension: <2 cm\": \"Radiology of Infectious and Inflammatory Diseases - Volume 2.\"}"

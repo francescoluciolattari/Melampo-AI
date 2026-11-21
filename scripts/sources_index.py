@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -30,10 +31,19 @@ from melampo.memory.reference_values import VALUES, ReferenceValues
 AGENT = "Melampo-sources-index/1.0 (research; https://github.com/francescoluciolattari/Melampo-AI)"
 
 
+PMC_ARTICLE = re.compile(r"^https?://(?:pmc\.ncbi\.nlm\.nih\.gov|www\.ncbi\.nlm\.nih\.gov/pmc)/articles/(PMC\d+)", re.I)
+
+
 def _get(url: str, timeout: int = 60) -> tuple[bytes, str]:
-    req = Request(url, headers={"User-Agent": AGENT, "Accept": "text/html,application/pdf,application/json"})
+    # An article of PubMed Central is read from Europe PMC, the same open text (21 November 2026): PMC answers the
+    # runners of GitHub with a reCAPTCHA page, and the row of the inferior vena cava could not be checked.
+    pmc = PMC_ARTICLE.match(url)
+    if pmc:
+        url = f"https://www.ebi.ac.uk/europepmc/webservices/rest/{pmc.group(1)}/fullTextXML"
+    req = Request(url, headers={"User-Agent": AGENT, "Accept": "text/html,application/xml,application/pdf,application/json"})
     with urlopen(req, timeout=timeout) as r:
-        return r.read(), r.headers.get("Content-Type", "")
+        raw, ctype = r.read(), r.headers.get("Content-Type", "")
+    return raw, ("text/html" if pmc else ctype)          # the article's XML read by the HTML parser, word by word
 
 
 def _json(url: str):

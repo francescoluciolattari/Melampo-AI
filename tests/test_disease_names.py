@@ -19,8 +19,11 @@ synonym: "appendicitis, acute" EXACT []
 
 
 def test_the_query_asks_both_ways_of_writing_the_id():
-    q = names.query(["MONDO:0004974"])
-    assert '"MONDO:0004974" "0004974"' in q and "wdt:P5270" in q
+    q = names.query(["MONDO:0004974"], {"MONDO:0004974": ["DOID:8337", "MESH:D001064", "UMLS:C0003615"]})
+    for part in ('("MONDO:0004974" wdt:P5270 "MONDO:0004974")', '("MONDO:0004974" wdt:P5270 "0004974")',
+                 '("MONDO:0004974" wdt:P699 "DOID:8337")', '("MONDO:0004974" wdt:P486 "D001064")',
+                 '("MONDO:0004974" wdt:P2892 "C0003615")'):
+        assert part in q, part
 
 
 def test_wikidata_answers_are_read_with_the_prefix():
