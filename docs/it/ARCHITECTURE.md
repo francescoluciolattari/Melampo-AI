@@ -207,6 +207,26 @@ restano separati; una parola di frequenza ("spesso") si usa solo quando manca un
 frequenza di HPO, e pesa la metà. La classifica usa un rapporto di verosimiglianza misurato prima di qualsiasi
 frequenza, con il fondo dato dai pazienti che lo studio ha misurato.
 
+**Una revisione sistematica per ogni patologia (22 novembre 2026).** `scripts/disease_review.py` (workflow
+`disease-review`) prende il posto di `disease-profiles` e `disease-frequencies`: per ogni patologia, il metodo di una
+revisione sistematica (PRISMA) con i lettori e i giudici di Melampo. I suoi nomi (MONDO, sinonimi; Europe PMC
+espande da sé i sinonimi MeSH); lo strato curato (annotazioni HPO con Orphanet, Disease Ontology); tutte le fonti a
+strati, ciascuna letta fino in fondo pagina dopo pagina: le fonti dell'indice accese nella maschera, poi su Europe
+PMC linee guida, Rational Clinical Examination, revisioni sistematiche della diagnosi, studi di accuratezza
+diagnostica, serie descrittive, revisioni, casi clinici; esclusi i titoli su un'altra causa o forma, prognosi,
+terapia, fattori di rischio, epidemiologia; ogni abstract selezionato (Gemma 4) prima di leggere il testo; due
+lettori, la frase e i suoi numeri nel testo, due giudici che dicono anche che cos'è (manifestazione, esame,
+punteggio, esito, fattore di rischio) e a quale manifestazione nota corrisponde; ogni manifestazione curata che
+nessun testo ha detto cercata da sola; i pesi nell'ordine di `disease_frequencies`. Esami e punteggi vanno in
+`tests.json` e `scores.json`.
+
+**Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).
+`--saturation N`: la revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono
+nessuna manifestazione. Il minimo è 5 (un valore più piccolo è portato a 5); `0` vuol dire nessun limite: si
+legge ogni testo di ogni strato, fino a esaurimento delle fonti. Nessun altro limite è fissato prima; solo il
+budget ferma un run, e il run successivo riprende da lì (`resume_run`). Per ogni patologia si scrive la curva
+dei testi letti e delle manifestazioni aggiunte (`curves.json`).
+
 ## 5. Confini dei dati
 
 | Dati | Possono andare a | Non vanno mai a | Garantito da |

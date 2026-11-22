@@ -203,6 +203,24 @@ word of frequency ("often") is used only when there is no number, mapped to HPO'
 half. The ranking uses a measured likelihood ratio before any frequency, its background being the patients the
 study measured.
 
+**A systematic review of every disease (22 November 2026).** `scripts/disease_review.py` (workflow
+`disease-review`) takes the place of `disease-profiles` and `disease-frequencies`: for each disease, the method of a
+systematic review (PRISMA) with Melampo's readers and judges. Its names (MONDO, synonyms; Europe PMC expands MeSH);
+the curated layer (HPO annotations with Orphanet, Disease Ontology); every source in layers, each read to its end
+page after page: the sources of the index switched on in the mask, then Europe PMC's guidelines, the Rational
+Clinical Examination, systematic reviews of diagnosis, studies of diagnostic accuracy, descriptive series,
+reviews, case reports; titles on another cause or form, prognosis, treatment, risk factors or epidemiology left
+out; each abstract screened (Gemma 4) before the text is read; two readers, the sentence and its numbers in the
+text, two judges who also say what it is (manifestation, test, score, outcome, risk factor) and which known
+manifestation it is; each curated manifestation no text stated searched by itself; the weights by the order of
+`disease_frequencies`. Exams and scores go to `tests.json` and `scores.json`.
+
+**When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:
+the review of a disease stops when N texts in a row, read and judged, add no manifestation. The least is 5 (a
+smaller value is raised to 5); `0` means no limit: every text of every layer is read, to the end of the sources.
+No other limit is set beforehand; only the budget stops a run, and the next run resumes from it (`resume_run`).
+The curve of texts read and manifestations added is written for every disease (`curves.json`).
+
 ## 5. Data boundaries
 
 | Data | May go to | Never goes to | Enforced by |

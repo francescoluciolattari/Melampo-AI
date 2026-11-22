@@ -1,0 +1,98 @@
+name: disease-review
+
+# A systematic review of every disease, by machine (22 November 2026): all its manifestations from all the sources
+# (the curated ones, the sources of the index switched on in the mask, then Europe PMC layer by layer: guidelines,
+# Rational Clinical Examination, systematic reviews, accuracy studies, descriptive series, reviews, case reports),
+# each with its sentence, and their weights (likelihood ratios, frequencies). Readers as for the reports, two judges
+# independent of them, no person. It takes the place of disease-profiles and disease-frequencies.
+# saturation: a disease's review stops when that many texts in a row add no manifestation; at least 5; 0 = no
+# limit, every text to the end of the sources (the owner's rule: no limit set beforehand beyond the least).
+# resume_run: the number of a previous run of this workflow (.../actions/runs/<number>), to go on from it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      diagnoses:
+        description: "comma-separated"
+        default: "acute appendicitis,pneumonia"
+      saturation:
+        description: "texts in a row adding nothing before stopping (at least 5; 0 = to the end of the sources)"
+        default: "5"
+      targeted:
+        description: "texts searched for each curated manifestation no text has stated"
+        default: "3"
+      budget:
+        description: "USD, the run stops before passing it"
+        default: "5"
+      resume_run:
+        description: "number of a previous run of this workflow to resume (empty = start)"
+        default: ""
+      research:
+        description: "also the research-only sources of the index"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The open sources
+        run: |
+          set -e
+          python3 -m pip install --quiet pyyaml
+          curl -sSL --fail -o mondo.obo https://purl.obolibrary.org/obo/mondo.obo
+          curl -sSL --fail -o hp.obo https://purl.obolibrary.org/obo/hp.obo
+          curl -sSL --fail -o phenotype.hpoa \
+            https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/phenotype.hpoa
+          curl -sSL --fail -o doid.owl https://purl.obolibrary.org/obo/doid.owl
+          curl -sSL --fail -o symp.obo https://purl.obolibrary.org/obo/symp.obo
+      - name: The previous run
+        if: github.event.inputs.resume_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: disease-review
+          path: previous
+          run-id: ${{ github.event.inputs.resume_run }}
+          github-token: ${{ github.token }}
+      - name: Review
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          python3 -m pip install --quiet pyyaml
+          mkdir -p out
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "The secret OPENROUTER_API_KEY is empty or missing." | tee out/run.log
+            exit 1
+          fi
+          EXTRA=""
+          [ -d previous ] && EXTRA="--resume previous"
+          [ "${{ github.event.inputs.research }}" = "true" ] && EXTRA="$EXTRA --research"
+          python3 scripts/disease_review.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
+            --doid-owl doid.owl --symp symp.obo --diagnoses "${{ github.event.inputs.diagnoses }}" \
+            --saturation "${{ github.event.inputs.saturation }}" --targeted "${{ github.event.inputs.targeted }}" \
+            --budget "${{ github.event.inputs.budget }}" --out out/profiles.json $EXTRA 2>&1 | tee out/run.log
+      - name: The names of the reviewed diseases (MONDO, Wikidata)
+        if: always()
+        run: |
+          if [ -f out/profiles.json ]; then
+            python3 scripts/disease_names.py --profiles out/profiles.json --mondo mondo.obo --out out/names.json \
+              2>&1 | tee -a out/run.log || true
+          fi
+          [ -f out/summary.json ] && cat out/summary.json >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: disease-review
+          path: out
+          if-no-files-found: error
+          retention-days: 30
