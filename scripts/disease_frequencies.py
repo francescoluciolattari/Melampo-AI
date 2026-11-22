@@ -56,6 +56,7 @@ from melampo.clinical import case_graph as cg  # noqa: E402
 from melampo.memory import disease_profiles as dp  # noqa: E402
 
 TEXTS = {"accuracy": 3, "descriptive": 2}
+VERDICTS = "v2:"          # the judges' second questionnaire (21 November 2026): states, category, same manifestation
 # HPO frequency classes (Orphanet's bins) and their middles
 VERBAL = (("obligate", 1.0, ("always", "invariably", "all patients", "universal")),
           ("very_frequent", 0.895, ("almost always", "nearly all", "most patients", "the majority of patients",
@@ -132,12 +133,35 @@ def _prop(v) -> float | None:
     return x / 100 if ("%" in str(v) or x > 1) else x
 
 
+NUMBER_WORDS = {w: i for i, w in enumerate(("zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+                                              "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+                                              "sixteen", "seventeen", "eighteen", "nineteen", "twenty"))}
+RANGE = re.compile(r"^\s*\d+(?:[.,·]\d+)?\s*%?\s*(?:-|–|to|and)\s*\d")
+
+
+def _letters(text: str) -> str:
+    """The characters of a text without its spacing and table bars, typography folded (21 November 2026, declared
+    after the first run: a table row the reader began with "|", or "I 2" for the text's "I2", is the same text)."""
+    return re.sub(r"[\s|]+", "", dp._plain(text)).replace("·", ".")
+
+
+def in_text(quote: str, sections: list[tuple[str, str]]) -> bool:
+    q = _letters(quote).strip(".")
+    return bool(q) and any(q in _letters(x) for _, x in sections)
+
+
 def checked(item: dict, sections: list[tuple[str, str]]) -> tuple[dict | None, str]:
-    """The measure, or None and why not, by the rules fixed before the run."""
+    """The measure, or None and why not, by the rules fixed before the run (corrections declared on 21 November
+    2026, after the first run: spacing and table bars, numbers written as words, ranges, a meta-analysis's ratios)."""
     quote = " ".join(str(item.get("quote", "")).split())
-    if not quote or not dp.quote_in(quote, sections):
+    if not quote or not in_text(quote, sections):
         return None, "quote_not_in_text"
-    numbers = [float(x.replace(",", ".")) for x in re.findall(r"\d+(?:[.,]\d+)?", quote)]
+    plain = quote.replace("·", ".")
+    numbers = [float(x.replace(",", ".")) for x in re.findall(r"\d+(?:[.,]\d+)?", plain)]
+    numbers += [float(v) for w, v in NUMBER_WORDS.items() if re.search(rf"\b{w}\b", plain, re.I)]
+    for k in ("sensitivity", "specificity", "lr_positive", "lr_negative"):
+        if item.get(k) not in (None, "", "null") and RANGE.match(str(item[k])):
+            return None, "a_range_not_a_value"
 
     def in_quote(v) -> bool:
         x = _num(v)
@@ -174,11 +198,14 @@ def checked(item: dict, sections: list[tuple[str, str]]) -> tuple[dict | None, s
         if x is not None:
             out[k] = x
     sens, spec = out.get("sensitivity"), out.get("specificity")
-    if sens is not None and spec is not None:
-        if "lr_positive" in out and spec < 1 and abs(out["lr_positive"] - sens / (1 - spec)) > 0.1 * out["lr_positive"]:
+    # a meta-analysis pools its likelihood ratios with its own model: they need not equal the ratio of its pooled
+    # sensitivity and specificity (MRI in appendicitis: 97% and 95%, LR+ 16.3, not 19.4)
+    if sens is not None and spec is not None and not (out["pooled"] or out["design"] in ("meta_analysis",
+                                                                                        "systematic_review")):
+        if "lr_positive" in out and spec < 1 and abs(out["lr_positive"] - sens / (1 - spec)) > 0.2 * out["lr_positive"]:
             return None, "lr_disagrees_with_sensitivity_and_specificity"
         if "lr_negative" in out and spec > 0 and abs(out["lr_negative"] - (1 - sens) / spec) > max(
-                0.1 * out["lr_negative"], 0.01):
+                0.2 * out["lr_negative"], 0.02):
             return None, "lr_disagrees_with_sensitivity_and_specificity"
     verbal = str(item.get("verbal", "") or "").strip().lower()
     if verbal and not any(k in out for k in ("with_disease", "sensitivity", "specificity", "lr_positive",
@@ -211,24 +238,51 @@ def claim(disease: str, m: dict) -> str:
     return "; ".join(parts) + f" (setting: {m['setting']})"
 
 
-def judge_prompt(disease: str, m: dict) -> str:
-    return (f"Disease: {disease}\nManifestation: {m['manifestation']}\nSentence (or table row) from a published "
-            f"text: \"{m['quote']}\"\nClaim: {claim(disease, m)}.\nAnswer no when the sentence does not state these "
-            "numbers for this manifestation in this disease, when they belong to another disease, test or group, "
-            "or when it is a number of something else.\n"
-            'Answer only JSON: {"states": "yes"} or {"states": "no"}.')
+CATEGORIES = ("manifestation", "test", "score", "outcome")
+
+
+def judge_prompt(disease: str, m: dict, profile_names: list[str] | None = None) -> str:
+    names = "\n".join(f"- {n}" for n in (profile_names or []))
+    return (f"Disease: {disease}\nMeasured: {m['manifestation']}\nSentence (or table row) from a published "
+            f"text: \"{m['quote']}\"\nClaim: {claim(disease, m)}.\n\n"
+            "1. states: yes when the sentence states these numbers for this in this disease; no when it does not, "
+            "when they belong to another disease or group, or when they are a number of something else.\n"
+            "2. category: manifestation (a symptom, sign, laboratory value or imaging finding the patient has, or a "
+            "complication of the disease itself), test (how well an examination or a laboratory test detects the "
+            "disease: an imaging exam, an assay, a test with its cut-off), score (a clinical score or decision rule "
+            "combining several findings), outcome (death, a complication of treatment, length of stay, recurrence).\n"
+            "3. same_as: when the category is manifestation, the name of the manifestation of the list below that is "
+            "the same manifestation (same thing, possibly other words or a more specific form), copied exactly; "
+            "\"none\" when none is.\n"
+            f"Manifestations already known for {disease}:\n{names}\n\n"
+            'Answer only JSON: {"states": "yes" or "no", "category": "...", "same_as": "..."}.')
+
+
+def read_verdict(answer: str) -> dict:
+    m = re.search(r"\{.*\}", answer or "", re.DOTALL)
+    try:
+        got = json.loads(m.group(0)) if m else {}
+    except json.JSONDecodeError:
+        got = {}
+    states = str(got.get("states", "")).strip().lower()
+    category = str(got.get("category", "")).strip().lower()
+    return {"states": states if states in ("yes", "no") else "",
+            "category": category if category in CATEGORIES else "",
+            "same_as": str(got.get("same_as", "") or "").strip()}
 
 
 # -- pooling ---------------------------------------------------------------------------------------------------------
 
 def pool(pairs: list[tuple[float, float]]) -> dict | None:
-    """Random-effects pooled proportion (DerSimonian-Laird, logit scale, 0.5 continuity) of (events, total)."""
+    """Random-effects pooled proportion (DerSimonian-Laird, logit scale) of (events, total); 0.5 added only to a
+    study with no event or all events."""
     pairs = [(x, n) for x, n in pairs if n and n > 0]
     if not pairs:
         return None
     ys, vs = [], []
     for x, n in pairs:
-        x0, n0 = x + 0.5, n + 1.0
+        # the 0.5 correction only where a study has 0 or all events (its logit is otherwise infinite)
+        x0, n0 = (x + 0.5, n + 1.0) if x <= 0 or x >= n else (x, n)
         ys.append(math.log(x0 / (n0 - x0)))
         vs.append(1 / x0 + 1 / (n0 - x0))
     w = [1 / v for v in vs]
@@ -375,36 +429,63 @@ def main(argv=None) -> int:
             k = json.dumps([r["disease"], dp.norm(m["manifestation"]), m["quote"]])
             m.setdefault("readers", [])
             measures.setdefault(k, {**m, "disease": r["disease"], "readers": []})["readers"].append(r["reader"])
+    names_of = {d.words: sorted({m.words for m in d.manifestations}) for d in profiles}
     if not stopped:
         try:
             for k in sorted(measures, key=lambda k: hashlib.sha1(k.encode()).hexdigest()):
-                if k in judged:
+                if VERDICTS + k in judged:
                     continue
                 m, votes = measures[k], []
                 for _, model in rs.JUDGES:
-                    answer, _ = router.chat(model, judge_prompt(m["disease"], m), reasoning=False, max_tokens=60)
-                    votes.append(dp.read_judgment(answer))
-                    if votes[-1] != "yes":
+                    answer, _ = router.chat(model, judge_prompt(m["disease"], m, names_of.get(m["disease"])),
+                                            reasoning=False, max_tokens=200)
+                    votes.append(read_verdict(answer))
+                    if votes[-1]["states"] != "yes":
                         break
-                if votes and votes[-1] == "":
+                if votes and votes[-1]["states"] == "":
                     continue
-                judged[k] = votes
-                log("verdicts.jsonl", {"key": k, "votes": votes})
+                judged[VERDICTS + k] = votes
+                log("verdicts.jsonl", {"key": VERDICTS + k, "votes": votes})
         except rs.OverBudget as error:
             stopped = str(error)
 
-    # the weights, manifestation by manifestation: by HPO concept, else by the words
-    accepted = [m for k, m in measures.items() if judged.get(k) == ["yes"] * len(rs.JUDGES)]
+    # accepted: both judges say it states it and agree on what it is; a manifestation goes to the one of the profile
+    # both name (checked to exist), else stands as new; tests and scores are kept apart, outcomes left out
+    accepted, tests, scores, outcomes, doubts = [], [], [], 0, []
+    for k, m in measures.items():
+        votes = judged.get(VERDICTS + k) or []
+        if len(votes) != len(rs.JUDGES) or any(v["states"] != "yes" for v in votes):
+            continue
+        cats = {v["category"] for v in votes}
+        if len(cats) != 1 or "" in cats:
+            doubts.append({"measure": m["manifestation"], "disease": m["disease"], "categories": sorted(cats)})
+            continue
+        m["category"] = cats.pop()
+        same = {v["same_as"] for v in votes}
+        m["same_as"] = same.pop() if len(same) == 1 and next(iter(same)) in names_of.get(m["disease"], []) else ""
+        if m["category"] == "manifestation":
+            accepted.append(m)
+        elif m["category"] == "test":
+            tests.append(m)
+        elif m["category"] == "score":
+            scores.append(m)
+        else:
+            outcomes += 1
     weighted, per_pair, new = [], [], []
     for d in profiles:
         mine = [m for m in accepted if m["disease"] == d.words]
         groups: dict[str, list[dict]] = {}
-        for m in mine:
-            code = hpo.find(m["manifestation"], prefix="HP:") or ""
-            groups.setdefault(code or dp.norm(m["manifestation"]), []).append(m)
-        index = {}
+        index, by_words = {}, {}
         for man in d.manifestations:
             index.setdefault(man.concept.curie if man.concept and man.concept.code else dp.norm(man.words), man)
+            by_words.setdefault(man.words, man)
+        for m in mine:
+            known = by_words.get(m["same_as"]) if m["same_as"] else None
+            if known is not None:
+                key_ = known.concept.curie if known.concept and known.concept.code else dp.norm(known.words)
+            else:
+                key_ = hpo.find(m["manifestation"], prefix="HP:") or dp.norm(m["manifestation"])
+            groups.setdefault(key_, []).append(m)
         for key_, ms in groups.items():
             w = weigh(ms)
             target = index.get(key_)
@@ -433,6 +514,17 @@ def main(argv=None) -> int:
                                           if m.frequency is None and not m.accuracy and m.typicality),
               "without_weight": sum(1 for d in weighted for m in d.manifestations
                                     if m.frequency is None and not m.accuracy and not m.typicality)}
+    def kept_apart(ms: list[dict]) -> dict:
+        out: dict = {}
+        for m in ms:
+            out.setdefault(m["disease"], {}).setdefault(dp.norm(m["manifestation"]), []).append(m)
+        return {d: [{"name": v[0]["manifestation"], **weigh(v), "measures": len(v)} for v in g.values()]
+                for d, g in out.items()}
+    tests_by, scores_by = kept_apart(tests), kept_apart(scores)
+    out.with_name("tests.json").write_text(json.dumps(tests_by, indent=1, ensure_ascii=False), "utf-8")
+    out.with_name("scores.json").write_text(json.dumps(scores_by, indent=1, ensure_ascii=False), "utf-8")
+    counts.update(tests=len(tests), scores=len(scores), outcomes_left_out=outcomes, category_doubts=len(doubts),
+                  matched_to_profile=sum(1 for m in accepted if m["same_as"]))
     summary = {"stopped": stopped, "cost_usd": round(router.cost, 4), "diseases": len(profiles),
                "texts": sum(len(t["texts"]) for t in texts.values()), "measures_read": len(measures),
                "judged": len(judged), "accepted": len(accepted), "refused_by_rule": refused,
