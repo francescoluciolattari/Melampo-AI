@@ -227,6 +227,28 @@ legge ogni testo di ogni strato, fino a esaurimento delle fonti. Nessun altro li
 budget ferma un run, e il run successivo riprende da lì (`resume_run`). Per ogni patologia si scrive la curva
 dei testi letti e delle manifestazioni aggiunte (`curves.json`).
 
+**La conoscenza versionata e la revisione continua (22 novembre 2026).** Ogni versione della conoscenza delle
+patologie è una Release di GitHub, mai un commit: una pre-release con etichetta `knowledge-<data>-<versione>` (che
+non si confonde con una versione del software), creata da `scripts/knowledge_release.sh` solo dai due workflow
+della conoscenza, e solo quando il contenuto è cambiato (la sua impronta): un push o un merge di codice non ne crea
+nessuna. Contiene `knowledge.db` (il grafo, pronto, in FalkorDBLite), i file da cui è costruito (profili, nomi,
+esami, punteggi, curve, le misure da cui si calcolano i pesi, il giorno di ogni revisione, i registri di letture e
+verdetti; i testi letti non si pubblicano: un abstract o un testo intero appartiene ai suoi autori), `changes.md`
+(che cosa è cambiato, patologia per patologia) e `version.json`. Ogni lunedì `disease-review-update` scarica
+l'ultima Release, rivede ogni patologia su ciò che è stato pubblicato dal giorno della sua ultima revisione, con lo
+stesso metodo, senza saturazione (si legge ogni testo nuovo), ricalcola i pesi su tutte le misure, vecchie e nuove,
+e crea una nuova Release se qualcosa è cambiato. Prende il posto dell'aggiornamento giornaliero della letteratura su
+`main`, spento lo stesso giorno (si può ancora lanciare a mano).
+
+**Il grafo della conoscenza (22 novembre 2026).** La diagnosi legge la conoscenza come grafo
+(`memory/disease_knowledge_graph.py`): `(:KVersion)<-[:IN]-(:KDisease)-[:SHOWS {frequenza, sensibilità,
+specificità, LR+, LR-}]->(:KManifestation)` e `(:KDisease)-[:DETECTED_BY]->(:KTest)`, con l'identificativo di versione
+che ogni caso registra, così le patologie che mostrano certe manifestazioni sono una sola interrogazione.
+`MELAMPO_DISEASE_PROFILES` indica il `knowledge.db` di una Release (aperto con FalkorDBLite, senza ricostruire
+nulla), oppure un file o una cartella JSON, oppure `falkordb[:<versione>]` per un server FalkorDB
+(`data/falkordb_config.toml`, `MELAMPO_FALKORDB_SERVICE`, `MELAMPO_FALKORDB_USERNAME`, `MELAMPO_FALKORDB_PASSWORD`),
+che `scripts/knowledge_graph.py` carica. Lì va solo conoscenza pubblica, mai il caso di un paziente.
+
 ## 5. Confini dei dati
 
 | Dati | Possono andare a | Non vanno mai a | Garantito da |

@@ -31,9 +31,13 @@ on:
         description: "also the research-only sources of the index"
         type: boolean
         default: false
+      publish:
+        description: "make a new knowledge Release from the finished reviews (only if the knowledge changed)"
+        type: boolean
+        default: true
 
 permissions:
-  contents: read
+  contents: write      # the knowledge Releases only; main is never written
   actions: read
 
 jobs:
@@ -89,6 +93,13 @@ jobs:
               2>&1 | tee -a out/run.log || true
           fi
           [ -f out/summary.json ] && cat out/summary.json >> "$GITHUB_STEP_SUMMARY" || true
+      - name: A new version of the knowledge, as a Release
+        if: always() && github.event.inputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m pip install --quiet falkordblite
+          bash scripts/knowledge_release.sh out
       - uses: actions/upload-artifact@v4
         if: always()
         with:

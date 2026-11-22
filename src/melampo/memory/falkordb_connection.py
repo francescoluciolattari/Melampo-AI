@@ -169,9 +169,13 @@ def connect(config: FalkorDBConfig | None = None) -> Any:
         FalkorDB,
     )
 
+    # a FalkorDB Cloud instance gives a user name beside the password (22 November 2026): read from
+    # MELAMPO_FALKORDB_USERNAME when set, otherwise the server's default user
+    username = (os.environ.get("MELAMPO_FALKORDB_USERNAME") or "").strip() or None
     return FalkorDB(
         host=config.service_host,
         port=config.service_port,
+        username=username,
         password=config.service_password,
         ssl=config.service_ssl,
     )

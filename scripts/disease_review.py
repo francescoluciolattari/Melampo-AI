@@ -105,17 +105,19 @@ def names_of(name: str, mondo: dp.Terms, mondo_id: str) -> list[str]:
     return kept[:8]
 
 
-def layer_query(names: list[str], layer: str) -> str:
+def layer_query(names: list[str], layer: str, since: str = "") -> str:
     title = " OR ".join(f'TITLE:"{n}"' for n in names)
-    return f"({title}) AND {dict(LAYERS)[layer]} AND HAS_ABSTRACT:y"
+    after = f" AND FIRST_PDATE:[{since} TO 3000-12-31]" if since else ""
+    return f"({title}) AND {dict(LAYERS)[layer]} AND HAS_ABSTRACT:y{after}"
 
 
-def records(names: list[str], layer: str, get=None):
-    """Every record of one layer, page after page by Europe PMC's cursor, to the end."""
+def records(names: list[str], layer: str, get=None, since: str = ""):
+    """Every record of one layer, page after page by Europe PMC's cursor, to the end; with ``since``, only those
+    first published on that day or after."""
     get = get or rs.get
     cursor = "*"
     while True:
-        q = {"query": layer_query(names, layer), "format": "json", "resultType": "core", "pageSize": PAGE,
+        q = {"query": layer_query(names, layer, since), "format": "json", "resultType": "core", "pageSize": PAGE,
              "cursorMark": cursor}
         page = json.loads(get(f"{rs.EPMC}/search?{rs.urllib.parse.urlencode(q)}") or "{}")
         results = page.get("resultList", {}).get("result", [])
@@ -202,7 +204,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     for name in ("mondo", "hpo", "hpoa", "doid-owl", "symp"):
         ap.add_argument(f"--{name}", required=True)
-    ap.add_argument("--diagnoses", required=True, help="comma-separated names")
+    ap.add_argument("--diagnoses", default="", help="comma-separated names (with --update: empty = all reviewed)")
     ap.add_argument("--saturation", type=int, default=SATURATION_LEAST,
                     help=f"texts in a row adding nothing before a disease's review stops; at least "
                          f"{SATURATION_LEAST}; 0 = no limit, to the end of the sources")
@@ -211,8 +213,19 @@ def main(argv=None) -> int:
     ap.add_argument("--resume", default="")
     ap.add_argument("--research", action="store_true", help="also the research-only sources of the index")
     ap.add_argument("--out", default="out/profiles.json")
+    ap.add_argument("--knowledge", default="", help="the folder of the knowledge already reviewed (the knowledge "
+                                                     "branch): its measures and reviews are the start")
+    ap.add_argument("--update", action="store_true",
+                    help="review again the diseases of --knowledge, only what was published after their last review")
     args = ap.parse_args(argv)
     saturation = saturation_of(args.saturation)
+    knowledge = Path(args.knowledge) if args.knowledge else None
+    prev_measures = rs.jsonl(knowledge / "measures.jsonl") if knowledge else []
+    prev_reviews = json.loads((knowledge / "reviews.json").read_text("utf-8")) if knowledge and (
+        knowledge / "reviews.json").exists() else {}
+    diagnoses = [d.strip() for d in args.diagnoses.split(",") if d.strip()] or (
+        sorted(prev_reviews) if args.update else [])
+    today = __import__("datetime").date.today().isoformat()
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         print("OPENROUTER_API_KEY is not set", file=sys.stderr)
@@ -246,7 +259,9 @@ def main(argv=None) -> int:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     profiles, tests, scores, curves, summary_rows, stopped = [], {}, {}, {}, [], ""
-    for name in [d.strip() for d in args.diagnoses.split(",") if d.strip()]:
+    all_measures, reviews = [], {}
+    for name in diagnoses:
+        since = prev_reviews.get(name, {}).get("date", "") if args.update else ""
         mondo_id = mondo.find(name, prefix="MONDO:") or ""
         xrefs = mondo.xrefs.get(mondo_id, set())
         ids = {x.replace("Orphanet:", "ORPHA:") for x in xrefs if x.startswith(("OMIM:", "Orphanet:", "ORPHA:"))}
@@ -259,23 +274,38 @@ def main(argv=None) -> int:
             known.setdefault(m.concept.curie if m.concept and m.concept.code else dp.norm(m.words), m.words)
         found_keys: set[str] = set()           # keys stated by a text (the curated ones count once stated)
         accepted: list[dict] = []
+        # what earlier reviews accepted is the start: the weights are computed again on every measure, old and new
+        for m in (x for x in prev_measures if x.get("disease") == name):
+            if m.get("category") == "manifestation":
+                accepted.append(m)
+                known.setdefault(m["key"], m["manifestation"])
+                found_keys.add(m["key"])
+            elif m.get("category") == "test":
+                tests.setdefault(name, []).append(m)
+            elif m.get("category") == "score":
+                scores.setdefault(name, []).append(m)
         curve, quiet, read_count, row = [], 0, 0, {"diagnosis": name, "mondo": mondo_id, "curated": len(curated),
-                                                     "layers": {}, "screened_out": 0}
+                                                     "layers": {}, "screened_out": 0, "since": since}
+        new_measures: list[dict] = []
 
         def stream():
             """The texts in the order of the layers: the index's sources, then Europe PMC layer by layer."""
             try:
+                if since:                # the sources of the index carry no date: read in the full review
+                    raise StopIteration
                 reading = lc.read_sources(name, names, index, research=args.research, get=rs.get)
                 for d in reading.documents:
                     ident = str(d.citation.get("id") or d.citation.get("pmcid") or d.citation.get("doi") or "")
                     yield "sources_index", {"id": ident or hashlib.sha1(str(d.citation).encode()).hexdigest()[:12],
                                             "read": "source", "source": dict(d.citation),
                                             "sections": [list(s) for s in d.sections]}, None
+            except StopIteration:
+                pass
             except Exception as error:  # noqa: BLE001
                 print(json.dumps({"sources_index": f"{type(error).__name__}: {error}"[:300]}), flush=True)
             seen = set()
             for layer, _ in LAYERS:
-                for r in records(names, layer):
+                for r in records(names, layer, since=since):
                     ident = r.get("pmcid") or r.get("pmid") or r.get("doi")
                     if not ident or ident in seen:
                         continue
@@ -363,6 +393,7 @@ def main(argv=None) -> int:
                     continue
                 m["category"] = cats.pop()
                 m["source"] = {**text["source"], "read": text["read"], "layer": layer}
+                m["disease"], m["reviewed"] = name, today
                 same = {v["same_as"] for v in votes}
                 same_name = same.pop() if len(same) == 1 else ""
                 if m["category"] == "manifestation":
@@ -374,10 +405,13 @@ def main(argv=None) -> int:
                     known.setdefault(kk, m["manifestation"])
                     m["key"] = kk
                     accepted.append(m)
+                    new_measures.append(m)
                 elif m["category"] == "test":
                     tests.setdefault(name, []).append(m)
+                    new_measures.append(m)
                 elif m["category"] == "score":
                     scores.setdefault(name, []).append(m)
+                    new_measures.append(m)
             read_count += 1
             row["layers"][layer] = row["layers"].get(layer, 0) + 1
             curve.append({"text": text["id"], "layer": layer, "new": new_here, "known": len(known)})
@@ -459,16 +493,26 @@ def main(argv=None) -> int:
                    cost_so_far=round(router.cost, 4))
         summary_rows.append(row)
         print(json.dumps(row), flush=True)
-        write(out, profiles, tests, scores, curves, summary_rows, saturation, stopped, router)
+        all_measures += [x for x in prev_measures if x.get("disease") == name] + new_measures
+        if not stopped:            # a review cut by the budget is not dated: the next run reads it again
+            reviews[name] = {"date": today, "since": since, "texts_read": read_count,
+                             "stopped_by": row["stopped_by"], "saturation": saturation or "none"}
+        write(out, profiles, tests, scores, curves, summary_rows, saturation, stopped, router, all_measures, reviews)
         if stopped:
             break
-    write(out, profiles, tests, scores, curves, summary_rows, saturation, stopped, router)
+    write(out, profiles, tests, scores, curves, summary_rows, saturation, stopped, router, all_measures, reviews)
     return 0
 
 
-def write(out: Path, profiles, tests, scores, curves, rows, saturation, stopped, router) -> None:
-    """Everything, at once after each disease: an interrupted run loses nothing."""
+def write(out: Path, profiles, tests, scores, curves, rows, saturation, stopped, router, measures=(),
+          reviews=None) -> None:
+    """Everything, at once after each disease: an interrupted run loses nothing. ``measures.jsonl`` holds every
+    measure accepted for these diseases, old and new, from which the profile is computed again; ``reviews.json``
+    the day of each review, from which the next update starts."""
     out.write_text(json.dumps({"profiles": profiles}, indent=1, ensure_ascii=False), "utf-8")
+    out.with_name("measures.jsonl").write_text("".join(json.dumps(m, ensure_ascii=False) + "\n" for m in measures),
+                                               "utf-8")
+    out.with_name("reviews.json").write_text(json.dumps(reviews or {}, indent=1, ensure_ascii=False), "utf-8")
     group = lambda d: {k: [{"name": v[0]["manifestation"], **df.weigh(v), "measures": len(v)}  # noqa: E731
                            for v in _by_name(ms).values()] for k, ms in d.items()}
     out.with_name("tests.json").write_text(json.dumps(group(tests), indent=1, ensure_ascii=False), "utf-8")

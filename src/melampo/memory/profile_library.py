@@ -68,10 +68,41 @@ class ProfileLibrary:
         return lib
 
     @classmethod
+    def from_graph(cls, graph, version: str = "") -> ProfileLibrary:
+        """The profiles of one version in FalkorDB (``memory.disease_knowledge_graph``), the current one when none is
+        named; the version is the graph's, the same its knowledge Release records."""
+        from . import disease_knowledge_graph as kg
+
+        lib = cls()
+        lib.version, diseases, names = kg.read_profiles(graph, version)
+        for d in diseases:
+            lib.add(d)
+        lib.add_names(names)
+        lib.files = [f"falkordb:{kg.GRAPH}:{lib.version}"] if lib.version else []
+        return lib
+
+    @classmethod
     def from_env(cls) -> ProfileLibrary | None:
+        """``MELAMPO_DISEASE_PROFILES``: a file or a folder; the ``knowledge.db`` of a knowledge Release; or ``falkordb`` (the current version of the knowledge
+        graph, on the server of ``data/falkordb_config.toml`` or ``MELAMPO_FALKORDB_SERVICE``), or
+        ``falkordb:<version>`` to read a named version again."""
         path = os.environ.get(ENV, "").strip()
         if not path:
             return None
+        if path.endswith(".db"):
+            # a version of a knowledge Release, its graph ready in FalkorDBLite (22 November 2026)
+            from redislite.falkordb_client import FalkorDB
+
+            from . import disease_knowledge_graph as kg
+
+            lib = cls.from_graph(FalkorDB(path).select_graph(kg.GRAPH))
+            return lib if lib.profiles else None
+        if path == "falkordb" or path.startswith("falkordb:"):
+            from . import disease_knowledge_graph as kg
+            from .falkordb_connection import connect
+
+            lib = cls.from_graph(connect().select_graph(kg.GRAPH), path.partition(":")[2])
+            return lib if lib.profiles else None
         lib = cls.load(path, os.environ.get(ENV_NAMES, "").strip() or None)
         return lib if lib.profiles else None
 

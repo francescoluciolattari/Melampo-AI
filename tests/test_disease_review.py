@@ -74,14 +74,18 @@ def world(monkeypatch):
     abstracts = [{"pmid": str(i), "title": f"Clinical presentation of acute appendicitis {i}",
                   "abstractText": first if i == 0 else later} for i in range(12)]
 
-    def records(names, layer, get=None):
-        yield from (abstracts if layer == "guideline" else [])
+    def records(names, layer, get=None, since=""):
+        world_since.append(since)
+        later_ones = [a for a in abstracts if int(a["pmid"]) >= 100]
+        yield from (later_ones if since else abstracts) if layer == "guideline" else []
+    world_since: list = []
     monkeypatch.setattr(dr, "records", records)
     monkeypatch.setattr(dr.rs, "text_of", lambda r: {"id": r["pmid"], "read": "abstract",
                                                     "source": {"pmid": r["pmid"], "title": r["title"]},
                                                     "sections": [("Abstract", r["abstractText"])]})
     monkeypatch.setattr(dr.rs, "epmc", lambda q, size=15: [])
     calls = {"read": 0, "screen": 0, "judge": 0}
+    monkeypatch.setattr(dr, "_world", {"abstracts": abstracts, "since": world_since}, raising=False)
 
     def chat(self, model, prompt, *, reasoning, max_tokens):
         if prompt.startswith("Disease:") and "Is this publication" in prompt:
@@ -138,3 +142,32 @@ def test_a_resumed_review_asks_nothing_again(tmp_path, world):
     dr.main(_files(tmp_path) + ["--diagnoses", "acute appendicitis", "--out", str(again),
                                 "--resume", str(out.parent)])
     assert world == before
+
+
+def test_the_weekly_update_reads_only_what_came_after_and_keeps_every_measure(tmp_path, world):
+    """The first review goes to the knowledge folder; the update asks Europe PMC only for what was published from the
+    day of that review, and computes the weights again on the old and the new measures together."""
+    first = tmp_path / "first" / "profiles.json"
+    assert dr.main(_files(tmp_path) + ["--diagnoses", "acute appendicitis", "--out", str(first)]) == 0
+    publish = importlib.util.spec_from_file_location(
+        "knowledge_publish", Path(__file__).resolve().parents[1] / "scripts" / "knowledge_publish.py")
+    kp = importlib.util.module_from_spec(publish)
+    publish.loader.exec_module(kp)
+    store = tmp_path / "knowledge"
+    assert kp.main(["--run", str(first.parent), "--knowledge", str(store)]) == 0
+    reviews = json.loads((store / "reviews.json").read_text())
+    assert reviews["acute appendicitis"]["stopped_by"] == "saturation"
+    measures = [json.loads(x) for x in (store / "measures.jsonl").read_text().splitlines()]
+    assert len(measures) == 2
+    # a week later: one new abstract states vomiting with a count
+    dr._world["abstracts"].append({"pmid": "100", "title": "Presentation of acute appendicitis in 2026",
+                                   "abstractText": "first"})
+    update = tmp_path / "update" / "profiles.json"
+    assert dr.main(_files(tmp_path) + ["--update", "--knowledge", str(store), "--saturation", "0",
+                                       "--targeted", "0", "--resume", str(store / "logs"), "--out", str(update)]) == 0
+    assert dr._world["since"][-1] == reviews["acute appendicitis"]["date"]
+    row = json.loads(update.with_name("summary.json").read_text())["rows"][0]
+    assert row["texts_read"] == 1 and row["since"] == reviews["acute appendicitis"]["date"]
+    assert kp.main(["--run", str(update.parent), "--knowledge", str(store)]) == 0
+    profile = json.loads((store / "profiles.json").read_text())["profiles"][0]
+    assert {m["concept"]["code"] for m in profile["manifestations"]} >= {"HP:0100281", "HP:0001945"}

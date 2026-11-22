@@ -1,0 +1,84 @@
+name: disease-review-update
+
+# The living review (22 November 2026): every week, each disease of the latest knowledge Release is reviewed again
+# on what was published from the day of its last review, by the same method as disease-review (layers, screening,
+# two readers, two judges); its weights are computed again on every measure, old and new; a new knowledge Release
+# is made only when the knowledge changed. No saturation is set for the update: every new text is read
+# (saturation 0). The budget stops it; the next week resumes. A push or a merge of code never runs this.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"        # Mondays, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "USD, the run stops before passing it"
+        default: "2"
+
+permissions:
+  contents: write      # the knowledge Releases only; main is never written
+  actions: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The latest knowledge Release
+        id: kb
+        run: |
+          latest=$(gh release list --limit 200 --json tagName,createdAt \
+            -q '[.[] | select(.tagName | startswith("knowledge-"))] | sort_by(.createdAt) | last | .tagName // ""')
+          if [ -z "$latest" ]; then
+            echo "No knowledge Release yet: run disease-review first." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "found=no" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p current && gh release download "$latest" -D current
+          [ -f current/logs.tar.gz ] && tar xzf current/logs.tar.gz -C current
+          echo "found=yes" >> "$GITHUB_OUTPUT"
+          echo "Updating from $latest" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: The open sources
+        if: steps.kb.outputs.found == 'yes'
+        run: |
+          set -e
+          python3 -m pip install --quiet pyyaml falkordblite
+          curl -sSL --fail -o mondo.obo https://purl.obolibrary.org/obo/mondo.obo
+          curl -sSL --fail -o hp.obo https://purl.obolibrary.org/obo/hp.obo
+          curl -sSL --fail -o phenotype.hpoa \
+            https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/phenotype.hpoa
+          curl -sSL --fail -o doid.owl https://purl.obolibrary.org/obo/doid.owl
+          curl -sSL --fail -o symp.obo https://purl.obolibrary.org/obo/symp.obo
+      - name: Update
+        if: steps.kb.outputs.found == 'yes'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -o pipefail
+          mkdir -p out
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "The secret OPENROUTER_API_KEY is empty or missing." | tee out/run.log
+            exit 1
+          fi
+          python3 scripts/disease_review.py --mondo mondo.obo --hpo hp.obo --hpoa phenotype.hpoa \
+            --doid-owl doid.owl --symp symp.obo --update --knowledge current --resume current/logs \
+            --saturation 0 --targeted 0 --budget "${{ github.event.inputs.budget || '2' }}" \
+            --out out/profiles.json 2>&1 | tee out/run.log
+          python3 scripts/disease_names.py --profiles out/profiles.json --mondo mondo.obo --out out/names.json \
+            2>&1 | tee -a out/run.log || true
+          [ -f out/summary.json ] && cat out/summary.json >> "$GITHUB_STEP_SUMMARY" || true
+      - name: A new version of the knowledge, as a Release (only if it changed)
+        if: always() && steps.kb.outputs.found == 'yes'
+        run: bash scripts/knowledge_release.sh out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.kb.outputs.found == 'yes'
+        with:
+          name: disease-review-update
+          path: out
+          retention-days: 30

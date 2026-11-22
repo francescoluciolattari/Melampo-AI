@@ -20,11 +20,10 @@ on:
     # every 6-10 weeks -- a daily check would be almost entirely no-ops, and
     # each no-op still costs a checkout of a 130 MB data set.
     - cron: "0 6 * * 1"
-    # Daily at 05:00 UTC: literature. PubMed and ClinicalTrials.gov content
-    # appears daily, at a genuinely different rate from HPO releases, so it
-    # gets its own schedule rather than sharing the weekly one -- one cron
-    # per source cadence, not one compromise cadence for both.
-    - cron: "0 5 * * *"
+    # The daily literature refresh (05:00 UTC) was switched off on 22 November 2026 by the owner's choice: the
+    # literature of the diseases is now reviewed every week by disease-review-update, with sentences, judges and
+    # versioned profiles, as knowledge Releases; the index this job filled was not read by the diagnosis, and its
+    # daily commit to main made every delivery diverge. The job can still be run by hand (check_literature).
   workflow_dispatch:
     inputs:
       check_data:
@@ -36,9 +35,9 @@ on:
         type: boolean
         default: true
       check_literature:
-        description: "Refresh literature for tracked concepts"
+        description: "Refresh literature for tracked concepts (by hand only since 22 November 2026)"
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write

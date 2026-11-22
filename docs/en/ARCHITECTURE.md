@@ -221,6 +221,27 @@ smaller value is raised to 5); `0` means no limit: every text of every layer is 
 No other limit is set beforehand; only the budget stops a run, and the next run resumes from it (`resume_run`).
 The curve of texts read and manifestations added is written for every disease (`curves.json`).
 
+**The knowledge, versioned, and the living review (22 November 2026).** Each version of the disease knowledge is
+a GitHub Release, never a commit: a pre-release tagged `knowledge-<date>-<version>` (not taken for a release of the
+software), made by `scripts/knowledge_release.sh` only from the two workflows of the knowledge, and only when the
+content changed (its hash): a push or a merge of code makes none. It holds `knowledge.db` (the graph, ready, in
+FalkorDBLite), the files it is built from (profiles, names, exams, scores, curves, the measures the weights are
+computed from, the day of each review, the logs of readings and verdicts; the texts read are not published: an
+abstract or a full text belongs to its authors), `changes.md` (what changed, disease by disease) and
+`version.json`. Every Monday `disease-review-update` downloads the latest Release, reviews each disease again on
+what was published from the day of its last review, by the same method, with no saturation (every new text is
+read), computes the weights again on every measure, old and new, and makes a new Release if anything changed. It
+takes the place of the daily literature refresh on `main`, switched off the same day (it can still be run by hand).
+
+**The knowledge graph (22 November 2026).** The diagnosis reads the knowledge as a graph
+(`memory/disease_knowledge_graph.py`): `(:KVersion)<-[:IN]-(:KDisease)-[:SHOWS {frequency, sensitivity,
+specificity, LR+, LR-}]->(:KManifestation)` and `(:KDisease)-[:DETECTED_BY]->(:KTest)`, with the version id every
+case records, so that the diseases showing some manifestations are one query. `MELAMPO_DISEASE_PROFILES` names
+the `knowledge.db` of a Release (opened with FalkorDBLite, nothing rebuilt), or a JSON file or folder, or
+`falkordb[:<version>]` for a FalkorDB server (`data/falkordb_config.toml`, `MELAMPO_FALKORDB_SERVICE`,
+`MELAMPO_FALKORDB_USERNAME`, `MELAMPO_FALKORDB_PASSWORD`), which `scripts/knowledge_graph.py` loads. Only public
+knowledge goes there, never a patient's case.
+
 ## 5. Data boundaries
 
 | Data | May go to | Never goes to | Enforced by |
