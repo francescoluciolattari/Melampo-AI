@@ -93,15 +93,19 @@ def world(monkeypatch):
             return '{"about": "yes"}', "stop"
         if prompt.startswith("Disease:"):
             calls["judge"] += 1
-            return '{"states": "yes", "category": "manifestation", "same_as": "none"}', "stop"
+            return '{"states": "yes"}', "stop"
         calls["read"] += 1
         if first in prompt:
             return json.dumps([
-                {"manifestation": "right lower quadrant pain", "with_disease": {"count": 80, "total": 100,
-                                                                             "percent": "80%"},
+                {"words": "right lower quadrant pain", "name": "right lower quadrant pain",
+                 "category": "manifestation", "specific": True, "observed_by": "history", "nature": "pathological",
+                 "hpo_term": "Right lower quadrant pain", "same_as": "",
+                 "with_disease": {"count": 80, "total": 100, "percent": "80%"},
                  "quote": "In acute appendicitis, right lower quadrant pain was present in 80 of 100 patients (80%), "
                           "fever often."},
-                {"manifestation": "fever", "verbal": "often",
+                {"words": "fever", "name": "fever", "category": "manifestation", "specific": True,
+                 "observed_by": "examination", "nature": "pathological", "hpo_term": "Fever", "same_as": "",
+                 "verbal": "often",
                  "quote": "In acute appendicitis, right lower quadrant pain was present in 80 of 100 patients (80%), "
                           "fever often."}]), "stop"
         return "[]", "stop"
@@ -171,3 +175,42 @@ def test_the_weekly_update_reads_only_what_came_after_and_keeps_every_measure(tm
     assert kp.main(["--run", str(update.parent), "--knowledge", str(store)]) == 0
     profile = json.loads((store / "profiles.json").read_text())["profiles"][0]
     assert {m["concept"]["code"] for m in profile["manifestations"]} >= {"HP:0100281", "HP:0001945"}
+
+
+def test_saturation_is_counted_layer_by_layer(tmp_path, world, monkeypatch):
+    """Five guidelines in a row that add nothing close the guidelines, not the review: the next layer is read."""
+    abstracts = world_abstracts = dr._world["abstracts"]
+    accuracy = [{"pmid": "500", "title": "Diagnostic accuracy of signs in acute appendicitis",
+                 "abstractText": "Acute appendicitis is diagnosed clinically."}]
+
+    def records(names, layer, get=None, since=""):
+        yield from abstracts if layer == "guideline" else accuracy if layer == "diagnostic_accuracy" else []
+    monkeypatch.setattr(dr, "records", records)
+    out = tmp_path / "out" / "profiles.json"
+    dr.main(_files(tmp_path) + ["--diagnoses", "acute appendicitis", "--saturation", "5", "--out", str(out)])
+    row = json.loads(out.with_name("summary.json").read_text())["rows"][0]
+    assert row["layers"] == {"guideline": 6, "diagnostic_accuracy": 1} and row["saturated_layers"] == ["guideline"]
+
+
+def test_the_interpreters_interpret_and_what_they_read_differently_stays_a_doubt():
+    a = dr.interpreted({"name": "fever", "category": "manifestation", "specific": True, "observed_by": "examination",
+                        "nature": "pathological", "hpo_term": "Fever", "same_as": ""})
+    b = dr.interpreted({**a, "hpo_term": "Pyrexia of unknown origin"})
+    view, doubts = dr.agreed([a, b])
+    assert view["category"] == "manifestation" and view["hpo_term"] is None and doubts == ["hpo_term"]
+    assert dr.interpreted({"name": "typical symptoms", "specific": "false"})["specific"] is False
+    assert dr.interpreted({"name": "x", "category": "diagnosis"})["category"] == ""      # not one of the categories
+
+
+def test_the_judges_only_verify():
+    prompt = dr.judge_prompt("pneumonia", {"manifestation": "cough", "category": "manifestation",
+                                           "quote": "Cough was present."})
+    assert "hpo" not in prompt.lower() and "category:" not in prompt and '{"states": "yes"}' in prompt
+
+
+def test_mondo_is_found_by_another_synonym_when_no_exact_one_names_the_disease():
+    lines = ["[Term]", "id: MONDO:0004974", "name: appendicitis",
+             'synonym: "acute appendicitis" RELATED []', "[Term]", "id: MONDO:1", "name: x",
+             'synonym: "shared" RELATED []', "[Term]", "id: MONDO:2", "name: y", 'synonym: "shared" RELATED []']
+    found = dr.any_synonym(lines)
+    assert found["acute appendicitis"] == "MONDO:0004974" and "shared" not in found

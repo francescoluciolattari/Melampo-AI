@@ -210,13 +210,15 @@ the curated layer (HPO annotations with Orphanet, Disease Ontology); every sourc
 page after page: the sources of the index switched on in the mask, then Europe PMC's guidelines, the Rational
 Clinical Examination, systematic reviews of diagnosis, studies of diagnostic accuracy, descriptive series,
 reviews, case reports; titles on another cause or form, prognosis, treatment, risk factors or epidemiology left
-out; each abstract screened (Gemma 4) before the text is read; two readers, the sentence and its numbers in the
-text, two judges who also say what it is (manifestation, test, score, outcome, risk factor) and which known
-manifestation it is; each curated manifestation no text stated searched by itself; the weights by the order of
+out; each abstract screened (Gemma 4) before the text is read; the two interpreters (Nemotron and Muse, full reasoning) interpret: the words of
+the text, the general name, what it is (manifestation, test, score, outcome, risk factor, form of the disease),
+one thing or a list, where it is found, pathological or physiological, the HPO term by name (a code only when it
+is HPO's own name or exact synonym), which known manifestation it is; what they read differently stays a doubt;
+the sentence and its numbers in the text; the two judges only verify that the sentence states it; each curated manifestation no text stated searched by itself; the weights by the order of
 `disease_frequencies`. Exams and scores go to `tests.json` and `scores.json`.
 
 **When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:
-the review of a disease stops when N texts in a row, read and judged, add no manifestation. The least is 5 (a
+each layer of sources of a disease's review stops when N texts in a row, read and judged, add no manifestation, and the review goes on to the next layer (counted layer by layer since the first run: counted on the whole review, five guideline abstracts stopped it before the accuracy studies and the series of patients, where the weights are). The least is 5 (a
 smaller value is raised to 5); `0` means no limit: every text of every layer is read, to the end of the sources.
 No other limit is set beforehand; only the budget stops a run, and the next run resumes from it (`resume_run`).
 The curve of texts read and manifestations added is written for every disease (`curves.json`).

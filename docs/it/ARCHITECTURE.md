@@ -214,15 +214,18 @@ espande da sé i sinonimi MeSH); lo strato curato (annotazioni HPO con Orphanet,
 strati, ciascuna letta fino in fondo pagina dopo pagina: le fonti dell'indice accese nella maschera, poi su Europe
 PMC linee guida, Rational Clinical Examination, revisioni sistematiche della diagnosi, studi di accuratezza
 diagnostica, serie descrittive, revisioni, casi clinici; esclusi i titoli su un'altra causa o forma, prognosi,
-terapia, fattori di rischio, epidemiologia; ogni abstract selezionato (Gemma 4) prima di leggere il testo; due
-lettori, la frase e i suoi numeri nel testo, due giudici che dicono anche che cos'è (manifestazione, esame,
-punteggio, esito, fattore di rischio) e a quale manifestazione nota corrisponde; ogni manifestazione curata che
+terapia, fattori di rischio, epidemiologia; ogni abstract selezionato (Gemma 4) prima di leggere il testo; i due
+interpreti (Nemotron e Muse, ragionamento pieno) interpretano: le parole del testo, il nome generale, che cos'è
+(manifestazione, esame, punteggio, esito, fattore di rischio, forma della malattia), una cosa sola o una lista,
+dove si osserva, patologica o fisiologica, il termine HPO per nome (un codice solo quando è il nome o un sinonimo
+esatto di HPO), a quale manifestazione nota corrisponde; ciò che leggono in modo diverso resta un dubbio; la frase
+e i suoi numeri nel testo; i due giudici verificano solo che la frase lo affermi; ogni manifestazione curata che
 nessun testo ha detto cercata da sola; i pesi nell'ordine di `disease_frequencies`. Esami e punteggi vanno in
 `tests.json` e `scores.json`.
 
 **Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).
-`--saturation N`: la revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono
-nessuna manifestazione. Il minimo è 5 (un valore più piccolo è portato a 5); `0` vuol dire nessun limite: si
+`--saturation N`: ogni strato di fonti della revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono
+nessuna manifestazione, e la revisione passa allo strato successivo (contato strato per strato dal primo run: contato sull'intera revisione, cinque abstract di linee guida l'avevano fermata prima degli studi di accuratezza e delle serie di pazienti, dove sono i pesi). Il minimo è 5 (un valore più piccolo è portato a 5); `0` vuol dire nessun limite: si
 legge ogni testo di ogni strato, fino a esaurimento delle fonti. Nessun altro limite è fissato prima; solo il
 budget ferma un run, e il run successivo riprende da lì (`resume_run`). Per ogni patologia si scrive la curva
 dei testi letti e delle manifestazioni aggiunte (`curves.json`).

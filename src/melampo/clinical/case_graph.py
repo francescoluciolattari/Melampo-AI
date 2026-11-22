@@ -214,6 +214,7 @@ class Manifestation(_Record):
     # background from those without, both measured, none estimated
     accuracy: dict[str, Any] = field(default_factory=dict)
     frequency_basis: str = ""                   # pooled_studies, one_study, verbal (a word of frequency), typicality
+    nature: str = ""                            # pathological, or physiological (a normal response), by the interpreters
     level: str = KNOWLEDGE
 
 

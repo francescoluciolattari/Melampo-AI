@@ -19,12 +19,18 @@ systematic review (PRISMA) carried out with the readers and the judges of Melamp
    on another cause or form (COVID-19), prognosis, treatment, risk factors or epidemiology is left out.
 4. **Screening.** Before a text is read, its title and abstract must name the disease, and a screener (Gemma 4,
    no reasoning) must say it is about the presentation or the diagnosis of the disease in general.
-5. **Reading.** Two readers as for the reports (Nemotron 3 Ultra + Muse Spark Open, full reasoning) list every
-   manifestation the text states, with its sentence, and every measure of it (frequency, sensitivity,
-   specificity, likelihood ratios). The rules of ``disease_frequencies.checked``: the sentence in the text, the
-   numbers in the sentence. Two judges independent of the readers (Claude Sonnet 5, then Gemma 4) both say it
-   states it, say what it is (manifestation, test, score, outcome, risk factor) and which known manifestation it
-   is; no person.
+5. **Interpretation and verification** (corrected 22 November 2026: the interpretation is the interpreters', the
+   judges only verify). The two interpreters, as for the reports (Nemotron 3 Ultra + Muse Spark Open, full
+   reasoning), read the whole text and give, for everything it states: the words of the text, the general name
+   (without the values of one patient), what it is (manifestation, test, score, outcome, risk factor, form of the
+   disease), whether it is one thing or a list, where it is found (history, examination, laboratory, imaging,
+   endoscopy, intraoperative, histopathology, course), whether it is pathological or physiological, the HPO term
+   by name, which known manifestation it is, and the measures. A code is added only when the HPO term they name is
+   HPO's own name or exact synonym: never an approximate term, never a code written by a model. What the two
+   interpreters read differently stays a doubt (a category read differently is not a datum; an HPO term read
+   differently gives no code). The checks are the rules of ``disease_frequencies.checked`` (the sentence in the
+   text, the numbers in the sentence). The judges, independent of the interpreters (Claude Sonnet 5, then Gemma 4,
+   no reasoning), verify only: does the sentence state it, with these numbers, for this disease in general?
 6. **When to stop: a parameter** (``--saturation``, the owner's rule of 22 November 2026). The review of a disease
    stops when that many texts in a row, read and judged, add no manifestation; the least is 5 (a smaller value
    is raised to 5), and 0 means no limit: every text of every layer is read, to the end of the sources. No other
@@ -71,7 +77,10 @@ from melampo.memory import disease_profiles as dp  # noqa: E402
 
 SATURATION_LEAST = 5
 SCREENER = "google/gemma-4-31b-it"
-CATEGORIES = ("manifestation", "test", "score", "outcome", "risk_factor")
+CATEGORIES = ("manifestation", "test", "score", "outcome", "risk_factor", "form")
+OBSERVED_BY = ("history", "examination", "laboratory", "imaging", "endoscopy", "intraoperative", "histopathology",
+               "course")
+JUDGED = "v5:"         # the judges verify only (22 November 2026): the interpretation is the interpreters'
 LAYERS = (
     ("guideline", '(PUB_TYPE:"guideline" OR PUB_TYPE:"practice-guideline" OR TITLE:"guideline" OR '
                   'TITLE:"guidelines" OR TITLE:"consensus" OR TITLE:"recommendations")'),
@@ -141,55 +150,119 @@ def screen_prompt(disease: str, record: dict) -> str:
             'or another disease.\nAnswer only JSON: {"about": "yes"} or {"about": "no"}.')
 
 
-def read_prompt(disease: str, sections: list[tuple[str, str]]) -> str:
+READING = "r2"         # the interpreters' questionnaire of 22 November 2026: they interpret, the judges verify
+NATURES = ("pathological", "physiological")
+
+
+def read_prompt(disease: str, sections: list[tuple[str, str]], known: list[str] = ()) -> str:
+    """The interpreters (Nemotron 3 Ultra and Muse Spark Open, full reasoning) read the whole text and interpret:
+    what is stated, its general name, what it is, where it is found, its HPO term by name, which known
+    manifestation it is. The judges only verify afterwards."""
     text = "\n\n".join(f"## {t}\n{x}" for t, x in sections)
-    return (f"You read a medical publication. List every MANIFESTATION of {disease} it states: symptoms, signs, "
-            "laboratory values, imaging findings, complications of the disease itself; and with each, any MEASURE "
-            "it gives of how often it is present.\nFor each answer an object with: manifestation (its name), "
-            "with_disease {count, total, percent}, sensitivity, specificity, lr_positive, lr_negative (as written, "
-            "null when absent), comparator (the patients without the disease the specificity was measured in), "
-            "setting (emergency department, primary care, hospital, surgical, population, other), patients, "
-            "design (meta_analysis, systematic_review, prospective_cohort, retrospective_cohort, cross_sectional, "
-            "case_control, case_series, case_report, review, guideline, other), pooled (true for a meta-analysis's "
-            "pooled value), verbal (a word of frequency such as \"often\" when the text gives no number, else \"\"), "
-            "and quote: ONE sentence or ONE table row copied word for word from the text, that states it.\n"
-            "List a manifestation even when the text gives no measure of it. Do not compute anything the text does "
-            "not state. Answer only a JSON list, [] when there is none.\n\n" + text)
+    names = "\n".join(f"- {n}" for n in list(known)[:400]) or "- (none yet)"
+    return (f"You read a medical publication about {disease}. List everything it states that a patient with {disease} "
+            "shows or may show (symptoms, signs, laboratory values, imaging, endoscopic, intraoperative or "
+            "histological findings, complications of the disease itself), and also the exams, scores, outcomes, risk "
+            "factors and forms of the disease it measures or names, each as one object:\n"
+            "- words: the words of the text;\n"
+            "- name: its general name, without the values of one patient (\"elevated procalcitonin\", not "
+            "\"procalcitonin 6.87 ng/mL\"), in English;\n"
+            "- category: manifestation, test (how well an exam or assay detects the disease), score (a clinical "
+            "score or rule), outcome (death, a complication of treatment, recurrence), risk_factor (what makes the "
+            "disease more likely, not what it shows), form (a subtype, stage or grade of the disease itself, such as "
+            "gangrenous appendicitis);\n"
+            "- specific: true when it is ONE thing; false when it is a list or a general phrase (\"typical "
+            "symptoms\", \"ultrasound findings\");\n"
+            "- observed_by: history, examination, laboratory, imaging, endoscopy, intraoperative, histopathology, "
+            "course;\n"
+            "- nature: pathological, or physiological (a normal response, such as a raised heart rate with fever);\n"
+            "- hpo_term: the exact name of the Human Phenotype Ontology term that is this manifestation, only when "
+            "you are sure it is the same thing; \"\" otherwise (never a code, never an approximate term);\n"
+            "- same_as: the name in the list of known manifestations below that is the same thing, copied exactly, "
+            "or \"\";\n"
+            "- the measures the text gives, as written (null when absent): with_disease {count, total, percent}, "
+            "sensitivity, specificity, lr_positive, lr_negative, comparator (the patients without the disease the "
+            "specificity was measured in), setting (emergency department, primary care, hospital, surgical, "
+            "population, other), patients, design (meta_analysis, systematic_review, prospective_cohort, "
+            "retrospective_cohort, cross_sectional, case_control, case_series, case_report, review, guideline, "
+            "other), pooled (true for a meta-analysis's pooled value), verbal (a word of frequency such as "
+            "\"often\" when there is no number);\n"
+            "- quote: ONE sentence or ONE table row copied word for word from the text, that states it.\n"
+            "Do not compute anything the text does not state. Answer only a JSON list, [] when there is none.\n\n"
+            f"Known manifestations of {disease}:\n{names}\n\n" + text)
 
 
-def judge_prompt(disease: str, item: dict, known: list[str]) -> str:
+def judge_prompt(disease: str, item: dict) -> str:
+    """The judges (independent of the interpreters, no reasoning) verify only: does the sentence state it?"""
     measure = df.claim(disease, item) if any(k in item for k in ("with_disease", "sensitivity", "specificity",
                                                                  "lr_positive", "lr_negative", "verbal")) else ""
-    names = "\n".join(f"- {n}" for n in known[:400])
-    return (f"Disease: {disease}\nStated: {item['manifestation']}\nSentence (or table row) from a published text: "
-            f"\"{item['quote']}\"\nClaim: {item['manifestation']} is a manifestation of {disease}"
-            + (f"; {measure}" if measure else "") + ".\n\n"
-            "1. states: yes when the sentence states it (and the numbers, if any) for this disease in general; no "
-            "when it does not, when it belongs to another disease, to one particular cause or form only, or to a "
-            "group the claim does not name.\n"
-            "2. category: manifestation (a symptom, sign, laboratory value or imaging finding of the patient, or a "
-            "complication of the disease itself), test (how well an exam or assay detects the disease), score (a "
-            "clinical score or rule), outcome (death, a complication of treatment, recurrence), risk_factor (what "
-            "makes the disease more likely, not what it shows).\n"
-            "3. same_as: the name in the list below that is the same manifestation, copied exactly, or \"none\".\n"
-            f"Known manifestations of {disease}:\n{names}\n\n"
-            'Answer only JSON: {"states": "yes" or "no", "category": "...", "same_as": "..."}.')
+    return (f"Disease: {disease}\nStated: {item['manifestation']} ({item.get('category', 'manifestation')})\n"
+            f"Sentence (or table row) from a published text: \"{item['quote']}\"\n"
+            f"Claim: in {disease}, {item['manifestation']}" + (f"; {measure}" if measure else "") + ".\n"
+            "Answer yes when the sentence states this (and the numbers, if any) for this disease in general; no when "
+            "it does not, when it belongs to another disease, to one particular cause or form only, or to a group the "
+            "claim does not name.\n"
+            'Answer only JSON: {"states": "yes"} or {"states": "no"}.')
 
 
 def read_verdict(answer: str) -> dict:
-    v = df.read_verdict(answer)
-    m = re.search(r'"category"\s*:\s*"([a-z_]+)"', answer or "")
-    if m and m.group(1) in CATEGORIES:
-        v["category"] = m.group(1)
-    return v
+    return {"states": dp.read_judgment(answer)}
+
+
+def interpreted(item: dict) -> dict:
+    """The interpretation of one item, its values checked against their lists."""
+    def one_of(value, allowed):
+        v = str(value or "").strip().lower().replace(" ", "_")
+        return v if v in allowed else ""
+    specific = item.get("specific")
+    return {"name": " ".join(str(item.get("name") or item.get("manifestation") or item.get("words") or "").split()),
+            "category": one_of(item.get("category"), CATEGORIES),
+            "specific": specific if isinstance(specific, bool) else str(specific).strip().lower() == "true",
+            "observed_by": one_of(item.get("observed_by"), OBSERVED_BY),
+            "nature": one_of(item.get("nature"), NATURES),
+            "hpo_term": " ".join(str(item.get("hpo_term") or "").split()),
+            "same_as": " ".join(str(item.get("same_as") or "").split())}
+
+
+def agreed(views: list[dict]) -> tuple[dict, list[str]]:
+    """What the interpreters agree on, and the fields they read differently (kept as doubts, never resolved)."""
+    out, doubts = {}, []
+    for field_ in ("category", "specific", "observed_by", "nature", "hpo_term", "same_as"):
+        values = {json.dumps(v[field_]) for v in views}
+        if len(values) == 1:
+            out[field_] = views[0][field_]
+        else:
+            out[field_] = None
+            doubts.append(field_)
+    out["name"] = views[0]["name"]
+    return out, doubts
+
+
+def any_synonym(lines: list[str]) -> dict[str, str]:
+    """MONDO's terms by any of their synonyms (exact, related, narrow, broad), only where one term has it."""
+    found: dict[str, set[str]] = {}
+    current, obsolete = "", False
+    for line in lines + ["[Term]"]:
+        if line.startswith("[Term]"):
+            current, obsolete = "", False
+        elif line.startswith("id: MONDO:"):
+            current = line[4:].strip()
+        elif line.startswith("is_obsolete: true"):
+            obsolete = True
+        elif current and not obsolete and line.startswith("synonym: "):
+            m = re.match(r'synonym: "(.*?)"', line)
+            if m:
+                found.setdefault(dp.norm(m.group(1)), set()).add(current)
+    return {k: next(iter(v)) for k, v in found.items() if len(v) == 1}
 
 
 def item_checked(item: dict, sections: list[tuple[str, str]]) -> tuple[dict | None, str]:
     """A manifestation with or without a measure, by the rules fixed before the run."""
     quote = " ".join(str(item.get("quote", "")).split())
-    name = str(item.get("manifestation", "")).strip()
+    name = str(item.get("name") or item.get("manifestation") or item.get("words") or "").strip()
     if not name or not quote or not df.in_text(quote, sections):
         return None, "quote_not_in_text"
+    item = {**item, "manifestation": name}
     m, why = df.checked(item, sections)
     if m is not None:
         return m, ""
@@ -250,6 +323,7 @@ def main(argv=None) -> int:
     from melampo.memory import sources_index as si
     from melampo.memory.symptom_sources import parse_doid_owl
 
+    mondo_by_any_synonym = any_synonym(read(args.mondo))
     doid_symptoms = {c.doid: c.symptom_ids for c in parse_doid_owl(Path(args.doid_owl)) if not c.deprecated}
     index = si.SourcesIndex.load(si.SOURCES)
     router, lock = rs.Router(key, args.budget), threading.Lock()
@@ -262,7 +336,9 @@ def main(argv=None) -> int:
     all_measures, reviews = [], {}
     for name in diagnoses:
         since = prev_reviews.get(name, {}).get("date", "") if args.update else ""
-        mondo_id = mondo.find(name, prefix="MONDO:") or ""
+        mondo_id = mondo.find(name, prefix="MONDO:") or mondo_by_any_synonym.get(dp.norm(name), "")
+        row_mondo = "name or exact synonym" if mondo.find(name, prefix="MONDO:") else (
+            "other synonym" if mondo_id else "not found")
         xrefs = mondo.xrefs.get(mondo_id, set())
         ids = {x.replace("Orphanet:", "ORPHA:") for x in xrefs if x.startswith(("OMIM:", "Orphanet:", "ORPHA:"))}
         curated = dp.from_hpoa(hpoa, ids, hpo) + [
@@ -284,7 +360,8 @@ def main(argv=None) -> int:
                 tests.setdefault(name, []).append(m)
             elif m.get("category") == "score":
                 scores.setdefault(name, []).append(m)
-        curve, quiet, read_count, row = [], 0, 0, {"diagnosis": name, "mondo": mondo_id, "curated": len(curated),
+        curve, quiet, read_count, row = [], 0, 0, {"diagnosis": name, "mondo": mondo_id, "mondo_by": row_mondo,
+                                                     "curated": len(curated),
                                                      "layers": {}, "screened_out": 0, "since": since}
         new_measures: list[dict] = []
 
@@ -313,13 +390,12 @@ def main(argv=None) -> int:
                     yield layer, None, r
 
         def judge(item: dict) -> list[dict]:
-            k = df.VERDICTS + json.dumps([name, dp.norm(item["manifestation"]), item["quote"]])
+            k = JUDGED + json.dumps([name, dp.norm(item["manifestation"]), item["quote"]])
             if k in verdicts:
                 return verdicts[k]
             votes = []
             for _, model in rs.JUDGES:
-                answer, _ = router.chat(model, judge_prompt(name, item, sorted(set(known.values()))),
-                                        reasoning=False, max_tokens=200)
+                answer, _ = router.chat(model, judge_prompt(name, item), reasoning=False, max_tokens=60)
                 votes.append(read_verdict(answer))
                 if votes[-1]["states"] != "yes":
                     break
@@ -361,13 +437,14 @@ def main(argv=None) -> int:
 
             def read_one(reader: str) -> dict | None:
                 kept = readings.get((name, text["id"], reader))
-                if kept is not None:
+                if kept is not None and kept.get("reading") == READING:
                     return kept
-                answer, finish = router.chat(rs.READERS[reader], read_prompt(name, sections), reasoning=True,
-                                             max_tokens=rs.READER_ROOM)
+                answer, finish = router.chat(rs.READERS[reader], read_prompt(name, sections,
+                                                                             sorted(set(known.values()))),
+                                             reasoning=True, max_tokens=rs.READER_ROOM)
                 if not finish:
                     return None
-                r = {"disease": name, "text": text["id"], "reader": reader, "finish": finish,
+                r = {"disease": name, "text": text["id"], "reader": reader, "finish": finish, "reading": READING,
                      "items": rs.read_items(answer)}
                 readings[(name, text["id"], reader)] = r
                 log("readings.jsonl", r)
@@ -375,30 +452,47 @@ def main(argv=None) -> int:
 
             with ThreadPoolExecutor(2) as pool:
                 got = [f.result() for f in [pool.submit(read_one, r) for r in rs.READERS]]
+            # the two interpreters' items, joined when they name the same thing in this text
             items: dict[str, dict] = {}
             for r in got:
                 for it in (r or {}).get("items", []):
                     m, _ = item_checked(it, sections)
                     if m is None:
                         continue
-                    k = json.dumps([dp.norm(m["manifestation"]), m["quote"]])
-                    items.setdefault(k, {**m, "readers": []})["readers"].append(r["reader"])
+                    view = interpreted(it)
+                    k = dp.norm(view["name"])
+                    entry = items.setdefault(k, {**m, "manifestation": view["name"],
+                                                 "words_read": str(it.get("words") or ""), "views": [],
+                                                 "readers": []})
+                    if r["reader"] not in entry["readers"]:
+                        entry["readers"].append(r["reader"])
+                        entry["views"].append(view)
             new_here = 0
             for m in items.values():
+                view, doubts = agreed(m.pop("views"))
+                m["interpreters_agree"] = len(m["readers"]) == len(rs.READERS) and not doubts
+                m["doubts"] = doubts + ([] if len(m["readers"]) == len(rs.READERS) else ["one_interpreter"])
+                category = view["category"]
+                if category is None or not category:
+                    row.setdefault("doubtful_category", 0)
+                    row["doubtful_category"] += 1
+                    continue                  # the interpreters read it as different things: a doubt, not a datum
+                if category == "manifestation" and view["specific"] is not True:
+                    continue                  # a list or a general phrase is not one manifestation
+                m["category"] = category
                 votes = judge(m)
                 if len(votes) != len(rs.JUDGES) or any(v["states"] != "yes" for v in votes):
                     continue
-                cats = {v["category"] for v in votes}
-                if len(cats) != 1 or "" in cats:
-                    continue
-                m["category"] = cats.pop()
                 m["source"] = {**text["source"], "read": text["read"], "layer": layer}
                 m["disease"], m["reviewed"] = name, today
-                same = {v["same_as"] for v in votes}
-                same_name = same.pop() if len(same) == 1 else ""
-                if m["category"] == "manifestation":
+                m["observed_by"], m["nature"] = view["observed_by"] or "", view["nature"] or ""
+                # the HPO code only when the term the interpreters name is HPO's own name or exact synonym
+                code = hpo.find(view["hpo_term"], prefix="HP:") if view["hpo_term"] else ""
+                m["hpo_term"] = view["hpo_term"] or ""
+                same_name = view["same_as"] or ""
+                if category == "manifestation":
                     kk = next((k for k, v in known.items() if v == same_name), "") if same_name else ""
-                    kk = kk or hpo.find(m["manifestation"], prefix="HP:") or dp.norm(m["manifestation"])
+                    kk = kk or code or hpo.find(m["manifestation"], prefix="HP:") or dp.norm(m["manifestation"])
                     if kk not in found_keys:
                         found_keys.add(kk)
                         new_here += kk not in known
@@ -406,10 +500,10 @@ def main(argv=None) -> int:
                     m["key"] = kk
                     accepted.append(m)
                     new_measures.append(m)
-                elif m["category"] == "test":
+                elif category == "test":
                     tests.setdefault(name, []).append(m)
                     new_measures.append(m)
-                elif m["category"] == "score":
+                elif category == "score":
                     scores.setdefault(name, []).append(m)
                     new_measures.append(m)
             read_count += 1
@@ -420,14 +514,23 @@ def main(argv=None) -> int:
             return new_here
 
         try:
+            # the saturation is counted layer by layer (corrected 22 November 2026, after the first run: counted on
+            # the whole review, five guideline abstracts in a row that added nothing stopped it before the studies of
+            # diagnostic accuracy and the series of patients, where the weights are, had been read)
+            current_layer, saturated = "", set()
             for layer, text, record in stream():
-                if saturation and quiet >= saturation:
-                    break
+                if layer != current_layer:
+                    current_layer, quiet = layer, 0
+                if layer in saturated:
+                    continue
                 if record is not None:
                     text = prepared(layer, record)
                     if text is None:
                         continue
                 quiet = 0 if process(layer, text) else quiet + 1
+                if saturation and quiet >= saturation:
+                    saturated.add(layer)
+                    row.setdefault("saturated_layers", []).append(layer)
             # completeness: each curated manifestation no text has stated yet, searched with the disease
             curated_keys = {m.concept.curie if m.concept and m.concept.code else dp.norm(m.words) for m in curated}
             for kk in sorted(curated_keys - found_keys):
@@ -457,11 +560,18 @@ def main(argv=None) -> int:
             if k in done:
                 continue
             first = ms[0]
+            observed = next((x.get("observed_by") for x in ms if x.get("observed_by")), "")
             manifestations.append(cg.Manifestation(
                 f"r{len(manifestations) + 1}", known.get(k, first["manifestation"]),
-                cg.Concept("HPO", k, known.get(k, "")) if k.startswith("HP:") else None,
+                cg.Concept("HPO", k, hpo.names.get(k, "")) if k.startswith("HP:") else None,
                 typicality=dp.typicality_of(first["quote"]),
-                citations=[{**x["source"], "quote": x["quote"]} for x in ms][:10]))
+                # where it is found (history, examination, laboratory, imaging, ... intraoperative, histopathology):
+                # the diagnosis can tell what a patient can show before surgery from what only surgery shows
+                verified_by=[{"kind": observed}] if observed else [],
+                nature=next((x.get("nature") for x in ms if x.get("nature")), ""),
+                citations=[{**x["source"], "quote": x["quote"], "words_read": x.get("words_read", ""),
+                            "interpreters_agree": x.get("interpreters_agree", False),
+                            "doubts": x.get("doubts", [])} for x in ms][:10]))
             done.add(k)
         profile = dp.merge_profile(mondo_id or name, name, manifestations)
         for man in profile.manifestations:
@@ -480,8 +590,9 @@ def main(argv=None) -> int:
         profiles.append(profile.as_dict())
         curves[name] = curve
         ms_ = profile.manifestations
-        row.update(texts_read=read_count, stopped_by=("saturation" if saturation and quiet >= saturation else
-                                                      "budget" if stopped else "end_of_sources"),
+        row.update(texts_read=read_count, stopped_by=("budget" if stopped else
+                                                      "saturation" if row.get("saturated_layers") else
+                                                      "end_of_sources"),
                    manifestations=len(ms_), from_texts=len(found_keys), curated_not_found=sum(
                        1 for k in known if k not in found_keys and k in {
                            m.concept.curie if m.concept and m.concept.code else dp.norm(m.words) for m in curated}),
