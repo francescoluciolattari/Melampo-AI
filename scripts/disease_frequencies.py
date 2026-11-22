@@ -55,8 +55,8 @@ _spec.loader.exec_module(rs)
 from melampo.clinical import case_graph as cg  # noqa: E402
 from melampo.memory import disease_profiles as dp  # noqa: E402
 
-TEXTS = {"accuracy": 3, "descriptive": 2}
-VERDICTS = "v2:"          # the judges' second questionnaire (21 November 2026): states, category, same manifestation
+TEXTS = {"accuracy": 4, "descriptive": 4}
+VERDICTS = "v3:"          # the judges' questionnaire: states (one cause or form is not the disease, 22 Nov), category, same manifestation
 # HPO frequency classes (Orphanet's bins) and their middles
 VERBAL = (("obligate", 1.0, ("always", "invariably", "all patients", "universal")),
           ("very_frequent", 0.895, ("almost always", "nearly all", "most patients", "the majority of patients",
@@ -69,37 +69,70 @@ DESIGNS = ("meta_analysis", "systematic_review", "prospective_cohort", "retrospe
            "case_control", "case_series", "review", "other")
 
 
+SEARCH = "v2"
+# a study of a particular form or cause is not the disease in general, nor one of prognosis, treatment or risk
+OFF_TOPIC = ('COVID', 'SARS-CoV-2', 'coronavirus', 'vaccine', 'mortality', 'prognos', 'risk factor', 'treatment',
+             'management of', 'antibiotic', 'surgery', 'surgical', 'cholecystectomy', 'appendectomy', 'recurrence',
+             'microbiome', 'incidence', 'burden', 'epidemiology', 'outcomes', 'cost', 'trial')
+
+
 def queries(disease: str) -> dict[str, list[str]]:
-    d = f'TITLE_ABS:"{disease}"'
-    open_ = "OPEN_ACCESS:y AND IN_EPMC:y"
-    acc = ('(("sensitivity" AND "specificity") OR "likelihood ratio" OR "diagnostic accuracy") AND '
-           '("clinical" OR "symptoms" OR "signs" OR "physical examination" OR "history" OR "laboratory")')
-    desc = ('("clinical features" OR "clinical characteristics" OR "clinical presentation" OR "presenting symptoms" '
-            'OR "symptoms and signs") AND "patients"')
-    return {"accuracy": [f'{d} AND {acc} AND {open_} AND (PUB_TYPE:"systematic-review" OR TITLE:"meta-analysis")',
-                         f"{d} AND {acc} AND {open_}", f"{d} AND {acc} AND HAS_ABSTRACT:y"],
-            "descriptive": [f"{d} AND {desc} AND {open_}", f"{d} AND {desc} AND HAS_ABSTRACT:y"]}
+    """The searches of the second version (22 November 2026, after the first run read the most cited papers that
+    named the disease: COVID-19 cohorts for pneumonia, risk factors and diet for diverticulitis). The disease in the
+    title; the Rational Clinical Examination's own title first; then accuracy of the clinical findings; then
+    descriptive series of its presentation. Ranked by relevance, not by citations."""
+    d = f'TITLE:"{disease}"'
+    acc = ('(ABSTRACT:"sensitivity" OR ABSTRACT:"likelihood ratio" OR ABSTRACT:"diagnostic accuracy")')
+    clinical = ('(TITLE:"clinical" OR TITLE:"signs" OR TITLE:"symptoms" OR TITLE:"history" OR TITLE:"examination" '
+                'OR TITLE:"diagnosis" OR TITLE:"diagnostic" OR TITLE:"findings" OR TITLE:"features")')
+    desc = ('(TITLE:"clinical features" OR TITLE:"clinical characteristics" OR TITLE:"clinical presentation" OR '
+            'TITLE:"presenting" OR TITLE:"symptoms" OR TITLE:"signs" OR TITLE:"presentation")')
+    return {"accuracy": [f'TITLE:"does this patient have" AND {d}', f"{d} AND {clinical} AND {acc}"],
+            "descriptive": [f"{d} AND {desc} AND HAS_ABSTRACT:y"]}
 
 
-def texts_for(disease: str) -> list[dict]:
+def _relevance(record: dict, words: list[str]) -> int:
+    """How many of the profile's manifestations the title and abstract name, plus a point for numbers of patients."""
+    text = (str(record.get("title", "")) + " " + str(record.get("abstractText", ""))).lower()
+    found = sum(1 for w in words if w and w in text)
+    return found + (2 if re.search(r"\d+\s*%|sensitivity|likelihood ratio", text) else 0)
+
+
+def texts_for(disease: str, manifestations: list[str] | None = None) -> list[dict]:
+    """The texts for one disease: per kind, the candidates of its searches, off-topic titles left out, ranked by how
+    many of the profile's manifestations they name; the full text when its licence allows, else the abstract."""
+    words = sorted({dp.norm(m) for m in manifestations or [] if len(dp.norm(m)) > 3})
     out, seen = [], set()
     for kind, qs in queries(disease).items():
-        mine = 0
+        candidates = []
         for q in qs:
-            for r in rs.epmc(q, 10):
+            for r in epmc_relevance(q, 25):
+                title = str(r.get("title", ""))
                 ident = r.get("pmcid") or r.get("pmid") or r.get("doi")
-                if mine >= TEXTS[kind] or not ident or ident in seen:
-                    continue
-                t = rs.text_of(r)
-                if t is None:
+                if not ident or ident in seen or any(t and t.lower() in title.lower() for t in OFF_TOPIC
+                                                     if disease.lower().find(t.lower()) < 0):
                     continue
                 seen.add(ident)
-                t["kind"] = kind
-                out.append(t)
-                mine += 1
+                rcet = "does this patient have" in title.lower()
+                candidates.append((rcet, _relevance(r, words), r))
+        candidates.sort(key=lambda c: (not c[0], -c[1]))
+        mine = 0
+        for _, _, r in candidates:
             if mine >= TEXTS[kind]:
                 break
+            t = rs.text_of(r)
+            if t is None:
+                continue
+            t["kind"] = kind
+            out.append(t)
+            mine += 1
     return out
+
+
+def epmc_relevance(query: str, size: int) -> list[dict]:
+    q = {"query": query, "format": "json", "resultType": "core", "pageSize": size}
+    return json.loads(rs.get(f"{rs.EPMC}/search?{rs.urllib.parse.urlencode(q)}") or "{}").get(
+        "resultList", {}).get("result", [])
 
 
 def read_prompt(disease: str, sections: list[tuple[str, str]]) -> str:
@@ -246,7 +279,9 @@ def judge_prompt(disease: str, m: dict, profile_names: list[str] | None = None) 
     return (f"Disease: {disease}\nMeasured: {m['manifestation']}\nSentence (or table row) from a published "
             f"text: \"{m['quote']}\"\nClaim: {claim(disease, m)}.\n\n"
             "1. states: yes when the sentence states these numbers for this in this disease; no when it does not, "
-            "when they belong to another disease or group, or when they are a number of something else.\n"
+            "when they belong to another disease or group, when the patients have only one particular cause or form of "
+            f"the disease (for example COVID-19 pneumonia, when the disease is {disease} in general), or when they "
+            "are a number of something else.\n"
             "2. category: manifestation (a symptom, sign, laboratory value or imaging finding the patient has, or a "
             "complication of the disease itself), test (how well an examination or a laboratory test detects the "
             "disease: an imaging exam, an assay, a test with its cut-off), score (a clinical score or decision rule "
@@ -364,7 +399,18 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default="out/frequencies.json")
     ap.add_argument("--budget", type=float, default=5.0)
     ap.add_argument("--resume", default="")
+    ap.add_argument("--texts-only", action="store_true",
+                    help="only choose the texts and list them, no model is asked (free)")
     args = ap.parse_args(argv)
+    if args.texts_only:
+        profiles = [cg.Disease.from_dict(p) for p in json.loads(Path(args.profiles).read_text("utf-8"))["profiles"]]
+        listing = {d.words: [{"kind": t["kind"], "read": t["read"], "title": t["source"].get("title", ""),
+                              "year": t["source"].get("year", ""), "id": t["id"]}
+                             for t in texts_for(d.words, [m.words for m in d.manifestations])] for d in profiles}
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).with_name("texts_chosen.json").write_text(json.dumps(listing, indent=1, ensure_ascii=False))
+        print(json.dumps(listing, indent=1, ensure_ascii=False))
+        return 0
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         print("OPENROUTER_API_KEY is not set", file=sys.stderr)
@@ -377,7 +423,8 @@ def main(argv=None) -> int:
             src = Path(args.resume) / name
             if src.exists() and src.resolve() != path.resolve():
                 path.write_text(src.read_text("utf-8"), "utf-8")
-    texts = {r["disease"]: r for r in rs.jsonl(logs["texts.jsonl"])}
+    # only the texts of the current search: those of an earlier search are not compared (22 November 2026)
+    texts = {r["disease"]: r for r in rs.jsonl(logs["texts.jsonl"]) if r.get("search") == SEARCH}
     done = {(r["disease"], r["text"], r["reader"]) for r in rs.jsonl(logs["readings.jsonl"])}
     judged = {r["key"]: r["votes"] for r in rs.jsonl(logs["verdicts.jsonl"])}
     hpo = dp.Terms.from_obo(Path(args.hpo).read_text("utf-8", errors="replace").splitlines())
@@ -401,7 +448,8 @@ def main(argv=None) -> int:
     try:
         for d in profiles:
             if d.words not in texts:
-                texts[d.words] = {"disease": d.words, "texts": texts_for(d.words)}
+                texts[d.words] = {"disease": d.words, "search": SEARCH,
+                                  "texts": texts_for(d.words, [m.words for m in d.manifestations])}
                 log("texts.jsonl", texts[d.words])
             with ThreadPoolExecutor(rs.WORKERS) as pool_:
                 for f in [pool_.submit(read, d.words, t, r) for t in texts[d.words]["texts"] for r in rs.READERS]:

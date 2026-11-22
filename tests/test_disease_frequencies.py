@@ -88,7 +88,7 @@ def test_a_run_weighs_the_profile_and_resumes(tmp_path, monkeypatch):
         cg.Manifestation("m1", "Fever", cg.Concept("HPO", "HP:0001945"), citations=[{"id": "x"}])])
     profiles = tmp_path / "profiles.json"
     profiles.write_text(json.dumps({"profiles": [profile.as_dict()]}))
-    monkeypatch.setattr(df, "texts_for", lambda d: [{"id": "PMC1", "read": "full_text", "kind": "descriptive",
+    monkeypatch.setattr(df, "texts_for", lambda d, *a: [{"id": "PMC1", "read": "full_text", "kind": "descriptive",
                                                      "sections": TEXT, "source": {"title": "t", "pmcid": "PMC1"}}])
     fever = {"manifestation": "fever", "with_disease": {"count": 41, "total": 100, "percent": "41%"},
              "quote": "Fever was present in 41 of 100 patients (41%).", "setting": "hospital",
@@ -135,7 +135,7 @@ def test_tests_scores_and_outcomes_are_kept_apart_from_the_manifestations(tmp_pa
     (tmp_path / "profiles.json").write_text(json.dumps({"profiles": [profile.as_dict()]}))
     text = [("R", "Migration of pain to the right lower quadrant: sensitivity 64%, specificity 82%. "
                   "CT: sensitivity 99%, specificity 84%. Mortality was 1 of 100 (1%).")]
-    monkeypatch.setattr(df, "texts_for", lambda d: [{"id": "PMC1", "read": "full_text", "kind": "accuracy",
+    monkeypatch.setattr(df, "texts_for", lambda d, *a: [{"id": "PMC1", "read": "full_text", "kind": "accuracy",
                                                      "sections": text, "source": {"title": "t", "pmcid": "PMC1"}}])
     items = [{"manifestation": "migratory right lower quadrant pain", "sensitivity": "64%", "specificity": "82%",
               "patients": 100, "setting": "emergency department", "design": "prospective_cohort",
@@ -165,3 +165,15 @@ def test_tests_scores_and_outcomes_are_kept_apart_from_the_manifestations(tmp_pa
     assert tests["acute appendicitis"][0]["name"] == "CT"
     summary = json.loads((tmp_path / "out" / "summary.json").read_text())
     assert (summary["outcomes_left_out"], summary["matched_to_profile"], summary["new_manifestations"]) == (1, 1, 0)
+
+
+def test_the_search_leaves_off_topic_titles_and_prefers_the_rational_clinical_examination(monkeypatch):
+    found = [{"pmid": "1", "title": "Clinical features of patients with COVID-19 pneumonia", "abstractText": "fever 98%"},
+             {"pmid": "2", "title": "Signs and symptoms of community-acquired pneumonia",
+              "abstractText": "Fever, cough and crackles: sensitivity 80%."},
+             {"pmid": "3", "title": "Does this patient have community-acquired pneumonia?", "abstractText": "LR"}]
+    monkeypatch.setattr(df, "epmc_relevance", lambda q, size: found)
+    monkeypatch.setattr(df.rs, "text_of", lambda r: {"id": r["pmid"], "read": "abstract", "source": {"title": r["title"]},
+                                                     "sections": [("Abstract", r["abstractText"])]})
+    got = df.texts_for("pneumonia", ["Fever", "Cough"])
+    assert [t["id"] for t in got] == ["3", "2"]                      # COVID-19 left out, the RCE first

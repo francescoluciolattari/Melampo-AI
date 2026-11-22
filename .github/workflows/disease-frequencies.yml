@@ -19,6 +19,10 @@ on:
       resume_run:
         description: "number of a previous run of this workflow to resume (empty = start)"
         default: ""
+      texts_only:
+        description: "only choose and list the texts, no model asked (free)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -63,6 +67,7 @@ jobs:
           fi
           RESUME=""
           [ -d previous ] && RESUME="--resume previous"
+          [ "${{ github.event.inputs.texts_only }}" = "true" ] && RESUME="$RESUME --texts-only"
           python3 scripts/disease_frequencies.py --profiles profiles/profiles.json --hpo hp.obo \
             --out out/frequencies.json --budget "${{ github.event.inputs.budget }}" $RESUME 2>&1 | tee out/run.log
           [ -f profiles/names.json ] && cp profiles/names.json out/
