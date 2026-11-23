@@ -217,6 +217,16 @@ is HPO's own name or exact synonym), which known manifestation it is; what they 
 the sentence and its numbers in the text; the two judges only verify that the sentence states it; each curated manifestation no text stated searched by itself; the weights by the order of
 `disease_frequencies`. Exams and scores go to `tests.json` and `scores.json`.
 
+**Corrections of 23 November 2026, after the second run.** (A) A sign, a laboratory value beyond a cut-off, an
+imaging finding is a manifestation, with its accuracy; a test is an examination as a whole (CT, ultrasound, MRI),
+used for the next exam. (B) A statement of direction without a number ("makes the disease more likely", "less
+likely", with its words of strength) is recorded on the manifestation and weighs by a provisional likelihood ratio
+(2 or 0.5, squared when stated strongly), to be calibrated on published cases at step 9; sources that disagree
+weigh nothing. (C) A measure comparing two forms of the disease does not weigh the diagnosis. (D) A result stated
+more than once in one article, with the same numbers, counts once when studies are pooled; every sentence stays a
+citation.
+
+
 **When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:
 each layer of sources of a disease's review stops when N texts in a row, read and judged, add no manifestation, and the review goes on to the next layer (counted layer by layer since the first run: counted on the whole review, five guideline abstracts stopped it before the accuracy studies and the series of patients, where the weights are). The least is 5 (a
 smaller value is raised to 5); `0` means no limit: every text of every layer is read, to the end of the sources.

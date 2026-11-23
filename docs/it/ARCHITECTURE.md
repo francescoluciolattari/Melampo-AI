@@ -223,6 +223,16 @@ e i suoi numeri nel testo; i due giudici verificano solo che la frase lo affermi
 nessun testo ha detto cercata da sola; i pesi nell'ordine di `disease_frequencies`. Esami e punteggi vanno in
 `tests.json` e `scores.json`.
 
+**Correzioni del 23 novembre 2026, dopo il secondo run.** (A) Un segno, un valore di laboratorio oltre una soglia,
+un reperto d'immagine sono manifestazioni, con la loro accuratezza; un esame è la metodica nel suo insieme (TC,
+ecografia, RM), usata per l'esame successivo. (B) Un'affermazione di direzione senza numero ("rende la malattia più
+probabile", "meno probabile", con le sue parole di forza) si registra sulla manifestazione e pesa con un rapporto
+di verosimiglianza provvisorio (2 o 0,5, al quadrato se detta con forza), da tarare sui casi pubblicati allo step
+9; fonti in disaccordo non pesano. (C) Una misura che confronta due forme della malattia non pesa sulla diagnosi.
+(D) Un risultato ripetuto nello stesso articolo con gli stessi numeri conta una volta quando si combinano gli
+studi; ogni frase resta una citazione.
+
+
 **Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).
 `--saturation N`: ogni strato di fonti della revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono
 nessuna manifestazione, e la revisione passa allo strato successivo (contato strato per strato dal primo run: contato sull'intera revisione, cinque abstract di linee guida l'avevano fermata prima degli studi di accuratezza e delle serie di pazienti, dove sono i pesi). Il minimo è 5 (un valore più piccolo è portato a 5); `0` vuol dire nessun limite: si

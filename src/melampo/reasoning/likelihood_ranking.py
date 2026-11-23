@@ -83,6 +83,22 @@ def _clip(x: float) -> float:
     return min(1 - FLOOR, max(FLOOR, x))
 
 
+# (23 November 2026) a statement of direction without a number ("makes appendicitis more likely") weighs by these
+# provisional likelihood ratios, to be calibrated on published cases (step 9); a strong statement doubles the
+# effect in log space; sources that disagree weigh nothing
+DIRECTION_LR = {"more_likely": 2.0, "less_likely": 0.5}
+
+
+def _direction_lr(m: cg.Manifestation, state: str) -> tuple[float, str] | None:
+    when = {cg.PRESENT: "present", cg.ABSENT: "absent"}.get(state)
+    said = (m.direction or {}).get(when or "")
+    if not said or said.get("effect") not in DIRECTION_LR:
+        return None
+    lr = DIRECTION_LR[said["effect"]] ** (2 if said.get("strong") else 1)
+    return lr, (f"direction stated by {said.get('sources', 1)} source(s), {said['effect']}"
+                f"{', strongly' if said.get('strong') else ''}: provisional LR {lr:g}, to be calibrated (step 9)")
+
+
 def _measured_lr(m: cg.Manifestation, state: str) -> tuple[float, str] | None:
     """LR+ for a present manifestation, LR- for an absent one, from ``accuracy``: the likelihood ratio a study gives,
     or the one its sensitivity and specificity give; None when the studies did not measure it."""
@@ -161,6 +177,13 @@ def score(disease: cg.Disease, bg: dict[str, float], prior: float | None = None)
             lr, note = measured
             if state.basis == cg.SILENT and state.state != cg.PRESENT:
                 lr, note = lr ** SILENCE_WEIGHT, note + f"; silent covering exam, weight {SILENCE_WEIGHT}"
+            out.contributions.append(Contribution(m.manifestation_id, m.words, state.state, state.basis,
+                                                  math.log10(lr), note))
+            out.log10_odds += math.log10(lr)
+            continue
+        directed = _direction_lr(m, state.state) if m.frequency_basis not in ("pooled_studies", "one_study") else None
+        if directed is not None:
+            lr, note = directed
             out.contributions.append(Contribution(m.manifestation_id, m.words, state.state, state.basis,
                                                   math.log10(lr), note))
             out.log10_odds += math.log10(lr)

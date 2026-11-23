@@ -31,6 +31,12 @@ systematic review (PRISMA) carried out with the readers and the judges of Melamp
    differently gives no code). The checks are the rules of ``disease_frequencies.checked`` (the sentence in the
    text, the numbers in the sentence). The judges, independent of the interpreters (Claude Sonnet 5, then Gemma 4,
    no reasoning), verify only: does the sentence state it, with these numbers, for this disease in general?
+   Corrections of 23 November 2026, after the second run: (A) a sign, a laboratory value beyond a cut-off, an
+   imaging finding is a manifestation, with its accuracy; a test is an examination as a whole (CT, ultrasound,
+   MRI), for the next exam. (B) A statement of direction without a number ("makes appendicitis less likely") is
+   recorded and weighs by a provisional likelihood ratio, to be calibrated at step 9. (C) A measure comparing two
+   forms of the disease (complicated against uncomplicated) does not weigh the diagnosis. (D) A result stated
+   more than once in one article, with the same numbers, counts once; every sentence stays a citation.
 6. **When to stop: a parameter** (``--saturation``, the owner's rule of 22 November 2026). The review of a disease
    stops when that many texts in a row, read and judged, add no manifestation; the least is 5 (a smaller value
    is raised to 5), and 0 means no limit: every text of every layer is read, to the end of the sources. No other
@@ -80,7 +86,7 @@ SCREENER = "google/gemma-4-31b-it"
 CATEGORIES = ("manifestation", "test", "score", "outcome", "risk_factor", "form")
 OBSERVED_BY = ("history", "examination", "laboratory", "imaging", "endoscopy", "intraoperative", "histopathology",
                "course")
-JUDGED = "v5:"         # the judges verify only (22 November 2026): the interpretation is the interpreters'
+JUDGED = "v6:"         # the judges verify only (22 November 2026): the interpretation is the interpreters'
 LAYERS = (
     ("guideline", '(PUB_TYPE:"guideline" OR PUB_TYPE:"practice-guideline" OR TITLE:"guideline" OR '
                   'TITLE:"guidelines" OR TITLE:"consensus" OR TITLE:"recommendations")'),
@@ -150,8 +156,10 @@ def screen_prompt(disease: str, record: dict) -> str:
             'or another disease.\nAnswer only JSON: {"about": "yes"} or {"about": "no"}.')
 
 
-READING = "r2"         # the interpreters' questionnaire of 22 November 2026: they interpret, the judges verify
+READING = "r3"         # the interpreters' questionnaire (23 November 2026): A-D, direction, comparison
 NATURES = ("pathological", "physiological")
+DIRECTIONS = ("more_likely", "less_likely")
+COMPARES = ("disease_vs_without", "forms_of_the_disease", "other")
 
 
 def read_prompt(disease: str, sections: list[tuple[str, str]], known: list[str] = ()) -> str:
@@ -167,10 +175,13 @@ def read_prompt(disease: str, sections: list[tuple[str, str]], known: list[str] 
             "- words: the words of the text;\n"
             "- name: its general name, without the values of one patient (\"elevated procalcitonin\", not "
             "\"procalcitonin 6.87 ng/mL\"), in English;\n"
-            "- category: manifestation, test (how well an exam or assay detects the disease), score (a clinical "
-            "score or rule), outcome (death, a complication of treatment, recurrence), risk_factor (what makes the "
-            "disease more likely, not what it shows), form (a subtype, stage or grade of the disease itself, such as "
-            "gangrenous appendicitis);\n"
+            "- category: manifestation (what the patient has and an exam shows: a symptom, a sign, a laboratory "
+            "value beyond a cut-off such as leukocytosis or C-reactive protein above 10 mg/L, an imaging finding "
+            "such as an appendix wider than 6 mm, a complication of the disease itself; with its accuracy when the "
+            "text measures it), test (an examination as a whole, CT, ultrasound, MRI, endoscopy: how well it detects "
+            "the disease), score (a clinical score or rule), outcome (death, a complication of treatment, "
+            "recurrence), risk_factor (what makes the disease more likely, not what it shows), form (a subtype, "
+            "stage or grade of the disease itself, such as gangrenous appendicitis);\n"
             "- specific: true when it is ONE thing; false when it is a list or a general phrase (\"typical "
             "symptoms\", \"ultrasound findings\");\n"
             "- observed_by: history, examination, laboratory, imaging, endoscopy, intraoperative, histopathology, "
@@ -179,7 +190,14 @@ def read_prompt(disease: str, sections: list[tuple[str, str]], known: list[str] 
             "- hpo_term: the exact name of the Human Phenotype Ontology term that is this manifestation, only when "
             "you are sure it is the same thing; \"\" otherwise (never a code, never an approximate term);\n"
             "- same_as: the name in the list of known manifestations below that is the same thing, copied exactly, "
-            "or \"\";\n"
+            "or \"\"; and when the text states the same result more than once in other words, give each the same "
+            "name;\n"
+            "- direction: when the text says, without a number, that having it makes the disease more likely or less "
+            "likely: {\"when\": \"present\" or \"absent\", \"effect\": \"more_likely\" or \"less_likely\", \"words\": "
+            "the words of strength as written, such as \"strongly\", or \"\"}; null otherwise;\n"
+            "- compares: what its measures compare: disease_vs_without (patients with the disease against patients "
+            "without it), forms_of_the_disease (one form against another, such as complicated against "
+            "uncomplicated), other;\n"
             "- the measures the text gives, as written (null when absent): with_disease {count, total, percent}, "
             "sensitivity, specificity, lr_positive, lr_negative, comparator (the patients without the disease the "
             "specificity was measured in), setting (emergency department, primary care, hospital, surgical, "
@@ -198,7 +216,11 @@ def judge_prompt(disease: str, item: dict) -> str:
                                                                  "lr_positive", "lr_negative", "verbal")) else ""
     return (f"Disease: {disease}\nStated: {item['manifestation']} ({item.get('category', 'manifestation')})\n"
             f"Sentence (or table row) from a published text: \"{item['quote']}\"\n"
-            f"Claim: in {disease}, {item['manifestation']}" + (f"; {measure}" if measure else "") + ".\n"
+            f"Claim: in {disease}, {item['manifestation']}" + (f"; {measure}" if measure else "")
+            + (f"; when {item['direction']['when']}, it makes {disease} "
+               f"{item['direction']['effect'].replace('_', ' ')}"
+               + (f" ({item['direction']['words']})" if item['direction'].get('words') else "")
+               if item.get("direction") else "") + ".\n"
             "Answer yes when the sentence states this (and the numbers, if any) for this disease in general; no when "
             "it does not, when it belongs to another disease, to one particular cause or form only, or to a group the "
             "claim does not name.\n"
@@ -221,13 +243,26 @@ def interpreted(item: dict) -> dict:
             "observed_by": one_of(item.get("observed_by"), OBSERVED_BY),
             "nature": one_of(item.get("nature"), NATURES),
             "hpo_term": " ".join(str(item.get("hpo_term") or "").split()),
-            "same_as": " ".join(str(item.get("same_as") or "").split())}
+            "same_as": " ".join(str(item.get("same_as") or "").split()),
+            "compares": one_of(item.get("compares"), COMPARES),
+            "direction": direction_of(item.get("direction"))}
+
+
+def direction_of(value) -> dict | None:
+    """A statement of direction without a number: when present or absent, more or less likely, its words."""
+    if not isinstance(value, dict):
+        return None
+    when = str(value.get("when", "")).strip().lower()
+    effect = str(value.get("effect", "")).strip().lower().replace(" ", "_")
+    if when not in ("present", "absent") or effect not in DIRECTIONS:
+        return None
+    return {"when": when, "effect": effect, "words": " ".join(str(value.get("words") or "").split()).lower()}
 
 
 def agreed(views: list[dict]) -> tuple[dict, list[str]]:
     """What the interpreters agree on, and the fields they read differently (kept as doubts, never resolved)."""
     out, doubts = {}, []
-    for field_ in ("category", "specific", "observed_by", "nature", "hpo_term", "same_as"):
+    for field_ in ("category", "specific", "observed_by", "nature", "hpo_term", "same_as", "compares", "direction"):
         values = {json.dumps(v[field_]) for v in views}
         if len(values) == 1:
             out[field_] = views[0][field_]
@@ -271,6 +306,38 @@ def item_checked(item: dict, sections: list[tuple[str, str]]) -> tuple[dict | No
                 "comparator": "", "design": str(item.get("design", "other")).lower(), "pooled": False,
                 "patients": None}, ""
     return None, why
+
+
+def dedupe(measures: list[dict]) -> list[dict]:
+    """(D) A result stated more than once in one article, with the same numbers, counts once; every sentence stays
+    a citation of the one kept."""
+    out: dict[str, dict] = {}
+    for m in measures:
+        src = m.get("source") or {}
+        wd = m.get("with_disease") or {}
+        key = json.dumps([src.get("pmcid") or src.get("pmid") or src.get("doi") or src.get("title") or "",
+                          *(m.get(k) for k in ("sensitivity", "specificity", "lr_positive", "lr_negative")),
+                          wd.get("count"), wd.get("total"), wd.get("proportion")], sort_keys=True)
+        if key in out:
+            out[key].setdefault("also_stated", []).append(m["quote"])
+        else:
+            out[key] = dict(m)
+    return list(out.values())
+
+
+def for_weights(measures: list[dict], names: list[str]) -> list[dict]:
+    """(C) Only what compares patients with the disease against patients without it weighs the diagnosis: a
+    comparison between forms of the same disease (complicated against uncomplicated) does not."""
+    kept = []
+    for m in measures:
+        if m.get("compares") == "forms_of_the_disease":
+            continue
+        comparator = dp.norm(m.get("comparator", ""))
+        if comparator and any(dp.norm(n) in comparator for n in names) and "without" not in comparator \
+                and "non " not in comparator and "no " not in f" {comparator} ":
+            continue
+        kept.append(m)
+    return kept
 
 
 def main(argv=None) -> int:
@@ -480,12 +547,16 @@ def main(argv=None) -> int:
                 if category == "manifestation" and view["specific"] is not True:
                     continue                  # a list or a general phrase is not one manifestation
                 m["category"] = category
+                if view["direction"] and not any(k in m for k in ("with_disease", "sensitivity", "specificity",
+                                                                  "lr_positive", "lr_negative")):
+                    m["direction"] = view["direction"]
                 votes = judge(m)
                 if len(votes) != len(rs.JUDGES) or any(v["states"] != "yes" for v in votes):
                     continue
                 m["source"] = {**text["source"], "read": text["read"], "layer": layer}
                 m["disease"], m["reviewed"] = name, today
                 m["observed_by"], m["nature"] = view["observed_by"] or "", view["nature"] or ""
+                m["compares"] = view["compares"] or ""
                 # the HPO code only when the term the interpreters name is HPO's own name or exact synonym
                 code = hpo.find(view["hpo_term"], prefix="HP:") if view["hpo_term"] else ""
                 m["hpo_term"] = view["hpo_term"] or ""
@@ -576,8 +647,12 @@ def main(argv=None) -> int:
         profile = dp.merge_profile(mondo_id or name, name, manifestations)
         for man in profile.manifestations:
             k = man.concept.curie if man.concept and man.concept.code else dp.norm(man.words)
-            ms = [x for x in by_key.get(k, []) if any(f in x for f in ("with_disease", "sensitivity", "specificity",
-                                                                      "lr_positive", "lr_negative", "verbal"))]
+            ms = for_weights(dedupe([x for x in by_key.get(k, []) if any(
+                f in x for f in ("with_disease", "sensitivity", "specificity", "lr_positive", "lr_negative", "verbal"))]),
+                names)
+            directions = [x["direction"] for x in by_key.get(k, []) if x.get("direction")]
+            if directions:
+                man.direction = direction_summary(directions)
             if ms:
                 w = df.weigh(ms)
                 if "frequency" in w and (w.get("frequency_basis") != "verbal" or man.frequency is None):
@@ -615,6 +690,23 @@ def main(argv=None) -> int:
     return 0
 
 
+def direction_summary(directions: list[dict]) -> dict:
+    """(B) The statements of direction of one manifestation: for present and for absent, the effect all sources
+    agree on, with how many said it and whether any said it strongly; sources that disagree leave a doubt."""
+    out: dict = {}
+    for when in ("present", "absent"):
+        said = [d for d in directions if d["when"] == when]
+        if not said:
+            continue
+        effects = {d["effect"] for d in said}
+        out[when] = {"effect": effects.pop() if len(effects) == 1 else "doubt", "sources": len(said),
+                     "strong": any(w in d["words"] for d in said for w in STRONG)}
+    return out
+
+
+STRONG = ("strong", "markedly", "highly", "greatly", "very", "most")
+
+
 def write(out: Path, profiles, tests, scores, curves, rows, saturation, stopped, router, measures=(),
           reviews=None) -> None:
     """Everything, at once after each disease: an interrupted run loses nothing. ``measures.jsonl`` holds every
@@ -624,7 +716,7 @@ def write(out: Path, profiles, tests, scores, curves, rows, saturation, stopped,
     out.with_name("measures.jsonl").write_text("".join(json.dumps(m, ensure_ascii=False) + "\n" for m in measures),
                                                "utf-8")
     out.with_name("reviews.json").write_text(json.dumps(reviews or {}, indent=1, ensure_ascii=False), "utf-8")
-    group = lambda d: {k: [{"name": v[0]["manifestation"], **df.weigh(v), "measures": len(v)}  # noqa: E731
+    group = lambda d: {k: [{"name": v[0]["manifestation"], **df.weigh(dedupe(v)), "measures": len(v)}  # noqa: E731
                            for v in _by_name(ms).values()] for k, ms in d.items()}
     out.with_name("tests.json").write_text(json.dumps(group(tests), indent=1, ensure_ascii=False), "utf-8")
     out.with_name("scores.json").write_text(json.dumps(group(scores), indent=1, ensure_ascii=False), "utf-8")

@@ -215,6 +215,9 @@ class Manifestation(_Record):
     accuracy: dict[str, Any] = field(default_factory=dict)
     frequency_basis: str = ""                   # pooled_studies, one_study, verbal (a word of frequency), typicality
     nature: str = ""                            # pathological, or physiological (a normal response), by the interpreters
+    # what the sources say without a number (23 November 2026): {"present": {"effect": "more_likely", "sources":
+    # 2, "strong": false}, "absent": {...}}; a provisional weight, to be calibrated on published cases (step 9)
+    direction: dict[str, Any] = field(default_factory=dict)
     level: str = KNOWLEDGE
 
 

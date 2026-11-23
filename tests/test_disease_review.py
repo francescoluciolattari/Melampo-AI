@@ -3,6 +3,7 @@ parameter, the profile with its weights."""
 
 import importlib.util
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -214,3 +215,39 @@ def test_mondo_is_found_by_another_synonym_when_no_exact_one_names_the_disease()
              'synonym: "shared" RELATED []', "[Term]", "id: MONDO:2", "name: y", 'synonym: "shared" RELATED []']
     found = dr.any_synonym(lines)
     assert found["acute appendicitis"] == "MONDO:0004974" and "shared" not in found
+
+
+def test_a_result_stated_twice_in_one_article_counts_once():
+    src = {"pmcid": "PMC9"}
+    same = [{"manifestation": n, "quote": q, "sensitivity": 0.94, "specificity": 0.87, "source": src}
+            for n, q in (("PSV", "PSV: 94%, 87%."), ("peak systolic velocity", "Peak systolic velocity 94% / 87%."))]
+    other = {"manifestation": "PSV", "quote": "x", "sensitivity": 0.94, "specificity": 0.87, "source": {"pmcid": "PMC8"}}
+    kept = dr.dedupe(same + [other])
+    assert len(kept) == 2 and kept[0]["also_stated"] == ["Peak systolic velocity 94% / 87%."]
+
+
+def test_a_comparison_between_forms_of_the_disease_does_not_weigh_the_diagnosis():
+    ms = [{"compares": "forms_of_the_disease", "sensitivity": 0.8},
+          {"compares": "", "comparator": "patients with uncomplicated acute appendicitis", "sensitivity": 0.7},
+          {"compares": "disease_vs_without", "comparator": "patients without appendicitis", "sensitivity": 0.6}]
+    assert [m["sensitivity"] for m in dr.for_weights(ms, ["acute appendicitis", "appendicitis"])] == [0.6]
+
+
+def test_a_direction_without_a_number_is_a_provisional_weight():
+    from melampo.clinical import case_graph as cg
+    from melampo.reasoning import likelihood_ranking as lr
+
+    summary = dr.direction_summary([{"when": "present", "effect": "more_likely", "words": ""},
+                                    {"when": "absent", "effect": "less_likely", "words": "strongly"},
+                                    {"when": "absent", "effect": "less_likely", "words": ""}])
+    assert summary == {"present": {"effect": "more_likely", "sources": 1, "strong": False},
+                       "absent": {"effect": "less_likely", "sources": 2, "strong": True}}
+    m = cg.Manifestation("m", "migratory pain", cg.Concept("HPO", "HP:1"), direction=summary,
+                         citations=[{"id": "x"}])
+    d = cg.Disease("d", "hypothesized_diseases", "appendicitis", "declared", manifestations=[m],
+                   states=[cg.ManifestationState("m", cg.ABSENT, "stated")])
+    r = lr.score(d, {})
+    assert abs(r.log10_odds - math.log10(0.25)) < 1e-9 and "to be calibrated" in r.contributions[0].note
+    assert dr.direction_summary([{"when": "present", "effect": "more_likely", "words": ""},
+                                 {"when": "present", "effect": "less_likely", "words": ""}])["present"]["effect"] \
+        == "doubt"
