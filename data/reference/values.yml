@@ -43,8 +43,8 @@ rows:
              section: "sonographic assessment", ref: "15", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"On sonographic assessment, a length of 12 cm is generally considered the upper limit of normal 15" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page ed5bcf2741fadc89"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page b2debaf8d0691827"
   - id: spleen-length-ct-massive
     structures: [spleen]
     aspect: length
@@ -58,8 +58,8 @@ rows:
              section: "massive splenomegaly", ref: "4", revised: "2023-06-10", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '">14.5 cm true craniocaudal measurement on coronal CT 4", among the definitions of massive splenomegaly (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page ed5bcf2741fadc89"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page b2debaf8d0691827"
   - id: kidney-length-male
     structures: [kidney_right, kidney_left]
     aspect: length
@@ -72,8 +72,8 @@ rows:
              section: "gross anatomy: size", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"In adults, the normal kidney is 10-14 cm long in males and 9-13 cm long in females" (no reference number; 2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 6c27b19a54e1fa70"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 059c7e9c6c448a7c"
   - id: kidney-length-female
     structures: [kidney_right, kidney_left]
     aspect: length
@@ -86,8 +86,8 @@ rows:
              section: "gross anatomy: size", ref: "", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"In adults, the normal kidney is 10-14 cm long in males and 9-13 cm long in females" (no reference number; 2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 6c27b19a54e1fa70"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 059c7e9c6c448a7c"
   - id: kidney-parenchyma-us
     structures: [kidney_right, kidney_left]
     aspect: thickness
@@ -100,8 +100,8 @@ rows:
              section: "radiographic features: ultrasound", ref: "11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"if the pyramids are difficult to differentiate, the parenchymal thickness can be measured instead and should be 15-20 mm 11" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 6c27b19a54e1fa70"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 059c7e9c6c448a7c"
   - id: kidney-cortex-us
     structures: [kidney_right, kidney_left]
     aspect: thickness
@@ -114,8 +114,8 @@ rows:
              section: "radiographic features: ultrasound", ref: "14", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"cortex thickness equals/is more than 6 mm 14" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 6c27b19a54e1fa70"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 059c7e9c6c448a7c"
   - id: liver-length-mcl
     structures: [liver]
     aspect: length
@@ -130,8 +130,8 @@ rows:
              section: "for the adult liver", ref: "", revised: "2024-03-29", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"a liver that is longer than 15.5-16 cm in the midclavicular line (MCL) is considered enlarged" (no reference number; the average, "10-12.5 cm", cites 2; 2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page b69130b08d35d523"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 7fb87ccc2f1c047a"
   - id: portal-vein-diameter
     structures: [portal_vein_and_splenic_vein]
     aspect: diameter
@@ -144,8 +144,8 @@ rows:
              section: "gross anatomy: origin and course", ref: "2, 11", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"with a normal diameter of 7-13 mm 2,11" ... "but may vary up to 15 mm and more 13" (2026-11-08; corrected 2026-11-20 to the words the check found on the page: "and more", reference 13)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 6b2db080f3bb7598"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 1c095a40de6693d9"
   - id: portal-vein-diameter-ct
     structures: [portal_vein_and_splenic_vein]
     aspect: diameter
@@ -173,8 +173,8 @@ rows:
              section: "gross anatomy: course", ref: "5", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"The diameter of the aorta decreases from 28 mm in the thorax to less than 20 mm below the kidneys 5." (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 7b03e68adc9a5c9c"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page a70c12501d09064d"
   - id: gallbladder-wall-us
     structures: [gallbladder]
     aspect: thickness
@@ -206,8 +206,8 @@ rows:
              section: "radiographic features: CT", ref: "3", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"dilated small bowel loops >2.5 cm from outer wall to outer wall", in the features on CT that cite 3 (2026-11-08; corrected 2026-11-20 to the words the check found on the page: the copy had an extra "up")'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 3e988e68543890b0"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 068a3a7478e18d7b"
   - id: small-bowel-diameter-us
     structures: [small_bowel]
     aspect: diameter
@@ -221,8 +221,8 @@ rows:
              section: "radiographic features: bedside ultrasound", ref: "7", revised: "2024-03-23", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"dilated bowel loop (diameter > 3 cm)", in the bedside tests that cite 7 (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 3e988e68543890b0"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 068a3a7478e18d7b"
   - id: left-atrium-volume-index
     structures: [heart, atrial_appendage_left]
     aspect: volume_index
@@ -239,8 +239,8 @@ rows:
              section: "table 4", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
     quoted: 'table 4, "16-34" mL/m2 for men and women (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page a16cce6d2fb873db"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page a16cce6d2fb873db"
   - id: lv-diastolic-dimension-male
     structures: [heart]
     aspect: diameter
@@ -255,8 +255,8 @@ rows:
              section: "table 2", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
     quoted: 'table 2, men "50.2±4.1", 2-SD range "42.0-58.4" mm (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page a16cce6d2fb873db"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page a16cce6d2fb873db"
   - id: lv-diastolic-dimension-female
     structures: [heart]
     aspect: diameter
@@ -271,8 +271,8 @@ rows:
              section: "table 2", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
     quoted: 'table 2, women "45.0±3.6", 2-SD range "37.8-52.2" mm (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page a16cce6d2fb873db"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page a16cce6d2fb873db"
   - id: septal-thickness-male
     structures: [heart]
     aspect: thickness
@@ -287,8 +287,8 @@ rows:
              section: "table 6", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
     quoted: 'table 6, men "0.6-1.0" cm (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page a16cce6d2fb873db"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page a16cce6d2fb873db"
   - id: septal-thickness-female
     structures: [heart]
     aspect: thickness
@@ -303,8 +303,8 @@ rows:
              section: "table 6", ref: "", revised: "2015", licence: "all rights reserved: the value with its citation only"}
     quoted: 'table 6, women "0.6-0.9" cm (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page a16cce6d2fb873db"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page a16cce6d2fb873db"
   - id: ivc-high-right-atrial-pressure
     structures: [inferior_vena_cava]
     aspect: diameter
@@ -321,7 +321,7 @@ rows:
     quoted: '"Based on the ASE criteria, IVCmax >2.1 cm and IVCCI <50% were used as the threshold to detect RAP >10 mmHg" (methods: echocardiography, ref 4; 2026-11-08)'
     status: to_verify
     checked_by: ""
-    page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"Based on the ASE criteria, IVCmax >2.1 cm and IVCCI <50% were used as the threshold to detect RAP >10 mmHg\": \"Click here if you are not automatically redirected after 5 seconds.\"}"
+    page_check: "2026-11-23, the page could not be read"
   # rows added on 8 November 2026, for the structures of chest CT (CT-RATE) and of the adrenals and thyroid
   - id: aorta-ascending-dilatation
     structures: [aorta]
@@ -336,8 +336,8 @@ rows:
              section: "pathology", ref: "4", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"In adults, an ascending aortic diameter greater than 4 cm is considered to indicate dilatation 4." (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page 5aa6adaa0f8e6099"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page 90e3c498e9043a1a"
   - id: aorta-descending-aneurysm
     structures: [aorta]
     aspect: diameter
@@ -415,8 +415,8 @@ rows:
              section: "radiographic appearance: ultrasound", ref: "10", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"each lobe normally measures 10": "length or craniocaudal: 4-6 cm" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page c499b9875429db9e"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page b88cb74a90783c71"
   - id: thyroid-lobe-depth-us
     structures: [thyroid_gland]
     aspect: thickness
@@ -430,7 +430,7 @@ rows:
     quoted: '"depth or anteroposterior dimension: <2 cm" (2026-11-08; corrected 2026-11-21 to the words the check read on the page: "anteroposterior", not "anterior-posterior")'
     status: to_verify
     checked_by: ""
-    page_check: "2026-11-20, not found on the page; the nearest words of the page: {\"depth or anterior-posterior dimension: <2 cm\": \"Radiology of Infectious and Inflammatory Diseases - Volume 2.\"}"
+    page_check: "2026-11-23, not found on the page; the nearest words of the page: {\"anterior-posterior\": \"anterior triangle\"}"
   - id: thyroid-isthmus-depth-us
     structures: [thyroid_gland]
     aspect: thickness
@@ -443,8 +443,8 @@ rows:
              section: "radiographic appearance: ultrasound", ref: "4", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"isthmus <0.5 cm deep 4" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page c499b9875429db9e"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page b88cb74a90783c71"
   - id: thyroid-volume-female
     structures: [thyroid_gland]
     aspect: volume
@@ -457,8 +457,8 @@ rows:
              section: "radiographic appearance: ultrasound", ref: "6", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"volume (excluding isthmus, unless its thickness is >3 mm) 6": "10-15 mL for females" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page c499b9875429db9e"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page b88cb74a90783c71"
   - id: thyroid-volume-male
     structures: [thyroid_gland]
     aspect: volume
@@ -471,5 +471,5 @@ rows:
              section: "radiographic appearance: ultrasound", ref: "6", revised: "", licence: "CC BY-NC-SA 3.0 (modified)"}
     quoted: '"12-18 mL for males" (2026-11-08)'
     status: verified
-    checked_by: "the words found on the page by the sources-index check, 2026-11-20"
-    page_check: "2026-11-20, page c499b9875429db9e"
+    checked_by: "the words found on the page by the sources-index check, 2026-11-23"
+    page_check: "2026-11-23, page b88cb74a90783c71"
