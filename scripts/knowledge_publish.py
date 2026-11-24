@@ -18,7 +18,7 @@ from pathlib import Path
 # the texts read are not published: an abstract or a full text belongs to its authors and publisher (the
 # repository is public); what is published are the readings, the verdicts and the short sentences cited with
 # their source, as any citation. The texts stay in the run's artifact.
-LOGS = ("screened.jsonl", "readings.jsonl", "verdicts.jsonl")
+LOGS = ("screened.jsonl", "readings.jsonl", "verdicts.jsonl", "groupings.jsonl")
 
 
 def _json(path: Path, default):

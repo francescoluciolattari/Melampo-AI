@@ -232,6 +232,30 @@ di verosimiglianza provvisorio (2 o 0,5, al quadrato se detta con forza), da tar
 (D) Un risultato ripetuto nello stesso articolo con gli stessi numeri conta una volta quando si combinano gli
 studi; ogni frase resta una citazione.
 
+**Correzioni del 24 novembre 2026, dopo il terzo run** (appendicite, 34 testi, 3 USD: 79 manifestazioni, 6 con
+un'accuratezza misurata). (E) Un solo formato per tutti i modelli (regola del proprietario: i
+modelli sono intercambiabili, con una direttiva unica): il prompt dà la forma esatta di un oggetto, con le misure
+dentro un unico oggetto "measures" oppure null; ciò che arriva in un'altra forma non si legge e si conta per il
+modello che l'ha mandato (`format` nel riepilogo). Nemotron metteva le misure dentro "measures" in 189 delle sue
+549 voci, Muse fuori: il questionario, ora `r4`, si rilegge. (F) Una misura è un valore che il testo dice come un solo
+valore: "fino al 98 % sensibile", "dal 30 all'80 %", "accurata al 79 %" non sono una sensibilità né una frequenza
+(la manifestazione resta, senza la misura, con il motivo tra i dubbi). (G) La lettura di ciascun interprete è un
+record a sé: una misura pesa solo se entrambi gli interpreti la leggono nella stessa fonte con gli stessi numeri,
+un'affermazione di direzione solo se entrambi la leggono nella stessa fonte; un collegamento a un termine HPO o a
+una manifestazione nota letto da un solo interprete non si fa (un solo interprete aveva unito la velocità di picco
+sistolico al flusso al color Doppler, e il vomito prima del dolore al vomito); una fonte i cui risultati concordati
+per una manifestazione sono diversi non pesa per quella manifestazione. (H) Alla fine della revisione di una
+patologia, i due interpreti, ciascuno per conto suo, raggruppano i nomi del profilo che sono la stessa
+manifestazione ("psoas sign" e "positive psoas sign") e uniscono un'assenza alla cosa ("absence of fever" alla
+febbre, con la sua direzione per "assente"); si unisce solo ciò che entrambi raggruppano, mai un gruppo con due
+codici HPO. (I) I giudici verificano un'affermazione di direzione come affermazione a sé ("il vomito prima del
+dolore, se presente, rende l'appendicite meno probabile"). (J) Una pagina di Europe PMC che non risponde si riprova
+quattro volte; si scrivono i risultati di ogni strato, e uno strato che non si riesce a leggere chiude la
+revisione come `sources_unreachable`, non come saturata (nel terzo run quattro strati, tra cui gli studi di
+accuratezza e le serie di pazienti, non hanno dato alcun testo, senza traccia del perché); uno strato saturo non si
+scorre fino in fondo. Le misure delle versioni precedenti della conoscenza, lette prima di (G), non hanno
+interprete e non pesano finché non vengono rilette.
+
 
 **Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).
 `--saturation N`: ogni strato di fonti della revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono

@@ -170,6 +170,39 @@ NUMBER_WORDS = {w: i for i, w in enumerate(("zero", "one", "two", "three", "four
                                               "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
                                               "sixteen", "seventeen", "eighteen", "nineteen", "twenty"))}
 RANGE = re.compile(r"^\s*\d+(?:[.,·]\d+)?\s*%?\s*(?:-|–|to|and)\s*\d")
+# (F, 24 November 2026, declared after the second run of the review: "up to 98 % sensitive" was taken as a
+# sensitivity of 98 %, "ranges from 30 to 80 %" as 30 %, "79 % accurate diagnosis" as a sensitivity) a measure is a
+# value the text states as one value: a number, with its per cent sign and its confidence interval in brackets
+POINT = re.compile(r"^\s*\d+(?:[.,·]\d+)?\s*%?\s*$")
+BOUND = re.compile(r"(?:up to|as high as|as low as|at least|at most|more than|less than|greater than|fewer than|"
+                   r"higher than|lower than|over|under|exceeding|above|below|[<>≤≥])\s*$", re.I)
+AFTER_RANGE = re.compile(r"^\s*%?\s*(?:-|–|to\b)\s*\d")
+BEFORE_RANGE = re.compile(r"(?:\d\s*%?\s*(?:-|–|to)|between\s+\d+(?:[.,]\d+)?\s*%?\s*and)\s*$", re.I)
+
+
+def point_problem(value, quote: str) -> str:
+    """Why a value is not one value the text states ("" when it is): a range, a bound, words."""
+    if value in (None, "", "null") or isinstance(value, (int, float)):
+        text = "" if value in (None, "", "null") else repr(value)
+    else:
+        text = re.sub(r"[(\[].*?[)\]]", " ", str(value))
+        if RANGE.match(text):
+            return "a_range_not_a_value"
+        if not POINT.match(text):
+            return "not_one_value"
+    if not text:
+        return ""
+    x = _num(value)
+    plain = quote.replace("·", ".")
+    seen = False
+    for m in re.finditer(r"\d+(?:[.,]\d+)?", plain):
+        if abs(float(m.group(0).replace(",", ".")) - x) > 1e-9:
+            continue
+        seen = True
+        before, after = plain[max(0, m.start() - 16):m.start()], plain[m.end():m.end() + 12]
+        if not BOUND.search(before) and not BEFORE_RANGE.search(before) and not AFTER_RANGE.match(after):
+            return ""
+    return "a_bound_or_range_in_the_text" if seen else ""
 
 
 def _letters(text: str) -> str:
@@ -203,6 +236,10 @@ def checked(item: dict, sections: list[tuple[str, str]]) -> tuple[dict | None, s
     wd = item.get("with_disease") if isinstance(item.get("with_disease"), dict) else {}
     fields = [wd.get("count"), wd.get("total"), wd.get("percent"), item.get("sensitivity"), item.get("specificity"),
               item.get("lr_positive"), item.get("lr_negative")]
+    for v in fields:
+        why = point_problem(v, plain)
+        if why:
+            return None, why
     if not all(in_quote(v) for v in fields):
         return None, "number_not_in_quote"
     out = {"manifestation": str(item.get("manifestation", "")).strip(), "quote": quote,

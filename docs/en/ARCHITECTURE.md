@@ -226,6 +226,28 @@ weigh nothing. (C) A measure comparing two forms of the disease does not weigh t
 more than once in one article, with the same numbers, counts once when studies are pooled; every sentence stays a
 citation.
 
+**Corrections of 24 November 2026, after the third run** (appendicitis, 34 texts, 3 USD: 79 manifestations, 6
+with a measured accuracy). (E) One format for every model (the owner's rule: the models are
+interchangeable, with one directive): the prompt gives the exact form of an object, the measures inside one
+"measures" object or null; what comes in another form is not read and is counted for the model that sent it
+(`format` in the summary). Nemotron had put its measures inside "measures" for 189 of its 549 items, Muse outside:
+the questionnaire, now `r4`, is read again. (F) A measure is one value the text states as one value: "up to 98 %
+sensitive", "from 30 to 80 %", "79 % accurate" are not a sensitivity or a frequency (the manifestation stays,
+without the measure, the reason kept as a doubt). (G) Each interpreter's reading is its own record: a measure
+weighs only when both interpreters read it in the same source with the same numbers, a statement of direction only
+when both read it in the same source; a link to an HPO term or to a known manifestation read by one interpreter
+alone is not made (one interpreter alone had joined the peak systolic velocity to the colour Doppler flow, and
+vomiting before pain to vomiting); a source whose agreed results for one manifestation differ weighs nothing for it.
+(H) At the end of a disease's review, the two interpreters, each on its own, group the names of the profile that
+are the same manifestation ("psoas sign" and "positive psoas sign") and join an absence to the thing ("absence of
+fever" to fever, with its direction for "absent"); only what both group together is joined, a group with two HPO
+codes is not. (I) A statement of direction is verified by the judges as a claim of its own ("vomiting before pain,
+when present, makes appendicitis less likely"). (J) A page of Europe PMC that does not answer is tried again four
+times; the hits of every layer are written, and a layer that cannot be read ends the review as
+`sources_unreachable`, not as saturated (in the third run four layers, among them the accuracy studies and the
+series of patients, gave no text, without a trace of why); a saturated layer is not paged to its end. Measures of
+earlier knowledge versions, read before (G), carry no interpreter and weigh nothing until read again.
+
 
 **When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:
 each layer of sources of a disease's review stops when N texts in a row, read and judged, add no manifestation, and the review goes on to the next layer (counted layer by layer since the first run: counted on the whole review, five guideline abstracts stopped it before the accuracy studies and the series of patients, where the weights are). The least is 5 (a
