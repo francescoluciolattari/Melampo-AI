@@ -95,6 +95,7 @@ CATEGORIES = ("manifestation", "test", "score", "outcome", "risk_factor", "form"
 OBSERVED_BY = ("history", "examination", "laboratory", "imaging", "endoscopy", "intraoperative", "histopathology",
                "course")
 JUDGED = "v6:"         # the judges verify only (22 November 2026): the interpretation is the interpreters'
+GROUPING_RESERVE = 0.5  # USD kept, out of the budget, for the grouping of the names (24 November 2026)
 JUDGED_CLAIM = "v7:"   # a claim with its numbers or its direction is verified as such (24 November 2026)
 LAYERS = (
     ("guideline", '(PUB_TYPE:"guideline" OR PUB_TYPE:"practice-guideline" OR TITLE:"guideline" OR '
@@ -626,7 +627,9 @@ def main(argv=None) -> int:
     mondo_by_any_synonym = any_synonym(read(args.mondo))
     doid_symptoms = {c.doid: c.symptom_ids for c in parse_doid_owl(Path(args.doid_owl)) if not c.deprecated}
     index = si.SourcesIndex.load(si.SOURCES)
-    router, lock = rs.Router(key, args.budget), threading.Lock()
+    # a part of the budget is kept for the grouping of the names at the end of each review (H)
+    reserve = round(min(GROUPING_RESERVE, args.budget * 0.1), 4)
+    router, lock = rs.Router(key, args.budget - reserve), threading.Lock()
 
     def log(name: str, row: dict) -> None:
         with lock, logs[name].open("a", encoding="utf-8") as f:
@@ -672,6 +675,9 @@ def main(argv=None) -> int:
                 if since:                # the sources of the index carry no date: read in the full review
                     raise StopIteration
                 reading = lc.read_sources(name, names, index, research=args.research, get=rs.get)
+                row["index"] = {"documents": len(reading.documents), "per_source": dict(reading.per_source),
+                                "skipped": [f"{x.source}: {x.reason}"[:200] for x in reading.skipped][:20]}
+                print(json.dumps({"disease": name, "index": row["index"]}), flush=True)
                 for d in reading.documents:
                     ident = str(d.citation.get("id") or d.citation.get("pmcid") or d.citation.get("doi") or "")
                     yield "sources_index", {"id": ident or hashlib.sha1(str(d.citation).encode()).hexdigest()[:12],
@@ -890,7 +896,9 @@ def main(argv=None) -> int:
         entries = [{"key": k, "name": known.get(k, k), "quote": quotes.get(k, ""), "records": counts.get(k, 0)}
                    for k in sorted(curated_keys | set(counts))]
         remap, absent_keys = {}, set()
-        if len(entries) > 1 and not stopped:
+        credit_left = not stopped or not stopped.startswith("OpenRouter answered")
+        if len(entries) > 1 and credit_left:
+            router.budget = max(router.budget, args.budget)     # the reserve is for this
             prompt = consolidate_prompt(name, entries)
             answers = []
             try:
@@ -908,6 +916,9 @@ def main(argv=None) -> int:
                 stopped = str(error)
             except ValueError as error:
                 row["grouping"] = f"not done: {error}"
+            router.budget = args.budget - reserve
+        elif len(entries) > 1:
+            row["grouping"] = f"not done: {stopped}"
         for m in accepted:
             k = m["key"]
             if k in absent_keys:
@@ -1034,7 +1045,7 @@ def write(out: Path, profiles, tests, scores, curves, rows, saturation, stopped,
     out.with_name("scores.json").write_text(json.dumps(group(scores), indent=1, ensure_ascii=False), "utf-8")
     out.with_name("curves.json").write_text(json.dumps(curves, indent=1, ensure_ascii=False), "utf-8")
     summary = {"saturation": saturation or "none: to the end of the sources", "stopped": stopped,
-               "cost_usd": round(router.cost, 4), "rows": rows}
+               "cost_usd": round(router.cost, 4), "pages_not_read": dict(rs.FAILED), "rows": rows}
     out.with_name("summary.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False), "utf-8")
 
 

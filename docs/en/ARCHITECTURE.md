@@ -248,6 +248,13 @@ times; the hits of every layer are written, and a layer that cannot be read ends
 series of patients, gave no text, without a trace of why); a saturated layer is not paged to its end. Measures of
 earlier knowledge versions, read before (G), carry no interpreter and weigh nothing until read again.
 
+**After the fourth run (24 November 2026).** Every page asked of a server (Europe PMC, PubMed, the sources of the
+index) is asked again when the server does not answer (a timeout, a connection broken, 429, a 5xx); a page given
+up is counted in `pages_not_read` of the summary, and what the sources of the index gave, source by source, is in
+`index` (in the fourth run the index gave no text, without a trace). Out of the budget, 10 % (at most 0.50 USD) is
+kept for the grouping of the names at the end of each review, so that a review stopped by its budget is still
+grouped; a review stopped because OpenRouter has no credit left is written without the grouping, and says so.
+
 
 **When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:
 each layer of sources of a disease's review stops when N texts in a row, read and judged, add no manifestation, and the review goes on to the next layer (counted layer by layer since the first run: counted on the whole review, five guideline abstracts stopped it before the accuracy studies and the series of patients, where the weights are). The least is 5 (a

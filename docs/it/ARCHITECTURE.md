@@ -256,6 +256,14 @@ accuratezza e le serie di pazienti, non hanno dato alcun testo, senza traccia de
 scorre fino in fondo. Le misure delle versioni precedenti della conoscenza, lette prima di (G), non hanno
 interprete e non pesano finché non vengono rilette.
 
+**Dopo il quarto run (24 novembre 2026).** Ogni pagina chiesta a un server (Europe PMC, PubMed, le fonti
+dell'indice) si richiede quando il server non risponde (un timeout, una connessione interrotta, 429, un 5xx); una
+pagina abbandonata si conta in `pages_not_read` del riepilogo, e ciò che hanno dato le fonti dell'indice, fonte per
+fonte, è in `index` (nel quarto run l'indice non ha dato alcun testo, senza traccia). Del budget, il 10 % (al massimo
+0,50 USD) è tenuto per il raggruppamento dei nomi alla fine di ogni revisione, così una revisione fermata dal suo
+budget viene comunque raggruppata; una revisione fermata perché OpenRouter non ha più credito si scrive senza
+raggruppamento, e lo dice.
+
 
 **Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).
 `--saturation N`: ogni strato di fonti della revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono

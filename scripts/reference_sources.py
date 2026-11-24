@@ -138,14 +138,31 @@ class Router:
         return str((choice.get("message") or {}).get("content") or ""), str(choice.get("finish_reason") or "")
 
 
-def get(url: str, accept: str = "application/json") -> str:
-    time.sleep(0.2)
-    req = urllib.request.Request(url, headers={"User-Agent": "melampo-reference-sources/1.0", "Accept": accept})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return r.read().decode("utf-8", errors="replace")
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
-        return ""
+GET_PAUSES = (0, 5, 20, 60)   # seconds before each attempt when a server does not answer, or asks to wait
+FAILED: dict[str, int] = {}   # host and reason -> pages that could not be read, for the summary of a run
+
+
+def get(url: str, accept: str = "application/json", pauses=GET_PAUSES, wait=time.sleep) -> str:
+    """A page, or "" when it is not there. A server that does not answer (a timeout, a connection broken, 429, a
+    5xx) is asked again before giving up; every page given up is counted in ``FAILED`` (24 November 2026,
+    declared after the third and fourth runs of the review: a page not answered once was taken for no page, and
+    whole layers and the sources of the index gave nothing without a trace)."""
+    host = urllib.parse.urlsplit(url).netloc
+    why = ""
+    for pause in pauses:
+        wait(max(pause, 0.2))
+        req = urllib.request.Request(url, headers={"User-Agent": "melampo-reference-sources/1.0", "Accept": accept})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return r.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as error:
+            why = f"http_{error.code}"
+            if error.code != 429 and error.code < 500:
+                break                      # not there: asking again changes nothing
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as error:
+            why = type(error).__name__
+    FAILED[f"{host} {why}"] = FAILED.get(f"{host} {why}", 0) + 1
+    return ""
 
 
 # -- texts ----------------------------------------------------------------------------------------------------------

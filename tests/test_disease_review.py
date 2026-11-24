@@ -358,3 +358,32 @@ def test_a_measure_weighs_only_when_both_interpreters_read_it_and_a_source_gives
          for r in ("nemotron", "muse")] +
         [{"reader": "muse", "source": src, "direction": {"when": "absent", "effect": "less_likely", "words": ""}}])
     assert directions == [{"when": "present", "effect": "more_likely", "words": ""}] and alone_ == 1
+
+
+def test_a_server_that_does_not_answer_is_asked_again_and_a_page_given_up_is_counted(monkeypatch):
+    import io
+    import urllib.error
+    answers = [TimeoutError(), urllib.error.HTTPError("u", 503, "busy", {}, None), io.BytesIO(b'{"ok": 1}')]
+
+    class Page:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self.body
+
+        def __exit__(self, *a):
+            return False
+
+    def urlopen(req, timeout=60):
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return Page(a)
+
+    monkeypatch.setattr(dr.rs.urllib.request, "urlopen", urlopen)
+    dr.rs.FAILED.clear()
+    assert dr.rs.get("https://www.ebi.ac.uk/x", wait=lambda s: 0) == '{"ok": 1}' and dr.rs.FAILED == {}
+    answers[:] = [urllib.error.HTTPError("u", 404, "not found", {}, None)]
+    assert dr.rs.get("https://www.ebi.ac.uk/y", wait=lambda s: 0) == ""
+    assert dr.rs.FAILED == {"www.ebi.ac.uk http_404": 1} and answers == []   # a page not there is asked once
