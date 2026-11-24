@@ -111,6 +111,53 @@ mostrato con il modello; un modello che ne deriva (un fine-tuning, anche gli ada
 stessi termini e la stessa dicitura; la clausola sui minori riguarda chi usa il modello: chi usa Melampo non deve
 essere minorenne.
 
+### Una sola procedura di lettura (25 novembre 2026)
+
+Ogni testo che Melampo legge -- un documento del paziente o una pubblicazione medica -- è letto con una sola
+procedura, `melampo.reading.read_text`, con le stesse funzioni e gli stessi interpreti (Nemotron 3 Ultra e Muse
+Spark Open, con ragionamento). Un referto e una pubblicazione parlano la stessa lingua: che cosa si osserva, dove,
+con quale metodo, con quale interpretazione; il nome è un'etichetta.
+
+1. **Una scheda.** Ogni reperto è descritto dagli stessi campi (`reading.card`): parole, nome, categoria, che cosa
+   si osserva, la sua interpretazione (presente, aumentato, diminuito, normale, anormale, positivo, negativo),
+   valore, soglia, sede, lato, metodo (`observed_by`), momento, natura, e la frase. Cambia con il contesto solo ciò
+   che il testo afferma: per un paziente, lo stato (presente, assente, incerto), quando (attuale, passato,
+   ipotetico) e di chi (il paziente, un familiare); per una pubblicazione, le misure in una popolazione, la
+   direzione senza numero e che cosa confrontano le misure. La direttiva è una (`reading.prompt`), la forma è una,
+   e ciò che arriva in un'altra forma non si legge e si conta per il suo modello.
+2. **Il confronto prima di ogni codice.** Le schede dei due interpreti si confrontano come due revisori
+   confrontano i dati estratti su un modulo comune (Cochrane MECIR C45-C46): solo schede della stessa frase; lo
+   stesso nome e la stessa cosa si appaiano direttamente; altrimenti si chiede a ciascun interprete, per conto suo
+   e nella frase, se le due letture descrivono lo stesso reperto con altre parole, e si appaiano solo se lo dicono
+   tutti; poi campo per campo, ciò che entrambi danno uguale è concordato e ciò che danno diverso è un dubbio
+   (`reading.agreement`). Codificare prima creerebbe discordanze che il testo non ha: due codificatori
+   indipendenti hanno dato lo stesso codice SNOMED CT a tre diagnosi su quattro (Del-Pinto et al., 2023), e codici
+   diversi spesso dicono la stessa cosa.
+3. **I codici dopo.** Si codifica solo la lettura concordata (`reading.normalize`): la sua etichetta nel
+   tesauro; il nome proprio o il sinonimo esatto di HPO; altrimenti i candidati che condividono parole di
+   contenuto si mostrano a ciascun interprete con la frase, e la lettura è il candidato che scelgono tutti;
+   altrimenti, da una pubblicazione, un nuovo concetto del tesauro, da un documento del paziente nessun concetto
+   (il reperto tiene le sue parole). La sede di un reperto del paziente è la classe del lessico quando il suo nome
+   è esattamente una.
+4. **Il tesauro è conoscenza, non addestramento** (`reading.thesaurus`): i concetti su cui gli interpreti hanno
+   concordato, ogni etichetta con la sua descrizione, la frase, la fonte e le risposte; qualunque modello lo legge
+   allo stesso modo, come candidati. È versionato con la conoscenza (`thesaurus.jsonl` in ogni Release, parte
+   dell'hash della versione; `KConcept` e `KLabel` nel grafo della conoscenza). Lo scrivono solo le pubblicazioni;
+   la lettura di un paziente lo usa e non vi aggiunge mai nulla.
+
+Il testo di un paziente va solo agli interpreti di questa macchina (`report_router.local_chat`, marcati
+`local_only`; `read_text` rifiuta ogni altro); una pubblicazione può andare su OpenRouter. Lo stesso concetto si
+incontra nel grafo del caso e nel profilo: un reperto e una manifestazione con lo stesso concetto del tesauro si
+corrispondono come due con lo stesso codice HPO. Una scheda su cui gli interpreti non concordano entra nel grafo
+del caso come reperto affermato con incertezza (dubbio, mai deciso).
+
+I referti sono passati subito alla procedura unica, per decisione del proprietario del 25 novembre 2026
+(`MELAMPO_REPORT_READER`, predefinito `one`); il lettore precedente (`anatomy`: il lessico, il lettore di Kintsch,
+le affermazioni, l'interprete delle immagini) resta solo per misurare il cambiamento sugli stessi banchi. Fino a
+quella misura, i tassi d'errore della tabella sopra sono del lettore precedente, non della procedura unica. Non
+ancora nella procedura unica: il lato immagine di un reperto (VoxTell e TotalSegmentator, appaiati alla lettura
+precedente) e il riassunto del patologo (TNM, grado, margini), che il lettore precedente dava ai suoi reperti.
+
 ## 4. Modello dei dati e interoperabilità
 
 | Dato | Standard | Dove |
@@ -263,6 +310,14 @@ fonte, è in `index` (nel quarto run l'indice non ha dato alcun testo, senza tra
 0,50 USD) è tenuto per il raggruppamento dei nomi alla fine di ogni revisione, così una revisione fermata dal suo
 budget viene comunque raggruppata; una revisione fermata perché OpenRouter non ha più credito si scrive senza
 raggruppamento, e lo dice.
+
+
+**25 novembre 2026: la procedura unica di lettura.** La revisione legge ogni testo con `melampo.reading`
+(questionario `r5`), la stessa procedura dei documenti di un paziente (vedi "Una sola procedura di lettura").
+Sostituisce il prompt proprio del lettore, l'unione dei due interpreti per nomi identici e il raggruppamento dei
+nomi alla fine di ogni revisione (H): le letture dei due interpreti di un reperto si appaiano nella frase, e i nomi
+di un reperto tra testi diversi si incontrano nel tesauro (un'etichetta concordata, o un candidato che entrambi
+gli interpreti scelgono).
 
 
 **Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).

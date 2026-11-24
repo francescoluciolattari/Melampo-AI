@@ -36,7 +36,8 @@ from melampo.clinical import case_graph as cg  # noqa: E402
 from melampo.memory import disease_knowledge_graph as kg  # noqa: E402
 from melampo.memory.profile_library import ProfileLibrary, norm  # noqa: E402
 
-FILES = ("profiles.json", "names.json", "tests.json", "scores.json", "curves.json", "measures.jsonl", "reviews.json")
+FILES = ("profiles.json", "names.json", "tests.json", "scores.json", "curves.json", "measures.jsonl", "reviews.json",
+         "thesaurus.jsonl")
 
 
 def _key(m: cg.Manifestation) -> str:
@@ -93,7 +94,9 @@ def build_db(folder: Path, version: str, path: Path) -> dict[str, int]:
     read = lambda n, d: json.loads((folder / n).read_text("utf-8")) if (folder / n).exists() else d  # noqa: E731
     counts = kg.load_version(graph, version, read("profiles.json", {"profiles": []})["profiles"],
                              date=max((r.get("date", "") for r in reviews.values()), default=""),
-                             names=read("names.json", {}), tests=read("tests.json", {}))
+                             names=read("names.json", {}), tests=read("tests.json", {}),
+                             thesaurus=[json.loads(x) for x in (folder / "thesaurus.jsonl").read_text("utf-8")
+                                        .splitlines() if x.strip()] if (folder / "thesaurus.jsonl").exists() else [])
     db.close()                     # the file is written whole before it is uploaded
     return counts
 
@@ -128,6 +131,11 @@ def main(argv=None) -> int:
         return 0
     names = release / "names.json"
     version = ProfileLibrary.load(release / "profiles.json", names if names.exists() else None).version
+    thesaurus = release / "thesaurus.jsonl"
+    if thesaurus.exists() and thesaurus.stat().st_size:      # the thesaurus is part of the version (25 November 2026)
+        import hashlib
+
+        version = hashlib.sha256((version + hashlib.sha256(thesaurus.read_bytes()).hexdigest()).encode()).hexdigest()
     old_version = ""
     if previous and (previous / "version.json").exists():
         old_version = json.loads((previous / "version.json").read_text("utf-8")).get("version", "")

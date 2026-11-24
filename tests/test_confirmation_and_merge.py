@@ -18,7 +18,7 @@ def _pipeline():
     if LINKER is None:
         LINKER = build_linker()[0]
     pipeline = build_default_runtime().pipeline
-    pipeline.ingestion.report_readers = ReportReaders(LINKER)
+    pipeline.ingestion.report_readers = ReportReaders(LINKER, reader="anatomy")
     return pipeline
 
 

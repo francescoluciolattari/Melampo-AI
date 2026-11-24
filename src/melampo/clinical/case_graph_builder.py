@@ -3,7 +3,9 @@
 Nothing here reads a document again: each function takes what an existing module already produced and puts it in
 its branch, with the words and their place.
 
-- ``add_report``: the sites of a report (``data.report_reading.ReportReaders.read_sites``: rows of
+- ``add_cards``: the cards of the one procedure of reading (``melampo.reading``, 25 November 2026: the same for
+  the documents of the case and for the publications) -> one finding per manifestation of the patient.
+- ``add_report``: the sites of a report (the reader before the one procedure, ``MELAMPO_REPORT_READER=anatomy``) (``data.report_reading.ReportReaders.read_sites``: rows of
   ``memory.report_graph.site_row``) -> one finding per accepted site, with its qualifiers (polarity, certainty,
   temporality) and the concept the readers chose, when there is one; the exam's areas from its title
   (``memory.exam_area``).
@@ -102,6 +104,53 @@ def add_report(graph: cg.CaseGraph, document_id: str, text: str, reading: dict[s
             graph.findings.append(finding)
             out.append(finding)
     return out
+
+
+def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[dict[str, Any]], *,
+              title: str = "", date: str = "", modality: str = "", exam_areas: Any = None,
+              kind: str = "note") -> tuple[list[cg.Finding], list[str]]:
+    """One finding per card of the one procedure of reading (``melampo.reading``, 25 November 2026) that is a
+    manifestation of the patient: its words the sentence's, its state the interpreters' agreed one, its concept
+    the one given afterwards (HPO, or a concept of the thesaurus), its site the lexicon's class when there is one.
+    A card the interpreters did not agree on (a field read differently, a card read by one alone) is a finding
+    stated with uncertainty: principle of doubt, kept and never decided here. A family member's finding is not
+    the patient's: it is left out, and said."""
+    add_document(graph, document_id, kind, title=title or _first_line(text), date=date, modality=modality,
+                 exam_areas=exam_areas)
+    out, notes = [], []
+    for card in cards:
+        if card.get("category") != "manifestation" or card.get("specific") is False:
+            continue
+        if card.get("subject") == "family_member":
+            notes.append(f"{document_id}: {card.get('name')!r} is a family member's finding, not the patient's")
+            continue
+        quote = str(card.get("quote") or "")
+        start = text.find(quote) if quote else -1
+        words = quote if start >= 0 else str(card.get("words") or card.get("name") or "")
+        state = card.get("state")
+        doubts = list(card.get("doubts") or [])
+        concept = card.get("concept") or {}
+        code = concept.get("code") or concept.get("concept") or ""
+        found = None
+        if code:
+            found = cg.Concept("HPO" if code.startswith("HP:") else "MELAMPO", code, card.get("name", ""))
+        details = {k: card[k] for k in ("name", "what", "interpretation", "value", "threshold", "side", "time",
+                                        "observed_by", "paired_by") if card.get(k)}
+        if doubts:
+            details["doubts"] = doubts
+        finding = cg.Finding(
+            finding_id=f"{document_id}#c{_digest(document_id, start, card.get('name'), card.get('state'))}",
+            document=document_id, words=words,
+            provenance=cg.Provenance(document=document_id, words=words, start=start if start >= 0 else None,
+                                     end=start + len(quote) if start >= 0 else None),
+            site=str(card.get("site_code") or ""), site_words=str(card.get("site") or ""),
+            polarity=cg.NEGATED if state == "absent" else cg.AFFIRMED,
+            certainty="uncertain" if state == "uncertain" or doubts else "certain",
+            temporality=str(card.get("temporality") or ""), concept=found, date=date, details=details)
+        if graph.facts().get(finding.finding_id) is None:
+            graph.findings.append(finding)
+            out.append(finding)
+    return out, notes
 
 
 def add_laboratory(graph: cg.CaseGraph, document_id: str, text: str, extraction: Any, *, title: str = "",
@@ -299,7 +348,11 @@ def from_ingestion(case_id: str, note: str, bundle: Any, reading: dict[str, Any]
         diseases=payload.get("diseases") or [], physician_diseases=payload.get("physician_diseases") or [],
         exam_areas=exam_areas)
     for r in reports:
-        add_report(graph, r["document"], r["text"], r["reading"], kind=r["kind"], exam_areas=exam_areas)
+        if r["reading"].get("procedure") == "one":
+            notes += add_cards(graph, r["document"], r["text"], r["reading"].get("cards") or [], kind=r["kind"],
+                               exam_areas=exam_areas)[1]
+        else:
+            add_report(graph, r["document"], r["text"], r["reading"], kind=r["kind"], exam_areas=exam_areas)
     try:
         notes += add_measures(graph, (reading or {}).get("statements") or [], texts)[1]
     except (OSError, ValueError, ImportError) as error:      # the library could not be read: the case goes on
@@ -309,6 +362,7 @@ def from_ingestion(case_id: str, note: str, bundle: Any, reading: dict[str, Any]
 
 
 __all__ = [
+    "add_cards",
     "add_declared_diseases",
     "add_measures",
     "add_document",

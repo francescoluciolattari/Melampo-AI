@@ -44,6 +44,10 @@ systematic review (PRISMA) carried out with the readers and the judges of Melamp
    end, the two interpreters group the names of one manifestation and join an absence to its thing, and only what
    both group is joined; (I) a direction is verified as a claim of its own; (J) a page that does not answer is
    tried again, every layer's hits are written, an unreadable layer is said.
+   On 25 November 2026 the reading moved to the one procedure of reading (``melampo.reading``: the same card,
+   comparison and coding as a patient's documents); it replaces the reader's prompt, the union by identical names
+   and the grouping at the end (H): readings of one finding are paired in the sentence, names across texts meet
+   in the thesaurus.
 6. **When to stop: a parameter** (``--saturation``, the owner's rule of 22 November 2026). The review of a disease
    stops when that many texts in a row, read and judged, add no manifestation; the least is 5 (a smaller value
    is raised to 5), and 0 means no limit: every text of every layer is read, to the end of the sources. No other
@@ -88,14 +92,16 @@ df = _script("disease_frequencies")
 
 from melampo.clinical import case_graph as cg  # noqa: E402
 from melampo.memory import disease_profiles as dp  # noqa: E402
+from melampo.reading import Thesaurus, read_text  # noqa: E402
+from melampo.reading import thesaurus as th  # noqa: E402
+from melampo.reading.card import CATEGORIES, COMPARES, DIRECTIONS, MEASURE_FIELDS, NATURES, OBSERVED_BY  # noqa: E402,F401
+from melampo.reading.normalize import HpoIndex  # noqa: E402
+from melampo.reading.prompt import reading_prompt  # noqa: E402
 
 SATURATION_LEAST = 5
 SCREENER = "google/gemma-4-31b-it"
-CATEGORIES = ("manifestation", "test", "score", "outcome", "risk_factor", "form")
-OBSERVED_BY = ("history", "examination", "laboratory", "imaging", "endoscopy", "intraoperative", "histopathology",
-               "course")
 JUDGED = "v6:"         # the judges verify only (22 November 2026): the interpretation is the interpreters'
-GROUPING_RESERVE = 0.5  # USD kept, out of the budget, for the grouping of the names (24 November 2026)
+QUESTION_ROOM = 8000   # tokens of a question to an interpreter (same finding? which concept?), its reasoning included
 JUDGED_CLAIM = "v7:"   # a claim with its numbers or its direction is verified as such (24 November 2026)
 LAYERS = (
     ("guideline", '(PUB_TYPE:"guideline" OR PUB_TYPE:"practice-guideline" OR TITLE:"guideline" OR '
@@ -188,74 +194,7 @@ def screen_prompt(disease: str, record: dict) -> str:
             'or another disease.\nAnswer only JSON: {"about": "yes"} or {"about": "no"}.')
 
 
-READING = "r4"         # the interpreters' questionnaire (24 November 2026): one format for every model
-# (24 November 2026, the owner's rule: the models are interchangeable, so there is one directive and one format for all
-# of them; what comes in another form is not read, and is counted for the model that sent it)
-FORMAT_EXAMPLE = {
-    "words": "fever (temperature above 38 °C) in 30 of 100 patients", "name": "fever", "category": "manifestation",
-    "specific": True, "observed_by": "examination", "nature": "pathological", "hpo_term": "Fever", "same_as": "",
-    "direction": None, "compares": "disease_vs_without",
-    "measures": {"with_disease": {"count": 30, "total": 100, "percent": None}, "sensitivity": None,
-                 "specificity": None, "lr_positive": None, "lr_negative": None, "comparator": None,
-                 "setting": "emergency department", "patients": 100, "design": "prospective_cohort", "pooled": False,
-                 "verbal": None},
-    "quote": "Fever was present in 30 of 100 patients."}
-NATURES = ("pathological", "physiological")
-DIRECTIONS = ("more_likely", "less_likely")
-COMPARES = ("disease_vs_without", "forms_of_the_disease", "other")
-
-
-def read_prompt(disease: str, sections: list[tuple[str, str]], known: list[str] = ()) -> str:
-    """The interpreters (Nemotron 3 Ultra and Muse Spark Open, full reasoning) read the whole text and interpret:
-    what is stated, its general name, what it is, where it is found, its HPO term by name, which known
-    manifestation it is. The judges only verify afterwards."""
-    text = "\n\n".join(f"## {t}\n{x}" for t, x in sections)
-    names = "\n".join(f"- {n}" for n in list(known)[:400]) or "- (none yet)"
-    return (f"You read a medical publication about {disease}. List everything it states that a patient with {disease} "
-            "shows or may show (symptoms, signs, laboratory values, imaging, endoscopic, intraoperative or "
-            "histological findings, complications of the disease itself), and also the exams, scores, outcomes, risk "
-            "factors and forms of the disease it measures or names, each as one object:\n"
-            "- words: the words of the text;\n"
-            "- name: its general name, without the values of one patient (\"elevated procalcitonin\", not "
-            "\"procalcitonin 6.87 ng/mL\"), in English;\n"
-            "- category: manifestation (what the patient has and an exam shows: a symptom, a sign, a laboratory "
-            "value beyond a cut-off such as leukocytosis or C-reactive protein above 10 mg/L, an imaging finding "
-            "such as an appendix wider than 6 mm, a complication of the disease itself; with its accuracy when the "
-            "text measures it), test (an examination as a whole, CT, ultrasound, MRI, endoscopy: how well it detects "
-            "the disease), score (a clinical score or rule), outcome (death, a complication of treatment, "
-            "recurrence), risk_factor (what makes the disease more likely, not what it shows), form (a subtype, "
-            "stage or grade of the disease itself, such as gangrenous appendicitis);\n"
-            "- specific: true when it is ONE thing; false when it is a list or a general phrase (\"typical "
-            "symptoms\", \"ultrasound findings\");\n"
-            "- observed_by: one of history, examination, laboratory, imaging, endoscopy, intraoperative, "
-            "histopathology, course;\n"
-            "- nature: pathological, or physiological (a normal response, such as a raised heart rate with fever);\n"
-            "- hpo_term: the exact name of the Human Phenotype Ontology term that is this manifestation, only when "
-            "you are sure it is the same thing; \"\" otherwise (never a code, never an approximate term);\n"
-            "- same_as: the name in the list of known manifestations below that is the same thing, copied exactly, "
-            "or \"\"; and when the text states the same result more than once in other words, give each the same "
-            "name;\n"
-            "- direction: when the text says, without a number, that having it makes the disease more likely or less "
-            "likely: {\"when\": \"present\" or \"absent\", \"effect\": \"more_likely\" or \"less_likely\", \"words\": "
-            "the words of strength as written, such as \"strongly\", or \"\"}; null otherwise;\n"
-            "- compares: what its measures compare: disease_vs_without (patients with the disease against patients "
-            "without it), forms_of_the_disease (one form against another, such as complicated against "
-            "uncomplicated), other;\n"
-            "- measures: null when the text gives no measure of it; otherwise ONE object holding every measure, "
-            "as written, each field null when absent: with_disease {count, total, percent}, sensitivity, "
-            "specificity, lr_positive, lr_negative, comparator (the patients without the disease the specificity was "
-            "measured in), setting (emergency department, primary care, hospital, surgical, population, other), "
-            "patients, design (meta_analysis, systematic_review, prospective_cohort, retrospective_cohort, "
-            "cross_sectional, case_control, case_series, case_report, review, guideline, other), pooled (true for a "
-            "meta-analysis's pooled value), verbal (a word of frequency such as \"often\" when there is no number); "
-            "never a measure outside this object;\n"
-            "- quote: ONE sentence or ONE table row copied word for word from the text, that states it.\n"
-            "Every field takes ONE value from its list (never two joined, never a value of your own). Each object "
-            "has exactly these fields, in this form:\n"
-            + json.dumps(FORMAT_EXAMPLE, ensure_ascii=False) + "\n"
-            "Do not compute anything the text does not state. Answer only a JSON list of such objects, [] when there "
-            "is none.\n\n"
-            f"Known manifestations of {disease}:\n{names}\n\n" + text)
+READING = "r5"         # the one procedure of reading (25 November 2026): the same card as a patient's report
 
 
 def judge_prompt(disease: str, item: dict) -> str:
@@ -286,55 +225,6 @@ def read_verdict(answer: str) -> dict:
     return {"states": dp.read_judgment(answer)}
 
 
-def interpreted(item: dict) -> dict:
-    """The interpretation of one item, its values checked against their lists."""
-    def one_of(value, allowed):
-        v = str(value or "").strip().lower().replace(" ", "_")
-        return v if v in allowed else ""
-    specific = item.get("specific")
-    return {"name": " ".join(str(item.get("name") or item.get("manifestation") or item.get("words") or "").split()),
-            "category": one_of(item.get("category"), CATEGORIES),
-            "specific": specific if isinstance(specific, bool) else str(specific).strip().lower() == "true",
-            "observed_by": one_of(item.get("observed_by"), OBSERVED_BY),
-            "nature": one_of(item.get("nature"), NATURES),
-            "hpo_term": " ".join(str(item.get("hpo_term") or "").split()),
-            "same_as": " ".join(str(item.get("same_as") or "").split()),
-            "compares": one_of(item.get("compares"), COMPARES),
-            "direction": direction_of(item.get("direction"))}
-
-
-def direction_of(value) -> dict | None:
-    """A statement of direction without a number: when present or absent, more or less likely, its words."""
-    if not isinstance(value, dict):
-        return None
-    when = str(value.get("when", "")).strip().lower()
-    effect = str(value.get("effect", "")).strip().lower().replace(" ", "_")
-    if when not in ("present", "absent") or effect not in DIRECTIONS:
-        return None
-    return {"when": when, "effect": effect, "words": " ".join(str(value.get("words") or "").split()).lower()}
-
-
-LINKS = ("hpo_term", "same_as")
-
-
-def agreed(views: list[dict]) -> tuple[dict, list[str]]:
-    """What the interpreters agree on, and the fields they read differently (kept as doubts, never resolved). A link
-    to another name (the HPO term, a known manifestation) read by one interpreter alone is not made (24 November
-    2026, declared after the second run: one interpreter alone joined "vomiting before pain" to vomiting and the peak
-    systolic velocity to the colour Doppler flow)."""
-    out, doubts = {}, []
-    for field_ in ("category", "specific", "observed_by", "nature", "hpo_term", "same_as", "compares", "direction"):
-        values = {json.dumps(v[field_]) for v in views}
-        if len(values) == 1 and (len(views) > 1 or field_ not in LINKS):
-            out[field_] = views[0][field_]
-        else:
-            out[field_] = None
-            if len(values) > 1:
-                doubts.append(field_)
-    out["name"] = views[0]["name"]
-    return out, doubts
-
-
 def any_synonym(lines: list[str]) -> dict[str, str]:
     """MONDO's terms by any of their synonyms (exact, related, narrow, broad), only where one term has it."""
     found: dict[str, set[str]] = {}
@@ -351,26 +241,6 @@ def any_synonym(lines: list[str]) -> dict[str, str]:
             if m:
                 found.setdefault(dp.norm(m.group(1)), set()).add(current)
     return {k: next(iter(v)) for k, v in found.items() if len(v) == 1}
-
-
-MEASURE_FIELDS = ("with_disease", "sensitivity", "specificity", "lr_positive", "lr_negative", "comparator", "setting",
-                  "patients", "design", "pooled", "verbal")
-
-
-def format_problems(item: dict) -> list[str]:
-    """How an item departs from the one format: measures outside "measures", "measures" not an object, a field
-    of a list with a value not in it, a field missing."""
-    out = [f"missing:{k}" for k in FORMAT_EXAMPLE if k not in item]
-    if any(item.get(k) not in (None, "", "null") for k in MEASURE_FIELDS):
-        out.append("measures_outside")
-    if item.get("measures") not in (None, "null") and not isinstance(item.get("measures"), dict):
-        out.append("measures_not_an_object")
-    for k, allowed in (("category", CATEGORIES), ("observed_by", OBSERVED_BY), ("nature", NATURES),
-                       ("compares", COMPARES)):
-        v = str(item.get(k) or "").strip().lower().replace(" ", "_")
-        if v and v not in allowed:
-            out.append(f"value_not_in_list:{k}")
-    return out
 
 
 def measures_of(item: dict) -> dict:
@@ -428,95 +298,6 @@ def for_weights(measures: list[dict], names: list[str]) -> list[dict]:
             continue
         kept.append(m)
     return kept
-
-
-def consolidate_prompt(disease: str, entries: list[dict]) -> str:
-    """(H, 24 November 2026, declared after the second run: "psoas sign" and "positive psoas sign", "migratory pain"
-    and "migration of pain", "absence of fever" and fever were apart) the interpreters, each on its own, group the
-    names of one profile that are the same manifestation; a name that states its absence goes with it, marked."""
-    lines = "\n".join(f"{i}. {e['name']}" + (f" — \"{e['quote'][:300]}\"" if e.get("quote") else "")
-                      for i, e in enumerate(entries))
-    return (f"Names read from publications about {disease}, each with one sentence that states it. Group the names "
-            "that are the same thing a patient shows, observed in the same way: the same symptom, sign, laboratory "
-            "value or imaging finding in other words (\"psoas sign\" and \"positive psoas sign\"; \"migratory pain\" "
-            "and \"migration of pain to the right lower quadrant\"). Keep apart what differs in what is measured, its "
-            "threshold, its place, the exam that observes it or its time: an appendix wider than 6 mm and one wider "
-            "than 7 mm are two things; the peak systolic velocity and the colour Doppler flow are two things; "
-            "vomiting before pain is not vomiting. A name that states the absence or the normal value of a thing "
-            "(\"absence of fever\", \"normal inflammatory markers\") belongs to the group of that thing, marked as "
-            "absent. Every number in exactly one group; a name with no other is a group of one.\n"
-            'Answer only JSON: [{"members": [numbers], "absent": [the members that state an absence]}, ...]\n\n'
-            + lines)
-
-
-def read_groups(answer: str, n: int) -> dict[int, tuple[int, bool]]:
-    """One interpreter's groups: each number's group and whether it states an absence (a number not given, or
-    given twice after its first group, is alone)."""
-    m = re.search(r"\[.*\]", answer or "", re.DOTALL)
-    try:
-        groups = json.loads(m.group(0)) if m else []
-    except json.JSONDecodeError:
-        groups = []
-    out: dict[int, tuple[int, bool]] = {}
-    for g, group in enumerate(x for x in groups if isinstance(x, dict)):
-        absent = {int(a) for a in group.get("absent") or [] if str(a).strip().lstrip("-").isdigit()}
-        for i in group.get("members") or []:
-            if str(i).strip().isdigit() and 0 <= int(i) < n and int(i) not in out:
-                out[int(i)] = (g, int(i) in absent)
-    for i in range(n):
-        out.setdefault(i, (-1 - i, False))
-    return out
-
-
-def meet(readings: list[dict[int, tuple[int, bool]]], n: int) -> list[tuple[list[int], set[int]]]:
-    """The groups every interpreter made: two names are joined only when each interpreter put them together, and
-    one marked as an absence only when each did; what they grouped differently stays apart, a doubt."""
-    by: dict[tuple, list[int]] = {}
-    for i in range(n):
-        label = tuple(r[i][0] for r in readings)
-        absents = {r[i][1] for r in readings}
-        if len(absents) > 1:
-            label = ("alone", i)
-        by.setdefault(label + (absents.pop() if len(absents) == 1 else None,), []).append(i)
-    # a name present and its absence are one group: the absent flag is in the label, so join them back by groups
-    joined: dict[tuple, tuple[list[int], set[int]]] = {}
-    for label, ids in by.items():
-        if label[0] == "alone":
-            joined[label] = (ids, set())
-            continue
-        base = label[:-1]
-        ids_, absent = joined.setdefault(base, ([], set()))
-        ids_.extend(ids)
-        if label[-1]:
-            absent.update(ids)
-    return [(sorted(ids), absent) for ids, absent in joined.values()]
-
-
-def joined_keys(entries: list[dict], groups: list[tuple[list[int], set[int]]], curated: set[str],
-                row: dict) -> tuple[dict[str, str], set[str]]:
-    """Which key each joined key becomes, and which keys state an absence. A group with two HPO codes, a curated
-    manifestation joined to another, or only absences, is not joined (a doubt)."""
-    remap, absent_keys = {}, set()
-    for ids, absent_ids in groups:
-        if len(ids) < 2:
-            continue
-        keys = [entries[i]["key"] for i in ids]
-        present = [entries[i]["key"] for i in ids if i not in absent_ids]
-        codes = {k for k in keys if k.startswith("HP:")}
-        cur = {k for k in keys if k in curated}
-        if len(codes) > 1 or len(cur) > 1 or not present or (codes and not codes <= set(present)) or (
-                cur and not cur <= set(present)):
-            row["groups_not_joined"] = row.get("groups_not_joined", 0) + 1
-            continue
-        count = {e["key"]: e.get("records", 0) for e in entries}
-        target = next(iter(cur or codes), "") or max(present, key=lambda k: count.get(k, 0))
-        for i in ids:
-            k = entries[i]["key"]
-            if i in absent_ids:
-                absent_keys.add(k)
-            if k != target:
-                remap[k] = target
-    return remap, absent_keys
 
 
 def source_of(m: dict) -> str:
@@ -605,7 +386,7 @@ def main(argv=None) -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     logs = {n: out.with_name(n) for n in ("screened.jsonl", "readings.jsonl", "verdicts.jsonl", "texts.jsonl",
-                                          "groupings.jsonl")}
+                                          "questions.jsonl")}
     if args.resume:
         for name, path in logs.items():
             src = Path(args.resume) / name
@@ -615,11 +396,16 @@ def main(argv=None) -> int:
     readings = {(r["disease"], r["text"], r["reader"]): r for r in rs.jsonl(logs["readings.jsonl"])}
     verdicts = {r["key"]: r["votes"] for r in rs.jsonl(logs["verdicts.jsonl"])}
     texts_kept = {(r["disease"], r["id"]): r for r in rs.jsonl(logs["texts.jsonl"])}
-    groupings = {r["key"]: r["answer"] for r in rs.jsonl(logs["groupings.jsonl"])}
+    questions = {r["key"]: r["answer"] for r in rs.jsonl(logs["questions.jsonl"])}
     read = lambda p: Path(p).read_text("utf-8", errors="replace").splitlines()  # noqa: E731
     mondo, hpo, symp = (dp.Terms.from_obo(read(args.mondo)), dp.Terms.from_obo(read(args.hpo)),
                         dp.Terms.from_obo(read(args.symp)))
     hpoa = read(args.hpoa)
+    hpo_index = HpoIndex(hpo)
+    # the thesaurus: the knowledge's, what a resumed run had added, and what this run adds (25 November 2026)
+    thesaurus = Thesaurus.load(knowledge / th.FILE if knowledge else None)
+    if args.resume:
+        thesaurus.merge(Thesaurus.load(Path(args.resume) / th.FILE))
     from melampo.memory import literature_connectors as lc
     from melampo.memory import sources_index as si
     from melampo.memory.symptom_sources import parse_doid_owl
@@ -627,9 +413,7 @@ def main(argv=None) -> int:
     mondo_by_any_synonym = any_synonym(read(args.mondo))
     doid_symptoms = {c.doid: c.symptom_ids for c in parse_doid_owl(Path(args.doid_owl)) if not c.deprecated}
     index = si.SourcesIndex.load(si.SOURCES)
-    # a part of the budget is kept for the grouping of the names at the end of each review (H)
-    reserve = round(min(GROUPING_RESERVE, args.budget * 0.1), 4)
-    router, lock = rs.Router(key, args.budget - reserve), threading.Lock()
+    router, lock = rs.Router(key, args.budget), threading.Lock()
 
     def log(name: str, row: dict) -> None:
         with lock, logs[name].open("a", encoding="utf-8") as f:
@@ -750,85 +534,84 @@ def main(argv=None) -> int:
             return text
 
         def process(layer: str, text: dict) -> int:
-            """Read by the two readers, checked, judged; returns how many manifestations it added."""
+            """Read by the two interpreters with the one procedure of reading (``melampo.reading``: the same as for
+            a patient's report), checked, judged; returns how many manifestations it added."""
             nonlocal read_count
             sections = [tuple(s) for s in text["sections"]]
+            prompt = reading_prompt("publication", sections, name)
 
-            def read_one(reader: str) -> dict | None:
+            def read_one(reader: str) -> str:
                 kept = readings.get((name, text["id"], reader))
                 if kept is not None and kept.get("reading") == READING:
-                    return kept
-                answer, finish = router.chat(rs.READERS[reader], read_prompt(name, sections,
-                                                                             sorted(set(known.values()))),
-                                             reasoning=True, max_tokens=rs.READER_ROOM)
+                    return kept["answer"]
+                answer, finish = router.chat(rs.READERS[reader], prompt, reasoning=True, max_tokens=rs.READER_ROOM)
                 if not finish:
-                    return None
+                    return ""
                 r = {"disease": name, "text": text["id"], "reader": reader, "finish": finish, "reading": READING,
-                     "items": rs.read_items(answer)}
+                     "answer": answer}
                 readings[(name, text["id"], reader)] = r
                 log("readings.jsonl", r)
-                return r
+                return answer
+
+            def question(reader: str):
+                def chat(q: str) -> str:
+                    qk = hashlib.sha1((rs.READERS[reader] + "\n" + q).encode()).hexdigest()
+                    if qk not in questions:
+                        answer, _ = router.chat(rs.READERS[reader], q, reasoning=True, max_tokens=QUESTION_ROOM)
+                        questions[qk] = answer
+                        log("questions.jsonl", {"disease": name, "reader": reader, "key": qk, "answer": answer})
+                    return questions[qk]
+                return chat
 
             with ThreadPoolExecutor(2) as pool:
-                got = [f.result() for f in [pool.submit(read_one, r) for r in rs.READERS]]
-            # the two interpreters' items, joined when they name the same thing in this text; each interpreter's
-            # reading stays its own record (24 November 2026): a measure or a direction weighs only when both read it
-            items: dict[str, dict] = {}
-            for r in got:
-                for it in (r or {}).get("items", []):
-                    fmt = row.setdefault("format", {}).setdefault(r["reader"], {"items": 0})
-                    fmt["items"] += 1
-                    for problem in format_problems(it):
-                        fmt[problem] = fmt.get(problem, 0) + 1
-                    m, _ = item_checked(it, sections)
-                    if m is None:
-                        continue
-                    view = interpreted(it)
-                    k = dp.norm(view["name"])
-                    entry = items.setdefault(k, {"manifestation": view["name"], "words_read": str(it.get("words") or ""),
-                                                 "views": [], "readers": [], "records": []})
-                    if r["reader"] not in entry["readers"]:
-                        entry["readers"].append(r["reader"])
-                        entry["views"].append(view)
-                        entry["records"].append((r["reader"], m, view))
+                answers = dict(zip(rs.READERS, pool.map(read_one, rs.READERS)))
+            source_id = text["source"].get("pmid") or text["source"].get("pmcid") or text["id"]
+            got = read_text(sections, "publication", {r: question(r) for r in rs.READERS}, subject=name,
+                            hpo=hpo_index, thesaurus=thesaurus, answers=answers,
+                            evidence={"source": str(source_id), "disease": name})
+            for reader, counts in got["format"].items():
+                fmt = row.setdefault("format", {}).setdefault(reader, {})
+                for k, v in counts.items():
+                    fmt[k] = fmt.get(k, 0) + v
+            row["questions"] = row.get("questions", 0) + len(got["asked"])
             new_here = 0
-            for entry in items.values():
-                view, doubts = agreed(entry["views"])
-                both = len(entry["readers"]) == len(rs.READERS)
-                doubts = doubts + ([] if both else ["one_interpreter"])
-                category = view["category"]
-                if category is None or not category:
-                    row.setdefault("doubtful_category", 0)
-                    row["doubtful_category"] += 1
+            for card_ in got["cards"]:
+                category = card_["category"]
+                if not category:
+                    row["doubtful_category"] = row.get("doubtful_category", 0) + 1
                     continue                  # the interpreters read it as different things: a doubt, not a datum
-                if category == "manifestation" and view["specific"] is not True:
+                if category == "manifestation" and card_["specific"] is not True:
                     continue                  # a list or a general phrase is not one manifestation
-                # the HPO code only when the term both interpreters name is HPO's own name or exact synonym
-                code = hpo.find(view["hpo_term"], prefix="HP:") if view["hpo_term"] else ""
-                same_name = view["same_as"] or ""
-                kk = ""
-                if category == "manifestation":
-                    kk = next((k for k, v in known.items() if v == same_name), "") if same_name else ""
-                    kk = kk or code or hpo.find(entry["manifestation"], prefix="HP:") or dp.norm(entry["manifestation"])
+                concept = card_["concept"]
+                kk = concept["concept"] or dp.norm(card_["name"])
+                both = card_["paired_by"] != "one_interpreter"
                 taken = []
-                for reader, measure, own in entry["records"]:
-                    m = {**measure, "manifestation": entry["manifestation"], "words_read": entry["words_read"],
-                         "category": category, "reader": reader, "readers": list(entry["readers"]),
-                         "interpreters_agree": both and not doubts,
-                         "doubts": doubts + ([f"measure_refused:{measure['measure_refused']}"]
-                                             if measure.get("measure_refused") else [])}
+                for reader in card_["readers"]:
+                    own = card_["readings"][reader]
+                    measure, _ = item_checked({"name": card_["name"], "quote": own["quote"],
+                                               "measures": own.get("measures") or None}, sections)
+                    if measure is None:
+                        continue
+                    m = {**measure, "manifestation": card_["name"], "words_read": card_.get("words") or "",
+                         "category": category, "reader": reader, "readers": list(card_["readers"]),
+                         "interpreters_agree": both and not card_["doubts"], "paired_by": card_["paired_by"],
+                         "doubts": list(card_["doubts"]) + ([f"measure_refused:{measure['measure_refused']}"]
+                                                            if measure.get("measure_refused") else [])}
                     m.pop("measure_refused", None)
-                    if own["direction"] and not any(x in m for x in ("with_disease", "sensitivity", "specificity",
-                                                                      "lr_positive", "lr_negative")):
+                    if own.get("direction") and not any(x in m for x in ("with_disease", "sensitivity",
+                                                                          "specificity", "lr_positive",
+                                                                          "lr_negative")):
                         m["direction"] = own["direction"]
                     votes = judge(m)
                     if len(votes) != len(rs.JUDGES) or any(v["states"] != "yes" for v in votes):
                         continue
                     m["source"] = {**text["source"], "read": text["read"], "layer": layer}
                     m["disease"], m["reviewed"] = name, today
-                    m["observed_by"], m["nature"] = view["observed_by"] or "", view["nature"] or ""
-                    m["compares"] = view["compares"] or ""
-                    m["hpo_term"] = view["hpo_term"] or ""
+                    m["observed_by"], m["nature"] = card_["observed_by"] or "", card_["nature"] or ""
+                    m["compares"] = card_.get("compares") or ""
+                    m["concept"], m["code"], m["coded_by"] = concept["concept"], concept["code"], concept["how"]
+                    m["description"] = {k: card_.get(k) for k in ("what", "interpretation", "threshold", "site",
+                                                                  "side", "time")}
                     taken.append(m)
                 if not taken:
                     continue
@@ -836,7 +619,7 @@ def main(argv=None) -> int:
                     if kk not in found_keys:
                         found_keys.add(kk)
                         new_here += kk not in known
-                    known.setdefault(kk, entry["manifestation"])
+                    known.setdefault(kk, card_["name"])
                     for m in taken:
                         m["key"] = kk
                     accepted.extend(taken)
@@ -886,50 +669,6 @@ def main(argv=None) -> int:
                         process("targeted", text)
         except rs.OverBudget as error:
             stopped = str(error)
-        # (H) the same manifestation under other names, and the absence of one, joined by the two interpreters
-        curated_keys = {m.concept.curie if m.concept and m.concept.code else dp.norm(m.words) for m in curated}
-        counts: dict[str, int] = {}
-        quotes: dict[str, str] = {}
-        for m in accepted:
-            counts[m["key"]] = counts.get(m["key"], 0) + 1
-            quotes.setdefault(m["key"], m["quote"])
-        entries = [{"key": k, "name": known.get(k, k), "quote": quotes.get(k, ""), "records": counts.get(k, 0)}
-                   for k in sorted(curated_keys | set(counts))]
-        remap, absent_keys = {}, set()
-        credit_left = not stopped or not stopped.startswith("OpenRouter answered")
-        if len(entries) > 1 and credit_left:
-            router.budget = max(router.budget, args.budget)     # the reserve is for this
-            prompt = consolidate_prompt(name, entries)
-            answers = []
-            try:
-                for reader, model in rs.READERS.items():
-                    gk = hashlib.sha1((model + "\n" + prompt).encode()).hexdigest()
-                    if gk not in groupings:
-                        answer, finish = router.chat(model, prompt, reasoning=True, max_tokens=rs.READER_ROOM)
-                        if not finish:
-                            raise ValueError(f"{reader}: no answer")
-                        groupings[gk] = answer
-                        log("groupings.jsonl", {"disease": name, "reader": reader, "key": gk, "answer": answer})
-                    answers.append(read_groups(groupings[gk], len(entries)))
-                remap, absent_keys = joined_keys(entries, meet(answers, len(entries)), curated_keys, row)
-            except rs.OverBudget as error:
-                stopped = str(error)
-            except ValueError as error:
-                row["grouping"] = f"not done: {error}"
-            router.budget = args.budget - reserve
-        elif len(entries) > 1:
-            row["grouping"] = f"not done: {stopped}"
-        for m in accepted:
-            k = m["key"]
-            if k in absent_keys:
-                m["absent_of"] = True
-                if m.get("direction"):
-                    m["direction"] = {**m["direction"], "when": "absent"}
-            if k in remap:
-                m["joined_from"] = m.get("joined_from") or m["manifestation"]
-                m["key"] = remap[k]
-        found_keys = {remap.get(k, k) for k in found_keys}
-        row.update(joined=len(remap), absences_joined=len(absent_keys))
         # the profile: the curated manifestations and those the texts stated, each with its sources and weight
         by_key: dict[str, list[dict]] = {}
         for m in accepted:
@@ -948,7 +687,8 @@ def main(argv=None) -> int:
             observed = next((x.get("observed_by") for x in ms if x.get("observed_by")), "")
             manifestations.append(cg.Manifestation(
                 f"r{len(manifestations) + 1}", known.get(k, first["manifestation"]),
-                cg.Concept("HPO", k, hpo.names.get(k, "")) if k.startswith("HP:") else None,
+                cg.Concept("HPO", k, hpo.names.get(k, "")) if k.startswith("HP:") else (
+                    cg.Concept("MELAMPO", k, known.get(k, "")) if k.startswith("MLP:") else None),
                 typicality=dp.typicality_of(first["quote"]),
                 # where it is found (history, examination, laboratory, imaging, ... intraoperative, histopathology):
                 # the diagnosis can tell what a patient can show before surgery from what only surgery shows
@@ -1007,9 +747,11 @@ def main(argv=None) -> int:
             reviews[name] = {"date": today, "since": since, "texts_read": read_count,
                              "stopped_by": row["stopped_by"], "saturation": saturation or "none"}
         write(out, profiles, tests, scores, curves, summary_rows, saturation, stopped, router, all_measures, reviews)
+        thesaurus.save(out.with_name(th.FILE))
         if stopped:
             break
     write(out, profiles, tests, scores, curves, summary_rows, saturation, stopped, router, all_measures, reviews)
+    thesaurus.save(out.with_name(th.FILE))
     return 0
 
 

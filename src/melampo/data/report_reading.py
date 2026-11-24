@@ -55,7 +55,12 @@ IMAGING_KIND = "imaging_report"
 NARRATIVE = "narrative_reader"
 ENV = ("MELAMPO_NARRATIVE_READER", "MELAMPO_UBERON", "MELAMPO_CI_RESOURCES", "MELAMPO_LOCAL_CHAT_ENDPOINT",
        "MELAMPO_LOCAL_CHAT_MODELS", "MELAMPO_IMAGING_SEGMENTERS", "MELAMPO_IMAGING_DEVICE",
-       "MELAMPO_OWNER_QUESTION", "MELAMPO_LOCAL_CHAT_EXTRA")
+       "MELAMPO_OWNER_QUESTION", "MELAMPO_LOCAL_CHAT_EXTRA", "MELAMPO_REPORT_READER", "MELAMPO_HPO_OBO",
+       "MELAMPO_THESAURUS", "MELAMPO_DISEASE_PROFILES")
+# the one procedure of reading (25 November 2026, the owner's decision): every document of the case is read with the
+# same card, the same interpreters and the same comparison as the medical publications (``melampo.reading``);
+# "anatomy" is the reader before it, kept only to measure the change on the same benches
+ONE, ANATOMY = "one", "anatomy"
 _BUILT: dict[tuple[str, ...], "ReportReaders"] = {}
 
 
@@ -200,6 +205,51 @@ def finding_owner(linker: Any) -> tuple[Any, str]:
             "finding_owner:reader" + ("+models" if chats else "") + note + (f":{question}" if question != "owner" else ""))
 
 
+def one_procedure_interpreters() -> tuple[dict[str, Any], list[str]]:
+    """The interpreters of the one procedure for a patient's documents: the models of
+    ``MELAMPO_LOCAL_CHAT_MODELS`` on ``MELAMPO_LOCAL_CHAT_ENDPOINT`` (this machine only), with the room a whole
+    document's reading needs, reasoning included."""
+    import json
+
+    from .report_router import local_chat
+
+    endpoint = os.environ.get("MELAMPO_LOCAL_CHAT_ENDPOINT", "").strip()
+    models = [m.strip() for m in os.environ.get("MELAMPO_LOCAL_CHAT_MODELS", "").split(",") if m.strip()]
+    if not endpoint or not models:
+        return {}, ["interpreters_not_configured"]
+    extra = os.environ.get("MELAMPO_LOCAL_CHAT_EXTRA", "").strip()
+    out = {}
+    try:
+        for spec in models:
+            model, _, flag = spec.partition("+")
+            reasoning = flag == "reasoning"
+            out[model] = local_chat(endpoint, model, timeout=900.0 if reasoning else 300.0,
+                                    max_tokens=60000 if reasoning else 16000, reasoning=reasoning,
+                                    extra=json.loads(extra) if extra else None)
+    except ValueError as error:   # not a local host: refused, patient reports never leave the machine
+        return {}, [f"interpreters_refused:{error}"]
+    return out, ["interpreters:" + ",".join(out)]
+
+
+def _hpo_and_thesaurus(notes: list[str]) -> tuple[Any, Any]:
+    from ..reading.normalize import HpoIndex
+    from ..reading.thesaurus import from_env
+
+    hpo = HpoIndex()
+    path = os.environ.get("MELAMPO_HPO_OBO", "").strip()
+    if path and Path(path).exists():
+        from ..memory.disease_profiles import Terms
+
+        with open(path, encoding="utf-8") as handle:
+            hpo = HpoIndex(Terms.from_obo(handle))
+        notes.append("hpo:" + Path(path).name)
+    else:
+        notes.append("hpo_not_configured")
+    thesaurus = from_env()
+    notes.append(f"thesaurus:{len(thesaurus.concepts)}")
+    return hpo, thesaurus
+
+
 @dataclass
 class ReportReaders:
     """The two interpreters. ``linker``: an ``AnatomyLinker`` (None: the narrative is not read).
@@ -211,6 +261,12 @@ class ReportReaders:
     organ_segmenter: Any = None
     notes: tuple[str, ...] = ()
     owner: Any = None        # finding_owner.FindingOwner: is the clause about the structure (31 October 2026)
+    # the one procedure (25 November 2026): the interpreters on this machine, HPO for the codes afterwards, the
+    # thesaurus of the knowledge; ``reader``: ONE, or ANATOMY to measure the reader before it
+    interpreters: dict[str, Any] | None = None
+    hpo: Any = None
+    thesaurus: Any = None
+    reader: str = ONE
 
     @classmethod
     def from_env(cls) -> ReportReaders:
@@ -245,10 +301,23 @@ class ReportReaders:
             organ = TotalSegmentatorSegmenter(fast=False, device="gpu" if device == "cuda" else "cpu")
             notes.append(f"segmenters:voxtell+totalsegmentator:{device}")
         owner = None
-        if linker is not None and os.environ.get("MELAMPO_FINDING_OWNER", "on").lower() not in ("off", "0", "false", "no"):
+        reader = os.environ.get("MELAMPO_REPORT_READER", ONE).strip().lower() or ONE
+        if reader not in (ONE, ANATOMY):
+            notes.append(f"report_reader_unknown:{reader}:one_used")
+            reader = ONE
+        if reader == ANATOMY and linker is not None and os.environ.get(
+                "MELAMPO_FINDING_OWNER", "on").lower() not in ("off", "0", "false", "no"):
             owner, why = finding_owner(linker)
             notes.append(why)
-        return cls(linker, lesion, organ, tuple(notes), owner)
+        interpreters, hpo, thesaurus = None, None, None
+        if reader == ONE:
+            interpreters, built = one_procedure_interpreters()
+            notes += built
+            hpo, thesaurus = _hpo_and_thesaurus(notes)
+            notes.append("report_reader:one")
+        else:
+            notes.append("report_reader:anatomy")
+        return cls(linker, lesion, organ, tuple(notes), owner, interpreters, hpo, thesaurus, reader)
 
     # -- the narrative ---------------------------------------------------------------------------------------
     def read_sites(self, text: str, report_id: str) -> dict[str, Any]:
@@ -310,8 +379,76 @@ class ReportReaders:
             rows.append(row)
         return rows
 
+    # -- the one procedure ----------------------------------------------------------------------------------
+    def site_code(self, site: str) -> str:
+        """The structure of a card's site, afterwards: the one class of the lexicon this name is, without a
+        context it needs; "" otherwise (the finding keeps the words)."""
+        if self.linker is None or not site:
+            return ""
+        from ..memory.anatomy_linker import normalise
+
+        hits = {cid for cid, region in self.linker.lexicon.index.get(normalise(site), []) if region is None}
+        return next(iter(hits)) if len(hits) == 1 else ""
+
+    def read_one(self, case_key: str, physician_note: str, bundle: Any = None,
+                 router_chat: Any = None) -> dict[str, Any]:
+        """Every document of the case read with the one procedure (``melampo.reading.read_text``, context
+        ``case``): the same card, interpreters and comparison as for the publications; the interpreters only on
+        this machine."""
+        from ..reading import read_text
+        from .report_router import route
+
+        out: dict[str, Any] = {"readers": list(self.notes), "procedure": ONE, "texts": [], "findings": [],
+                               "to_a_person": [], "questions": [], "statements": []}
+        sources: list[tuple[str, str, dict[str, Any]]] = []
+        if physician_note.strip():
+            sources.append(("note", physician_note, route(physician_note, router_chat).as_dict()))
+        for attachment in getattr(bundle, "attachments", ()) or ():
+            if attachment.text.strip():
+                sources.append((f"attachment-{attachment.index}", attachment.text, dict(attachment.routing or {})))
+        if not self.interpreters:
+            out["status"] = "interpreters_not_configured"
+            for source_id, _, routing in sources:
+                out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False,
+                                     "reason": "interpreters_not_configured"})
+                out["to_a_person"].append({"report": source_id, "mention": "", "reason":
+                                           "not read: no interpreter on this machine (MELAMPO_LOCAL_CHAT_MODELS)"})
+            return out
+        for source_id, text, routing in sources:
+            try:
+                got = read_text([("", text)], "case", self.interpreters, hpo=self.hpo, thesaurus=self.thesaurus)
+            except Exception as error:  # noqa: BLE001 -- one document must not stop the case
+                out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False,
+                                     "reason": f"reading_failed:{type(error).__name__}"})
+                out["to_a_person"].append({"report": source_id, "mention": "",
+                                           "reason": f"not read: {type(error).__name__}"})
+                continue
+            cards = []
+            for card in got["cards"]:
+                card.pop("readings", None)       # each interpreter's card: kept in the counts, not in the case
+                card["site_code"] = self.site_code(card.get("site") or "")
+                cards.append(card)
+            out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": True,
+                                 "procedure": ONE, "language": _language(text), "cards": cards,
+                                 "format": got["format"], "not_read_by": got["not_read"],
+                                 "questions": len(got["asked"]), "status": got["status"]})
+            for card in cards:
+                if card["doubts"]:
+                    out["to_a_person"].append({"report": source_id, "mention": card.get("words") or card["name"],
+                                               "reason": "doubt:" + ",".join(card["doubts"]),
+                                               "clause": card.get("quote", "")})
+                if card.get("category") == "manifestation":
+                    out["findings"].append({"report": source_id, "structure": card["site_code"],
+                                            "clause": card.get("quote", ""), "mention": card.get("words", ""),
+                                            "name": card.get("name", ""), "state": card.get("state")})
+        out["status"] = "read"
+        return out
+
     def read(self, case_key: str, physician_note: str, bundle: Any = None, router_chat: Any = None) -> dict[str, Any]:
-        """The reading of the whole case: the physician's note and every attachment."""
+        """The reading of the whole case: the physician's note and every attachment; with the one procedure
+        unless the reader before it is asked for (``MELAMPO_REPORT_READER=anatomy``)."""
+        if self.reader == ONE:
+            return self.read_one(case_key, physician_note, bundle, router_chat)
         from .report_router import route
 
         # "questions": what the review mask shows a person, each complete in itself (``review_question``)

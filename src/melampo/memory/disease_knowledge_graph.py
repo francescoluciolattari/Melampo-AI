@@ -39,8 +39,9 @@ def has_version(graph, version: str) -> bool:
 
 
 def load_version(graph, version: str, profiles: Iterable[dict], *, date: str = "", names: dict | None = None,
-                 tests: dict | None = None) -> dict[str, int]:
-    """Load one version and make it the current one; nothing is loaded twice."""
+                 tests: dict | None = None, thesaurus: Iterable[dict] = ()) -> dict[str, int]:
+    """Load one version and make it the current one; nothing is loaded twice. ``thesaurus``: the rows of
+    ``thesaurus.jsonl`` (``melampo.reading.thesaurus``), as ``KConcept`` and ``KLabel`` nodes of the version."""
     profiles = list(profiles)
     if not has_version(graph, version):
         graph.query("CREATE (:KVersion {id: $v, date: $d, names: $n, current: false})",
@@ -82,15 +83,37 @@ def load_version(graph, version: str, profiles: Iterable[dict], *, date: str = "
                         "CREATE (d)-[:DETECTED_BY {version: $v, sensitivity: r.sens, specificity: r.spec, "
                         "lr_positive: r.lrp, lr_negative: r.lrn, setting: r.setting}]->(t)",
                         params={"v": version, "rows": detected})
+        concepts = [{"id": c["id"], "name": c.get("name", ""), "code": c.get("code", ""),
+                     "labels": [{"label": x.get("label", ""), "signature": json.dumps(x.get("signature", {}),
+                                                                                       sort_keys=True),
+                                 "evidence": json.dumps(x, ensure_ascii=False)} for x in c.get("labels") or []]}
+                    for c in thesaurus]
+        for start in range(0, len(concepts), 200):
+            graph.query("UNWIND $rows AS r "
+                        "CREATE (c:KConcept {id: r.id, version: $v, name: r.name, code: r.code}) "
+                        "WITH c, r UNWIND r.labels AS l "
+                        "CREATE (:KLabel {label: l.label, signature: l.signature, evidence: l.evidence, "
+                        "version: $v})-[:LABEL_OF]->(c)",
+                        params={"v": version, "rows": concepts[start:start + 200]})
     graph.query("MATCH (v:KVersion) SET v.current = (v.id = $v)", params={"v": version})
     return counts(graph, version)
+
+
+def read_thesaurus(graph, version: str = "") -> list[dict]:
+    """The thesaurus of a version (the current one when not given), as the rows of ``thesaurus.jsonl``."""
+    version = version or current_version(graph)
+    rows = _rows(graph.query("MATCH (c:KConcept {version: $v}) OPTIONAL MATCH (l:KLabel)-[:LABEL_OF]->(c) "
+                             "RETURN c.id, c.name, c.code, collect(l.evidence)", params={"v": version}))
+    return [{"id": r[0], "name": r[1], "code": r[2], "labels": [json.loads(e) for e in r[3] if e]}
+            for r in sorted(rows, key=lambda r: r[0])]
 
 
 def counts(graph, version: str) -> dict[str, int]:
     q = lambda c: _rows(graph.query(c, params={"v": version}))[0][0]  # noqa: E731
     return {"diseases": q("MATCH (d:KDisease {version: $v}) RETURN count(d)"),
             "manifestations": q("MATCH (:KDisease {version: $v})-[s:SHOWS]->() RETURN count(s)"),
-            "tests": q("MATCH (:KDisease {version: $v})-[t:DETECTED_BY]->() RETURN count(t)")}
+            "tests": q("MATCH (:KDisease {version: $v})-[t:DETECTED_BY]->() RETURN count(t)"),
+            "concepts": q("MATCH (c:KConcept {version: $v}) RETURN count(c)")}
 
 
 def current_version(graph) -> str:
@@ -124,4 +147,5 @@ def diseases_with(graph, keys: Iterable[str], version: str = "") -> list[tuple[s
 
 
 __all__ = ["GRAPH", "counts", "current_version", "diseases_with", "has_version", "load_version", "read_profiles",
+           "read_thesaurus",
            "versions"]

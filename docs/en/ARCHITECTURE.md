@@ -109,6 +109,51 @@ the notice "Built with Muse Spark Open" is mandatory wherever Melampo is distrib
 derived from it (a fine-tuning, LoRA adapters included) is a derivative under the same terms and notice; the
 clause on minors concerns the user of the model: a person using Melampo must not be a minor.
 
+### One procedure of reading (25 November 2026)
+
+Every text Melampo reads -- a document of the patient or a medical publication -- is read by one procedure,
+`melampo.reading.read_text`, with the same functions and the same interpreters (Nemotron 3 Ultra and Muse Spark
+Open, with reasoning). A report and a publication speak the same language: what is observed, where, by which
+method, with which interpretation; the name is a label.
+
+1. **One card.** Each finding is described by the same fields (`reading.card`): words, name, category, what is
+   observed, its interpretation (present, increased, decreased, normal, abnormal, positive, negative), value,
+   threshold, site, side, method (`observed_by`), time, nature, and the sentence. Only what the text states about
+   it changes with the context: for a patient, the state (present, absent, uncertain), when (current, past,
+   hypothetical) and whose (the patient, a family member); for a publication, the measures in a population, the
+   direction without a number and what the measures compare. The directive is one (`reading.prompt`), the form is
+   one, and what comes in another form is not read and is counted for its model.
+2. **Comparison before any code.** The two interpreters' cards are compared as two reviewers compare the data
+   they extracted on one form (Cochrane MECIR C45-C46): only cards of the same sentence; the same name and thing
+   pair directly; otherwise every interpreter is asked, on its own and in the sentence, whether the two readings
+   describe the same finding in other words, and they are paired only when every one says so; then field by
+   field, what both give alike is agreed and what they give differently is a doubt (`reading.agreement`). Coding
+   first would make disagreements the text does not have: two independent coders gave the same SNOMED CT code to
+   three diagnoses in four (Del-Pinto et al., 2023), and codes that differ often mean the same thing.
+3. **Codes afterwards.** Only the agreed reading is coded (`reading.normalize`): its label in the thesaurus; HPO's
+   own name or exact synonym; otherwise the candidates sharing content words are shown to every interpreter with
+   the sentence, and the reading is the candidate every one chooses; otherwise, from a publication, a new concept
+   of the thesaurus, from a patient's document no concept (the finding keeps its words). The site of a patient's
+   finding is the lexicon's class when its name is exactly one.
+4. **The thesaurus is knowledge, not training** (`reading.thesaurus`): the concepts the interpreters agreed on,
+   each label with its description, its sentence, its source and the answers; any model reads it the same way,
+   as candidates. It is versioned with the knowledge (`thesaurus.jsonl` in each Release, part of the version's
+   hash; `KConcept` and `KLabel` in the knowledge graph). Only publications write it; a patient's reading uses it
+   and never adds to it.
+
+A patient's text goes only to the interpreters on this machine (`report_router.local_chat`, marked
+`local_only`; `read_text` refuses any other); a publication may go to OpenRouter. The same concept meets in the
+graph of the case and in the profile: a finding and a manifestation with the same concept of the thesaurus match
+as two with the same HPO code. A card the interpreters did not agree on enters the graph of the case as a
+finding stated with uncertainty (doubtful, never decided).
+
+The reports were moved to the one procedure at once, by the owner's decision of 25 November 2026
+(`MELAMPO_REPORT_READER`, default `one`); the reader before it (`anatomy`: the lexicon, the Kintsch reader, the
+claims, the imaging interpreter) is kept only to measure the change on the same benches. Until that measure, the
+error rates in the table above are the reader's before, not the one procedure's. Not yet in the one procedure:
+the image side of a finding (VoxTell and TotalSegmentator, paired with the reading before) and the pathologist's
+summary (TNM, grade, margins), which the reader before gave to its findings.
+
 ## 4. Data model and interoperability
 
 | Data | Standard | Where |
@@ -254,6 +299,13 @@ up is counted in `pages_not_read` of the summary, and what the sources of the in
 `index` (in the fourth run the index gave no text, without a trace). Out of the budget, 10 % (at most 0.50 USD) is
 kept for the grouping of the names at the end of each review, so that a review stopped by its budget is still
 grouped; a review stopped because OpenRouter has no credit left is written without the grouping, and says so.
+
+
+**25 November 2026: the one procedure of reading.** The review reads every text with `melampo.reading` (questionnaire
+`r5`), the same procedure as a patient's documents (see "One procedure of reading"). It replaces the reader's own
+prompt, the joining of the two interpreters by identical names and the grouping of the names at the end of each
+review (H): two interpreters' readings of one finding are paired in the sentence, and the names of one finding
+across texts meet in the thesaurus (an agreed label, or a candidate both interpreters choose).
 
 
 **When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:

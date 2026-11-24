@@ -326,6 +326,7 @@ def local_chat(endpoint: str, model: str, timeout: float = 60.0, max_tokens: int
         with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 -- local host checked above
             return json.loads(r.read())["choices"][0]["message"]["content"]
 
+    chat.local_only = True        # a patient's text may be given to it (reading.read_text checks it)
     return chat
 
 

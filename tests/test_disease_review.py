@@ -95,17 +95,34 @@ def world(monkeypatch):
         if prompt.startswith("Disease:"):
             calls["judge"] += 1
             return '{"states": "yes"}', "stop"
+        if prompt.startswith("Two readers"):        # the same finding in other words: both say so
+            calls["same"] = calls.get("same", 0) + 1
+            return '{"same": true}', "stop"
+        if prompt.startswith("A finding agreed"):
+            return '{"same": null}', "stop"
         calls["read"] += 1
-        if first in prompt:
+        if first in prompt and model == dr.rs.READERS["muse"]:   # Muse names the pain in other words
             return json.dumps([
-                {"words": "right lower quadrant pain", "name": "right lower quadrant pain",
-                 "category": "manifestation", "specific": True, "observed_by": "history", "nature": "pathological",
-                 "hpo_term": "Right lower quadrant pain", "same_as": "",
+                {"words": "right lower quadrant pain", "name": "pain in the right lower quadrant",
+                 "what": "abdominal pain", "category": "manifestation", "specific": True, "observed_by": "history",
+                 "nature": "pathological", "site": "right lower quadrant",
                  "measures": {"with_disease": {"count": 80, "total": 100, "percent": "80%"}},
                  "quote": "In acute appendicitis, right lower quadrant pain was present in 80 of 100 patients (80%), "
                           "fever often."},
                 {"words": "fever", "name": "fever", "category": "manifestation", "specific": True,
-                 "observed_by": "examination", "nature": "pathological", "hpo_term": "Fever", "same_as": "",
+                 "observed_by": "examination", "nature": "pathological", "measures": {"verbal": "often"},
+                 "quote": "In acute appendicitis, right lower quadrant pain was present in 80 of 100 patients (80%), "
+                          "fever often."}]), "stop"
+        if first in prompt:
+            return json.dumps([
+                {"words": "right lower quadrant pain", "name": "right lower quadrant pain",
+                 "what": "abdominal pain", "category": "manifestation", "specific": True, "observed_by": "history",
+                 "nature": "pathological", "site": "right lower quadrant",
+                 "measures": {"with_disease": {"count": 80, "total": 100, "percent": "80%"}},
+                 "quote": "In acute appendicitis, right lower quadrant pain was present in 80 of 100 patients (80%), "
+                          "fever often."},
+                {"words": "fever", "name": "fever", "category": "manifestation", "specific": True,
+                 "observed_by": "examination", "nature": "pathological",
                  "measures": {"verbal": "often"},
                  "quote": "In acute appendicitis, right lower quadrant pain was present in 80 of 100 patients (80%), "
                           "fever often."}]), "stop"
@@ -193,16 +210,6 @@ def test_saturation_is_counted_layer_by_layer(tmp_path, world, monkeypatch):
     assert row["layers"] == {"guideline": 6, "diagnostic_accuracy": 1} and row["saturated_layers"] == ["guideline"]
 
 
-def test_the_interpreters_interpret_and_what_they_read_differently_stays_a_doubt():
-    a = dr.interpreted({"name": "fever", "category": "manifestation", "specific": True, "observed_by": "examination",
-                        "nature": "pathological", "hpo_term": "Fever", "same_as": ""})
-    b = dr.interpreted({**a, "hpo_term": "Pyrexia of unknown origin"})
-    view, doubts = dr.agreed([a, b])
-    assert view["category"] == "manifestation" and view["hpo_term"] is None and doubts == ["hpo_term"]
-    assert dr.interpreted({"name": "typical symptoms", "specific": "false"})["specific"] is False
-    assert dr.interpreted({"name": "x", "category": "diagnosis"})["category"] == ""      # not one of the categories
-
-
 def test_the_judges_only_verify():
     prompt = dr.judge_prompt("pneumonia", {"manifestation": "cough", "category": "manifestation",
                                            "quote": "Cough was present."})
@@ -268,18 +275,6 @@ def test_a_measure_is_one_value_the_text_states_not_a_bound_or_a_range():
     assert df.point_problem(9083, "data from 9083 participants") == ""
 
 
-def test_one_format_for_every_model_measures_only_inside_measures():
-    text = [("Abstract", "Fever was present in 30 of 100 patients.")]
-    outside = {"name": "fever", "quote": "Fever was present in 30 of 100 patients.", "category": "manifestation",
-               "observed_by": "history, examination", "with_disease": {"count": 30, "total": 100}}
-    m, why = dr.item_checked(outside, text)
-    assert "with_disease" not in m                         # another form is not read
-    problems = dr.format_problems(outside)
-    assert "measures_outside" in problems and "value_not_in_list:observed_by" in problems
-    assert dr.format_problems(dr.FORMAT_EXAMPLE) == []
-    assert json.dumps(dr.FORMAT_EXAMPLE, ensure_ascii=False) in dr.read_prompt("x", [("A", "t")])
-
-
 def test_the_measures_are_read_inside_measures_and_a_refused_one_leaves_the_manifestation():
     text = [("Abstract", "The most sensitive sign is a non-compressible appendix (up to 98 % sensitive). "
                          "Fever was present in 30 of 100 patients.")]
@@ -292,15 +287,6 @@ def test_the_measures_are_read_inside_measures_and_a_refused_one_leaves_the_mani
     m, why = dr.item_checked(bound, text)
     assert why == "a_bound_or_range_in_the_text" and "sensitivity" not in m \
         and m["measure_refused"] == why and m["manifestation"] == "non-compressible appendix"
-
-
-def test_a_link_read_by_one_interpreter_alone_is_not_made():
-    one = dr.interpreted({"name": "vomiting before pain", "category": "manifestation", "specific": True,
-                          "hpo_term": "Vomiting", "same_as": "vomiting"})
-    view, doubts = dr.agreed([one])
-    assert view["hpo_term"] is None and view["same_as"] is None and view["category"] == "manifestation"
-    view, _ = dr.agreed([one, dict(one)])
-    assert view["hpo_term"] == "Vomiting"                  # both read it: the link is made
 
 
 def test_a_direction_is_verified_as_a_claim_of_its_own():
@@ -320,27 +306,6 @@ def test_a_page_that_does_not_answer_is_tried_again_and_reported():
     report = {}
     assert list(dr.records(["x"], "guideline", lambda url, accept="": "", report=report, wait=lambda s: 0)) == []
     assert report["unreachable"] is True and report["hits"] is None
-
-
-def test_the_names_of_one_manifestation_are_joined_only_where_both_interpreters_join_them():
-    entries = [{"key": "positive psoas sign", "name": "positive psoas sign", "records": 1},
-               {"key": "psoas sign", "name": "psoas sign", "records": 3},
-               {"key": "HP:0001945", "name": "fever", "records": 4},
-               {"key": "absence of fever", "name": "absence of fever", "records": 1},
-               {"key": "appendix wider than 6 mm", "name": "appendix wider than 6 mm", "records": 1},
-               {"key": "appendix wider than 7 mm", "name": "appendix wider than 7 mm", "records": 1}]
-    one = dr.read_groups('[{"members": [0, 1]}, {"members": [2, 3], "absent": [3]}, {"members": [4, 5]}]', 6)
-    two = dr.read_groups('[{"members": [0, 1]}, {"members": [2, 3], "absent": [3]}, {"members": [4]}, '
-                         '{"members": [5]}]', 6)
-    groups = dr.meet([one, two], 6)
-    row: dict = {}
-    remap, absent = dr.joined_keys(entries, groups, set(), row)
-    assert remap == {"positive psoas sign": "psoas sign", "absence of fever": "HP:0001945"}
-    assert absent == {"absence of fever"}                  # 6 mm and 7 mm: one interpreter alone joined them
-    two_codes = [{"key": "HP:1", "name": "a", "records": 1}, {"key": "HP:2", "name": "b", "records": 1}]
-    both = dr.read_groups('[{"members": [0, 1]}]', 2)
-    assert dr.joined_keys(two_codes, dr.meet([both, both], 2), set(), row) == ({}, set())
-    assert row["groups_not_joined"] == 1
 
 
 def test_a_measure_weighs_only_when_both_interpreters_read_it_and_a_source_gives_one_result():
@@ -387,3 +352,18 @@ def test_a_server_that_does_not_answer_is_asked_again_and_a_page_given_up_is_cou
     answers[:] = [urllib.error.HTTPError("u", 404, "not found", {}, None)]
     assert dr.rs.get("https://www.ebi.ac.uk/y", wait=lambda s: 0) == ""
     assert dr.rs.FAILED == {"www.ebi.ac.uk http_404": 1} and answers == []   # a page not there is asked once
+
+
+def test_a_publication_is_read_with_the_one_procedure_other_words_paired_in_the_sentence(tmp_path, world):
+    """Muse names the pain in other words: both interpreters, asked in the sentence, say it is the same finding,
+    and the measure both read weighs (25 November 2026)."""
+    out = tmp_path / "out" / "profiles.json"
+    assert dr.main(_files(tmp_path) + ["--diagnoses", "acute appendicitis", "--out", str(out)]) == 0
+    row = json.loads(out.with_name("summary.json").read_text())["rows"][0]
+    assert world["same"] == 2 and row["measures_agreed"] == 2 and row["measures_one_interpreter"] == 0
+    measures = [json.loads(x) for x in out.with_name("measures.jsonl").read_text().splitlines()]
+    pain = [m for m in measures if m["key"] == "HP:0100281"]
+    assert {m["reader"] for m in pain} == {"nemotron", "muse"} and pain[0]["paired_by"] == "same_in_context"
+    thesaurus = dr.Thesaurus.load(out.with_name("thesaurus.jsonl"))
+    labels = {x["label"] for x in thesaurus.concepts["HP:0100281"].labels}
+    assert labels == {"right lower quadrant pain", "pain in the right lower quadrant"}

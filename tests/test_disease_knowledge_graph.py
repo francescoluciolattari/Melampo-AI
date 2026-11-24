@@ -73,3 +73,22 @@ def test_a_new_version_becomes_current_and_the_old_one_can_still_be_read(tmp_pat
     assert new != old and len(kg.versions(graph)) == 2
     assert len(ProfileLibrary.from_graph(graph, old).profiles["MONDO:0004974"].manifestations) == 2
     assert len(ProfileLibrary.from_graph(graph).profiles["MONDO:0004974"].manifestations) == 3
+
+
+def test_the_thesaurus_is_in_the_knowledge_graph_with_its_version(graph):
+    """The concepts the interpreters agreed on, readable by every model from the graph (25 November 2026)."""
+    from melampo.reading.thesaurus import signature
+
+    rows = [{"id": "HP:0011227", "name": "Elevated C-reactive protein", "code": "HP:0011227", "labels": [
+        {"label": "elevated CRP", "signature": signature({"interpretation": "increased"}), "source": "PMID:1",
+         "quote": "An elevated CRP was found in 49% of patients."}]},
+            {"id": "MLP:0123456789", "name": "psoas sign", "code": "", "labels": []}]
+    counts = kg.load_version(graph, "v1", [], thesaurus=rows)
+    assert counts["concepts"] == 2
+    back = kg.read_thesaurus(graph)
+    assert back[0]["id"] == "HP:0011227" and back[0]["labels"][0]["label"] == "elevated CRP"
+    assert back[1] == {"id": "MLP:0123456789", "name": "psoas sign", "code": "", "labels": []}
+    from melampo.reading import Thesaurus
+
+    t = Thesaurus.from_rows(back)
+    assert t.find({"name": "elevated CRP", "interpretation": "increased"}).id == "HP:0011227"

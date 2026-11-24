@@ -1,4 +1,5 @@
-"""The narrative reader and the imaging interpreter in the ingestion (30 October 2026): the case's reports read by
+"""(25 November 2026: these tests measure the reader before the one procedure, ``reader="anatomy"``,
+kept to compare the two on the same benches.) The narrative reader and the imaging interpreter in the ingestion (30 October 2026): the case's reports read by
 the linker, the imaging report's findings, and the exam's lesion isolated when the exam is paired with the report.
 The segmenters are replaced by known masks; the DICOM series is pydicom's real CT sample (test_dicom_volume)."""
 
@@ -28,7 +29,7 @@ def _reading(case):
 
 
 def test_the_physician_note_is_read_sites_and_findings_on_the_text(linker):
-    ingestion = ClinicalIngestionPipeline(report_readers=ReportReaders(linker))
+    ingestion = ClinicalIngestionPipeline(report_readers=ReportReaders(linker, reader="anatomy"))
     reading = _reading(ingestion.from_payload({"case_id": "c1", "report_text": REPORT}))
     [text] = reading["texts"]
     assert text["read"] and text["kinds"] == ["imaging_report"] and text["language"] == "it"
@@ -41,7 +42,7 @@ def test_the_physician_note_is_read_sites_and_findings_on_the_text(linker):
 
 
 def test_without_a_linker_the_case_says_so_and_reading_can_be_left_out():
-    case = ClinicalIngestionPipeline(report_readers=ReportReaders(None, notes=("narrative_reader_off",))) \
+    case = ClinicalIngestionPipeline(report_readers=ReportReaders(None, notes=("narrative_reader_off",), reader="anatomy")) \
         .from_payload({"case_id": "c1", "report_text": REPORT})
     assert case.provenance["report_reading"]["status"] == "narrative_reader_not_available"
     case = ClinicalIngestionPipeline(read_reports=False).from_payload({"case_id": "c1", "report_text": REPORT})
@@ -49,7 +50,7 @@ def test_without_a_linker_the_case_says_so_and_reading_can_be_left_out():
 
 
 def test_a_laboratory_text_is_not_read_by_the_narrative_reader(linker):
-    reading = _reading(ClinicalIngestionPipeline(report_readers=ReportReaders(linker)).from_payload(
+    reading = _reading(ClinicalIngestionPipeline(report_readers=ReportReaders(linker, reader="anatomy")).from_payload(
         {"case_id": "c1", "report_text": "Emoglobina 10.2 g/dL (13.5-17.5)\nCreatinina 1.9 mg/dL (0.7-1.2)\n"
                                          "Sodio 139 mmol/L (135-145)"}))
     assert reading["texts"] and not reading["texts"][0]["read"] and reading["findings"] == []
@@ -91,7 +92,7 @@ def test_the_exam_paired_with_its_report_isolates_the_lesion(linker):
     radius = 6.0 / sp                                            # a 12 mm nodule in the slice plane
     lesion = ((y - 64) ** 2 + (x - 64) ** 2 <= radius ** 2) & (abs(z - 10) <= 1)
     atlas = _Atlas()
-    readers = ReportReaders(linker, MaskSegmenter({CLAUSE: lesion}, "test"), atlas)
+    readers = ReportReaders(linker, MaskSegmenter({CLAUSE: lesion}, "test"), atlas, reader="anatomy")
     ingestion = ClinicalIngestionPipeline(document_processor=ClinicalDocumentProcessor(), report_readers=readers)
     reading = _reading(ingestion.from_payload(_series_payload(REPORT)))
     [finding] = reading["findings"]
@@ -117,7 +118,7 @@ def test_without_segmenters_the_paired_exam_says_why_there_is_no_image(linker):
     from melampo.data.document_processing import ClinicalDocumentProcessor
 
     ingestion = ClinicalIngestionPipeline(document_processor=ClinicalDocumentProcessor(),
-                                          report_readers=ReportReaders(linker))
+                                          report_readers=ReportReaders(linker, reader="anatomy"))
     [finding] = _reading(ingestion.from_payload(_series_payload(REPORT)))["findings"]
     assert finding["image_status"] == "no_image" and "segmenters_not_configured" in finding["image_notes"]
 
@@ -137,7 +138,7 @@ def test_a_pathology_report_gives_its_diagnosis_to_its_finding(linker):
             "Immunoistochimica: CK20 positivo, CDX2 positivo.\n"
             "Diagnosi: adenocarcinoma moderatamente differenziato (G2) del colon sigmoideo, pT3 pN1a, "
             "margini indenni.\n")
-    reading = _reading(ClinicalIngestionPipeline(report_readers=ReportReaders(linker)).from_payload(
+    reading = _reading(ClinicalIngestionPipeline(report_readers=ReportReaders(linker, reader="anatomy")).from_payload(
         {"case_id": "p1", "report_text": text}))
     [entry] = reading["texts"]
     assert entry["kinds"] == ["pathology"] and entry["pathology"]["unplaced"] == []

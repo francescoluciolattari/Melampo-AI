@@ -22,7 +22,7 @@ fi
 tag=$(sed -n 's/^tag=//p' release.txt)
 tar czf release/logs.tar.gz -C release logs
 assets=(release/knowledge.db release/changes.md release/version.json release/logs.tar.gz)
-for f in profiles.json names.json tests.json scores.json curves.json measures.jsonl reviews.json; do
+for f in profiles.json names.json tests.json scores.json curves.json measures.jsonl reviews.json thesaurus.jsonl; do
   [ -f "release/$f" ] && assets+=("release/$f")
 done
 gh release create "$tag" --prerelease --title "Disease knowledge $tag" --notes-file release/changes.md "${assets[@]}"

@@ -18,7 +18,7 @@ from pathlib import Path
 # the texts read are not published: an abstract or a full text belongs to its authors and publisher (the
 # repository is public); what is published are the readings, the verdicts and the short sentences cited with
 # their source, as any citation. The texts stay in the run's artifact.
-LOGS = ("screened.jsonl", "readings.jsonl", "verdicts.jsonl", "groupings.jsonl")
+LOGS = ("screened.jsonl", "readings.jsonl", "verdicts.jsonl", "questions.jsonl")
 
 
 def _json(path: Path, default):
@@ -60,6 +60,14 @@ def main(argv=None) -> int:
     for k, v in _json(run / "names.json", {}).items():
         names[k] = sorted(set(names.get(k, [])) | set(v))
     (store / "names.json").write_text(json.dumps(names, indent=1, ensure_ascii=False), "utf-8")
+    # the thesaurus (25 November 2026): every label agreed in a publication is knowledge, whichever disease's review
+    # it was agreed in, finished or not
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+    from melampo.reading.thesaurus import FILE, Thesaurus
+
+    thesaurus = Thesaurus.load(store / FILE)
+    thesaurus.merge(Thesaurus.load(run / FILE))
+    thesaurus.save(store / FILE)
     logs = store / "logs"
     logs.mkdir(exist_ok=True)
     for name in LOGS:
@@ -67,7 +75,7 @@ def main(argv=None) -> int:
         seen = set(old)
         add = [x for x in _lines(run / name) if x not in seen]
         (logs / name).write_text("".join(x + "\n" for x in old + add), "utf-8")
-    print(json.dumps({"published": sorted(done), "profiles": len(profiles)}))
+    print(json.dumps({"published": sorted(done), "profiles": len(profiles), "concepts": len(thesaurus.concepts)}))
     return 0
 
 
