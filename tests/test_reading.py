@@ -45,7 +45,7 @@ def local(answers):
         for start, answer in answers.get("questions", {}).items():
             if start in prompt:
                 return answer
-        return '{"same": false}'
+        return "[]"
     chat.local_only = True
     return chat
 
@@ -67,21 +67,37 @@ def test_one_card_one_directive_for_every_context():
     assert "give no code" in case and "hpo_term" not in case
 
 
-def test_other_words_for_one_finding_are_paired_by_every_interpreter_in_the_sentence():
-    yes = {"questions": {"Two readers": '{"same": true}'}}
+def test_other_words_for_one_finding_are_paired_when_each_interpreter_says_it_of_the_other():
+    """Each interpreter is shown, once, what only the other named (name and sentence) and its own unpaired cards
+    in those sentences; "the same" pairs only when both say it of each other."""
     readings = {"nemotron": [c.read(CRP_A, "case")], "muse": [c.read(CRP_B, "case")]}
-    asked_to = []
+    shown = {}
 
     def ask(reader, prompt):
-        asked_to.append(reader)
-        return yes["questions"]["Two readers"]
+        shown[reader] = prompt
+        return '[{"item": 1, "same_as": "a"}]'
     agreed, asked = ag.agree(readings, "case", ask)
     assert len(agreed) == 1 and agreed[0]["paired_by"] == "same_in_context" and agreed[0]["doubts"] == []
-    assert sorted(asked_to) == ["muse", "nemotron"] and asked[0]["answers"] == {"nemotron": True, "muse": True}
-    # one interpreter says no: the readings stay apart, each a doubt
-    answers = iter(['{"same": true}', '{"same": false}'])
-    agreed, _ = ag.agree(readings, "case", lambda r, p: next(answers))
+    assert len(asked) == 2 and "elevated CRP" in shown["muse"] and "a. elevated C-reactive protein" in shown["muse"]
+    assert '"increased"' not in shown["muse"].split("in this form")[0]      # the other's fields are never shown
+    # one says "the same", the other says the sentence does not state it: nothing paired, the second a doubt
+    answers = {"muse": '[{"item": 1, "same_as": "a"}]', "nemotron": '[{"item": 1, "same_as": null, "card": null}]'}
+    agreed, _ = ag.agree(readings, "case", lambda r, p: answers[r])
     assert [x["paired_by"] for x in agreed] == ["one_interpreter", "one_interpreter"]
+    by = {x["readers"][0]: x for x in agreed}
+    assert "not_stated_for_the_other" in by["muse"]["doubts"] and "not_stated_for_the_other" not in by["nemotron"]["doubts"]
+
+
+def test_a_finding_only_one_named_is_read_again_by_the_other_independently():
+    """Muse never wrote Nemotron's finding: shown its name and sentence, it gives its own card, and the two
+    readings are compared field by field (25 November 2026, after the sixth run)."""
+    readings = {"nemotron": [c.read(CRP_A, "case"), c.read(FEVER, "case")], "muse": [c.read(CRP_A, "case")]}
+    own = {**FEVER, "state": "absent", "observed_by": "examination", "value": None}
+    agreed, _ = ag.agree(readings, "case",
+                         lambda r, p: json.dumps([{"item": 1, "same_as": None, "card": own}]) if r == "muse" else "[]")
+    fever = next(x for x in agreed if x["name"] == "fever")
+    assert fever["paired_by"] == "read_again_by_the_other" and fever["readers"] == ["nemotron", "muse"]
+    assert fever["state"] == "absent" and fever["doubts"] == []
 
 
 def test_a_field_read_differently_is_a_doubt_never_resolved():
@@ -92,9 +108,9 @@ def test_a_field_read_differently_is_a_doubt_never_resolved():
 
 def test_cards_of_different_sentences_are_never_paired():
     elsewhere = {**CRP_B, "name": "elevated CRP", "what": "CRP", "quote": "Paziente con dolore in fossa iliaca destra."}
-    agreed, asked = ag.agree({"a": [c.read(CRP_A, "case")], "b": [c.read(elsewhere, "case")]}, "case",
-                             lambda r, p: '{"same": true}')
-    assert asked == [] and len(agreed) == 2
+    agreed, _ = ag.agree({"a": [c.read(CRP_A, "case")], "b": [c.read(elsewhere, "case")]}, "case",
+                         lambda r, p: '[{"item": 1, "same_as": "a"}]')
+    assert len(agreed) == 2 and {x["paired_by"] for x in agreed} == {"one_interpreter"}
 
 
 def test_a_patients_text_is_read_only_on_this_machine():
@@ -105,9 +121,9 @@ def test_a_patients_text_is_read_only_on_this_machine():
 
 def test_the_same_procedure_codes_afterwards_and_a_patient_never_writes_the_thesaurus():
     chats = {"nemotron": local({"reading": [CRP_A, FEVER],
-                                "questions": {"Two readers": '{"same": true}', "Which of these": '{"same": 1}'}}),
+                                "questions": {"You and another reader": '[{"item": 1, "same_as": "a"}]', "Findings agreed": '[{"item": 1, "same": 1}]'}}),
              "muse": local({"reading": [CRP_B, FEVER],
-                            "questions": {"Two readers": '{"same": true}', "Which of these": '{"same": 1}'}})}
+                            "questions": {"You and another reader": '[{"item": 1, "same_as": "a"}]', "Findings agreed": '[{"item": 1, "same": 1}]'}})}
     thesaurus = Thesaurus()
     got = read_text([("", REPORT)], "case", chats, hpo=HPO, thesaurus=thesaurus)
     by = {x["name"]: x for x in got["cards"]}
@@ -123,9 +139,9 @@ def test_a_publication_writes_what_both_agreed_into_the_thesaurus_and_finds_it_a
                  direction=None, compares="disease_vs_without", measures=None)
     pub_b = {**pub_a, "name": "elevated C-reactive protein", "what": "C-reactive protein"}
     chats = {"n": lambda p: json.dumps([pub_a]) if p.startswith("You read") else (
-                 '{"same": true}' if p.startswith("Two readers") else '{"same": 1}'),
+                 '[{"item": 1, "same_as": "a"}]' if p.startswith("You and another") else '[{"item": 1, "same": 1}]'),
              "m": lambda p: json.dumps([pub_b]) if p.startswith("You read") else (
-                 '{"same": true}' if p.startswith("Two readers") else '{"same": 1}')}
+                 '[{"item": 1, "same_as": "a"}]' if p.startswith("You and another") else '[{"item": 1, "same": 1}]')}
     thesaurus = Thesaurus()
     text = [("Abstract", "An elevated CRP was found in 49% of patients.")]
     got = read_text(text, "publication", chats, subject="appendicitis", hpo=HPO, thesaurus=thesaurus,

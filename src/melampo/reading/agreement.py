@@ -3,16 +3,25 @@
 As two reviewers extract the data of a study, each on a common form, and compare it field by field (Cochrane,
 MECIR C45-C46), the interpreters' cards are compared on the text and on their description, never on a code:
 
-1. **The same sentence.** Two cards can describe the same finding only when their quotes are the same sentence,
-   or one contains the other.
-2. **The same finding.** Within one sentence, two cards with the same name and the same thing observed are the
-   same finding. Otherwise every interpreter is asked, on its own and in the sentence, whether the two readings
-   describe the same finding in other words ("elevated CRP", "elevated C-reactive protein"); they are paired only
-   when every interpreter says so. A different threshold, site, side, time or thing is not the same finding.
+1. **The same name in the same sentence.** Two cards with the same name and the same thing observed, whose quotes
+   are the same sentence (or one contains the other), are the same finding.
+2. **What one found and the other did not name so: each looks at the other's** (25 November 2026, declared after
+   the sixth run). As a reviewer looks again at what only the other extracted, each interpreter is shown, once
+   for the whole text, the findings only the other named, each with its sentence and its name (never the other's
+   fields), and its own findings in those sentences not yet paired. For each it answers: the same finding as one
+   of its own (in other words: "elevated CRP" and "elevated C-reactive protein"), or its own card for it, or that
+   the sentence does not state it. A pair by "the same" is made only when both say it of each other; a card given
+   for the other's finding is a second, independent reading of it. A different threshold, site, side, time or
+   thing is not the same finding.
 3. **Field by field.** In a pair, each field both readings give alike is the agreed value; a field they give
    differently is empty, and named among the doubts (principle of doubt: kept, never resolved by the code).
 
-A card no other interpreter paired is kept with the doubt ``one_interpreter``.
+A card the other interpreter did not read is kept with the doubt ``one_interpreter`` (and, when the other said
+the sentence does not state it, ``not_stated_for_the_other``).
+
+In the sixth run, asking each pair of cards on its own took 722 questions for 13 texts, and still left three
+readings in four to one interpreter: Muse had not written 160 of Nemotron's findings at all, and no question
+between two cards could pair what one of them never wrote.
 """
 
 from __future__ import annotations
@@ -27,15 +36,10 @@ from . import card as c
 COMPARED = ("category", "specific", "interpretation", "value", "threshold", "side", "observed_by", "nature")
 COMPARED_IN = {"case": ("state", "temporality", "subject"), "publication": ("direction", "compares")}
 LABELS = ("words", "name", "what", "site", "time")
-MAX_ASKED = 6     # cards of one interpreter in one sentence beyond which only cards sharing a word are asked
 
 
 def letters(text: str) -> str:
     return re.sub(r"[^\w]+", " ", str(text).lower()).strip()
-
-
-def _content(card: dict) -> set[str]:
-    return {w for w in letters(f"{card.get('name', '')} {card.get('what', '')}").split() if len(w) > 2}
 
 
 def same_sentence(a: str, b: str) -> bool:
@@ -47,25 +51,6 @@ def described(card: dict, context: str) -> dict:
     """What an interpreter is shown of a reading: its description and what it states, no measures."""
     keys = c.DESCRIPTION + tuple(k for k in c.STATEMENT[context] if k != "measures")
     return {k: card.get(k) for k in keys if card.get(k) not in (None, "", {}, [])}
-
-
-def sameness_prompt(context: str, quote: str, a: dict, b: dict) -> str:
-    where = "a document of one patient" if context == "case" else "a medical publication"
-    return (f"Two readers described a finding in the same sentence of {where}.\n"
-            f"Sentence: \"{quote}\"\n"
-            f"Reading A: {json.dumps(described(a, context), ensure_ascii=False)}\n"
-            f"Reading B: {json.dumps(described(b, context), ensure_ascii=False)}\n"
-            "Do A and B describe the same finding in this sentence -- the same thing observed, at the same site, by "
-            "the same method, with the same interpretation and threshold -- in other words? Other words for the same "
-            "finding are the same (\"elevated CRP\" and \"elevated C-reactive protein\"); a different threshold, "
-            "site, side, time or thing is not (an appendix wider than 6 mm and wider than 7 mm; the peak systolic "
-            "velocity and the colour Doppler flow; vomiting before the pain and vomiting). "
-            "Answer only JSON: {\"same\": true or false}")
-
-
-def read_same(answer: str) -> bool | None:
-    m = re.search(r"\"same\"\s*:\s*(true|false)", answer or "", re.I)
-    return None if m is None else m.group(1).lower() == "true"
 
 
 def _alike(a: Any, b: Any) -> bool:
@@ -91,80 +76,181 @@ def merged(cards: list[tuple[str, dict]], context: str) -> dict:
     return out
 
 
+def crosscheck_prompt(context: str, theirs: list[dict], mine: list[dict]) -> str:
+    """What one interpreter is shown: the findings only the other named (name and sentence), and its own not yet
+    paired in those sentences (name and sentence), lettered."""
+    where = "a document of one patient" if context == "case" else "a medical publication"
+    first = "\n".join(f"{i}. \"{x.get('quote', '')}\" -- {x.get('name', '')}" for i, x in enumerate(theirs, 1))
+    own = "\n".join(f"{_letter(j)}. {x.get('name', '')} -- \"{x.get('quote', '')}\""
+                     for j, x in enumerate(mine)) or "(none)"
+    return (f"You and another reader read the same {where}, each on your own. The other reader named the findings "
+            "below, which you did not name the same way; each with the sentence it is in:\n" + first + "\n\n"
+            "Your findings in those sentences that are not yet paired:\n" + own + "\n\n"
+            "For each numbered finding answer one of: the letter of your finding when it is the same finding -- the "
+            "same thing observed, at the same site, by the same method, with the same interpretation and threshold, "
+            "in other words (\"elevated CRP\" and \"elevated C-reactive protein\"; a different threshold, site, side, "
+            "time or thing is not the same: an appendix wider than 6 mm and wider than 7 mm; vomiting before the "
+            "pain and vomiting); otherwise your own card for it, read from its sentence, in this form:\n"
+            + c.example(context) + "\n"
+            "or null when the sentence does not state such a finding. "
+            "Answer only JSON: [{\"item\": 1, \"same_as\": \"a\" or null, \"card\": {...} or null}, ...]")
+
+
+def _letter(j: int) -> str:
+    out = ""
+    j += 1
+    while j:
+        j, r = divmod(j - 1, 26)
+        out = chr(97 + r) + out
+    return out
+
+
+def read_crosscheck(answer: str, n: int, m: int, context: str) -> dict[int, tuple[str, Any]]:
+    """item -> ("same", j) | ("card", card) | ("not_stated", None); an item not answered is absent."""
+    text = re.sub(r"<think>.*?</think>", "", answer or "", flags=re.S)
+    found = re.search(r"\[.*\]", text, re.S)
+    try:
+        rows = json.loads(found.group(0)) if found else []
+    except json.JSONDecodeError:
+        rows = []
+    letters_ = {_letter(j): j for j in range(m)}
+    out: dict[int, tuple[str, Any]] = {}
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            i = int(row.get("item")) - 1
+        except (TypeError, ValueError):
+            continue
+        if not 0 <= i < n or i in out:
+            continue
+        same = str(row.get("same_as") or "").strip().lower()
+        if same in letters_:
+            out[i] = ("same", letters_[same])
+        elif isinstance(row.get("card"), dict):
+            out[i] = ("card", c.read(row["card"], context))
+        else:
+            out[i] = ("not_stated", None)
+    return out
+
+
+def _named_alike(a: dict, b: dict) -> bool:
+    return letters(b.get("name", "")) == letters(a.get("name", "")) and \
+        letters(b.get("what", "")) == letters(a.get("what", ""))
+
+
 def agree(readings: dict[str, list[dict]], context: str,
           ask: Callable[[str, str], str] | None = None,
           expected: list[str] | None = None) -> tuple[list[dict], list[dict]]:
-    """The agreed cards and every question asked. ``readings``: each interpreter's cards (``card.read``), the
-    first interpreter's order kept; ``ask(reader, prompt)``: the interpreter's answer (None: no question is asked,
-    and cards with different names stay apart); ``expected``: every interpreter that should have read the text
-    (25 November 2026, declared after the fifth run: when one did not answer, the other's cards counted as
-    agreed with themselves). When an expected interpreter gave no reading, nothing is agreed: every card is a
-    card of one interpreter, and no question is asked."""
+    """The agreed cards and every question asked. ``readings``: each interpreter's cards (``card.read``);
+    ``ask(reader, prompt)``: the interpreter's answer (None: no question is asked, and cards with different names
+    stay apart); ``expected``: every interpreter that should have read the text (25 November 2026, declared after
+    the fifth run: when one did not answer, the other's cards counted as agreed with themselves). When an
+    expected interpreter gave no reading, nothing is agreed: every card is a card of one interpreter, and no
+    question is asked. Two interpreters (the pair of the readers)."""
+    def alone(reader: str, b: dict, why: str = "") -> dict:
+        card = merged([(reader, b)], context)
+        card["paired_by"] = "one_interpreter"
+        card["doubts"] = card["doubts"] + ["one_interpreter"] + ([why] if why else [])
+        return card
+
     if expected and any(r not in readings for r in expected):
-        out = []
-        for reader, cards in readings.items():
-            for b in cards:
-                card = merged([(reader, b)], context)
-                card["paired_by"] = "one_interpreter"
-                card["doubts"] = card["doubts"] + ["one_interpreter"]
-                out.append(card)
-        return out, []
+        return [alone(r, b) for r, cards in readings.items() for b in cards], []
     readers = list(readings)
-    used = {r: set() for r in readers}
+    if len(readers) == 1:
+        return [alone(readers[0], b) for b in readings[readers[0]]], []
+    if len(readers) != 2:
+        raise ValueError("the comparison is between two interpreters")
+    one, two = readers
+    A, B = readings[one], readings[two]
+    pairs: list[tuple[int, int, str]] = []
+    used_a, used_b = set(), set()
+    for i, a in enumerate(A):                    # 1. the same name in the same sentence
+        j = next((j for j, b in enumerate(B) if j not in used_b and _named_alike(a, b)
+                  and same_sentence(a.get("quote", ""), b.get("quote", ""))), None)
+        if j is not None:
+            used_a.add(i)
+            used_b.add(j)
+            pairs.append((i, j, "same_name"))
+    left_a = [i for i in range(len(A)) if i not in used_a]
+    left_b = [j for j in range(len(B)) if j not in used_b]
     asked: list[dict] = []
     out: list[dict] = []
-    if not readers:
-        return out, asked
-    anchor, others = readers[0], readers[1:]
-    groups = [[(anchor, a)] for a in readings[anchor]]
-    # first the same name and the same thing in the same sentence; only what is left is asked
-    for other in others:
-        for group in groups:
-            a = group[0][1]
-            j = next((j for j, b in enumerate(readings[other]) if j not in used[other]
-                      and same_sentence(a.get("quote", ""), b.get("quote", ""))
-                      and letters(b.get("name", "")) == letters(a.get("name", ""))
-                      and letters(b.get("what", "")) == letters(a.get("what", ""))), None)
-            if j is not None:
-                used[other].add(j)
-                group.append((other, readings[other][j]))
-    for other in others:
-        for group in groups:
-            a = group[0][1]
-            if ask is None or any(r == other for r, _ in group):
+    second: dict[tuple[str, int], dict] = {}     # an independent second reading of the other's finding
+    not_stated: set[tuple[str, int]] = set()
+    if ask is not None and (left_a or left_b):
+        def near(cards: list[int], own: list[dict], theirs: list[dict], others: list[int]) -> list[int]:
+            return [k for k in cards if any(same_sentence(own[k].get("quote", ""), theirs[o].get("quote", ""))
+                                            for o in others)]
+        mine_b = near(left_b, B, A, left_a)      # B's unpaired cards in the sentences of A's unpaired ones
+        mine_a = near(left_a, A, B, left_b)
+        answer_b = read_crosscheck(ask(two, crosscheck_prompt(context, [A[i] for i in left_a],
+                                                              [B[j] for j in mine_b])) if left_a else "[]",
+                                   len(left_a), len(mine_b), context)
+        answer_a = read_crosscheck(ask(one, crosscheck_prompt(context, [B[j] for j in left_b],
+                                                              [A[i] for i in mine_a])) if left_b else "[]",
+                                   len(left_b), len(mine_a), context)
+        asked.append({"reader": two, "items": len(left_a), "answers": len(answer_b)})
+        asked.append({"reader": one, "items": len(left_b), "answers": len(answer_a)})
+        said_b = {left_a[k]: (kind, mine_b[v] if kind == "same" else v) for k, (kind, v) in answer_b.items()}
+        said_a = {left_b[k]: (kind, mine_a[v] if kind == "same" else v) for k, (kind, v) in answer_a.items()}
+        for i in left_a:                         # mutual "the same": a pair
+            kind, j = said_b.get(i, ("", None))
+            if kind == "same" and j not in used_b and said_a.get(j) == ("same", i):
+                used_a.add(i)
+                used_b.add(j)
+                pairs.append((i, j, "same_in_context"))
+        for i in left_a:
+            if i in used_a:
                 continue
-            pool = [(j, b) for j, b in enumerate(readings[other])
-                    if j not in used[other] and same_sentence(a.get("quote", ""), b.get("quote", ""))]
-            if len(pool) > MAX_ASKED:
-                pool = [(j, b) for j, b in pool if _content(a) & _content(b)]
-            yes = []
-            for j, b in pool:
-                quote = max((a.get("quote", ""), b.get("quote", "")), key=len)
-                prompt = sameness_prompt(context, quote, a, b)
-                answers = {r: read_same(ask(r, prompt)) for r in readers}
-                asked.append({"quote": quote, "a": a.get("name"), "b": b.get("name"), "answers": answers})
-                if all(v is True for v in answers.values()):
-                    yes.append(j)
-            if len(yes) == 1:       # two readings said the same as one: which is a doubt, none is paired
-                used[other].add(yes[0])
-                group.append((other, readings[other][yes[0]]))
-    for group in groups:
-        a = group[0][1]
-        card = merged(group, context)
-        card["paired_by"] = "one_interpreter" if len(group) < len(readers) else (
-            "same_name" if all(letters(x.get("name", "")) == letters(a.get("name", "")) for _, x in group)
-            else "same_in_context")
-        if len(group) < len(readers):
-            card["doubts"] = card["doubts"] + ["one_interpreter"]
+            kind, v = said_b.get(i, ("", None))
+            if kind == "card" and same_sentence(v.get("quote", "") or A[i].get("quote", ""), A[i].get("quote", "")):
+                second[(one, i)] = {**v, "quote": v.get("quote") or A[i].get("quote", "")}
+            elif kind == "not_stated":
+                not_stated.add((one, i))
+        for j in left_b:
+            if j in used_b:
+                continue
+            kind, v = said_a.get(j, ("", None))
+            if kind == "card" and same_sentence(v.get("quote", "") or B[j].get("quote", ""), B[j].get("quote", "")):
+                second[(two, j)] = {**v, "quote": v.get("quote") or B[j].get("quote", "")}
+            elif kind == "not_stated":
+                not_stated.add((two, j))
+    at: dict[tuple[str, int], int] = {}          # each card read -> the output card it is in
+    for i, j, how in pairs:
+        card = merged([(one, A[i]), (two, B[j])], context)
+        card["paired_by"] = how
+        at[(one, i)] = at[(two, j)] = len(out)
         out.append(card)
-    for other in others:
-        for j, b in enumerate(readings[other]):
-            if j not in used[other]:
-                card = merged([(other, b)], context)
-                card["paired_by"] = "one_interpreter"
-                card["doubts"] = card["doubts"] + ["one_interpreter"]
+    one_way: list[tuple[str, int, tuple[str, int]]] = []
+    for who, cards, used, said, other in ((one, A, used_a, said_b if ask is not None and (left_a or left_b) else {},
+                                           two),
+                                          (two, B, used_b, said_a if ask is not None and (left_a or left_b) else {},
+                                           one)):
+        for k in range(len(cards)):
+            if k in used:
+                continue
+            if (who, k) in second:
+                card = merged([(who, cards[k]), (other, second[(who, k)])], context)
+                card["paired_by"] = "read_again_by_the_other"
+                at[(who, k)] = len(out)
                 out.append(card)
+            elif said.get(k, ("", None))[0] == "same":
+                one_way.append((who, k, (other, said[k][1])))
+            else:
+                at[(who, k)] = len(out)
+                out.append(alone(who, cards[k], "not_stated_for_the_other" if (who, k) in not_stated else ""))
+    # the other said "the same as mine" and did not hear it back: when its card is in a reading of two, this one
+    # is another name of it (kept in ``also_named``, not a second finding); otherwise it stays one interpreter's
+    for who, k, partner in one_way:
+        cards = A if who == one else B
+        if partner in at and out[at[partner]]["paired_by"] != "one_interpreter":
+            target = out[at[partner]]
+            target.setdefault("also_named", []).append({"reader": who, "name": cards[k].get("name", ""),
+                                                        "quote": cards[k].get("quote", "")})
+        else:
+            out.append(alone(who, cards[k]))
     return out, asked
 
 
-__all__ = ["agree", "described", "letters", "merged", "read_same", "same_sentence", "sameness_prompt"]
+__all__ = ["agree", "crosscheck_prompt", "described", "letters", "merged", "read_crosscheck", "same_sentence"]

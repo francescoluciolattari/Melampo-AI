@@ -95,11 +95,11 @@ def world(monkeypatch):
         if prompt.startswith("Disease:"):
             calls["judge"] += 1
             return '{"states": "yes"}', "stop"
-        if prompt.startswith("Two readers"):        # the same finding in other words: both say so
+        if prompt.startswith("You and another reader"):   # the same finding in other words: both say so
             calls["same"] = calls.get("same", 0) + 1
-            return '{"same": true}', "stop"
-        if prompt.startswith("A finding agreed"):
-            return '{"same": null}', "stop"
+            return '[{"item": 1, "same_as": "a"}]', "stop"
+        if prompt.startswith("Findings agreed"):
+            return "[]", "stop"
         calls["read"] += 1
         if first in prompt and model == dr.rs.READERS["muse"]:   # Muse names the pain in other words
             return json.dumps([

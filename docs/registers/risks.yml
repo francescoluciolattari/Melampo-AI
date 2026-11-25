@@ -243,9 +243,10 @@ risks:
         tests:
           - tests/test_reading.py::test_a_field_read_differently_is_a_doubt_never_resolved
           - tests/test_report_reading_one.py::test_a_patients_finding_and_a_publications_manifestation_meet_by_the_same_concept
-      - control: Two readings are paired only in the same sentence, and in other words only when every interpreter says, in the sentence, that they are the same finding
+      - control: 'Two readings are paired only in the same sentence, by the same name, by "the same" said by each interpreter of the other''s, or by a second, independent reading of what only the other named'
         tests:
-          - tests/test_reading.py::test_other_words_for_one_finding_are_paired_by_every_interpreter_in_the_sentence
+          - tests/test_reading.py::test_other_words_for_one_finding_are_paired_when_each_interpreter_says_it_of_the_other
+          - tests/test_reading.py::test_a_finding_only_one_named_is_read_again_by_the_other_independently
           - tests/test_reading.py::test_cards_of_different_sentences_are_never_paired
           - tests/test_reading.py::test_when_one_interpreter_gives_no_reading_nothing_is_agreed_and_nothing_is_coded
       - control: The reader before the one procedure is kept (MELAMPO_REPORT_READER=anatomy) to measure the change on the same benches, with criteria fixed before the run

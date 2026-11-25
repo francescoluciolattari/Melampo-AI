@@ -52,9 +52,9 @@ def interpreter(cards, sees_crp):
                         "elevated CRP", what="C-reactive protein", interpretation="increased",
                         value={"number": 52, "unit": "mg/L"}, observed_by="laboratory", quote="PCR 52 mg/L.")]
             return json.dumps(cards + crp)
-        if prompt.startswith("Two readers"):
-            return '{"same": true}'
-        return '{"same": null}'
+        if prompt.startswith("You and another reader"):
+            return '[{"item": 1, "same_as": "a"}]'
+        return "[]"
     chat.local_only = True
     return chat
 
@@ -74,7 +74,7 @@ def test_every_document_of_the_case_is_read_with_the_one_procedure():
     assert by["right lower quadrant pain"]["concept"]["code"] == "HP:0100281"
     crp = by["elevated C-reactive protein"]                      # other words for one finding: paired in the sentence
     assert crp["paired_by"] == "same_in_context" and crp["doubts"] == [] and crp["value"]["number"] == 52
-    assert entry["questions"] == 1 and "readings" not in crp          # one pair asked, to both
+    assert entry["questions"] == 2 and "readings" not in crp     # one look at the other's findings, by each
 
 
 def test_the_cards_become_the_findings_of_the_graph_of_the_case():

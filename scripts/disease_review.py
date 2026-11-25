@@ -101,7 +101,8 @@ from melampo.reading.prompt import reading_prompt  # noqa: E402
 SATURATION_LEAST = 5
 SCREENER = "google/gemma-4-31b-it"
 JUDGED = "v6:"         # the judges verify only (22 November 2026): the interpretation is the interpreters'
-QUESTION_ROOM = 8000   # tokens of a question to an interpreter (same finding? which concept?), its reasoning included
+QUESTION_ROOM = 16000  # tokens of the question of the codes for a text, its reasoning included (the look at the other's
+                       # findings has the room of a reading: it may give a card for each)
 JUDGED_CLAIM = "v7:"   # a claim with its numbers or its direction is verified as such (24 November 2026)
 LAYERS = (
     ("guideline", '(PUB_TYPE:"guideline" OR PUB_TYPE:"practice-guideline" OR TITLE:"guideline" OR '
@@ -563,7 +564,12 @@ def main(argv=None) -> int:
                 def chat(q: str) -> str:
                     qk = hashlib.sha1((rs.READERS[reader] + "\n" + q).encode()).hexdigest()
                     if qk not in questions:
-                        answer, _ = router.chat(rs.READERS[reader], q, reasoning=True, max_tokens=QUESTION_ROOM)
+                        room = rs.READER_ROOM if q.startswith("You and another reader") else QUESTION_ROOM
+                        answer, finish = router.chat(rs.READERS[reader], q, reasoning=True, max_tokens=room)
+                        if finish != "stop":     # an answer cut off is no answer: not kept
+                            row.setdefault("not_answered", 0)
+                            row["not_answered"] += 1
+                            return ""
                         questions[qk] = answer
                         log("questions.jsonl", {"disease": name, "reader": reader, "key": qk, "answer": answer})
                     return questions[qk]

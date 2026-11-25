@@ -61,72 +61,115 @@ class HpoIndex:
         return [(t, self.terms.names[t]) for t in best]
 
 
-def choice_prompt(context: str, card: dict, options: list[str]) -> str:
+def choice_prompt(context: str, items: list[tuple[dict, list[str]]]) -> str:
+    """One question for a whole text: every agreed finding still without a code, with its sentence and its
+    candidates (25 November 2026, declared after the sixth run: one question per finding took 148 questions)."""
     where = "a document of one patient" if context == "case" else "a medical publication"
-    lines = "\n".join(f"{i}. {o}" for i, o in enumerate(options, 1))
-    return (f"A finding agreed by two readers in a sentence of {where}.\n"
-            f"Sentence: \"{card.get('quote', '')}\"\n"
-            f"Finding: {json.dumps(described(card, 'case' if context == 'case' else 'publication'), ensure_ascii=False)}\n"
-            f"Which of these is the same finding, the same thing with the same meaning (not a broader, narrower or "
-            f"related one)?\n{lines}\n"
-            "Answer only JSON: {\"same\": the number, or null when none is}")
+    blocks = []
+    for i, (card, options) in enumerate(items, 1):
+        lines = "\n".join(f"   {k}. {o}" for k, o in enumerate(options, 1))
+        blocks.append(f"{i}. Sentence: \"{card.get('quote', '')}\"\n   Finding: "
+                      f"{json.dumps(described(card, context), ensure_ascii=False)}\n{lines}")
+    return (f"Findings agreed by two readers in sentences of {where}. For each, which of its candidates is the same "
+            "finding, the same thing with the same meaning (not a broader, narrower or related one)?\n\n"
+            + "\n\n".join(blocks) + "\n\n"
+            "Answer only JSON: [{\"item\": 1, \"same\": the number of the candidate, or null when none is}, ...]")
 
 
-def read_choice(answer: str, n: int) -> int | None:
-    m = re.search(r"\"same\"\s*:\s*(null|\d+)", answer or "")
-    if m is None or m.group(1) == "null":
-        return None
-    k = int(m.group(1))
-    return k if 1 <= k <= n else None
+def read_choices(answer: str, sizes: list[int]) -> dict[int, int | None]:
+    text = re.sub(r"<think>.*?</think>", "", answer or "", flags=re.S)
+    m = re.search(r"\[.*\]", text, re.S)
+    try:
+        rows = json.loads(m.group(0)) if m else []
+    except json.JSONDecodeError:
+        rows = []
+    out: dict[int, int | None] = {}
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            i = int(row.get("item")) - 1
+        except (TypeError, ValueError):
+            continue
+        if not 0 <= i < len(sizes) or i in out:
+            continue
+        k = row.get("same")
+        out[i] = int(k) if isinstance(k, int) and 1 <= k <= sizes[i] else None
+    return out
 
 
 def _add(thesaurus: Thesaurus, concept: Concept, card: dict, evidence: dict) -> None:
     """Every interpreter's label of the agreed reading becomes a label of the concept."""
-    for name in dict.fromkeys([card.get("name", "")] + list((card.get("labels") or {}).values())):
+    names = [card.get("name", "")] + list((card.get("labels") or {}).values()) + [
+        x.get("name", "") for x in card.get("also_named") or []]
+    for name in dict.fromkeys(names):
         if name:
             thesaurus.add(concept, {**card, "name": name}, evidence)
+
+
+def normalize_all(cards: list[dict], context: str, hpo: HpoIndex, thesaurus: Thesaurus,
+                  ask: Callable[[str, str], str] | None, readers: list[str], evidence: dict | None = None,
+                  asked: list | None = None) -> list[dict]:
+    """The concept of each agreed card of one text: ``{"concept": id or "", "code": HPO id or "", "how": ...}``.
+    The thesaurus and HPO's exact names first; the rest in one question per interpreter for the whole text. Only
+    a publication's reading (``context == "publication"``) writes to the thesaurus."""
+    write = context == "publication"
+    out: list[dict | None] = [None] * len(cards)
+    pending: list[tuple[int, list[tuple[str, str, str]]]] = []
+    for n, card in enumerate(cards):
+        ev = {**(evidence or {}), "quote": card.get("quote", ""), "readers": readers}
+        found = thesaurus.find(card)
+        if found is not None:
+            out[n] = {"concept": found.id, "code": found.code, "how": "thesaurus"}
+            continue
+        code = hpo.find(card.get("name", ""))
+        if code:
+            concept = thesaurus.by_code(code) or Concept(code, hpo.terms.names.get(code, card.get("name", "")), code)
+            if write:
+                _add(thesaurus, concept, card, {**ev, "how": "hpo_name"})
+            out[n] = {"concept": concept.id, "code": code, "how": "hpo_name"}
+            continue
+        options: list[tuple[str, str, str]] = []
+        for concept in thesaurus.candidates(card):
+            options.append((concept.id, concept.code, concept.name + (f" ({concept.code})" if concept.code else "")))
+        for term, name in hpo.candidates(card):
+            if not any(o[1] == term for o in options):
+                options.append((term, term, f"{name} ({term})"))
+        if options:
+            pending.append((n, options[:CANDIDATES]))
+    if pending and ask is not None:
+        prompt = choice_prompt(context, [(cards[n], [o[2] for o in opts]) for n, opts in pending])
+        sizes = [len(opts) for _, opts in pending]
+        answers = {r: read_choices(ask(r, prompt), sizes) for r in readers}
+        if asked is not None:
+            asked.append({"choices": len(pending), "answers": {r: len(a) for r, a in answers.items()}})
+        for k, (n, opts) in enumerate(pending):
+            chosen = {answers[r].get(k) for r in readers}
+            if len(chosen) == 1 and None not in chosen:
+                cid, code, shown = opts[chosen.pop() - 1]
+                concept = thesaurus.concepts.get(cid) or Concept(cid, shown.rsplit(" (", 1)[0], code)
+                if write:
+                    _add(thesaurus, concept, cards[n], {**(evidence or {}), "quote": cards[n].get("quote", ""),
+                                                        "readers": readers, "how": "chosen_in_context",
+                                                        "answers": {r: answers[r].get(k) for r in readers}})
+                out[n] = {"concept": concept.id, "code": code, "how": "chosen_in_context"}
+    for n, card in enumerate(cards):
+        if out[n] is None:
+            if write:
+                concept = thesaurus.new(card)
+                _add(thesaurus, concept, card, {**(evidence or {}), "quote": card.get("quote", ""),
+                                                "readers": readers, "how": "new"})
+                out[n] = {"concept": concept.id, "code": "", "how": "new"}
+            else:
+                out[n] = {"concept": "", "code": "", "how": "none"}
+    return out  # type: ignore[return-value]
 
 
 def normalize(card: dict, context: str, hpo: HpoIndex, thesaurus: Thesaurus,
               ask: Callable[[str, str], str] | None, readers: list[str], evidence: dict | None = None,
               asked: list | None = None) -> dict:
-    """The concept of one agreed card: ``{"concept": id or "", "code": HPO id or "", "how": ...}``. Only a
-    publication's reading (``context == "publication"``) writes to the thesaurus."""
-    write = context == "publication"
-    found = thesaurus.find(card)
-    if found is not None:
-        return {"concept": found.id, "code": found.code, "how": "thesaurus"}
-    code = hpo.find(card.get("name", ""))
-    if code:
-        concept = thesaurus.by_code(code) or Concept(code, hpo.terms.names.get(code, card.get("name", "")), code)
-        if write:
-            _add(thesaurus, concept, card, {**(evidence or {}), "how": "hpo_name"})
-        return {"concept": concept.id, "code": code, "how": "hpo_name"}
-    options: list[tuple[str, str, str]] = []     # (concept id, code, shown)
-    for concept in thesaurus.candidates(card):
-        options.append((concept.id, concept.code, concept.name + (f" ({concept.code})" if concept.code else "")))
-    for term, name in hpo.candidates(card):
-        if not any(o[1] == term for o in options):
-            options.append((term, term, f"{name} ({term})"))
-    options = options[:CANDIDATES]
-    if options and ask is not None:
-        prompt = choice_prompt(context, card, [o[2] for o in options])
-        answers = {r: read_choice(ask(r, prompt), len(options)) for r in readers}
-        if asked is not None:
-            asked.append({"quote": card.get("quote", ""), "name": card.get("name"), "options": [o[2] for o in options],
-                          "answers": answers})
-        chosen = set(answers.values())
-        if len(chosen) == 1 and None not in chosen:
-            cid, code, shown = options[chosen.pop() - 1]
-            concept = thesaurus.concepts.get(cid) or Concept(cid, shown.rsplit(" (", 1)[0], code)
-            if write:
-                _add(thesaurus, concept, card, {**(evidence or {}), "how": "chosen_in_context", "answers": answers})
-            return {"concept": concept.id, "code": code, "how": "chosen_in_context"}
-    if write:
-        concept = thesaurus.new(card)
-        _add(thesaurus, concept, card, {**(evidence or {}), "how": "new"})
-        return {"concept": concept.id, "code": "", "how": "new"}
-    return {"concept": "", "code": "", "how": "none"}
+    """The concept of one agreed card (``normalize_all`` of one card)."""
+    return normalize_all([card], context, hpo, thesaurus, ask, readers, evidence, asked)[0]
 
 
-__all__ = ["HpoIndex", "choice_prompt", "normalize", "read_choice"]
+__all__ = ["HpoIndex", "choice_prompt", "normalize", "normalize_all", "read_choices"]

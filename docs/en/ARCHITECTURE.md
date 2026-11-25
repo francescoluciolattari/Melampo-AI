@@ -135,14 +135,16 @@ method, with which interpretation; the name is a label.
    one, and what comes in another form is not read and is counted for its model.
 2. **Comparison before any code.** The two interpreters' cards are compared as two reviewers compare the data
    they extracted on one form (Cochrane MECIR C45-C46): only cards of the same sentence; the same name and thing
-   pair directly; otherwise every interpreter is asked, on its own and in the sentence, whether the two readings
-   describe the same finding in other words, and they are paired only when every one says so; then field by
-   field, what both give alike is agreed and what they give differently is a doubt (`reading.agreement`). Coding
+   pair directly; then, once per text, each interpreter is shown what only the other named (its name and
+   sentence, never its fields) and answers: the same as one of its own, its own card for it, or not stated; a
+   pair by "the same" only when both say it of each other, a card given for the other's finding a second,
+   independent reading (25 November 2026, after the sixth run: one question per pair of cards cost 722 questions
+   for 13 texts and left three readings in four to one interpreter); then field by field, what both give alike is agreed and what they give differently is a doubt (`reading.agreement`). Coding
    first would make disagreements the text does not have: two independent coders gave the same SNOMED CT code to
    three diagnoses in four (Del-Pinto et al., 2023), and codes that differ often mean the same thing.
 3. **Codes afterwards.** Only the agreed reading is coded (`reading.normalize`): its label in the thesaurus; HPO's
    own name or exact synonym; otherwise the candidates sharing content words are shown to every interpreter with
-   the sentence, and the reading is the candidate every one chooses; otherwise, from a publication, a new concept
+   the sentence, in one question for the whole text, and the reading is the candidate every one chooses; otherwise, from a publication, a new concept
    of the thesaurus, from a patient's document no concept (the finding keeps its words). The site of a patient's
    finding is the lexicon's class when its name is exactly one.
 4. **The thesaurus is knowledge, not training** (`reading.thesaurus`): the concepts the interpreters agreed on,

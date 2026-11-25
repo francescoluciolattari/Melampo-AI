@@ -20,7 +20,7 @@ from typing import Any
 
 from . import card as c
 from .agreement import agree
-from .normalize import HpoIndex, normalize
+from .normalize import HpoIndex, normalize_all
 from .prompt import reading_prompt
 from .thesaurus import Thesaurus
 
@@ -85,14 +85,12 @@ def read_text(sections: list[tuple[str, str]], context: str, chats: dict[str, Ca
     agreed, asked = agree(readings, context, ask, expected=list(chats))
     out["asked"] += asked
     readers = list(chats)
+    coded = [card for card in agreed if "one_interpreter" not in card["doubts"] and card.get("specific", True)]
+    concepts = normalize_all(coded, context, hpo, thesaurus, ask, readers, evidence, out["asked"])
+    by_id = {id(card): concept for card, concept in zip(coded, concepts)}
     for card in agreed:
-        if "one_interpreter" in card["doubts"] or not card.get("specific", True):
-            card["concept"] = {"concept": "", "code": "", "how": "not_coded:" + (
-                "one_interpreter" if "one_interpreter" in card["doubts"] else "not_specific")}
-        else:
-            card["concept"] = normalize(card, context, hpo, thesaurus, ask, readers,
-                                        {**(evidence or {}), "quote": card.get("quote", ""), "readers": readers},
-                                        out["asked"])
+        card["concept"] = by_id.get(id(card)) or {"concept": "", "code": "", "how": "not_coded:" + (
+            "one_interpreter" if "one_interpreter" in card["doubts"] else "not_specific")}
         out["cards"].append(card)
     out.setdefault("status", "read")
     return out

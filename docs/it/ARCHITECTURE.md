@@ -137,15 +137,19 @@ con quale metodo, con quale interpretazione; il nome è un'etichetta.
    e ciò che arriva in un'altra forma non si legge e si conta per il suo modello.
 2. **Il confronto prima di ogni codice.** Le schede dei due interpreti si confrontano come due revisori
    confrontano i dati estratti su un modulo comune (Cochrane MECIR C45-C46): solo schede della stessa frase; lo
-   stesso nome e la stessa cosa si appaiano direttamente; altrimenti si chiede a ciascun interprete, per conto suo
-   e nella frase, se le due letture descrivono lo stesso reperto con altre parole, e si appaiano solo se lo dicono
-   tutti; poi campo per campo, ciò che entrambi danno uguale è concordato e ciò che danno diverso è un dubbio
+   stesso nome e la stessa cosa si appaiano direttamente; poi, una volta per testo, a ciascun interprete si mostra
+   ciò che solo l'altro ha nominato (il nome e la frase, mai i suoi campi) e risponde: lo stesso di uno dei suoi, la
+   sua scheda per esso, o non affermato; si appaia per "lo stesso" solo se lo dicono entrambi l'uno dell'altro, e
+   una scheda data per il reperto dell'altro è una seconda lettura indipendente (25 novembre 2026, dopo il sesto
+   run: una domanda per ogni coppia di schede è costata 722 domande per 13 testi e ha lasciato tre letture su
+   quattro a un solo interprete); poi campo per campo, ciò che entrambi danno uguale è concordato e ciò che danno diverso è un dubbio
    (`reading.agreement`). Codificare prima creerebbe discordanze che il testo non ha: due codificatori
    indipendenti hanno dato lo stesso codice SNOMED CT a tre diagnosi su quattro (Del-Pinto et al., 2023), e codici
    diversi spesso dicono la stessa cosa.
 3. **I codici dopo.** Si codifica solo la lettura concordata (`reading.normalize`): la sua etichetta nel
    tesauro; il nome proprio o il sinonimo esatto di HPO; altrimenti i candidati che condividono parole di
-   contenuto si mostrano a ciascun interprete con la frase, e la lettura è il candidato che scelgono tutti;
+   contenuto si mostrano a ciascun interprete con la frase, in una sola domanda per tutto il testo, e la lettura è
+   il candidato che scelgono tutti;
    altrimenti, da una pubblicazione, un nuovo concetto del tesauro, da un documento del paziente nessun concetto
    (il reperto tiene le sue parole). La sede di un reperto del paziente è la classe del lessico quando il suo nome
    è esattamente una.
