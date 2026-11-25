@@ -1,10 +1,10 @@
 # Conformità e rischio
 
-*[English](../en/COMPLIANCE_RISK.md) · Italiano · aggiornato al 4 novembre 2026*
+*[English](../en/COMPLIANCE_RISK.md) · Italiano · aggiornato al 25 novembre 2026*
 
 Oggi Melampo è software di ricerca, ma è costruito come se dovesse diventare un dispositivo medico: classe IIa
-dell'MDR, classe C della IEC 62304, sistema di IA ad alto rischio per l'AI Act. Dei diciassette pericoli
-registrati, sedici hanno un controllo verificato da test; uno è aperto.
+dell'MDR, classe C della IEC 62304, sistema di IA ad alto rischio per l'AI Act. Dei ventuno pericoli
+registrati, venti hanno un controllo verificato da test; uno è aperto.
 
 ## 1. Classificazione
 
@@ -31,7 +31,7 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | R03 | il modello afferma ciò che la frase non dice | le affermazioni devono essere parole copiate; parole marcate diverse invalidano la risposta | controllato |
 | R04 | reperto assente o negato letto come presente | rilevazione delle asserzioni; le osservazioni negate passano fra le normali | controllato |
 | R05 | fatto passato letto come attuale | la storia attaccata come storia | controllato |
-| R06 | referto di un paziente mandato fuori dall'ospedale | il router rifiuta i modelli esterni; le probe richiedono corpora pubblici | controllato |
+| R06 | referto di un paziente mandato fuori dall'ospedale | il router rifiuta i modelli esterni; la procedura unica di lettura legge il testo di un paziente solo con interpreti su questa macchina; le probe richiedono corpora pubblici | controllato |
 | R07 | testo non pseudonimizzato nelle revisioni o nell'addestramento | i record di revisione lo rifiutano | controllato |
 | R08 | apprendimento da etichette non confermate | base clinica obbligatoria; una seconda persona conferma le revisioni | controllato |
 | R09 | record di un altro paziente uniti al caso | identificativi esatti; i record estranei non vengono mai presi | controllato |
@@ -41,8 +41,12 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | R13 | misure fatte su dati usati per tarare | split congelati, campioni nuovi, regola delle risposte perse | controllato |
 | R14 | il modello non risponde | una risposta persa vale «non so» e va a una persona | controllato |
 | R15 | stato normale o fisiologico letto come reperto | i modelli confrontano ogni aspetto con quello abituale; il lettore controlla con HPO e PATO | parziale: 4 su 169 nel run claims2, prima del controllo |
-| R16 | misura giudicata con un valore ricordato | solo una riga di riferimento citata, ricalcolata dal lettore | parziale: le righe sono da verificare |
+| R16 | misura giudicata con un valore ricordato | solo una riga di riferimento citata, ricalcolata dal lettore | parziale: 21 righe su 29 verificate; la procedura unica non confronta ancora la misura di una scheda con le righe |
 | R17 | il quesito dell'impegnativa letto come reperto attuale | si leggono le sezioni, le conclusioni e la frase precedente; una contraddizione va alla persona | parziale: 4 su 99 in claims4, prima del controllo |
+| R18 | la procedura unica legge i documenti del paziente prima di essere misurata | una scheda non concordata è un reperto affermato con incertezza; letture appaiate solo nella stessa frase e da ogni interprete; il lettore precedente tenuto per misurare il cambiamento | parziale: il banco della procedura unica è da fare |
+| R19 | un codice dato prima di confrontare le letture | nessun codice sulla scheda; si codifica solo la lettura concordata, per scelta di ogni interprete | controllato |
+| R20 | la frase di un paziente entra nella conoscenza condivisa | solo le pubblicazioni scrivono il tesauro; il testo di un paziente solo su questa macchina | controllato |
+| R21 | un peso di un profilo da un numero letto male | un solo valore per misura; pesa solo se letto da entrambi gli interpreti; i giudici verificano numeri e direzione | controllato |
 
 ## 3. Software di terze parti e modelli esterni
 
@@ -75,9 +79,10 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 ## 5. Voci aperte
 
 1. Correggere R11 (il memory retriever si astiene esplicitamente).
-2. Il gold set dei radiologi: etichette, revisione delle etichette di un solo etichettatore.
-3. La maschera di immissione e revisione, che fa della revisione del medico un controllo del rischio esterno e
+2. Misurare la procedura unica di lettura sui banchi dei referti (R18), con criteri fissati prima del run; collegare il confronto della misura di una scheda con le righe di riferimento (R16).
+3. Il gold set dei radiologi: etichette, revisione delle etichette di un solo etichettatore.
+4. La maschera di immissione e revisione, che fa della revisione del medico un controllo del rischio esterno e
    verificato.
-4. Revisione legale della licenza di Melampo e delle condizioni di attribuzione.
-5. Verificare le date dell'AI Act su EUR-Lex; decidere quando parte un sistema di gestione della qualità
+5. Revisione legale della licenza di Melampo e delle condizioni di attribuzione.
+6. Verificare le date dell'AI Act su EUR-Lex; decidere quando parte un sistema di gestione della qualità
    (ISO 13485).

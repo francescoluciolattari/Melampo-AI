@@ -1,6 +1,6 @@
 # Validation and data lineage
 
-*English · [Italiano](../it/VALIDATION.md) · as of 4 November 2026*
+*English · [Italiano](../it/VALIDATION.md) · as of 25 November 2026*
 
 What Melampo claims is what its probes measured, on samples nobody tuned the system on, against criteria
 written before the run. Today nothing is certified: the gold set of the radiologists is not yet labelled, and
@@ -20,6 +20,8 @@ the labels used so far are written by one labeller (Claude) and wait for a radio
    measured on the next fresh sample.
 6. **Two readers that must agree.** A deterministic reader and the language models; two models count as one
    stream; a person decides on contradiction. Agreement is measured on what changes the outcome.
+   In the one procedure of reading (25 November 2026) the two interpreters fill one card each, and the cards
+   are compared field by field, as two reviewers compare their extraction: a field read differently is a doubt.
 
 ## 2. Data lineage
 
@@ -107,6 +109,12 @@ Newest first. Detail of each run: the document named in the last column, in the 
 
 | Date | Question | Result | Decision | Detail |
 |---|---|---|---|---|
+| 2026-11-25 | One procedure of reading for every text (`melampo.reading`): the documents of the case and the publications | **not measured yet.** Moved at once by the owner's decision: the reports are read with it by default (`MELAMPO_REPORT_READER=one`), the reader before it is kept to measure the change (`anatomy`). Verified by tests only: a card not agreed is a finding stated with uncertainty; readings paired only in one sentence and by every interpreter; codes only after agreement; a patient's text only on this machine; the thesaurus written only from publications | the bench of the one procedure on the reports, on a fresh CT-RATE sample labelled before any reading, with the criteria of `ctrate9` fixed before the run (§5); until then the figures of `ctrate9` belong to the reader before | `procedura_unica_di_lettura_2026-11-25` |
+| 2026-11-24 | Systematic review of acute appendicitis, fourth run (resumed; one format for every model) | stopped by OpenRouter (no credit left) at 1.67 USD after 22 texts. The one format held: Nemotron 1 departure in 279 items, Muse 0 in 227. 0 measures agreed: the two interpreters read the same numbers in the same source under different names ("elevated CRP", "elevated C-reactive protein"), and the joining at the end did not run | the comparison moves before any code: readings paired in the sentence, the code afterwards (the one procedure, 25 November); pages asked again; what each source of the index gives is written | `terzo_run_revisione_e_correzioni_EJ_2026-11-24` |
+| 2026-11-23 | Systematic review of acute appendicitis, third run | 34 texts, 3.00 USD: 79 manifestations, 6 with a measured accuracy, 24 with a direction only. Defects: Nemotron's measures nested in another field and lost (189 of 549 items); "up to 98 % sensitive" read as 98 %, "30 to 80 %" as 30 %; 75% of the accepted items read by one interpreter alone, one of which joined the peak systolic velocity to the colour Doppler flow; four layers gave no text without a trace | corrections E–J: one format for every model, one value per measure, a measure weighs only when both interpreters read it, a direction verified as a claim of its own, pages tried again | `terzo_run_revisione_e_correzioni_EJ_2026-11-24` |
+| 2026-11-22 | Systematic review of acute appendicitis, second run | 65 texts: 77 manifestations, 1 weighted. Laboratory values classified as tests, comparisons between forms of the disease and repeated results counted as measures, directions without a number lost | corrections A–D (a value, sign or finding is a manifestation; the direction a provisional weight; comparisons between forms apart; one count per result) | `revisione_sistematica_per_malattia_2026-11-22` |
+| 2026-11-20 | Readers of the literature, the same 14 texts in three configurations | quotations not in the text: A (Nemotron + Gemma, no reasoning) 5; B (Nemotron + Muse, full reasoning) 1; C (reasoning cut at 4,000 tokens) 20, rewriting the sentences. Judges not run (credit ran out) | B, as for the reports (the owner's choice) | `profili_e_righe_riviste_2026-11-21` |
+| 2026-11-14 | Claim by claim, sample `ctrate9` (293 items labelled first) | Nemotron 3 Ultra + Muse Spark Open, both with reasoning: 0 errors, 3 doubts (1.0%); the uncertainty read by Muse: 0 lost, 0 given | the readers of the claims reading, on in ingestion (the reader before the one procedure) | `ctrate9_risultato_definitivo_2026-11-14` |
 | 2026-11-11 | Claim by claim, sample `ctrate5` (300 items, labelled first; owner-probe_20) | valid. On the 293 items without doubt: (1) 0; (2) 0; (3) 0%; (4) 0.72% (2: "in the old thorax CT … were observed" and "a patient with gallbladder carcinoma" read as findings of now); (6) 0% without the right reading, 0 of 2 closed doubts wrong; (7) 0.68% (2: a mention cut by the linker, "left kidney (cyst"; "suspicious density consistent with" read as high); (8) 5.8% as labelled, 4.8% (14) after 3 labels were corrected (the labeller had read one clause cut, without its "(metastasis?)", and missed that a pathological fracture is among lesions "consistent with metastasis"). By reading: one model 1 (0.34%: a source, "it was understood that", read as a level), the other 13 (4.4%: "nonspecific", "cannot be characterized", "as far as can be observed" put both in their own place and in the uncertainty, 10; "stable" read as probable, 2; "ground-glass-like", 1); the union 14, and it kept no uncertainty either model alone lost | the question tells the uncertainty apart as the literature on hedging does: only shields (plausibility), not approximators, sources, time, the nature open or the exam's limit; a word in one place only, and in the code words an answer puts as undetermined or limits are not its uncertainty (non-contradiction). The reading of the uncertainty (each model, or their union: `MELAMPO_UNCERTAINTY_FROM`) is chosen on `ctrate6` by a rule fixed before; the claims reading stays off | `ctrate5_risultati_2026-11-11` |
 | 2026-11-11 | Claim by claim, sample `ctrate4` (300 items, labelled first; owner-probe_18) | valid. On the 293 items without doubt: (1) 0; (2) 0; (3) 1.37% to a person (4: 3 discordances of the report with the reference value, as the principle wants, 1 mention broken by the sampler); (4) 0.37%; (6) 0.34% without the right reading, 1 of 4 closed doubts wrong (43 mm read as a finding: the sentence gives only the measure, the reference puts it above normal); (7) the uncertainty lost in 1 item (0.34%; 11 on ctrate3). Outside the criteria: the uncertainty given to 62 of the 250 findings the report states (24.8%; 40 by both models): "nonspecific", "cannot be characterized" (31), "consistent with", "compatible with" (16), the limits of the exam (4), "in favor of the heart" (4), a degree or quality (7). What is not uncertainty had no place of its own, and "when in doubt, it is uncertain" pushed it there | every uncertainty with its level on the scale of Panicek and Hricak; what is seen but not identified (undetermined) and the limits of the exam in places of their own; attribution and degree stay in what is seen; "when in doubt" removed. "Consistent with" is an uncertainty of level high (decided 11 November 2026). Criterion (8): the uncertainty given where the report states, under 2%. Measured on `ctrate5`; the claims reading stays off | `ctrate4_risultati_2026-11-11` |
 | 2026-11-10 | Claim by claim, sample `ctrate3` (300 items, labelled first; owner-probe_16) | valid (0 of 600 answers lost). On the 287 items without doubt: (1) 0 asides attached as certain (95% bound 1.04%); (2) 0 findings set aside; (3) 0% to a person (bound 1.04%); (4) 0% of the certain readings attached otherwise (bound 1.12%); (6) 7.7% in doubt, no doubt without the label's reading, 0 of 3 closed doubts wrong. The owner question on the same items: 11 findings to a person, 1 aside missed. Outside the criteria: the uncertainty of the report lost in 11 of the 43 items labelled uncertain (3.8% of the items): "a hypodense lesion (cyst?)" says a lesion that is stated and a cyst that is a hypothesis; the question asked whether "what is observed" is only probable (it is not), one hypothesis fitted neither of the two lists, and a list was kept only if every model filled it. In 5 the two models read the doubt in different lists, in 4 one model read it, in 2 none (the interpretation copied into what is seen); once a hypothesis became a fact ("Hydatid cyst … ?") | the uncertainty is one category, every entry with the words it is about; what is seen is apart from what the sentence says it is; what any model reads as uncertain stays uncertain; also what is said of another person and what the patient reports. Criterion (7): the uncertainty of the report lost under 2% of the items. Measured on `ctrate4`; the claims reading stays off until then | `ctrate3_risultati_2026-11-09` |
@@ -133,6 +141,12 @@ Newest first. Detail of each run: the document named in the last column, in the 
 ## 5. Next measure: a chest CT sample from CT-RATE, and PhysioNet
 
 PARROT has no varied sample left (62 items from 42 reports, mostly brain and aorta). The next measures:
+
+- **The one procedure of reading on the reports** (next, before any other measure of the reports): a fresh
+  CT-RATE sample drawn by seed, excluding every earlier sample, labelled before any reading; the cards of the one
+  procedure compared with the labels with the criteria of `ctrate9`, each under 2% with its 95% bound, fixed before
+  the run; the reader before (`anatomy`) run on the same sample, so the change is measured on the same items.
+  CT-RATE is public: the interpreters may run on OpenRouter for this bench (`--public-data`).
 
 - **CT-RATE** (chest CT, CC BY-NC-SA 4.0, public, usable with OpenRouter for research): a sample drawn by seed and
   labelled with the convention before any reading, with the same five criteria computed on the items without "?".
@@ -259,6 +273,11 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
 
 ## 6. Known limits
 
+- The one procedure of reading reads the reports by default and is not measured yet (R18). Not yet in it: the
+  image side of a finding, the pathologist's summary given to its findings, and the comparison of a card's
+  measure with the reference rows (R16).
+- The weights of the disease profiles are few: 6 of 79 manifestations of acute appendicitis with a measured
+  accuracy; the numbers of the signs are often in subscription texts and in textbooks not yet among the sources.
 - All labels so far are one labeller's; the "?" labels and the lists of findings of another structure wait for a
   radiologist.
 - The reader does not recognise "nodule" or "free fluid" as abnormalities (they also name structures in UBERON);

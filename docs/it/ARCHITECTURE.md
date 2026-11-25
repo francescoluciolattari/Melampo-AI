@@ -1,11 +1,14 @@
 # Architettura e modello dei dati
 
-*[English](../en/ARCHITECTURE.md) · Italiano · verificata sul codice di `main`, 2 novembre 2026*
+*[English](../en/ARCHITECTURE.md) · Italiano · verificata sul codice di `main`, 25 novembre 2026*
 
-Melampo trasforma i documenti di un caso clinico in un grafo del caso e in un differenziale ordinato. Ogni passo
-che legge un testo lo fanno due lettori che devono essere d'accordo: un lettore deterministico che porta ciò che
-sa un radiologo (anatomia, grammatica, ontologie) e i modelli linguistici che leggono la frase. Quando si
-contraddicono decide una persona. I testi dei pazienti li leggono solo modelli locali.
+Melampo trasforma i documenti di un caso clinico in un grafo del caso e in un differenziale ordinato. Ogni testo --
+un documento del paziente o una pubblicazione medica -- si legge con una sola procedura (`melampo.reading`, 25
+novembre 2026): due interpreti riempiono ciascuno una scheda per reperto (che cosa si osserva, dove, con quale
+metodo, con quale interpretazione), le schede si confrontano sulla frase e campo per campo, un campo letto diverso
+resta un dubbio, e i codici si danno solo dopo, a ciò su cui entrambi concordano. I testi dei pazienti li leggono
+solo modelli su questa macchina. Fino al 25 novembre 2026 i referti li leggevano un lettore deterministico
+(anatomia, grammatica, ontologie) e i modelli insieme; quel lettore resta per misurare il cambiamento.
 
 ## 1. Contesto
 
@@ -33,10 +36,12 @@ flowchart TD
   router --> lab["tabelle di laboratorio, LOINC,<br/>valori fuori range → HPO"]
   router --> path["referti di anatomia patologica<br/>(TNM, grading, margini)"]
   path -->|"la diagnosi con i suoi elementi"| rr
-  router --> narr["lettore narrativo: linker anatomico,<br/>lettore Kintsch, modelli locali"]
-  narr --> img["interprete d'immagine: reperti di ogni testo;<br/>VoxTell + TotalSegmentator se c'è un volume abbinato"]
-  img --> owner["di chi è il reperto? (finding_owner)<br/>lettore + modelli; una persona se si contraddicono"]
-  owner --> rr["lettura dei referti: sedi, reperti,<br/>domande per una persona"]
+  router --> one["procedura unica di lettura (melampo.reading):<br/>una scheda per reperto, due interpreti su questa macchina,<br/>confrontati campo per campo; un dubbio resta un dubbio"]
+  one --> codes["codici dopo: il tesauro, il nome esatto HPO,<br/>o il candidato che scelgono entrambi gli interpreti"]
+  codes --> rr["lettura dei referti: schede concordate con il loro concetto,<br/>dubbi, domande per una persona"]
+  rr --> cg["grafo del caso → stati delle manifestazioni<br/>→ percorso diagnostico (case_diagnosis)"]
+  know[("conoscenza versionata: profili, tesauro<br/>(GitHub Release, FalkorDBLite)")] --> cg
+  router -.->|"MELAMPO_REPORT_READER=anatomy: il lettore precedente,<br/>tenuto solo per misurare il cambiamento"| narr["linker, lettore Kintsch, finding owner,<br/>interprete d'immagine"]
   prep --> d1["router dei casi: caso nuovo, unione o conferma"]
   d1 -->|confirm_and_train| conf["conferma del caso:<br/>confronto con la proposta fatta prima"]
   d1 -->|nuovo / unione| ingest["CaseContext → bundle FHIR → aree → coerenza"]
@@ -44,11 +49,11 @@ flowchart TD
   rr --> ingest
   ingest --> nexus["ramo nexus: candidati dal grafo, meccanismi,<br/>controfattuali"]
   nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
-  rr -.->|"non ancora: passo reperto → HPO sotto soglia (90,1%, 95%)"| graphnode[("grafo dei concetti")]
-  graphnode --> nexus
+  graphnode[("grafo dei concetti")] --> nexus
 ```
 
-Le linee continue girano oggi su `main`; quella tratteggiata no. Due parti sono costruite ma mai eseguite: il
+Le linee continue girano oggi su `main`; quella tratteggiata è il lettore precedente alla procedura unica, che
+gira solo se richiesto. La procedura unica non è ancora misurata sui banchi dei referti (VALIDATION §5). Due parti sono costruite ma mai eseguite: il
 recupero `dual_path` (il router lo calcola, nessuno lo esegue) e l'addestramento (DPO, LoRA: nessuna GPU, nessuna
 etichetta confermata).
 
@@ -57,25 +62,30 @@ etichetta confermata).
 | Componente | Modulo | Stato |
 |---|---|---|
 | Estrazione dai documenti | `data/document_processing.py` | funziona; senza parser dice `no_text_extracted` |
+| Procedura unica di lettura | `reading/card.py`, `reading/prompt.py`, `reading/agreement.py`, `reading/reader.py` | funziona, **non ancora misurata**: predefinita per i referti (`MELAMPO_REPORT_READER=one`) e lettore della revisione sistematica; vedi "Una sola procedura di lettura" sotto |
+| Codici dopo l'accordo | `reading/normalize.py` | funziona: il tesauro, il nome proprio o il sinonimo esatto di HPO, o il candidato che ogni interprete sceglie nella frase; la sede dal lessico quando il suo nome è esattamente una classe |
+| Tesauro | `reading/thesaurus.py` | funziona: scritto solo dalle pubblicazioni, versionato nella Release e nel grafo della conoscenza |
+| Revisione sistematica per malattia | `scripts/disease_review.py`, workflow `disease-review`, `disease-review-update` | funziona, primi run: strati PRISMA, saturazione come parametro, giudici che verificano soltanto, pesi dall'accuratezza misurata, dalla frequenza aggregata, dalla direzione |
+| Conoscenza versionata | `scripts/knowledge_release.py`, `memory/disease_knowledge_graph.py` | funziona: una pre-release di GitHub solo quando il contenuto cambia; file FalkorDBLite e grafo FalkorDB |
 | Orchestratore dei referti | `data/report_router.py` | funziona: indizi deterministici e modello locale del lettore insieme (acceso quando il server locale è configurato; misura del router: 1,1% e 0,4% dei testi con un interprete mancato, contro il 20,4% dei soli indizi); un modello esterno è rifiutato per i testi dei pazienti |
-| Linker anatomico | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | funziona; si astiene quando non è sicuro |
+| Linker anatomico | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | funziona; si astiene quando non è sicuro. Nella procedura unica dà dopo la sede di una scheda; il collegamento completo è del lettore precedente (`anatomy`) |
 | Lettore Kintsch | `memory/ci_reader.py`, `memory/spatial_relation.py` | funziona; il secondo stadio legge il ruolo di riferimento |
-| Finding owner | `memory/finding_owner.py` | funziona: per affermazioni, accesa di default dal 14 novembre 2026 (`MELAMPO_OWNER_QUESTION=owner` per la domanda v1). Lettori scelti per misura: Nemotron 3 Ultra e Muse Spark Open, entrambi con ragionamento, l'incertezza letta da Muse (ctrate9: 0 errori, 3 dubbi su 293 item); Gemma 4 31B è un'opzione (vedi "Lettori locali" sotto) |
+| Finding owner | `memory/finding_owner.py` | il lettore precedente alla procedura unica (`MELAMPO_REPORT_READER=anatomy`), tenuto per misurare il cambiamento; fino al 25 novembre 2026: per affermazioni, accesa di default dal 14 novembre 2026 (`MELAMPO_OWNER_QUESTION=owner` per la domanda v1). Lettori scelti per misura: Nemotron 3 Ultra e Muse Spark Open, entrambi con ragionamento, l'incertezza letta da Muse (ctrate9: 0 errori, 3 dubbi su 293 item); Gemma 4 31B è un'opzione (vedi "Lettori locali" sotto) |
 | Ciò che sa il lettore | `memory/what_is_said.py` | anomalie da HPO e PATO, testa del sintagma, negazione, coordinazione |
-| Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | funziona: valori di riferimento con le fonti; ai modelli vanno solo le righe le cui parole sono state trovate sulla pagina (`verified`), una riga le cui parole non dicono ciò che dice la riga è `doubt`; il lettore ricalcola il confronto della riga citata, e la misura entra nel grafo del caso come valore con la sua riga (`add_measures`), così "milza 15 cm" rende presente la splenomegalia (20 novembre 2026) |
-| Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | funziona: la diagnosi con TNM, grado, margini, linfonodi e marcatori sul suo reperto; le notizie cliniche sono il quesito |
+| Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | funziona: valori di riferimento con le fonti; ai modelli vanno solo le righe le cui parole sono state trovate sulla pagina (`verified`), una riga le cui parole non dicono ciò che dice la riga è `doubt`; il lettore ricalcola il confronto della riga citata, e la misura entra nel grafo del caso come valore con la sua riga (`add_measures`), così "milza 15 cm" rende presente la splenomegalia (20 novembre 2026); la procedura unica non confronta ancora la misura di una scheda con le righe |
+| Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | solo nel lettore precedente (non ancora nella procedura unica): la diagnosi con TNM, grado, margini, linfonodi e marcatori sul suo reperto; le notizie cliniche sono il quesito |
 | Indice delle fonti | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | funziona: letteratura, trattati e documentazione che Melampo legge, come si raggiunge ciascuna e con quale licenza; una maschera su questo computer per aggiungere, modificare e rimuovere le fonti, attivarle per i profili delle malattie e aggiungere PDF; una ricerca settimanale aggiunge documenti candidati; le righe dei riferimenti sono verificate dalle loro parole trovate sulle loro pagine |
 | Sezioni del referto | `memory/report_sections.py` | costruito: indicazione, storia, confronto, tecnica, reperti, conclusioni (le sezioni LOINC dei referti); le conclusioni e la frase precedente date come contesto |
 | Domanda per una persona | `memory/review_question.py` | funziona; nella lettura del caso come `questions` |
-| Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | funziona quando volume e segmentatori sono configurati |
-| Reperto → termine HPO | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | solo prove (90% sicuro, soglia 95%) |
+| Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | solo nel lettore precedente (non ancora nella procedura unica); funziona quando volume e segmentatori sono configurati |
+| Reperto → termine HPO | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | solo prove (90% sicuro, soglia 95%); sostituito dai codici dopo l'accordo |
 | Grafo dei concetti | `memory/falkordb_graph.py`, `memory/concept_paths.py` | funziona, 636.733 archi verificati |
 | Memory retriever | `memory/retriever.py` | **difetto**: inventa prove quando la memoria è vuota |
 | Aree funzionali | `areas/*` | contano chiavi di dizionario, non il contenuto: da rifare |
 | Ramo nexus, intuizione, differenziale | `training/nexus_*`, `reasoning/*` | funziona |
 | Grafo del caso | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | funziona: costruito nell'ingestione di ogni caso; quattro stati di una manifestazione |
 | Ramo dei farmaci | `clinical/drug_branch.py`, `scripts/drug_sources.py` | funziona quando la cache locale è configurata (`MELAMPO_DRUG_CACHE`) |
-| Profili delle malattie | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | costruiti: solo fonti certe, nessuna persona conferma; il run con i lettori definitivi è da fare |
+| Profili delle malattie | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | funziona: solo fonti certe, nessuna persona conferma; li riempie la revisione sistematica, letti dalla conoscenza versionata (file, cartella, `knowledge.db` o `falkordb[:versione]`) |
 | Percorso diagnostico sul grafo | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | funziona quando i profili sono configurati (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` accanto alla diagnosi; il ciclo è da costruire |
 | Conferma e unione dei casi | `training/case_confirmation.py`, `training/patient_matching.py` | funziona |
 | Archivio dei casi confermati | `training/confirmed_case_store.py` | cifrato, anonimizzato (HMAC-SHA256) |
@@ -353,7 +363,8 @@ che `scripts/knowledge_graph.py` carica. Lì va solo conoscenza pubblica, mai il
 
 | Dati | Possono andare a | Non vanno mai a | Garantito da |
 |---|---|---|---|
-| Referti e note dei pazienti | modelli locali (`report_router.local_chat`) | qualsiasi servizio esterno | il router rifiuta un endpoint esterno; test `test_an_external_model_is_refused` |
+| Referti e note dei pazienti | modelli locali (`report_router.local_chat`, marcati `local_only`) | qualsiasi servizio esterno; il tesauro e ogni conoscenza pubblicata | il router rifiuta un endpoint esterno, `read_text` rifiuta una chat non locale per il testo di un paziente, solo le pubblicazioni scrivono il tesauro; test `test_an_external_model_is_refused`, `test_a_patients_text_is_read_only_on_this_machine`, `test_the_same_procedure_codes_afterwards_and_a_patient_never_writes_the_thesaurus` |
+| Pubblicazioni lette per i profili delle malattie | OpenRouter (gli interpreti e i giudici); la Release: letture, verdetti e le brevi frasi citate con la loro fonte | la Release: i testi letti (appartengono ai loro autori ed editori) | `knowledge_publish.LOGS` senza `texts.jsonl` |
 | Corpora pubblici (PARROT, IU X-ray, MedMentions, E3C) | OpenRouter, nelle probe, con `--public-data` | il repository (i testi non si committano: solo le etichette) | `check_endpoint`; test `test_an_external_endpoint_needs_public_texts` |
 | Casi confermati | archivio cifrato, anonimizzato con HMAC-SHA256 | l'addestramento senza una base clinica dichiarata | `ConfirmedCaseStore`, `case_confirmation` |
 | Risposte delle revisioni | feedback delle revisioni | l'addestramento prima della conferma di una seconda persona | `review_feedback`; test `test_text_that_is_not_pseudonymised_is_refused` |

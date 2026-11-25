@@ -1,9 +1,9 @@
 # Compliance and risk
 
-*English · [Italiano](../it/COMPLIANCE_RISK.md) · as of 4 November 2026*
+*English · [Italiano](../it/COMPLIANCE_RISK.md) · as of 25 November 2026*
 
 Melampo is research software today, but it is built as if it will become a medical device: MDR class IIa,
-IEC 62304 class C, a high-risk AI system under the AI Act. Sixteen of the seventeen recorded hazards have a
+IEC 62304 class C, a high-risk AI system under the AI Act. Twenty of the twenty-one recorded hazards have a
 control verified by tests; one is open.
 
 ## 1. Classification
@@ -32,7 +32,7 @@ with a physician.
 | R03 | model states what the sentence does not say | claims must be copied words; other marked words invalidate the answer | controlled |
 | R04 | absent or negated finding read as present | assertion detection; negated observations moved to normal | controlled |
 | R05 | past fact read as current | history attached as history | controlled |
-| R06 | patient's report sent outside the hospital | router refuses external models; probes need public corpora | controlled |
+| R06 | patient's report sent outside the hospital | router refuses external models; the one procedure of reading reads a patient's text only with interpreters on this machine; probes need public corpora | controlled |
 | R07 | text not pseudonymised enters review or training | review records refuse it | controlled |
 | R08 | learning from unconfirmed labels | clinical basis required; second person confirms reviews | controlled |
 | R09 | another patient's records merged | exact identifiers; unrelated records never swept in | controlled |
@@ -42,8 +42,12 @@ with a physician.
 | R13 | figures measured on tuned data | frozen splits, fresh samples, lost-answer rule | controlled |
 | R14 | model does not answer | a lost answer is "cannot say" and goes to a person | controlled |
 | R15 | a normal or physiological state read as a finding | the models compare each aspect with the usual one; the reader checks with HPO and PATO | partial: 4 of 169 in the claims2 run, before the control |
-| R16 | a measure judged against a remembered value | only a cited reference row, recomputed by the reader | partial: the rows are to verify |
+| R16 | a measure judged against a remembered value | only a cited reference row, recomputed by the reader | partial: 21 of 29 rows verified; the one procedure does not yet compare a card's measure with the rows |
 | R17 | the referral's question read as a current finding | the sections of the report, the conclusion and the sentence before are read; a contradiction goes to a person | partial: 4 of 99 in claims4, before the control |
+| R18 | the one procedure reads the patient's documents before it is measured | a card not agreed is a finding stated with uncertainty; readings paired only in one sentence and by every interpreter; the reader before kept to measure the change | partial: the bench of the one procedure is to run |
+| R19 | a code given before the readings are compared | no code on the card; only the agreed reading is coded, by the choice of every interpreter | controlled |
+| R20 | a patient's sentence enters the shared knowledge | only publications write the thesaurus; a patient's text only on this machine | controlled |
+| R21 | a weight of a profile from a misread number | one value per measure; weighs only when both interpreters read it; the judges verify numbers and direction | controlled |
 
 ## 3. Software of unknown provenance and external models
 
@@ -75,7 +79,8 @@ with a physician.
 ## 5. Open items
 
 1. Fix R11 (the memory retriever abstains explicitly).
-2. The radiologists' gold set: labels, review of the one-labeller labels.
-3. The input and review mask, which turns the physician's review into a verified external risk control.
-4. Legal review of Melampo's licence and of the attribution terms.
-5. Verify the AI Act dates on EUR-Lex; decide when a quality management system (ISO 13485) starts.
+2. Measure the one procedure of reading on the benches of the reports (R18), with criteria fixed before the run; connect the comparison of a card's measure with the reference rows (R16).
+3. The radiologists' gold set: labels, review of the one-labeller labels.
+4. The input and review mask, which turns the physician's review into a verified external risk control.
+5. Legal review of Melampo's licence and of the attribution terms.
+6. Verify the AI Act dates on EUR-Lex; decide when a quality management system (ISO 13485) starts.

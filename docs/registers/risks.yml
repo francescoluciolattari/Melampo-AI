@@ -189,7 +189,7 @@ risks:
       - control: Every reference row has its source, licence and status; only reviewed rows are for clinical use
         tests:
           - tests/test_reference_values.py::test_every_row_of_the_table_has_its_source_and_a_status
-    measured_by: owner-probe, measures compared with a reference (VALIDATION.md)
+    measured_by: owner-probe, measures compared with a reference (VALIDATION.md); with the one procedure of reading (25 November 2026) the measures of a card are not yet compared with the rows
     status: partial
   - id: R17
     hazard: The referral's question or the clinical history is read as a current finding
@@ -231,4 +231,66 @@ risks:
         tests:
           - tests/test_statement_reading.py::test_the_models_are_one_stream_and_nothing_gives_way
           - tests/test_form_ambiguity.py::test_a_model_that_does_not_answer_makes_the_verify_check_abstain
+    status: controlled
+  - id: R18
+    hazard: The one procedure of reading reads the patient's documents before it is measured on the benches
+    situation: The documents of the case are read by the one procedure (25 November 2026, the owner's decision) and the error rates measured belong to the reader before it
+    harm: A finding misread, missed or attached to the wrong site enters the differential
+    severity: 4
+    probability: 3
+    controls:
+      - control: A card the two interpreters do not agree on (read by one alone, a field read differently) enters the graph of the case as a finding stated with uncertainty, never as a certain one
+        tests:
+          - tests/test_reading.py::test_a_field_read_differently_is_a_doubt_never_resolved
+          - tests/test_report_reading_one.py::test_a_patients_finding_and_a_publications_manifestation_meet_by_the_same_concept
+      - control: Two readings are paired only in the same sentence, and in other words only when every interpreter says, in the sentence, that they are the same finding
+        tests:
+          - tests/test_reading.py::test_other_words_for_one_finding_are_paired_by_every_interpreter_in_the_sentence
+          - tests/test_reading.py::test_cards_of_different_sentences_are_never_paired
+      - control: The reader before the one procedure is kept (MELAMPO_REPORT_READER=anatomy) to measure the change on the same benches, with criteria fixed before the run
+        tests:
+          - tests/test_report_reading.py::test_the_physician_note_is_read_sites_and_findings_on_the_text
+    measured_by: the bench of the one procedure on the reports (VALIDATION.md, to run)
+    status: partial
+  - id: R19
+    hazard: A code given before the readings are compared makes a disagreement the text does not have, or joins two different findings
+    situation: Two interpreters code the same finding differently, or one interpreter alone links "vomiting before the pain" to vomiting
+    harm: A finding lost as a disagreement, or a manifestation weighed with another's numbers
+    severity: 3
+    probability: 3
+    controls:
+      - control: The card carries no code; only the agreed reading is coded afterwards, by the thesaurus, HPO's exact name, or the candidate every interpreter chooses in the sentence
+        tests:
+          - tests/test_reading.py::test_the_same_procedure_codes_afterwards_and_a_patient_never_writes_the_thesaurus
+          - tests/test_reading.py::test_one_card_one_directive_for_every_context
+    status: controlled
+  - id: R20
+    hazard: A patient's sentence enters the shared knowledge
+    situation: The thesaurus, published with the knowledge, keeps the sentence of each label
+    harm: Health data of a patient disclosed
+    severity: 5
+    probability: 2
+    controls:
+      - control: Only publications write the thesaurus; a patient's reading uses it and never adds to it, and is read only by the interpreters on this machine
+        tests:
+          - tests/test_reading.py::test_the_same_procedure_codes_afterwards_and_a_patient_never_writes_the_thesaurus
+          - tests/test_reading.py::test_a_patients_text_is_read_only_on_this_machine
+          - tests/test_report_reading_one.py::test_a_model_off_this_machine_never_reads_a_patients_document
+    status: controlled
+  - id: R21
+    hazard: A weight of a disease profile comes from a number misread
+    situation: "\"up to 98 % sensitive\" read as a sensitivity of 98 %; a measure read by one interpreter alone"
+    harm: A manifestation weighed beyond what the literature states
+    severity: 3
+    probability: 3
+    controls:
+      - control: A measure is one value the text states as one value (no bound, no range, no words); a measure weighs only when both interpreters read it in the same source with the same numbers
+        tests:
+          - tests/test_disease_review.py::test_a_measure_is_one_value_the_text_states_not_a_bound_or_a_range
+          - tests/test_disease_review.py::test_a_measure_weighs_only_when_both_interpreters_read_it_and_a_source_gives_one_result
+          - tests/test_disease_review.py::test_a_publication_is_read_with_the_one_procedure_other_words_paired_in_the_sentence
+      - control: The judges verify the claim with its numbers or its direction; a comparison between forms of the disease does not weigh the diagnosis
+        tests:
+          - tests/test_disease_review.py::test_a_direction_is_verified_as_a_claim_of_its_own
+          - tests/test_disease_review.py::test_a_comparison_between_forms_of_the_disease_does_not_weigh_the_diagnosis
     status: controlled

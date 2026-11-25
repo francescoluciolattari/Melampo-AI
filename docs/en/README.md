@@ -1,6 +1,6 @@
 # Melampo — what it is and what it is for
 
-*English · [Italiano](../it/README.md) · as of 3 November 2026*
+*English · [Italiano](../it/README.md) · as of 25 November 2026*
 
 Melampo reads a clinical case (the physician's note, reports, laboratory tables, images) and proposes a
 structured differential diagnosis, with the evidence for and against each hypothesis and an explicit
@@ -11,7 +11,7 @@ system**: it is not a medical device and gives no diagnosis to patients.
 
 | | |
 |---|---|
-| **What it does** | Reads Italian and English clinical documents; links what they say to anatomy (TotalSegmentator classes anchored to UBERON) and to phenotypes (HPO); builds a case graph; ranks hypotheses with their evidence; sends to a person every reading it cannot confirm. |
+| **What it does** | Reads Italian and English clinical documents; describes each finding by what is observed, where, by which method and with which interpretation, and codes it afterwards (HPO, UBERON, the thesaurus); builds a case graph; reviews the medical literature for the profiles of the diseases; ranks hypotheses with their evidence; sends to a person every reading it cannot confirm. |
 | **For whom** | Researchers and physicians working on the project, on public corpora and on pseudonymised cases under the project's data rules. |
 | **Not for** | Diagnosis or treatment of a patient; use without a physician who reads every output; reports of patients sent to services outside the hospital. |
 | **Regulatory status** | Research software, not CE marked. Designed toward MDR class IIa and IEC 62304 class C (see [COMPLIANCE_RISK](COMPLIANCE_RISK.md)). |
@@ -23,10 +23,14 @@ Verified on the code of `main`; the full map is in [ARCHITECTURE](ARCHITECTURE.m
 | Part | State | Note |
 |---|---|---|
 | Ingestion of documents (PDF, DOCX, images, DICOM) and report router | working | the model says only the kind of document; deterministic cues decide with it |
-| Anatomical linker with the Kintsch reader and local models | working | patients' reports are read only by local models |
-| "Whose is the finding?" (finding owner) | working, question v1 | 1 of 24 findings of another structure attributed silently; 0 of 184 right findings removed |
-| Claim-by-claim reading | built, **off** | no run has passed its criteria yet: the last valid one missed only the first (5 of 17 attributed silently); third sample ready |
-| From finding to HPO term | in probes only | 90% safe against a 95% threshold: not in the graph |
+| One procedure of reading, for the case's documents and the publications | **working, not yet measured** | the default for the reports since 25 November 2026; one card, the two interpreters compared field by field, codes only afterwards; a patient's text only on this machine; its bench is the next measure |
+| The reader before it (anatomical linker, Kintsch reader, finding owner, claims) | kept to measure the change | `MELAMPO_REPORT_READER=anatomy`; `ctrate9`: 0 errors, 3 doubts (1.0%); the image side and the pathologist's summary are still only here |
+| Codes after agreement (HPO, the thesaurus) | working | only the agreed reading is coded; the thesaurus is written only from publications |
+| Graph of the case and diagnostic path | working | four states of each manifestation, likelihood ratios, candidates only from the path, exams to propose |
+| Disease profiles: systematic review per disease | working, first runs | acute appendicitis: 79 manifestations, 6 with a measured accuracy; the run with the one procedure is next |
+| Versioned knowledge (GitHub Releases, FalkorDBLite) | working | a Release only when the content changes; reviewed again every Monday |
+| Reference library of normal values | partial | 21 of 29 rows verified; the one procedure does not compare with it yet |
+| Drug branch | working with the local cache | a patient's drugs are read only from the cache on this machine |
 | Concept graph (FalkorDB) and nexus branch | working | 636,733 verified edges |
 | Case confirmation and merge | working | a confirmation without a clinical basis is kept out of training |
 | Memory retriever | **known defect** | with an empty memory it invents three items of evidence |
@@ -38,7 +42,9 @@ Verified on the code of `main`; the full map is in [ARCHITECTURE](ARCHITECTURE.m
 ```text
 src/melampo/        the system
   data/             ingestion, report router, report reading
-  memory/           linker, Kintsch reader, finding owner, claims, ontologies
+  reading/          the one procedure of reading: card, comparison, codes afterwards, thesaurus
+  clinical/         graph of the case, manifestation states, drug branch
+  memory/           ontologies, disease profiles, knowledge graph; the reader before (linker, Kintsch reader, claims)
   imaging/          image interpreter, segmenters, findings
   reasoning/        pipeline, functional areas, intuition, differential, orchestrator
   orchestration/    model router, specialist runtime

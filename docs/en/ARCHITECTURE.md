@@ -1,11 +1,14 @@
 # Architecture and data model
 
-*English · [Italiano](../it/ARCHITECTURE.md) · verified on the code of `main`, 2 November 2026*
+*English · [Italiano](../it/ARCHITECTURE.md) · verified on the code of `main`, 25 November 2026*
 
-Melampo turns the documents of a clinical case into a case graph and a ranked differential. Every step that
-reads text is done by two readers that must agree, a deterministic reader that brings what a radiologist knows
-(anatomy, grammar, ontologies) and language models that read the sentence; when they contradict each other a
-person decides. Patients' texts are read only by local models.
+Melampo turns the documents of a clinical case into a case graph and a ranked differential. Every text -- a
+document of the patient or a medical publication -- is read by one procedure (`melampo.reading`, 25 November
+2026): two interpreters each fill one card per finding (what is observed, where, by which method, with which
+interpretation), the cards are compared on the sentence and field by field, a field read differently stays a
+doubt, and codes are given only afterwards, to what both agree on. Patients' texts are read only by models on
+this machine. Until 25 November 2026 the reports were read by a deterministic reader (anatomy, grammar,
+ontologies) and the models together; that reader is kept to measure the change.
 
 ## 1. Context
 
@@ -33,10 +36,12 @@ flowchart TD
   router --> lab["laboratory tables, LOINC,<br/>out-of-range values → HPO"]
   router --> path["pathology reports<br/>(TNM, grading, margins)"]
   path -->|"the diagnosis with its items"| rr
-  router --> narr["narrative reader: anatomical linker,<br/>Kintsch reader, local models"]
-  narr --> img["image interpreter: findings of every text;<br/>VoxTell + TotalSegmentator when a volume is paired"]
-  img --> owner["whose is the finding? (finding_owner)<br/>reader + models; a person on contradiction"]
-  owner --> rr["report reading: sites, findings,<br/>questions for a person"]
+  router --> one["one procedure of reading (melampo.reading):<br/>one card per finding, two interpreters on this machine,<br/>compared field by field; a doubt stays a doubt"]
+  one --> codes["codes afterwards: the thesaurus, HPO's exact name,<br/>or the candidate both interpreters choose"]
+  codes --> rr["report reading: agreed cards with their concept,<br/>doubts, questions for a person"]
+  rr --> cg["graph of the case → manifestation states<br/>→ diagnostic path (case_diagnosis)"]
+  know[("versioned knowledge: profiles, thesaurus<br/>(GitHub Release, FalkorDBLite)")] --> cg
+  router -.->|"MELAMPO_REPORT_READER=anatomy: the reader before,<br/>kept only to measure the change"| narr["linker, Kintsch reader, finding owner,<br/>image interpreter"]
   prep --> d1["case router: new case, merge, or confirmation"]
   d1 -->|confirm_and_train| conf["case confirmation:<br/>compare with the earlier proposal"]
   d1 -->|new / merge| ingest["CaseContext → FHIR bundle → areas → coherence"]
@@ -44,11 +49,11 @@ flowchart TD
   rr --> ingest
   ingest --> nexus["nexus branch: graph candidates, mechanisms,<br/>counterfactuals"]
   nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
-  rr -.->|"not yet: finding → HPO step below threshold (90.1%, 95%)"| graphnode[("concept graph")]
-  graphnode --> nexus
+  graphnode[("concept graph")] --> nexus
 ```
 
-Solid lines run on `main` today; the dotted line does not. Two parts are built but never run: the `dual_path`
+Solid lines run on `main` today; the dotted line is the reader before the one procedure, run only when asked.
+The one procedure is not yet measured on the benches of the reports (VALIDATION §5). Two parts are built but never run: the `dual_path`
 retrieval (the router computes it, nothing executes it) and training (DPO, LoRA: no GPU, no confirmed labels).
 
 ## 3. Components and their state
@@ -56,25 +61,30 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Component | Module | State |
 |---|---|---|
 | Document extraction | `data/document_processing.py` | working; without a parser it says `no_text_extracted` |
+| One procedure of reading | `reading/card.py`, `reading/prompt.py`, `reading/agreement.py`, `reading/reader.py` | working, **not yet measured**: the default for the reports (`MELAMPO_REPORT_READER=one`) and the reader of the systematic review; see "One procedure of reading" below |
+| Codes after agreement | `reading/normalize.py` | working: the thesaurus, HPO's own name or exact synonym, or the candidate every interpreter chooses in the sentence; the site from the lexicon when its name is exactly one class |
+| Thesaurus | `reading/thesaurus.py` | working: written only from publications, versioned in the knowledge Release and graph |
+| Systematic review per disease | `scripts/disease_review.py`, workflows `disease-review`, `disease-review-update` | working, first runs: PRISMA layers, saturation as a parameter, judges that verify only, weights from measured accuracy, pooled frequency, direction |
+| Versioned knowledge | `scripts/knowledge_release.py`, `memory/disease_knowledge_graph.py` | working: a GitHub pre-release only when the content changes; FalkorDBLite file and FalkorDB graph |
 | Report router | `data/report_router.py` | working: the deterministic cues and the reader's local model together (on when the local server is configured; the router probe: 1.1% and 0.4% of the texts with an interpreter missed, against 20.4% with the cues alone); an external model is refused for patients' texts |
-| Anatomical linker | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | working; abstains when unsure |
+| Anatomical linker | `memory/anatomy_linker.py`, `memory/chunk_lattice.py` | working; abstains when unsure. In the one procedure it gives the site of a card afterwards; the full linking is the reader before (`anatomy`) |
 | Kintsch reader | `memory/ci_reader.py`, `memory/spatial_relation.py` | working; second stage reads the landmark role |
-| Finding owner | `memory/finding_owner.py` | working: claim by claim, on by default since 14 November 2026 (`MELAMPO_OWNER_QUESTION=owner` for question v1). Readers chosen by measure: Nemotron 3 Ultra and Muse Spark Open, both with reasoning, the uncertainty read from Muse (ctrate9: 0 errors, 3 doubts in 293 items); Gemma 4 31B is an option (see "Local readers" below) |
+| Finding owner | `memory/finding_owner.py` | the reader before the one procedure (`MELAMPO_REPORT_READER=anatomy`), kept to measure the change; until 25 November 2026: claim by claim, on by default since 14 November 2026 (`MELAMPO_OWNER_QUESTION=owner` for question v1). Readers chosen by measure: Nemotron 3 Ultra and Muse Spark Open, both with reasoning, the uncertainty read from Muse (ctrate9: 0 errors, 3 doubts in 293 items); Gemma 4 31B is an option (see "Local readers" below) |
 | What the reader knows | `memory/what_is_said.py` | abnormalities from HPO and PATO, phrase heads, negation, coordination |
-| Reference library | `memory/reference_values.py`, `data/reference/` | working: reference values with their sources; only rows whose words were found on their page (`verified`) are given to the models, a row whose words do not say what it says is `doubt`; the reader recomputes the comparison of the cited row, and the measure enters the graph of the case as a value with its row (`add_measures`), so that "spleen 15 cm" makes Splenomegaly present (20 November 2026) |
-| Pathology diagnosis to its finding | `data/pathology_findings.py` | working: the diagnosis with its TNM, grade, margins, nodes and markers on its finding; the clinical information is the question |
+| Reference library | `memory/reference_values.py`, `data/reference/` | working: reference values with their sources; only rows whose words were found on their page (`verified`) are given to the models, a row whose words do not say what it says is `doubt`; the reader recomputes the comparison of the cited row, and the measure enters the graph of the case as a value with its row (`add_measures`), so that "spleen 15 cm" makes Splenomegaly present (20 November 2026); the one procedure does not compare a card's measure with the rows yet |
+| Pathology diagnosis to its finding | `data/pathology_findings.py` | in the reader before only (not yet in the one procedure): the diagnosis with its TNM, grade, margins, nodes and markers on its finding; the clinical information is the question |
 | Index of the sources | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | working: the literature, textbooks and documentation Melampo reads, how each is reached and under which licence; a mask on this computer to add, edit and remove sources, switch them on for the disease profiles and add PDFs; a weekly search adds candidate documents; the reference rows are verified by their words found on their pages |
 | Sections of the report | `memory/report_sections.py` | built: indication, history, comparison, technique, findings, impression (the LOINC report sections); the conclusion and the sentence before given as context |
 | Question for a person | `memory/review_question.py` | working; shown in the case reading as `questions` |
-| Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | working when a volume and the segmenters are configured |
-| Finding → HPO term | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | probes only (90% safe, threshold 95%) |
+| Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | in the reader before only (not yet in the one procedure); working when a volume and the segmenters are configured |
+| Finding → HPO term | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | probes only (90% safe, threshold 95%); replaced by the codes after agreement |
 | Concept graph | `memory/falkordb_graph.py`, `memory/concept_paths.py` | working, 636,733 verified edges |
 | Memory retriever | `memory/retriever.py` | **defect**: invents evidence when the memory is empty |
 | Functional areas | `areas/*` | count dictionary keys, not content: to redo |
 | Nexus branch, intuition, differential | `training/nexus_*`, `reasoning/*` | working |
 | Graph of the case | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | working: built in the ingestion of every case; four states of a manifestation |
 | Drug branch | `clinical/drug_branch.py`, `scripts/drug_sources.py` | working when the local cache is configured (`MELAMPO_DRUG_CACHE`) |
-| Disease profiles | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | built: certain sources only, no person confirms; the run with the final readers is to do |
+| Disease profiles | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | working: certain sources only, no person confirms; filled by the systematic review, read from the versioned knowledge (file, folder, `knowledge.db` or `falkordb[:version]`) |
 | Diagnostic path on the graph | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | working when the profiles are configured (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` beside the diagnosis; the cycle is to build |
 | Case confirmation and merge | `training/case_confirmation.py`, `training/patient_matching.py` | working |
 | Confirmed-case store | `training/confirmed_case_store.py` | encrypted, anonymised (HMAC-SHA256) |
@@ -339,7 +349,8 @@ knowledge goes there, never a patient's case.
 
 | Data | May go to | Never goes to | Enforced by |
 |---|---|---|---|
-| Patients' reports and notes | local models (`report_router.local_chat`) | any external service | the router refuses an external endpoint; test `test_an_external_model_is_refused` |
+| Patients' reports and notes | local models (`report_router.local_chat`, marked `local_only`) | any external service; the thesaurus and any published knowledge | the router refuses an external endpoint, `read_text` refuses a chat that is not local for a patient's text, only publications write the thesaurus; tests `test_an_external_model_is_refused`, `test_a_patients_text_is_read_only_on_this_machine`, `test_the_same_procedure_codes_afterwards_and_a_patient_never_writes_the_thesaurus` |
+| Publications read for the disease profiles | OpenRouter (the interpreters and judges); the Release: readings, verdicts and the short sentences cited with their source | the Release: the texts read (they belong to their authors and publishers) | `knowledge_publish.LOGS` without `texts.jsonl` |
 | Public corpora (PARROT, IU X-ray, MedMentions, E3C) | OpenRouter, in probes, with `--public-data` | the repository (texts are not committed: labels only) | `check_endpoint`; test `test_an_external_endpoint_needs_public_texts` |
 | Confirmed cases | encrypted store, anonymised with HMAC-SHA256 | training without a declared clinical basis | `ConfirmedCaseStore`, `case_confirmation` |
 | Review answers | review feedback | training before a second person confirms | `review_feedback`; test `test_text_that_is_not_pseudonymised_is_refused` |

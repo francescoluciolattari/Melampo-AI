@@ -1,6 +1,6 @@
 # Contribuire: come cambiare Melampo senza rompere niente
 
-*[English](../en/CONTRIBUTING.md) · Italiano · aggiornato al 2 novembre 2026*
+*[English](../en/CONTRIBUTING.md) · Italiano · aggiornato al 25 novembre 2026*
 
 Ogni modifica passa da una pull request con i suoi test; una modifica al modo in cui il sistema legge o decide
 richiede anche una probe su un campione nuovo, con i criteri scritti prima del run.
@@ -15,6 +15,12 @@ richiede anche una probe su un campione nuovo, con i criteri scritti prima del r
 - aggirare l'astensione, le domande per una persona, la provenienza o la traccia di audit;
 - aggiungere una regola deterministica che decide un caso: il lettore controlla con ontologie e grammatica, i
   modelli leggono, una persona decide sulle contraddizioni;
+- leggere un testo con un prompt, un formato o un confronto propri: ogni testo, un documento del paziente o una
+  pubblicazione, si legge con la procedura unica di lettura (`melampo.reading`), e un nuovo bisogno la cambia per
+  tutti;
+- dare un codice a un reperto prima di confrontare le letture degli interpreti, o lasciarlo dare a un interprete
+  da solo;
+- scrivere la frase di un paziente nel tesauro o in una conoscenza che si pubblica;
 - tarare un componente sul campione che lo misura;
 - committare dati di pazienti, testi di corpora non commerciali, token o password.
 
@@ -68,8 +74,12 @@ modelli a pagamento o scarica dati grandi.
 | `collocations`, `longer-names`, `report-memory`, `rad-sprl`, `symptom-coverage` | dati per il lettore e il linker | manuale |
 | `classifications-it`, `radiology-kinds`, `data-and-dependency-updates` | aggiornamenti settimanali (CIPI, ICD-9-CM, RadLex, HPO, dipendenze) | a orario |
 | `pin-model-revisions` | fissa i pesi dei modelli a un commit e a un hash esatti | manuale |
+| `disease-review` | la revisione sistematica delle malattie nominate, con la procedura unica di lettura; pubblica una Release della conoscenza quando il contenuto cambia (input `publish`) | manuale |
+| `disease-review-update` | la stessa, solo ciò che è uscito dopo l'ultima revisione di ogni malattia, dall'ultima Release | ogni lunedì |
+| `literature-reader-bench`, `reference-sources`, `sources-index`, `source-coverage`, `link-coverage` | i lettori della letteratura, la libreria dei riferimenti e l'indice delle fonti | manuale |
+| `disease-profiles`, `disease-frequencies`, `drug-sources` | i profili curati, le frequenze dei primi run, la cache locale dei farmaci | manuale |
 
-Segreti usati: `OPENROUTER_API_KEY` (solo corpora pubblici), `HF_TOKEN`, `UMLS_API_KEY`, `DB_PASSWORD`. Stanno nei
+Segreti usati: `OPENROUTER_API_KEY` (solo corpora pubblici e pubblicazioni), `HF_TOKEN`, `UMLS_API_KEY`, `DB_PASSWORD`. Stanno nei
 segreti del repository e nell'ambiente, mai nel codice o nei documenti.
 
 ## 6. Problemi e modifiche

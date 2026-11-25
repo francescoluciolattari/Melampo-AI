@@ -1,6 +1,6 @@
 # Contributing: how to change Melampo without breaking anything
 
-*English · [Italiano](../it/CONTRIBUTING.md) · as of 2 November 2026*
+*English · [Italiano](../it/CONTRIBUTING.md) · as of 25 November 2026*
 
 Every change goes through a pull request with its tests; a change to how the system reads or decides also
 needs a probe on a fresh sample, with criteria written before the run.
@@ -14,6 +14,10 @@ needs a probe on a fresh sample, with criteria written before the run.
 - bypass abstention, the questions for a person, provenance or the audit trace;
 - add a deterministic rule that decides a case: the reader checks with ontologies and grammar, the models read,
   a person decides on contradiction;
+- read a text with a prompt, a format or a comparison of its own: every text, a patient's document or a
+  publication, is read by the one procedure of reading (`melampo.reading`), and a new need changes it for all;
+- give a code to a finding before the interpreters' readings are compared, or let one interpreter alone give it;
+- write a patient's sentence into the thesaurus or into any knowledge that is published;
 - tune a component on the sample that measures it;
 - commit patients' data, texts of non-commercial corpora, tokens or passwords.
 
@@ -67,8 +71,12 @@ calls billed models or downloads large data.
 | `collocations`, `longer-names`, `report-memory`, `rad-sprl`, `symptom-coverage` | data for the reader and the linker | manual |
 | `classifications-it`, `radiology-kinds`, `data-and-dependency-updates` | weekly updates (CIPI, ICD-9-CM, RadLex, HPO, dependencies) | schedule |
 | `pin-model-revisions` | pins model weights to an exact commit and hash | manual |
+| `disease-review` | the systematic review of named diseases, with the one procedure of reading; publishes a knowledge Release when the content changes (input `publish`) | manual |
+| `disease-review-update` | the same, only what was published after each disease's last review, from the latest Release | every Monday |
+| `literature-reader-bench`, `reference-sources`, `sources-index`, `source-coverage`, `link-coverage` | the readers of the literature, the reference library and the index of the sources | manual |
+| `disease-profiles`, `disease-frequencies`, `drug-sources` | the curated profiles, the frequencies of the first runs, the local drug cache | manual |
 
-Secrets used: `OPENROUTER_API_KEY` (public corpora only), `HF_TOKEN`, `UMLS_API_KEY`, `DB_PASSWORD`. They live
+Secrets used: `OPENROUTER_API_KEY` (public corpora and publications only), `HF_TOKEN`, `UMLS_API_KEY`, `DB_PASSWORD`. They live
 in the repository's secrets and in the environment, never in code or documents.
 
 ## 6. Problems and changes
