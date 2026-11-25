@@ -159,7 +159,10 @@ Il testo di un paziente va solo agli interpreti di questa macchina (`report_rout
 `local_only`; `read_text` rifiuta ogni altro); una pubblicazione può andare su OpenRouter. Lo stesso concetto si
 incontra nel grafo del caso e nel profilo: un reperto e una manifestazione con lo stesso concetto del tesauro si
 corrispondono come due con lo stesso codice HPO. Una scheda su cui gli interpreti non concordano entra nel grafo
-del caso come reperto affermato con incertezza (dubbio, mai deciso).
+del caso come reperto affermato con incertezza (dubbio, mai deciso). Quando un interprete non dà una lettura
+(una risposta interrotta non è una lettura: non si conserva, e il riepilogo lo dice), di quel testo nulla è
+concordato né codificato, e in un tesauro entrano solo etichette che nominano almeno due interpreti (25 novembre
+2026, dopo il quinto run).
 
 I referti sono passati subito alla procedura unica, per decisione del proprietario del 25 novembre 2026
 (`MELAMPO_REPORT_READER`, predefinito `one`); il lettore precedente (`anatomy`: il lessico, il lettore di Kintsch,

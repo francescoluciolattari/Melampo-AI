@@ -136,3 +136,26 @@ def test_a_publication_writes_what_both_agreed_into_the_thesaurus_and_finds_it_a
     assert concept.labels[0]["source"] == "PMID:1"
     again = read_text(text, "publication", chats, subject="appendicitis", hpo=HPO, thesaurus=thesaurus)
     assert again["cards"][0]["concept"]["how"] == "thesaurus"
+
+
+def test_when_one_interpreter_gives_no_reading_nothing_is_agreed_and_nothing_is_coded():
+    """(25 November 2026, after the fifth run) Nemotron's answer was cut off: Muse's cards had counted as agreed
+    with themselves and written the thesaurus."""
+    chats = {"nemotron": local({"reading": "cut"}), "muse": local({"reading": [CRP_B]})}
+    chats["nemotron"] = (lambda p: '[{"words": "PCR 52 mg/L", "name": ')
+    chats["nemotron"].local_only = True
+    thesaurus = Thesaurus()
+    got = read_text([("", REPORT)], "case", chats, hpo=HPO, thesaurus=thesaurus)
+    assert got["not_read"] == {"nemotron": "no_json_list"} and got["asked"] == []
+    [card] = got["cards"]
+    assert card["paired_by"] == "one_interpreter" and card["concept"]["how"] == "not_coded:one_interpreter"
+
+
+def test_a_label_agreed_by_one_interpreter_alone_never_enters_a_thesaurus():
+    from melampo.reading.thesaurus import signature
+    other = Thesaurus.from_rows([{"id": "MLP:1", "name": "ultrasound", "code": "", "labels": [
+        {"label": "ultrasound", "signature": signature({}), "readers": ["muse"]},
+        {"label": "abdominal ultrasound", "signature": signature({}), "readers": ["nemotron", "muse"]}]}])
+    mine = Thesaurus()
+    mine.merge(other)
+    assert [x["label"] for x in mine.concepts["MLP:1"].labels] == ["abdominal ultrasound"]

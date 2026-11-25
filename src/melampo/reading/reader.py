@@ -82,9 +82,9 @@ def read_text(sections: list[tuple[str, str]], context: str, chats: dict[str, Ca
     def ask(name: str, question: str) -> str:
         return chats[name](question)
 
-    agreed, asked = agree(readings, context, ask)
+    agreed, asked = agree(readings, context, ask, expected=list(chats))
     out["asked"] += asked
-    readers = list(readings)
+    readers = list(chats)
     for card in agreed:
         if "one_interpreter" in card["doubts"] or not card.get("specific", True):
             card["concept"] = {"concept": "", "code": "", "how": "not_coded:" + (

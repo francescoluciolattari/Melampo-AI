@@ -155,7 +155,9 @@ A patient's text goes only to the interpreters on this machine (`report_router.l
 `local_only`; `read_text` refuses any other); a publication may go to OpenRouter. The same concept meets in the
 graph of the case and in the profile: a finding and a manifestation with the same concept of the thesaurus match
 as two with the same HPO code. A card the interpreters did not agree on enters the graph of the case as a
-finding stated with uncertainty (doubtful, never decided).
+finding stated with uncertainty (doubtful, never decided). When an interpreter gives no reading (an answer cut
+off is not a reading: it is not kept, and the summary says so), nothing of that text is agreed or coded, and
+only labels that name at least two interpreters enter a thesaurus (25 November 2026, after the fifth run).
 
 The reports were moved to the one procedure at once, by the owner's decision of 25 November 2026
 (`MELAMPO_REPORT_READER`, default `one`); the reader before it (`anatomy`: the lexicon, the Kintsch reader, the

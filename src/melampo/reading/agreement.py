@@ -92,10 +92,23 @@ def merged(cards: list[tuple[str, dict]], context: str) -> dict:
 
 
 def agree(readings: dict[str, list[dict]], context: str,
-          ask: Callable[[str, str], str] | None = None) -> tuple[list[dict], list[dict]]:
+          ask: Callable[[str, str], str] | None = None,
+          expected: list[str] | None = None) -> tuple[list[dict], list[dict]]:
     """The agreed cards and every question asked. ``readings``: each interpreter's cards (``card.read``), the
     first interpreter's order kept; ``ask(reader, prompt)``: the interpreter's answer (None: no question is asked,
-    and cards with different names stay apart)."""
+    and cards with different names stay apart); ``expected``: every interpreter that should have read the text
+    (25 November 2026, declared after the fifth run: when one did not answer, the other's cards counted as
+    agreed with themselves). When an expected interpreter gave no reading, nothing is agreed: every card is a
+    card of one interpreter, and no question is asked."""
+    if expected and any(r not in readings for r in expected):
+        out = []
+        for reader, cards in readings.items():
+            for b in cards:
+                card = merged([(reader, b)], context)
+                card["paired_by"] = "one_interpreter"
+                card["doubts"] = card["doubts"] + ["one_interpreter"]
+                out.append(card)
+        return out, []
     readers = list(readings)
     used = {r: set() for r in readers}
     asked: list[dict] = []

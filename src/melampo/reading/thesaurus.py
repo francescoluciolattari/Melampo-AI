@@ -113,11 +113,17 @@ class Thesaurus:
                 scored.append((len(common) / len(words | theirs), concept.id, concept))
         return [c for _, _, c in sorted(scored, key=lambda x: (-x[0], x[1]))[:limit]]
 
-    def merge(self, other: Thesaurus) -> None:
+    def merge(self, other: Thesaurus, least_readers: int = 2) -> None:
+        """Another thesaurus's labels, those agreed by at least ``least_readers`` interpreters (25 November 2026,
+        declared after the fifth run: one interpreter's readings had written labels when the other's answer was
+        cut off; a label that says who agreed and names fewer is left out)."""
         for concept in other.concepts.values():
-            mine = self.concepts.setdefault(concept.id, Concept(concept.id, concept.name, concept.code))
             for label in concept.labels:
                 key = label_key(label["label"], label["signature"])
+                readers = label.get("readers")
+                if isinstance(readers, list) and len(readers) < least_readers:
+                    continue
+                mine = self.concepts.setdefault(concept.id, Concept(concept.id, concept.name, concept.code))
                 if key not in self.by_label:
                     mine.labels.append(label)
                     self.by_label[key] = mine.id

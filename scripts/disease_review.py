@@ -403,7 +403,8 @@ def main(argv=None) -> int:
     hpoa = read(args.hpoa)
     hpo_index = HpoIndex(hpo)
     # the thesaurus: the knowledge's, what a resumed run had added, and what this run adds (25 November 2026)
-    thesaurus = Thesaurus.load(knowledge / th.FILE if knowledge else None)
+    thesaurus = Thesaurus()
+    thesaurus.merge(Thesaurus.load(knowledge / th.FILE if knowledge else None))
     if args.resume:
         thesaurus.merge(Thesaurus.load(Path(args.resume) / th.FILE))
     from melampo.memory import literature_connectors as lc
@@ -542,10 +543,15 @@ def main(argv=None) -> int:
 
             def read_one(reader: str) -> str:
                 kept = readings.get((name, text["id"], reader))
-                if kept is not None and kept.get("reading") == READING:
+                if kept is not None and kept.get("reading") == READING and kept.get("finish") == "stop":
                     return kept["answer"]
                 answer, finish = router.chat(rs.READERS[reader], prompt, reasoning=True, max_tokens=rs.READER_ROOM)
-                if not finish:
+                if finish == "error":      # the provider broke off: asked once more (25 November 2026)
+                    answer, finish = router.chat(rs.READERS[reader], prompt, reasoning=True,
+                                                 max_tokens=rs.READER_ROOM)
+                if finish != "stop":       # an answer cut off is not a reading: not kept, said
+                    row.setdefault("not_read", {}).setdefault(reader, {}).setdefault(finish or "none", 0)
+                    row["not_read"][reader][finish or "none"] += 1
                     return ""
                 r = {"disease": name, "text": text["id"], "reader": reader, "finish": finish, "reading": READING,
                      "answer": answer}
