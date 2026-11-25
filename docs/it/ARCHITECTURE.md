@@ -333,6 +333,13 @@ di un reperto tra testi diversi si incontrano nel tesauro (un'etichetta concorda
 gli interpreti scelgono).
 
 
+**Il budget non si supera mai (25 novembre 2026, regola del proprietario: non oltre 5 USD).** Prima di ogni
+chiamata a OpenRouter il router tiene da parte il massimo che la chiamata può costare -- il prompt al prezzo
+d'ingresso del modello, un token ogni tre caratteri, e ogni token che può scrivere al prezzo d'uscita, dal listino
+di OpenRouter (1 USD per un modello senza prezzo noto) -- e rifiuta la chiamata quando ciò che è speso, più ciò che
+tengono le chiamate in corso, più il massimo di questa, supererebbe il budget. La revisione si ferma un po' prima
+del budget, mai dopo.
+
 **Quando una revisione si ferma: la saturazione è un parametro** (regola del proprietario, 22 novembre 2026).
 `--saturation N`: ogni strato di fonti della revisione di una patologia si ferma quando N testi di fila, letti e giudicati, non aggiungono
 nessuna manifestazione, e la revisione passa allo strato successivo (contato strato per strato dal primo run: contato sull'intera revisione, cinque abstract di linee guida l'avevano fermata prima degli studi di accuratezza e delle serie di pazienti, dove sono i pesi). Il minimo è 5 (un valore più piccolo è portato a 5); `0` vuol dire nessun limite: si

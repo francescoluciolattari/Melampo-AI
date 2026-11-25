@@ -102,3 +102,25 @@ def test_no_credit_stops_at_once(monkeypatch):
     monkeypatch.setattr(rs.time, "sleep", lambda s: pytest.fail("it retried"))
     with pytest.raises(rs.OverBudget):
         rs.Router("x", 5).chat("m", "p", reasoning=True, max_tokens=10)
+
+
+def test_the_budget_is_never_passed_each_call_holds_the_most_it_can_cost(monkeypatch):
+    """(25 November 2026, the owner's rule: not over 5 USD) the router refuses a call when what is spent, what
+    calls running hold and the most this call can cost would pass the budget."""
+    router = rs.Router("x", 1.0, prices={"m": (1e-6, 10e-6)})        # 1 USD in, 10 USD out per million tokens
+    assert abs(router.most("m", "p" * 3000, 50000) - (1064e-6 + 0.5)) < 1e-9
+
+    def answered(model, prompt, *, reasoning, max_tokens):
+        router.cost += 0.2                     # what OpenRouter says it cost, well under the most
+        return "ok", "stop"
+    monkeypatch.setattr(router, "_chat", answered)
+    for _ in range(3):
+        router.chat("m", "p", reasoning=True, max_tokens=50000)        # each holds 0.5 and spends 0.2
+    assert abs(router.cost - 0.6) < 1e-9 and router.held == 0
+    with pytest.raises(rs.OverBudget, match="at most for this call"):
+        router.chat("m", "p", reasoning=True, max_tokens=50000)        # 0.6 + 0.5 would pass 1.0: refused
+    router.held = 0.39                                                 # calls running hold 0.39
+    with pytest.raises(rs.OverBudget):
+        router.chat("m", "p", reasoning=True, max_tokens=2000)         # 0.6 + 0.39 + 0.02 would pass 1.0
+    router.held = 0.30
+    router.chat("m", "p", reasoning=True, max_tokens=2000)             # 0.6 + 0.30 + 0.02 does not

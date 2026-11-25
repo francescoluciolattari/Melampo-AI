@@ -102,14 +102,55 @@ class OverBudget(RuntimeError):
     pass
 
 
+MODELS = "https://openrouter.ai/api/v1/models"
+UNPRICED = 1.0   # USD held for a call whose model has no known price (25 November 2026: a ceiling, not a guess)
+
+
 class Router:
-    def __init__(self, key: str, budget: float):
+    """OpenRouter, within a budget that is never passed (25 November 2026, the owner's rule: not over 5 USD).
+
+    Before each call the router holds the most that call can cost -- the prompt at the model's input price (a
+    token for every three characters, more than any tokenizer gives) and every token it may write
+    (``max_tokens``) at the output price, from OpenRouter's own price list -- and refuses the call when what is
+    spent, plus what calls already running hold, plus this one's most, would pass the budget. After the call it
+    keeps what OpenRouter says it cost. So the spending stops before the budget, never after it."""
+
+    def __init__(self, key: str, budget: float, prices: dict[str, tuple[float, float]] | None = None):
         self.key, self.budget, self.cost, self.lock = key, budget, 0.0, threading.Lock()
+        self.held = 0.0
+        self.prices = prices
+
+    def price(self, model: str) -> tuple[float, float] | None:
+        if self.prices is None:
+            self.prices = {}
+            try:
+                for m in json.loads(get(MODELS) or "{}").get("data", []):
+                    p = m.get("pricing") or {}
+                    self.prices[m["id"]] = (float(p.get("prompt") or 0), float(p.get("completion") or 0))
+            except (ValueError, KeyError, TypeError):
+                self.prices = {}
+        return self.prices.get(model)
+
+    def most(self, model: str, prompt: str, max_tokens: int) -> float:
+        price = self.price(model)
+        if price is None:
+            return UNPRICED
+        return (len(prompt) / 3 + 64) * price[0] + max_tokens * price[1]
 
     def chat(self, model: str, prompt: str, *, reasoning: bool, max_tokens: int) -> tuple[str, str]:
+        most = self.most(model, prompt, max_tokens)
         with self.lock:
-            if self.cost >= self.budget:
-                raise OverBudget(f"{self.cost:.4f} USD spent, budget {self.budget}")
+            if self.cost + self.held + most > self.budget:
+                raise OverBudget(f"{self.cost:.4f} USD spent, {self.held:.4f} held by calls running, "
+                                 f"{most:.4f} at most for this call: budget {self.budget}")
+            self.held += most
+        try:
+            return self._chat(model, prompt, reasoning=reasoning, max_tokens=max_tokens)
+        finally:
+            with self.lock:
+                self.held -= most
+
+    def _chat(self, model: str, prompt: str, *, reasoning: bool, max_tokens: int) -> tuple[str, str]:
         body = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0,
                 "max_tokens": max_tokens, "usage": {"include": True},
                 "reasoning": {"enabled": True, "effort": "high"} if reasoning else {"enabled": False}}

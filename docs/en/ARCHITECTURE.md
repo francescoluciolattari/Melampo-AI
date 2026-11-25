@@ -320,6 +320,12 @@ review (H): two interpreters' readings of one finding are paired in the sentence
 across texts meet in the thesaurus (an agreed label, or a candidate both interpreters choose).
 
 
+**The budget is never passed (25 November 2026, the owner's rule: not over 5 USD).** Before each call to OpenRouter
+the router holds the most the call can cost -- the prompt at the model's input price, a token for every three
+characters, and every token it may write at the output price, from OpenRouter's own price list (1 USD for a
+model with no known price) -- and refuses the call when what is spent, plus what the calls already running hold,
+plus this one's most, would pass the budget. The review stops a little before the budget, never after it.
+
 **When a review stops: the saturation is a parameter** (the owner's rule, 22 November 2026). `--saturation N`:
 each layer of sources of a disease's review stops when N texts in a row, read and judged, add no manifestation, and the review goes on to the next layer (counted layer by layer since the first run: counted on the whole review, five guideline abstracts stopped it before the accuracy studies and the series of patients, where the weights are). The least is 5 (a
 smaller value is raised to 5); `0` means no limit: every text of every layer is read, to the end of the sources.
