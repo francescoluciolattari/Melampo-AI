@@ -166,7 +166,9 @@ corrispondono come due con lo stesso codice HPO. Una scheda su cui gli interpret
 del caso come reperto affermato con incertezza (dubbio, mai deciso). Quando un interprete non dà una lettura
 (una risposta interrotta non è una lettura: non si conserva, e il riepilogo lo dice), di quel testo nulla è
 concordato né codificato, e in un tesauro entrano solo etichette che nominano almeno due interpreti (25 novembre
-2026, dopo il quinto run).
+2026, dopo il quinto run). Un campo che ogni scheda deve dare (categoria, specifico, metodo, natura) che una lettura
+non dà e l'altra sì è dell'altra, con il dubbio `<campo>_given_by_one`: non dato non è letto diversamente (26
+novembre 2026, dopo il settimo run: 270 seconde letture senza categoria erano state scartate come disaccordo).
 
 I referti sono passati subito alla procedura unica, per decisione del proprietario del 25 novembre 2026
 (`MELAMPO_REPORT_READER`, predefinito `one`); il lettore precedente (`anatomy`: il lessico, il lettore di Kintsch,

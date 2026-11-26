@@ -138,7 +138,9 @@ def read(raw: dict, context: str) -> dict:
     card = {
         "words": _text(raw.get("words")), "name": _text(raw.get("name")),
         "category": _one_of(raw.get("category"), CATEGORIES),
-        "specific": specific if isinstance(specific, bool) else _text(specific).lower() == "true",
+        # None when not given (26 November 2026): a field not given is not a field read otherwise
+        "specific": specific if isinstance(specific, bool) else (
+            None if specific in (None, "") else _text(specific).lower() == "true"),
         "what": _text(raw.get("what")), "interpretation": _one_of(raw.get("interpretation"), INTERPRETATIONS),
         "value": _quantity(raw.get("value")), "threshold": _quantity(raw.get("threshold"), comparator=True),
         "site": _text(raw.get("site")), "side": _one_of(raw.get("side"), SIDES),

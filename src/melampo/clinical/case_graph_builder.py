@@ -145,7 +145,10 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
                                      end=start + len(quote) if start >= 0 else None),
             site=str(card.get("site_code") or ""), site_words=str(card.get("site") or ""),
             polarity=cg.NEGATED if state == "absent" else cg.AFFIRMED,
-            certainty="uncertain" if state == "uncertain" or doubts else "certain",
+            # a field one interpreter did not give and the other did is kept in the details, not a doubt of
+            # the finding (26 November 2026); every other doubt is
+            certainty="uncertain" if state == "uncertain" or [d for d in doubts if not d.endswith("_given_by_one")]
+            else "certain",
             temporality=str(card.get("temporality") or ""), concept=found, date=date, details=details)
         if graph.facts().get(finding.finding_id) is None:
             graph.findings.append(finding)

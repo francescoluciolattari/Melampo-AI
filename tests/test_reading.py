@@ -79,7 +79,7 @@ def test_other_words_for_one_finding_are_paired_when_each_interpreter_says_it_of
     agreed, asked = ag.agree(readings, "case", ask)
     assert len(agreed) == 1 and agreed[0]["paired_by"] == "same_in_context" and agreed[0]["doubts"] == []
     assert len(asked) == 2 and "elevated CRP" in shown["muse"] and "a. elevated C-reactive protein" in shown["muse"]
-    assert '"increased"' not in shown["muse"].split("in this form")[0]      # the other's fields are never shown
+    assert '"increased"' not in shown["muse"].split("every field of")[0]      # the other's fields are never shown
     # one says "the same", the other says the sentence does not state it: nothing paired, the second a doubt
     answers = {"muse": '[{"item": 1, "same_as": "a"}]', "nemotron": '[{"item": 1, "same_as": null, "card": null}]'}
     agreed, _ = ag.agree(readings, "case", lambda r, p: answers[r])
@@ -175,3 +175,15 @@ def test_a_label_agreed_by_one_interpreter_alone_never_enters_a_thesaurus():
     mine = Thesaurus()
     mine.merge(other)
     assert [x["label"] for x in mine.concepts["MLP:1"].labels] == ["abdominal ultrasound"]
+
+
+def test_a_field_one_reading_does_not_give_is_not_a_field_read_otherwise():
+    """(26 November 2026, after the seventh run) 270 second readings came without a category: a required field
+    given by one reading alone is that reading's, with a doubt; a field both give differently stays a doubt."""
+    a = c.read(CRP_A, "case")
+    b = c.read({k: v for k, v in CRP_A.items() if k not in ("category", "specific")}, "case")
+    card = ag.merged([("nemotron", a), ("muse", b)], "case")
+    assert card["category"] == "manifestation" and card["specific"] is True
+    assert sorted(card["doubts"]) == ["category_given_by_one", "specific_given_by_one"]
+    other = ag.merged([("nemotron", a), ("muse", {**a, "category": "test"})], "case")
+    assert other["category"] is None and other["doubts"] == ["category"]

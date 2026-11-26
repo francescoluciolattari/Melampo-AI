@@ -159,7 +159,10 @@ graph of the case and in the profile: a finding and a manifestation with the sam
 as two with the same HPO code. A card the interpreters did not agree on enters the graph of the case as a
 finding stated with uncertainty (doubtful, never decided). When an interpreter gives no reading (an answer cut
 off is not a reading: it is not kept, and the summary says so), nothing of that text is agreed or coded, and
-only labels that name at least two interpreters enter a thesaurus (25 November 2026, after the fifth run).
+only labels that name at least two interpreters enter a thesaurus (25 November 2026, after the fifth run). A
+field every card must give (category, specific, method, nature) that one reading does not give and the other does
+is the other's, with the doubt `<field>_given_by_one`: not given is not read otherwise (26 November 2026, after
+the seventh run: 270 second readings without a category had been dropped as a disagreement).
 
 The reports were moved to the one procedure at once, by the owner's decision of 25 November 2026
 (`MELAMPO_REPORT_READER`, default `one`); the reader before it (`anatomy`: the lexicon, the Kintsch reader, the

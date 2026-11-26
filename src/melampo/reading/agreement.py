@@ -34,6 +34,12 @@ from typing import Any
 from . import card as c
 
 COMPARED = ("category", "specific", "interpretation", "value", "threshold", "side", "observed_by", "nature")
+# the fields every card must give (26 November 2026, declared after the seventh run: in 270 second readings one
+# interpreter gave its card without a category, and "not given" was taken for "read otherwise"): when one reading
+# does not give one and the other does, the field is the other's, with the doubt "<field>_given_by_one"; a field
+# both give differently stays empty, a doubt. The optional fields (value, threshold, side, the direction, ...) are
+# readings when empty: "no threshold" is what the reader read.
+REQUIRED = ("category", "specific", "observed_by", "nature")
 COMPARED_IN = {"case": ("state", "temporality", "subject"), "publication": ("direction", "compares")}
 LABELS = ("words", "name", "what", "site", "time")
 
@@ -64,8 +70,12 @@ def merged(cards: list[tuple[str, dict]], context: str) -> dict:
     doubts = []
     for k in COMPARED + COMPARED_IN[context]:
         values = [card.get(k) for _, card in cards]
+        given = [v for v in values if v not in (None, "")]
         if all(_alike(v, values[0]) for v in values):
             out[k] = values[0]
+        elif k in REQUIRED and given and all(_alike(v, given[0]) for v in given):
+            out[k] = given[0]
+            doubts.append(f"{k}_given_by_one")
         else:
             out[k] = None
             doubts.append(k)
@@ -90,7 +100,8 @@ def crosscheck_prompt(context: str, theirs: list[dict], mine: list[dict]) -> str
             "same thing observed, at the same site, by the same method, with the same interpretation and threshold, "
             "in other words (\"elevated CRP\" and \"elevated C-reactive protein\"; a different threshold, site, side, "
             "time or thing is not the same: an appendix wider than 6 mm and wider than 7 mm; vomiting before the "
-            "pain and vomiting); otherwise your own card for it, read from its sentence, in this form:\n"
+            "pain and vomiting); otherwise your own card for it, read from its sentence, complete -- every field of "
+            "this form, the category too:\n"
             + c.example(context) + "\n"
             "or null when the sentence does not state such a finding. "
             "Answer only JSON: [{\"item\": 1, \"same_as\": \"a\" or null, \"card\": {...} or null}, ...]")

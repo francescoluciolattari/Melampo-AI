@@ -226,6 +226,36 @@ def read_verdict(answer: str) -> dict:
     return {"states": dp.read_judgment(answer)}
 
 
+def replaced(lines: list[str]) -> dict[str, tuple[str, str]]:
+    """MONDO's obsolete terms by their name and exact synonyms: name -> (the term it was, the term that replaces
+    it) (26 November 2026, declared after the seventh run: "acute appendicitis" no longer found by its name went to
+    a broader term by another synonym)."""
+    out: dict[str, tuple[str, str]] = {}
+    current, names, by, obsolete = "", [], "", False
+
+    def close():
+        if current and obsolete and by:
+            for n in names:
+                out.setdefault(dp.norm(n), (current, by))
+    for line in lines + ["[Term]"]:
+        if line.startswith("[Term]"):
+            close()
+            current, names, by, obsolete = "", [], "", False
+        elif line.startswith("id: MONDO:"):
+            current = line[4:].strip()
+        elif line.startswith("name: "):
+            names.append(line[6:].strip().removeprefix("obsolete "))
+        elif line.startswith("is_obsolete: true"):
+            obsolete = True
+        elif line.startswith("replaced_by: MONDO:"):
+            by = line[len("replaced_by: "):].strip()
+        elif line.startswith("synonym: ") and " EXACT" in line:
+            m = re.match(r'synonym: "(.*?)"', line)
+            if m:
+                names.append(m.group(1))
+    return out
+
+
 def any_synonym(lines: list[str]) -> dict[str, str]:
     """MONDO's terms by any of their synonyms (exact, related, narrow, broad), only where one term has it."""
     found: dict[str, set[str]] = {}
@@ -412,7 +442,9 @@ def main(argv=None) -> int:
     from melampo.memory import sources_index as si
     from melampo.memory.symptom_sources import parse_doid_owl
 
-    mondo_by_any_synonym = any_synonym(read(args.mondo))
+    mondo_lines = read(args.mondo)
+    mondo_by_any_synonym = any_synonym(mondo_lines)
+    mondo_replaced = replaced(mondo_lines)
     doid_symptoms = {c.doid: c.symptom_ids for c in parse_doid_owl(Path(args.doid_owl)) if not c.deprecated}
     index = si.SourcesIndex.load(si.SOURCES)
     router, lock = rs.Router(key, args.budget), threading.Lock()
@@ -425,9 +457,11 @@ def main(argv=None) -> int:
     all_measures, reviews = [], {}
     for name in diagnoses:
         since = prev_reviews.get(name, {}).get("date", "") if args.update else ""
-        mondo_id = mondo.find(name, prefix="MONDO:") or mondo_by_any_synonym.get(dp.norm(name), "")
-        row_mondo = "name or exact synonym" if mondo.find(name, prefix="MONDO:") else (
-            "other synonym" if mondo_id else "not found")
+        exact = mondo.find(name, prefix="MONDO:")
+        was, by = mondo_replaced.get(dp.norm(name), ("", ""))
+        mondo_id = exact or by or mondo_by_any_synonym.get(dp.norm(name), "")
+        row_mondo = "name or exact synonym" if exact else (
+            f"obsolete {was}, replaced by {by}" if by else "other synonym" if mondo_id else "not found")
         xrefs = mondo.xrefs.get(mondo_id, set())
         ids = {x.replace("Orphanet:", "ORPHA:") for x in xrefs if x.startswith(("OMIM:", "Orphanet:", "ORPHA:"))}
         curated = dp.from_hpoa(hpoa, ids, hpo) + [

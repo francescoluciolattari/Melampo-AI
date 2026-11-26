@@ -367,3 +367,12 @@ def test_a_publication_is_read_with_the_one_procedure_other_words_paired_in_the_
     thesaurus = dr.Thesaurus.load(out.with_name("thesaurus.jsonl"))
     labels = {x["label"] for x in thesaurus.concepts["HP:0100281"].labels}
     assert labels == {"right lower quadrant pain", "pain in the right lower quadrant"}
+
+
+def test_an_obsolete_mondo_term_is_followed_to_the_term_that_replaces_it():
+    lines = ['[Term]', 'id: MONDO:0004974', 'name: obsolete acute appendicitis', 'synonym: "appendicitis acute" EXACT []',
+             'is_obsolete: true', 'replaced_by: MONDO:0005649', '', '[Term]', 'id: MONDO:0005649', 'name: appendicitis',
+             'synonym: "acute appendicitis" RELATED []']
+    got = dr.replaced(lines)
+    assert got[dr.dp.norm("acute appendicitis")] == ("MONDO:0004974", "MONDO:0005649")
+    assert dr.dp.norm("appendicitis") not in got
