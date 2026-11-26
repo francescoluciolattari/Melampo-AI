@@ -358,11 +358,18 @@ della conoscenza, e solo quando il contenuto è cambiato (la sua impronta): un p
 nessuna. Contiene `knowledge.db` (il grafo, pronto, in FalkorDBLite), i file da cui è costruito (profili, nomi,
 esami, punteggi, curve, le misure da cui si calcolano i pesi, il giorno di ogni revisione, i registri di letture e
 verdetti; i testi letti non si pubblicano: un abstract o un testo intero appartiene ai suoi autori), `changes.md`
-(che cosa è cambiato, patologia per patologia) e `version.json`. Ogni lunedì `disease-review-update` scarica
+(che cosa è cambiato, patologia per patologia) e `version.json`. Ogni trimestre (e a mano) `disease-review-update` scarica
 l'ultima Release, rivede ogni patologia su ciò che è stato pubblicato dal giorno della sua ultima revisione, con lo
 stesso metodo, senza saturazione (si legge ogni testo nuovo), ricalcola i pesi su tutte le misure, vecchie e nuove,
 e crea una nuova Release se qualcosa è cambiato. Prende il posto dell'aggiornamento giornaliero della letteratura su
 `main`, spento lo stesso giorno (si può ancora lanciare a mano).
+
+**Nota (26 novembre 2026): trimestrale, per ora.** Per decisione del proprietario la spesa su OpenRouter resta
+entro 5 USD, quindi l'aggiornamento non gira più ogni lunedì (lo faceva con fino a 2 USD a settimana): gira il 1°
+gennaio, aprile, luglio e ottobre, e ogni volta che lo si lancia a mano ("Run workflow" o
+`gh workflow run disease-review-update.yml -f budget=...`). Un testo pubblicato dopo l'ultima revisione di una
+patologia aspetta il run successivo; non si perde nulla, perché ogni revisione riparte dal giorno in cui è finita
+l'ultima. Per tornare settimanale: il cron di `.github/workflows/disease-review-update.yml` di nuovo a `17 3 * * 1`.
 
 **Il grafo della conoscenza (22 novembre 2026).** La diagnosi legge la conoscenza come grafo
 (`memory/disease_knowledge_graph.py`): `(:KVersion)<-[:IN]-(:KDisease)-[:SHOWS {frequenza, sensibilità,

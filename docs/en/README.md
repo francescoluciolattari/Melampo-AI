@@ -28,7 +28,7 @@ Verified on the code of `main`; the full map is in [ARCHITECTURE](ARCHITECTURE.m
 | Codes after agreement (HPO, the thesaurus) | working | only the agreed reading is coded; the thesaurus is written only from publications |
 | Graph of the case and diagnostic path | working | four states of each manifestation, likelihood ratios, candidates only from the path, exams to propose |
 | Disease profiles: systematic review per disease | working, first runs | acute appendicitis: 79 manifestations, 6 with a measured accuracy; the run with the one procedure is next |
-| Versioned knowledge (GitHub Releases, FalkorDBLite) | working | a Release only when the content changes; reviewed again every Monday |
+| Versioned knowledge (GitHub Releases, FalkorDBLite) | working | a Release only when the content changes; reviewed again every quarter, or by hand |
 | Reference library of normal values | partial | 21 of 29 rows verified; the one procedure does not compare with it yet |
 | Drug branch | working with the local cache | a patient's drugs are read only from the cache on this machine |
 | Concept graph (FalkorDB) and nexus branch | working | 636,733 verified edges |

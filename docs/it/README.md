@@ -28,7 +28,7 @@ Verificato sul codice di `main`; la mappa completa è in [ARCHITECTURE](ARCHITEC
 | Codici dopo l'accordo (HPO, il tesauro) | funziona | si codifica solo la lettura concordata; il tesauro lo scrivono solo le pubblicazioni |
 | Grafo del caso e percorso diagnostico | funziona | quattro stati di ogni manifestazione, rapporti di verosimiglianza, candidate solo dal percorso, esami da proporre |
 | Profili delle malattie: revisione sistematica per malattia | funziona, primi run | appendicite acuta: 79 manifestazioni, 6 con un'accuratezza misurata; il run con la procedura unica è il prossimo |
-| Conoscenza versionata (GitHub Release, FalkorDBLite) | funziona | una Release solo quando il contenuto cambia; rivista ogni lunedì |
+| Conoscenza versionata (GitHub Release, FalkorDBLite) | funziona | una Release solo quando il contenuto cambia; rivista ogni trimestre, o a mano |
 | Libreria dei valori di riferimento | parziale | 21 righe su 29 verificate; la procedura unica non la confronta ancora |
 | Ramo dei farmaci | funziona con la cache locale | i farmaci di un paziente si leggono solo dalla cache su questa macchina |
 | Grafo dei concetti (FalkorDB) e ramo nexus | funziona | 636.733 archi verificati |

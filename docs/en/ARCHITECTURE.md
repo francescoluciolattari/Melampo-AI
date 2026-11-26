@@ -341,10 +341,17 @@ content changed (its hash): a push or a merge of code makes none. It holds `know
 FalkorDBLite), the files it is built from (profiles, names, exams, scores, curves, the measures the weights are
 computed from, the day of each review, the logs of readings and verdicts; the texts read are not published: an
 abstract or a full text belongs to its authors), `changes.md` (what changed, disease by disease) and
-`version.json`. Every Monday `disease-review-update` downloads the latest Release, reviews each disease again on
+`version.json`. Every quarter (and by hand) `disease-review-update` downloads the latest Release, reviews each disease again on
 what was published from the day of its last review, by the same method, with no saturation (every new text is
 read), computes the weights again on every measure, old and new, and makes a new Release if anything changed. It
 takes the place of the daily literature refresh on `main`, switched off the same day (it can still be run by hand).
+
+**Note (26 November 2026): quarterly, for now.** By the owner's decision the spending on OpenRouter is kept
+within 5 USD, so the update no longer runs every Monday (it did with up to 2 USD a week): it runs on the 1st of
+January, April, July and October, and whenever it is started by hand ("Run workflow" or
+`gh workflow run disease-review-update.yml -f budget=...`). A text published since a disease's last review waits
+for the next run; nothing is lost, because each review starts from the day the last one ended. To make it
+weekly again: the cron of `.github/workflows/disease-review-update.yml` back to `17 3 * * 1`.
 
 **The knowledge graph (22 November 2026).** The diagnosis reads the knowledge as a graph
 (`memory/disease_knowledge_graph.py`): `(:KVersion)<-[:IN]-(:KDisease)-[:SHOWS {frequency, sensitivity,

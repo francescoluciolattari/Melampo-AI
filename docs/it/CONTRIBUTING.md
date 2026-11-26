@@ -75,7 +75,7 @@ modelli a pagamento o scarica dati grandi.
 | `classifications-it`, `radiology-kinds`, `data-and-dependency-updates` | aggiornamenti settimanali (CIPI, ICD-9-CM, RadLex, HPO, dipendenze) | a orario |
 | `pin-model-revisions` | fissa i pesi dei modelli a un commit e a un hash esatti | manuale |
 | `disease-review` | la revisione sistematica delle malattie nominate, con la procedura unica di lettura; pubblica una Release della conoscenza quando il contenuto cambia (input `publish`) | manuale |
-| `disease-review-update` | la stessa, solo ciò che è uscito dopo l'ultima revisione di ogni malattia, dall'ultima Release | ogni lunedì |
+| `disease-review-update` | la stessa, solo ciò che è uscito dopo l'ultima revisione di ogni malattia, dall'ultima Release | ogni trimestre (1 gennaio, aprile, luglio, ottobre) e a mano; settimanale fino al 26 novembre 2026 |
 | `literature-reader-bench`, `reference-sources`, `sources-index`, `source-coverage`, `link-coverage` | i lettori della letteratura, la libreria dei riferimenti e l'indice delle fonti | manuale |
 | `disease-profiles`, `disease-frequencies`, `drug-sources` | i profili curati, le frequenze dei primi run, la cache locale dei farmaci | manuale |
 

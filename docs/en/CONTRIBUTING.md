@@ -72,7 +72,7 @@ calls billed models or downloads large data.
 | `classifications-it`, `radiology-kinds`, `data-and-dependency-updates` | weekly updates (CIPI, ICD-9-CM, RadLex, HPO, dependencies) | schedule |
 | `pin-model-revisions` | pins model weights to an exact commit and hash | manual |
 | `disease-review` | the systematic review of named diseases, with the one procedure of reading; publishes a knowledge Release when the content changes (input `publish`) | manual |
-| `disease-review-update` | the same, only what was published after each disease's last review, from the latest Release | every Monday |
+| `disease-review-update` | the same, only what was published after each disease's last review, from the latest Release | quarterly (1 January, April, July, October) and manual; it was weekly until 26 November 2026 |
 | `literature-reader-bench`, `reference-sources`, `sources-index`, `source-coverage`, `link-coverage` | the readers of the literature, the reference library and the index of the sources | manual |
 | `disease-profiles`, `disease-frequencies`, `drug-sources` | the curated profiles, the frequencies of the first runs, the local drug cache | manual |
 
