@@ -114,8 +114,8 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
     the one given afterwards (HPO, or a concept of the thesaurus), its site the lexicon's class when there is one.
     A card the interpreters did not agree on (a field read differently, a card read by one alone) is a finding
     stated with uncertainty: principle of doubt, kept and never decided here. A family member's finding is not
-    the patient's: it is left out, and said. A card of a pathology report's clinical information or material is
-    not a finding; the diagnosis's items (TNM, grade, margins), the row of the library a measure was compared with
+    the patient's: it is left out, and said. What the requester suspects (the question asked, ``part``
+    indication, uncertain) is a hypothesized disease, in every text, the pathology report included; the diagnosis's items (TNM, grade, margins), the row of the library a measure was compared with
     and the image side stay in the finding's details (``reading.case_sides``, 27 November 2026); the measure
     itself becomes a measurement (``add_measures``)."""
     add_document(graph, document_id, kind, title=title or _first_line(text), date=date, modality=modality,
@@ -127,18 +127,17 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
         if card.get("subject") == "family_member":
             notes.append(f"{document_id}: {card.get('name')!r} is a family member's finding, not the patient's")
             continue
-        if card.get("pathology_statement") or card.get("read_by"):
-            # the clinical information or the material of a pathology report: the question asked, or where the
-            # sample comes from, not a current finding; a row the laboratory extractor read is its measurement
-            # (27 November 2026)
-            continue
+        if card.get("read_by"):
+            continue        # a row the laboratory extractor read is its measurement (27 November 2026)
         if card.get("part") == "indication" and card.get("state") == "uncertain":
             # what the requester suspects ("sospetta appendicite") is the clinical question: a hypothesis of the
             # requester, in the branch of the hypothesized diseases with its words, never a current finding
-            quote = str(card.get("quote") or "")
+            quote, said = str(card.get("quote") or ""), str(card.get("words") or "")
             at = text.find(quote) if quote else -1
+            if at >= 0 and said and said in quote:      # its own words, within its sentence
+                at, quote = at + quote.find(said), said
             notes += add_declared_diseases(graph, [{
-                "words": quote if at >= 0 else str(card.get("words") or card.get("name") or ""),
+                "words": quote if at >= 0 else said or str(card.get("name") or ""),
                 "status": "suspected", "status_words": "indication", "document": document_id,
                 "start": at if at >= 0 else None, "end": at + len(quote) if at >= 0 else None}])[1]
             continue
@@ -360,6 +359,8 @@ def from_ingestion(case_id: str, note: str, bundle: Any, reading: dict[str, Any]
     laboratory = []
     for a in attachments:
         lab = getattr(a, "lab", None)
+        if getattr(a, "set_aside", ""):
+            continue            # another patient's, or no kind of medical document: a person decides
         if lab is not None and getattr(lab, "results", ()):
             codes = {row.get("analyte"): {"system": "LOINC", "code": f"LOINC:{row['code']}"}
                      for row in getattr(a, "loinc", ()) if row.get("status") == "mapped" and row.get("code")}

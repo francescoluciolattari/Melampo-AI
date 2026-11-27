@@ -439,14 +439,7 @@ class ReportReaders:
         labs = {f"attachment-{a.index}": getattr(a, "lab", None) for a in getattr(bundle, "attachments", ()) or ()}
         for source_id, text, routing in sources:
             interpreters = routing.get("interpreters") or ()
-            if source_id != "note" and "no_kind_recognised_read_as_narrative" in (routing.get("notes") or ()):
-                # a document the router recognises as no kind of medical document (27 November 2026, the owner's
-                # rule): put in by mistake, of another patient, not medical or not pertinent until a person says
-                # otherwise; it is not read into the case
-                out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False,
-                                     "reason": "kind_not_recognised"})
-                out["to_a_person"].append({"report": source_id, "mention": "", "reason":
-                                           "kind_not_recognised: confirm it is a medical document of this patient"})
+            if source_id != "note" and _document_to_a_person(source_id, routing, out):
                 continue
             if source_id != "note" and not {NARRATIVE, "pathology"} & set(interpreters):
                 # what the router sends only to the laboratory extractor (a table of blood tests, a culture) is the
@@ -489,8 +482,7 @@ class ReportReaders:
                 from .pathology_report import read_pathology
 
                 summary = pathologies.get(source_id) or read_pathology(text, language).summary()
-                stated, entry["pathology"] = give_the_pathology(cards, text, summary)
-                out["statements"] += [{**x, "report": source_id} for x in stated]
+                entry["pathology"] = give_the_pathology(cards, text, summary)
             volume, reason = None, "not_an_imaging_report"
             if IMAGING_KIND in (routing.get("kinds") or ()):
                 reason = why
@@ -520,7 +512,7 @@ class ReportReaders:
                                               "mention": card.get("words") or card.get("name", ""),
                                               "clause": card.get("quote", ""), "name": card.get("name", "")})
                     continue
-                if card.get("category") == "manifestation" and not card.get("pathology_statement"):
+                if card.get("category") == "manifestation":
                     out["findings"].append({"report": source_id, "structure": card["site_code"],
                                             "clause": card.get("quote", ""), "mention": card.get("words", ""),
                                             "name": card.get("name", ""), "state": card.get("state"),
@@ -557,6 +549,8 @@ class ReportReaders:
         volumes = _usable_volumes(bundle)
         paired, why = _pair(imaging_reports, volumes)
         for source_id, text, routing in sources:
+            if source_id != "note" and _document_to_a_person(source_id, routing, out):
+                continue
             narrative = NARRATIVE in (routing.get("interpreters") or ())
             if not narrative and IMAGING_KIND not in (routing.get("kinds") or ()):
                 out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False})
@@ -607,6 +601,34 @@ class ReportReaders:
                                    for r in rows if r["needs_review"]]
         out["status"] = "read"
         return out
+
+
+def _document_to_a_person(source_id: str, routing: dict[str, Any], out: dict[str, Any]) -> bool:
+    """A document a person must look at before it enters the case (27 November 2026, the owner's rule), the same
+    for both readers: its identifiers are another patient's, or the router recognised no kind of medical document
+    in it -- it is not read, and its question goes to the review (``patient_check.document_question``); one
+    identifier of the patient and one of another -- it is read with its doubt, and the question goes too. Returns
+    whether the document is kept out."""
+    from .case_attachments import kind_not_recognised, set_aside_of
+    from .patient_check import DOUBT, document_question
+
+    why = set_aside_of(routing)
+    check = (routing.get("patient") or {}).get("check", "")
+    system = {"identifiers_compared": list((routing.get("patient") or {}).get("compared", [])),
+              "kinds": list(routing.get("kinds") or ())}
+    if why:
+        out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False, "reason": why})
+        out["to_a_person"].append({"report": source_id, "mention": "", "reason": f"document_set_aside:{why}"})
+        out["questions"].append(document_question(source_id, "other" if why == "another_patient" else why, system))
+        return True
+    if check == DOUBT:
+        out["to_a_person"].append({"report": source_id, "mention": "", "reason": "document_identity_in_doubt"})
+        out["questions"].append(document_question(source_id, DOUBT, system))
+    if kind_not_recognised(routing):
+        # recognised by no cue and no model was asked: read, and a person says what it is
+        out["to_a_person"].append({"report": source_id, "mention": "", "reason": "document_kind_not_recognised"})
+        out["questions"].append(document_question(source_id, "kind_not_recognised", system))
+    return False
 
 
 def _usable_volumes(bundle: Any) -> list[Any]:

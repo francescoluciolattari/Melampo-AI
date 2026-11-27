@@ -66,16 +66,17 @@ OUTSIDE_STRUCTURE, NOT_IN_IMAGE, SEVERAL_REGIONS = "outside_the_named_structure"
 SIZE_DIFFERS, CHARACTER_DIFFERS = "size_differs_from_report", "character_differs_from_report"
 STRUCTURE_UNCHECKED = "structure_not_checked"
 
-_NUM = r"\d+(?:[.,]\d+)?"
-_SIZE_RE = re.compile(rf"(?<![\w.,])(?P<a>{_NUM})(?:\s*[x×]\s*(?P<b>{_NUM}))?(?:\s*[x×]\s*(?P<c>{_NUM}))?\s*"
-                      r"(?P<u>mm|cm)\b", re.IGNORECASE)
-
-
 def sizes_in_text(text: str) -> list[dict[str, Any]]:
-    """Every size written in the text, in millimetres, with the words and their offsets ("2,1 x 1,5 cm")."""
+    """Every size written in the text, in millimetres, with the words and their offsets ("2,1 x 1,5 cm"). The one
+    reading of a written measure (``reference_values.measures_in``'s pattern, 27 November 2026): lengths only."""
+    from ..memory.reference_values import _MEASURE
+
     out = []
-    for m in _SIZE_RE.finditer(text):
-        factor = 10.0 if m.group("u").lower() == "cm" else 1.0
+    for m in _MEASURE.finditer(text or ""):
+        unit = m.group("u").lower()
+        if unit not in ("mm", "cm") or m.group("per"):
+            continue
+        factor = 10.0 if unit == "cm" else 1.0
         dims = [float(v.replace(",", ".")) * factor for v in (m.group("a"), m.group("b"), m.group("c")) if v]
         out.append({"text": m.group(0), "start": m.start(), "end": m.end(), "mm": dims, "largest_mm": max(dims)})
     return out

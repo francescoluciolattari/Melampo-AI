@@ -257,9 +257,9 @@ risks:
       - control: The reader before the one procedure is kept (MELAMPO_REPORT_READER=anatomy) to measure the change on the same benches, with criteria fixed before the run
         tests:
           - tests/test_report_reading.py::test_the_physician_note_is_read_sites_and_findings_on_the_text
-      - control: What the reader before gave its findings is given to the agreed cards without reading the text again (27 November 2026) -- the pathologist's items to the card of the diagnosis, the clinical information and the material not current findings, the image side only for a report paired with its one volume
+      - control: What the reader before gave its findings is given to the agreed cards without reading the text again (27 November 2026) -- the pathologist's items to the card of the diagnosis, the clinical information read by the card itself as in every text, the image side only for a report paired with its one volume
         tests:
-          - tests/test_report_reading_sides.py::test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clinical_information_is_the_question
+          - tests/test_report_reading_sides.py::test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clinical_information_is_read_as_any_text
           - tests/test_report_reading_sides.py::test_the_exam_paired_with_its_report_gives_the_card_its_image_in_the_ingestion
           - tests/test_report_reading_sides.py::test_without_an_exam_each_card_says_why_there_is_no_image
       - control: Each card says the part of the document its sentence is in, read on the whole document by both interpreters; the report's headings check it; a suspicion of the question asked is a hypothesis of the requester, never a current finding (claims4)
@@ -316,3 +316,21 @@ risks:
           - tests/test_disease_review.py::test_a_direction_is_verified_as_a_claim_of_its_own
           - tests/test_disease_review.py::test_a_comparison_between_forms_of_the_disease_does_not_weigh_the_diagnosis
     status: controlled
+  - id: R22
+    hazard: A document of another patient, or no medical document, enters the case
+    situation: An attachment put in by mistake (another patient's report or series, a receipt, a letter not of the case) is read with the patient's documents
+    harm: Findings, values or images of another person enter the differential of this patient
+    severity: 4
+    probability: 2
+    controls:
+      - control: The identifiers each document writes (fiscal code, with the date of birth and sex it encodes; a labelled date of birth or name; a DICOM file's own patient fields) are compared with the patient's on this machine; another patient's document is kept out of the text, the laboratory rows, the images and the reading, and its question goes to a person; one identifier of the patient and one of another is a doubt shown to a person; only the outcome is kept, never an identifier
+        tests:
+          - tests/test_patient_check.py::test_the_identifiers_a_text_writes_are_compared_with_the_patients
+          - tests/test_patient_check.py::test_a_dicom_files_own_patient_fields_are_compared_before_they_are_removed
+          - tests/test_patient_check.py::test_another_patients_document_is_kept_out_of_the_case_and_its_question_goes_to_a_person
+          - tests/test_patient_check.py::test_another_patients_series_is_never_this_patients_study
+      - control: A document the router and its local model recognise as no kind of medical document is kept out and goes to a person; recognised by no cue with no model asked, it is read and a person is asked all the same
+        tests:
+          - tests/test_report_reading_sides.py::test_a_document_of_no_recognised_kind_goes_to_a_person_and_is_not_read_into_the_case
+    measured_by: tests only; a document that writes no identifier cannot be checked (most reports), and the review mask that shows the questions is not built yet
+    status: partial

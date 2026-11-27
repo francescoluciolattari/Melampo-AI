@@ -65,7 +65,10 @@ class ClinicalIngestionPipeline:
             if isinstance(item, dict)
         ]
         processor = self.document_processor or ClinicalDocumentProcessor.from_env()
-        bundle = process_case_attachments(items, processor=processor, router_chat=self.router_chat)
+        from .patient_check import Patient
+
+        bundle = process_case_attachments(items, processor=processor, router_chat=self.router_chat,
+                                          patient=Patient.from_payload(payload))
         prepared.pop("attachments")
         prepared[PHYSICIAN_NOTE_KEY] = str(payload.get("report_text", "") or "")
         prepared["report_text"] = bundle.combined_text(

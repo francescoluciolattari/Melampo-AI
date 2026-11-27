@@ -48,6 +48,7 @@ with a physician.
 | R19 | a code given before the readings are compared | no code on the card; only the agreed reading is coded, by the choice of every interpreter | controlled |
 | R20 | a patient's sentence enters the shared knowledge | only publications write the thesaurus; a patient's text only on this machine | controlled |
 | R21 | a weight of a profile from a misread number | one value per measure; weighs only when both interpreters read it; the judges verify numbers and direction | controlled |
+| R22 | a document of another patient, or no medical document, in the case | the identifiers each document writes compared with the patient's, on this machine; another patient's document kept out and its question to a person; a document of no recognised kind to a person | partial: a document without identifiers cannot be checked; the review mask is to build |
 
 ## 3. Software of unknown provenance and external models
 

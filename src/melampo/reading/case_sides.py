@@ -9,10 +9,9 @@ it are given to the cards here, so that nothing the anatomy reader did is lost:
    the comparison is then made here, with the number the sentence writes (never the models'), and the measure
    becomes a statement the case graph turns into a measurement (``case_graph_builder.add_measures``). Interpreters
    that choose differently leave the measure without a row, with the doubt kept and shown to a person;
-2. **the pathologist's summary** (``data.pathology_report``): the cards are placed in the report's sections; a
-   card of the clinical information is the question asked (``indication``), a card of the material is where the
-   sample comes from (``specimen``), neither is a current finding; TNM, grade, margins, nodes, invasion, markers
-   go to the card of the diagnosis they belong to (``data.pathology_findings.give_the_diagnosis``, the same rule);
+2. **the pathologist's summary** (``data.pathology_report``): TNM, grade, margins, nodes, invasion, markers go to
+   the card of the diagnosis they belong to (``data.pathology_findings.place_items``, the same rule); what a card of
+   the clinical information is (the question, a symptom) the card says itself, as in every text;
 3. **the image** (``imaging.findings.image_evidence``): an imaging report paired with its one volume gives each
    card with a structure the segmenters' reading of its sentence (VoxTell for the lesion, TotalSegmentator for the
    structure). Otherwise each card says why there is no image.
@@ -210,38 +209,31 @@ def compare_with_references(cards: list[dict], text: str, references: Any, ask: 
 # -- 2. the pathologist's summary ---------------------------------------------------------------------------
 
 
-def give_the_pathology(cards: list[dict], text: str, summary: dict) -> tuple[list[dict], dict]:
-    """The cards of a pathology report placed in its sections, with the diagnosis and its items given to the
-    cards of the diagnosis (``pathology_findings.give_the_diagnosis``, the rule of the reader before). A card of
-    the clinical information or of the material gets ``pathology_statement`` (indication, specimen) and is not a
-    current finding. Returns the statements of those cards and what stays with the report."""
-    from ..data.pathology_findings import _section, give_the_diagnosis
+def give_the_pathology(cards: list[dict], text: str, summary: dict) -> dict:
+    """The pathologist's diagnosis and its items (TNM, grade, margins, nodes, invasion, markers) given to the cards
+    of the diagnosis (``pathology_findings.place_items``, the rule of the reader before); every card gets its
+    section of the report (``pathology_section``). What a card of the clinical information is -- the question, a
+    symptom -- is said by the card itself (``part``, ``state``), as for every text: one interpreter, no rule of
+    its own for the pathology report (27 November 2026). Returns what stays with the report."""
+    from ..data.pathology_findings import _section, place_items
 
     sections = {k: list(v) for k, v in (summary.get("sections") or {}).items()}
     rows, specimen = [], []
     for n, card in enumerate(cards):
-        quote = str(card.get("quote") or "")
         start = position_of(card, text)     # the card's own words, after the section's heading ("Diagnosi:")
         if start < 0:
             continue
-        row = {"start": start, "mention": card.get("words") or card.get("name", ""),
-               "structure": card.get("site_code", ""), "clause": quote, "card": n}
-        rows.append(row)
+        rows.append({"start": start, "mention": card.get("words") or card.get("name", ""),
+                     "structure": card.get("site_code", ""), "clause": card.get("quote", ""), "card": n})
         if _section(sections, start) == "material" and card.get("site_code"):
-            specimen.append({"cid": card["site_code"]})
-    kept, statements, report = give_the_diagnosis(rows, [], text, summary, specimen)
-    for row in kept:
+            specimen.append({"cid": card["site_code"]})    # where the sample comes from, for a diagnosis without
+    placed, report = place_items(rows, text, summary, specimen)
+    for row in placed:
         card = cards[row["card"]]
         card["pathology_section"] = row["pathology_section"]
         if row.get("pathology"):
             card["pathology"] = row["pathology"]
-    placed = {(s["clause"], s["mention"]): s for s in statements}
-    for row in rows:
-        s = placed.get((row["clause"], row["mention"]))
-        if s is not None:
-            cards[row["card"]]["pathology_section"] = s["section"]
-            cards[row["card"]]["pathology_statement"] = s["statement"]
-    return statements, report
+    return report
 
 
 # -- 3. the image -----------------------------------------------------------------------------------------------
@@ -277,7 +269,7 @@ def image_of_cards(cards: list[dict], volume: dict | None, lesion_segmenter: Any
     """The image side of each card the image may show (``image``): the segmenters' reading of the card's sentence
     in the volume, with the checks of the reader before (``image_evidence``). Without a volume or segmenters
     the card says why. Returns how many cards were looked for in the image."""
-    from ..imaging.findings import NO_IMAGE, image_evidence, sizes_in_text
+    from ..imaging.findings import NO_IMAGE, image_evidence
     from ..imaging.segmenters import SegmenterUnavailable
     from ..memory.reference_values import measures_in
 
@@ -299,7 +291,7 @@ def image_of_cards(cards: list[dict], volume: dict | None, lesion_segmenter: Any
             got = [m for m in measures_in(f"{float(value['number']):g} {value['unit']}") if m["unit"] == "mm"]
             size = got[0]["value"] if got else None
         if size is None:
-            size = max((s["largest_mm"] for s in sizes_in_text(quote)), default=None)
+            size = max((m["value"] for m in measures_in(quote) if m["unit"] == "mm"), default=None)
         try:
             seg = lesion_segmenter.segment(array, affine, [quote])[0]
             if not asked and organ_segmenter is not None and hasattr(organ_segmenter, "all_structures"):

@@ -104,14 +104,16 @@ PATHOLOGY = ("Materiale: biopsia del colon.\n"
              "Diagnosi: adenocarcinoma moderatamente differenziato (G2) del colon, pT3 pN1a, margini indenni.\n")
 PATHOLOGY_CARDS = [
     base(words="sospetta neoplasia del fegato", name="liver neoplasm", what="neoplasm", site="fegato",
-         state="uncertain", observed_by="history", quote="sospetta neoplasia del fegato, anemia."),
+         state="uncertain", observed_by="history", part="indication", quote="sospetta neoplasia del fegato, anemia."),
+    base(words="anemia", name="anemia", what="anemia", observed_by="history", part="indication",
+         quote="sospetta neoplasia del fegato, anemia."),
     base(words="adenocarcinoma moderatamente differenziato (G2) del colon", name="colon adenocarcinoma",
-         what="adenocarcinoma", site="colon", observed_by="histopathology",
+         what="adenocarcinoma", site="colon", observed_by="histopathology", part="impression",
          quote="adenocarcinoma moderatamente differenziato (G2) del colon, pT3 pN1a, margini indenni."),
 ]
 
 
-def test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clinical_information_is_the_question(
+def test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clinical_information_is_read_as_any_text(
         linker):
     attachment = SimpleNamespace(index=1, text=PATHOLOGY, pathology={},
                                  routing={"kinds": ["pathology_report"], "interpreters": ["pathology"]})
@@ -123,12 +125,17 @@ def test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clin
     assert colon["pathology_section"] == "diagnosis"
     items = {i["kind"]: i["text"] for i in colon["pathology"]["items"]}
     assert items["tnm"] == "pT3 pN1a" and items["grade"] == "G2" and items["margin"] == "margini indenni"
-    assert by["liver neoplasm"]["pathology_statement"] == "indication"     # the question asked, not a finding
-    assert [s["statement"] for s in reading["statements"]] == ["indication"]
-    assert [f["name"] for f in reading["findings"]] == ["colon adenocarcinoma"]
+    # the same interpreter as every text: the suspicion of the clinical information is the question, a hypothesis;
+    # the anemia it states is the patient's
+    assert [s["name"] for s in reading["statements"] if s["statement"] == "indication"] == ["liver neoplasm"]
+    assert sorted(f["name"] for f in reading["findings"]) == ["anemia", "colon adenocarcinoma"]
+    assert by["anemia"]["pathology_section"] == "clinical" and "pathology" not in by["anemia"]
     graph = cg.CaseGraph(case_id="c1")
-    [finding], _ = add_cards(graph, "attachment-1", PATHOLOGY, reading["texts"][0]["cards"], kind="pathology")
-    assert finding.site == "colon" and finding.details["pathology"]["items"]
+    found, _ = add_cards(graph, "attachment-1", PATHOLOGY, reading["texts"][0]["cards"], kind="pathology")
+    colon = next(f for f in found if f.details["name"] == "colon adenocarcinoma")
+    assert colon.site == "colon" and colon.details["pathology"]["items"]
+    assert [d.words for d in graph.diseases if d.branch == cg.HYPOTHESIZED_DISEASES] == [
+        "sospetta neoplasia del fegato"]
     json.dumps(reading)
 
 
@@ -228,7 +235,8 @@ def test_what_the_requester_suspects_is_the_question_a_hypothesis_never_a_curren
     found, _ = add_cards(graph, "note", CT, reading["texts"][0]["cards"])
     assert {f.details["name"] for f in found} == {"right lower quadrant pain", "thickened appendix"}
     [hypothesis] = [d for d in graph.diseases if d.branch == cg.HYPOTHESIZED_DISEASES]
-    assert hypothesis.words.startswith("QUESITO: sospetta appendicite") and hypothesis.status_words == "indication"
+    assert hypothesis.words == "sospetta appendicite acuta" and hypothesis.status_words == "indication"
+    assert CT[hypothesis.provenance.start:].startswith("sospetta appendicite acuta")
 
 
 def test_a_part_the_heading_contradicts_is_a_doubt_kept_in_the_path(linker):
@@ -285,9 +293,12 @@ def test_a_row_of_a_letter_the_laboratory_extractor_read_enters_the_case_once(li
 
 def test_a_document_of_no_recognised_kind_goes_to_a_person_and_is_not_read_into_the_case(linker):
     stray = SimpleNamespace(index=2, text="Ricevuta di pagamento n. 123, importo 40 euro.", routing={
-        "kinds": ["clinical_note"], "interpreters": ["narrative_reader", "lab_table"],
+        "kinds": ["clinical_note"], "interpreters": ["narrative_reader", "lab_table"], "model_kinds": ["other"],
         "notes": ["no_kind_recognised_read_as_narrative"]})
     reading = ReportReaders(linker, interpreters={"a": interpreter([])}).read("c1", "", SimpleNamespace(
         attachments=[stray], imaging_studies=list))
     assert reading["texts"][0]["reason"] == "kind_not_recognised"
-    assert reading["to_a_person"][0]["reason"].startswith("kind_not_recognised")
+    assert reading["to_a_person"][0]["reason"] == "document_set_aside:kind_not_recognised"
+    [question] = reading["questions"]
+    assert question["kind"] == "document:kind_not_recognised" and {o["code"] for o in question["options"]} >= {
+        "this_patient", "another_patient", "not_medical", "not_pertinent"}

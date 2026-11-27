@@ -47,6 +47,7 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | R19 | un codice dato prima di confrontare le letture | nessun codice sulla scheda; si codifica solo la lettura concordata, per scelta di ogni interprete | controllato |
 | R20 | la frase di un paziente entra nella conoscenza condivisa | solo le pubblicazioni scrivono il tesauro; il testo di un paziente solo su questa macchina | controllato |
 | R21 | un peso di un profilo da un numero letto male | un solo valore per misura; pesa solo se letto da entrambi gli interpreti; i giudici verificano numeri e direzione | controllato |
+| R22 | un documento di un altro paziente, o non medico, nel caso | gli identificativi scritti in ogni documento confrontati con quelli del paziente, su questa macchina; il documento di un altro paziente tenuto fuori e la sua domanda a una persona; un documento di nessun tipo riconosciuto a una persona | parziale: un documento senza identificativi non si può controllare; la maschera di revisione è da costruire |
 
 ## 3. Software di terze parti e modelli esterni
 

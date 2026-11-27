@@ -60,8 +60,6 @@ def give_the_diagnosis(rows: list[dict[str, Any]], statements: list[dict[str, An
     ``rows``: the findings of the report (``Finding.as_row``, with ``start``); ``specimen_sites``: the sites the
     linker read as the examined structure ("biopsy of the sigmoid colon"), for a diagnosis that names none."""
     sections = {k: list(v) for k, v in (pathology.get("sections") or {}).items()}
-    span = pathology.get("diagnosis_span")
-    report: dict[str, Any] = {"diagnosis": pathology.get("diagnosis", ""), "unplaced": []}
     kept, added = [], []
     for row in rows:
         where = _section(sections, int(row.get("start", -1)))
@@ -69,7 +67,21 @@ def give_the_diagnosis(rows: list[dict[str, Any]], statements: list[dict[str, An
             added.append({"mention": row["mention"], "structure": row["structure"], "clause": row["clause"],
                           "statement": _NOT_A_FINDING[where], "section": where})
             continue
-        kept.append({**row, "pathology_section": where})
+        kept.append(row)
+    out, report = place_items(kept, text, pathology, specimen_sites)
+    return out, statements + added, report
+
+
+def place_items(rows: list[dict[str, Any]], text: str, pathology: dict[str, Any],
+                specimen_sites: list[dict[str, Any]] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The pathologist's diagnosis and its items (TNM, grade, margins, nodes, invasion, markers) given to the
+    findings of the diagnosis, by the rules above; every finding gets its section (``pathology_section``). The one
+    rule for both readers: what a finding of the clinical information is (the question, a symptom) is the
+    reader's to say (``give_the_diagnosis`` for the reader before; the card's ``part`` in the one procedure)."""
+    sections = {k: list(v) for k, v in (pathology.get("sections") or {}).items()}
+    span = pathology.get("diagnosis_span")
+    report: dict[str, Any] = {"diagnosis": pathology.get("diagnosis", ""), "unplaced": []}
+    kept = [{**row, "pathology_section": _section(sections, int(row.get("start", -1)))} for row in rows]
     in_diagnosis = [r for r in kept if span and span[0] <= int(r.get("start", -1)) < span[1]]
     specimen = None
     if span and not in_diagnosis and specimen_sites:
@@ -108,7 +120,7 @@ def give_the_diagnosis(rows: list[dict[str, Any]], statements: list[dict[str, An
             r = {**r, "pathology": {"diagnosis": text[lo:_line(text, int(r["start"]))[1]].strip(),
                                     "items": pathology_of[id(r)]}}
         out.append(r)
-    return out, statements + added, report
+    return out, report
 
 
-__all__ = ["INDICATION", "SPECIMEN", "give_the_diagnosis"]
+__all__ = ["INDICATION", "SPECIMEN", "give_the_diagnosis", "place_items"]
