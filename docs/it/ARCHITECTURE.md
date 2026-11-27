@@ -72,12 +72,12 @@ etichetta confermata).
 | Lettore Kintsch | `memory/ci_reader.py`, `memory/spatial_relation.py` | funziona; il secondo stadio legge il ruolo di riferimento |
 | Finding owner | `memory/finding_owner.py` | il lettore precedente alla procedura unica (`MELAMPO_REPORT_READER=anatomy`), tenuto per misurare il cambiamento; fino al 25 novembre 2026: per affermazioni, accesa di default dal 14 novembre 2026 (`MELAMPO_OWNER_QUESTION=owner` per la domanda v1). Lettori scelti per misura: Nemotron 3 Ultra e Muse Spark Open, entrambi con ragionamento, l'incertezza letta da Muse (ctrate9: 0 errori, 3 dubbi su 293 item); Gemma 4 31B è un'opzione (vedi "Lettori locali" sotto) |
 | Ciò che sa il lettore | `memory/what_is_said.py` | anomalie da HPO e PATO, testa del sintagma, negazione, coordinazione |
-| Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | funziona: valori di riferimento con le fonti; ai modelli vanno solo le righe le cui parole sono state trovate sulla pagina (`verified`), una riga le cui parole non dicono ciò che dice la riga è `doubt`; il lettore ricalcola il confronto della riga citata, e la misura entra nel grafo del caso come valore con la sua riga (`add_measures`), così "milza 15 cm" rende presente la splenomegalia (20 novembre 2026); la procedura unica non confronta ancora la misura di una scheda con le righe |
-| Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | solo nel lettore precedente (non ancora nella procedura unica): la diagnosi con TNM, grado, margini, linfonodi e marcatori sul suo reperto; le notizie cliniche sono il quesito |
+| Biblioteca di riferimento | `memory/reference_values.py`, `data/reference/` | funziona: valori di riferimento con le fonti; ai modelli vanno solo le righe le cui parole sono state trovate sulla pagina (`verified`), una riga le cui parole non dicono ciò che dice la riga è `doubt`; il lettore ricalcola il confronto della riga citata, e la misura entra nel grafo del caso come valore con la sua riga (`add_measures`), così "milza 15 cm" rende presente la splenomegalia (20 novembre 2026). Nella procedura unica (27 novembre 2026, `reading/case_sides.py`): una scheda con una struttura e un valore scritto nella frase è mostrata a ogni interprete con le righe verificate della sua struttura, esame e unità, una domanda per documento; la riga conta solo se ogni interprete la sceglie, il confronto è fatto con il numero della frase, e interpreti che scelgono diversamente lasciano la misura senza riga, con il dubbio per una persona |
+| Diagnosi di anatomia patologica al suo reperto | `data/pathology_findings.py` | funziona in entrambi i lettori (nella procedura unica dal 27 novembre 2026, `reading/case_sides.py`, stessa regola): la diagnosi con TNM, grado, margini, linfonodi e marcatori sulla sua scheda; una scheda delle notizie cliniche è il quesito, una del materiale è il campione, nessuna delle due un reperto attuale |
 | Indice delle fonti | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | funziona: letteratura, trattati e documentazione che Melampo legge, come si raggiunge ciascuna e con quale licenza; una maschera su questo computer per aggiungere, modificare e rimuovere le fonti, attivarle per i profili delle malattie e aggiungere PDF; una ricerca settimanale aggiunge documenti candidati; le righe dei riferimenti sono verificate dalle loro parole trovate sulle loro pagine |
 | Sezioni del referto | `memory/report_sections.py` | costruito: indicazione, storia, confronto, tecnica, reperti, conclusioni (le sezioni LOINC dei referti); le conclusioni e la frase precedente date come contesto |
 | Domanda per una persona | `memory/review_question.py` | funziona; nella lettura del caso come `questions` |
-| Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | solo nel lettore precedente (non ancora nella procedura unica); funziona quando volume e segmentatori sono configurati |
+| Interprete d'immagine | `imaging/interpreter.py`, `imaging/segmenters.py` | funziona quando volume e segmentatori sono configurati; nella procedura unica (27 novembre 2026) ogni scheda del referto d'immagine appaiato al suo unico volume è cercata con la sua frase (VoxTell) nella sua struttura (TotalSegmentator), con gli stessi controlli; altrimenti ogni scheda dice perché non c'è immagine |
 | Reperto → termine HPO | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | solo prove (90% sicuro, soglia 95%); sostituito dai codici dopo l'accordo |
 | Grafo dei concetti | `memory/falkordb_graph.py`, `memory/concept_paths.py` | funziona, 636.733 archi verificati |
 | Memory retriever | `memory/retriever.py` | **difetto**: inventa prove quando la memoria è vuota |
@@ -173,9 +173,12 @@ novembre 2026, dopo il settimo run: 270 seconde letture senza categoria erano st
 I referti sono passati subito alla procedura unica, per decisione del proprietario del 25 novembre 2026
 (`MELAMPO_REPORT_READER`, predefinito `one`); il lettore precedente (`anatomy`: il lessico, il lettore di Kintsch,
 le affermazioni, l'interprete delle immagini) resta solo per misurare il cambiamento sugli stessi banchi. Fino a
-quella misura, i tassi d'errore della tabella sopra sono del lettore precedente, non della procedura unica. Non
-ancora nella procedura unica: il lato immagine di un reperto (VoxTell e TotalSegmentator, appaiati alla lettura
-precedente) e il riassunto del patologo (TNM, grado, margini), che il lettore precedente dava ai suoi reperti.
+quella misura, i tassi d'errore della tabella sopra sono del lettore precedente, non della procedura unica. Ciò
+che il lettore precedente dava ai suoi reperti è dato alle schede concordate dal 27 novembre 2026
+(`reading/case_sides.py`), senza rileggere il testo: la riga della libreria dei riferimenti con cui si confronta una
+misura (scelta da ogni interprete, confrontata qui), il riassunto del patologo (TNM, grado, margini alla scheda della
+diagnosi) e il lato immagine (VoxTell e TotalSegmentator, quando il referto è appaiato al suo unico volume). Provati
+solo con interpreti fittizi; il banco di dicembre 2026 li misura con quelli veri.
 
 ## 4. Modello dei dati e interoperabilità
 

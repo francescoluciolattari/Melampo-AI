@@ -76,7 +76,8 @@ def choice_prompt(context: str, items: list[tuple[dict, list[str]]]) -> str:
             "Answer only JSON: [{\"item\": 1, \"same\": the number of the candidate, or null when none is}, ...]")
 
 
-def read_choices(answer: str, sizes: list[int]) -> dict[int, int | None]:
+def read_choices(answer: str, sizes: list[int], key: str = "same") -> dict[int, int | None]:
+    """Each item's chosen number (``key``), or None; an item answered twice keeps its first answer."""
     text = re.sub(r"<think>.*?</think>", "", answer or "", flags=re.S)
     m = re.search(r"\[.*\]", text, re.S)
     try:
@@ -93,7 +94,7 @@ def read_choices(answer: str, sizes: list[int]) -> dict[int, int | None]:
             continue
         if not 0 <= i < len(sizes) or i in out:
             continue
-        k = row.get("same")
+        k = row.get(key)
         out[i] = int(k) if isinstance(k, int) and 1 <= k <= sizes[i] else None
     return out
 

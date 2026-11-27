@@ -284,9 +284,9 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
 
 ## 6. Limiti noti
 
-- La procedura unica di lettura legge i referti di default e non è ancora misurata (R18). Non vi sono ancora: il
-  lato immagine di un reperto, il riassunto del patologo dato ai suoi reperti, e il confronto della misura di una
-  scheda con le righe di riferimento (R16).
+- La procedura unica di lettura legge i referti di default e non è ancora misurata (R18). Il lato immagine di una
+  scheda, il riassunto del patologo dato alle sue schede e il confronto della misura di una scheda con le righe di
+  riferimento (R16) vi sono dal 27 novembre 2026, verificati solo da test con interpreti fittizi.
 - I pesi dei profili delle malattie sono pochi: 6 manifestazioni su 79 dell'appendicite acuta con un'accuratezza
   misurata; i numeri dei segni stanno spesso nei testi in abbonamento e nei trattati, non ancora tra le fonti.
 - Tutte le etichette finora sono di un solo etichettatore; le etichette "?" e gli elenchi dei reperti di un'altra

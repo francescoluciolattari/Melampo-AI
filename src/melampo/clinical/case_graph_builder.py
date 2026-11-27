@@ -114,7 +114,10 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
     the one given afterwards (HPO, or a concept of the thesaurus), its site the lexicon's class when there is one.
     A card the interpreters did not agree on (a field read differently, a card read by one alone) is a finding
     stated with uncertainty: principle of doubt, kept and never decided here. A family member's finding is not
-    the patient's: it is left out, and said."""
+    the patient's: it is left out, and said. A card of a pathology report's clinical information or material is
+    not a finding; the diagnosis's items (TNM, grade, margins), the row of the library a measure was compared with
+    and the image side stay in the finding's details (``reading.case_sides``, 27 November 2026); the measure
+    itself becomes a measurement (``add_measures``)."""
     add_document(graph, document_id, kind, title=title or _first_line(text), date=date, modality=modality,
                  exam_areas=exam_areas)
     out, notes = [], []
@@ -123,6 +126,10 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
             continue
         if card.get("subject") == "family_member":
             notes.append(f"{document_id}: {card.get('name')!r} is a family member's finding, not the patient's")
+            continue
+        if card.get("pathology_statement"):
+            # the clinical information or the material of a pathology report: the question asked, or where the
+            # sample comes from, not a current finding (27 November 2026)
             continue
         quote = str(card.get("quote") or "")
         start = text.find(quote) if quote else -1
@@ -135,7 +142,8 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
         if code:
             found = cg.Concept("HPO" if code.startswith("HP:") else "MELAMPO", code, card.get("name", ""))
         details = {k: card[k] for k in ("name", "what", "interpretation", "value", "threshold", "side", "time",
-                                        "observed_by", "paired_by") if card.get(k)}
+                                        "observed_by", "paired_by", "reference", "pathology", "pathology_section",
+                                        "image") if card.get(k)}
         if doubts:
             details["doubts"] = doubts
         finding = cg.Finding(

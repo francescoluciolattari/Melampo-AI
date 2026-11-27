@@ -71,12 +71,12 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Kintsch reader | `memory/ci_reader.py`, `memory/spatial_relation.py` | working; second stage reads the landmark role |
 | Finding owner | `memory/finding_owner.py` | the reader before the one procedure (`MELAMPO_REPORT_READER=anatomy`), kept to measure the change; until 25 November 2026: claim by claim, on by default since 14 November 2026 (`MELAMPO_OWNER_QUESTION=owner` for question v1). Readers chosen by measure: Nemotron 3 Ultra and Muse Spark Open, both with reasoning, the uncertainty read from Muse (ctrate9: 0 errors, 3 doubts in 293 items); Gemma 4 31B is an option (see "Local readers" below) |
 | What the reader knows | `memory/what_is_said.py` | abnormalities from HPO and PATO, phrase heads, negation, coordination |
-| Reference library | `memory/reference_values.py`, `data/reference/` | working: reference values with their sources; only rows whose words were found on their page (`verified`) are given to the models, a row whose words do not say what it says is `doubt`; the reader recomputes the comparison of the cited row, and the measure enters the graph of the case as a value with its row (`add_measures`), so that "spleen 15 cm" makes Splenomegaly present (20 November 2026); the one procedure does not compare a card's measure with the rows yet |
-| Pathology diagnosis to its finding | `data/pathology_findings.py` | in the reader before only (not yet in the one procedure): the diagnosis with its TNM, grade, margins, nodes and markers on its finding; the clinical information is the question |
+| Reference library | `memory/reference_values.py`, `data/reference/` | working: reference values with their sources; only rows whose words were found on their page (`verified`) are given to the models, a row whose words do not say what it says is `doubt`; the reader recomputes the comparison of the cited row, and the measure enters the graph of the case as a value with its row (`add_measures`), so that "spleen 15 cm" makes Splenomegaly present (20 November 2026). In the one procedure (27 November 2026, `reading/case_sides.py`): a card with a structure and a value the sentence writes is shown with the verified rows of its structure, exam and unit to every interpreter, one question per document; the row counts only when every interpreter chooses it, the comparison is made with the sentence's number, and interpreters that choose differently leave the measure without a row, with the doubt for a person |
+| Pathology diagnosis to its finding | `data/pathology_findings.py` | working in both readers (the one procedure since 27 November 2026, `reading/case_sides.py`, the same rule): the diagnosis with its TNM, grade, margins, nodes and markers on its card; a card of the clinical information is the question, a card of the material is the specimen, neither a current finding |
 | Index of the sources | `memory/sources_index.py`, `data/reference/sources.yml`, `scripts/sources_mask.py` | working: the literature, textbooks and documentation Melampo reads, how each is reached and under which licence; a mask on this computer to add, edit and remove sources, switch them on for the disease profiles and add PDFs; a weekly search adds candidate documents; the reference rows are verified by their words found on their pages |
 | Sections of the report | `memory/report_sections.py` | built: indication, history, comparison, technique, findings, impression (the LOINC report sections); the conclusion and the sentence before given as context |
 | Question for a person | `memory/review_question.py` | working; shown in the case reading as `questions` |
-| Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | in the reader before only (not yet in the one procedure); working when a volume and the segmenters are configured |
+| Image interpreter | `imaging/interpreter.py`, `imaging/segmenters.py` | working when a volume and the segmenters are configured; in the one procedure (27 November 2026) each card of the imaging report paired with its one volume is looked for with its sentence (VoxTell) in its structure (TotalSegmentator), with the same checks; otherwise each card says why there is no image |
 | Finding → HPO term | `memory/hpo_candidates.py`, `scripts/hpo_probe.py` | probes only (90% safe, threshold 95%); replaced by the codes after agreement |
 | Concept graph | `memory/falkordb_graph.py`, `memory/concept_paths.py` | working, 636,733 verified edges |
 | Memory retriever | `memory/retriever.py` | **defect**: invents evidence when the memory is empty |
@@ -167,9 +167,12 @@ the seventh run: 270 second readings without a category had been dropped as a di
 The reports were moved to the one procedure at once, by the owner's decision of 25 November 2026
 (`MELAMPO_REPORT_READER`, default `one`); the reader before it (`anatomy`: the lexicon, the Kintsch reader, the
 claims, the imaging interpreter) is kept only to measure the change on the same benches. Until that measure, the
-error rates in the table above are the reader's before, not the one procedure's. Not yet in the one procedure:
-the image side of a finding (VoxTell and TotalSegmentator, paired with the reading before) and the pathologist's
-summary (TNM, grade, margins), which the reader before gave to its findings.
+error rates in the table above are the reader's before, not the one procedure's. What the reader before gave its
+findings is given to the agreed cards since 27 November 2026 (`reading/case_sides.py`), without reading the text
+again: the row of the reference library a measure is compared with (chosen by every interpreter, compared here),
+the pathologist's summary (TNM, grade, margins to the card of the diagnosis) and the image side (VoxTell and
+TotalSegmentator, when the report is paired with its one volume). Measured with stand-in interpreters only; the
+bench of December 2026 measures them with the real ones.
 
 ## 4. Data model and interoperability
 

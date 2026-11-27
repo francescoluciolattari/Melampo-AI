@@ -189,7 +189,12 @@ risks:
       - control: Every reference row has its source, licence and status; only reviewed rows are for clinical use
         tests:
           - tests/test_reference_values.py::test_every_row_of_the_table_has_its_source_and_a_status
-    measured_by: owner-probe, measures compared with a reference (VALIDATION.md); with the one procedure of reading (25 November 2026) the measures of a card are not yet compared with the rows
+      - control: In the one procedure (27 November 2026) a card's measure is compared with a row only when every interpreter chooses the same row and the sentence writes the number; the comparison is made by the reader, and a row chosen differently is a doubt for a person
+        tests:
+          - tests/test_report_reading_sides.py::test_a_measure_both_interpreters_compare_with_one_row_becomes_a_measurement_of_the_library
+          - tests/test_report_reading_sides.py::test_interpreters_that_choose_different_rows_leave_the_measure_without_one_and_say_so
+          - tests/test_report_reading_sides.py::test_a_number_the_sentence_does_not_write_is_never_compared
+    measured_by: owner-probe, measures compared with a reference (VALIDATION.md); the one procedure's comparison with stand-in interpreters only, to be measured on the bench of December 2026
     status: partial
   - id: R17
     hazard: The referral's question or the clinical history is read as a current finding
@@ -252,6 +257,11 @@ risks:
       - control: The reader before the one procedure is kept (MELAMPO_REPORT_READER=anatomy) to measure the change on the same benches, with criteria fixed before the run
         tests:
           - tests/test_report_reading.py::test_the_physician_note_is_read_sites_and_findings_on_the_text
+      - control: What the reader before gave its findings is given to the agreed cards without reading the text again (27 November 2026) -- the pathologist's items to the card of the diagnosis, the clinical information and the material not current findings, the image side only for a report paired with its one volume
+        tests:
+          - tests/test_report_reading_sides.py::test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clinical_information_is_the_question
+          - tests/test_report_reading_sides.py::test_the_exam_paired_with_its_report_gives_the_card_its_image_in_the_ingestion
+          - tests/test_report_reading_sides.py::test_without_an_exam_each_card_says_why_there_is_no_image
     measured_by: the bench of the one procedure on the reports (VALIDATION.md, to run)
     status: partial
   - id: R19

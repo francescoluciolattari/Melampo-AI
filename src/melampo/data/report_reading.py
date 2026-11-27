@@ -267,6 +267,7 @@ class ReportReaders:
     hpo: Any = None
     thesaurus: Any = None
     reader: str = ONE
+    references: Any = None   # reference_values.ReferenceValues: what a card's measure is compared with
 
     @classmethod
     def from_env(cls) -> ReportReaders:
@@ -317,7 +318,15 @@ class ReportReaders:
             notes.append("report_reader:one")
         else:
             notes.append("report_reader:anatomy")
-        return cls(linker, lesion, organ, tuple(notes), owner, interpreters, hpo, thesaurus, reader)
+        references = None
+        if reader == ONE:
+            from ..memory.reference_values import ReferenceValues
+
+            try:
+                references = ReferenceValues.load()
+            except Exception as error:  # noqa: BLE001 -- without the library a measure is only a measure
+                notes.append(f"references_unavailable:{type(error).__name__}")
+        return cls(linker, lesion, organ, tuple(notes), owner, interpreters, hpo, thesaurus, reader, references)
 
     # -- the narrative ---------------------------------------------------------------------------------------
     def read_sites(self, text: str, report_id: str) -> dict[str, Any]:
@@ -396,6 +405,11 @@ class ReportReaders:
         ``case``): the same card, interpreters and comparison as for the publications; the interpreters only on
         this machine."""
         from ..reading import read_text
+        from ..reading.case_sides import (
+            compare_with_references,
+            give_the_pathology,
+            image_of_cards,
+        )
         from .report_router import route
 
         out: dict[str, Any] = {"readers": list(self.notes), "procedure": ONE, "texts": [], "findings": [],
@@ -414,6 +428,10 @@ class ReportReaders:
                 out["to_a_person"].append({"report": source_id, "mention": "", "reason":
                                            "not read: no interpreter on this machine (MELAMPO_LOCAL_CHAT_MODELS)"})
             return out
+        pathologies = {f"attachment-{a.index}": dict(getattr(a, "pathology", {}) or {})
+                       for a in getattr(bundle, "attachments", ()) or ()}
+        imaging_reports = [s for s in sources if IMAGING_KIND in (s[2].get("kinds") or ())]
+        paired, why = _pair(imaging_reports, _usable_volumes(bundle))
         for source_id, text, routing in sources:
             try:
                 got = read_text([("", text)], "case", self.interpreters, hpo=self.hpo, thesaurus=self.thesaurus)
@@ -428,19 +446,51 @@ class ReportReaders:
                 card.pop("readings", None)       # each interpreter's card: kept in the counts, not in the case
                 card["site_code"] = self.site_code(card.get("site") or "")
                 cards.append(card)
-            out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": True,
-                                 "procedure": ONE, "language": _language(text), "cards": cards,
-                                 "format": got["format"], "not_read_by": got["not_read"],
-                                 "questions": len(got["asked"]), "status": got["status"]})
+            language = _language(text)
+            entry = {"report": source_id, "kinds": routing.get("kinds"), "read": True, "procedure": ONE,
+                     "language": language, "cards": cards, "format": got["format"],
+                     "not_read_by": got["not_read"], "questions": len(got["asked"]), "status": got["status"]}
+            out["texts"].append(entry)
+            # what the reader before gave its findings, given to the agreed cards (27 November 2026):
+            # the reference library, the pathologist's summary, the image
+            ask = (lambda name, question: self.interpreters[name](question))
+            measured, doubted = compare_with_references(cards, text, self.references, ask, list(self.interpreters),
+                                                        report=source_id, asked=got["asked"])
+            out["statements"] += measured
+            out["to_a_person"] += doubted
+            if "pathology" in (routing.get("interpreters") or ()):
+                from .pathology_report import read_pathology
+
+                summary = pathologies.get(source_id) or read_pathology(text, language).summary()
+                stated, entry["pathology"] = give_the_pathology(cards, text, summary)
+                out["statements"] += [{**x, "report": source_id} for x in stated]
+            volume, reason = None, "not_an_imaging_report"
+            if IMAGING_KIND in (routing.get("kinds") or ()):
+                reason = why
+                if paired is not None and paired[0] == source_id:
+                    volume = _load(paired[1])
+                    if isinstance(volume, str):
+                        reason, volume = volume, None
+                if volume is not None and self.lesion_segmenter is None:
+                    reason = "segmenters_not_configured"
+            entry["image"] = {"looked_for": image_of_cards(cards, volume, self.lesion_segmenter,
+                                                           self.organ_segmenter, reason),
+                              "why_not": "" if volume is not None and self.lesion_segmenter is not None else reason}
             for card in cards:
                 if card["doubts"]:
                     out["to_a_person"].append({"report": source_id, "mention": card.get("words") or card["name"],
                                                "reason": "doubt:" + ",".join(card["doubts"]),
                                                "clause": card.get("quote", "")})
-                if card.get("category") == "manifestation":
+                if (card.get("image") or {}).get("review"):
+                    out["to_a_person"].append({"report": source_id, "mention": card.get("words") or card["name"],
+                                               "reason": ",".join(card["image"]["review"]),
+                                               "clause": card.get("quote", "")})
+                if card.get("category") == "manifestation" and not card.get("pathology_statement"):
                     out["findings"].append({"report": source_id, "structure": card["site_code"],
                                             "clause": card.get("quote", ""), "mention": card.get("words", ""),
-                                            "name": card.get("name", ""), "state": card.get("state")})
+                                            "name": card.get("name", ""), "state": card.get("state"),
+                                            **{k: card[k] for k in ("reference", "pathology", "image")
+                                               if card.get(k)}})
         out["status"] = "read"
         return out
 
