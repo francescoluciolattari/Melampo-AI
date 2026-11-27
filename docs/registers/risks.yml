@@ -262,6 +262,15 @@ risks:
           - tests/test_report_reading_sides.py::test_the_pathologists_diagnosis_takes_its_tnm_grade_and_margins_and_the_clinical_information_is_the_question
           - tests/test_report_reading_sides.py::test_the_exam_paired_with_its_report_gives_the_card_its_image_in_the_ingestion
           - tests/test_report_reading_sides.py::test_without_an_exam_each_card_says_why_there_is_no_image
+      - control: Each card says the part of the document its sentence is in, read on the whole document by both interpreters; the report's headings check it; a suspicion of the question asked is a hypothesis of the requester, never a current finding (claims4)
+        tests:
+          - tests/test_report_reading_sides.py::test_what_the_requester_suspects_is_the_question_a_hypothesis_never_a_current_finding
+          - tests/test_report_reading_sides.py::test_a_part_the_heading_contradicts_is_a_doubt_kept_in_the_path
+      - control: The one procedure follows the router -- a document only for the laboratory extractor is not read again, a row the extractor read enters the case once, a document of no recognised kind goes to a person and is not read into the case
+        tests:
+          - tests/test_report_reading_sides.py::test_a_document_the_router_gives_only_to_the_laboratory_extractor_is_not_read_again
+          - tests/test_report_reading_sides.py::test_a_row_of_a_letter_the_laboratory_extractor_read_enters_the_case_once
+          - tests/test_report_reading_sides.py::test_a_document_of_no_recognised_kind_goes_to_a_person_and_is_not_read_into_the_case
     measured_by: the bench of the one procedure on the reports (VALIDATION.md, to run)
     status: partial
   - id: R19

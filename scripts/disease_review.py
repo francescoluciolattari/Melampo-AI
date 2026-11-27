@@ -195,7 +195,7 @@ def screen_prompt(disease: str, record: dict) -> str:
             'or another disease.\nAnswer only JSON: {"about": "yes"} or {"about": "no"}.')
 
 
-READING = "r5"         # the one procedure of reading (25 November 2026): the same card as a patient's report
+READING = "r6"         # the one procedure of reading: the same card as a patient's report; r6 (27 November 2026): the part of the document
 
 
 def judge_prompt(disease: str, item: dict) -> str:

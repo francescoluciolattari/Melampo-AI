@@ -32,7 +32,7 @@ REPORT = "Paziente con dolore in fossa iliaca destra. PCR 52 mg/L, elevata. Non 
 def card(**kw):
     base = {"words": "", "name": "", "category": "manifestation", "specific": True, "what": "",
             "interpretation": "present", "value": None, "threshold": None, "site": "", "side": "",
-            "observed_by": "laboratory", "time": "", "nature": "pathological", "state": "present",
+            "observed_by": "laboratory", "time": "", "nature": "pathological", "part": "findings", "state": "present",
             "temporality": "current", "subject": "patient", "quote": ""}
     return {**base, **kw}
 

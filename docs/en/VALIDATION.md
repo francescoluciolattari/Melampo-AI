@@ -275,7 +275,8 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
 
 - The one procedure of reading reads the reports by default and is not measured yet (R18). The image side of a
   card, the pathologist's summary given to its cards and the comparison of a card's measure with the reference
-  rows (R16) are in it since 27 November 2026, verified by tests with stand-in interpreters only.
+  rows (R16) are in it since 27 November 2026, with the part of the document of each card and the router's choice,
+  verified by tests with stand-in interpreters only. Not yet checked: that a document belongs to this patient.
 - The weights of the disease profiles are few: 6 of 79 manifestations of acute appendicitis with a measured
   accuracy; the numbers of the signs are often in subscription texts and in textbooks not yet among the sources.
 - All labels so far are one labeller's; the "?" labels and the lists of findings of another structure wait for a

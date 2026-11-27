@@ -17,6 +17,10 @@ it are given to the cards here, so that nothing the anatomy reader did is lost:
    card with a structure the segmenters' reading of its sentence (VoxTell for the lesion, TotalSegmentator for the
    structure). Otherwise each card says why there is no image.
 
+Before them (27 November 2026): the part of the document each card's sentence is in, read by the interpreters on
+the whole document, is checked with the headings the report writes (``check_parts``); a card the laboratory
+extractor already read as a row is marked and enters the case once (``mark_read_by_the_laboratory``).
+
 Nothing here reads the text again or names a finding: it only places the agreed cards.
 """
 
@@ -28,6 +32,71 @@ from typing import Any
 
 from .agreement import described
 from .normalize import read_choices
+
+# -- 0. the part of the document, and the lines the laboratory extractor reads -------------------------------
+
+BEFORE_THE_EXAM = ("indication", "history", "comparison", "technique")
+
+
+def position_of(card: dict, text: str) -> int:
+    """Where the card's own words are in the text (the sentence's start when they are not in it), or -1."""
+    quote = str(card.get("quote") or "")
+    start = text.find(quote) if quote else -1
+    words = str(card.get("words") or "")
+    if start >= 0 and words and words in quote:
+        start += quote.find(words)
+    return start
+
+
+def check_parts(cards: list[dict], text: str) -> int:
+    """The headings the report writes check the part the interpreters read (``memory.report_sections``, as the
+    deterministic cues check the router's model): a card whose heading says another part keeps both, with the
+    doubt ``part_differs_from_heading``; a sentence under no heading of a known kind is not checked (the
+    interpreters read the whole document, the heading-less question included). Returns how many differ."""
+    from ..memory.report_sections import section_at
+
+    differ = 0
+    for card in cards:
+        at = position_of(card, text)
+        section = section_at(text, at) if at >= 0 else None
+        if section is None or not section.kind or not section.body <= at < section.end:
+            continue
+        card["part_heading"] = section.kind
+        if card.get("part") and card["part"] != section.kind:
+            card["doubts"] = [*card.get("doubts", []), "part_differs_from_heading"]
+            differ += 1
+    return differ
+
+
+def lab_lines(extraction: Any, text: str) -> list[str]:
+    """The lines of the text whose rows the laboratory extractor read (``lab_results``)."""
+    lines = text.splitlines()
+    out = []
+    for row in getattr(extraction, "results", ()) or ():
+        n = int(getattr(row, "line_number", 0) or 0)
+        if 0 < n <= len(lines) and lines[n - 1].strip():
+            out.append(lines[n - 1].strip())
+    return out
+
+
+def mark_read_by_the_laboratory(cards: list[dict], lines: list[str]) -> int:
+    """A card whose sentence is a row the laboratory extractor read is that row (``read_by: lab_table``): the
+    value enters the case once, as the extractor's measurement, never also as a card."""
+    from .agreement import same_sentence
+
+    marked = 0
+    for card in cards:
+        if any(same_sentence(card.get("quote", ""), line) for line in lines):
+            card["read_by"] = "lab_table"
+            marked += 1
+    return marked
+
+
+def is_the_question(card: dict) -> bool:
+    """A card of the question asked that the requester only suspects ("sospetta appendicite"): the clinical
+    question, a hypothesis of the requester, never a current finding."""
+    return card.get("part") == "indication" and card.get("state") == "uncertain"
+
 
 # -- 1. the reference library -------------------------------------------------------------------------------
 
@@ -70,7 +139,7 @@ def reference_items(cards: list[dict], text: str, references: Any, technique: st
     out = []
     for n, card in enumerate(cards):
         doubts = card.get("doubts") or []
-        if "one_interpreter" in doubts or not card.get("site_code"):
+        if "one_interpreter" in doubts or not card.get("site_code") or card.get("read_by"):
             continue
         measure = _measure_of(card, references)
         if measure is None:
@@ -152,12 +221,9 @@ def give_the_pathology(cards: list[dict], text: str, summary: dict) -> tuple[lis
     rows, specimen = [], []
     for n, card in enumerate(cards):
         quote = str(card.get("quote") or "")
-        start = text.find(quote) if quote else -1
+        start = position_of(card, text)     # the card's own words, after the section's heading ("Diagnosi:")
         if start < 0:
             continue
-        words = str(card.get("words") or "")
-        if words and words in quote:
-            start += quote.find(words)      # the card's own words, after the section's heading ("Diagnosi:")
         row = {"start": start, "mention": card.get("words") or card.get("name", ""),
                "structure": card.get("site_code", ""), "clause": quote, "card": n}
         rows.append(row)
@@ -199,9 +265,11 @@ def _image_dict(image: Any) -> dict:
 
 
 def _seen(card: dict) -> bool:
-    """A card the image may show: a manifestation of the patient, not absent, at a structure."""
+    """A card the image may show: a manifestation of the patient, not absent, at a structure, of what this exam
+    observes (not the question asked, the history, the comparison with an earlier exam or the technique)."""
     return (card.get("category") == "manifestation" and card.get("state") != "absent"
-            and card.get("subject") != "family_member" and bool(card.get("site_code")))
+            and card.get("subject") != "family_member" and bool(card.get("site_code"))
+            and not card.get("read_by") and card.get("part") not in BEFORE_THE_EXAM)
 
 
 def image_of_cards(cards: list[dict], volume: dict | None, lesion_segmenter: Any = None, organ_segmenter: Any = None,
@@ -256,5 +324,6 @@ def image_of_cards(cards: list[dict], volume: dict | None, lesion_segmenter: Any
     return len(shown)
 
 
-__all__ = ["compare_with_references", "give_the_pathology", "image_of_cards", "reference_items",
+__all__ = ["BEFORE_THE_EXAM", "check_parts", "is_the_question", "lab_lines", "mark_read_by_the_laboratory",
+           "position_of", "compare_with_references", "give_the_pathology", "image_of_cards", "reference_items",
            "reference_prompt", "technique_of"]

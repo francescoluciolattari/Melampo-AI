@@ -33,6 +33,12 @@ NATURES = ("pathological", "physiological")
 # for a sign or a test
 INTERPRETATIONS = ("present", "increased", "decreased", "normal", "abnormal", "positive", "negative")
 SIDES = ("left", "right", "both")
+# the part of the document the sentence is in (27 November 2026), read by the interpreters on the whole document
+# as a radiologist reads it: for a patient's document the sections of a report (the LOINC report sections, as
+# memory/report_sections.py: the question asked, history, comparison, technique, findings, conclusion), for a
+# publication its parts; "other" for anything else (a header, a table, a letter without parts)
+PARTS = ("indication", "history", "comparison", "technique", "findings", "impression", "background", "methods",
+         "results", "discussion", "other")
 COMPARATORS = (">", ">=", "<", "<=", "=")
 # the case
 STATES = ("present", "absent", "uncertain")
@@ -45,19 +51,20 @@ MEASURE_FIELDS = ("with_disease", "sensitivity", "specificity", "lr_positive", "
                   "patients", "design", "pooled", "verbal")
 
 DESCRIPTION = ("words", "name", "category", "specific", "what", "interpretation", "value", "threshold", "site",
-               "side", "observed_by", "time", "nature")
+               "side", "observed_by", "time", "nature", "part")
 STATEMENT = {"case": ("state", "temporality", "subject"), "publication": ("direction", "compares", "measures")}
 LISTED = {"category": CATEGORIES, "observed_by": OBSERVED_BY, "nature": NATURES, "interpretation": INTERPRETATIONS,
-          "side": SIDES, "state": STATES, "temporality": TEMPORALITIES, "subject": SUBJECTS, "compares": COMPARES}
+          "side": SIDES, "part": PARTS, "state": STATES, "temporality": TEMPORALITIES, "subject": SUBJECTS, "compares": COMPARES}
 
 _DESCRIBED = {
     "words": "fever (temperature 38.6 °C)", "name": "fever", "category": "manifestation", "specific": True,
     "what": "body temperature", "interpretation": "increased", "value": {"number": 38.6, "unit": "°C"},
-    "threshold": None, "site": "", "side": "", "observed_by": "examination", "time": "", "nature": "pathological"}
+    "threshold": None, "site": "", "side": "", "observed_by": "examination", "time": "", "nature": "pathological",
+    "part": "history"}
 EXAMPLE = {
     "case": {**_DESCRIBED, "state": "present", "temporality": "current", "subject": "patient",
              "quote": "Febbre a 38,6 °C dalla notte."},
-    "publication": {**_DESCRIBED, "words": "fever (temperature above 38 °C) in 30 of 100 patients",
+    "publication": {**_DESCRIBED, "part": "results", "words": "fever (temperature above 38 °C) in 30 of 100 patients",
                     "value": None, "threshold": {"comparator": ">", "number": 38, "unit": "°C"},
                     "direction": None, "compares": "disease_vs_without",
                     "measures": {"with_disease": {"count": 30, "total": 100, "percent": None}, "sensitivity": None,
@@ -145,7 +152,7 @@ def read(raw: dict, context: str) -> dict:
         "value": _quantity(raw.get("value")), "threshold": _quantity(raw.get("threshold"), comparator=True),
         "site": _text(raw.get("site")), "side": _one_of(raw.get("side"), SIDES),
         "observed_by": _one_of(raw.get("observed_by"), OBSERVED_BY), "time": _text(raw.get("time")),
-        "nature": _one_of(raw.get("nature"), NATURES), "quote": _text(raw.get("quote")),
+        "nature": _one_of(raw.get("nature"), NATURES), "part": _one_of(raw.get("part"), PARTS), "quote": _text(raw.get("quote")),
     }
     if context == "case":
         card.update(state=_one_of(raw.get("state"), STATES), temporality=_one_of(raw.get("temporality"), TEMPORALITIES),
@@ -163,5 +170,5 @@ def example(context: str) -> str:
 
 
 __all__ = ["CATEGORIES", "COMPARES", "CONTEXTS", "DESCRIPTION", "DIRECTIONS", "EXAMPLE", "INTERPRETATIONS",
-           "MEASURE_FIELDS", "NATURES", "OBSERVED_BY", "SIDES", "STATEMENT", "STATES", "SUBJECTS", "TEMPORALITIES",
+           "MEASURE_FIELDS", "NATURES", "OBSERVED_BY", "PARTS", "SIDES", "STATEMENT", "STATES", "SUBJECTS", "TEMPORALITIES",
            "direction_of", "example", "fields", "problems", "read"]

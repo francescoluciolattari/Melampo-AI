@@ -27,7 +27,7 @@ def linker():
 def base(**kw):
     out = {"words": "", "name": "", "category": "manifestation", "specific": True, "what": "", "interpretation":
            "present", "value": None, "threshold": None, "site": "", "side": "", "observed_by": "imaging",
-           "time": "", "nature": "pathological", "state": "present", "temporality": "current", "subject": "patient",
+           "time": "", "nature": "pathological", "part": "findings", "state": "present", "temporality": "current", "subject": "patient",
            "quote": ""}
     return {**out, **kw}
 
@@ -194,3 +194,100 @@ def test_the_exam_paired_with_its_report_gives_the_card_its_image_in_the_ingesti
     assert finding["image"]["status"] == "agree" and finding["image"]["size_check"] == "consistent"
     assert reading["texts"][0]["image"] == {"looked_for": 1, "why_not": ""}
     json.dumps(reading)
+
+
+# -- the router, the part of the document (27 November 2026) ------------------------------------------------
+
+CT = ("QUESITO: sospetta appendicite acuta, dolore in fossa iliaca destra.\n"
+      "REPERTO: appendice ispessita (diametro 11 mm) con iperdensità del grasso periappendicolare.\n")
+QUESTION = base(words="sospetta appendicite acuta", name="acute appendicitis", what="appendicitis",
+                state="uncertain", observed_by="history", part="indication",
+                quote="QUESITO: sospetta appendicite acuta, dolore in fossa iliaca destra.")
+PAIN = base(words="dolore in fossa iliaca destra", name="right lower quadrant pain", what="abdominal pain",
+            observed_by="history", part="indication", site="fossa iliaca destra",
+            quote="QUESITO: sospetta appendicite acuta, dolore in fossa iliaca destra.")
+APPENDIX = base(words="appendice ispessita (diametro 11 mm)", name="thickened appendix", what="appendix diameter",
+                interpretation="increased", value={"number": 11, "unit": "mm"}, site="appendice", part="findings",
+                quote="REPERTO: appendice ispessita (diametro 11 mm) con iperdensità del grasso periappendicolare.")
+
+
+def test_what_the_requester_suspects_is_the_question_a_hypothesis_never_a_current_finding(linker):
+    """claims4 (5 November 2026): the referral's sentences were attached as current findings. The interpreters read
+    the part on the whole document; the suspicion of the question is a hypothesized disease, the symptom the
+    requester states stays the patient's, not looked for in the image; the findings are the exam's."""
+    readers = ReportReaders(linker, interpreters={"a": interpreter([QUESTION, PAIN, APPENDIX]),
+                                                  "b": interpreter([QUESTION, PAIN, APPENDIX])})
+    reading = readers.read("c1", CT)
+    assert [s["name"] for s in reading["statements"] if s["statement"] == "indication"] == ["acute appendicitis"]
+    assert {f["name"]: f["part"] for f in reading["findings"]} == {"right lower quadrant pain": "indication",
+                                                                    "thickened appendix": "findings"}
+    by = {c["name"]: c for c in reading["texts"][0]["cards"]}
+    assert by["thickened appendix"]["part_heading"] == "findings" and by["acute appendicitis"]["part_heading"] == \
+        "indication" and reading["texts"][0]["parts_differ_from_headings"] == 0
+    graph = cg.CaseGraph(case_id="c1")
+    found, _ = add_cards(graph, "note", CT, reading["texts"][0]["cards"])
+    assert {f.details["name"] for f in found} == {"right lower quadrant pain", "thickened appendix"}
+    [hypothesis] = [d for d in graph.diseases if d.branch == cg.HYPOTHESIZED_DISEASES]
+    assert hypothesis.words.startswith("QUESITO: sospetta appendicite") and hypothesis.status_words == "indication"
+
+
+def test_a_part_the_heading_contradicts_is_a_doubt_kept_in_the_path(linker):
+    """Both interpreters read the referral's suspicion as a finding of the exam; the heading says QUESITO: the doubt
+    stays with the card, which goes to a person and enters the path stated with uncertainty."""
+    wrong = {**APPENDIX, "words": "sospetta appendicite acuta", "name": "acute appendicitis", "state": "present",
+             "quote": QUESTION["quote"], "value": None, "site": ""}
+    readers = ReportReaders(linker, interpreters={"a": interpreter([wrong]), "b": interpreter([wrong])})
+    reading = readers.read("c1", CT)
+    [card] = reading["texts"][0]["cards"]
+    assert card["part"] == "findings" and card["part_heading"] == "indication"
+    assert "part_differs_from_heading" in card["doubts"]
+    assert any("part_differs_from_heading" in p["reason"] for p in reading["to_a_person"])
+    [finding], _ = add_cards(cg.CaseGraph(case_id="c1"), "note", CT, [card])
+    assert finding.certainty == "uncertain"
+
+
+LAB = "Emocromo\nEmoglobina 10.2 g/dL (13.5-17.5)\nCreatinina 1.9 mg/dL (0.7-1.2)\n"
+
+
+def test_a_document_the_router_gives_only_to_the_laboratory_extractor_is_not_read_again(linker):
+    from melampo.data.lab_results import extract_lab_results
+
+    calls = []
+    def chat(prompt):
+        calls.append(prompt)
+        return "[]"
+    chat.local_only = True
+    lab = SimpleNamespace(index=1, text=LAB, routing={"kinds": ["laboratory"], "interpreters": ["lab_table"]},
+                          lab=extract_lab_results(LAB))
+    reading = ReportReaders(linker, interpreters={"a": chat}).read("c1", "", SimpleNamespace(
+        attachments=[lab], imaging_studies=list))
+    assert reading["texts"] == [{"report": "attachment-1", "kinds": ["laboratory"], "read": False,
+                                 "reason": "read_by:lab_table"}] and calls == []
+
+
+def test_a_row_of_a_letter_the_laboratory_extractor_read_enters_the_case_once(linker):
+    from melampo.data.lab_results import extract_lab_results
+
+    letter = "Lettera di dimissione. Paziente con anemia nota.\nEmoglobina 10.2 g/dL (13.5-17.5)\n"
+    anemia = base(words="anemia", name="anemia", what="anemia", observed_by="history", part="history",
+                  temporality="past", quote="Paziente con anemia nota.")
+    hb = base(words="Emoglobina 10.2 g/dL", name="decreased hemoglobin", what="hemoglobin", category="test",
+              interpretation="decreased", value={"number": 10.2, "unit": "g/dL"}, observed_by="laboratory",
+              part="other", quote="Emoglobina 10.2 g/dL (13.5-17.5)")
+    attachment = SimpleNamespace(index=1, text=letter, lab=extract_lab_results(letter), routing={
+        "kinds": ["clinical_note"], "interpreters": ["lab_table", "narrative_reader"]})
+    reading = ReportReaders(linker, interpreters={"a": interpreter([anemia, hb]), "b": interpreter([anemia, hb])}) \
+        .read("c1", "", SimpleNamespace(attachments=[attachment], imaging_studies=list))
+    by = {c["name"]: c for c in reading["texts"][0]["cards"]}
+    assert by["decreased hemoglobin"]["read_by"] == "lab_table" and "read_by" not in by["anemia"]
+    assert reading["texts"][0]["read_by_lab_table"] == 1
+
+
+def test_a_document_of_no_recognised_kind_goes_to_a_person_and_is_not_read_into_the_case(linker):
+    stray = SimpleNamespace(index=2, text="Ricevuta di pagamento n. 123, importo 40 euro.", routing={
+        "kinds": ["clinical_note"], "interpreters": ["narrative_reader", "lab_table"],
+        "notes": ["no_kind_recognised_read_as_narrative"]})
+    reading = ReportReaders(linker, interpreters={"a": interpreter([])}).read("c1", "", SimpleNamespace(
+        attachments=[stray], imaging_studies=list))
+    assert reading["texts"][0]["reason"] == "kind_not_recognised"
+    assert reading["to_a_person"][0]["reason"].startswith("kind_not_recognised")

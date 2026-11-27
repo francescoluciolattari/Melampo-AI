@@ -28,7 +28,7 @@ name: Right lower quadrant pain
 def base(**kw):
     out = {"words": "", "name": "", "category": "manifestation", "specific": True, "what": "", "interpretation":
            "present", "value": None, "threshold": None, "site": "", "side": "", "observed_by": "history",
-           "time": "", "nature": "pathological", "state": "present", "temporality": "current", "subject": "patient",
+           "time": "", "nature": "pathological", "part": "history", "state": "present", "temporality": "current", "subject": "patient",
            "quote": ""}
     return {**out, **kw}
 

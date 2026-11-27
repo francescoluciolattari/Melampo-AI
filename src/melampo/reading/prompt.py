@@ -29,7 +29,11 @@ DESCRIBE = (
     "- site: the body site as written, or \"\"; side: left, right, both, or \"\";\n"
     f"- observed_by: one of {', '.join(c.OBSERVED_BY)};\n"
     "- time: when it is observed or its order, as written (\"before the pain\", \"on the second day\"), or \"\";\n"
-    "- nature: pathological, or physiological (a normal response, such as a raised heart rate with fever);\n")
+    "- nature: pathological, or physiological (a normal response, such as a raised heart rate with fever);\n"
+    "- part: the part of the document its sentence is in, read on the whole document as its author wrote it, with "
+    "or without a heading: in a report or a letter indication (the question asked, the reason for the exam or the "
+    "referral), history, comparison, technique, findings (what this exam or visit observes), impression (the "
+    "conclusion); in a publication background, methods, results, discussion; other for anything else;\n")
 
 STATE = {
     "case": (

@@ -406,9 +406,13 @@ class ReportReaders:
         this machine."""
         from ..reading import read_text
         from ..reading.case_sides import (
+            check_parts,
             compare_with_references,
             give_the_pathology,
             image_of_cards,
+            is_the_question,
+            lab_lines,
+            mark_read_by_the_laboratory,
         )
         from .report_router import route
 
@@ -432,7 +436,24 @@ class ReportReaders:
                        for a in getattr(bundle, "attachments", ()) or ()}
         imaging_reports = [s for s in sources if IMAGING_KIND in (s[2].get("kinds") or ())]
         paired, why = _pair(imaging_reports, _usable_volumes(bundle))
+        labs = {f"attachment-{a.index}": getattr(a, "lab", None) for a in getattr(bundle, "attachments", ()) or ()}
         for source_id, text, routing in sources:
+            interpreters = routing.get("interpreters") or ()
+            if source_id != "note" and "no_kind_recognised_read_as_narrative" in (routing.get("notes") or ()):
+                # a document the router recognises as no kind of medical document (27 November 2026, the owner's
+                # rule): put in by mistake, of another patient, not medical or not pertinent until a person says
+                # otherwise; it is not read into the case
+                out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False,
+                                     "reason": "kind_not_recognised"})
+                out["to_a_person"].append({"report": source_id, "mention": "", "reason":
+                                           "kind_not_recognised: confirm it is a medical document of this patient"})
+                continue
+            if source_id != "note" and not {NARRATIVE, "pathology"} & set(interpreters):
+                # what the router sends only to the laboratory extractor (a table of blood tests, a culture) is the
+                # extractor's: the interpreters do not read it again
+                out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False,
+                                     "reason": "read_by:" + ",".join(interpreters)})
+                continue
             try:
                 got = read_text([("", text)], "case", self.interpreters, hpo=self.hpo, thesaurus=self.thesaurus)
             except Exception as error:  # noqa: BLE001 -- one document must not stop the case
@@ -446,10 +467,16 @@ class ReportReaders:
                 card.pop("readings", None)       # each interpreter's card: kept in the counts, not in the case
                 card["site_code"] = self.site_code(card.get("site") or "")
                 cards.append(card)
+            # a row the laboratory extractor read enters the case once, as its measurement; the part of the
+            # document each card is in, checked with the headings the report writes (27 November 2026)
+            by_lab = mark_read_by_the_laboratory(cards, lab_lines(labs.get(source_id), text)) \
+                if "lab_table" in interpreters else 0
+            differ = check_parts(cards, text)
             language = _language(text)
             entry = {"report": source_id, "kinds": routing.get("kinds"), "read": True, "procedure": ONE,
                      "language": language, "cards": cards, "format": got["format"],
-                     "not_read_by": got["not_read"], "questions": len(got["asked"]), "status": got["status"]}
+                     "not_read_by": got["not_read"], "questions": len(got["asked"]), "status": got["status"],
+                     "read_by_lab_table": by_lab, "parts_differ_from_headings": differ}
             out["texts"].append(entry)
             # what the reader before gave its findings, given to the agreed cards (27 November 2026):
             # the reference library, the pathologist's summary, the image
@@ -458,7 +485,7 @@ class ReportReaders:
                                                         report=source_id, asked=got["asked"])
             out["statements"] += measured
             out["to_a_person"] += doubted
-            if "pathology" in (routing.get("interpreters") or ()):
+            if "pathology" in interpreters:
                 from .pathology_report import read_pathology
 
                 summary = pathologies.get(source_id) or read_pathology(text, language).summary()
@@ -477,6 +504,8 @@ class ReportReaders:
                                                            self.organ_segmenter, reason),
                               "why_not": "" if volume is not None and self.lesion_segmenter is not None else reason}
             for card in cards:
+                if card.get("read_by"):
+                    continue            # the extractor's row: its doubts are the extractor's
                 if card["doubts"]:
                     out["to_a_person"].append({"report": source_id, "mention": card.get("words") or card["name"],
                                                "reason": "doubt:" + ",".join(card["doubts"]),
@@ -485,10 +514,17 @@ class ReportReaders:
                     out["to_a_person"].append({"report": source_id, "mention": card.get("words") or card["name"],
                                                "reason": ",".join(card["image"]["review"]),
                                                "clause": card.get("quote", "")})
+                if is_the_question(card):
+                    # what the requester suspects is the clinical question, a hypothesis, not a current finding
+                    out["statements"].append({"report": source_id, "statement": "indication",
+                                              "mention": card.get("words") or card.get("name", ""),
+                                              "clause": card.get("quote", ""), "name": card.get("name", "")})
+                    continue
                 if card.get("category") == "manifestation" and not card.get("pathology_statement"):
                     out["findings"].append({"report": source_id, "structure": card["site_code"],
                                             "clause": card.get("quote", ""), "mention": card.get("words", ""),
                                             "name": card.get("name", ""), "state": card.get("state"),
+                                            "part": card.get("part", ""),
                                             **{k: card[k] for k in ("reference", "pathology", "image")
                                                if card.get(k)}})
         out["status"] = "read"

@@ -33,13 +33,14 @@ from typing import Any
 
 from . import card as c
 
-COMPARED = ("category", "specific", "interpretation", "value", "threshold", "side", "observed_by", "nature")
+COMPARED = ("category", "specific", "interpretation", "value", "threshold", "side", "observed_by", "nature", "part")
 # the fields every card must give (26 November 2026, declared after the seventh run: in 270 second readings one
 # interpreter gave its card without a category, and "not given" was taken for "read otherwise"): when one reading
 # does not give one and the other does, the field is the other's, with the doubt "<field>_given_by_one"; a field
 # both give differently stays empty, a doubt. The optional fields (value, threshold, side, the direction, ...) are
 # readings when empty: "no threshold" is what the reader read.
-REQUIRED = ("category", "specific", "observed_by", "nature")
+# the part of the document (27 November 2026) is required: every sentence is in some part, "other" included
+REQUIRED = ("category", "specific", "observed_by", "nature", "part")
 COMPARED_IN = {"case": ("state", "temporality", "subject"), "publication": ("direction", "compares")}
 LABELS = ("words", "name", "what", "site", "time")
 

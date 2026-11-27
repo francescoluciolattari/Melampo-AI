@@ -127,9 +127,20 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
         if card.get("subject") == "family_member":
             notes.append(f"{document_id}: {card.get('name')!r} is a family member's finding, not the patient's")
             continue
-        if card.get("pathology_statement"):
+        if card.get("pathology_statement") or card.get("read_by"):
             # the clinical information or the material of a pathology report: the question asked, or where the
-            # sample comes from, not a current finding (27 November 2026)
+            # sample comes from, not a current finding; a row the laboratory extractor read is its measurement
+            # (27 November 2026)
+            continue
+        if card.get("part") == "indication" and card.get("state") == "uncertain":
+            # what the requester suspects ("sospetta appendicite") is the clinical question: a hypothesis of the
+            # requester, in the branch of the hypothesized diseases with its words, never a current finding
+            quote = str(card.get("quote") or "")
+            at = text.find(quote) if quote else -1
+            notes += add_declared_diseases(graph, [{
+                "words": quote if at >= 0 else str(card.get("words") or card.get("name") or ""),
+                "status": "suspected", "status_words": "indication", "document": document_id,
+                "start": at if at >= 0 else None, "end": at + len(quote) if at >= 0 else None}])[1]
             continue
         quote = str(card.get("quote") or "")
         start = text.find(quote) if quote else -1
@@ -143,7 +154,7 @@ def add_cards(graph: cg.CaseGraph, document_id: str, text: str, cards: Iterable[
             found = cg.Concept("HPO" if code.startswith("HP:") else "MELAMPO", code, card.get("name", ""))
         details = {k: card[k] for k in ("name", "what", "interpretation", "value", "threshold", "side", "time",
                                         "observed_by", "paired_by", "reference", "pathology", "pathology_section",
-                                        "image") if card.get(k)}
+                                        "image", "part", "part_heading") if card.get(k)}
         if doubts:
             details["doubts"] = doubts
         finding = cg.Finding(
