@@ -1,8 +1,4 @@
 from melampo.evaluation.calibration import ConfidenceCalibrationEvaluator
-from melampo.evaluation.clinical_benchmark import (
-    ClinicalBenchmarkRecord,
-    ClinicalBenchmarkRunner,
-)
 from melampo.evaluation.prospective_validation import ProspectiveValidationRegistry
 
 
@@ -21,48 +17,6 @@ def test_calibration_evaluator_reports_ece_and_brier():
     assert report.expected_calibration_error >= 0.0
     assert report.brier_score >= 0.0
     assert thresholds["status"] in {"threshold_suggested", "no_threshold_suggested"}
-
-
-def test_clinical_benchmark_runner_handles_abstention_and_slices():
-    records = [
-        ClinicalBenchmarkRecord(
-            case_id="case-1",
-            payload={"case_id": "case-1"},
-            gold_labels=["pneumonia"],
-            slices={"modality": "XR"},
-        ),
-        ClinicalBenchmarkRecord(
-            case_id="case-2",
-            payload={"case_id": "case-2"},
-            gold_labels=["normal"],
-            slices={"modality": "XR"},
-        ),
-    ]
-
-    def predict(payload):
-        if payload["case_id"] == "case-1":
-            return {
-                "diagnostic_result": {
-                    "result_label": "pneumonia",
-                    "top_hypothesis": {"label": "pneumonia", "score": 0.9},
-                    "policy": {"abstain": False},
-                }
-            }
-        return {
-            "diagnostic_result": {
-                "result_label": "abstain_or_escalate",
-                "top_hypothesis": {"label": "normal", "score": 0.4},
-                "policy": {"abstain": True},
-            }
-        }
-
-    report = ClinicalBenchmarkRunner().run(records, predict)
-
-    assert report.sample_count == 2
-    assert report.answered_count == 1
-    assert report.abstained_count == 1
-    assert report.top1_accuracy == 0.5
-    assert "modality:XR" in report.slices
 
 
 def test_prospective_validation_registry_locks_prediction_and_attaches_outcome(

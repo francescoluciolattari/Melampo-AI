@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..governance.confirmation_registry import ConfirmationRegistry
+from ..utils.values import normalise as _normalise
 
 
 @dataclass(frozen=True)
@@ -81,8 +82,6 @@ class ExtractionReport:
         }
 
 
-def _normalise(value: str) -> str:
-    return " ".join(str(value).lower().split())
 
 
 def extract_preference_pairs(

@@ -30,6 +30,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..utils.values import normalise as _normalise
+
 DEGREE_FIRST = 1
 DEGREE_SECOND = 2
 DEGREE_THIRD = 3
@@ -262,5 +264,3 @@ def assert_not_a_finding(items: Sequence[dict[str, Any]]) -> None:
             )
 
 
-def _normalise(value: str) -> str:
-    return " ".join(str(value).lower().split())

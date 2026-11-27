@@ -4,19 +4,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..orchestration.model_capability_registry import ModelCapabilityRegistry
+from ..utils.values import safe_float as _safe_float
 from .diagnostic_result import (
     DiagnosticResult,
     IntuitionSummary,
     MelampoMetrics,
     NexusSummary,
 )
-
-
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 def _safe_get(

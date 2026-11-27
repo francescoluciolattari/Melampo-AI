@@ -332,5 +332,11 @@ risks:
       - control: A document the router and its local model recognise as no kind of medical document is kept out and goes to a person; recognised by no cue with no model asked, it is read and a person is asked all the same
         tests:
           - tests/test_report_reading_sides.py::test_a_document_of_no_recognised_kind_goes_to_a_person_and_is_not_read_into_the_case
-    measured_by: tests only; a document that writes no identifier cannot be checked (most reports), and the review mask that shows the questions is not built yet
+      - control: In the review mask another patient's document is discarded and no one can change it (a person's "another patient" holds the same way); a document without identifiers is used unless a person says no; the decisions hold when the case is read
+        tests:
+          - tests/test_review_mask.py::test_each_document_has_the_owners_rule
+          - tests/test_review_mask.py::test_a_discarded_document_cannot_be_changed_and_a_person_decides_the_others
+          - tests/test_review_mask.py::test_the_decisions_hold_when_the_case_is_read
+          - tests/test_review_mask.py::test_the_mask_shows_the_documents_and_keeps_a_discarded_one_locked
+    measured_by: tests only; a document that writes no identifier cannot be checked (most reports); the review mask is not validated
     status: partial

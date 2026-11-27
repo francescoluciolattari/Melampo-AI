@@ -111,11 +111,33 @@ class CaseAttachment:
         )
 
 
+# what a person decided of a document in the review mask (``case_review``), applied when the case is read
+USE, NOT_USED, DISCARDED = "use", "not_used", "discarded"
+
+
+def document_id(data: bytes) -> str:
+    """The id of a document: the first 16 hex digits of the SHA-256 of its bytes (the same file, the same id)."""
+    import hashlib
+
+    return hashlib.sha256(data).hexdigest()[:16]
+
+
 def set_aside_of(routing: dict[str, Any]) -> str:
-    """Why a document is kept out of the case until a person says otherwise, or "" (``ProcessedAttachment.set_aside``)."""
-    if ((routing or {}).get("patient") or {}).get("check") == "other":
+    """Why a document is kept out of the case, or "" (``ProcessedAttachment.set_aside``). Another patient's
+    document is discarded whatever a person decides; otherwise a person's decision in the review mask
+    (``routing["decision"]``) is the one that holds; without it, a document the local model too recognised as no
+    kind of medical document is set aside until a person says otherwise."""
+    routing = routing or {}
+    if (routing.get("patient") or {}).get("check") == "other":
         return "another_patient"
-    if kind_not_recognised(routing) and (routing or {}).get("model_kinds") is not None:
+    decision = routing.get("decision")
+    if decision == DISCARDED:
+        return "another_patient_by_a_person"
+    if decision == NOT_USED:
+        return "not_used_by_a_person"
+    if decision == USE:
+        return ""
+    if kind_not_recognised(routing) and routing.get("model_kinds") is not None:
         # the local model too recognised no medical document in it; the cues alone are not enough to set a
         # document aside (a single line of a test without its range is no kind for them): then it is read, and a
         # person is asked all the same
@@ -191,7 +213,8 @@ class ProcessedAttachment:
             "laboratory": self.lab.summary(),
             "set_aside": self.set_aside,
             # counts and kinds only, like "laboratory": the readings themselves stay on the object
-            "routing": {k: self.routing.get(k) for k in ("kinds", "interpreters", "agreement", "needs_review", "patient")
+            "routing": {k: self.routing.get(k) for k in ("kinds", "interpreters", "agreement", "needs_review", "patient", "document",
+                                         "decision")
                         if k in self.routing},
             "pathology": {"items_by_kind": dict(Counter(i["kind"] for i in self.pathology.get("items", []))),
                           "residue_count": len(self.pathology.get("residue", [])),
@@ -417,17 +440,28 @@ def process_case_attachments(
     processor: ClinicalDocumentProcessor | None = None,
     router_chat=None,
     patient=None,
+    decisions: dict[str, str] | None = None,
 ) -> AttachmentBundle:
     """Process every attachment exactly once, by its own type -- never writes to disk.
 
     ``router_chat`` (optional) is the local model asked only which kinds of report a text is
     (``report_router``); without it the router uses the deterministic cues alone. ``patient``
     (``patient_check.Patient``): the case's identifiers, compared with those each document writes, on this
-    machine; only the outcome is kept, in the attachment's routing (``routing["patient"]``)."""
+    machine; only the outcome is kept, in the attachment's routing (``routing["patient"]``). ``decisions``: what
+    a person decided of each document in the review mask, by ``document_id`` (use, not_used, discarded)."""
     from .patient_check import check_dicom, check_text
 
     processor = processor or ClinicalDocumentProcessor()
     processed: list[ProcessedAttachment] = []
+    decisions = dict(decisions or {})
+
+    def decided(routing: dict[str, Any], data: bytes) -> dict[str, Any]:
+        sid = document_id(data)
+        out = {**routing, "document": sid}
+        if decisions.get(sid) in (USE, NOT_USED, DISCARDED):
+            out["decision"] = decisions[sid]
+        return out
+
     for index, attachment in enumerate(attachments, start=1):
         detected = detect_document_format(attachment.data)
         declared = (
@@ -445,6 +479,7 @@ def process_case_attachments(
                     parser=None,
                     modality=declared.value,
                     images_png=(_as_png(attachment.data),),
+                    routing=decided({}, attachment.data),
                 )
             )
             continue
@@ -470,6 +505,7 @@ def process_case_attachments(
             lab, routing, pathology = _routed_lab(text, router_chat, len(result.get("dicom_images_png", [])))
             if patient is not None:
                 routing = {**routing, "patient": check_dicom(attachment.data, patient)}
+            routing = decided(routing, attachment.data)
             if deidentified is None:
                 dicom_notes.append("deidentified_instance_not_built")
             elif deidentified.has_pixel_data:
@@ -498,6 +534,7 @@ def process_case_attachments(
         lab, routing, pathology = _routed_lab(text, router_chat, len(result.get("embedded_images_png", [])))
         if patient is not None and text.strip():
             routing = {**routing, "patient": check_text(text, patient)}
+        routing = decided(routing, attachment.data)
         if attachment.modality and declared is None:
             notes.append(f"declared_modality_not_recognised: {attachment.modality}")
         elif attachment.modality:

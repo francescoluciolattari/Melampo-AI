@@ -288,8 +288,7 @@ In PARROT non resta un campione vario (62 item da 42 referti, soprattutto encefa
   scheda, il riassunto del patologo dato alle sue schede e il confronto della misura di una scheda con le righe di
   riferimento (R16) vi sono dal 27 novembre 2026, con la parte del documento di ogni scheda e la scelta del router,
   verificati solo da test con interpreti fittizi. Gli identificativi di un documento sono confrontati con quelli del paziente
-  (R22); un documento che non ne scrive non si può controllare, e la maschera di revisione che mostra le domande non è
-  ancora costruita.
+  (R22); un documento che non ne scrive non si può controllare; la maschera di revisione è costruita e non validata.
 - I pesi dei profili delle malattie sono pochi: 6 manifestazioni su 79 dell'appendicite acuta con un'accuratezza
   misurata; i numeri dei segni stanno spesso nei testi in abbonamento e nei trattati, non ancora tra le fonti.
 - Tutte le etichette finora sono di un solo etichettatore; le etichette "?" e gli elenchi dei reperti di un'altra

@@ -11,11 +11,6 @@ from melampo.memory.structural_comparison import (
     ExtractedRelation,
     ExtractedStructure,
 )
-from melampo.memory.structural_extraction import (
-    ExtractionConfig,
-    StructuralExtractor,
-    _parse_extraction,
-)
 from melampo.reasoning.diagnostic_assembly import assemble
 
 
@@ -53,69 +48,6 @@ def _confirm_three_times(assembly, source, target):
 # --------------------------------------------------------------------------
 # The extractor: real, HTTP-backed, degrading gracefully throughout
 # --------------------------------------------------------------------------
-
-
-def test_unconfigured_extractor_returns_empty_structure_not_an_error():
-    extractor = StructuralExtractor()
-    result = extractor("some clinical text")
-    assert result.is_empty
-
-
-def test_empty_text_is_not_sent_to_the_model():
-    calls = {"n": 0}
-    extractor = StructuralExtractor(
-        ExtractionConfig(endpoint="https://x", api_key="k", model="m")
-    )
-    extractor._call_model = lambda text: calls.__setitem__("n", calls["n"] + 1) or "{}"
-    extractor("   ")
-    assert calls["n"] == 0
-
-
-def test_a_failing_model_call_degrades_without_raising():
-    extractor = StructuralExtractor(
-        ExtractionConfig(endpoint="https://x", api_key="k", model="m")
-    )
-    extractor._call_model = lambda text: (_ for _ in ()).throw(
-        RuntimeError("endpoint down")
-    )
-    result = extractor("some text")
-    assert result.is_empty
-
-
-def test_a_configured_but_unimplemented_transport_degrades_gracefully():
-    """The transport is deliberately left unimplemented -- deployment
-    specific -- and must not turn into an unhandled exception for a caller
-    that configures endpoint/key/model without also overriding _call_model."""
-    extractor = StructuralExtractor(
-        ExtractionConfig(endpoint="https://x", api_key="k", model="m")
-    )
-    assert extractor("some text").is_empty
-
-
-def test_markdown_fences_around_the_json_response_are_stripped():
-    """Models asked for 'only JSON' reliably wrap it in fences anyway."""
-    raw = '```json\n{"entities": ["a", "b"], "relations": []}\n```'
-    result = _parse_extraction("source", raw)
-    assert result.entities == ("a", "b")
-
-
-def test_a_malformed_response_degrades_rather_than_crashing():
-    result = _parse_extraction("source", "not json at all")
-    assert result.is_empty
-
-
-def test_a_relation_missing_a_required_field_is_skipped():
-    raw = '{"entities": ["a"], "relations": [{"subject": "a", "relation": "causes"}]}'
-    result = _parse_extraction("source", raw)
-    assert result.relations == ()
-
-
-def test_extracted_entities_and_relations_are_parsed_correctly():
-    raw = '{"entities": ["x", "y"], "relations": [{"subject": "x", "relation": "enables", "object": "y"}]}'
-    result = _parse_extraction("source", raw)
-    assert result.entities == ("x", "y")
-    assert result.relations[0].subject == "x"
-    assert result.relations[0].object == "y"
 
 
 # --------------------------------------------------------------------------

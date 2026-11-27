@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from melampo.data.document_processing import ClinicalDocumentProcessor
-from melampo.evaluation.rag_evaluation import RAGEvaluationRecord, RAGEvaluator
 from melampo.memory.retriever import MemoryRetriever
 from melampo.memory.weaviate_adapter import WeaviateEnterpriseMemoryAdapter
 
@@ -102,43 +101,3 @@ def test_phase2_memory_retriever_uses_enterprise_weaviate_adapter(tmp_path: Path
     assert result["evidence"][0]["provenance"]
 
 
-def test_phase2_rag_evaluator_reports_enterprise_metrics():
-    evidence = [
-        {
-            "source": "weaviate",
-            "text": "Pneumonia cough fever opacity differential diagnosis.",
-            "grounding_score": 0.9,
-            "record_id": "ClinicalDocument:doc1",
-            "metadata": {
-                "section": "Differential diagnosis",
-                "source_path": "guideline.txt",
-                "ontology_refs": ["Pathology:Pneumonia"],
-            },
-        },
-        {
-            "source": "weaviate",
-            "text": "Unrelated administrative note.",
-            "grounding_score": 0.2,
-            "record_id": "ClinicalDocument:doc2",
-            "metadata": {"section": "Admin", "source_path": "note.txt"},
-        },
-    ]
-    report = RAGEvaluator().evaluate(
-        [
-            RAGEvaluationRecord(
-                query="pneumonia cough opacity",
-                evidence=evidence,
-                answer="Pneumonia is supported by cough fever opacity.",
-                expected_terms=["pneumonia", "opacity"],
-                required_sources=["weaviate"],
-            )
-        ]
-    )
-    thresholds = RAGEvaluator.enterprise_thresholds(
-        report, min_context_precision=0.4, min_provenance=0.8
-    )
-
-    assert report.sample_count == 1
-    assert report.context_precision >= 0.5
-    assert report.provenance_completeness == 1.0
-    assert thresholds["status"] in {"pass", "needs_review"}

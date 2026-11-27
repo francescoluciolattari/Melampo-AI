@@ -9,6 +9,7 @@ from ..areas.case_context_area import CaseContextArea
 from ..areas.epidemiology_area import EpidemiologyArea
 from ..areas.language_listening_area import LanguageListeningArea
 from ..areas.visual_diagnostic_area import VisualDiagnosticArea
+from ..data.ingestion import PHYSICIAN_NOTE_KEY
 from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.candidate_retrieval import retrieve_candidates
 from ..memory.differential_ranking import rank_differential
@@ -29,8 +30,9 @@ from ..training.nexus_candidate_store import NexusCandidateStore
 from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
 from ..training.replay_filter import ReplayFilter
-from ..data.ingestion import PHYSICIAN_NOTE_KEY
 from ..types import CaseContext
+from ..utils.values import clamp as _clamp
+from ..utils.values import safe_float as _safe_float
 from .area_coherence import AreaCoherenceAnalyzer
 from .diagnostic_orchestrator import MelampoDiagnosticOrchestrator
 from .differential_engine import DifferentialEngine
@@ -125,15 +127,8 @@ class CritiqueProtocol(Protocol):
     def review(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
 
 
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 def _mean(values: list[float], default: float = 0.0) -> float:
@@ -354,7 +349,10 @@ class ClinicalInferencePipeline:
         * A finding of that new data at a site the diagnosis does not name goes to the physician as a possible
           new problem: whether it opens a new case is the physician's decision, never automatic.
         """
-        from ..governance.confirmation_registry import REJECT_UNSPECIFIED_SOURCE, SOURCE_UNSPECIFIED
+        from ..governance.confirmation_registry import (
+            REJECT_UNSPECIFIED_SOURCE,
+            SOURCE_UNSPECIFIED,
+        )
         from ..training.case_confirmation import submit_confirmed_diagnosis
 
         diagnosis = str(payload.get("confirmed_diagnosis") or "").strip()

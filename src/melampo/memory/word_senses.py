@@ -38,10 +38,11 @@ from __future__ import annotations
 
 import json
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
+
+from ..utils.values import fold as _fold
 
 # What one cue is worth. A strong cue (a word or a pattern only one sense has) decides almost alone;
 # a weak cue (a word that goes with one sense but also appears elsewhere) needs company.
@@ -73,9 +74,6 @@ _ENGLISH = frozenset(
 )
 
 
-def _fold(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text)
-    return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
 _EN_IRREGULAR = {"femur": ("femora",), "pelvis": ("pelves",), "coccyx": ("coccyges",), "foot": ("feet",),

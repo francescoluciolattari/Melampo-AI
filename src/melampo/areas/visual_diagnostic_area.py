@@ -3,9 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
+from ..utils.values import clamp as _clamp
 
 
 def _specialist_area_signal(specialist_signal: dict[str, Any] | None) -> dict[str, Any]:

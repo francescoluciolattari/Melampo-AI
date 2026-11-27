@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.ontology_import import wilson_interval
+from ..utils.values import normalise as _normalise
 
 FEATURE_HOPS = "hops"
 FEATURE_SUPPORT = "support"
@@ -253,5 +254,3 @@ def outcomes_from_confirmations(
     return outcomes
 
 
-def _normalise(value: str) -> str:
-    return " ".join(str(value).lower().split())

@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ..utils.values import box as _box
 from .lesion_measures import label_parts, measure_region
 
 MARGIN_MM = 6.0            # how far beyond the first reading the threshold may extend
@@ -124,11 +125,6 @@ def _spacing(affine) -> np.ndarray:
     return np.array([np.linalg.norm(a[:, 2]), np.linalg.norm(a[:, 1]), np.linalg.norm(a[:, 0])])  # slice,row,col
 
 
-def _box(mask: np.ndarray, margin_vox) -> tuple[slice, ...]:
-    idx = np.argwhere(mask)
-    lo = np.maximum(idx.min(0) - margin_vox, 0)
-    hi = np.minimum(idx.max(0) + margin_vox + 1, mask.shape)
-    return tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
 
 
 def threshold_region(image: np.ndarray, seed: np.ndarray, affine, organ_mask: np.ndarray | None = None,

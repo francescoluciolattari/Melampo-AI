@@ -40,6 +40,7 @@ from typing import Any
 
 import numpy as np
 
+from ..utils.values import box as _box
 from .density import distance_mm, spacing_zyx
 
 INSIDE_SHARE = 0.90
@@ -108,11 +109,6 @@ class StructureLabels(Mapping):
         return {inv[int(v)]: sub == v for v in np.unique(sub) if int(v) in inv}
 
 
-def _box(mask: np.ndarray, margin_vox) -> tuple[slice, ...]:
-    idx = np.argwhere(mask)
-    lo = np.maximum(idx.min(0) - margin_vox, 0)
-    hi = np.minimum(idx.max(0) + margin_vox + 1, mask.shape)
-    return tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
 
 
 def involvement(region: np.ndarray, structures: dict[str, np.ndarray], affine,

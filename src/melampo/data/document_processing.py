@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..utils.values import clamp as _clamp
+
 _HEADING_RE = re.compile(r"^(#{1,6}\s+.+|[A-Z][A-Z0-9 /,:;()\-]{5,})$", re.MULTILINE)
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # The same separator on both sides ("12/09/2026", "12.09.2026", "12-09-2026"),
@@ -108,8 +110,6 @@ def _stable_id(*parts: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8", errors="ignore")).hexdigest()[:24]
 
 
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
 
 
 FORMAT_PDF = "pdf"

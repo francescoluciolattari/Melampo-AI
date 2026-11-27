@@ -4,9 +4,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
+from ..utils.values import clamp as _clamp
 
 
 def _round_unit(value: float) -> float:

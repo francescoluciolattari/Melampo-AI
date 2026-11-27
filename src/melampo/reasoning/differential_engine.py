@@ -1,16 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Any
 
+from ..utils.values import safe_float as _safe_float
 from .support_contradiction import SupportContradictionAnalyzer
 
 _PLACEHOLDER_LABEL_PREFIX = "candidate_"
 
 
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 def _best_graph_hypothesis(alternatives: list) -> dict | None:

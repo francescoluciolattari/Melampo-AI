@@ -5,16 +5,10 @@ from typing import Any
 
 from ..memory.visual_imprint import VisualImprintMorpher
 from ..models.quantum_belief_layer import QuantumBeliefLayer
+from ..utils.values import safe_float as _safe_float
 from .counterfactual_sampler import CounterfactualSampler
 from .mechanism_enumeration import MODE_HYPOTHESES
 from .replay_filter import ReplayFilter
-
-
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 @dataclass(frozen=True, slots=True)

@@ -26,6 +26,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..utils.values import safe_float as _safe_float
+
 HYPOTHESIS_NAMESPACE = "melampo_hypothesis_candidates"
 HYPOTHESIS_ROLE = "exclusion_hypothesis"
 
@@ -193,8 +195,3 @@ def assert_not_evidence(items: Sequence[dict[str, Any]]) -> None:
             )
 
 
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default

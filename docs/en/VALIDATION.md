@@ -277,7 +277,7 @@ PARROT has no varied sample left (62 items from 42 reports, mostly brain and aor
   card, the pathologist's summary given to its cards and the comparison of a card's measure with the reference
   rows (R16) are in it since 27 November 2026, with the part of the document of each card and the router's choice,
   verified by tests with stand-in interpreters only. A document's identifiers are compared with the patient's (R22); a document
-  that writes none cannot be checked, and the review mask that shows the questions is not built yet.
+  that writes none cannot be checked; the review mask is built and not validated.
 - The weights of the disease profiles are few: 6 of 79 manifestations of acute appendicitis with a measured
   accuracy; the numbers of the signs are often in subscription texts and in textbooks not yet among the sources.
 - All labels so far are one labeller's; the "?" labels and the lists of findings of another structure wait for a

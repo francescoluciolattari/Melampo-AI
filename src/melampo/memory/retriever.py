@@ -4,16 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
+from ..utils.values import clamp as _clamp
+from ..utils.values import safe_float as _safe_float
 
 
 @dataclass

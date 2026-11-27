@@ -29,6 +29,7 @@ from typing import Any
 
 from ..memory.concept_paths import ConceptEdge
 from ..memory.ontology_import import wilson_interval
+from ..utils.values import normalise as _normalise
 
 RELATION_CONJECTURED = "conjectured_association"
 MIN_CONFIRMATIONS = 3
@@ -208,5 +209,3 @@ def leaps_in(hypotheses: Iterable[Any], case_id: str, ledger: ConjectureLedger) 
     return sum(len(ledger.record_from_hypothesis(item, case_id)) for item in hypotheses)
 
 
-def _normalise(value: str) -> str:
-    return " ".join(str(value).lower().split())

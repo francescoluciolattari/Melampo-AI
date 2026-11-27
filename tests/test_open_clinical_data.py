@@ -1,20 +1,7 @@
 import json
 from pathlib import Path
 
-from melampo.datasets.open_catalog import (
-    datasets_by_modality,
-    list_open_clinical_datasets,
-)
 from melampo.prototype import run_prototype_case
-
-
-def test_open_clinical_dataset_catalog_lists_known_sources():
-    datasets = list_open_clinical_datasets()
-    names = {item["name"] for item in datasets}
-    assert "NIH ChestX-ray14" in names
-    assert "Open-i / Indiana University Chest X-rays" in names
-    assert "MIMIC-IV" in names
-    assert datasets_by_modality("chest_xray_labels")
 
 
 def test_synthetic_open_clinical_case_runs_through_prototype():

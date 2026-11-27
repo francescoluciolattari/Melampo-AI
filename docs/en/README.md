@@ -35,7 +35,7 @@ Verified on the code of `main`; the full map is in [ARCHITECTURE](ARCHITECTURE.m
 | Case confirmation and merge | working | a confirmation without a clinical basis is kept out of training |
 | Memory retriever | **known defect** | with an empty memory it invents three items of evidence |
 | Training (DPO, LoRA) | never run | no GPU, no confirmed labels yet |
-| Physician's input and review mask | to build | the questions it will show are ready |
+| Physician's input and review mask | built, not validated | `python scripts/review_mask.py`: the documents of a case and the questions of its reading |
 
 ## Repository map
 

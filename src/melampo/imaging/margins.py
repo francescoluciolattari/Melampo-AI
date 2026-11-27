@@ -41,6 +41,7 @@ from typing import Any
 
 import numpy as np
 
+from ..utils.values import box as _box
 from .density import DensityProfile, distance_mm, spacing_zyx
 from .lesion_measures import label_parts, measure_region
 
@@ -77,11 +78,6 @@ class MarginProfile:
                 for k, v in asdict(self).items()}
 
 
-def _box(mask: np.ndarray, margin_vox) -> tuple[slice, ...]:
-    idx = np.argwhere(mask)
-    lo = np.maximum(idx.min(0) - margin_vox, 0)
-    hi = np.minimum(idx.max(0) + margin_vox + 1, mask.shape)
-    return tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
 
 
 def _open(m: np.ndarray, sp, r: float) -> np.ndarray:

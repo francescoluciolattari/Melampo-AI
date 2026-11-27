@@ -614,6 +614,11 @@ def _document_to_a_person(source_id: str, routing: dict[str, Any], out: dict[str
 
     why = set_aside_of(routing)
     check = (routing.get("patient") or {}).get("check", "")
+    if routing.get("decision") and why != "another_patient":
+        # a person decided in the review mask: the question is answered, the decision holds
+        if why:
+            out["texts"].append({"report": source_id, "kinds": routing.get("kinds"), "read": False, "reason": why})
+        return bool(why)
     system = {"identifiers_compared": list((routing.get("patient") or {}).get("compared", [])),
               "kinds": list(routing.get("kinds") or ())}
     if why:

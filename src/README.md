@@ -82,7 +82,6 @@ src/melampo/
 - `memory/weaviate_adapter.py`: safe Weaviate adapter contract and dry-run/live boundary.
 - `models/specialist_adapters.py`: Pillar-0, Gemma 4 and Claude adapter contracts.
 - `data/document_processing.py`: Nemotron-Parse-aware document processor with fallback.
-- `evaluation/clinical_benchmark.py`: retrospective benchmark runner.
 - `evaluation/prospective_validation.py`: prediction-lock prospective validation registry.
 - `evaluation/calibration.py`: confidence calibration metrics.
 
@@ -100,7 +99,6 @@ navigation affordances.
 - `training/hypothesis_channel.py`: nexus candidates delivered as exclusion hypotheses under an indeterminacy gate, structurally isolated from the evidence path.
 - `memory/concept_resolution.py`: ontology parsing, term index, deterministic surface-to-concept resolution; modifier roles read from the hierarchy; separates a resolution gap from a coverage gap.
 - `memory/ontology_import.py`: HPO annotations as interval edges, published frequency ranges preserved rather than collapsed to points.
-- `memory/graph_coverage.py`: coverage against a reference relation set; guards evaluations that would measure the knowledge base while appearing to measure the architecture.
 - `reasoning/family_history.py`: family history as screening hypothesis and prior modifier, never as a patient finding.
 - `memory/assertion.py`: deterministic assertion detection — polarity, certainty, experiencer, temporality, source — producing an interval and an epistemic state rather than a scalar.
 - `reasoning/findings_boundary.py`: enforced boundary admitting only current, asserted findings of this patient; every rejection carries its route.
@@ -120,10 +118,8 @@ navigation affordances.
 - `memory/literature_persistence.py`: gives LiteratureIndex real persistence, using the vector store the project already built (`vector_memory.py`) and never connected. Storage only -- relevance ranking stays LiteratureIndex's own concept matching, deliberately never routed through the store's embedding-similarity search.
 - `memory/tracked_concepts.py`: the refresh queue literature updates work through -- Nexus-Engine style (bounded, nightly, grown from real use), prioritised by longest-since-refreshed, never a crawl of the graph's full concept set.
 - `memory/description_population.py`: bulk-populates the concept description store from `hp.obo`'s 17,441 curated definitions (already downloaded, previously unparsed), and defines the canonical structure format shared by the extractor and any vetting model prompted to emit its own -- generated from the `ExtractedStructure` shape itself so the two cannot silently desynchronise.
-- `memory/structural_extraction.py`: the real (HTTP-backed) extractor for tier 3 of the normalisation cascade -- entities and relations out of free text, transport left to the deployment, degrading gracefully throughout.
 - `memory/falkordb_connection.py` + `memory/falkordb_graph.py`: a second `ConceptGraphView` implementation, backed by FalkorDB (embedded FalkorDBLite or a remote service, switchable via `data/falkordb_config.toml` only -- no code change), verified identical to `InMemoryConceptGraph` and 0.9-4.3x faster on real cases after two rejected optimisation attempts and a rejected native procedure (FalkorDB's `algo.BFS`, found unreliable in the Rust engine via two open upstream issues and a second real project's own bug catalogue) -- see `docs-archive-2026-11:docs/recursive_engine_decision_record.md` for the full investigation.
 - `training/vector_evolution_engine.py`: evolves diagnostic hypothesis vectors continuously over time (a leaky integrator, Dayan & Abbott 2001) and surfaces non-obvious correlations between different cases by real cosine overlap, with Hebbian reinforcement (Hebb 1949) on clinically confirmed correlations -- the honest, mathematically real replacement for a proposed "neuro-quantum" layer that would have added nothing beyond ordinary real-vector similarity while misusing a physical constant.
-- `training/quantum_cognition_order_model.py`: the real Busemeyer & Bruza (2012) formalism -- complex Hilbert space, verified Hermitian/idempotent projectors, Lüders sequential collapse -- for predicting order effects in a HUMAN reader's diagnostic judgment. Never connected to the system's own reasoning, which stays order-invariant by construction (`tests/test_order_invariance.py`). Stage A of an agreed three-stage validation plan: verifies the mathematics itself, not yet validated against clinical behavioural data.
 - `memory/graph_sources.py`: loads the verification graph AND the hp.obo synonym index from real HPO files, always reporting which source it used -- refusing to fall back to a fixture when `require_real_data=True`, because an audit found three live bench runs scoring candidates against a 33-edge hand-written fixture while reporting it as grounding against the concept graph. loads the verification graph from a real HPO release and always reports which source it used -- refusing to fall back to a fixture when `require_real_data=True`, because an audit found three live bench runs scoring candidates against a 33-edge hand-written fixture while reporting it as grounding against the concept graph.
 - `memory/concept_normalisation.py`: three-tier cascade bridging free-text clinical phrasing to graph concepts -- lexical (exact/containment/word-set, unchanged), then SapBERT-style embedding with both a threshold and a runner-up margin, then structural. Every result records which tier resolved it and whether that tier is reproducible.
 - `memory/structural_comparison.py`: tier 3 -- a model extracts entities and relations from a claim and from a concept's cached literature description, and the comparison of those two structures is arithmetic. The model never judges equivalence; it only extracts. Descriptions persist as append-only JSONL, the same discipline as learned graph edges, and are created automatically whenever `DiagnosticAssembly.promote_confirmed` promotes a new edge -- from the Nexus Engine or a newly confirmed RLM conjecture -- for any concept that does not already have one. tier 3 -- a model extracts entities and relations from a claim and from a concept's cached literature description, and the comparison of those two structures is arithmetic. The model never judges equivalence; it only extracts.
@@ -145,6 +141,30 @@ navigation affordances.
 - `reasoning/mechanism_verification.py`: checks a relevance frame's claimed `mechanism` against the concept graph via `mediating_concepts` rather than against the other model's string, separating agreement from grounding so two models agreeing on an invented mechanism is visible instead of looking like clean corroboration.
 - `reasoning/frame_answer.py`: compares two answers by frame slots (drug/dose/frequency, finding/site/polarity) rather than by characters, after character similarity was measured ranking a contradiction above a paraphrase; polarity slots make Fauconnier's mental spaces checkable.
 - `evaluation/depth_comparison.py`: paired comparison of depth 0 against depth 1 before the recursion is trusted.
+
+## Modules kept for later development (27 November 2026)
+
+Nothing in the program calls these yet; only their tests do. They are kept because a coming step needs them, and
+are removed when that step no longer does. Removed on the same day, as no longer needed: `datasets/open_catalog`,
+`evaluation/clinical_benchmark`, `evaluation/rag_evaluation`, `evaluation/dual_path_ab`, `memory/qdrant_adapter`,
+`memory/structural_extraction`, `memory/graph_coverage`, `reasoning/clinical_discourse`,
+`training/quantum_cognition_order_model` (they stay in the git history).
+
+| Module | Kept for |
+|---|---|
+| `memory/case_graph_store.py` | the case graph in a local FalkorDB (never the cloud free tier: patients' data) |
+| `imaging/longitudinal.py` | the follow-up: a finding of one exam linked to the same finding of the next |
+| `evaluation/enumeration_bench.py` | measuring the differential itself: spread, rank, when not to rank |
+| `evaluation/calibration.py` | the calibration of the confidences, before any is shown to a physician |
+| `evaluation/model_release_gate.py` | the gate a model passes before a release |
+| `evaluation/prospective_validation.py` | the prediction lock of a prospective study (clinical evaluation, MDR) |
+| `evaluation/depth_comparison.py` | depth 0 against depth 1 of the recursive engine, before recursion is used |
+| `reasoning/rlm_wiring.py` | the recursive engine bound to the memory and the audit store (`rlm_engine` phase two) |
+| `reasoning/discriminating_tests.py` | the investigations that tell the competing hypotheses apart |
+| `training/hypothesis_yield_wiring.py` | how often a kind of hypothesis is confirmed, from the confirmation registry |
+
+The reader before the one procedure (`MELAMPO_REPORT_READER=anatomy`: `finding_owner`, the claims, the Kintsch
+reader) stays until the bench of December 2026 has measured the one procedure against it on the same sample.
 
 ## CLI commands
 

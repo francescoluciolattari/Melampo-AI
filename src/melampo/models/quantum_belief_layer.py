@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
-
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
+from ..utils.values import clamp as _clamp
 
 
 @dataclass

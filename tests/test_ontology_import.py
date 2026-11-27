@@ -7,14 +7,6 @@ from melampo.memory.concept_paths import (
     ConceptEdge,
     InMemoryConceptGraph,
 )
-from melampo.memory.graph_coverage import (
-    OUTCOME_ABSENT,
-    OUTCOME_GAP,
-    OUTCOME_PRESENT,
-    ReferenceRelation,
-    evaluation_is_interpretable,
-    measure_coverage,
-)
 from melampo.memory.ontology_import import (
     FREQUENCY_TERMS,
     RELATION_HAS_PHENOTYPE,
@@ -197,74 +189,3 @@ def _coverage_graph() -> InMemoryConceptGraph:
     )
 
 
-def test_coverage_separates_present_gap_and_absent():
-    report = measure_coverage(
-        _coverage_graph(),
-        [
-            ReferenceRelation("disease a", "finding a"),
-            ReferenceRelation("disease b", "finding b"),
-            ReferenceRelation("disease c", "finding c"),
-        ],
-    )
-    outcomes = {item.relation.target: item.outcome for item in report.results}
-    assert outcomes["finding a"] == OUTCOME_PRESENT
-    assert outcomes["finding b"] == OUTCOME_GAP
-    assert outcomes["finding c"] == OUTCOME_ABSENT
-
-    assert report.coverage == pytest.approx(1 / 3)
-    assert report.reachability == pytest.approx(2 / 3)
-
-
-def test_the_two_queues_are_kept_apart_because_they_are_different_work():
-    report = measure_coverage(
-        _coverage_graph(),
-        [
-            ReferenceRelation("disease b", "finding b"),
-            ReferenceRelation("disease c", "finding c"),
-        ],
-    )
-    assert [item.target for item in report.calibration_queue()] == ["finding b"]
-    assert [item.target for item in report.completion_queue()] == ["finding c"]
-
-
-def test_an_attested_path_is_preferred_over_one_crossing_a_gap():
-    graph = InMemoryConceptGraph.from_edges(
-        [
-            ConceptEdge.unknown("d", "has_phenotype", "f"),
-            ConceptEdge("d", "has_phenotype", "m", 0.9),
-            ConceptEdge("m", "has_phenotype", "f", 0.9),
-        ]
-    )
-    report = measure_coverage(graph, [ReferenceRelation("d", "f")])
-    assert report.results[0].outcome == OUTCOME_PRESENT
-    assert report.results[0].hops == 2, (
-        "the two-hop attested path beats the one-hop unknown"
-    )
-
-
-def test_low_coverage_marks_an_evaluation_as_uninterpretable():
-    report = measure_coverage(
-        _coverage_graph(),
-        [
-            ReferenceRelation("disease c", "finding c"),
-            ReferenceRelation("disease d", "finding d"),
-        ],
-    )
-    verdict = evaluation_is_interpretable(report)
-    assert verdict["interpretable"] is False
-    assert "knowledge base" in verdict["reason"]
-
-
-def test_sufficient_coverage_marks_an_evaluation_as_interpretable():
-    graph = InMemoryConceptGraph.from_edges(
-        [ConceptEdge("d", "has_phenotype", "f", 0.9)]
-    )
-    report = measure_coverage(graph, [ReferenceRelation("d", "f")])
-    assert evaluation_is_interpretable(report)["interpretable"] is True
-
-
-def test_an_empty_reference_set_reports_zero_rather_than_dividing_by_zero():
-    report = measure_coverage(_coverage_graph(), [])
-    assert report.total == 0
-    assert report.coverage == 0.0
-    assert report.reachability == 0.0

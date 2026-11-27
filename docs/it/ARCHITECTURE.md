@@ -91,7 +91,7 @@ etichetta confermata).
 | Archivio dei casi confermati | `training/confirmed_case_store.py` | cifrato, anonimizzato (HMAC-SHA256) |
 | Feedback delle revisioni | `evaluation/review_feedback.py` | un record diventa etichetta solo dopo la conferma di una seconda persona |
 | Addestramento | `training/dpo_config.py`, profili LoRA in `evaluation/model_profiles.py` | mai eseguito |
-| Maschera di immissione e revisione | — | da costruire (HTML/JS in locale) |
+| Maschera di immissione e revisione | `scripts/review_mask.py`, `data/case_review.py`, `scripts/mask_common.py` | costruita, non validata (27 novembre 2026): una pagina su questo computer per aprire un caso, aggiungerne i documenti, dire quali si usano, leggere il caso e rispondere alle sue domande. Il documento di un altro paziente è scartato e non si può cambiare; un documento senza identificativi fa parte del fascicolo del paziente, usato salvo che una persona dica no; un documento in dubbio o di nessun tipo riconosciuto viene chiesto. Ciò che il sistema ha letto si vede solo dopo la risposta. I dubbi delle schede sono elencati, ancora senza risposte chiuse |
 
 ### Lettori locali dei referti
 

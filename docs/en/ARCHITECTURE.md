@@ -90,7 +90,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Confirmed-case store | `training/confirmed_case_store.py` | encrypted, anonymised (HMAC-SHA256) |
 | Review feedback | `evaluation/review_feedback.py` | a record becomes a label only after a second person confirms it |
 | Training | `training/dpo_config.py`, LoRA profiles in `evaluation/model_profiles.py` | never run |
-| Input and review mask | — | to build (local HTML/JS) |
+| Input and review mask | `scripts/review_mask.py`, `data/case_review.py`, `scripts/mask_common.py` | built, not validated (27 November 2026): a page on this computer to open a case, add its documents, say which are used, read the case and answer its questions. Another patient's document is discarded and cannot be changed; a document without identifiers is part of the patient's file, used unless a person says no; a document in doubt or of no recognised kind is asked. What the system read is shown only after the answer. The cards' doubts are listed, without closed answers yet |
 
 ### Local readers of the reports
 

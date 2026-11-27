@@ -11,7 +11,7 @@ registrati, venti hanno un controllo verificato da test; uno è aperto.
 | Quadro | Classe | Perché |
 |---|---|---|
 | MDR (UE 2017/745), regola 11 | almeno **IIa** | software che dà informazioni usate per prendere decisioni diagnostiche; IIb se un risultato sbagliato potesse causare un grave peggioramento della salute |
-| IEC 62304 | **C**, provvisoria | un reperto sbagliato o mancato può contribuire a un danno grave. La classe B richiederebbe che la revisione del medico sia un controllo del rischio esterno al software, documentato e verificato; finché la maschera di revisione non esiste ed è validata, il progetto adotta la classe più severa |
+| IEC 62304 | **C**, provvisoria | un reperto sbagliato o mancato può contribuire a un danno grave. La classe B richiederebbe che la revisione del medico sia un controllo del rischio esterno al software, documentato e verificato; finché la maschera di revisione (costruita il 27 novembre 2026) non è validata, il progetto adotta la classe più severa |
 | AI Act (UE 2024/1689) | **alto rischio**, tramite l'allegato I (dispositivi medici di classe IIa e superiori) | gli obblighi per l'IA nei dispositivi medici si applicano dal 2 agosto 2028 dopo il regolamento (UE) 2026/1744, secondo una fonte secondaria: da verificare su EUR-Lex |
 | GDPR, art. 9 | dati sanitari | pseudonimizzazione alla fonte, trattamento locale, archivi cifrati (ARCHITECTURE §5) |
 
@@ -47,7 +47,7 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | R19 | un codice dato prima di confrontare le letture | nessun codice sulla scheda; si codifica solo la lettura concordata, per scelta di ogni interprete | controllato |
 | R20 | la frase di un paziente entra nella conoscenza condivisa | solo le pubblicazioni scrivono il tesauro; il testo di un paziente solo su questa macchina | controllato |
 | R21 | un peso di un profilo da un numero letto male | un solo valore per misura; pesa solo se letto da entrambi gli interpreti; i giudici verificano numeri e direzione | controllato |
-| R22 | un documento di un altro paziente, o non medico, nel caso | gli identificativi scritti in ogni documento confrontati con quelli del paziente, su questa macchina; il documento di un altro paziente tenuto fuori e la sua domanda a una persona; un documento di nessun tipo riconosciuto a una persona | parziale: un documento senza identificativi non si può controllare; la maschera di revisione è da costruire |
+| R22 | un documento di un altro paziente, o non medico, nel caso | gli identificativi scritti in ogni documento confrontati con quelli del paziente, su questa macchina; il documento di un altro paziente tenuto fuori e la sua domanda a una persona; un documento di nessun tipo riconosciuto a una persona | parziale: un documento senza identificativi non si può controllare (è usato salvo che una persona dica no nella maschera di revisione); la maschera non è validata |
 
 ## 3. Software di terze parti e modelli esterni
 

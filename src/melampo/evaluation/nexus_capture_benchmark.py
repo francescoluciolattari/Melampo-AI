@@ -38,6 +38,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..utils.values import normalise as _normalise
+
 DENSITY_BANDS = ((0.0, 0.25, "sparse"), (0.25, 0.6, "moderate"), (0.6, 1.01, "dense"))
 
 
@@ -221,5 +223,3 @@ def _contains(items: Sequence[str], target: str) -> bool:
     return any(_normalise(item) == needle for item in items)
 
 
-def _normalise(value: str) -> str:
-    return " ".join(str(value).lower().split())

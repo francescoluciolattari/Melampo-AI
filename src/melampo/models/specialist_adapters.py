@@ -3,13 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..utils.values import clamp as _clamp
 from .model_card import ModelCard
 from .model_client import ModelClientConfig, SafeModelClient
 from .model_response_schema import ClinicalClaim, SpecialistModelResponse
-
-
-def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
 
 
 def _safe_claims(

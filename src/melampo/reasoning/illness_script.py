@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.concept_paths import ConceptGraphView, ConceptPath, find_paths
+from ..utils.values import normalise as _normalise
 
 RELATION_ENABLES = "enables"
 RELATION_CAUSES = "causes"
@@ -346,5 +347,3 @@ def _element(item: dict[str, Any]) -> ScriptElement:
     )
 
 
-def _normalise(value: str) -> str:
-    return " ".join(str(value).lower().split())

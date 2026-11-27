@@ -35,7 +35,7 @@ Verificato sul codice di `main`; la mappa completa è in [ARCHITECTURE](ARCHITEC
 | Conferma e unione dei casi | funziona | una conferma senza base clinica resta fuori dall'addestramento |
 | Memory retriever | **difetto noto** | con la memoria vuota inventa tre prove |
 | Addestramento (DPO, LoRA) | mai eseguito | nessuna GPU, ancora nessuna etichetta confermata |
-| Maschera di immissione e revisione del medico | da costruire | le domande che mostrerà sono pronte |
+| Maschera di immissione e revisione del medico | costruita, non validata | `python scripts/review_mask.py`: i documenti di un caso e le domande della sua lettura |
 
 ## Mappa del repository
 

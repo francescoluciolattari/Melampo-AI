@@ -18,16 +18,14 @@ from __future__ import annotations
 
 import json
 import re
-import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+
+from ..utils.values import fold as _fold
 
 DEFAULT_PATH = Path(__file__).resolve().parents[3] / "data" / "linking" / "provenance.json"
 
 
-def _fold(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text)
-    return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
 @dataclass(frozen=True)
