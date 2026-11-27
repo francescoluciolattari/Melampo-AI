@@ -245,6 +245,84 @@ class CaseFolder:
     def save_reading(self, reading: dict[str, Any]) -> None:
         self._write("reading.json", reading)
 
+    # -- the doubts of the cards: closed answers, a second person, a third when no interpreter was right ------
+
+    def card_questions(self) -> list[dict[str, Any]]:
+        return card_questions(self.reading())
+
+    def answer_card(self, qid: str, code: str, by: str, text: str = "") -> dict[str, Any]:
+        """A person's answer to the doubt of a card: a proposal until a second person confirms it."""
+        q = next((q for q in self.card_questions() if q["id"] == qid), None)
+        if q is None:
+            raise ValueError("unknown question")
+        if code not in {o["code"] for o in q["options"]}:
+            raise ValueError("the answer is not one of the question's")
+        if code == "other" and not text.strip():
+            raise ValueError("'other' needs the reading written")
+        if not (by or "").strip():
+            raise ValueError("who answers must be said")
+        review = self.review()
+        review.setdefault("cards", {})[qid] = {"answer": code, "text": text.strip(), "by": by.strip(),
+                                               "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                               "needs_adjudication": _needs_adjudication(q, code)}
+        self._write("review.json", review)
+        return review["cards"][qid]
+
+    def confirm_card(self, qid: str, by: str, role: str = "confirmed") -> dict[str, Any]:
+        """A second person confirms the answer ("confirmed"), or a third adjudicates it ("adjudicated") when the
+        answer is none of the interpreters' readings."""
+        review = self.review()
+        answer = review.get("cards", {}).get(qid)
+        if answer is None:
+            raise ValueError("the question has no answer yet")
+        who = (by or "").strip()
+        if not who:
+            raise ValueError("who confirms must be said")
+        earlier = [answer["by"]] + ([answer["confirmed_by"]] if answer.get("confirmed_by") else [])
+        if who.lower() in (x.lower() for x in earlier):
+            raise ValueError("a confirmation is given by another person")
+        if role == "adjudicated":
+            if not answer.get("needs_adjudication") or not answer.get("confirmed_by"):
+                raise ValueError("adjudication is for a confirmed answer no interpreter gave")
+        elif answer.get("confirmed_by"):
+            raise ValueError("the answer is confirmed already")
+        answer[f"{role}_by"] = who
+        answer[f"{role}_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        self._write("review.json", review)
+        return answer
+
+    def confirmations(self) -> list:
+        """The confirmed answers as de-identified reading confirmations (``review_feedback``), ready for the
+        archive; nothing of the person goes in them (names and keys are pseudonymous)."""
+        from ..evaluation.review_feedback import (
+            ReadingConfirmation,
+            case_key,
+            person_key,
+        )
+        from .deidentify import deidentify, shift_of
+
+        fields = self.patient_fields()
+        names = [fields.get("patient_name", ""), fields.get("patient_surname", "")]
+        answers = self.review().get("cards", {})
+        out = []
+        for q in self.card_questions():
+            a = answers.get(q["id"])
+            if not a or not a.get("confirmed_by") or (a.get("needs_adjudication") and not a.get("adjudicated_by")):
+                continue
+            card = _confirmed_card(q, a)
+            if card is None:
+                continue        # "not stated": the sentence teaches nothing to read (it still counts in measures)
+            done = deidentify(q["sentence"], names, shift_of(self.id))
+            card["quote"] = done.text
+            out.append(ReadingConfirmation(
+                case=case_key(self.id), document=q["report"], sentence=done.text, card=card, doubt=q["doubt"],
+                answer=a["answer"], system=q["system"]["alternatives"], decided_by=person_key(a["by"]),
+                confirmed_by=person_key(a["confirmed_by"]),
+                adjudicated_by=person_key(a["adjudicated_by"]) if a.get("adjudicated_by") else "",
+                needs_adjudication=bool(a.get("needs_adjudication")), deidentified=True,
+                deidentified_kinds=done.kinds))
+        return out
+
     # -- the questions of the reading --------------------------------------------------------------------------
 
     def questions(self) -> list[dict[str, Any]]:
@@ -253,9 +331,14 @@ class CaseFolder:
             "document:")]
 
     def doubts(self) -> list[dict[str, Any]]:
-        """What the reading sends to a person without a closed question (the doubts of the cards)."""
+        """What else the reading sends to a person (a row of the library chosen differently, the image), the
+        doubts of the cards and of the documents apart: they have their closed questions."""
+        def of_a_card(reason: str) -> bool:
+            return reason.startswith("doubt:") and reason != "doubt:reference_chosen_differently"
+
         return [d for d in (self.reading() or {}).get("to_a_person", [])
-                if not str(d.get("reason", "")).startswith(("document_", "kind_not_recognised"))]
+                if not str(d.get("reason", "")).startswith(("document_", "kind_not_recognised"))
+                and not of_a_card(str(d.get("reason", "")))]
 
     def answer(self, qid: str, code: str, by: str, text: str = "") -> dict[str, Any]:
         """A person's answer to a question of the reading, kept as a review record (a proposal until a second
@@ -275,4 +358,83 @@ class CaseFolder:
         return review["answers"][qid]
 
 
-__all__ = ["CASES", "DECISION_OF", "USE_ANSWERS", "CaseFolder", "DocumentRow"]
+# -- the doubts of the cards --------------------------------------------------------------------------------
+
+PART_LABEL = {"indication": "quesito", "history": "anamnesi", "comparison": "confronto", "technique": "tecnica",
+              "findings": "reperti", "impression": "conclusione", "other": "altro"}
+
+
+def _card_id(report: str, card: dict, doubt: str) -> str:
+    import hashlib
+
+    key = f"{report}|{card.get('quote', '')}|{card.get('name', '')}|{doubt}"
+    return "card-" + hashlib.sha256(key.encode()).hexdigest()[:12]
+
+
+def card_questions(reading: dict | None) -> list[dict[str, Any]]:
+    """One closed question per doubt of an agreed card of the reading (``reading/agreement``): of a field read
+    differently, each interpreter's value; of a finding only one interpreter read, whether the sentence states it;
+    of a part the heading contradicts, the parts. Every question also has "other" (written) and "not stated"."""
+    out = []
+    for text in (reading or {}).get("texts", []):
+        for card in text.get("cards", []) or []:
+            if card.get("read_by"):
+                continue
+            for doubt in card.get("doubts", []):
+                field_ = doubt.removesuffix("_given_by_one")
+                options: list[dict[str, Any]] = []
+                if doubt == "one_interpreter":
+                    kind = "one_interpreter"
+                    options.append({"code": "yes", "label_it": "Sì: la frase dice questo reperto, letto così"})
+                elif doubt == "part_differs_from_heading":
+                    kind = "part"
+                    for p in dict.fromkeys(x for x in (card.get("part"), card.get("part_heading")) if x):
+                        options.append({"code": f"part:{p}", "value": p,
+                                        "label_it": f"La frase è nella parte: {PART_LABEL.get(p, p)}"})
+                else:
+                    kind = "field"
+                    values = (card.get("alternatives") or {}).get(field_, {})
+                    for v in dict.fromkeys(json.dumps(x, ensure_ascii=False, sort_keys=True)
+                                           for x in values.values() if x not in (None, "", {}, [])):
+                        options.append({"code": f"value:{len(options) + 1}", "value": json.loads(v),
+                                        "label_it": f"{field_}: {v}"})
+                options += [{"code": "other", "label_it": "Altro (scrivilo)"},
+                            {"code": "not_stated", "label_it": "La frase non dice questo reperto"}]
+                out.append({"id": _card_id(text.get("report", ""), card, doubt), "kind": f"card:{kind}",
+                            "report": text.get("report", ""), "doubt": doubt,
+                            "field": field_ if kind == "field" else ("part" if kind == "part" else ""),
+                            "sentence": card.get("quote", ""), "name": card.get("name", ""), "card": card,
+                            "options": options,
+                            "system": {"alternatives": card.get("alternatives", {}),
+                                       "doubts": card.get("doubts", [])}})
+    return out
+
+
+def _needs_adjudication(question: dict, code: str) -> bool:
+    """The answer is none of the interpreters' readings: a third person adjudicates it."""
+    if question["kind"] == "card:one_interpreter":
+        return code == "other"
+    return code in ("other", "not_stated")
+
+
+_NOT_OF_THE_FORM = ("alternatives", "readers", "labels", "doubts", "paired_by", "part_heading", "site_code", "image",
+                    "reference", "pathology", "pathology_section", "readings", "read_by")
+
+
+def _confirmed_card(question: dict, answer: dict) -> dict | None:
+    """The card as the answer makes it, or None when the sentence does not state the finding."""
+    code = answer["answer"]
+    if code == "not_stated":
+        return None
+    card = {k: v for k, v in question["card"].items() if k not in _NOT_OF_THE_FORM}
+    chosen = next((o for o in question["options"] if o["code"] == code), {})
+    if question["kind"] == "card:field" and "value" in chosen:
+        card[question["field"]] = chosen["value"]
+    elif question["kind"] == "card:part" and "value" in chosen:
+        card["part"] = chosen["value"]
+    elif code == "other":
+        card["written"] = answer.get("text", "")
+    return card
+
+
+__all__ = ["CASES", "DECISION_OF", "USE_ANSWERS", "CaseFolder", "DocumentRow", "card_questions"]

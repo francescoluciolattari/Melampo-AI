@@ -101,6 +101,10 @@ risks:
       - control: Review records refuse text that is not pseudonymised
         tests:
           - tests/test_review_feedback.py::test_text_that_is_not_pseudonymised_is_refused
+      - control: A confirmed reading is kept de-identified (names, codes, contacts, addresses, places, dates moved by one fixed number of days per case, ages above 89); the archive refuses a sentence that is not, keeps pseudonymous keys only, and stays on this computer; an adapter is tested for memorisation before use (plan of predetermined changes)
+        tests:
+          - tests/test_reading_confirmations.py::test_the_sentence_is_kept_as_written_without_the_person
+          - tests/test_reading_confirmations.py::test_an_answer_trains_only_once_a_second_person_confirms_it_de_identified
     status: controlled
   - id: R08
     hazard: The system learns from unconfirmed or unfounded labels
@@ -115,6 +119,10 @@ risks:
       - control: A review answer becomes a label only after a second person confirms it
         tests:
           - tests/test_review_feedback.py::test_only_confirmed_records_train
+      - control: The answer to the doubt of a card is a proposal until a second person confirms it, and needs a third when it is none of the interpreters' readings; a de-identified sentence trains only when both interpreters read it to the confirmed card; one case in five only measures
+        tests:
+          - tests/test_reading_confirmations.py::test_an_answer_no_interpreter_gave_waits_for_a_third_person
+          - tests/test_reading_confirmations.py::test_a_de_identified_sentence_trains_only_when_the_interpreters_read_it_to_the_confirmed_card
     status: controlled
   - id: R09
     hazard: Records of another patient are merged or closed with a case

@@ -13,8 +13,11 @@ The documents (``data/case_review.py``, the owner's rules):
 * a document of no recognised kind: the mask asks what it is (with **no** given when the local model too
   recognised none).
 
-The questions of the reading show their closed answers first; what the system read is shown only after the
-answer (``review_question``: a suggestion seen first steers the reading). Everything stays on this computer, under
+The doubts of the cards (a field the two interpreters read differently, a finding only one read, a part the heading
+contradicts) and the questions of the reading show their closed answers first; what each interpreter read is shown
+only after the answer (a suggestion seen first steers the reading). An answer is a proposal until a second person
+confirms it, and a third adjudicates it when it is none of the interpreters' readings; only then does it enter the
+archive of the confirmations, de-identified (``review_feedback``, ``data/deidentify.py``). Everything stays on this computer, under
 ``data/private/cases`` (never committed); it listens on 127.0.0.1 only and needs nothing beyond Python.
 """
 
@@ -113,6 +116,40 @@ def _question(case: CaseFolder, q: dict, answered: dict | None) -> str:
             f'</form></details>')
 
 
+def _card_question(case: CaseFolder, q: dict, answered: dict | None) -> str:
+    """The doubt of a card: its closed answers; once answered, what each interpreter read, and the confirmation
+    of a second person (and of a third when the answer is none of the interpreters')."""
+    head = (f'<details open><summary><b>{e(q["name"])}</b> — <small>{e(q["doubt"])}, {e(q["report"])}</small>'
+            f'</summary><p>«{e(q["sentence"])}»</p>')
+    hidden = f'<input type="hidden" name="id" value="{e(case.id)}"><input type="hidden" name="q" value="{e(q["id"])}">'
+    if not answered:
+        options = "".join(f'<label class="check"><input type="radio" name="code" value="{e(o["code"])}" required>'
+                          f'{e(o["label_it"])}</label>' for o in q["options"])
+        return (head + f'<form method="post" action="/card-answer">{hidden}{options}'
+                f'<label>Se «altro»: la lettura giusta<input name="text"></label>'
+                f'<label>Chi risponde<input name="by" required></label><button type="submit">Rispondi</button>'
+                f'</form></details>')
+    label = next((o["label_it"] for o in q["options"] if o["code"] == answered["answer"]), answered["answer"])
+    system = e(json.dumps(q["system"]["alternatives"], ensure_ascii=False, indent=1))
+    body = (f'<p>Risposta: <b>{e(label)}</b> {e(answered.get("text", ""))} — {e(answered["by"])}, '
+            f'{e(answered["at"])}</p><p><small>Che cosa aveva letto ogni interprete (mostrato solo dopo la '
+            f'risposta):</small></p><pre>{system}</pre>')
+    if not answered.get("confirmed_by"):
+        body += (f'<form method="post" action="/card-confirm">{hidden}<input type="hidden" name="role" '
+                 f'value="confirmed"><label>Conferma di una seconda persona<input name="by" required></label>'
+                 f'<button type="submit">Confermo</button></form>')
+    else:
+        body += f'<p>Confermata da {e(answered["confirmed_by"])}</p>'
+        if answered.get("needs_adjudication") and not answered.get("adjudicated_by"):
+            body += (f'<p class="doubt">La risposta non è quella di nessun interprete: serve una terza persona.</p>'
+                     f'<form method="post" action="/card-confirm">{hidden}<input type="hidden" name="role" '
+                     f'value="adjudicated"><label>Terza persona<input name="by" required></label>'
+                     f'<button type="submit">Confermo</button></form>')
+        elif answered.get("adjudicated_by"):
+            body += f'<p>Decisa da una terza persona: {e(answered["adjudicated_by"])}</p>'
+    return head + body + "</details>"
+
+
 def case_page(case: CaseFolder, message: str = "", bad: bool = False) -> str:
     rows = case.rows()
     used = sum(r.decision == USE for r in rows)
@@ -124,13 +161,17 @@ def case_page(case: CaseFolder, message: str = "", bad: bool = False) -> str:
     else:
         answers = case.review()["answers"]
         questions = "".join(_question(case, q, answers.get(q["id"])) for q in case.questions())
+        cards = case.card_questions()
+        answered = case.review().get("cards", {})
+        card_part = "".join(_card_question(case, q, answered.get(q["id"])) for q in cards)
         doubts = "".join(f'<tr><td>{e(d.get("report", ""))}</td><td>{e(d.get("mention", ""))}</td>'
                          f'<td>{e(d.get("reason", ""))}</td><td><small>{e(d.get("clause", ""))}</small></td></tr>'
                          for d in case.doubts())
-        read = (f"<h2>Domande della lettura ({len(case.questions())})</h2>{questions or '<p>Nessuna.</p>'}"
-                f"<h2>Dubbi da rivedere ({len(case.doubts())})</h2>"
-                + (f"<table><tr><th>Documento</th><th>Parole</th><th>Dubbio</th><th>Frase</th></tr>{doubts}</table>"
-                   if doubts else "<p>Nessuno.</p>"))
+        read = (f"<h2>Dubbi delle schede ({len(cards)})</h2>{card_part or '<p>Nessuno.</p>'}"
+                f"<h2>Domande della lettura ({len(case.questions())})</h2>{questions or '<p>Nessuna.</p>'}"
+                f"<h2>Altro da rivedere ({len(case.doubts())})</h2>"
+                + (f"<table><tr><th>Documento</th><th>Parole</th><th>Motivo</th><th>Frase</th></tr>{doubts}</table>"
+                   if doubts else "<p>Nulla.</p>"))
     return _head(f"Caso {case.id}", message, bad) + f"""
 <p><a href="/">tutti i casi</a> · {len(rows)} documenti, {used} usati nel caso</p>
 <h2>Documenti</h2>{table}
@@ -218,6 +259,12 @@ class Handler(BaseHTTPRequestHandler):
             elif u.path == "/answer":
                 case.answer(f.get("q", ""), f.get("code", ""), f.get("by", ""), f.get("text", ""))
                 self._send(case_page(case, "risposta salvata"))
+            elif u.path == "/card-answer":
+                case.answer_card(f.get("q", ""), f.get("code", ""), f.get("by", ""), f.get("text", ""))
+                self._send(case_page(case, "risposta salvata: serve la conferma di una seconda persona"))
+            elif u.path == "/card-confirm":
+                case.confirm_card(f.get("q", ""), f.get("by", ""), f.get("role", "confirmed"))
+                self._send(case_page(case, "conferma salvata"))
             elif u.path == "/read":
                 self._send(case_page(case, read_case(case, f.get("report_text", ""))))
             else:

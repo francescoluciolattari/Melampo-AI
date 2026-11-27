@@ -89,8 +89,8 @@ etichetta confermata).
 | Percorso diagnostico sul grafo | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | funziona quando i profili sono configurati (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` accanto alla diagnosi; il ciclo è da costruire |
 | Conferma e unione dei casi | `training/case_confirmation.py`, `training/patient_matching.py` | funziona |
 | Archivio dei casi confermati | `training/confirmed_case_store.py` | cifrato, anonimizzato (HMAC-SHA256) |
-| Feedback delle revisioni | `evaluation/review_feedback.py` | un record diventa etichetta solo dopo la conferma di una seconda persona |
-| Addestramento | `training/dpo_config.py` | mai eseguito; il LoRA dei ruoli delle parole (`lora_roles.py`, `model_profiles.py`) tolto il 27 novembre 2026: un compito del lettore precedente, mai eseguito; come addestrare l'abilità di lettura sulle conferme dei medici è in studio |
+| Feedback delle revisioni | `evaluation/review_feedback.py`, `data/deidentify.py`, `scripts/reading_confirmations.py` | costruito (27 novembre 2026), non ancora usato: il dubbio di una scheda risolto nella maschera di revisione con una risposta chiusa è una proposta; una seconda persona la conferma, una terza la decide quando non è la lettura di nessun interprete; la frase resta com'è scritta, de-identificata, e addestra solo se entrambi gli interpreti la leggono nella scheda confermata; un caso su cinque misura soltanto. L'archivio resta su questo computer |
+| Addestramento | `training/dpo_config.py` | mai eseguito; dichiarato nel piano delle modifiche predeterminate ([COMPLIANCE_RISK](COMPLIANCE_RISK.md) §5): un archivio delle conferme, una procedura, un adattatore per modello; il LoRA dei ruoli delle parole (`lora_roles.py`, `model_profiles.py`) tolto il 27 novembre 2026 |
 | Maschera di immissione e revisione | `scripts/review_mask.py`, `data/case_review.py`, `scripts/mask_common.py` | costruita, non validata (27 novembre 2026): una pagina su questo computer per aprire un caso, aggiungerne i documenti, dire quali si usano, leggere il caso e rispondere alle sue domande. Il documento di un altro paziente è scartato e non si può cambiare; un documento senza identificativi fa parte del fascicolo del paziente, usato salvo che una persona dica no; un documento in dubbio o di nessun tipo riconosciuto viene chiesto. Ciò che il sistema ha letto si vede solo dopo la risposta. I dubbi delle schede sono elencati, ancora senza risposte chiuse |
 
 ### Lettori locali dei referti
@@ -411,7 +411,7 @@ Una persona decide ovunque i lettori non siano d'accordo; nulla viene tolto o pr
   mostrano solo dopo la risposta, così non la orientano.
 - **Ipotesi del ramo nexus:** `PromotionPolicy` dà `needs_review`, mai una promozione automatica.
 - **Dati di addestramento:** solo casi confermati con una base clinica, e risposte alle revisioni confermate da
-  una seconda persona.
+  una seconda persona (da una terza quando nessun interprete aveva ragione), de-identificate e rilette nella stessa scheda.
 
 ## 7. Decisioni
 

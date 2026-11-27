@@ -457,7 +457,13 @@ class ReportReaders:
                 continue
             cards = []
             for card in got["cards"]:
-                card.pop("readings", None)       # each interpreter's card: kept in the counts, not in the case
+                readings = card.pop("readings", None) or {}   # each interpreter's card: not in the case;
+                # of a field read differently, what each read stays with the card: the closed answers a person is
+                # asked (the review mask, 27 November 2026)
+                fields = {d.removesuffix("_given_by_one") for d in card.get("doubts", ())} & set(readings and
+                                                                                                   next(iter(readings.values())))
+                if fields:
+                    card["alternatives"] = {f: {r: rc.get(f) for r, rc in readings.items()} for f in sorted(fields)}
                 card["site_code"] = self.site_code(card.get("site") or "")
                 cards.append(card)
             # a row the laboratory extractor read enters the case once, as its measurement; the part of the

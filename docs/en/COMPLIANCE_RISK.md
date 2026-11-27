@@ -77,11 +77,46 @@ with a physician.
 | Vulnerability reporting (MDR Annex I §17.2, §17.4) | [SECURITY](../SECURITY.md) |
 | Post-market surveillance; clinical evaluation | not started: belongs to the certification phase |
 
-## 5. Open items
+## 5. Plan of predetermined changes
+
+Declared on 27 November 2026 (the owner's decision), so that a model trained again is a change foreseen and assessed
+with the device, not a new device (AI Act Art. 43(4); MDCG 2025-6, section on substantial modification; the
+proposal COM(2025) 1023 would give such plans a basis in the MDR). Nothing has been trained yet.
+
+**What may change.** (a) The reading skill of each interpreter of the one procedure, through an adapter (LoRA) of
+that model; (b) the weights and the calibration of the ranking of the diagnoses. The knowledge (synonyms,
+equivalences, the concepts the interpreters agreed on) is not trained: it stays in the thesaurus, for every model.
+
+**From which data.** (a) The reading confirmations (`review_feedback.ReadingConfirmation`): the doubt of a card
+answered in the review mask with a closed answer, confirmed by a second person, and adjudicated by a third when the
+answer is none of the interpreters' readings; the sentence kept as written and de-identified (`data/deidentify.py`:
+names, codes, contacts, addresses, places, dates moved by one fixed number of days per case, ages above 89), and
+admitted to training only when both interpreters read the de-identified sentence to the confirmed card. (b) The
+confirmed diagnoses admitted by `governance/confirmation_registry.py`: a confirmation from a source other than the
+system (histology, outcome, independent review); a diagnosis missed because a term was misread goes to (a), a weight
+that was wrong to (b).
+
+**How.** One archive, one procedure, one adapter per model: the same rows (the one directive on the de-identified
+sentence, the confirmed card as answer) train every model with the same recipe (rank, steps, seed), on a computer
+of the hospital; the adapter never leaves it. Methods that move an adapter from one model to another (Trans-LoRA,
+Cross-LoRA, CAST, PorTAL) may only start a training: today they are shown between similar architectures, not
+between a hybrid Mamba MoE and a dense transformer, nor on clinical tasks, and they keep 85-95% of an adapter
+trained on the model at best. **To check again by March 2027: PorTAL (portable task adaptation, July 2026) and
+CAST (activation manifold projection), the closest to one training for every model.** The diagnoses are updated by
+recalibration first; refitting only when recalibration does not reach the same performance.
+
+**Validation before use.** One case in five (fixed by its key) only measures and never trains. An adapter or a
+recalibration is accepted only when, on that part, the errors stay under 2% with no new error against the version
+in use, the doubts are counted, and (for an adapter) the model does not return the sentences it was trained on
+(memorisation test). Each accepted version is recorded with the fingerprints of its data, its base model and its
+recipe; a version that fails is not used, and the version in use stays.
+
+## 6. Open items
 
 1. Fix R11 (the memory retriever abstains explicitly).
-2. Measure the one procedure of reading on the benches of the reports (R18), with criteria fixed before the run; connect the comparison of a card's measure with the reference rows (R16).
+2. Measure the one procedure of reading on the benches of the reports (R18), with criteria fixed before the run.
 3. The radiologists' gold set: labels, review of the one-labeller labels.
-4. The input and review mask, which turns the physician's review into a verified external risk control.
+4. Validate the review mask (built on 27 November 2026), which turns the physician's review into a verified external risk control.
 5. Legal review of Melampo's licence and of the attribution terms.
 6. Verify the AI Act dates on EUR-Lex; decide when a quality management system (ISO 13485) starts.
+7. By March 2027: check again the methods that move an adapter between models (PorTAL, CAST), section 5.

@@ -118,11 +118,13 @@ def test_a_question_of_the_reading_shows_what_the_system_read_only_after_the_ans
                  mention="Milza", start=0, structure="spleen", structure_name="milza", question_it="Che cosa dice?",
                  options=[{"code": "measure", "label_it": "La frase dice solo una sua misura"}],
                  system={"reading": "SEGRETO-DEL-SISTEMA"}).as_dict()
-    case.save_reading({"questions": [q], "to_a_person": [{"report": "note", "mention": "milza",
-                                                          "reason": "doubt:part", "clause": "Milza di 15 cm."}]})
+    case.save_reading({"questions": [q], "to_a_person": [
+        {"report": "note", "mention": "milza", "reason": "doubt:reference_chosen_differently",
+         "clause": "Milza di 15 cm."}]})
     mask = _mask()
     before = mask.case_page(case)
-    assert "Che cosa dice?" in before and "SEGRETO-DEL-SISTEMA" not in before and "doubt:part" in before
+    assert "Che cosa dice?" in before and "SEGRETO-DEL-SISTEMA" not in before
+    assert "doubt:reference_chosen_differently" in before           # what else goes to a person
     case.answer("q1", "measure", "dott. Verdi")
     after = mask.case_page(case)
     assert "SEGRETO-DEL-SISTEMA" in after and "dott. Verdi" in after

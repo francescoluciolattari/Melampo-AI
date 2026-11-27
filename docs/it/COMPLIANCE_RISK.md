@@ -77,13 +77,50 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | Segnalazione delle vulnerabilità (MDR allegato I §17.2, §17.4) | [SECURITY](../SECURITY.md) |
 | Sorveglianza post-commercializzazione; valutazione clinica | non iniziate: appartengono alla fase di certificazione |
 
-## 5. Voci aperte
+## 5. Piano delle modifiche predeterminate
+
+Dichiarato il 27 novembre 2026 (decisione del proprietario), perché un modello addestrato di nuovo sia una modifica
+prevista e valutata con il dispositivo, non un dispositivo nuovo (AI Act art. 43(4); MDCG 2025-6, sezione sulla
+modifica sostanziale; la proposta COM(2025) 1023 darebbe a questi piani una base nel MDR). Nulla è ancora stato
+addestrato.
+
+**Che cosa può cambiare.** (a) L'abilità di lettura di ogni interprete della procedura unica, con un adattatore
+(LoRA) di quel modello; (b) i pesi e la calibrazione della classifica delle diagnosi. La conoscenza (sinonimi,
+equivalenze, i concetti su cui gli interpreti hanno concordato) non si addestra: resta nel tesauro, per ogni modello.
+
+**Da quali dati.** (a) Le conferme di lettura (`review_feedback.ReadingConfirmation`): il dubbio di una scheda
+risolto nella maschera di revisione con una risposta chiusa, confermata da una seconda persona e decisa da una terza
+quando la risposta non è quella di nessun interprete; la frase tenuta com'è scritta e de-identificata
+(`data/deidentify.py`: nomi, codici, contatti, indirizzi, luoghi, date spostate di un numero fisso di giorni per caso,
+età oltre 89), e ammessa all'addestramento solo se entrambi gli interpreti leggono la frase de-identificata nella
+scheda confermata. (b) Le diagnosi confermate ammesse da `governance/confirmation_registry.py`: una conferma da una
+fonte diversa dal sistema (istologia, decorso, revisione indipendente); una diagnosi mancata perché un termine era
+letto male va in (a), un peso sbagliato in (b).
+
+**Come.** Un archivio, una procedura, un adattatore per modello: le stesse righe (la direttiva unica sulla frase
+de-identificata, la scheda confermata come risposta) addestrano ogni modello con la stessa ricetta (rango, passi,
+seme), su un computer dell'ospedale; l'adattatore non ne esce. I metodi che spostano un adattatore da un modello a
+un altro (Trans-LoRA, Cross-LoRA, CAST, PorTAL) possono solo avviare un addestramento: oggi sono provati tra
+architetture simili, non tra un ibrido Mamba MoE e un transformer denso, né su compiti clinici, e tengono nel caso
+migliore l'85-95% di un adattatore addestrato sul modello. **Da ricontrollare entro marzo 2027: PorTAL
+(adattamento portabile del compito, luglio 2026) e CAST (proiezione delle attivazioni), i più vicini a un solo
+addestramento per ogni modello.** Le diagnosi si aggiornano prima con la ricalibrazione; si rifà il modello solo se
+la ricalibrazione non raggiunge le stesse prestazioni.
+
+**Validazione prima dell'uso.** Un caso su cinque (fissato dalla sua chiave) misura soltanto e non addestra mai. Un
+adattatore o una ricalibrazione si accetta solo se, su quella parte, gli errori restano sotto il 2% senza errori nuovi
+rispetto alla versione in uso, i dubbi sono contati, e (per un adattatore) il modello non restituisce le frasi su cui
+è stato addestrato (prova di memorizzazione). Ogni versione accettata è registrata con le impronte dei suoi dati, del
+modello di base e della ricetta; una versione che non passa non si usa, e resta quella in uso.
+
+## 6. Voci aperte
 
 1. Correggere R11 (il memory retriever si astiene esplicitamente).
-2. Misurare la procedura unica di lettura sui banchi dei referti (R18), con criteri fissati prima del run; collegare il confronto della misura di una scheda con le righe di riferimento (R16).
+2. Misurare la procedura unica di lettura sui banchi dei referti (R18), con criteri fissati prima del run.
 3. Il gold set dei radiologi: etichette, revisione delle etichette di un solo etichettatore.
-4. La maschera di immissione e revisione, che fa della revisione del medico un controllo del rischio esterno e
-   verificato.
+4. Validare la maschera di revisione (costruita il 27 novembre 2026), che fa della revisione del medico un controllo
+   del rischio esterno e verificato.
 5. Revisione legale della licenza di Melampo e delle condizioni di attribuzione.
 6. Verificare le date dell'AI Act su EUR-Lex; decidere quando parte un sistema di gestione della qualità
    (ISO 13485).
+7. Entro marzo 2027: ricontrollare i metodi che spostano un adattatore tra modelli (PorTAL, CAST), sezione 5.

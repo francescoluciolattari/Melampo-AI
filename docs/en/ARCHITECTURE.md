@@ -88,8 +88,8 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Diagnostic path on the graph | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | working when the profiles are configured (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` beside the diagnosis; the cycle is to build |
 | Case confirmation and merge | `training/case_confirmation.py`, `training/patient_matching.py` | working |
 | Confirmed-case store | `training/confirmed_case_store.py` | encrypted, anonymised (HMAC-SHA256) |
-| Review feedback | `evaluation/review_feedback.py` | a record becomes a label only after a second person confirms it |
-| Training | `training/dpo_config.py` | never run; the LoRA of the word roles (`lora_roles.py`, `model_profiles.py`) removed on 27 November 2026: a task of the reader before, never run; how to train the reading skill on the physicians' confirmations is being studied |
+| Review feedback | `evaluation/review_feedback.py`, `data/deidentify.py`, `scripts/reading_confirmations.py` | built (27 November 2026), not used yet: the doubt of a card answered in the review mask with a closed answer is a proposal; a second person confirms it, a third adjudicates it when it is none of the interpreters' readings; the sentence is kept as written and de-identified, and trains only when both interpreters read it to the confirmed card; one case in five only measures. The archive stays on this computer |
+| Training | `training/dpo_config.py` | never run; declared in the plan of predetermined changes ([COMPLIANCE_RISK](COMPLIANCE_RISK.md) §5): one archive of confirmations, one procedure, one adapter per model; the LoRA of the word roles (`lora_roles.py`, `model_profiles.py`) removed on 27 November 2026 |
 | Input and review mask | `scripts/review_mask.py`, `data/case_review.py`, `scripts/mask_common.py` | built, not validated (27 November 2026): a page on this computer to open a case, add its documents, say which are used, read the case and answer its questions. Another patient's document is discarded and cannot be changed; a document without identifiers is part of the patient's file, used unless a person says no; a document in doubt or of no recognised kind is asked. What the system read is shown only after the answer. The cards' doubts are listed, without closed answers yet |
 
 ### Local readers of the reports
@@ -393,7 +393,8 @@ A person decides wherever the readers do not agree; nothing is removed or promot
 - **Questions for a person:** complete in themselves (sentence, structure, closed answers); the system's
   readings are shown only after the answer, so they do not steer it.
 - **Hypotheses from the nexus branch:** `PromotionPolicy` gives `needs_review`, never an automatic promotion.
-- **Training data:** only confirmed cases with a clinical basis, and review answers confirmed by a second person.
+- **Training data:** only confirmed cases with a clinical basis, and review answers confirmed by a second person
+  (by a third when no interpreter was right), de-identified and read again to the same card.
 
 ## 7. Decisions
 
