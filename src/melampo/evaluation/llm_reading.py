@@ -1,7 +1,7 @@
 """How a chat model is asked to read the phrase a mention stands in, and how its answer is checked.
 
-Used by the probes (``scripts/phrase_probe.py``, ``scripts/role_probe.py``) and by the LoRA data builder
-(``scripts/lora_roles.py``); the linker does not use it. Written on 12 October 2026 after the informed
+Used by the probes (``scripts/phrase_probe.py``, ``scripts/role_probe.py``) and by the reader before the one
+procedure; the linker does not use it. Written on 12 October 2026 after the informed
 phrase-probe run, where one model answered with the bare word in 81% of the cases ("brain" for
 "brain weights"). Three causes, all ours:
 

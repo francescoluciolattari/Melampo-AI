@@ -14,8 +14,9 @@ What is kept, and what is not:
 * an item becomes training data only when it is confirmed by a second person (``confirmed_by`` set and
   different from ``decided_by``): a single correction is a proposal, not a label.
 
-The training rows have the format of ``scripts/lora_roles.py`` (the role question, the roles as answer, five
-folds grouped by report), so the same procedure trains Gemma 4 31B or Nemotron 3 Ultra. Under the MDR a
+The training rows are the role question with the roles as answer, five folds grouped by report (the LoRA of the
+word roles, ``lora_roles.py``, was removed on 27 November 2026: how these confirmations train the reading of the
+one procedure is being studied). Under the MDR a
 retrained model is a new version: it is validated on held-out gold before it replaces the one in use.
 """
 

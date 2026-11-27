@@ -71,26 +71,6 @@ def test_answers_are_cached_by_model_and_prompt(tmp_path):
     assert len(calls) == 1 and rp.Cache(tmp_path / "c.jsonl").data
 
 
-def test_lora_folds_are_grouped_by_report_and_the_target_is_the_role_only(tmp_path):
-    import lora_roles as lo
-
-    assert lo.fold_of("r1") == lo.fold_of("r1") and 0 <= lo.fold_of("x") < lo.FOLDS
-    gold = tmp_path / "g.jsonl"
-    rows = [{"report_id": f"r{i % 7}", "sentence": "The liver biopsy was negative.", "mention": "liver", "start": 4,
-             "item_id": f"i{i}", "stratum": "e3c_en", "language": "en", "structure": "liver",
-             "role": "procedure_site" if i % 2 else "structure"} for i in range(20)]
-    gold.write_text("\n".join(json.dumps(r) for r in rows), "utf-8")
-    out = tmp_path / "d"
-    assert lo.main(["prepare", "--gold", str(gold), "--out", str(out)]) == 0
-    items = [json.loads(x) for x in (out / "items.jsonl").read_text().split("\n") if x]
-    by_report = {}
-    for it in items:
-        by_report.setdefault(it["report_id"], set()).add(it["fold"])
-        assert json.loads(it["completion"][0]["content"]) == {"role": it["role"]}
-        assert '{"role": "<one of' in it["prompt"][0]["content"] and "<w>liver</w>" in it["prompt"][0]["content"]
-    assert all(len(f) == 1 for f in by_report.values())
-
-
 def test_the_role_is_read_from_the_last_json_object():
     from melampo.evaluation import llm_reading as lr
 
@@ -183,31 +163,6 @@ def test_the_agreement_arms_use_the_answer_that_did_not_see_the_reader():
     assert a["answers"]["exact->agree_all"] == "structure"
     assert b["answers"]["exact->agree:m"] == "structure"
     assert b["answers"]["exact->agree_all"] == "uncertain"
-
-
-def test_one_training_procedure_for_every_profile(tmp_path, capsys):
-    import lora_roles as lo
-
-    from melampo.evaluation import model_profiles as mp
-
-    rows = [{"item_id": f"i{k}", "report_id": f"r{k}", "stratum": "e3c_en", "language": "en", "mention": "liver",
-             "sentence": "The liver.", "structure": "liver", "role": "structure", "fold": k % lo.FOLDS,
-             "prompt": [{"role": "user", "content": "q"}],
-             "completion": [{"role": "assistant", "content": "{\"role\": \"structure\"}"}]} for k in range(10)]
-    data = tmp_path / "data"
-    data.mkdir()
-    (data / "items.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    assert lo.main(["export", "--data", str(data), "--fold", "0", "--out", str(tmp_path / "f0")]) == 0
-    train = [json.loads(x) for x in (tmp_path / "f0" / "train.jsonl").read_text().splitlines()]
-    test = [json.loads(x) for x in (tmp_path / "f0" / "test.jsonl").read_text().splitlines()]
-    assert len(train) == 8 and len(test) == 2
-    assert [m["role"] for m in train[0]["messages"]] == ["user", "assistant"]
-    for name in mp.PROFILES:
-        assert lo.main(["plan", "--profile", name]) == 0
-        out = capsys.readouterr().out
-        assert mp.PROFILES[name].hf_id in out and "evaluate" in out and "export" in out
-    with pytest.raises(ValueError):
-        mp.profile("no-such-model")
 
 
 def test_agreement_on_the_outcome_and_roles_as_a_set():

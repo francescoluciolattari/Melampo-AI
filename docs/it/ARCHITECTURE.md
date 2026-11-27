@@ -90,7 +90,7 @@ etichetta confermata).
 | Conferma e unione dei casi | `training/case_confirmation.py`, `training/patient_matching.py` | funziona |
 | Archivio dei casi confermati | `training/confirmed_case_store.py` | cifrato, anonimizzato (HMAC-SHA256) |
 | Feedback delle revisioni | `evaluation/review_feedback.py` | un record diventa etichetta solo dopo la conferma di una seconda persona |
-| Addestramento | `training/dpo_config.py`, profili LoRA in `evaluation/model_profiles.py` | mai eseguito |
+| Addestramento | `training/dpo_config.py` | mai eseguito; il LoRA dei ruoli delle parole (`lora_roles.py`, `model_profiles.py`) tolto il 27 novembre 2026: un compito del lettore precedente, mai eseguito; come addestrare l'abilità di lettura sulle conferme dei medici è in studio |
 | Maschera di immissione e revisione | `scripts/review_mask.py`, `data/case_review.py`, `scripts/mask_common.py` | costruita, non validata (27 novembre 2026): una pagina su questo computer per aprire un caso, aggiungerne i documenti, dire quali si usano, leggere il caso e rispondere alle sue domande. Il documento di un altro paziente è scartato e non si può cambiare; un documento senza identificativi fa parte del fascicolo del paziente, usato salvo che una persona dica no; un documento in dubbio o di nessun tipo riconosciuto viene chiesto. Ciò che il sistema ha letto si vede solo dopo la risposta. I dubbi delle schede sono elencati, ancora senza risposte chiuse |
 
 ### Lettori locali dei referti
