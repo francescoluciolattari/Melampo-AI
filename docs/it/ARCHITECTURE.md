@@ -51,7 +51,9 @@ flowchart TD
   rapid --> diff
   rapid -->|proposte| cg
   ingest --> nexus["ramo nexus: candidati dal grafo, meccanismi,<br/>controfattuali (chiuso: non promuove nulla)"]
-  nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
+  nexus --> diff["DifferentialEngine (percorso di ottobre):<br/>solo confronto fino a dicembre 2026"]
+  cg -->|"il risultato (28 novembre 2026)"| res["DiagnosticResult"]
+  diff -.->|october_path| res
   graphnode[("grafo dei concetti")] --> nexus
 ```
 
@@ -93,7 +95,7 @@ etichetta confermata).
 | Grafo del caso | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | funziona: costruito nell'ingestione di ogni caso; quattro stati di una manifestazione |
 | Ramo dei farmaci | `clinical/drug_branch.py`, `scripts/drug_sources.py` | funziona quando la cache locale è configurata (`MELAMPO_DRUG_CACHE`) |
 | Profili delle malattie | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | funziona: solo fonti certe, nessuna persona conferma; li riempie la revisione sistematica, letti dalla conoscenza versionata (file, cartella, `knowledge.db` o `falkordb[:versione]`) |
-| Percorso diagnostico sul grafo | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | funziona quando i profili sono configurati (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` accanto alla diagnosi; il ciclo è da costruire |
+| Percorso diagnostico sul grafo | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | funziona quando i profili sono configurati (`MELAMPO_DISEASE_PROFILES`); **il risultato viene da qui dal 28 novembre 2026** (`diagnostic_orchestrator.from_case_diagnosis`): il suo ordine è il differenziale, con i dubbi, gli esami da proporre e i reperti non spiegati. Senza, il risultato è `no_candidate_found` con la ragione, e niente fa da ripiego. Il percorso di ottobre (`DifferentialEngine`, supporto/contraddizione, critico, nexus) resta nel risultato come `october_path`, solo per confronto; dopo la valutazione di dicembre 2026 va valutata la sua rimozione totale, con tutti i riferimenti e i file. Il ciclo è da costruire |
 | Conferma e unione dei casi | `training/case_confirmation.py`, `training/patient_matching.py` | funziona |
 | Archivio dei casi confermati | `training/confirmed_case_store.py` | cifrato, anonimizzato (HMAC-SHA256) |
 | Feedback delle revisioni | `evaluation/review_feedback.py`, `data/deidentify.py`, `scripts/reading_confirmations.py` | costruito (27 novembre 2026), non ancora usato: il dubbio di una scheda risolto nella maschera di revisione con una risposta chiusa è una proposta; una seconda persona la conferma, una terza la decide quando non è la lettura di nessun interprete; la frase resta com'è scritta, de-identificata, e addestra solo se entrambi gli interpreti la leggono nella scheda confermata; un caso su cinque misura soltanto. L'archivio resta su questo computer |
@@ -266,7 +268,7 @@ di `disease-profiles`; `MELAMPO_DISEASE_NAMES`), così "sospetta appendicite acu
 nome condiviso da due patologie non ne sceglie nessuna.
 
 **Il percorso diagnostico sul grafo** (`reasoning/case_diagnosis`, eseguito dalla pipeline e restituito come
-`case_diagnosis`, accanto alla diagnosi della pipeline, non al suo posto): le patologie presenti e ipotizzate
+`case_diagnosis`; dal 28 novembre 2026 è la diagnosi della pipeline, il percorso di ottobre solo a confronto): le patologie presenti e ipotizzate
 ricevono il loro profilo; le candidate entrano solo dal percorso, dal differenziale che la pipeline calcola dai
 reperti e dai profili che spiegano reperti che nient'altro spiega (almeno due manifestazioni presenti); ogni
 manifestazione riceve il suo stato; ipotizzate e candidate sono ordinate insieme per rapporti di verosimiglianza,

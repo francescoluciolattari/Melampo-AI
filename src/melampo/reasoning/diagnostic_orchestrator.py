@@ -28,6 +28,43 @@ def _is_placeholder(label: str) -> bool:
     return head == "candidate" and tail.isdigit()
 
 
+def from_case_diagnosis(case_diagnosis: dict[str, Any] | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The differential and the rest of the diagnosis from ``reasoning.case_diagnosis`` (28 November 2026).
+
+    Since 28 November 2026 the result comes from the diagnostic path on the case graph: the profiles from certain
+    sources, the ranking by likelihood ratios with absences (LIRICAL's method), the doubts, the exams to propose and
+    the findings nothing explains. Without it (no profiles configured, no case graph, a failure) there is no
+    differential: the result says ``no_candidate_found`` and why; nothing falls back to the October path.
+    """
+    case_diagnosis = case_diagnosis if isinstance(case_diagnosis, dict) else {}
+    status = str(case_diagnosis.get("status", "not_run"))
+    ranking = case_diagnosis.get("ranking", []) if status == "ok" else []
+    differential = [
+        {
+            "label": str(item.get("words") or item.get("disease")),
+            "disease": item.get("disease"),
+            "score": item.get("posterior"),
+            "log10_odds": item.get("log10_odds"),
+            "branch": item.get("branch"),
+            "origin": item.get("origin"),
+            "contributions": item.get("contributions", []),
+            "source": "case_diagnosis",
+        }
+        for item in ranking
+        if isinstance(item, dict)
+    ]
+    diagnosis = {
+        "source": "case_diagnosis",
+        "status": status,
+        "doubts": case_diagnosis.get("doubts", []),
+        "exams_to_propose": case_diagnosis.get("exams_to_propose", []),
+        "unexplained_findings": case_diagnosis.get("unexplained_findings", []),
+        "named": case_diagnosis.get("named", []),
+        "knowledge": case_diagnosis.get("knowledge", {}),
+    }
+    return differential, diagnosis
+
+
 @dataclass(slots=True)
 class DiagnosticOrchestratorPolicy:
     """Final deterministic policy for Melampo diagnostic orchestration."""
@@ -84,23 +121,27 @@ class MelampoDiagnosticOrchestrator:
 
     def orchestrate(self, pipeline_result: dict[str, Any]) -> dict[str, Any]:
         coordinated = pipeline_result.get("coordinated", {})
-        differential = (
+        october = (
             coordinated.get("differential", {}) if isinstance(coordinated, dict) else {}
         )
-        hypotheses = (
-            list(differential.get("hypotheses", []))
-            if isinstance(differential, dict)
+        october_hypotheses = (
+            list(october.get("hypotheses", []))
+            if isinstance(october, dict)
             else []
         )
+        hypotheses, diagnosis = from_case_diagnosis(pipeline_result.get("case_diagnosis"))
         top_hypothesis = (
             hypotheses[0]
             if hypotheses
-            else {"label": "none", "score": 0.0, "rationale": "no_hypothesis"}
+            else {"label": "no_candidate_found", "score": 0.0,
+                  "rationale": f"case_diagnosis:{diagnosis['status']}"}
         )
         intuition = pipeline_result.get("intuition", {})
         nexus = pipeline_result.get("nexus", {})
         critique = pipeline_result.get("critique", {})
         orchestration_policy = self.policy.evaluate(pipeline_result)
+        if diagnosis["status"] != "ok":
+            orchestration_policy["flags"] = [*orchestration_policy["flags"], f"case_diagnosis:{diagnosis['status']}"]
 
         support = {
             "visual": pipeline_result.get("area_signals", {}).get(
@@ -115,10 +156,7 @@ class MelampoDiagnosticOrchestrator:
             ),
             "semantic_memory": pipeline_result.get("retrieval", {}),
         }
-        label = str(top_hypothesis.get("label", "none"))
-        # a placeholder position (``candidate_N``, see intuition_engine) is not a diagnosis: it is never the result
-        if _is_placeholder(label):
-            label = "no_candidate_found"
+        label = str(top_hypothesis.get("label", "no_candidate_found"))
         result_label = (
             label
             if orchestration_policy["allow_candidate_result"]
@@ -129,6 +167,20 @@ class MelampoDiagnosticOrchestrator:
             result_label=str(result_label),
             top_hypothesis=top_hypothesis,
             differential=hypotheses,
+            diagnosis=diagnosis,
+            # the October path (DifferentialEngine), kept for comparison only until the evaluation of December
+            # 2026; then its removal, with every reference and file, is to be evaluated
+            october_path={
+                "role": "comparison_only_until_december_2026_evaluation",
+                "top": str(october_hypotheses[0].get("label", "none")) if october_hypotheses else "none",
+                "top_is_placeholder": bool(october_hypotheses)
+                and _is_placeholder(str(october_hypotheses[0].get("label", ""))),
+                "differential": [
+                    {"label": h.get("label"), "score": h.get("score"), "hypothesis_type": h.get("hypothesis_type")}
+                    for h in october_hypotheses[:5]
+                    if isinstance(h, dict)
+                ],
+            },
             intuition=IntuitionSummary(
                 selected=intuition.get("intuition", "none")
                 if isinstance(intuition, dict)

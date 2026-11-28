@@ -371,6 +371,7 @@ risks:
           - tests/test_policy_stack.py::test_discordances_and_unread_documents_escalate_each_with_its_sentence
           - tests/test_policy_stack.py::test_severity_is_a_declared_word_not_a_number
           - tests/test_policy_stack.py::test_no_evidence_and_no_provenance_are_flags_not_escalations
-          - tests/test_enterprise_orchestration.py::test_a_placeholder_position_is_never_the_result
+          - tests/test_enterprise_orchestration.py::test_the_result_comes_from_case_diagnosis_and_the_october_path_is_only_compared
+          - tests/test_enterprise_orchestration.py::test_without_case_diagnosis_there_is_no_candidate_and_no_fallback
     measured_by: tests only; the lateral part of the intuition engine is not written, and the closed nexus chain keeps its own unmeasured numbers
     status: partial

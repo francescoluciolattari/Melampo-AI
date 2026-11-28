@@ -91,7 +91,7 @@ def test_diagnostic_result_serializes_enterprise_contract():
         audit_trace={},
     ).as_dict()
 
-    assert result["schema_version"] == "diagnostic_result.v2"
+    assert result["schema_version"] == "diagnostic_result.v3"
     assert result["discordances"]["count"] == 1
     assert "melampo_metrics" not in result
     assert result["audit_trace"]["final_authority"] == "MelampoDiagnosticOrchestrator"

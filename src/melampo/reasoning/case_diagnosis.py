@@ -21,8 +21,9 @@ the order of "Il grafo del caso":
 
 What comes back is read manifestation by manifestation: each disease with its contributions; the doubts (principle
 of doubt: kept, never resolved here); the exams to propose (the not-assessed manifestations of the first diseases,
-with what would show them); the findings nothing explains; the version of the knowledge used. Nothing here
-replaces the diagnosis of the pipeline: it travels beside it (``pipeline_result["case_diagnosis"]``).
+with what would show them); the findings nothing explains; the version of the knowledge used. Since 28 November
+2026 it is the diagnosis of the pipeline (``diagnostic_orchestrator.from_case_diagnosis``); the October path
+(``DifferentialEngine``) stays in the result for comparison only, until the evaluation of December 2026.
 """
 
 from __future__ import annotations

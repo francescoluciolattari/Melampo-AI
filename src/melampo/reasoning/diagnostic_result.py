@@ -65,7 +65,9 @@ class DiagnosticResult:
     nexus: NexusSummary
     model_capability_decision_record: dict[str, Any]
     audit_trace: dict[str, Any]
-    schema_version: str = "diagnostic_result.v2"
+    diagnosis: dict[str, Any] = field(default_factory=dict)
+    october_path: dict[str, Any] = field(default_factory=dict)
+    schema_version: str = "diagnostic_result.v3"
     created_at: float = field(default_factory=time.time)
 
     def as_dict(self) -> dict[str, Any]:
@@ -76,6 +78,8 @@ class DiagnosticResult:
             "result_label": self.result_label,
             "top_hypothesis": dict(self.top_hypothesis),
             "differential": list(self.differential),
+            "diagnosis": dict(self.diagnosis),
+            "october_path": dict(self.october_path),
             "intuition": self.intuition.as_dict(),
             "discordances": dict(self.discordances),
             "support": dict(self.support),

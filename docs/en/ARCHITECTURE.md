@@ -51,7 +51,9 @@ flowchart TD
   rapid --> diff
   rapid -->|proposals| cg
   ingest --> nexus["nexus branch: graph candidates, mechanisms,<br/>counterfactuals (closed: promotes nothing)"]
-  nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
+  nexus --> diff["DifferentialEngine (October path):<br/>comparison only until December 2026"]
+  cg -->|"the result (28 November 2026)"| res["DiagnosticResult"]
+  diff -.->|october_path| res
   graphnode[("concept graph")] --> nexus
 ```
 
@@ -92,7 +94,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Graph of the case | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | working: built in the ingestion of every case; four states of a manifestation |
 | Drug branch | `clinical/drug_branch.py`, `scripts/drug_sources.py` | working when the local cache is configured (`MELAMPO_DRUG_CACHE`) |
 | Disease profiles | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | working: certain sources only, no person confirms; filled by the systematic review, read from the versioned knowledge (file, folder, `knowledge.db` or `falkordb[:version]`) |
-| Diagnostic path on the graph | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | working when the profiles are configured (`MELAMPO_DISEASE_PROFILES`): `case_diagnosis` beside the diagnosis; the cycle is to build |
+| Diagnostic path on the graph | `reasoning/case_diagnosis.py`, `reasoning/likelihood_ranking.py` | working when the profiles are configured (`MELAMPO_DISEASE_PROFILES`); **the result comes from it since 28 November 2026** (`diagnostic_orchestrator.from_case_diagnosis`): its ranking is the differential, with doubts, exams to propose and unexplained findings. Without it the result is `no_candidate_found` with the reason, and nothing falls back. The October path (`DifferentialEngine`, support/contradiction, critique, nexus) stays in the result as `october_path`, for comparison only; after the December 2026 evaluation its complete removal, with every reference and file, is to be evaluated. The cycle is to build |
 | Case confirmation and merge | `training/case_confirmation.py`, `training/patient_matching.py` | working |
 | Confirmed-case store | `training/confirmed_case_store.py` | encrypted, anonymised (HMAC-SHA256) |
 | Review feedback | `evaluation/review_feedback.py`, `data/deidentify.py`, `scripts/reading_confirmations.py` | built (27 November 2026), not used yet: the doubt of a card answered in the review mask with a closed answer is a proposal; a second person confirms it, a third adjudicates it when it is none of the interpreters' readings; the sentence is kept as written and de-identified, and trains only when both interpreters read it to the confirmed card; one case in five only measures. The archive stays on this computer |
@@ -258,7 +260,7 @@ the names in Italian and English come from MONDO and Wikidata (`scripts/disease_
 shared by two diseases chooses neither.
 
 **The diagnostic path on the graph** (`reasoning/case_diagnosis`, run by the pipeline and returned as
-`case_diagnosis`, beside the pipeline's diagnosis, not in its place): the present and hypothesized diseases take
+`case_diagnosis`; since 28 November 2026 it is the pipeline's diagnosis, the October path only compared): the present and hypothesized diseases take
 their profile; candidates enter only from the path, from the differential the pipeline computes from the findings
 and from the profiles that account for findings nothing else explains (at least two of their manifestations
 present); every manifestation takes its state; hypothesized and candidate diseases are ranked together by

@@ -125,3 +125,6 @@ modello di base e della ricetta; una versione che non passa non si usa, e resta 
 6. Verificare le date dell'AI Act su EUR-Lex; decidere quando parte un sistema di gestione della qualità
    (ISO 13485).
 7. Entro marzo 2027: ricontrollare i metodi che spostano un adattatore tra modelli (PorTAL, CAST), sezione 5.
+8. Dopo la valutazione di dicembre 2026 su casi pubblicati: valutare la rimozione totale del percorso diagnostico di
+   ottobre (`DifferentialEngine`, supporto/contraddizione, critico, catena nexus) con tutti i riferimenti e i file;
+   il risultato viene da `case_diagnosis` dal 28 novembre 2026, il percorso di ottobre tenuto solo a confronto.

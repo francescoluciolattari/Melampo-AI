@@ -170,6 +170,9 @@ the intuition engine, `MelampoMetrics`, and the gate of the hypothesis channel o
 discordances (`reasoning/case_discordances`) replace them; the nexus chain stays, closed. Removed the same day:
 the hand-weighted risk and uncertainty (`_derive_governance_scores`) and their gates (`models/abstention`,
 `models/risk_gate`, `reasoning/escalation`, the orchestrator's 0.75): explicit rules in `reasoning/case_signals`.
+The result comes from `reasoning/case_diagnosis` since 28 November 2026; the October path (`DifferentialEngine`,
+support/contradiction, critique, nexus) stays as `october_path` for comparison, and after the December 2026
+evaluation its complete removal, with every reference and file, is to be evaluated.
 
 The reader before the one procedure (`MELAMPO_REPORT_READER=anatomy`: `finding_owner`, the claims, the Kintsch
 reader) stays until the bench of December 2026 has measured the one procedure against it on the same sample.

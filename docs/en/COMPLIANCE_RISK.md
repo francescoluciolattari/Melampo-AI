@@ -121,3 +121,6 @@ recipe; a version that fails is not used, and the version in use stays.
 5. Legal review of Melampo's licence and of the attribution terms.
 6. Verify the AI Act dates on EUR-Lex; decide when a quality management system (ISO 13485) starts.
 7. By March 2027: check again the methods that move an adapter between models (PorTAL, CAST), section 5.
+8. After the December 2026 evaluation on published cases: evaluate the complete removal of the October diagnostic
+   path (`DifferentialEngine`, support/contradiction, critique, the nexus chain) with every reference and file; the
+   result comes from `case_diagnosis` since 28 November 2026, the October path kept only for comparison.

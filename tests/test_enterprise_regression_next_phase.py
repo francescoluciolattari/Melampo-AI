@@ -44,13 +44,16 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
         "contradiction_revision",
         "discordance_resolution",
     ]
-    # the unread note escalates to a person and does not withhold the result; the only hypothesis is a
-    # placeholder position, which is never a result
+    # the unread note escalates to a person and does not withhold the result; the result comes from
+    # case_diagnosis (28 November 2026), the October path only compared
     policy = result["diagnostic_result"]["policy"]
     assert result["diagnostic_result"]["result_label"] == "no_candidate_found"
     assert (policy["abstain"], policy["escalate"], policy["reasons"]) == (False, True, [])
     assert policy["escalation_reasons"] == ["document_not_read"]
-    assert policy["flags"] == ["no_evidence"]
+    # no disease profiles configured on this machine: case_diagnosis cannot run, and the result says why
+    assert policy["flags"] == ["no_evidence", "case_diagnosis:no_profiles_configured"]
+    assert result["diagnostic_result"]["differential"] == []
+    assert result["diagnostic_result"]["october_path"]["top"] == "candidate_1"
 
 
 def test_any_declared_severity_is_read_without_error():

@@ -98,6 +98,8 @@ def test_the_discordances_escalate_without_withholding_the_result():
                 "differential": {"hypotheses": [{"label": "pneumonia", "score": 0.8}]},
                 "policy": {"abstain": False, "escalate": False},
             },
+            "case_diagnosis": {"status": "ok", "ranking": [{"disease": "MONDO:0005249", "words": "pneumonia",
+                                                           "posterior": 0.7, "branch": "candidate"}]},
             "intuition": {"intuition": "pneumonia", "candidate_scores": []},
         }
     )
@@ -106,7 +108,41 @@ def test_the_discordances_escalate_without_withholding_the_result():
     assert result["policy"]["reasons"] == []
 
 
-def test_a_placeholder_position_is_never_the_result():
+def test_the_result_comes_from_case_diagnosis_and_the_october_path_is_only_compared():
+    """28 November 2026: the diagnosis is case_diagnosis's ranking; the October path (DifferentialEngine) is kept in
+    the result for comparison only, until the evaluation of December 2026."""
+    result = MelampoDiagnosticOrchestrator().orchestrate(
+        {
+            "case_id": "case-4",
+            "coordinated": {
+                "differential": {"hypotheses": [{"label": "candidate_1", "score": 2.0, "hypothesis_type": "x"}]},
+                "policy": {"abstain": False, "escalate": False, "reasons": [], "flags": []},
+            },
+            "case_diagnosis": {
+                "status": "ok",
+                "ranking": [
+                    {"disease": "MONDO:1", "words": "marfan syndrome", "posterior": 0.8, "log10_odds": 1.2,
+                     "branch": "candidate", "origin": "proposed", "contributions": [{"manifestation": "HP:1"}]},
+                    {"disease": "MONDO:2", "words": "loeys-dietz syndrome", "posterior": 0.2, "branch": "candidate"},
+                ],
+                "doubts": [{"disease": "marfan syndrome", "manifestations": ["HP:2"]}],
+                "exams_to_propose": [{"disease": "marfan syndrome", "manifestation": "HP:3"}],
+                "unexplained_findings": [],
+            },
+        }
+    )
+    assert result["result_label"] == "marfan syndrome"
+    assert [h["label"] for h in result["differential"]] == ["marfan syndrome", "loeys-dietz syndrome"]
+    assert result["differential"][0]["source"] == "case_diagnosis"
+    assert result["diagnosis"]["exams_to_propose"] == [{"disease": "marfan syndrome", "manifestation": "HP:3"}]
+    assert result["diagnosis"]["doubts"][0]["manifestations"] == ["HP:2"]
+    assert result["october_path"]["role"] == "comparison_only_until_december_2026_evaluation"
+    assert result["october_path"]["top"] == "candidate_1"
+    assert result["october_path"]["top_is_placeholder"] is True
+    assert result["policy"]["flags"] == []
+
+
+def test_without_case_diagnosis_there_is_no_candidate_and_no_fallback():
     result = MelampoDiagnosticOrchestrator().orchestrate(
         {
             "case_id": "case-3",
@@ -117,4 +153,5 @@ def test_a_placeholder_position_is_never_the_result():
         }
     )
     assert result["result_label"] == "no_candidate_found"
-    assert result["policy"]["flags"] == ["no_evidence"]
+    assert result["differential"] == []
+    assert result["policy"]["flags"] == ["no_evidence", "case_diagnosis:not_run"]

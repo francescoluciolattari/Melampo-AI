@@ -918,6 +918,9 @@ class ClinicalInferencePipeline:
             "critique": critique_result,
             "nexus": nexus,
         }
+        # the diagnostic path on the graph: profiles, candidates, states, ranking (20 November 2026); since
+        # 28 November 2026 the result comes from it (diagnostic_orchestrator.from_case_diagnosis)
+        pipeline_result["case_diagnosis"] = self._case_diagnosis(case, graph_candidates)
         self._finalize_diagnostic_result(
             components=components,
             pipeline_result=pipeline_result,
@@ -930,14 +933,12 @@ class ClinicalInferencePipeline:
         pipeline_result["routing_reason"] = routing_reason
         # the graph of the case: counts only here, the graph itself stays in the case's provenance
         pipeline_result["case_graph"] = dict(case.provenance.get("case_graph_summary") or {})
-        # the diagnostic path on the graph: profiles, candidates, states, ranking (20 November 2026)
-        pipeline_result["case_diagnosis"] = self._case_diagnosis(case, graph_candidates)
         return pipeline_result
 
     def _case_diagnosis(self, case: Any, proposals: list[dict[str, Any]]) -> dict[str, Any]:
         """``reasoning.case_diagnosis`` on the case's graph, with the profiles of ``MELAMPO_DISEASE_PROFILES``
         (loaded once per pipeline) and HPO's is_a from ``MELAMPO_HPO_OBO``. Without profiles it says so; an error
-        is reported, never raised: the diagnosis of the pipeline does not depend on it."""
+        is reported, never raised: the result then says ``no_candidate_found`` and why."""
         data = (getattr(case, "provenance", None) or {}).get("case_graph")
         if not data:
             return {"status": "no_case_graph"}

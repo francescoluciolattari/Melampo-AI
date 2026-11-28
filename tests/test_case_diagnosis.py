@@ -108,7 +108,7 @@ def test_two_files_join_their_manifestations_each_with_its_source(tmp_path):
     assert lib.files == ["a.json", "b.json"]
 
 
-def test_the_pipeline_returns_the_path_beside_its_diagnosis(tmp_path, monkeypatch):
+def test_the_pipeline_result_comes_from_the_path(tmp_path, monkeypatch):
     from melampo.app import build_default_runtime
 
     library(tmp_path)
@@ -121,7 +121,12 @@ def test_the_pipeline_returns_the_path_beside_its_diagnosis(tmp_path, monkeypatc
     path = result["case_diagnosis"]
     assert path["status"] == "ok", path
     assert path["named"][0]["profile"] == "name" and path["ranking"][0]["words"] == "sospetta appendicite acuta"
-    assert "diagnostic_result" in result                   # the pipeline's own diagnosis is still there
+    # since 28 November 2026 the result is the path's ranking; the October path is only compared
+    final = result["diagnostic_result"]
+    assert final["result_label"] == path["ranking"][0]["words"]
+    assert final["differential"][0]["disease"] == path["ranking"][0]["disease"]
+    assert final["diagnosis"]["status"] == "ok"
+    assert final["october_path"]["role"] == "comparison_only_until_december_2026_evaluation"
 
 
 def test_without_profiles_the_pipeline_says_so(monkeypatch):
@@ -130,3 +135,4 @@ def test_without_profiles_the_pipeline_says_so(monkeypatch):
     monkeypatch.delenv("MELAMPO_DISEASE_PROFILES", raising=False)
     result = build_default_runtime().pipeline.run({"case_id": "case-none", "report_text": "dolore addominale"})
     assert result["case_diagnosis"]["status"] in ("no_profiles_configured", "no_case_graph")
+    assert result["diagnostic_result"]["result_label"] == "no_candidate_found"
