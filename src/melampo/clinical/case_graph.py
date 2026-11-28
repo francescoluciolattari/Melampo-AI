@@ -264,6 +264,10 @@ class DrugProfile(_Record):
     resolution: str = ""                        # wikidata+ema, wikidata, ema, doubt, unresolved
     sections: dict[str, list[str]] = field(default_factory=dict)
     citations: list[dict[str, Any]] = field(default_factory=list)
+    # (28 November 2026) what the label says the drug can hide: {"concept": "HPO:...", "words", "section",
+    # "sentence", "citation"}. Read from the label by the interpreters, as the manifestations of a disease are read
+    # from the literature (to be built); the intuition engine does not weigh the absence of what the drug can hide
+    masks: list[dict[str, Any]] = field(default_factory=list)
     level: str = KNOWLEDGE
 
 

@@ -10,11 +10,10 @@ revision) by sums of twenty metrics with hand-set weights, all derived from the 
 (``area_coherence``, a lexical overlap never measured against anything), with an optional "quantum-like" belief
 update. Removed, with their files.
 
-The lateral part, still to be written, will widen the spectrum when the diagnosis is unclear: salience (findings
-unexplained, discordant or specific), generation (distant links, two diseases, drugs, rare diseases), evaluation
-against the profiles (a proposal that explains more findings or resolves a contradiction, the drop of the
-uncertainty measured), and every proposal entering only as a hypothesis to exclude, with the exams that would
-discriminate it.
+The lateral part (``reasoning.lateral_intuition``, 28 November 2026) widens the spectrum when the diagnosis is
+unclear: salience, generation (every profile that accounts for an observation, and pairs bound by waves), evaluation
+against the whole case by the energy of the profiles from certain sources, and the guard (a proposal enters only as a
+hypothesis to exclude). It runs inside the diagnostic path, where the case graph and the profiles are.
 """
 
 from __future__ import annotations

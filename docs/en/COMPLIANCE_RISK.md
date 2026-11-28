@@ -50,6 +50,7 @@ with a physician.
 | R21 | a weight of a profile from a misread number | one value per measure; weighs only when both interpreters read it; the judges verify numbers and direction | controlled |
 | R22 | a document of another patient, or no medical document, in the case | the identifiers each document writes compared with the patient's, on this machine; another patient's document kept out and its question to a person; a document of no recognised kind to a person | partial: a document without identifiers cannot be checked (it is used unless a person says no in the review mask); the mask is not validated |
 | R23 | a result decided, withheld or promoted on a measure never validated | the coherence between areas and its metrics removed (28 November 2026); the path and the escalation rest on the case's discordances, each with its sentence, which escalate and never withhold a result; the intuition's rapid part is rank_differential's ranking; the nexus chain promotes nothing; the hand-weighted risk and uncertainty and their gates (0.35, 0.65, 0.75) removed: explicit rules (discordances, a document not read, a severity declared high escalate; no evidence, no provenance are flags on the result) | partial: the lateral part of the intuition engine is not written; the nexus chain keeps its own unmeasured numbers, closed |
+| R24 | a lateral proposal of the intuition engine taken for a diagnosis, or a second diagnosis where there is one | a proposal enters only as a hypothesis to exclude, with what proposed it; better than no disease of the catalogue and not dominated; a pair better than each disease alone and than the best single, after the prior of a second diagnosis; deterministic waves | partial: not measured; December 2026, published multilocus benchmarks with single-diagnosis controls |
 
 ## 3. Software of unknown provenance and external models
 
@@ -124,3 +125,5 @@ recipe; a version that fails is not used, and the version in use stays.
 8. After the December 2026 evaluation on published cases: evaluate the complete removal of the October diagnostic
    path (`DifferentialEngine`, support/contradiction, critique, the nexus chain) with every reference and file; the
    result comes from `case_diagnosis` since 28 November 2026, the October path kept only for comparison.
+9. December 2026: measure the lateral part of the intuition engine on the published multilocus benchmarks ("Finding
+   One, Missing Another", NeurIPS 2026) and on single-diagnosis controls, criteria fixed before the run (R24).

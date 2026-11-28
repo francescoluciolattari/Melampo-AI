@@ -49,6 +49,7 @@ controllo nomina un test che non esiste. Gravità e probabilità sono prime stim
 | R21 | un peso di un profilo da un numero letto male | un solo valore per misura; pesa solo se letto da entrambi gli interpreti; i giudici verificano numeri e direzione | controllato |
 | R22 | un documento di un altro paziente, o non medico, nel caso | gli identificativi scritti in ogni documento confrontati con quelli del paziente, su questa macchina; il documento di un altro paziente tenuto fuori e la sua domanda a una persona; un documento di nessun tipo riconosciuto a una persona | parziale: un documento senza identificativi non si può controllare (è usato salvo che una persona dica no nella maschera di revisione); la maschera non è validata |
 | R23 | un risultato deciso, trattenuto o promosso su una misura mai validata | la coerenza tra aree e le sue metriche tolte (28 novembre 2026); il percorso e l'escalation si fondano sulle discordanze del caso, ciascuna con la sua frase, che fanno escalation e non trattengono mai un risultato; la parte rapida dell'intuizione è l'ordine di rank_differential; la catena nexus non promuove nulla; rischio e incertezza pesati a mano e i loro cancelli (0,35, 0,65, 0,75) tolti: regole esplicite (discordanze, un documento non letto, una gravità dichiarata alta fanno escalation; nessuna prova, nessuna provenienza sono segnalazioni sul risultato) | parziale: la parte laterale dell'intuition engine non è scritta; la catena nexus conserva i suoi numeri non misurati, chiusa |
+| R24 | una proposta laterale dell'intuition engine presa per una diagnosi, o una seconda diagnosi dove ce n'è una | una proposta entra solo come ipotesi da escludere, con ciò che l'ha proposta; migliore di nessuna malattia del catalogo e non dominata; una coppia migliore di ciascuna malattia da sola e della migliore singola, dopo il prior di una seconda diagnosi; onde deterministiche | parziale: non misurata; dicembre 2026, benchmark multilocus pubblicati con controlli a diagnosi singola |
 
 ## 3. Software di terze parti e modelli esterni
 
@@ -128,3 +129,5 @@ modello di base e della ricetta; una versione che non passa non si usa, e resta 
 8. Dopo la valutazione di dicembre 2026 su casi pubblicati: valutare la rimozione totale del percorso diagnostico di
    ottobre (`DifferentialEngine`, supporto/contraddizione, critico, catena nexus) con tutti i riferimenti e i file;
    il risultato viene da `case_diagnosis` dal 28 novembre 2026, il percorso di ottobre tenuto solo a confronto.
+9. Dicembre 2026: misurare la parte laterale dell'intuition engine sui benchmark multilocus pubblicati ("Finding
+   One, Missing Another", NeurIPS 2026) e su controlli a diagnosi singola, con criteri fissati prima del run (R24).

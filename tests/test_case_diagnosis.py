@@ -69,9 +69,15 @@ def test_the_path_attaches_profiles_adds_candidates_and_ranks(tmp_path):
     assert out["named"][0]["profile"] == "name" and out["named"][0]["states"] == {
         "present": 2, "absent": 1, "not_assessed": 1}
     proposed = {c["words"]: c["proposed_by"][0]["proposed_by"] for c in out["candidates"]}
-    # pancreatitis from the differential; cholecystitis because it accounts for the pain nothing else explains
+    # pancreatitis from the differential; cholecystitis from the lateral part of the intuition engine, because it
+    # accounts for the pain nothing else explains (with appendicitis, as a pair: each explains what the other leaves)
     assert proposed == {"acute pancreatitis": "differential_from_findings",
-                        "acute cholecystitis": "profiles_by_unexplained_findings"}
+                        "acute cholecystitis": "lateral_intuition"}
+    lateral = out["lateral"]
+    assert lateral["salient"] == [{"observation": "f4", "words": "dolore all'ipocondrio destro",
+                                   "reasons": ["unexplained"]}]
+    assert [a["kind"] for a in lateral["accepted"]] == ["pair"]
+    assert lateral["accepted"][0]["status"] == "hypothesis_to_exclude" and lateral["accepted"][0]["insight"]
     assert all(d.origin == cg.DIAGNOSTIC_PATH for d in graph.branch(cg.CANDIDATE_DISEASES))
     ranking = [r["words"] for r in out["ranking"]]
     assert set(ranking) == {"sospetta appendicite acuta", "acute cholecystitis", "acute pancreatitis"}

@@ -61,6 +61,8 @@ def from_case_diagnosis(case_diagnosis: dict[str, Any] | None) -> tuple[list[dic
         "unexplained_findings": case_diagnosis.get("unexplained_findings", []),
         "named": case_diagnosis.get("named", []),
         "knowledge": case_diagnosis.get("knowledge", {}),
+        # the lateral part of the intuition engine: salience, waves, what it proposed and why (28 November 2026)
+        "lateral": case_diagnosis.get("lateral", {}),
     }
     return differential, diagnosis
 

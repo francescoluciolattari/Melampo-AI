@@ -375,3 +375,18 @@ risks:
           - tests/test_enterprise_orchestration.py::test_without_case_diagnosis_there_is_no_candidate_and_no_fallback
     measured_by: tests only; the lateral part of the intuition engine is not written, and the closed nexus chain keeps its own unmeasured numbers
     status: partial
+  - id: R24
+    hazard: A lateral proposal of the intuition engine taken for a diagnosis, or a second diagnosis proposed where there is one
+    situation: The lateral part brings in hypotheses the rapid part missed, and pairs of diseases when the best single leaves observations unexplained; a proposal that explains much feels true whether or not it is (the eureka heuristic), and checks of explanatory completeness add diagnoses in single-diagnosis cases
+    harm: A wrong disease worked up, or a single disease split into two
+    severity: 3
+    probability: 2
+    controls:
+      - control: A proposal enters only as a hypothesis to exclude, with what proposed it and what it would explain; it must be better than no disease of the catalogue and not dominated; a pair must be better than each of its diseases alone and than the best single, after paying the prior of a second diagnosis; the waves are deterministic, so a case is read again the same way
+        tests:
+          - tests/test_lateral_intuition.py::test_a_dual_diagnosis_comes_as_a_pair_that_earns_its_prior
+          - tests/test_lateral_intuition.py::test_one_disease_that_explains_everything_needs_no_pair
+          - tests/test_lateral_intuition.py::test_the_guard_lets_nothing_through_that_is_worse_than_no_disease
+          - tests/test_lateral_intuition.py::test_the_waves_are_deterministic_periodic_and_bind_every_pair_of_observations
+    measured_by: not yet; in December 2026 on the published multilocus benchmarks (NeurIPS 2026) with single-diagnosis controls, criteria fixed before the run
+    status: partial

@@ -9,14 +9,19 @@ the order of "Il grafo del caso":
    and says so (``no_profile``): it is not ranked on nothing.
 2. **Candidates, from the diagnostic path only.** The candidate branch is empty when the case enters; it is filled
    here, through ``CaseGraph.add_candidate``, each candidate with what proposed it:
-   * the differential the pipeline already computes from the findings (``proposals``: the concept graph's
-     candidates, ``memory.differential_ranking``), when the library has their profile;
-   * the profiles that account for findings no named disease accounts for (``unexplained_findings``): a profile
-     with at least ``MIN_PRESENT`` of its manifestations present in the case, at least one of them unexplained.
+   * the rapid part of the intuition engine: the differential the pipeline computes from the findings
+     (``proposals``: the concept graph's candidates, ``memory.differential_ranking``), when the library has their
+     profile;
+   * the lateral part (``reasoning.lateral_intuition``, 28 November 2026): every profile that accounts for an
+     observation, and pairs when the best single leaves salient observations unexplained, weighed against the
+     whole case; only what the guard lets through, as a hypothesis to exclude. It replaces the profiles that had
+     at least two manifestations present and one unexplained (``MIN_PRESENT``, ``MAX_CANDIDATES``: numbers chosen
+     by hand, removed).
 3. **The states.** Every manifestation of every disease is present, absent (stated, measured, silent in a covering
    exam), doubtful or not assessed in this patient (``clinical.manifestation_state``).
 4. **The ranking.** Hypothesized and candidate diseases are ranked together by likelihood ratios, absences
-   included (``reasoning.likelihood_ranking``), the background taken from the whole library. Present diseases are
+   included (``reasoning.likelihood_ranking``), the background taken from the whole library; since 28 November 2026
+   each observation of the case a disease does not account for weighs as LIRICAL's no match. Present diseases are
    not ranked: they are already established; what they do not explain is what the candidates are for.
 
 What comes back is read manifestation by manifestation: each disease with its contributions; the doubts (principle
@@ -36,10 +41,9 @@ from typing import Any
 from ..clinical import case_graph as cg
 from ..clinical import manifestation_state as ms
 from ..memory.profile_library import ProfileLibrary
+from . import lateral_intuition as li
 from . import likelihood_ranking as lr
 
-MIN_PRESENT = 2              # manifestations present in the case for a profile to become a candidate by its findings
-MAX_CANDIDATES = 10          # candidates the unexplained findings may add
 EXAMS_FOR = 3                # the first diseases whose not-assessed manifestations become the exams to propose
 
 
@@ -105,33 +109,24 @@ def add_proposed(graph: cg.CaseGraph, library: ProfileLibrary, proposals: Iterab
     return notes
 
 
-def add_by_unexplained_findings(graph: cg.CaseGraph, library: ProfileLibrary, *,
-                                below: Callable[[str, str], bool] | None = None) -> list[cg.Finding]:
-    """Profiles that account for the findings nothing in the graph accounts for, as candidates; returns the
-    findings that were unexplained before."""
-    unexplained = ms.unexplained_findings(graph, below=below)
-    if not unexplained:
-        return []
-    unexplained_ids = {f.finding_id for f in unexplained}
+def add_lateral(graph: cg.CaseGraph, library: ProfileLibrary, lateral: dict[str, Any]) -> None:
+    """The profiles of the hypotheses the lateral part lets through, as candidates: each with what proposed it, what
+    it would explain, and that it is a hypothesis to exclude."""
     in_graph = _ids_in_graph(graph)
-    scored = []
-    for profile in library.profiles.values():
-        concept = _concept_of(profile)
-        if concept is not None and concept.curie in in_graph:
-            continue
-        present, explains = [], set()
-        for m in profile.manifestations:
-            state = ms.assess(m, graph, below=below)
-            if state.state == cg.PRESENT:
-                present.append(m.words)
-                explains |= set(state.evidence) & unexplained_ids
-        if len(present) >= MIN_PRESENT and explains:
-            scored.append((len(explains), len(present), profile, sorted(explains), present))
-    scored.sort(key=lambda x: (-x[0], -x[1], x[2].disease_id))
-    for n_explained, n_present, profile, explains, present in scored[:MAX_CANDIDATES]:
-        graph.add_candidate(_candidate(profile, {"proposed_by": "profiles_by_unexplained_findings",
-                                                 "explains": explains, "present": present[:20]}))
-    return unexplained
+    for item in lateral.get("accepted", []):
+        for pid in item["diseases"]:
+            profile = library.profiles.get(pid)
+            if profile is None:
+                continue
+            concept = _concept_of(profile)
+            if (concept is not None and concept.curie in in_graph) or pid in in_graph:
+                continue
+            graph.add_candidate(_candidate(profile, {
+                "proposed_by": li.LATERAL, "kind": item["kind"], "from": item["from"],
+                "together_with": [d for d in item["diseases"] if d != pid],
+                "explains_salient": item["explains_salient"], "energy": item["energy"],
+                "delta_energy": item["delta_energy"], "insight": item["insight"], "status": item["status"]}))
+            in_graph = _ids_in_graph(graph) | {pid}
 
 
 def _exams(disease: cg.Disease, ranked: lr.Ranked) -> list[dict[str, Any]]:
@@ -154,11 +149,13 @@ def diagnose(graph: cg.CaseGraph, library: ProfileLibrary, *, proposals: Iterabl
     graph.snapshot.sources["disease_profiles"] = library.version
     found = attach_profiles(graph, library)
     notes = add_proposed(graph, library, proposals)
-    unexplained = add_by_unexplained_findings(graph, library, below=below)
+    lateral = li.lateral_cycle(graph, library, below=below)
+    add_lateral(graph, library, lateral)
     counts = ms.assess_case(graph, below=below)
     ranked_branches = (cg.HYPOTHESIZED_DISEASES, cg.CANDIDATE_DISEASES)
     to_rank = [d for d in graph.diseases if d.branch in ranked_branches and d.manifestations]
-    ranked = lr.rank(to_rank, profiles=library.profiles.values())
+    observed, masked = lateral.pop("observed"), lateral.pop("masked_keys")
+    ranked = lr.rank(to_rank, profiles=library.profiles.values(), observed=observed, masked=masked)
     by_id = {d.disease_id: d for d in graph.diseases}
     exams = [e for r in ranked[:EXAMS_FOR] for e in _exams(by_id[r.disease_id], r)]
     still_unexplained = ms.unexplained_findings(graph, below=below)
@@ -174,7 +171,7 @@ def diagnose(graph: cg.CaseGraph, library: ProfileLibrary, *, proposals: Iterabl
         "exams_to_propose": exams,
         "unexplained_findings": [{"finding": f.finding_id, "words": f.words, "document": f.document}
                                  for f in still_unexplained],
-        "unexplained_before_candidates": len(unexplained),
+        "lateral": lateral,
         "states": counts,
         "notes": notes + [f"{d}: {how}" for d, how in found.items() if how not in ("concept", "name")],
         "graph_problems": graph.validate(),
@@ -192,16 +189,15 @@ def hpo_below(path: str) -> Callable[[str, str], bool] | None:
     """``below(child, parent)`` from an hp.obo file (is_a), or None when there is no file."""
     if not path:
         return None
+    from functools import lru_cache
     from pathlib import Path
 
     from ..memory import disease_profiles as dp
-
-    from functools import lru_cache
 
     terms = dp.Terms.from_obo(Path(path).read_text("utf-8", errors="replace").splitlines())
     above = lru_cache(maxsize=None)(lambda term: frozenset(terms.ancestors(term)))
     return lambda child, parent: parent in above(child)
 
 
-__all__ = ["EXAMS_FOR", "MAX_CANDIDATES", "MIN_PRESENT", "add_by_unexplained_findings", "add_proposed",
+__all__ = ["EXAMS_FOR", "add_lateral", "add_proposed",
            "attach_profiles", "diagnose", "hpo_below"]

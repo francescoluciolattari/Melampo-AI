@@ -50,6 +50,7 @@ flowchart TD
   ingest --> rapid["intuition engine, parte rapida:<br/>i candidati di rank_differential"]
   rapid --> diff
   rapid -->|proposte| cg
+  cg <-->|"parte laterale: salienza, onde,<br/>energia, ipotesi da escludere"| lateral["intuition engine,<br/>parte laterale"]
   ingest --> nexus["ramo nexus: candidati dal grafo, meccanismi,<br/>controfattuali (chiuso: non promuove nulla)"]
   nexus --> diff["DifferentialEngine (percorso di ottobre):<br/>solo confronto fino a dicembre 2026"]
   cg -->|"il risultato (28 novembre 2026)"| res["DiagnosticResult"]
@@ -89,7 +90,7 @@ etichetta confermata).
 | Aree funzionali | `areas/*` | contano chiavi di dizionario, non il contenuto: da rifare |
 | Discordanze del caso | `reasoning/case_discordances.py` | funziona (28 novembre 2026): ciò che la lettura manda a una persona, contato per tipo (scheda, riferimento, immagine, documento, non letto, termine). Decidono il doppio percorso esteso (`model_router.pick_mode`) e fanno escalation nel cancello del risultato e nei freni; non trattengono mai un risultato |
 | Segnali del caso | `reasoning/case_signals.py`, `reasoning/policy_stack.py` | funziona (28 novembre 2026): regole esplicite, nessun peso. Escalation a una persona: discordanze nella lettura, un documento che nessun interprete ha letto, una gravità dichiarata `high`. Segnalazioni sul risultato: nessuna prova nella memoria, nessuna provenienza. Niente trattiene un risultato; una posizione segnaposto (`candidate_N`) non è mai il risultato (`no_candidate_found`). Sostituiscono rischio e incertezza pesati a mano e i cancelli a 0,35, 0,65 e 0,75 |
-| Intuition engine, parte rapida | `reasoning/intuition_engine.py` | funziona (28 novembre 2026): i candidati di `rank_differential` (contenuto informativo dei reperti condivisi), nel suo ordine, al differenziale e a `case_diagnosis` come proposte; la parte laterale (salienza, generazione, valutazione sui profili, ipotesi da escludere) è da scrivere |
+| Intuition engine, parte rapida | `reasoning/intuition_engine.py` | funziona (28 novembre 2026): i candidati di `rank_differential` (contenuto informativo dei reperti condivisi), nel suo ordine, al differenziale e a `case_diagnosis` come proposte; la parte laterale è `reasoning/lateral_intuition.py` (sotto, "L'intuition engine") |
 | Ramo nexus, differenziale | `training/nexus_*`, `reasoning/differential_engine.py` | funziona; la catena nexus è chiusa: propone e non promuove nulla finché la parte laterale non ha criteri misurati su casi pubblicati |
 | Tolta: coerenza tra aree | erano `reasoning/area_coherence.py`, `reasoning/neuro_dynamics.py`, `models/quantum_belief_layer.py`, `evaluation/quantum_gate.py`, `models/quantum_research.py` | tolte il 28 novembre 2026 con i loro test: una sovrapposizione lessicale tra i riassunti delle aree e venti metriche con pesi scritti a mano, mai misurate, senza fondamento bibliografico per le formule; decidevano il router, il cancello del risultato (pi_score < 0,35, mismatch > 0,7), i freni, i tre modi dell'intuition engine e la promozione nexus. Le sostituiscono i segnali concreti |
 | Grafo del caso | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | funziona: costruito nell'ingestione di ogni caso; quattro stati di una manifestazione |
@@ -396,6 +397,45 @@ che ogni caso registra, così le patologie che mostrano certe manifestazioni son
 nulla), oppure un file o una cartella JSON, oppure `falkordb[:<versione>]` per un server FalkorDB
 (`data/falkordb_config.toml`, `MELAMPO_FALKORDB_SERVICE`, `MELAMPO_FALKORDB_USERNAME`, `MELAMPO_FALKORDB_PASSWORD`),
 che `scripts/knowledge_graph.py` carica. Lì va solo conoscenza pubblica, mai il caso di un paziente.
+
+
+### L'intuition engine (28 novembre 2026)
+
+Due parti, secondo il progetto del proprietario ("Rete di Salienza e DMN"). La **parte rapida**
+(`reasoning/intuition_engine.py`) passa al percorso diagnostico i candidati di `rank_differential`. La **parte
+laterale** (`reasoning/lateral_intuition.py`) gira dentro il percorso diagnostico, dove sono il grafo del caso e i
+profili, e sostituisce i profili aggiunti per avere due manifestazioni presenti e una non spiegata (numeri scelti a
+mano):
+
+1. *Salienza.* Le osservazioni (reperti affermati, valori di laboratorio fuori intervallo) contro la migliore
+   spiegazione che il caso ha: è saliente ciò che lascia non spiegato, ciò che è in dubbio, ciò che la contraddice.
+   Un farmaco del paziente la cui scheda nomina un'osservazione che ha preceduto, o una malattia presente, la
+   spiega prima.
+2. *Generazione.* Ogni profilo che spiega un'osservazione, tutti. Quando la migliore ipotesi singola lascia
+   osservazioni non spiegate il caso non è chiaro e si generano coppie: il complemento di ogni buona spiegazione, e
+   onde di attivazione (oscillatori deterministici, una fase per osservazione, una frequenza dalla sezione aurea)
+   che legano una parte delle osservazioni e inibiscono il resto, unendo la migliore spiegazione di ciascuna parte.
+3. *Valutazione.* L'energia di un'ipotesi, `-log10` delle sue odds sull'intero caso
+   (`likelihood_ranking.score_set`): profili da fonti certe, assenze, il rapporto "nessuna corrispondenza" di
+   LIRICAL (1/100) per ogni osservazione che non spiega, il noisy-OR delle frequenze di una manifestazione condivisa,
+   una seconda malattia a `SECOND_DIAGNOSIS` (0,05, dal 2-7,5% dei pazienti diagnosticati con più di una diagnosi
+   nelle malattie rare; da calibrare), le assenze che un farmaco può nascondere non pesate. Il calo di energia
+   rispetto alla migliore spiegazione di prima è l'"aha" (riduzione bayesiana del modello, Friston e altri 2017);
+   l'entropia della probabilità a posteriori, prima e dopo, è riportata accanto.
+4. *La guardia.* Una proposta entra solo come ipotesi da escludere: migliore di nessuna malattia del catalogo, che
+   spiega un'osservazione saliente lasciata dalla migliore spiegazione, non dominata da un'altra proposta; una
+   coppia migliore di ciascuna delle sue malattie da sola e della migliore singola.
+
+L'ordine del percorso diagnostico pesa il caso allo stesso modo: dal 28 novembre 2026 ogni osservazione che una
+malattia non spiega pesa come la "nessuna corrispondenza" di LIRICAL, che l'ordine ignorava. Non ancora costruiti,
+con i dati che ciascuno richiede: il confronto delle lesioni del caso con altri referti, casi confermati e
+letteratura attraverso ciò che l'interprete delle immagini misura (forma, densità, margini, strutture coinvolte) e
+le parole dei referti, in due tempi come MAC/FAC (un vettore di contenuto economico, poi il confronto strutturale
+dei grafi), senza spazio latente appreso (JEPA o altro, verificato il 28 novembre 2026); le
+relazioni tra manifestazioni (da punteggi clinici validati e da qualità opposte nelle definizioni logiche di HPO),
+l'evoluzione nel tempo (l'esordio di ogni manifestazione), e ciò che un farmaco può nascondere, letto dalla sua
+scheda dagli interpreti (`DrugProfile.masks`, pesato quando c'è). Da misurare a dicembre: i benchmark multilocus
+pubblicati ("Finding One, Missing Another", NeurIPS 2026) con controlli a diagnosi singola.
 
 ## 5. Confini dei dati
 

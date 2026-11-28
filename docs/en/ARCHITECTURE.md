@@ -50,6 +50,7 @@ flowchart TD
   ingest --> rapid["intuition engine, rapid part:<br/>rank_differential's candidates"]
   rapid --> diff
   rapid -->|proposals| cg
+  cg <-->|"lateral part: salience, waves,<br/>energy, hypotheses to exclude"| lateral["intuition engine,<br/>lateral part"]
   ingest --> nexus["nexus branch: graph candidates, mechanisms,<br/>counterfactuals (closed: promotes nothing)"]
   nexus --> diff["DifferentialEngine (October path):<br/>comparison only until December 2026"]
   cg -->|"the result (28 November 2026)"| res["DiagnosticResult"]
@@ -88,7 +89,7 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Functional areas | `areas/*` | count dictionary keys, not content: to redo |
 | Discordances of the case | `reasoning/case_discordances.py` | working (28 November 2026): what the reading sends to a person, counted by kind (card, reference, image, document, unread, term). They decide the extended dual path (`model_router.pick_mode`) and escalate in the result gate and the rails; they never withhold a result |
 | Signals of the case | `reasoning/case_signals.py`, `reasoning/policy_stack.py` | working (28 November 2026): explicit rules, no weights. Escalate to a person: discordances in the reading, a document read by no interpreter, a severity declared `high`. Flags on the result: no evidence in the memory, no provenance. Nothing withholds a result; a placeholder position (`candidate_N`) is never the result (`no_candidate_found`). They replace the hand-weighted risk and uncertainty and the gates at 0.35, 0.65 and 0.75 |
-| Intuition engine, rapid part | `reasoning/intuition_engine.py` | working (28 November 2026): the candidates of `rank_differential` (information content of the shared findings), in its order, to the differential and to `case_diagnosis` as proposals; the lateral part (salience, generation, evaluation against the profiles, hypothesis to exclude) is to write |
+| Intuition engine, rapid part | `reasoning/intuition_engine.py` | working (28 November 2026): the candidates of `rank_differential` (information content of the shared findings), in its order, to the differential and to `case_diagnosis` as proposals; the lateral part is `reasoning/lateral_intuition.py` (below, "The intuition engine") |
 | Nexus branch, differential | `training/nexus_*`, `reasoning/differential_engine.py` | working; the nexus chain is closed: it proposes and promotes nothing until the lateral part has criteria measured on published cases |
 | Removed: coherence between areas | was `reasoning/area_coherence.py`, `reasoning/neuro_dynamics.py`, `models/quantum_belief_layer.py`, `evaluation/quantum_gate.py`, `models/quantum_research.py` | removed on 28 November 2026 with their tests: a lexical overlap between the areas' summaries and twenty metrics with hand-set weights, never measured, without a bibliographic basis for their formulas; they decided the router, the result gate (pi_score < 0.35, mismatch > 0.7), the rails, the three modes of the intuition engine and the nexus promotion. The concrete signals replace them |
 | Graph of the case | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | working: built in the ingestion of every case; four states of a manifestation |
@@ -379,6 +380,42 @@ the `knowledge.db` of a Release (opened with FalkorDBLite, nothing rebuilt), or 
 `falkordb[:<version>]` for a FalkorDB server (`data/falkordb_config.toml`, `MELAMPO_FALKORDB_SERVICE`,
 `MELAMPO_FALKORDB_USERNAME`, `MELAMPO_FALKORDB_PASSWORD`), which `scripts/knowledge_graph.py` loads. Only public
 knowledge goes there, never a patient's case.
+
+### The intuition engine (28 November 2026)
+
+Two parts, after the owner's design ("Rete di Salienza e DMN"). The **rapid part** (`reasoning/intuition_engine.py`)
+passes the candidates of `rank_differential` to the diagnostic path. The **lateral part**
+(`reasoning/lateral_intuition.py`) runs inside the diagnostic path, where the case graph and the profiles are, and
+replaces the profiles added for having two manifestations present and one unexplained (numbers chosen by hand):
+
+1. *Salience.* The observations (findings affirmed, laboratory values beyond their range) against the best
+   explanation the case has: salient is what it leaves unexplained, what is in doubt, what contradicts it. A drug
+   of the patient whose label names an observation it preceded, or a present disease, explains it beforehand.
+2. *Generation.* Every profile that accounts for an observation, all of them. When the best single leaves
+   observations unexplained the case is unclear and pairs are generated: the complement of each good explanation,
+   and waves of activation (deterministic oscillators, a phase per observation, a frequency from the golden ratio)
+   that bind a part of the observations and inhibit the rest, joining the best explanation of each part.
+3. *Evaluation.* The energy of a hypothesis, `-log10` of its odds over the whole case
+   (`likelihood_ranking.score_set`): profiles from certain sources, absences, LIRICAL's no-match ratio (1/100) for
+   each observation it does not account for, the noisy-OR of the frequencies of a shared manifestation, a second
+   disease at `SECOND_DIAGNOSIS` (0.05, from the 2-7.5% of diagnosed patients with more than one diagnosis in rare
+   disease; to be calibrated), the absences a drug can hide not weighed. The energy drop against the best
+   explanation before is the "aha" (Bayesian model reduction, Friston et al. 2017); the entropy of the posterior,
+   before and after, is reported with it.
+4. *The guard.* A proposal enters only as a hypothesis to exclude: better than no disease of the catalogue,
+   accounting for a salient observation the best explanation leaves, not dominated by another proposal; a pair
+   better than each of its diseases alone and than the best single.
+
+The ranking of the diagnostic path weighs the case the same way: since 28 November 2026 each observation a disease
+does not account for weighs as LIRICAL's no match, which the ranking had ignored. Not yet built, with the data each
+needs: the comparison of the case's lesions with other reports, confirmed cases and the literature through what
+the imaging interpreter measures (shape, density, margins, involvement) and the words of the reports, in two stages
+as MAC/FAC (a cheap content vector, then the structural match of the graphs), with no learned latent space (JEPA or
+other, verified 28 November 2026); the relations between
+manifestations (from validated clinical scores and from opposite qualities in HPO's logical definitions), the
+evolution in time (the onset of each manifestation), and what a drug can hide, read from its label by the
+interpreters (`DrugProfile.masks`, weighed when present). To measure in December: the published multilocus
+benchmarks ("Finding One, Missing Another", NeurIPS 2026) with single-diagnosis controls.
 
 ## 5. Data boundaries
 
