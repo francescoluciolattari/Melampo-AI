@@ -167,7 +167,9 @@ Removed on 28 November 2026, with their tests: `reasoning/area_coherence`, `reas
 `models/quantum_belief_layer`, `evaluation/quantum_gate`, `models/quantum_research`, the three coefficient modes of
 the intuition engine, `MelampoMetrics`, and the gate of the hypothesis channel on their metrics
 (`IndeterminacyGate`): a lexical coherence between areas and metrics with hand-set weights, never measured. The case's
-discordances (`reasoning/case_discordances`) replace them; the nexus chain stays, closed.
+discordances (`reasoning/case_discordances`) replace them; the nexus chain stays, closed. Removed the same day:
+the hand-weighted risk and uncertainty (`_derive_governance_scores`) and their gates (`models/abstention`,
+`models/risk_gate`, `reasoning/escalation`, the orchestrator's 0.75): explicit rules in `reasoning/case_signals`.
 
 The reader before the one procedure (`MELAMPO_REPORT_READER=anatomy`: `finding_owner`, the claims, the Kintsch
 reader) stays until the bench of December 2026 has measured the one procedure against it on the same sample.

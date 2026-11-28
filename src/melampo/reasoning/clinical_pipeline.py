@@ -16,9 +16,7 @@ from ..memory.graph_sources import load_verification_graph
 from ..memory.information_content import InformationContentTable
 from ..memory.retriever import MemoryRetriever
 from ..memory.visual_imprint import VisualImprintBuilder
-from ..models.abstention import AbstentionPolicy
 from ..models.evidence_ranker import EvidenceRanker
-from ..models.risk_gate import RiskGate
 from ..orchestration.model_router import ModelRouter
 from ..orchestration.runtime_services import RuntimeServices
 from ..orchestration.specialist_runtime import SpecialistRuntime
@@ -29,12 +27,11 @@ from ..training.nexus_scheduler import NexusScheduler
 from ..training.nexus_trainer import NexusTrainer
 from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
-from ..utils.values import clamp as _clamp
 from ..utils.values import safe_float as _safe_float
 from .case_discordances import case_discordances
+from .case_signals import case_signals
 from .diagnostic_orchestrator import MelampoDiagnosticOrchestrator
 from .differential_engine import DifferentialEngine
-from .escalation import EscalationPolicy
 from .intuition_engine import IntuitionEngine
 from .pipeline_coordinator import PipelineCoordinator
 from .policy_stack import PolicyStack
@@ -129,21 +126,6 @@ class CritiqueProtocol(Protocol):
 
 
 
-def _mean(values: list[float], default: float = 0.0) -> float:
-    return sum(values) / len(values) if values else default
-
-
-def _area_uncertainty(area_signals: dict[str, Any]) -> float:
-    values = []
-    for payload in area_signals.values():
-        if isinstance(payload, dict):
-            salience = _safe_float(payload.get("salience_score", 0.0))
-            values.append(
-                _safe_float(payload.get("uncertainty_score", 1.0 - min(salience, 1.0)))
-            )
-    return _clamp(_mean(values, default=0.65))
-
-
 DEFAULT_NEXUS_CANDIDATE_STORE_PATH = "data/nexus_candidates.jsonl"
 DEFAULT_NEXUS_QUEUE_PATH = "data/nexus_queue.jsonl"
 
@@ -165,95 +147,6 @@ def _build_nexus_candidate_store() -> NexusCandidateStore:
     return NexusCandidateStore(
         password=password, path=Path(DEFAULT_NEXUS_CANDIDATE_STORE_PATH)
     )
-
-
-def _derive_governance_scores(
-    payload: dict[str, Any],
-    discordances: dict[str, Any],
-    retrieval: dict[str, Any],
-    ranked_evidence: list[dict[str, Any]],
-    area_signals: dict[str, Any],
-) -> dict[str, Any]:
-    """Derive risk, uncertainty and nexus coherence from runtime signals.
-
-    Replaces P0 hardcoded constants with an auditable approximation based on
-    retrieval coverage, area uncertainty, the case's discordances, provenance
-    quality and optional case severity supplied by callers. The weights are
-    not measured. Until 28 November 2026 the mismatch, prediction error and
-    convergence of the coherence between areas (removed, never measured) were
-    terms here; the discordances of the reading take the mismatch's place, and
-    ``nexus_coherence`` is the retrieval coverage alone.
-    """
-
-    # the case's reading sent something to a person (reasoning.case_discordances)
-    discordance = 1.0 if int((discordances or {}).get("count", 0) or 0) else 0.0
-    retrieval_quality = (
-        retrieval.get("retrieval_quality", {}) if isinstance(retrieval, dict) else {}
-    )
-    coverage = _clamp(
-        _safe_float(
-            retrieval_quality.get(
-                "coverage",
-                min(_safe_float(retrieval.get("evidence_count", 0.0)) / 5.0, 1.0),
-            )
-        )
-    )
-    memory_backed = bool(retrieval_quality.get("memory_backed", False))
-    fallback_penalty = (
-        0.2
-        if retrieval_quality.get("fallback_used", False) or not memory_backed
-        else 0.0
-    )
-    mean_grounding = _clamp(
-        _safe_float(retrieval_quality.get("mean_grounding_score", 0.0))
-    )
-    evidence_strength = _clamp(
-        _mean(
-            [
-                _safe_float(item.get("weight", 0.0)) / 3.0
-                for item in ranked_evidence[:3]
-            ],
-            default=0.0,
-        )
-    )
-    mean_area_uncertainty = _area_uncertainty(area_signals)
-    provenance = payload.get("provenance", {}) if isinstance(payload, dict) else {}
-    weak_provenance = 0.0 if isinstance(provenance, dict) and provenance else 0.25
-    clinical_severity = _clamp(
-        _safe_float(payload.get("clinical_severity", payload.get("risk_hint", 0.0)))
-    )
-    missing_evidence = _clamp(1.0 - coverage)
-
-    uncertainty = _clamp(
-        missing_evidence * 0.30
-        + mean_area_uncertainty * 0.25
-        + discordance * 0.20
-        + fallback_penalty * 0.10
-        - evidence_strength * 0.10
-        - mean_grounding * 0.05
-    )
-    risk = _clamp(
-        clinical_severity * 0.30
-        + discordance * 0.25
-        + uncertainty * 0.20
-        + weak_provenance * 0.10
-    )
-    nexus_coherence = coverage
-    return {
-        "risk": round(risk, 3),
-        "uncertainty": round(uncertainty, 3),
-        "nexus_coherence": round(nexus_coherence, 3),
-        "missing_evidence": round(missing_evidence, 3),
-        "retrieval_coverage": round(coverage, 3),
-        "mean_grounding_score": round(mean_grounding, 3),
-        "mean_area_uncertainty": round(mean_area_uncertainty, 3),
-        "discordances": int(discordances.get("count", 0) or 0),
-        "memory_backed_retrieval": memory_backed,
-        "fallback_penalty": round(fallback_penalty, 3),
-        "weak_provenance": round(weak_provenance, 3),
-        "clinical_severity": round(clinical_severity, 3),
-        "derivation": "runtime_governance_scores_not_hardcoded_constants",
-    }
 
 
 @dataclass
@@ -401,11 +294,7 @@ class ClinicalInferencePipeline:
             "evidence_ranker": EvidenceRanker(),
             "coordinator": PipelineCoordinator(
                 differential_engine=DifferentialEngine(),
-                policy_stack=PolicyStack(
-                    abstention=AbstentionPolicy(threshold=0.65),
-                    risk_gate=RiskGate(threshold=0.35),
-                    escalation=EscalationPolicy(),
-                ),
+                policy_stack=PolicyStack(),
             ),
             "nexus_trainer": NexusTrainer(
                 replay_filter=ReplayFilter(),
@@ -683,7 +572,7 @@ class ClinicalInferencePipeline:
         payload: dict[str, Any],
         bundle: dict[str, Any],
         discordances: dict[str, Any],
-        governance_scores: dict[str, Any],
+        signals: dict[str, Any],
         visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """The nexus branch's case context, enriched with findings and candidate conditions when available.
@@ -727,7 +616,7 @@ class ClinicalInferencePipeline:
             "patient_complaints": payload.get("patient_complaints", ""),
             "exposures": payload.get("exposures", {}),
             "discordances": discordances,
-            "governance_scores": governance_scores,
+            "signals": signals,
             "visual_imprints": visual_imprints,
             "diagnostic_visual_imprints": visual_imprints,
             "concept_memory_imprints": payload.get("concept_memory_imprints", []),
@@ -742,7 +631,7 @@ class ClinicalInferencePipeline:
         case: CaseContext,
         bundle: dict[str, Any],
         discordances: dict[str, Any],
-        governance_scores: dict[str, Any],
+        signals: dict[str, Any],
         visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
         # The real graph and MechanismEnumerator load only when there is
@@ -760,11 +649,13 @@ class ClinicalInferencePipeline:
                 payload=payload,
                 bundle=bundle,
                 discordances=discordances,
-                governance_scores=governance_scores,
+                signals=signals,
                 visual_imprints=visual_imprints,
             ),
-            coherence=governance_scores["nexus_coherence"],
-            risk=governance_scores["risk"],
+            # the nexus chain is closed (it promotes nothing); its replay filter still takes two numbers, given
+            # here as the yes/no of two explicit rules: evidence found in the memory, an escalation to a person
+            coherence=1.0 if signals["evidence"]["memory_backed"] else 0.0,
+            risk=1.0 if signals["escalate"] else 0.0,
         )
 
     def _coordination_evidence(
@@ -907,19 +798,17 @@ class ClinicalInferencePipeline:
         )
         # what the case's reading sends to a person (28 November 2026): it replaces the coherence between areas
         discordances = case_discordances(case.provenance)
-        governance_scores = _derive_governance_scores(
+        signals = case_signals(
             payload=payload,
             discordances=discordances,
             retrieval=retrieval,
-            ranked_evidence=ranked_evidence,
-            area_signals=area_signals,
         )
         # D1's second step, now that real signals exist -- see
         # ModelRouter.pick_mode's docstring for the table this implements.
         routing_mode, routing_reason = self._model_router_instance().pick_mode(
             findings=list(payload.get("findings", [])),
             discordances=discordances,
-            governance_scores=governance_scores,
+            signals=signals,
         )
         # The dual path, executed (14 November 2026): the two root models read the case again through the
         # recursive engine and what they read is reconciled with the one-shot retrieval, which the rest of the
@@ -942,7 +831,7 @@ class ClinicalInferencePipeline:
             case=case,
             bundle=bundle,
             discordances=discordances,
-            governance_scores=governance_scores,
+            signals=signals,
             visual_imprints=visual_imprints,
         )
         # The connection found missing while reading both modules in full:
@@ -970,7 +859,7 @@ class ClinicalInferencePipeline:
             discordances=discordances,
             nexus=nexus,
             retrieval_context=retrieval,
-            governance_scores=governance_scores,
+            governance_scores=signals,
         )
         intuition_engine = components["intuition_engine"]
         graph_candidates = self._graph_candidates_for(payload.get("findings") or [])
@@ -992,8 +881,7 @@ class ClinicalInferencePipeline:
         coordinated = components["coordinator"].run(
             case_id=case.case_id,
             evidence=evidence,
-            risk=governance_scores["risk"],
-            uncertainty=governance_scores["uncertainty"],
+            signals=signals,
             intuition=intuition,
             nexus=nexus,
             discordances=discordances,
@@ -1018,7 +906,7 @@ class ClinicalInferencePipeline:
             "ranked_evidence": ranked_evidence,
             "area_signals": area_signals,
             "discordances": discordances,
-            "governance_scores": governance_scores,
+            "signals": signals,
             "visual_imprints": visual_imprints,
             "specialist_signals": {
                 "radiology": radiology_specialist_signal,

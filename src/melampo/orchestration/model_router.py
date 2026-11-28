@@ -12,8 +12,13 @@ which one, per the table reproduced below (docs-archive-2026-11:docs/rlm_on_memo
 |----------------------------|-------------------------------------------|
 | Factual lookup, low risk   | One-shot only                             |
 | Complex or high risk       | Dual path with reconciliation             |
-| Discordances in the reading| Dual path, extended recursive budget      |
+| Unresolved area mismatch   | Dual path, extended recursive budget      |
 | Nexus branch (low activity)| Recursive only; latency is not binding    |
+
+Read today (28 November 2026), with explicit rules instead of numbers: "unresolved area mismatch" is the
+case's discordances (``reasoning.case_discordances``); "high risk" is a case declared severe; "complex" is more
+than two findings; the rest is one-shot. The hand-weighted risk and its bands (0.3, 0.5) and the area mismatch
+were removed, never measured.
 
 **Two things this router does NOT yet do, stated plainly rather than
 silently attempted.** First: "dual path" here means routing through
@@ -52,8 +57,6 @@ from ..training.pending_case_router import RoutingDecision, route_payload
 # review these against real outcomes once any exist (see
 # recursive_engine_decision_record.md on why every neuro-dynamic metric
 # in this project needs the same scrutiny before being trusted).
-LOW_RISK_THRESHOLD = 0.3
-HIGH_RISK_THRESHOLD = 0.5
 FEW_FINDINGS_THRESHOLD = 2
 
 MODE_ONE_SHOT = "one_shot"
@@ -95,13 +98,12 @@ class ModelRouter:
         *,
         findings: list[str] | None = None,
         discordances: dict[str, Any] | None = None,
-        governance_scores: dict[str, Any] | None = None,
+        signals: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
         """How many reasoning paths this case needs, and why -- callable once real signals exist, later in run()."""
         findings = findings or []
         discordances = discordances or {}
-        governance_scores = governance_scores or {}
-        risk = float(governance_scores.get("risk", 0.0))
+        signals = signals or {}
         # the case's discordances (reasoning.case_discordances, 28 November 2026): what the reading sent to a
         # person. Until then this read the "mismatch" between areas, a lexical measure never measured.
         count = int(discordances.get("count", 0) or 0)
@@ -112,24 +114,9 @@ class ModelRouter:
                 MODE_DUAL_PATH_EXTENDED_BUDGET,
                 f"{count} discordances in the reading ({kinds})",
             )
-        if risk >= HIGH_RISK_THRESHOLD or len(findings) > FEW_FINDINGS_THRESHOLD:
-            reason = (
-                f"risk {risk:.2f} >= {HIGH_RISK_THRESHOLD}"
-                if risk >= HIGH_RISK_THRESHOLD
-                else f"{len(findings)} findings > {FEW_FINDINGS_THRESHOLD}"
-            )
-            return MODE_DUAL_PATH, reason
-        if risk <= LOW_RISK_THRESHOLD and len(findings) <= FEW_FINDINGS_THRESHOLD:
-            return (
-                MODE_ONE_SHOT,
-                f"low risk ({risk:.2f}) and few findings ({len(findings)})",
-            )
-        # Between the low- and high-risk bands with a moderate finding
-        # count: the table names only the two extremes plus the discordance
-        # case, not this middle ground -- dual_path is the safer default
-        # of the two live-path modes when neither extreme clearly applies,
-        # not a silent guess dressed up as a rule.
-        return (
-            MODE_DUAL_PATH,
-            f"neither clearly low-risk/few-findings nor high-risk/many-findings (risk={risk:.2f}, findings={len(findings)})",
-        )
+        # explicit rules (28 November 2026): until then a hand-weighted "risk" between 0.3 and 0.5 chose here
+        if signals.get("declared_severity") == "high":
+            return MODE_DUAL_PATH, "the case was declared severe"
+        if len(findings) > FEW_FINDINGS_THRESHOLD:
+            return MODE_DUAL_PATH, f"{len(findings)} findings > {FEW_FINDINGS_THRESHOLD}"
+        return MODE_ONE_SHOT, f"no discordances, not declared severe, {len(findings)} findings"

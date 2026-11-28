@@ -19,21 +19,13 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
 
     assert result["case_id"] == "golden-001"
     assert result["bundle_keys"] == ["patient", "diagnostic_report"]
-    assert result["governance_scores"] == {
-        "risk": 0.368,
-        "uncertainty": 0.591,
-        "nexus_coherence": 0.0,
-        "missing_evidence": 1.0,
-        "retrieval_coverage": 0.0,
-        "mean_grounding_score": 0.513,
-        "mean_area_uncertainty": 0.66,
-        "discordances": 1,
-        "memory_backed_retrieval": False,
-        "fallback_penalty": 0.2,
-        "weak_provenance": 0.0,
-        "clinical_severity": 0.0,
-        "derivation": "runtime_governance_scores_not_hardcoded_constants",
-    }
+    # explicit rules, no weights (28 November 2026)
+    assert "governance_scores" not in result
+    assert result["signals"]["escalate"] is True
+    assert result["signals"]["reasons"] == [
+        {"rule": "document_not_read", "sentence": "1 documents of the case were read by no interpreter"}
+    ]
+    assert [f["rule"] for f in result["signals"]["flags"]] == ["no_evidence"]
     # no interpreter on this machine: the note is not read, and that goes to a person (28 November 2026)
     assert result["discordances"]["kinds"]["unread"] == 1
     assert result["routing_reason"] == "1 discordances in the reading (unread 1)"
@@ -52,12 +44,16 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
         "contradiction_revision",
         "discordance_resolution",
     ]
-    # the risk the unread note adds passes the risk gate: the policy escalates and the result is withheld
-    assert result["diagnostic_result"]["result_label"] == "abstain_or_escalate"
-    assert result["diagnostic_result"]["policy"]["reasons"] == ["policy_escalation_requested"]
+    # the unread note escalates to a person and does not withhold the result; the only hypothesis is a
+    # placeholder position, which is never a result
+    policy = result["diagnostic_result"]["policy"]
+    assert result["diagnostic_result"]["result_label"] == "no_candidate_found"
+    assert (policy["abstain"], policy["escalate"], policy["reasons"]) == (False, True, [])
+    assert policy["escalation_reasons"] == ["document_not_read"]
+    assert policy["flags"] == ["no_evidence"]
 
 
-def test_numeric_edge_cases_remain_bounded_without_property_dependency():
+def test_any_declared_severity_is_read_without_error():
     runtime = build_default_runtime()
     severities = [-10, -1, 0, 0.5, 1, 10, "bad", None]
     for index, severity in enumerate(severities):
@@ -68,13 +64,8 @@ def test_numeric_edge_cases_remain_bounded_without_property_dependency():
                 "clinical_severity": severity,
             }
         )
-        governance = result["governance_scores"]
-        for key in [
-            "risk",
-            "uncertainty",
-            "nexus_coherence",
-        ]:
-            assert 0.0 <= governance[key] <= 1.0
+        # a number is not a declared severity: only a word is (reasoning.case_signals)
+        assert result["signals"]["declared_severity"] == "not_declared"
 
 
 def test_persistent_vector_store_survives_reload(tmp_path: Path):

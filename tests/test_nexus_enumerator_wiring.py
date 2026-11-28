@@ -84,7 +84,7 @@ def _run(pipeline, payload):
         case=case,
         bundle={"a": 1},
         discordances={},
-        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+        signals={"escalate": False, "evidence": {"memory_backed": True}},
         visual_imprints=[],
     )
 
@@ -326,7 +326,7 @@ def test_enqueue_adds_a_job_carrying_the_nexus_branch_own_output(monkeypatch):
         discordances={},
         nexus=nexus,
         retrieval_context={},
-        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+        governance_scores={"escalate": False},
     )
 
     assert len(scheduler.queue) == 1
@@ -350,7 +350,7 @@ def test_multiple_enqueued_jobs_accumulate_in_the_same_queue(monkeypatch):
             discordances={},
             nexus=nexus,
             retrieval_context={},
-            governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+            governance_scores={"escalate": False},
         )
 
     assert len(scheduler.queue) == 3
@@ -366,7 +366,7 @@ def test_a_queued_job_processes_successfully_during_simulated_low_activity(monke
         discordances={},
         nexus=nexus,
         retrieval_context={},
-        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+        governance_scores={"escalate": False},
     )
 
     result = scheduler.run_once(activity={"active_requests": 0, "idle_seconds": 100})
@@ -386,7 +386,7 @@ def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypat
         discordances={},
         nexus=nexus,
         retrieval_context={},
-        governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
+        governance_scores={"escalate": False},
     )
 
     result = scheduler.run_once(activity={"active_requests": 50, "idle_seconds": 0})

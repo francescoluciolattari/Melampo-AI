@@ -3,8 +3,10 @@ from dataclasses import dataclass
 
 @dataclass
 class MetacognitiveController:
-    config: object
+    """Carries the runtime configuration to the pipeline.
 
-    def should_abstain(self, total_uncertainty: float) -> bool:
-        threshold = getattr(self.config, "abstention_threshold", 0.65)
-        return total_uncertainty >= threshold
+    Its ``should_abstain`` (uncertainty >= 0.65, a threshold chosen by hand and never measured) was removed on
+    28 November 2026: the case's policy is in ``reasoning.case_signals``.
+    """
+
+    config: object

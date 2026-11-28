@@ -139,7 +139,7 @@ mai chiamato da nulla (verificato con una ricerca diretta). Ora: due
 passi, agganciati nei punti giusti di `clinical_pipeline.run()` —
 `pick_pending_case()` (presto, riusa `pending_case_router.py`) e
 `pick_mode()` (più tardi, quando le discordanze del caso e i
-`governance_scores` esistono davvero; fino al 28 novembre 2026 era `area_dynamics`), secondo la tabella di settembre.
+segnali del caso esistono davvero; fino al 28 novembre 2026 erano `area_dynamics` e i `governance_scores` pesati a mano), secondo la tabella di settembre.
 
 **Una scoperta durante la costruzione**: `ModelRouter` serviva già uno
 scopo reale e diverso — `RuntimeServices.resolve()` lo usava per

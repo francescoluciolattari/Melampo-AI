@@ -23,19 +23,24 @@ def _safe_get(
     return cursor
 
 
+def _is_placeholder(label: str) -> bool:
+    head, _, tail = label.partition("_")
+    return head == "candidate" and tail.isdigit()
+
+
 @dataclass(slots=True)
 class DiagnosticOrchestratorPolicy:
     """Final deterministic policy for Melampo diagnostic orchestration."""
 
-    max_uncertainty: float = 0.75
     require_policy_allow: bool = True
 
     def evaluate(self, pipeline_result: dict[str, Any]) -> dict[str, Any]:
-        """The gate of the result: uncertainty and the policy's abstention or escalation.
+        """The gate of the result: the policy of the case's signals (``reasoning.case_signals``), by explicit rules.
 
-        Until 28 November 2026 it also abstained on a pi_score below 0.35 and a mismatch between areas above 0.7,
-        measures of the coherence between areas (removed, never measured). The case's discordances escalate:
-        they go to a person, and they do not withhold the result (principle of doubt).
+        Nothing withholds the result but an explicit abstention of the policy: the reasons escalate to a person, each
+        with its sentence, and the flags (no evidence, no provenance) are written on the result. Until 28 November
+        2026 it also withheld on a hand-weighted uncertainty above 0.75, on the risk gate's 0.35 and, before that, on
+        pi_score and the mismatch between areas: thresholds never measured, removed.
         """
         coordinated = pipeline_result.get("coordinated", {})
         policy = coordinated.get("policy", {}) if isinstance(coordinated, dict) else {}
@@ -45,36 +50,17 @@ class DiagnosticOrchestratorPolicy:
             if isinstance(discordances, dict)
             else 0
         )
-        uncertainty = _safe_float(
-            _safe_get(coordinated, ("state_summary", "uncertainty"), 0.0)
-        )
         policy_abstain = bool(policy.get("abstain", False))
-        policy_escalate = bool(policy.get("escalate", False))
-        reasons = []
-        if uncertainty > self.max_uncertainty:
-            reasons.append("uncertainty_above_threshold")
-        if self.require_policy_allow and policy_abstain:
-            reasons.append("policy_abstention_requested")
-        if policy_escalate:
-            reasons.append("policy_escalation_requested")
+        reasons = ["policy_abstention_requested"] if self.require_policy_allow and policy_abstain else []
         return {
             "allow_candidate_result": not reasons,
-            "abstain": bool(reasons or policy_abstain),
-            "escalate": bool(
-                policy_escalate
-                or discordance_count > 0
-                or uncertainty > self.max_uncertainty
-            ),
+            "abstain": bool(reasons),
+            "escalate": bool(policy.get("escalate", False) or discordance_count > 0),
             "reasons": reasons,
-            "thresholds": {
-                "max_uncertainty": self.max_uncertainty,
-            },
-            "observed": {
-                "discordances": discordance_count,
-                "uncertainty": uncertainty,
-                "policy_abstain": policy_abstain,
-                "policy_escalate": policy_escalate,
-            },
+            "escalation_reasons": list(policy.get("reasons", [])),
+            "flags": list(policy.get("flags", [])),
+            "sentences": list(policy.get("sentences", [])),
+            "observed": {"discordances": discordance_count},
         }
 
 
@@ -129,8 +115,12 @@ class MelampoDiagnosticOrchestrator:
             ),
             "semantic_memory": pipeline_result.get("retrieval", {}),
         }
+        label = str(top_hypothesis.get("label", "none"))
+        # a placeholder position (``candidate_N``, see intuition_engine) is not a diagnosis: it is never the result
+        if _is_placeholder(label):
+            label = "no_candidate_found"
         result_label = (
-            top_hypothesis.get("label", "none")
+            label
             if orchestration_policy["allow_candidate_result"]
             else "abstain_or_escalate"
         )

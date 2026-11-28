@@ -64,7 +64,7 @@ def test_diagnostic_orchestrator_abstains_when_policy_requires_it():
             "case_id": "case-1",
             "discordances": {"count": 1, "kinds": {"card": 1}},
             "coordinated": {
-                "state_summary": {"uncertainty": 0.8},
+                "state_summary": {},
                 "differential": {
                     "hypotheses": [{"label": "candidate_a", "score": 0.4}]
                 },
@@ -94,7 +94,7 @@ def test_the_discordances_escalate_without_withholding_the_result():
             "case_id": "case-2",
             "discordances": {"count": 2, "kinds": {"card": 2}},
             "coordinated": {
-                "state_summary": {"uncertainty": 0.2},
+                "state_summary": {},
                 "differential": {"hypotheses": [{"label": "pneumonia", "score": 0.8}]},
                 "policy": {"abstain": False, "escalate": False},
             },
@@ -104,3 +104,17 @@ def test_the_discordances_escalate_without_withholding_the_result():
     assert result["result_label"] == "pneumonia"
     assert result["policy"]["escalate"] is True
     assert result["policy"]["reasons"] == []
+
+
+def test_a_placeholder_position_is_never_the_result():
+    result = MelampoDiagnosticOrchestrator().orchestrate(
+        {
+            "case_id": "case-3",
+            "coordinated": {
+                "differential": {"hypotheses": [{"label": "candidate_1", "score": 2.0}]},
+                "policy": {"abstain": False, "escalate": False, "reasons": [], "flags": ["no_evidence"]},
+            },
+        }
+    )
+    assert result["result_label"] == "no_candidate_found"
+    assert result["policy"]["flags"] == ["no_evidence"]

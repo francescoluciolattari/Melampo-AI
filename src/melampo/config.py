@@ -29,7 +29,6 @@ class RuntimeConfig:
     root_dir: Path = Path(__file__).resolve().parents[1]
     data_dir: Path = Path("./data")
     allow_remote_models: bool = False
-    abstention_threshold: float = 0.65
     risk_threshold: float = 0.35
     calibration_bin_count: int = 15
     runtime_profile: str = "local_research"
@@ -53,7 +52,6 @@ class RuntimeConfig:
             "runtime_profile": self.runtime_profile,
             "allow_remote_models": self.allow_remote_models,
             "imaging_provider_strategy": self.imaging_provider_strategy,
-            "abstention_threshold": self.abstention_threshold,
             "risk_threshold": self.risk_threshold,
             "calibration_bin_count": self.calibration_bin_count,
             "enabled_services": enabled,

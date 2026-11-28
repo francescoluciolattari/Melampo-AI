@@ -366,5 +366,11 @@ risks:
           - tests/test_intuition_engine_real_labels.py::test_at_most_max_candidates_and_no_hand_set_modes
           - tests/test_nexus_trainer.py::test_nexus_trainer_runs
           - tests/test_phase3_nexus_governance.py::test_rational_control_validator_holds_even_a_favorable_candidate
-    measured_by: tests only; the governance scores still have unmeasured weights (risk, uncertainty), and the lateral part of the intuition engine is not written
+      - control: No weighted risk or uncertainty and no threshold decide the case (28 November 2026); explicit rules, each kept on the result with its sentence -- discordances, a document not read and a severity declared high escalate; no evidence and no provenance are flags; a placeholder position is never the result
+        tests:
+          - tests/test_policy_stack.py::test_discordances_and_unread_documents_escalate_each_with_its_sentence
+          - tests/test_policy_stack.py::test_severity_is_a_declared_word_not_a_number
+          - tests/test_policy_stack.py::test_no_evidence_and_no_provenance_are_flags_not_escalations
+          - tests/test_enterprise_orchestration.py::test_a_placeholder_position_is_never_the_result
+    measured_by: tests only; the lateral part of the intuition engine is not written, and the closed nexus chain keeps its own unmeasured numbers
     status: partial

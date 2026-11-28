@@ -17,19 +17,16 @@ class PipelineCoordinator:
         self,
         case_id: str,
         evidence: list,
-        risk: float,
-        uncertainty: float,
+        signals: dict | None = None,
         intuition: dict | None = None,
         nexus: dict | None = None,
         discordances: dict | None = None,
     ) -> dict:
-        state = PipelineState(
-            case_id=case_id, evidence=list(evidence), risk=risk, uncertainty=uncertainty
-        )
+        state = PipelineState(case_id=case_id, evidence=list(evidence))
         differential = self.differential_engine.rank(
             evidence, intuition=intuition, nexus=nexus, discordances=discordances
         )
-        policy = self.policy_stack.evaluate(risk=risk, uncertainty=uncertainty)
+        policy = self.policy_stack.evaluate(signals)
         top_hypothesis = differential.get(
             "hypotheses", [{"label": "none", "hypothesis_domain": "multimodal_led"}]
         )[0]
@@ -38,6 +35,8 @@ class PipelineCoordinator:
         state.hypotheses = list(differential.get("hypotheses", []))
         state.abstain = policy["abstain"]
         state.escalate = policy["escalate"]
+        state.reasons = list(policy["reasons"])
+        state.flags = list(policy["flags"])
 
         trace = DecisionTrace()
         trace.add_kv("case", case_id)
