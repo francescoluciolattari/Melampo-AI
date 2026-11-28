@@ -7,7 +7,7 @@ class CritiqueLoop:
     logger: object
 
     def _prioritize_actions(
-        self, actions: list, mismatch_score: float, escalate: bool, reasoning_mode: str
+        self, actions: list, discordances: int, escalate: bool
     ) -> list:
         prioritized = []
         for action in actions:
@@ -23,10 +23,8 @@ class CritiqueLoop:
             )
             priority = "medium"
             if (
-                category == "multimodal_reconciliation"
-                and mismatch_score > 0.5
-                or category == "disambiguation_test"
-                and reasoning_mode == "contradiction_revision"
+                category in {"multimodal_reconciliation", "disambiguation_test"}
+                and discordances > 0
             ):
                 priority = "high"
             elif category == "confirmation_test":
@@ -39,9 +37,8 @@ class CritiqueLoop:
         return prioritized
 
     def review(self, draft: dict) -> dict:
-        intuition = draft.get("intuition", {}) if isinstance(draft, dict) else {}
-        area_dynamics = (
-            draft.get("area_dynamics", {}) if isinstance(draft, dict) else {}
+        discordances = (
+            draft.get("discordances", {}) if isinstance(draft, dict) else {}
         )
         nexus = draft.get("nexus", {}) if isinstance(draft, dict) else {}
         coordinated = draft.get("coordinated", {}) if isinstance(draft, dict) else {}
@@ -55,10 +52,7 @@ class CritiqueLoop:
             if isinstance(item, dict)
         }
         recommended_actions = differential.get("recommended_actions", [])
-        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
-        reasoning_mode = intuition.get("deductive_filter", {}).get(
-            "reasoning_mode", "rapid_intuition"
-        )
+        discordance_count = int((discordances or {}).get("count", 0) or 0)
         escalate = (
             bool(coordinated.get("policy", {}).get("escalate", False))
             if isinstance(coordinated, dict)
@@ -66,10 +60,8 @@ class CritiqueLoop:
         )
 
         warnings = []
-        if mismatch_score > 0.5:
-            warnings.append("high_cross_area_mismatch")
-        if reasoning_mode == "contradiction_revision":
-            warnings.append("contradiction_revision_active")
+        if discordance_count:
+            warnings.append("discordances_in_the_reading")
         if nexus.get("rehearsal_profile", {}).get("boundary_case_hint", False):
             warnings.append("boundary_case_review")
         if "useful_contradiction" in contradiction_classes:
@@ -79,7 +71,7 @@ class CritiqueLoop:
 
         suggestions = []
         if (
-            "high_cross_area_mismatch" in warnings
+            "discordances_in_the_reading" in warnings
             or "useful_contradiction_detected" in warnings
         ):
             suggestions.append("recheck multimodal consistency")
@@ -92,9 +84,8 @@ class CritiqueLoop:
 
         prioritized_actions = self._prioritize_actions(
             actions=recommended_actions,
-            mismatch_score=mismatch_score,
+            discordances=discordance_count,
             escalate=escalate,
-            reasoning_mode=reasoning_mode,
         )
 
         return {

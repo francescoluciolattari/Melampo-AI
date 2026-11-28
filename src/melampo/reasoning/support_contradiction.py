@@ -4,7 +4,7 @@ from typing import Any
 
 @dataclass
 class SupportContradictionAnalyzer:
-    """Build lightweight support and contradiction signals from evidence and area dynamics."""
+    """Build lightweight support and contradiction signals from evidence and the discordances of the case's reading."""
 
     GROUNDED_SUPPORT_SOURCES = {
         "bundle",
@@ -28,25 +28,10 @@ class SupportContradictionAnalyzer:
         evidence: list,
         intuition: dict | None = None,
         nexus: dict | None = None,
-        area_dynamics: dict | None = None,
+        discordances: dict | None = None,
     ) -> dict:
-        intuition = intuition or {}
         nexus = nexus or {}
-        area_dynamics = area_dynamics or {}
-
-        reasoning_mode = intuition.get("deductive_filter", {}).get(
-            "reasoning_mode", "rapid_intuition"
-        )
-        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
-        coherence_score = float(area_dynamics.get("coherence_score", 0.0))
-        mismatch_pairs = area_dynamics.get("mismatch_pairs", [])
-        coherence_pairs = area_dynamics.get("coherence_pairs", [])
-        neuro_metrics = (
-            area_dynamics.get("neuro_dynamic_metrics", {})
-            if isinstance(area_dynamics, dict)
-            else {}
-        )
-        mismatch_index = float(neuro_metrics.get("mismatch_index", mismatch_score))
+        discordances = discordances or {}
         rehearsal_profile = nexus.get("rehearsal_profile", {})
 
         support_profiles: list[dict[str, Any]] = []
@@ -67,14 +52,6 @@ class SupportContradictionAnalyzer:
                         "strength": round(0.15 + min(grounding_score, 1.0) * 0.18, 3),
                     }
                 )
-            if source == "intuition" and reasoning_mode == "contradiction_revision":
-                contradiction_profiles.append(
-                    {
-                        "label": "intuition:contradiction_revision",
-                        "class": "useful_contradiction",
-                        "strength": 0.4,
-                    }
-                )
             if payload.get("contradiction_score", 0.0):
                 contradiction_profiles.append(
                     {
@@ -88,58 +65,19 @@ class SupportContradictionAnalyzer:
                     }
                 )
 
-        if coherence_score > 0.4:
-            for pair in coherence_pairs[:2]:
-                support_profiles.append(
-                    {
-                        "label": f"pair:{pair[0]}-{pair[1]}",
-                        "class": "multimodal_support",
-                        "strength": 0.3,
-                    }
-                )
-
-        if rehearsal_profile.get("coherence_guidance") == "multimodal_support":
-            support_profiles.append(
-                {
-                    "label": "nexus:multimodal_support",
-                    "class": "replay_supported_alignment",
-                    "strength": 0.25,
-                }
-            )
-
-        effective_mismatch = max(mismatch_score, mismatch_index)
-        if effective_mismatch > 0.6:
-            contradiction_profiles.append(
-                {
-                    "label": "areas:high_mismatch",
-                    "class": "useful_contradiction",
-                    "strength": 0.5,
-                }
-            )
-            for pair in mismatch_pairs[:2]:
+        # what the reading of the case sent to a person (reasoning.case_discordances), one profile per kind.
+        # Until 28 November 2026 these were the "mismatch" and "coherence" pairs between areas, a lexical
+        # measure with hand-set weights, never measured.
+        for kind, count in sorted((discordances.get("kinds") or {}).items()):
+            if count:
                 contradiction_profiles.append(
                     {
-                        "label": f"pair:{pair[0]}-{pair[1]}",
+                        "label": f"reading:{kind}_discordance",
                         "class": "useful_contradiction",
                         "strength": 0.35,
+                        "count": int(count),
                     }
                 )
-        elif effective_mismatch > 0.3:
-            contradiction_profiles.append(
-                {
-                    "label": "areas:moderate_mismatch",
-                    "class": "weak_contradiction",
-                    "strength": 0.2,
-                }
-            )
-        elif mismatch_pairs:
-            contradiction_profiles.append(
-                {
-                    "label": "areas:low_conflict",
-                    "class": "spurious_conflict",
-                    "strength": 0.1,
-                }
-            )
 
         if rehearsal_profile.get("boundary_case_hint", False):
             contradiction_profiles.append(

@@ -11,7 +11,7 @@ The source tree preserves the original Melampo vision while adding explicit prov
 3. **No hidden network calls**: live integrations require explicit configuration or infrastructure-specific subclasses.
 4. **Clinical safety boundary**: all outputs are research outputs, not validated medical decisions.
 5. **Typed and auditable outputs**: every major module emits structured dictionaries with provenance, limitations and governance metadata.
-6. **Research-safe expansion**: optional theoretical-quantum and external-provider paths remain isolated behind interfaces.
+6. **Research-safe expansion**: optional external-provider paths remain isolated behind interfaces.
 
 ## Installation profiles
 
@@ -24,7 +24,7 @@ python -m pip install -r requirements.txt
 # Research profile: clinical metadata, document ingestion, Weaviate retrieval and visualization
 python -m pip install -r requirements-research.txt
 
-# Full enterprise profile: all optional imaging, ML, API, quantum and visualization extras
+# Full enterprise profile: all optional imaging, ML, API and visualization extras
 python -m pip install -r requirements-enterprise.txt
 ```
 
@@ -43,9 +43,9 @@ The full enterprise profile may require platform-specific wheels or GPU/CPU choi
 ```text
 ClinicalInferencePipeline
   -> area signals
-  -> AreaCoherenceAnalyzer / NeuroDynamicMetrics
-  -> NexusTrainer
-  -> IntuitionEngine
+  -> case_discordances (what the reading sends to a person)
+  -> NexusTrainer (closed: promotes nothing)
+  -> IntuitionEngine (rapid part: rank_differential's candidates, also to case_diagnosis)
   -> PipelineCoordinator / DifferentialEngine / PolicyStack
   -> CritiqueLoop
   -> MelampoDiagnosticOrchestrator
@@ -63,9 +63,9 @@ src/melampo/
 ├── clinical/                      # clinical helpers
 ├── data/                          # ingestion, normalization, document processing
 ├── datasets/                      # public metadata loaders
-├── evaluation/                    # quantum gate, calibration, benchmark, prospective validation
+├── evaluation/                    # calibration, benchmarks, prospective validation
 ├── memory/                        # retrieval, vector memory, Weaviate schema/adapter contracts
-├── models/                        # encoders, belief layer, rankers, specialist adapter contracts
+├── models/                        # encoders, rankers, specialist adapter contracts
 ├── orchestration/                 # service registry, router, model capability registry
 ├── reasoning/                     # pipeline, intuition, differential, critique, orchestrator
 ├── training/                      # nexus/replay/counterfactual branch
@@ -162,6 +162,12 @@ are removed when that step no longer does. Removed on the same day, as no longer
 | `reasoning/rlm_wiring.py` | the recursive engine bound to the memory and the audit store (`rlm_engine` phase two) |
 | `reasoning/discriminating_tests.py` | the investigations that tell the competing hypotheses apart |
 | `training/hypothesis_yield_wiring.py` | how often a kind of hypothesis is confirmed, from the confirmation registry |
+
+Removed on 28 November 2026, with their tests: `reasoning/area_coherence`, `reasoning/neuro_dynamics`,
+`models/quantum_belief_layer`, `evaluation/quantum_gate`, `models/quantum_research`, the three coefficient modes of
+the intuition engine, `MelampoMetrics`, and the gate of the hypothesis channel on their metrics
+(`IndeterminacyGate`): a lexical coherence between areas and metrics with hand-set weights, never measured. The case's
+discordances (`reasoning/case_discordances`) replace them; the nexus chain stays, closed.
 
 The reader before the one procedure (`MELAMPO_REPORT_READER=anatomy`: `finding_owner`, the claims, the Kintsch
 reader) stays until the bench of December 2026 has measured the one procedure against it on the same sample.

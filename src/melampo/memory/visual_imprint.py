@@ -488,7 +488,6 @@ class VisualImprintMorpher:
         self,
         concept_imprints: list[dict[str, Any]] | None,
         diagnostic_imprints: list[dict[str, Any]] | None = None,
-        area_dynamics: dict[str, Any] | None = None,
         limit: int = 6,
     ) -> dict[str, Any]:
         source_imprints = [
@@ -501,28 +500,10 @@ class VisualImprintMorpher:
             for imprint in self._as_imprints(diagnostic_imprints)
             if imprint.learning_status in set(self.allowed_learning_statuses)
         ] or source_imprints
-        area_dynamics = area_dynamics if isinstance(area_dynamics, dict) else {}
-        neuro = (
-            area_dynamics.get("neuro_dynamic_metrics", {})
-            if isinstance(area_dynamics.get("neuro_dynamic_metrics", {}), dict)
-            else {}
-        )
-        pi_score = _safe_float(
-            neuro.get("pi_score", area_dynamics.get("pi_score", 0.0))
-        )
-        prediction_error = _safe_float(
-            neuro.get("prediction_error", area_dynamics.get("prediction_error", 0.0))
-        )
-        mismatch_index = _safe_float(
-            neuro.get("mismatch_index", area_dynamics.get("mismatch_index", 0.0))
-        )
-        nexus_plasticity = _safe_float(neuro.get("nexus_plasticity", 0.0))
-        action_gate = _safe_float(neuro.get("action_potential_gate", 0.0))
-
         morphs: list[dict[str, Any]] = []
         semantic_links: list[dict[str, Any]] = []
         alpha_base = _clamp(
-            self.interpolation_alpha + (nexus_plasticity - mismatch_index) * 0.1,
+            self.interpolation_alpha,
             0.2,
             0.8,
         )
@@ -565,9 +546,7 @@ class VisualImprintMorpher:
                     dimensions=min(len(left.vector), len(right.vector)),
                 )
                 bridge_gain = _clamp(
-                    semantic_relation_score * 0.18
-                    + action_gate * 0.05
-                    - prediction_error * 0.04,
+                    semantic_relation_score * 0.18,
                     0.0,
                     0.28,
                 )
@@ -625,11 +604,6 @@ class VisualImprintMorpher:
                     + target_semantic_score * 0.22
                     + source_similarity * 0.16
                     + target_similarity * 0.14
-                    + pi_score * 0.08
-                    + action_gate * 0.06
-                    + nexus_plasticity * 0.04
-                    - prediction_error * 0.10
-                    - mismatch_index * 0.08
                 )
                 interference = _clamp(
                     (
@@ -637,8 +611,7 @@ class VisualImprintMorpher:
                         + semantic_relation_score * 0.35
                         + target_semantic_score * 0.20
                     )
-                    * (0.55 + action_gate * 0.25 + nexus_plasticity * 0.20)
-                    - prediction_error * 0.12
+                    * 0.55
                 )
                 intuitive_link_score = _clamp(
                     target_similarity * 0.28
@@ -647,9 +620,6 @@ class VisualImprintMorpher:
                     + inference_weight * 0.14
                     + source_similarity * 0.10
                     + interference * 0.08
-                    + pi_score * 0.08
-                    + action_gate * 0.06
-                    - mismatch_index * 0.10
                 )
                 if relation["match_type"] == "total_semantic_concept":
                     semantic_concept = left.semantic_concept
@@ -731,24 +701,13 @@ class VisualImprintMorpher:
             "visual_morph_coherence": round(top_score, 3),
             "visual_prediction_link_score": round(top_score, 3),
             "visual_morph_intuition_gain": round(
-                _clamp(
-                    top_score * 0.55
-                    + nexus_plasticity * 0.25
-                    + action_gate * 0.20
-                    - prediction_error * 0.15
-                ),
+                _clamp(top_score * 0.55),
                 3,
             ),
-            "neuroquantum_trace": {
-                "formalism": "quantum_like_latent_interference_not_physical_quantum_claim",
+            "morph_trace": {
                 "morphing_mode": "inferential_semantic_matrix_morphing",
                 "supports_total_or_partial_semantic_concepts": True,
                 "alpha_base": round(alpha_base, 3),
-                "pi_score": round(pi_score, 3),
-                "prediction_error": round(prediction_error, 3),
-                "mismatch_index": round(mismatch_index, 3),
-                "nexus_plasticity": round(nexus_plasticity, 3),
-                "action_potential_gate": round(action_gate, 3),
             },
             "governance": {
                 "hidden_network_call": False,

@@ -11,7 +11,6 @@ from .memory.knowledge_graph import KnowledgeGraphClient
 from .memory.semantic_memory import SemanticMemoryStore
 from .models.fusion import MultimodalFusionEngine
 from .models.pathology_encoder import PathologyEncoder
-from .models.quantum_research import QuantumResearchLayer
 from .models.report_encoder import ClinicalTextEncoder
 from .models.volume_encoder import VolumeEncoder
 from .reasoning.clinical_pipeline import ClinicalInferencePipeline
@@ -55,7 +54,6 @@ def build_default_runtime(config: RuntimeConfig | None = None) -> MelampoRuntime
     workspace = DifferentialWorkspace()
     critique = CritiqueLoop(config=config, logger=logger)
     metacognition = MetacognitiveController(config=config)
-    quantum_layer = QuantumResearchLayer(config=config)
     replay = GenerativeReplayEngine(config=config, logger=logger)
 
     pipeline = ClinicalInferencePipeline(
@@ -71,7 +69,6 @@ def build_default_runtime(config: RuntimeConfig | None = None) -> MelampoRuntime
         workspace=workspace,
         critique=critique,
         metacognition=metacognition,
-        quantum_layer=quantum_layer,
         replay_engine=replay,
         logger=logger,
     )

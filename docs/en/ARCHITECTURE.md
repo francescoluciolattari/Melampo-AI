@@ -44,10 +44,13 @@ flowchart TD
   router -.->|"MELAMPO_REPORT_READER=anatomy: the reader before,<br/>kept only to measure the change"| narr["linker, Kintsch reader, finding owner,<br/>image interpreter"]
   prep --> d1["case router: new case, merge, or confirmation"]
   d1 -->|confirm_and_train| conf["case confirmation:<br/>compare with the earlier proposal"]
-  d1 -->|new / merge| ingest["CaseContext → FHIR bundle → areas → coherence"]
+  d1 -->|new / merge| ingest["CaseContext → FHIR bundle → areas<br/>→ discordances of the reading"]
   lab --> ingest
   rr --> ingest
-  ingest --> nexus["nexus branch: graph candidates, mechanisms,<br/>counterfactuals"]
+  ingest --> rapid["intuition engine, rapid part:<br/>rank_differential's candidates"]
+  rapid --> diff
+  rapid -->|proposals| cg
+  ingest --> nexus["nexus branch: graph candidates, mechanisms,<br/>counterfactuals (closed: promotes nothing)"]
   nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
   graphnode[("concept graph")] --> nexus
 ```
@@ -81,7 +84,10 @@ retrieval (the router computes it, nothing executes it) and training (DPO, LoRA:
 | Concept graph | `memory/falkordb_graph.py`, `memory/concept_paths.py` | working, 636,733 verified edges |
 | Memory retriever | `memory/retriever.py` | **defect**: invents evidence when the memory is empty |
 | Functional areas | `areas/*` | count dictionary keys, not content: to redo |
-| Nexus branch, intuition, differential | `training/nexus_*`, `reasoning/*` | working |
+| Discordances of the case | `reasoning/case_discordances.py` | working (28 November 2026): what the reading sends to a person, counted by kind (card, reference, image, document, unread, term). They decide the extended dual path (`model_router.pick_mode`) and escalate in the result gate and the rails; they never withhold a result |
+| Intuition engine, rapid part | `reasoning/intuition_engine.py` | working (28 November 2026): the candidates of `rank_differential` (information content of the shared findings), in its order, to the differential and to `case_diagnosis` as proposals; the lateral part (salience, generation, evaluation against the profiles, hypothesis to exclude) is to write |
+| Nexus branch, differential | `training/nexus_*`, `reasoning/differential_engine.py` | working; the nexus chain is closed: it proposes and promotes nothing until the lateral part has criteria measured on published cases |
+| Removed: coherence between areas | was `reasoning/area_coherence.py`, `reasoning/neuro_dynamics.py`, `models/quantum_belief_layer.py`, `evaluation/quantum_gate.py`, `models/quantum_research.py` | removed on 28 November 2026 with their tests: a lexical overlap between the areas' summaries and twenty metrics with hand-set weights, never measured, without a bibliographic basis for their formulas; they decided the router, the result gate (pi_score < 0.35, mismatch > 0.7), the rails, the three modes of the intuition engine and the nexus promotion. The concrete signals replace them |
 | Graph of the case | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | working: built in the ingestion of every case; four states of a manifestation |
 | Drug branch | `clinical/drug_branch.py`, `scripts/drug_sources.py` | working when the local cache is configured (`MELAMPO_DRUG_CACHE`) |
 | Disease profiles | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | working: certain sources only, no person confirms; filled by the systematic review, read from the versioned knowledge (file, folder, `knowledge.db` or `falkordb[:version]`) |

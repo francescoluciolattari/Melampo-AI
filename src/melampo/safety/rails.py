@@ -62,7 +62,6 @@ class ClinicalSafetyRails:
     run in CI and audit traces.
     """
 
-    max_mismatch_index: float = 0.7
     min_provenance_fraction: float = 0.8
     block_definitive_language: bool = True
 
@@ -145,8 +144,8 @@ class ClinicalSafetyRails:
             if isinstance(diagnostic_result, dict)
             else ""
         )
-        metrics = (
-            diagnostic_result.get("melampo_metrics", {})
+        discordances = (
+            diagnostic_result.get("discordances", {})
             if isinstance(diagnostic_result, dict)
             else {}
         )
@@ -166,13 +165,15 @@ class ClinicalSafetyRails:
             "final_diagnosis",
         }:
             reasons.append("definitive_diagnostic_language_blocked")
-        mismatch_index = (
-            _safe_float(metrics.get("mismatch_index"), 0.0)
-            if isinstance(metrics, dict)
-            else 0.0
+        # the discordances of the case's reading (reasoning.case_discordances) go to a person; they do not block
+        # the result (principle of doubt). Until 28 November 2026 a "mismatch index" between areas above 0.7
+        # blocked it: a lexical measure with hand-set weights, never measured.
+        discordance_count = (
+            int(_safe_float(discordances.get("count"), 0.0))
+            if isinstance(discordances, dict)
+            else 0
         )
-        if mismatch_index > self.max_mismatch_index:
-            reasons.append("mismatch_index_above_safety_threshold")
+        if discordance_count:
             actions.append("escalate_for_human_review")
         if (
             isinstance(policy, dict)
@@ -205,7 +206,7 @@ class ClinicalSafetyRails:
             status=status,
             reasons=reasons,
             actions=actions,
-            metadata={"mismatch_index": mismatch_index},
+            metadata={"discordances": discordance_count},
         )
 
     def apply_all(

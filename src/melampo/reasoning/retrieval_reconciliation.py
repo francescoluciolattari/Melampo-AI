@@ -7,9 +7,8 @@ model composes fragments into a claim broader than any single fragment supports,
 with every citation individually valid. One under-claims, the other over-claims.
 
 That asymmetry is what makes their disagreement informative. This module treats
-divergence between the two paths as an empirical uncertainty estimate and feeds
-it to the neuro-dynamic conflict metrics, which until now were derived from
-internal heuristics alone.
+divergence between the two paths as an empirical uncertainty estimate
+(``conflict_signal``, ``agreement_ratio``), reported with the verdict.
 
 The reconciliation is deliberately deterministic. No model adjudicates between
 the two paths; a claim surviving only on the recursive path must present
@@ -164,22 +163,6 @@ def build_dual_path_payload(
         },
         "case_context_keys": one_shot.get("case_context_keys", []),
         "reconciliation": verdict.as_dict(),
-    }
-
-
-def conflict_inputs_for_neuro_dynamics(
-    verdict: ReconciliationVerdict,
-) -> dict[str, float]:
-    """Expose the reconciliation as inputs to the neuro-dynamic conflict metrics.
-
-    ``conflict_load`` and ``revision_pressure`` are currently derived from area
-    mismatch heuristics. Retrieval-path divergence gives them a second, empirical
-    source grounded in two systems that fail in opposite directions.
-    """
-    return {
-        "retrieval_conflict_signal": round(verdict.conflict_signal, 3),
-        "retrieval_agreement_ratio": round(verdict.agreement_ratio, 3),
-        "retrieval_overreach_blocked": float(verdict.overreach_blocked),
     }
 
 

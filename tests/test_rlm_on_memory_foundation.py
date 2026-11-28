@@ -10,14 +10,12 @@ from melampo.reasoning.retrieval_reconciliation import (
     DISPOSITION_CONFIRMED,
     DISPOSITION_RLM_ONLY_VERIFIED,
     build_dual_path_payload,
-    conflict_inputs_for_neuro_dynamics,
     reconcile,
 )
 from melampo.training.hypothesis_channel import (
     HYPOTHESIS_ROLE,
     HypothesisChannel,
     HypothesisEnvelope,
-    IndeterminacyGate,
     assert_not_evidence,
 )
 
@@ -192,9 +190,6 @@ def test_full_disagreement_produces_maximum_conflict_signal():
     assert verdict.conflict_signal > 0.5
     assert any("low confidence" in note for note in verdict.notes)
 
-    inputs = conflict_inputs_for_neuro_dynamics(verdict)
-    assert inputs["retrieval_conflict_signal"] == verdict.conflict_signal
-
 
 def test_dual_path_payload_satisfies_the_shared_contract():
     one_shot = {
@@ -224,12 +219,10 @@ def test_hypothesis_channel_stays_closed_when_the_differential_has_converged():
     channel = HypothesisChannel()
     result = channel.open_for(
         [HypothesisEnvelope(label="atypical_presentation", novelty_score=0.8)],
-        dynamics={"convergence_index": 0.9, "conflict_load": 0.6},
-        risk=0.8,
+        unclear=False,
     )
     assert result["channel_open"] is False
     assert result["hypotheses"] == []
-    assert "differential already converged" in result["gate"]["blocking_reasons"]
 
 
 def test_hypothesis_channel_opens_under_high_indeterminacy():
@@ -240,8 +233,7 @@ def test_hypothesis_channel_opens_under_high_indeterminacy():
             HypothesisEnvelope(label="alt_b", novelty_score=0.9),
             HypothesisEnvelope(label="alt_c", novelty_score=0.6),
         ],
-        dynamics={"convergence_index": 0.3, "conflict_load": 0.7},
-        risk=0.6,
+        unclear=True,
     )
 
     assert result["channel_open"] is True
@@ -260,18 +252,3 @@ def test_hypotheses_cannot_cross_into_the_evidence_path():
         assert_not_evidence([hypothesis])
 
     assert_not_evidence([_evidence("report_1:0-20")])
-
-
-def test_gate_requires_all_three_conditions():
-    gate = IndeterminacyGate()
-    assert (
-        gate.is_open({"convergence_index": 0.3, "conflict_load": 0.7}, risk=0.6) is True
-    )
-    assert (
-        gate.is_open({"convergence_index": 0.3, "conflict_load": 0.1}, risk=0.6)
-        is False
-    )
-    assert (
-        gate.is_open({"convergence_index": 0.3, "conflict_load": 0.7}, risk=0.1)
-        is False
-    )

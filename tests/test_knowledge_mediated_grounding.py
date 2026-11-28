@@ -223,8 +223,7 @@ def test_enumerated_hypotheses_reach_the_differential_only_as_exclusion_hypothes
     channel = HypothesisChannel(max_hypotheses=2)
     result = channel.open_for(
         enumerator.envelopes(hypotheses),
-        dynamics={"convergence_index": 0.3, "conflict_load": 0.7},
-        risk=0.6,
+        unclear=True,
     )
 
     assert result["channel_open"] is True
@@ -234,7 +233,7 @@ def test_enumerated_hypotheses_reach_the_differential_only_as_exclusion_hypothes
         assert "via" in hypothesis["rationale"]
 
 
-def test_hypotheses_stay_closed_when_the_differential_has_converged():
+def test_hypotheses_stay_closed_when_the_diagnosis_is_not_unclear():
     enumerator = MechanismEnumerator(graph=_clinical_graph(), max_hops=3)
     hypotheses = enumerator.enumerate(
         findings=["bibasilar opacities"],
@@ -243,7 +242,6 @@ def test_hypotheses_stay_closed_when_the_differential_has_converged():
     channel = HypothesisChannel()
     result = channel.open_for(
         enumerator.envelopes(hypotheses),
-        dynamics={"convergence_index": 0.95, "conflict_load": 0.8},
-        risk=0.9,
+        unclear=False,
     )
     assert result["channel_open"] is False

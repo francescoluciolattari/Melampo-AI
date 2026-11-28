@@ -11,7 +11,6 @@ def test_differential_engine_counts_evidence():
         ],
         intuition={
             "candidate_scores": [{"label": "candidate_1", "score": 1.2}],
-            "deductive_filter": {"reasoning_mode": "rapid_intuition"},
         },
         nexus={
             "alternative_hypotheses": [
@@ -22,12 +21,7 @@ def test_differential_engine_counts_evidence():
                 "boundary_case_hint": True,
             },
         },
-        area_dynamics={
-            "mismatch_score": 0.3,
-            "coherence_score": 0.5,
-            "coherence_pairs": [("language_listening", "visual_diagnostic")],
-            "mismatch_pairs": [],
-        },
+        discordances={"count": 1, "kinds": {"card": 1}},
     )
     assert result["evidence_count"] == 3
     assert result["hypotheses"][0]["label"] == "candidate_1"
@@ -37,9 +31,12 @@ def test_differential_engine_counts_evidence():
         "imaging_led",
         "language_led",
         "epidemiology_led",
-        "mismatch_resolution_led",
+        "discordance_resolution_led",
     ]
-    assert result["mismatch_score"] == 0.3
+    assert result["discordances"] == 1
+    assert {"category": "disambiguation_test", "label": "review alternative hypotheses"} in result["recommended_actions"]
+    # no bonus for "coherence" any more: the primary keeps the candidate's score plus the grounded support
+    assert result["hypotheses"][0]["score"] == round(1.2 + result["support_strength"] * 0.02, 3)
     assert result["hypotheses"][0]["support_signals"]
     assert result["support_profiles"]
     assert result["contradiction_profiles"]

@@ -10,7 +10,6 @@ from ..areas.epidemiology_area import EpidemiologyArea
 from ..areas.language_listening_area import LanguageListeningArea
 from ..areas.visual_diagnostic_area import VisualDiagnosticArea
 from ..data.ingestion import PHYSICIAN_NOTE_KEY
-from ..evaluation.quantum_gate import QuantumResearchGate
 from ..memory.candidate_retrieval import retrieve_candidates
 from ..memory.differential_ranking import rank_differential
 from ..memory.graph_sources import load_verification_graph
@@ -19,7 +18,6 @@ from ..memory.retriever import MemoryRetriever
 from ..memory.visual_imprint import VisualImprintBuilder
 from ..models.abstention import AbstentionPolicy
 from ..models.evidence_ranker import EvidenceRanker
-from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..models.risk_gate import RiskGate
 from ..orchestration.model_router import ModelRouter
 from ..orchestration.runtime_services import RuntimeServices
@@ -33,7 +31,7 @@ from ..training.replay_filter import ReplayFilter
 from ..types import CaseContext
 from ..utils.values import clamp as _clamp
 from ..utils.values import safe_float as _safe_float
-from .area_coherence import AreaCoherenceAnalyzer
+from .case_discordances import case_discordances
 from .diagnostic_orchestrator import MelampoDiagnosticOrchestrator
 from .differential_engine import DifferentialEngine
 from .escalation import EscalationPolicy
@@ -171,7 +169,7 @@ def _build_nexus_candidate_store() -> NexusCandidateStore:
 
 def _derive_governance_scores(
     payload: dict[str, Any],
-    area_dynamics: dict[str, Any],
+    discordances: dict[str, Any],
     retrieval: dict[str, Any],
     ranked_evidence: list[dict[str, Any]],
     area_signals: dict[str, Any],
@@ -179,29 +177,16 @@ def _derive_governance_scores(
     """Derive risk, uncertainty and nexus coherence from runtime signals.
 
     Replaces P0 hardcoded constants with an auditable approximation based on
-    retrieval coverage, model/area uncertainty, mismatch, prediction error,
-    provenance quality and optional case severity supplied by callers.
+    retrieval coverage, area uncertainty, the case's discordances, provenance
+    quality and optional case severity supplied by callers. The weights are
+    not measured. Until 28 November 2026 the mismatch, prediction error and
+    convergence of the coherence between areas (removed, never measured) were
+    terms here; the discordances of the reading take the mismatch's place, and
+    ``nexus_coherence`` is the retrieval coverage alone.
     """
 
-    neuro_metrics = (
-        area_dynamics.get("neuro_dynamic_metrics", {})
-        if isinstance(area_dynamics, dict)
-        else {}
-    )
-    mismatch_index = _safe_float(
-        neuro_metrics.get("mismatch_index", area_dynamics.get("mismatch_score", 0.0))
-    )
-    prediction_error = _safe_float(
-        neuro_metrics.get(
-            "prediction_error", area_dynamics.get("prediction_error", 0.0)
-        )
-    )
-    convergence_index = _safe_float(
-        neuro_metrics.get(
-            "convergence_index", area_dynamics.get("convergence_index", 0.0)
-        )
-    )
-    coherence_score = _safe_float(area_dynamics.get("coherence_score", 0.0))
+    # the case's reading sent something to a person (reasoning.case_discordances)
+    discordance = 1.0 if int((discordances or {}).get("count", 0) or 0) else 0.0
     retrieval_quality = (
         retrieval.get("retrieval_quality", {}) if isinstance(retrieval, dict) else {}
     )
@@ -242,22 +227,18 @@ def _derive_governance_scores(
     uncertainty = _clamp(
         missing_evidence * 0.30
         + mean_area_uncertainty * 0.25
-        + mismatch_index * 0.20
-        + prediction_error * 0.15
+        + discordance * 0.20
         + fallback_penalty * 0.10
         - evidence_strength * 0.10
         - mean_grounding * 0.05
     )
     risk = _clamp(
         clinical_severity * 0.30
-        + mismatch_index * 0.25
+        + discordance * 0.25
         + uncertainty * 0.20
-        + prediction_error * 0.15
         + weak_provenance * 0.10
     )
-    nexus_coherence = _clamp(
-        convergence_index * 0.55 + coherence_score * 0.25 + coverage * 0.20
-    )
+    nexus_coherence = coverage
     return {
         "risk": round(risk, 3),
         "uncertainty": round(uncertainty, 3),
@@ -266,9 +247,7 @@ def _derive_governance_scores(
         "retrieval_coverage": round(coverage, 3),
         "mean_grounding_score": round(mean_grounding, 3),
         "mean_area_uncertainty": round(mean_area_uncertainty, 3),
-        "mismatch_index": round(mismatch_index, 3),
-        "prediction_error": round(prediction_error, 3),
-        "convergence_index": round(convergence_index, 3),
+        "discordances": int(discordances.get("count", 0) or 0),
         "memory_backed_retrieval": memory_backed,
         "fallback_penalty": round(fallback_penalty, 3),
         "weak_provenance": round(weak_provenance, 3),
@@ -291,7 +270,6 @@ class ClinicalInferencePipeline:
     workspace: object
     critique: CritiqueProtocol
     metacognition: object
-    quantum_layer: object
     replay_engine: object
     logger: object
     # Lazily populated cache for the real concept graph and the
@@ -429,11 +407,9 @@ class ClinicalInferencePipeline:
                     escalation=EscalationPolicy(),
                 ),
             ),
-            "quantum_gate": QuantumResearchGate(),
             "nexus_trainer": NexusTrainer(
                 replay_filter=ReplayFilter(),
                 sampler=CounterfactualSampler(),
-                belief_layer=QuantumBeliefLayer(),
                 # enumerator stays unset here, deliberately -- see
                 # _nexus_case_context, which attaches a real one only when
                 # a case actually supplies findings. Loading the real graph
@@ -443,12 +419,11 @@ class ClinicalInferencePipeline:
                 # the real graph's ~6.6s load cost for an enumerator it was
                 # never going to use.
             ),
-            "intuition_engine": IntuitionEngine(belief_layer=QuantumBeliefLayer()),
+            "intuition_engine": IntuitionEngine(),
             "visual_area": VisualDiagnosticArea(),
             "language_area": LanguageListeningArea(),
             "context_area": CaseContextArea(),
             "epidemiology_area": EpidemiologyArea(),
-            "area_coherence": AreaCoherenceAnalyzer(),
             "diagnostic_orchestrator": diagnostic_orchestrator,
             "specialist_runtime": SpecialistRuntime(
                 registry=diagnostic_orchestrator.registry
@@ -707,7 +682,7 @@ class ClinicalInferencePipeline:
         case: CaseContext,
         payload: dict[str, Any],
         bundle: dict[str, Any],
-        area_dynamics: dict[str, Any],
+        discordances: dict[str, Any],
         governance_scores: dict[str, Any],
         visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
@@ -751,7 +726,7 @@ class ClinicalInferencePipeline:
             "report_text": case.report_text,
             "patient_complaints": payload.get("patient_complaints", ""),
             "exposures": payload.get("exposures", {}),
-            "area_dynamics": area_dynamics,
+            "discordances": discordances,
             "governance_scores": governance_scores,
             "visual_imprints": visual_imprints,
             "diagnostic_visual_imprints": visual_imprints,
@@ -766,7 +741,7 @@ class ClinicalInferencePipeline:
         payload: dict[str, Any],
         case: CaseContext,
         bundle: dict[str, Any],
-        area_dynamics: dict[str, Any],
+        discordances: dict[str, Any],
         governance_scores: dict[str, Any],
         visual_imprints: list[dict[str, Any]],
     ) -> dict[str, Any]:
@@ -784,7 +759,7 @@ class ClinicalInferencePipeline:
                 case=case,
                 payload=payload,
                 bundle=bundle,
-                area_dynamics=area_dynamics,
+                discordances=discordances,
                 governance_scores=governance_scores,
                 visual_imprints=visual_imprints,
             ),
@@ -906,7 +881,6 @@ class ClinicalInferencePipeline:
             components, case, payload, query_text
         )
         resolved = components["runtime_services"].resolve("volume_encoder")
-        quantum_allowed = components["quantum_gate"].allow(contextuality_score=0.7)
         radiology_specialist_signal, grounded_text_specialist_signal = (
             self._specialist_signals(
                 components=components,
@@ -931,10 +905,11 @@ class ClinicalInferencePipeline:
             signal=area_signals["visual_diagnostic"],
             volume_features=volume_features,
         )
-        area_dynamics = components["area_coherence"].analyze(area_signals)
+        # what the case's reading sends to a person (28 November 2026): it replaces the coherence between areas
+        discordances = case_discordances(case.provenance)
         governance_scores = _derive_governance_scores(
             payload=payload,
-            area_dynamics=area_dynamics,
+            discordances=discordances,
             retrieval=retrieval,
             ranked_evidence=ranked_evidence,
             area_signals=area_signals,
@@ -943,7 +918,7 @@ class ClinicalInferencePipeline:
         # ModelRouter.pick_mode's docstring for the table this implements.
         routing_mode, routing_reason = self._model_router_instance().pick_mode(
             findings=list(payload.get("findings", [])),
-            area_dynamics=area_dynamics,
+            discordances=discordances,
             governance_scores=governance_scores,
         )
         # The dual path, executed (14 November 2026): the two root models read the case again through the
@@ -966,7 +941,7 @@ class ClinicalInferencePipeline:
             payload=payload,
             case=case,
             bundle=bundle,
-            area_dynamics=area_dynamics,
+            discordances=discordances,
             governance_scores=governance_scores,
             visual_imprints=visual_imprints,
         )
@@ -992,7 +967,7 @@ class ClinicalInferencePipeline:
                 "findings": [str(f) for f in (payload.get("findings") or []) if str(f).strip()],
                 "physician_note": str(payload.get(PHYSICIAN_NOTE_KEY, case.report_text) or ""),
             },
-            area_dynamics=area_dynamics,
+            discordances=discordances,
             nexus=nexus,
             retrieval_context=retrieval,
             governance_scores=governance_scores,
@@ -1003,9 +978,6 @@ class ClinicalInferencePipeline:
             case_id=case.case_id,
             ranked_evidence=ranked_evidence,
             nexus=nexus,
-            quantum_allowed=quantum_allowed,
-            area_signals=area_signals,
-            area_dynamics=area_dynamics,
             graph_candidates=graph_candidates,
         )
         evidence = self._coordination_evidence(
@@ -1024,14 +996,14 @@ class ClinicalInferencePipeline:
             uncertainty=governance_scores["uncertainty"],
             intuition=intuition,
             nexus=nexus,
-            area_dynamics=area_dynamics,
+            discordances=discordances,
         )
         critique_result = self.critique.review(
             {
                 "coordinated": coordinated,
                 "intuition": intuition,
                 "areas": area_signals,
-                "area_dynamics": area_dynamics,
+                "discordances": discordances,
                 "nexus": nexus,
             }
         )
@@ -1045,7 +1017,7 @@ class ClinicalInferencePipeline:
             "retrieval": retrieval,
             "ranked_evidence": ranked_evidence,
             "area_signals": area_signals,
-            "area_dynamics": area_dynamics,
+            "discordances": discordances,
             "governance_scores": governance_scores,
             "visual_imprints": visual_imprints,
             "specialist_signals": {
@@ -1056,7 +1028,6 @@ class ClinicalInferencePipeline:
             "intuition": intuition,
             "coordinated": coordinated,
             "critique": critique_result,
-            "quantum_allowed": quantum_allowed,
             "nexus": nexus,
         }
         self._finalize_diagnostic_result(

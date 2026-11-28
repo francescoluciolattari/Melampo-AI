@@ -18,82 +18,18 @@ authorised consumption point.
 
 Hypotheses are also gated on diagnostic indeterminacy. When one hypothesis
 already dominates, additional synthetic alternatives add noise rather than
-information; they earn their place only when the differential is flat and the
-areas disagree.
+information; they earn their place only when the diagnosis is unclear. Who says
+it is unclear is the caller (the lateral cycle of the intuition engine): the gate
+on the coherence between areas that decided it until 28 November 2026 was
+removed with that measure, never measured.
 """
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..utils.values import safe_float as _safe_float
-
 HYPOTHESIS_NAMESPACE = "melampo_hypothesis_candidates"
 HYPOTHESIS_ROLE = "exclusion_hypothesis"
-
-
-@dataclass(frozen=True)
-class IndeterminacyGate:
-    """Decide whether the hypothesis channel may open for a case.
-
-    Thresholds operate on metrics already produced by ``neuro_dynamics``:
-    ``convergence_index`` (how strongly the differential has settled),
-    ``conflict_load`` (how much the functional areas disagree) and a case risk
-    score.
-    """
-
-    max_convergence_index: float = 0.55
-    min_conflict_load: float = 0.35
-    min_risk: float = 0.30
-
-    def evaluate(
-        self, dynamics: dict[str, Any] | None, *, risk: float = 0.0
-    ) -> dict[str, Any]:
-        metrics = dynamics or {}
-        convergence = _safe_float(metrics.get("convergence_index"), 1.0)
-        conflict = _safe_float(metrics.get("conflict_load"), 0.0)
-        risk_value = _safe_float(risk, 0.0)
-
-        reasons: list[str] = []
-        if convergence > self.max_convergence_index:
-            reasons.append("differential already converged")
-        if conflict < self.min_conflict_load:
-            reasons.append("insufficient conflict between areas")
-        if risk_value < self.min_risk:
-            reasons.append("case risk below relevance threshold")
-
-        return {
-            "open": not reasons,
-            "blocking_reasons": reasons,
-            "convergence_index": round(convergence, 3),
-            "conflict_load": round(conflict, 3),
-            "risk": round(risk_value, 3),
-        }
-
-    def is_open(self, dynamics: dict[str, Any] | None, *, risk: float = 0.0) -> bool:
-        return bool(self.evaluate(dynamics, risk=risk)["open"])
-
-    def evaluate_context(self, context: Any) -> dict[str, Any]:
-        """Evaluate against a nexus runtime context, reading the real metrics.
-
-        ``convergence_index`` and ``risk`` sit directly on the context;
-        ``conflict_load`` is produced by the neuro-dynamic layer and arrives
-        inside ``neuro_metrics``. Reading them here rather than requiring the
-        caller to assemble a dict keeps the gate wired to the values the system
-        actually computes, instead of to whatever a call site happens to pass.
-        """
-        metrics = getattr(context, "neuro_metrics", None)
-        dynamics = dict(metrics) if isinstance(metrics, dict) else {}
-        dynamics.setdefault(
-            "convergence_index", getattr(context, "convergence_index", 1.0)
-        )
-        if "conflict_load" not in dynamics:
-            dynamics["conflict_load"] = _safe_float(
-                getattr(context, "mismatch_score", 0.0), 0.0
-            )
-        return self.evaluate(
-            dynamics, risk=_safe_float(getattr(context, "risk", 0.0), 0.0)
-        )
 
 
 @dataclass
@@ -131,27 +67,17 @@ class HypothesisChannel:
     is a read path with one authorised consumer.
     """
 
-    gate: IndeterminacyGate = field(default_factory=IndeterminacyGate)
     max_hypotheses: int = 3
 
     def open_for(
         self,
         candidates: Iterable[HypothesisEnvelope],
         *,
-        dynamics: dict[str, Any] | None = None,
-        risk: float = 0.0,
-        context: Any | None = None,
+        unclear: bool,
+        reasons: Sequence[str] = (),
     ) -> dict[str, Any]:
-        """Open the channel if the gate permits.
-
-        Pass ``context`` to read the metrics the system computes; ``dynamics``
-        and ``risk`` remain available for callers that assemble them directly.
-        """
-        decision = (
-            self.gate.evaluate_context(context)
-            if context is not None
-            else self.gate.evaluate(dynamics, risk=risk)
-        )
+        """Open the channel when the caller says the diagnosis is unclear, with its reasons."""
+        decision = {"open": bool(unclear), "reasons": list(reasons)}
         if not decision["open"]:
             return {
                 "channel_open": False,

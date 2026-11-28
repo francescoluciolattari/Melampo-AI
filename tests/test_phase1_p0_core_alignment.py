@@ -1,99 +1,6 @@
 from melampo.memory.retriever import MemoryRetriever
 from melampo.memory.semantic_memory import SemanticMemoryStore
-from melampo.reasoning.area_coherence import AreaCoherenceAnalyzer
 from melampo.reasoning.clinical_pipeline import _derive_governance_scores
-
-
-def _profile(result, first, second):
-    pair = tuple(sorted((first, second)))
-    return next(item for item in result["pair_profiles"] if item["pair"] == pair)
-
-
-def test_language_epidemiology_shared_claim_is_coherent_after_canonical_pair_fix():
-    analyzer = AreaCoherenceAnalyzer()
-    area_signals = {
-        "language_listening": {
-            "area": "language_listening",
-            "focus": "language_led",
-            "merged_text": "patient reports cough and smoking exposure",
-            "signal_count": 2,
-            "salience_score": 0.7,
-            "uncertainty_score": 0.2,
-            "claims": [
-                {
-                    "normalized_entity": "smoking exposure",
-                    "polarity": "present",
-                    "ontology_refs": ["SNOMED:77176002"],
-                },
-            ],
-        },
-        "epidemiology": {
-            "area": "epidemiology",
-            "focus": "epidemiology_led",
-            "exposures": {"smoking": True},
-            "signal_count": 2,
-            "salience_score": 0.6,
-            "uncertainty_score": 0.25,
-            "claims": [
-                {
-                    "normalized_entity": "smoking exposure",
-                    "polarity": "present",
-                    "ontology_refs": ["SNOMED:77176002"],
-                },
-            ],
-        },
-    }
-
-    result = analyzer.analyze(area_signals)
-    profile = _profile(result, "language_listening", "epidemiology")
-
-    assert profile["status"] == "coherent"
-    assert profile["prior_expected_interaction"] is True
-    assert profile["agreement_score"] > profile["dynamic_mismatch_score"]
-    assert ("epidemiology", "language_listening") in result["coherence_pairs"]
-
-
-def test_explicit_claim_contradiction_raises_dynamic_mismatch():
-    analyzer = AreaCoherenceAnalyzer()
-    area_signals = {
-        "language_listening": {
-            "area": "language_listening",
-            "focus": "language_led",
-            "merged_text": "report describes pneumonia",
-            "signal_count": 2,
-            "salience_score": 0.8,
-            "uncertainty_score": 0.15,
-            "claims": [
-                {
-                    "normalized_entity": "pneumonia",
-                    "polarity": "present",
-                    "ontology_refs": ["SNOMED:233604007"],
-                },
-            ],
-        },
-        "visual_diagnostic": {
-            "area": "visual_diagnostic",
-            "focus": "imaging_led",
-            "signal_count": 2,
-            "salience_score": 0.75,
-            "uncertainty_score": 0.15,
-            "claims": [
-                {
-                    "normalized_entity": "pneumonia",
-                    "polarity": "absent",
-                    "ontology_refs": ["SNOMED:233604007"],
-                },
-            ],
-        },
-    }
-
-    result = analyzer.analyze(area_signals)
-    profile = _profile(result, "language_listening", "visual_diagnostic")
-
-    assert profile["status"] == "mismatch"
-    assert profile["contradiction_score"] >= 0.9
-    assert result["mismatch_score"] > 0.4
-    assert result["revision_pressure"] > 0.0
 
 
 def test_memory_retriever_uses_semantic_vector_store_before_fallback():
@@ -132,15 +39,7 @@ def test_memory_retriever_uses_semantic_vector_store_before_fallback():
 def test_governance_scores_are_runtime_derived_not_hardcoded():
     low_risk = _derive_governance_scores(
         payload={"provenance": {"source": "unit_test"}, "clinical_severity": 0.1},
-        area_dynamics={
-            "coherence_score": 0.8,
-            "mismatch_score": 0.1,
-            "neuro_dynamic_metrics": {
-                "mismatch_index": 0.1,
-                "prediction_error": 0.1,
-                "convergence_index": 0.8,
-            },
-        },
+        discordances={"count": 0},
         retrieval={
             "evidence_count": 3,
             "retrieval_quality": {
@@ -161,15 +60,7 @@ def test_governance_scores_are_runtime_derived_not_hardcoded():
     )
     high_risk = _derive_governance_scores(
         payload={"clinical_severity": 0.9},
-        area_dynamics={
-            "coherence_score": 0.1,
-            "mismatch_score": 0.9,
-            "neuro_dynamic_metrics": {
-                "mismatch_index": 0.9,
-                "prediction_error": 0.8,
-                "convergence_index": 0.1,
-            },
-        },
+        discordances={"count": 3},
         retrieval={
             "evidence_count": 0,
             "retrieval_quality": {
@@ -193,3 +84,4 @@ def test_governance_scores_are_runtime_derived_not_hardcoded():
     assert high_risk["risk"] > low_risk["risk"]
     assert high_risk["uncertainty"] > low_risk["uncertainty"]
     assert high_risk["nexus_coherence"] < low_risk["nexus_coherence"]
+    assert (low_risk["discordances"], high_risk["discordances"]) == (0, 3)

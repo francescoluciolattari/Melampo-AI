@@ -9,14 +9,14 @@ that queue too, not just the candidate store.
 from melampo.training.nexus_scheduler import NexusScheduler
 
 
-def _area_dynamics():
-    return {"neuro_dynamic_metrics": {"pi_score": 0.6, "convergence_index": 0.5}}
+def _discordances():
+    return {"count": 1, "kinds": {"card": 1}}
 
 
 def test_a_scheduler_with_no_password_or_path_is_pure_in_memory_as_before():
     scheduler = NexusScheduler()
     job = scheduler.enqueue(
-        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+        case_context={"case_id": "case-1"}, discordances=_discordances()
     )
     assert job in scheduler.queue
 
@@ -25,7 +25,7 @@ def test_an_enqueued_job_survives_a_new_scheduler_instance(tmp_path):
     path = tmp_path / "queue.jsonl"
     first = NexusScheduler(password="secret", path=path)
     job = first.enqueue(
-        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+        case_context={"case_id": "case-1"}, discordances=_discordances()
     )
 
     second = NexusScheduler(password="secret", path=path)
@@ -42,7 +42,7 @@ def test_a_genuinely_separate_process_can_process_a_queue_it_never_enqueued_to(
     B (a fresh NexusScheduler instance, same password/path) processes."""
     path = tmp_path / "queue.jsonl"
     producer = NexusScheduler(password="secret", path=path)
-    producer.enqueue(case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics())
+    producer.enqueue(case_context={"case_id": "case-1"}, discordances=_discordances())
 
     consumer = NexusScheduler(password="secret", path=path)
     result = consumer.run_once(activity={"active_requests": 0, "idle_seconds": 600})
@@ -55,7 +55,7 @@ def test_a_processed_job_status_is_persisted_as_completed(tmp_path):
     path = tmp_path / "queue.jsonl"
     scheduler = NexusScheduler(password="secret", path=path)
     scheduler.enqueue(
-        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+        case_context={"case_id": "case-1"}, discordances=_discordances()
     )
     scheduler.run_once(activity={"active_requests": 0, "idle_seconds": 600})
 
@@ -68,7 +68,7 @@ def test_only_the_latest_event_per_job_wins_on_reload(tmp_path):
     path = tmp_path / "queue.jsonl"
     scheduler = NexusScheduler(password="secret", path=path)
     scheduler.enqueue(
-        case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics()
+        case_context={"case_id": "case-1"}, discordances=_discordances()
     )
     scheduler.run_once(activity={"active_requests": 0, "idle_seconds": 600})
 
@@ -80,8 +80,8 @@ def test_only_the_latest_event_per_job_wins_on_reload(tmp_path):
 def test_multiple_enqueued_jobs_all_survive_reload(tmp_path):
     path = tmp_path / "queue.jsonl"
     first = NexusScheduler(password="secret", path=path)
-    first.enqueue(case_context={"case_id": "case-1"}, area_dynamics=_area_dynamics())
-    first.enqueue(case_context={"case_id": "case-2"}, area_dynamics=_area_dynamics())
+    first.enqueue(case_context={"case_id": "case-1"}, discordances=_discordances())
+    first.enqueue(case_context={"case_id": "case-2"}, discordances=_discordances())
 
     second = NexusScheduler(password="secret", path=path)
 

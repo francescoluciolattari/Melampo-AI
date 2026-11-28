@@ -19,13 +19,13 @@ class CounterfactualSampler:
             if isinstance(case_context, dict)
             else ""
         )
-        area_dynamics = (
-            case_context.get("area_dynamics", {})
+        discordances = (
+            case_context.get("discordances", {})
             if isinstance(case_context, dict)
             else {}
         )
-        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
-        if mismatch_score > 0.6:
+        # a case whose reading sent something to a person (reasoning.case_discordances)
+        if int((discordances or {}).get("count", 0) or 0) > 0:
             return "cross_area_alignment"
         if exposures:
             return "epidemiology"

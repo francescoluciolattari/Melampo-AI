@@ -57,6 +57,9 @@ scaffold"*, e lo è — le sue ipotesi primarie sono etichette segnaposto
 cui pesi (`AreaInteractionPrior`) sono numeri scelti a mano, a loro volta
 alimentate da aree (`CaseContextArea`, `EpidemiologyArea`) che calcolano
 la salienza contando le chiavi di un dizionario, non il contenuto.
+*(28 novembre 2026: le metriche neuro-dinamiche, la coerenza tra aree, lo
+strato quantistico e i tre modi sono stati tolti; la parte rapida
+dell'`IntuitionEngine` sono ora i candidati di `rank_differential`.)*
 
 **Un primo collegamento reale è stato fatto**: `DifferentialEngine.rank()`
 ora promuove la migliore ipotesi reale e collegata al grafo (prodotta da
@@ -135,8 +138,8 @@ precedente, e resta tale.
 mai chiamato da nulla (verificato con una ricerca diretta). Ora: due
 passi, agganciati nei punti giusti di `clinical_pipeline.run()` —
 `pick_pending_case()` (presto, riusa `pending_case_router.py`) e
-`pick_mode()` (più tardi, quando `area_dynamics`/`governance_scores`
-esistono davvero), secondo la tabella di settembre.
+`pick_mode()` (più tardi, quando le discordanze del caso e i
+`governance_scores` esistono davvero; fino al 28 novembre 2026 era `area_dynamics`), secondo la tabella di settembre.
 
 **Una scoperta durante la costruzione**: `ModelRouter` serviva già uno
 scopo reale e diverso — `RuntimeServices.resolve()` lo usava per

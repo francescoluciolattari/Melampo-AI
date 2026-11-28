@@ -8,7 +8,6 @@ from ..utils.values import safe_float as _safe_float
 from .diagnostic_result import (
     DiagnosticResult,
     IntuitionSummary,
-    MelampoMetrics,
     NexusSummary,
 )
 
@@ -28,32 +27,23 @@ def _safe_get(
 class DiagnosticOrchestratorPolicy:
     """Final deterministic policy for Melampo diagnostic orchestration."""
 
-    min_pi_score: float = 0.35
-    max_mismatch_index: float = 0.7
     max_uncertainty: float = 0.75
     require_policy_allow: bool = True
 
     def evaluate(self, pipeline_result: dict[str, Any]) -> dict[str, Any]:
-        area_dynamics = pipeline_result.get("area_dynamics", {})
-        neuro = (
-            area_dynamics.get("neuro_dynamic_metrics", {})
-            if isinstance(area_dynamics, dict)
-            else {}
-        )
+        """The gate of the result: uncertainty and the policy's abstention or escalation.
+
+        Until 28 November 2026 it also abstained on a pi_score below 0.35 and a mismatch between areas above 0.7,
+        measures of the coherence between areas (removed, never measured). The case's discordances escalate:
+        they go to a person, and they do not withhold the result (principle of doubt).
+        """
         coordinated = pipeline_result.get("coordinated", {})
         policy = coordinated.get("policy", {}) if isinstance(coordinated, dict) else {}
-        pi_score = (
-            _safe_float(area_dynamics.get("pi_score", neuro.get("pi_score", 0.0)))
-            if isinstance(area_dynamics, dict)
-            else 0.0
-        )
-        mismatch_index = (
-            _safe_float(
-                neuro.get("mismatch_index", area_dynamics.get("mismatch_score", 0.0)),
-                1.0,
-            )
-            if isinstance(area_dynamics, dict)
-            else 1.0
+        discordances = pipeline_result.get("discordances", {})
+        discordance_count = (
+            int(_safe_float(discordances.get("count", 0)))
+            if isinstance(discordances, dict)
+            else 0
         )
         uncertainty = _safe_float(
             _safe_get(coordinated, ("state_summary", "uncertainty"), 0.0)
@@ -61,10 +51,6 @@ class DiagnosticOrchestratorPolicy:
         policy_abstain = bool(policy.get("abstain", False))
         policy_escalate = bool(policy.get("escalate", False))
         reasons = []
-        if pi_score < self.min_pi_score:
-            reasons.append("pi_score_below_threshold")
-        if mismatch_index > self.max_mismatch_index:
-            reasons.append("mismatch_index_above_threshold")
         if uncertainty > self.max_uncertainty:
             reasons.append("uncertainty_above_threshold")
         if self.require_policy_allow and policy_abstain:
@@ -76,18 +62,15 @@ class DiagnosticOrchestratorPolicy:
             "abstain": bool(reasons or policy_abstain),
             "escalate": bool(
                 policy_escalate
-                or mismatch_index > self.max_mismatch_index
+                or discordance_count > 0
                 or uncertainty > self.max_uncertainty
             ),
             "reasons": reasons,
             "thresholds": {
-                "min_pi_score": self.min_pi_score,
-                "max_mismatch_index": self.max_mismatch_index,
                 "max_uncertainty": self.max_uncertainty,
             },
             "observed": {
-                "pi_score": pi_score,
-                "mismatch_index": mismatch_index,
+                "discordances": discordance_count,
                 "uncertainty": uncertainty,
                 "policy_abstain": policy_abstain,
                 "policy_escalate": policy_escalate,
@@ -101,7 +84,7 @@ class MelampoDiagnosticOrchestrator:
 
     This class is the final controller. It is not an LLM wrapper. It consumes the
     full clinical pipeline result, model capability registry, policy state,
-    intuition payload, differential hypotheses, area dynamics and critique. It
+    intuition payload, differential hypotheses, discordances and critique. It
     returns a structured research diagnostic result with abstention and
     escalation. External models remain specialist signal providers and critics.
     """
@@ -129,12 +112,6 @@ class MelampoDiagnosticOrchestrator:
             else {"label": "none", "score": 0.0, "rationale": "no_hypothesis"}
         )
         intuition = pipeline_result.get("intuition", {})
-        area_dynamics = pipeline_result.get("area_dynamics", {})
-        neuro = (
-            area_dynamics.get("neuro_dynamic_metrics", {})
-            if isinstance(area_dynamics, dict)
-            else {}
-        )
         nexus = pipeline_result.get("nexus", {})
         critique = pipeline_result.get("critique", {})
         orchestration_policy = self.policy.evaluate(pipeline_result)
@@ -157,41 +134,6 @@ class MelampoDiagnosticOrchestrator:
             if orchestration_policy["allow_candidate_result"]
             else "abstain_or_escalate"
         )
-        metrics = MelampoMetrics(
-            pi_score=area_dynamics.get("pi_score", neuro.get("pi_score", 0.0))
-            if isinstance(area_dynamics, dict)
-            else 0.0,
-            precision_weighted_coherence=area_dynamics.get(
-                "precision_weighted_coherence",
-                neuro.get("precision_weighted_coherence", 0.0),
-            )
-            if isinstance(area_dynamics, dict)
-            else 0.0,
-            prediction_error=area_dynamics.get(
-                "prediction_error",
-                neuro.get("prediction_error", 0.0),
-            )
-            if isinstance(area_dynamics, dict)
-            else 0.0,
-            convergence_index=neuro.get("convergence_index", 0.0),
-            mismatch_index=neuro.get("mismatch_index", 0.0),
-            deductive_gate=neuro.get("deductive_gate", 0.0),
-            candidate_temperature=neuro.get("candidate_temperature", 1.0),
-            belief_update_rate=neuro.get("belief_update_rate", 0.0),
-            cross_area_synchrony=neuro.get("cross_area_synchrony", 0.0),
-            conflict_load=neuro.get("conflict_load", 0.0),
-            inhibitory_control=neuro.get("inhibitory_control", 0.0),
-            revision_pressure=neuro.get("revision_pressure", 0.0),
-            nexus_plasticity=neuro.get("nexus_plasticity", 0.0),
-            bias_suppression_score=neuro.get("bias_suppression_score", 0.0),
-            interdependence_index=neuro.get("interdependence_index", 0.0),
-            evidence_integration_score=neuro.get("evidence_integration_score", 0.0),
-            noise_suppression_score=neuro.get("noise_suppression_score", 0.0),
-            action_potential_gate=neuro.get("action_potential_gate", 0.0),
-            synaptic_plasticity_index=neuro.get("synaptic_plasticity_index", 0.0),
-            deep_inference_score=neuro.get("deep_inference_score", 0.0),
-            deductive_stability=neuro.get("deductive_stability", 0.0),
-        )
         result = DiagnosticResult(
             case_id=str(pipeline_result.get("case_id", "unknown_case")),
             result_label=str(result_label),
@@ -201,14 +143,11 @@ class MelampoDiagnosticOrchestrator:
                 selected=intuition.get("intuition", "none")
                 if isinstance(intuition, dict)
                 else "none",
-                reasoning_mode=_safe_get(
-                    intuition, ("deductive_filter", "reasoning_mode"), "unknown"
-                ),
                 candidate_scores=intuition.get("candidate_scores", [])
                 if isinstance(intuition, dict)
                 else [],
             ),
-            melampo_metrics=metrics,
+            discordances=dict(pipeline_result.get("discordances") or {}),
             support=support,
             policy=orchestration_policy,
             critique=critique,

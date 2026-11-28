@@ -62,7 +62,7 @@ class LowActivityPolicy:
 class NexusReplayJob:
     job_id: str
     case_context: dict[str, Any]
-    area_dynamics: dict[str, Any]
+    discordances: dict[str, Any]
     nexus: dict[str, Any] = field(default_factory=dict)
     retrieval_context: dict[str, Any] = field(default_factory=dict)
     governance_scores: dict[str, Any] = field(default_factory=dict)
@@ -73,7 +73,7 @@ class NexusReplayJob:
         return {
             "job_id": self.job_id,
             "case_context": self.case_context,
-            "area_dynamics": self.area_dynamics,
+            "discordances": self.discordances,
             "nexus": self.nexus,
             "retrieval_context": self.retrieval_context,
             "governance_scores": self.governance_scores,
@@ -137,7 +137,7 @@ class NexusScheduler:
             NexusReplayJob(
                 job_id=data["job_id"],
                 case_context=dict(data.get("case_context", {})),
-                area_dynamics=dict(data.get("area_dynamics", {})),
+                discordances=dict(data.get("discordances", {})),
                 nexus=dict(data.get("nexus", {})),
                 retrieval_context=dict(data.get("retrieval_context", {})),
                 governance_scores=dict(data.get("governance_scores", {})),
@@ -155,7 +155,7 @@ class NexusScheduler:
     def enqueue(
         self,
         case_context: dict[str, Any],
-        area_dynamics: dict[str, Any],
+        discordances: dict[str, Any],
         nexus: dict[str, Any] | None = None,
         retrieval_context: dict[str, Any] | None = None,
         governance_scores: dict[str, Any] | None = None,
@@ -164,7 +164,7 @@ class NexusScheduler:
         job = NexusReplayJob(
             job_id=_job_id(case_context=case_context or {}, scheduled_at=scheduled_at),
             case_context=case_context or {},
-            area_dynamics=area_dynamics or {},
+            discordances=discordances or {},
             nexus=nexus or {},
             retrieval_context=retrieval_context or {},
             governance_scores=governance_scores or {},
@@ -183,7 +183,7 @@ class NexusScheduler:
             jobs.append(
                 self.enqueue(
                     case_context=dict(item.get("case_context", item)),
-                    area_dynamics=dict(item.get("area_dynamics", {})),
+                    discordances=dict(item.get("discordances", {})),
                     nexus=dict(item.get("nexus", {})),
                     retrieval_context=dict(item.get("retrieval_context", {})),
                     governance_scores=dict(item.get("governance_scores", {})),
@@ -194,7 +194,7 @@ class NexusScheduler:
     def _execute_job(self, job: NexusReplayJob) -> dict[str, Any]:
         candidate_payload = self.self_evolution_loop.generate_candidate(
             case_context=job.case_context,
-            area_dynamics=job.area_dynamics,
+            discordances=job.discordances,
             nexus=job.nexus,
             governance_scores=job.governance_scores,
         )
@@ -226,7 +226,7 @@ class NexusScheduler:
             # context to extract training pairs before it is deleted.
             "case_context": job.case_context,
             "patient_identifiers": patient_identifiers,
-            "area_dynamics": job.area_dynamics,
+            "discordances": job.discordances,
             "retrieval_context": job.retrieval_context,
             "governance_scores": job.governance_scores,
             "metadata": {
@@ -250,7 +250,6 @@ class NexusScheduler:
         )
         validation = self.validator.evaluate(
             candidate=candidate_payload,
-            area_dynamics=job.area_dynamics,
             retrieval_context=job.retrieval_context,
             governance_scores=job.governance_scores,
         )

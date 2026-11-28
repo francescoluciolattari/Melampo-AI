@@ -88,9 +88,6 @@ def build_default_config(
         "document_rag": ServiceConfig(provider="api_for_service_document_rag"),
         "mcp_server": ServiceConfig(provider="api_for_service_mcp_server"),
         "a2a_router": ServiceConfig(provider="api_for_service_a2a_router"),
-        "theoretical_quantum": ServiceConfig(
-            provider="api_for_service_theoretical_quantum_module", enabled=False
-        ),
     }
     if imaging_provider_strategy is None:
         imaging_provider_strategy = "local_metadata"
@@ -101,7 +98,6 @@ def build_default_config(
             if imaging_provider_strategy == "local_metadata"
             else imaging_provider_strategy
         )
-        placeholders["theoretical_quantum"].enabled = True
     return RuntimeConfig(
         runtime_profile=runtime_profile,
         allow_remote_models=allow_remote_models,

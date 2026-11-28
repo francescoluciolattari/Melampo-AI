@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..memory.visual_imprint import VisualImprintMorpher
-from ..models.quantum_belief_layer import QuantumBeliefLayer
 from ..utils.values import safe_float as _safe_float
+from ..utils.values import safe_int as _safe_int
 from .counterfactual_sampler import CounterfactualSampler
 from .mechanism_enumeration import MODE_HYPOTHESES
 from .replay_filter import ReplayFilter
@@ -24,14 +24,7 @@ class NexusRuntimeContext:
     exposures: dict[str, Any]
     report_text: str
     patient_complaints: str
-    area_dynamics: dict[str, Any]
-    neuro_metrics: dict[str, Any]
-    mismatch_score: float
-    coherence_pairs: list[Any]
-    convergence_index: float
-    revision_pressure: float
-    nexus_plasticity: float
-    pi_score: float
+    discordances: int
     variant_focus: str
     visual_morphing: dict[str, Any]
     visual_morph_gain: float
@@ -40,11 +33,16 @@ class NexusRuntimeContext:
 
 @dataclass
 class NexusTrainer:
-    """Offline nexus-replay trainer with optional quantum-like belief updates."""
+    """Offline nexus replay: the alternatives a case's findings reach in the graph (``enumerator``).
+
+    Closed (28 November 2026): it proposes alternatives and rehearsals, and promotes nothing
+    (``auto_evolution_plan`` holds every case) until the lateral cycle of the intuition engine has measured
+    criteria. The metrics it read until then (pi_score, convergence, mismatch, plasticity) came from the
+    coherence between areas, removed; its signal now is the case's discordances.
+    """
 
     replay_filter: ReplayFilter
     sampler: CounterfactualSampler
-    belief_layer: QuantumBeliefLayer
     visual_morpher: VisualImprintMorpher = field(default_factory=VisualImprintMorpher)
     enumerator: Any = None
 
@@ -54,11 +52,9 @@ class NexusTrainer:
         case_context = case_context or {}
         filter_assessment = self.replay_filter.assess(coherence=coherence, risk=risk)
         sampled = self.sampler.sample(case_context)
-        area_dynamics = case_context.get("area_dynamics", {})
-        neuro_metrics = (
-            area_dynamics.get("neuro_dynamic_metrics", {})
-            if isinstance(area_dynamics, dict)
-            else {}
+        discordances = case_context.get("discordances", {})
+        discordance_count = _safe_int(
+            discordances.get("count", 0) if isinstance(discordances, dict) else 0
         )
         visual_imprints = (
             list(case_context.get("visual_imprints", []))
@@ -80,7 +76,6 @@ class NexusTrainer:
         visual_morphing = self.visual_morpher.nexus_morph(
             concept_imprints=concept_memory_imprints + visual_imprints,
             diagnostic_imprints=diagnostic_visual_imprints,
-            area_dynamics=area_dynamics,
         )
         return NexusRuntimeContext(
             case_context=case_context,
@@ -94,25 +89,7 @@ class NexusTrainer:
             exposures=case_context.get("exposures", {}),
             report_text=case_context.get("report_text", ""),
             patient_complaints=case_context.get("patient_complaints", ""),
-            area_dynamics=area_dynamics,
-            neuro_metrics=neuro_metrics,
-            mismatch_score=_safe_float(area_dynamics.get("mismatch_score", 0.0))
-            if isinstance(area_dynamics, dict)
-            else 0.0,
-            coherence_pairs=area_dynamics.get("coherence_pairs", [])
-            if isinstance(area_dynamics, dict)
-            else [],
-            convergence_index=_safe_float(neuro_metrics.get("convergence_index", 0.0)),
-            revision_pressure=_safe_float(neuro_metrics.get("revision_pressure", 0.0)),
-            nexus_plasticity=_safe_float(neuro_metrics.get("nexus_plasticity", 0.0)),
-            pi_score=_safe_float(
-                neuro_metrics.get(
-                    "pi_score",
-                    area_dynamics.get("pi_score", 0.0)
-                    if isinstance(area_dynamics, dict)
-                    else 0.0,
-                )
-            ),
+            discordances=discordance_count,
             variant_focus=sampled.get("variant_focus", "context"),
             visual_morphing=visual_morphing,
             visual_morph_gain=_safe_float(
@@ -127,8 +104,7 @@ class NexusTrainer:
         contradiction_rehearsal = bool(
             (not context.accepted)
             or context.risk > 0.2
-            or context.mismatch_score > 0.6
-            or context.revision_pressure > 0.55
+            or context.discordances > 0
         )
         return {
             "rare_case_hint": bool(context.accepted and len(context.bundle_keys) <= 2),
@@ -139,23 +115,16 @@ class NexusTrainer:
             "revision_bias": "conservative"
             if (
                 context.risk > 0.15
-                or context.mismatch_score > 0.4
-                or context.revision_pressure > 0.5
+                or context.discordances > 0
             )
             else "exploratory",
             "post_error_adjustment": "re-rank_alternatives"
             if contradiction_rehearsal
             else "stabilize_primary",
-            "coherence_guidance": "multimodal_support"
-            if context.coherence_pairs
-            else "single_stream",
             "replay_mode": context.filter_assessment["replay_mode"],
             "acceptance_score": context.filter_assessment["acceptance_score"],
             "variant_focus": context.variant_focus,
-            "nexus_plasticity": context.nexus_plasticity,
-            "convergence_index": context.convergence_index,
-            "revision_pressure": context.revision_pressure,
-            "pi_score": context.pi_score,
+            "discordances": context.discordances,
             "visual_morphing_active": bool(
                 context.visual_morphing.get("morph_count", 0)
             ),
@@ -277,11 +246,11 @@ class NexusTrainer:
                     "focus": "multi_area_recheck",
                 }
             )
-        if context.mismatch_score > 0.6 or context.revision_pressure > 0.6:
+        if context.discordances > 0:
             hypotheses.append(
                 {
                     "label": f"{context.base_label}_alt_4",
-                    "kind": "mismatch_resolution",
+                    "kind": "discordance_resolution",
                     "focus": "cross_area_alignment",
                 }
             )
@@ -298,58 +267,14 @@ class NexusTrainer:
         return hypotheses
 
     def _auto_evolution_plan(self, context: NexusRuntimeContext) -> dict[str, Any]:
-        """Whether this case is a candidate for offline auto-evolution -- status only.
+        """Whether this case is a candidate for offline auto-evolution: none is, for now.
 
-        Reduced from its original form after consolidation: this method
-        used to also compute `candidate_score`, but that field was the
-        only one promotion_policy.decide() and rational_control_validator.py
-        actually read, and both are part of the OFFLINE promotion chain
-        (NexusScheduler -> NexusSelfEvolutionLoop), not this live, per-case
-        path -- so candidate_score now lives in
-        NexusSelfEvolutionLoop.generate_candidate() instead, computed fresh
-        there from the same inputs.
-
-        `status` stays here, live, because safety/rails.py reads it
-        synchronously from this trainer's own output
-        (diagnostic_result["nexus"]["auto_evolution_plan"]["status"]) to
-        flag cases needing extra verification -- a check that runs on
-        every case, before NexusScheduler ever processes anything offline.
-        Moving it to the offline loop would have silently disabled that
-        safety flag, since the offline stage has not run yet by the time a
-        case's own result is produced.
+        ``safety.rails`` reads ``status`` on every case. Until 28 November 2026 a case became a candidate on
+        pi_score, convergence and plasticity, measures of the coherence between areas that were never measured
+        against anything; with them removed the chain is closed: every case is held, with its reason, until the
+        lateral cycle of the intuition engine has criteria measured on published cases.
         """
-        auto_evolution_candidate = bool(
-            context.accepted
-            and context.pi_score >= 0.55
-            and context.convergence_index >= 0.45
-            and context.risk <= 0.25
-            and context.nexus_plasticity >= 0.35
-        )
-        return {
-            "status": "candidate"
-            if auto_evolution_candidate
-            else "hold_for_more_evidence"
-        }
-
-    def _belief_context(
-        self,
-        context: NexusRuntimeContext,
-        rehearsal_profile: dict[str, Any],
-        alternative_hypotheses: list[dict[str, Any]],
-        auto_evolution_plan: dict[str, Any],
-    ) -> dict[str, Any]:
-        return {
-            "sampled": context.sampled,
-            "filter_assessment": context.filter_assessment,
-            "rehearsal_profile": rehearsal_profile,
-            "alternative_hypotheses": alternative_hypotheses,
-            "area_dynamics": context.area_dynamics,
-            "auto_evolution_plan": auto_evolution_plan,
-            "visual_morphing": context.visual_morphing,
-            "visual_morph_intuition_gain": context.visual_morph_gain,
-            "visual_prediction_link_score": context.visual_prediction_link_score,
-            "neuro_dynamic_metrics": context.neuro_metrics,
-        }
+        return {"status": "hold_for_more_evidence", "reason": "no_measured_promotion_criteria"}
 
     def run(self, case_context: dict, coherence: float, risk: float) -> dict:
         context = self._runtime_context(
@@ -360,15 +285,6 @@ class NexusTrainer:
             context, rehearsal_profile
         )
         auto_evolution_plan = self._auto_evolution_plan(context)
-        belief = self.belief_layer.update(
-            prior={"accepted": context.accepted},
-            context=self._belief_context(
-                context=context,
-                rehearsal_profile=rehearsal_profile,
-                alternative_hypotheses=alternative_hypotheses,
-                auto_evolution_plan=auto_evolution_plan,
-            ),
-        )
         return {
             "accepted": context.accepted,
             "filter_assessment": context.filter_assessment,
@@ -377,5 +293,4 @@ class NexusTrainer:
             "alternative_hypotheses": alternative_hypotheses,
             "auto_evolution_plan": auto_evolution_plan,
             "visual_morphing": context.visual_morphing,
-            "belief": belief,
         }

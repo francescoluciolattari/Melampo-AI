@@ -62,13 +62,7 @@ def test_diagnostic_orchestrator_abstains_when_policy_requires_it():
     result = orchestrator.orchestrate(
         {
             "case_id": "case-1",
-            "area_dynamics": {
-                "pi_score": 0.1,
-                "neuro_dynamic_metrics": {
-                    "mismatch_index": 0.9,
-                    "candidate_temperature": 1.2,
-                },
-            },
+            "discordances": {"count": 1, "kinds": {"card": 1}},
             "coordinated": {
                 "state_summary": {"uncertainty": 0.8},
                 "differential": {
@@ -88,4 +82,25 @@ def test_diagnostic_orchestrator_abstains_when_policy_requires_it():
     assert result["result_label"] == "abstain_or_escalate"
     assert result["policy"]["abstain"] is True
     assert result["policy"]["escalate"] is True
+    assert result["discordances"]["count"] == 1
     assert result["audit_trace"]["final_authority"] == "MelampoDiagnosticOrchestrator"
+
+
+def test_the_discordances_escalate_without_withholding_the_result():
+    """Principle of doubt (28 November 2026): a discordance goes to a person; the result is not withheld for it,
+    and nothing abstains on the measures of the coherence between areas any more."""
+    result = MelampoDiagnosticOrchestrator().orchestrate(
+        {
+            "case_id": "case-2",
+            "discordances": {"count": 2, "kinds": {"card": 2}},
+            "coordinated": {
+                "state_summary": {"uncertainty": 0.2},
+                "differential": {"hypotheses": [{"label": "pneumonia", "score": 0.8}]},
+                "policy": {"abstain": False, "escalate": False},
+            },
+            "intuition": {"intuition": "pneumonia", "candidate_scores": []},
+        }
+    )
+    assert result["result_label"] == "pneumonia"
+    assert result["policy"]["escalate"] is True
+    assert result["policy"]["reasons"] == []

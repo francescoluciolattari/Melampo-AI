@@ -1,5 +1,4 @@
 from melampo.memory.concept_paths import ConceptEdge, InMemoryConceptGraph
-from melampo.models.quantum_belief_layer import QuantumBeliefLayer
 from melampo.training.counterfactual_sampler import CounterfactualSampler
 from melampo.training.mechanism_enumeration import MechanismEnumerator
 from melampo.training.nexus_trainer import NexusTrainer
@@ -41,7 +40,6 @@ def _trainer(graph=None, **kwargs) -> NexusTrainer:
     return NexusTrainer(
         ReplayFilter(),
         CounterfactualSampler(),
-        QuantumBeliefLayer(),
         enumerator=enumerator,
     )
 

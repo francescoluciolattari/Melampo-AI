@@ -12,7 +12,7 @@ which one, per the table reproduced below (docs-archive-2026-11:docs/rlm_on_memo
 |----------------------------|-------------------------------------------|
 | Factual lookup, low risk   | One-shot only                             |
 | Complex or high risk       | Dual path with reconciliation             |
-| Unresolved area mismatch   | Dual path, extended recursive budget      |
+| Discordances in the reading| Dual path, extended recursive budget      |
 | Nexus branch (low activity)| Recursive only; latency is not binding    |
 
 **Two things this router does NOT yet do, stated plainly rather than
@@ -55,7 +55,6 @@ from ..training.pending_case_router import RoutingDecision, route_payload
 LOW_RISK_THRESHOLD = 0.3
 HIGH_RISK_THRESHOLD = 0.5
 FEW_FINDINGS_THRESHOLD = 2
-UNRESOLVED_MISMATCH_THRESHOLD = 0.5
 
 MODE_ONE_SHOT = "one_shot"
 MODE_DUAL_PATH = "dual_path"
@@ -76,7 +75,7 @@ class ModelRouter:
         Split from mode selection deliberately: this needs nothing but the
         payload itself and the candidate store, so it can run at the very
         start of clinical_pipeline.run(), before report_text is resolved
-        for the rest of the pipeline to use -- area_dynamics and
+        for the rest of the pipeline to use -- the discordances and
         governance_scores, which pick_mode() needs, do not exist yet at
         that point.
 
@@ -95,20 +94,23 @@ class ModelRouter:
         self,
         *,
         findings: list[str] | None = None,
-        area_dynamics: dict[str, Any] | None = None,
+        discordances: dict[str, Any] | None = None,
         governance_scores: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
         """How many reasoning paths this case needs, and why -- callable once real signals exist, later in run()."""
         findings = findings or []
-        area_dynamics = area_dynamics or {}
+        discordances = discordances or {}
         governance_scores = governance_scores or {}
         risk = float(governance_scores.get("risk", 0.0))
-        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
+        # the case's discordances (reasoning.case_discordances, 28 November 2026): what the reading sent to a
+        # person. Until then this read the "mismatch" between areas, a lexical measure never measured.
+        count = int(discordances.get("count", 0) or 0)
 
-        if mismatch_score >= UNRESOLVED_MISMATCH_THRESHOLD:
+        if count > 0:
+            kinds = ", ".join(f"{k} {n}" for k, n in (discordances.get("kinds") or {}).items() if n)
             return (
                 MODE_DUAL_PATH_EXTENDED_BUDGET,
-                f"unresolved area mismatch ({mismatch_score:.2f} >= {UNRESOLVED_MISMATCH_THRESHOLD})",
+                f"{count} discordances in the reading ({kinds})",
             )
         if risk >= HIGH_RISK_THRESHOLD or len(findings) > FEW_FINDINGS_THRESHOLD:
             reason = (
@@ -123,7 +125,7 @@ class ModelRouter:
                 f"low risk ({risk:.2f}) and few findings ({len(findings)})",
             )
         # Between the low- and high-risk bands with a moderate finding
-        # count: the table names only the two extremes plus the mismatch
+        # count: the table names only the two extremes plus the discordance
         # case, not this middle ground -- dual_path is the safer default
         # of the two live-path modes when neither extreme clearly applies,
         # not a silent guess dressed up as a rule.

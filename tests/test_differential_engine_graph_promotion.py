@@ -38,7 +38,6 @@ def _rehearsal_hypothesis(label="alt_1"):
 def _placeholder_intuition(label="candidate_1", score=0.7):
     return {
         "candidate_scores": [{"label": label, "score": score}],
-        "deductive_filter": {"reasoning_mode": "rapid_intuition"},
     }
 
 
@@ -48,7 +47,6 @@ def _real_intuition(label="marfan syndrome", score=0.9):
     treated as a placeholder needing promotion."""
     return {
         "candidate_scores": [{"label": label, "score": score}],
-        "deductive_filter": {"reasoning_mode": "rapid_intuition"},
     }
 
 

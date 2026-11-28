@@ -83,7 +83,7 @@ def _run(pipeline, payload):
         payload=payload,
         case=case,
         bundle={"a": 1},
-        area_dynamics={},
+        discordances={},
         governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
         visual_imprints=[],
     )
@@ -323,7 +323,7 @@ def test_enqueue_adds_a_job_carrying_the_nexus_branch_own_output(monkeypatch):
 
     scheduler.enqueue(
         case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
-        area_dynamics={},
+        discordances={},
         nexus=nexus,
         retrieval_context={},
         governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
@@ -347,7 +347,7 @@ def test_multiple_enqueued_jobs_accumulate_in_the_same_queue(monkeypatch):
                 "report_text": "",
                 "patient_complaints": "",
             },
-            area_dynamics={},
+            discordances={},
             nexus=nexus,
             retrieval_context={},
             governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
@@ -363,7 +363,7 @@ def test_a_queued_job_processes_successfully_during_simulated_low_activity(monke
     nexus = _run(pipeline, {"case_id": "c1"})
     scheduler.enqueue(
         case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
-        area_dynamics={},
+        discordances={},
         nexus=nexus,
         retrieval_context={},
         governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
@@ -383,7 +383,7 @@ def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypat
     nexus = _run(pipeline, {"case_id": "c1"})
     scheduler.enqueue(
         case_context={"case_id": "c1", "report_text": "", "patient_complaints": ""},
-        area_dynamics={},
+        discordances={},
         nexus=nexus,
         retrieval_context={},
         governance_scores={"nexus_coherence": 0.5, "risk": 0.2},
@@ -406,17 +406,15 @@ def test_run_once_does_not_process_jobs_during_simulated_high_activity(monkeypat
 # --------------------------------------------------------------------------
 
 
-def test_the_live_auto_evolution_plan_contains_only_status(monkeypatch):
+def test_the_live_auto_evolution_plan_holds_every_case(monkeypatch):
     pipeline = _minimal_pipeline(monkeypatch)
     nexus = _run(
         pipeline, {"case_id": "c1", "findings": ["bilateral hilar lymphadenopathy"]}
     )
 
-    assert set(nexus["auto_evolution_plan"].keys()) == {"status"}
-    assert nexus["auto_evolution_plan"]["status"] in {
-        "candidate",
-        "hold_for_more_evidence",
-    }
+    # closed (28 November 2026): every case held, with its reason
+    assert nexus["auto_evolution_plan"] == {"status": "hold_for_more_evidence",
+                                            "reason": "no_measured_promotion_criteria"}
 
 
 def test_the_live_auto_evolution_plan_no_longer_carries_candidate_score(monkeypatch):

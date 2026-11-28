@@ -20,62 +20,41 @@ def test_end_to_end_pipeline_golden_snapshot_remains_stable():
     assert result["case_id"] == "golden-001"
     assert result["bundle_keys"] == ["patient", "diagnostic_report"]
     assert result["governance_scores"] == {
-        "risk": 0.094,
-        "uncertainty": 0.403,
-        "nexus_coherence": 0.525,
+        "risk": 0.368,
+        "uncertainty": 0.591,
+        "nexus_coherence": 0.0,
         "missing_evidence": 1.0,
         "retrieval_coverage": 0.0,
         "mean_grounding_score": 0.513,
         "mean_area_uncertainty": 0.66,
-        "mismatch_index": 0.028,
-        "prediction_error": 0.044,
-        "convergence_index": 0.703,
+        "discordances": 1,
         "memory_backed_retrieval": False,
         "fallback_penalty": 0.2,
         "weak_provenance": 0.0,
         "clinical_severity": 0.0,
         "derivation": "runtime_governance_scores_not_hardcoded_constants",
     }
-    assert {
-        key: result["area_dynamics"][key]
-        for key in [
-            "coherence_score",
-            "mismatch_score",
-            "pi_score",
-            "prediction_error",
-            "precision_weighted_coherence",
-            "deep_inference_score",
-        ]
-    } == {
-        "coherence_score": 0.554,
-        "mismatch_score": 0.092,
-        "pi_score": 0.669,
-        "prediction_error": 0.044,
-        "precision_weighted_coherence": 0.699,
-        "deep_inference_score": 0.754,
-    }
+    # no interpreter on this machine: the note is not read, and that goes to a person (28 November 2026)
+    assert result["discordances"]["kinds"]["unread"] == 1
+    assert result["routing_reason"] == "1 discordances in the reading (unread 1)"
+    assert "area_dynamics" not in result
     assert result["intuition"]["intuition"] == "candidate_1"
-    assert (
-        result["intuition"]["deductive_filter"]["reasoning_mode"] == "rapid_intuition"
-    )
-    assert result["intuition"]["deductive_filter"]["top_areas"] == [
-        "visual_diagnostic",
-        "language_listening",
-    ]
     assert result["intuition"]["candidate_scores"] == [
-        {"mode": "rapid_intuition", "label": "candidate_1", "score": 8.461},
-        {"mode": "rational_revision", "label": "candidate_2", "score": 2.62},
-        {"mode": "contradiction_revision", "label": "golden-001_alt_1", "score": 1.629},
+        {"label": "candidate_1", "score": 2.28, "source": "semantic_memory"},
+        {"label": "candidate_2", "score": 2.05, "source": "knowledge_graph"},
+        {"label": "candidate_3", "score": 1.81, "source": "episodic_memory"},
     ]
     assert result["nexus"]["accepted"] is False
     assert result["nexus"]["filter_assessment"]["replay_mode"] == "corrective_replay"
     assert [item["kind"] for item in result["nexus"]["alternative_hypotheses"]] == [
         "adjacent_case",
-        "boundary_case",
+        "counterfactual_case",
         "contradiction_revision",
+        "discordance_resolution",
     ]
-    assert result["diagnostic_result"]["result_label"] == "candidate_1"
-    assert result["diagnostic_result"]["policy"]["allow_candidate_result"] is True
+    # the risk the unread note adds passes the risk gate: the policy escalates and the result is withheld
+    assert result["diagnostic_result"]["result_label"] == "abstain_or_escalate"
+    assert result["diagnostic_result"]["policy"]["reasons"] == ["policy_escalation_requested"]
 
 
 def test_numeric_edge_cases_remain_bounded_without_property_dependency():
@@ -90,24 +69,12 @@ def test_numeric_edge_cases_remain_bounded_without_property_dependency():
             }
         )
         governance = result["governance_scores"]
-        neuro = result["area_dynamics"]["neuro_dynamic_metrics"]
         for key in [
             "risk",
             "uncertainty",
             "nexus_coherence",
-            "mismatch_index",
-            "prediction_error",
-            "convergence_index",
         ]:
             assert 0.0 <= governance[key] <= 1.0
-        for key in [
-            "pi_score",
-            "prediction_error",
-            "mismatch_index",
-            "action_potential_gate",
-            "deep_inference_score",
-        ]:
-            assert 0.0 <= neuro[key] <= 1.0
 
 
 def test_persistent_vector_store_survives_reload(tmp_path: Path):

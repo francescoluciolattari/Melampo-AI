@@ -14,7 +14,7 @@ def _best_graph_hypothesis(alternatives: list) -> dict | None:
     `kind == "enumerated_mechanism"` is MechanismEnumerator's own marker for
     a hypothesis found by real path enumeration over the concept graph
     (`nexus_trainer.py`, `_enumerated_hypotheses`) -- distinct from
-    `rare_case`/`adjacent_case`/`mismatch_resolution` rehearsal labels, which
+    `rare_case`/`adjacent_case`/`discordance_resolution` rehearsal labels, which
     name what kind of alternative ought to exist rather than proposing one.
     """
     graph_hypotheses = [
@@ -31,7 +31,7 @@ def _best_graph_hypothesis(alternatives: list) -> dict | None:
 
 @dataclass
 class DifferentialEngine:
-    """Baseline differential engine using evidence, intuition, nexus alternatives, and area dynamics."""
+    """Baseline differential engine using evidence, intuition, nexus alternatives and the case's discordances."""
 
     support_analyzer: SupportContradictionAnalyzer = field(
         default_factory=SupportContradictionAnalyzer
@@ -44,23 +44,22 @@ class DifferentialEngine:
         if (
             "fusion:" in joined
             or "visual_diagnostic" in joined
-            or source in ["mismatch_resolution", "contradiction_revision"]
+            or source in ["discordance_resolution", "contradiction_revision"]
         ):
             return "imaging_led"
         if "nexus:language_listening" in joined:
             return "language_led"
         if "nexus:epidemiology" in joined:
             return "epidemiology_led"
-        if hypothesis_type == "mismatch_resolution":
-            return "mismatch_resolution_led"
+        if hypothesis_type == "discordance_resolution":
+            return "discordance_resolution_led"
         return "multimodal_led"
 
     def _recommended_actions_for_domain(
         self,
         domain: str,
         contradiction_classes: set[str],
-        coherence_score: float,
-        reasoning_mode: str,
+        discordances: int,
     ) -> list[dict]:
         actions = []
         if domain == "imaging_led":
@@ -102,7 +101,7 @@ class DifferentialEngine:
                     },
                 ]
             )
-        elif domain == "mismatch_resolution_led":
+        elif domain == "discordance_resolution_led":
             actions.extend(
                 [
                     {
@@ -130,14 +129,7 @@ class DifferentialEngine:
                     "label": "recheck multimodal alignment",
                 }
             )
-        if coherence_score < 0.5:
-            actions.append(
-                {
-                    "category": "confirmation_test",
-                    "label": "expand corroborating evidence",
-                }
-            )
-        if reasoning_mode == "contradiction_revision":
+        if discordances > 0:
             actions.append(
                 {
                     "category": "disambiguation_test",
@@ -171,11 +163,11 @@ class DifferentialEngine:
         evidence: list,
         intuition: dict | None = None,
         nexus: dict | None = None,
-        area_dynamics: dict | None = None,
+        discordances: dict | None = None,
     ) -> dict:
         intuition = intuition or {}
         nexus = nexus or {}
-        area_dynamics = area_dynamics or {}
+        discordances = discordances or {}
 
         candidate_scores = intuition.get("candidate_scores", [])
         top_candidate = (
@@ -184,17 +176,15 @@ class DifferentialEngine:
             else {"label": "working_hypothesis", "score": 0.7}
         )
         alternatives = nexus.get("alternative_hypotheses", [])
-        mismatch_score = float(area_dynamics.get("mismatch_score", 0.0))
-        coherence_score = float(area_dynamics.get("coherence_score", 0.0))
-        reasoning_mode = intuition.get("deductive_filter", {}).get(
-            "reasoning_mode", "rapid_intuition"
-        )
+        # the case's discordances (reasoning.case_discordances); until 28 November 2026 the "coherence" and
+        # "mismatch" between areas added to the scores here, lexical measures never measured (removed)
+        discordance_count = int(discordances.get("count", 0) or 0)
 
         signals = self.support_analyzer.analyze(
             evidence=evidence,
             intuition=intuition,
             nexus=nexus,
-            area_dynamics=area_dynamics,
+            discordances=discordances,
         )
         support_signals = signals["support_signals"]
         contradiction_signals = signals["contradiction_signals"]
@@ -203,10 +193,6 @@ class DifferentialEngine:
         contradiction_classes = {item["class"] for item in contradiction_profiles}
 
         primary_type = "primary_hypothesis"
-        if reasoning_mode == "rational_revision":
-            primary_type = "revision_hypothesis"
-        elif reasoning_mode == "contradiction_revision":
-            primary_type = "contradiction_revision_hypothesis"
 
         primary_domain = self._infer_domain(
             support_signals[:4], "intuition_engine", primary_type
@@ -217,7 +203,6 @@ class DifferentialEngine:
             "hypothesis_domain": primary_domain,
             "score": round(
                 _safe_float(top_candidate.get("score", 0.7), 0.7)
-                + coherence_score * 0.1
                 + signals["support_strength"] * 0.02,
                 3,
             ),
@@ -289,8 +274,8 @@ class DifferentialEngine:
 
         for index, alt in enumerate(alternatives[:3]):
             hypothesis_type = "revision_alternative"
-            if alt.get("kind") == "mismatch_resolution":
-                hypothesis_type = "mismatch_resolution"
+            if alt.get("kind") == "discordance_resolution":
+                hypothesis_type = "discordance_resolution"
             elif alt.get("kind") == "contradiction_revision":
                 hypothesis_type = "contradiction_revision_alternative"
             alt_support = [f"nexus:{alt.get('focus', 'unknown')}"] + support_signals[:1]
@@ -305,7 +290,6 @@ class DifferentialEngine:
                     ),
                     "score": round(
                         0.4
-                        + mismatch_score * 0.1
                         - index * 0.05
                         + signals["contradiction_strength"] * 0.01,
                         3,
@@ -329,7 +313,7 @@ class DifferentialEngine:
                     "label": "alternative_hypothesis",
                     "hypothesis_type": "fallback_alternative",
                     "hypothesis_domain": "multimodal_led",
-                    "score": round(0.3 + mismatch_score * 0.05, 3),
+                    "score": 0.3,
                     "support": max(len(evidence) - 1, 0),
                     "source": "fallback_alternative",
                     "support_signals": support_signals[:2],
@@ -344,16 +328,14 @@ class DifferentialEngine:
             )
 
         recommended_actions = self._recommended_actions_for_domain(
-            primary_domain, contradiction_classes, coherence_score, reasoning_mode
+            primary_domain, contradiction_classes, discordance_count
         )
         recommended_tests = [item["label"] for item in recommended_actions]
 
         return {
             "status": "grounded_differential_ready",
             "evidence_count": len(evidence),
-            "mismatch_score": mismatch_score,
-            "coherence_score": coherence_score,
-            "reasoning_mode": reasoning_mode,
+            "discordances": discordance_count,
             "support_strength": signals["support_strength"],
             "contradiction_strength": signals["contradiction_strength"],
             "support_profiles": support_profiles,

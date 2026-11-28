@@ -13,7 +13,6 @@ from melampo.orchestration.model_router import (
     MODE_DUAL_PATH,
     MODE_DUAL_PATH_EXTENDED_BUDGET,
     MODE_ONE_SHOT,
-    UNRESOLVED_MISMATCH_THRESHOLD,
     ModelRouter,
 )
 from melampo.training.nexus_candidate_store import NexusCandidateStore
@@ -75,26 +74,19 @@ def test_many_findings_is_dual_path_even_with_low_risk():
     assert "findings" in reason
 
 
-def test_unresolved_area_mismatch_is_dual_path_extended_budget():
+def test_discordances_in_the_reading_are_dual_path_extended_budget():
     mode, reason = _router().pick_mode(
         findings=[],
-        area_dynamics={"mismatch_score": 0.9},
-        governance_scores={"risk": 0.1},
-    )
-    assert mode == MODE_DUAL_PATH_EXTENDED_BUDGET
-    assert "mismatch" in reason
-
-
-def test_mismatch_takes_priority_even_with_low_risk_and_few_findings():
-    """The table lists unresolved mismatch as its own row, not a special
-    case of the other two -- it must win regardless of what the other
-    signals say."""
-    mode, _ = _router().pick_mode(
-        findings=[],
-        area_dynamics={"mismatch_score": 0.9},
+        discordances={"count": 2, "kinds": {"card": 1, "reference": 0, "image": 0, "document": 1}},
         governance_scores={"risk": 0.05},
     )
     assert mode == MODE_DUAL_PATH_EXTENDED_BUDGET
+    assert reason == "2 discordances in the reading (card 1, document 1)"
+
+
+def test_no_discordances_leave_the_other_rows():
+    mode, _ = _router().pick_mode(findings=[], discordances={"count": 0}, governance_scores={"risk": 0.05})
+    assert mode == MODE_ONE_SHOT
 
 
 def test_the_middle_ground_between_thresholds_defaults_to_dual_path():
@@ -117,4 +109,3 @@ def test_thresholds_are_the_documented_values():
     assert LOW_RISK_THRESHOLD == 0.3
     assert HIGH_RISK_THRESHOLD == 0.5
     assert FEW_FINDINGS_THRESHOLD == 2
-    assert UNRESOLVED_MISMATCH_THRESHOLD == 0.5

@@ -1,24 +1,10 @@
-"""Tests for IntuitionEngine producing real diagnosis labels via rank_differential,
-instead of positional "candidate_N" placeholders.
+"""The intuition engine, rapid part (28 November 2026): ``rank_differential``'s candidates, in its order.
 
-Traced to its root before this fix: SemanticMemoryStore ships empty in
-app.py's build_default_runtime(), so MemoryRetriever.retrieve() always
-falls through to three hard-coded fake evidence items
-(grounding_score 0.58/0.46/0.5, values like "analogy_for:<query>"), which
-IntuitionEngine then labels candidate_1/candidate_2/candidate_3. This fix
-does not touch that retrieval gap -- it gives IntuitionEngine a second,
-independent source of real content (rank_differential, already built and
-tested this session, never previously wired into production) that replaces
-the placeholder labels whenever real findings are available, regardless of
-what MemoryRetriever itself returns.
+Without graph candidates the positions of the ranked evidence stay ``candidate_N`` placeholders, which the
+differential engine knows and puts a graph-enumerated hypothesis before.
 """
 
-from melampo.models.quantum_belief_layer import QuantumBeliefLayer
-from melampo.reasoning.intuition_engine import IntuitionEngine
-
-
-def _engine():
-    return IntuitionEngine(belief_layer=QuantumBeliefLayer())
+from melampo.reasoning.intuition_engine import RAPID, IntuitionEngine
 
 
 def _ranked_evidence(n=3):
@@ -29,107 +15,45 @@ def _real_candidate(condition="marfan syndrome", specificity_score=0.72):
     return {
         "condition": condition,
         "specificity_score": specificity_score,
-        "matched_findings": [],
+        "matched_findings": ["arachnodactyly"],
         "unmatched_findings": [],
         "coverage": 1.0,
         "profile_size": 3,
     }
 
 
-# --------------------------------------------------------------------------
-# Without graph_candidates: exactly the previous behaviour, no regression
-# --------------------------------------------------------------------------
+def test_no_graph_candidates_gives_the_placeholders():
+    for graph in (None, []):
+        result = IntuitionEngine().infer("c1", _ranked_evidence(), {}, graph_candidates=graph)
+        assert [c["label"] for c in result["candidate_scores"]] == ["candidate_1", "candidate_2", "candidate_3"]
+        assert result["source"] == "placeholder"
+        assert result["intuition"] == "candidate_1"
 
 
-def test_no_graph_candidates_produces_the_original_placeholder_labels():
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=_ranked_evidence(),
-        nexus={},
-        quantum_allowed=False,
-    )
-    labels = [c["label"] for c in result["inductive_candidates"]]
-    assert labels == ["candidate_1", "candidate_2", "candidate_3"]
+def test_the_graph_candidates_come_in_rank_differentials_order_with_their_own_score():
+    graph = [_real_candidate("marfan syndrome", 0.9), _real_candidate("loeys-dietz syndrome", 0.4)]
+    result = IntuitionEngine().infer("c1", _ranked_evidence(), {}, graph_candidates=graph)
+    assert [c["label"] for c in result["candidate_scores"]] == ["marfan syndrome", "loeys-dietz syndrome"]
+    assert result["candidate_scores"][0]["score"] == 0.9
+    assert result["candidate_scores"][0]["matched_findings"] == ["arachnodactyly"]
+    assert result["intuition"] == "marfan syndrome"
+    assert result["source"] == RAPID
 
 
-def test_an_empty_graph_candidates_list_behaves_identically_to_none():
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=_ranked_evidence(),
-        nexus={},
-        quantum_allowed=False,
-        graph_candidates=[],
-    )
-    labels = [c["label"] for c in result["inductive_candidates"]]
-    assert labels == ["candidate_1", "candidate_2", "candidate_3"]
+def test_at_most_max_candidates_and_no_hand_set_modes():
+    graph = [_real_candidate(f"d{i}", 1.0 - i / 10) for i in range(8)]
+    result = IntuitionEngine(max_candidates=5).infer("c1", [], {}, graph_candidates=graph)
+    assert len(result["candidate_scores"]) == 5
+    assert not {"deductive_filter", "belief_update", "reasoning_mode", "area_dynamics"} & set(result)
 
 
-# --------------------------------------------------------------------------
-# With graph_candidates: real labels replace placeholders, one-for-one
-# --------------------------------------------------------------------------
-
-
-def test_a_real_candidate_replaces_the_first_placeholder():
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=_ranked_evidence(),
-        nexus={},
-        quantum_allowed=False,
-        graph_candidates=[_real_candidate("marfan syndrome")],
-    )
-    labels = [c["label"] for c in result["inductive_candidates"]]
-    assert labels[0] == "marfan syndrome"
-    assert labels[1:] == ["candidate_2", "candidate_3"]
-
-
-def test_fewer_real_candidates_than_evidence_slots_fills_only_what_it_has():
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=_ranked_evidence(),
-        nexus={},
-        quantum_allowed=False,
-        graph_candidates=[_real_candidate("a"), _real_candidate("b")],
-    )
-    labels = [c["label"] for c in result["inductive_candidates"]]
-    assert labels == ["a", "b", "candidate_3"]
-
-
-def test_the_real_candidates_own_specificity_score_becomes_the_support_weight():
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=_ranked_evidence(),
-        nexus={},
-        quantum_allowed=False,
-        graph_candidates=[_real_candidate("marfan syndrome", specificity_score=0.91)],
-    )
-    assert result["inductive_candidates"][0]["support_weight"] == 0.91
-
-
-def test_a_real_label_flows_through_to_rapid_intuition():
-    """rapid_intuition reads inductive_candidates[0]["label"] directly --
-    unchanged downstream logic, now fed a real name."""
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=_ranked_evidence(),
-        nexus={},
-        quantum_allowed=False,
-        graph_candidates=[_real_candidate("marfan syndrome")],
-    )
-    assert result["rapid_intuition"] == "marfan syndrome"
-
-
-def test_the_source_field_still_comes_from_ranked_evidence_not_graph_candidates():
-    """Which item in the retrieval structure this candidate came from is
-    orthogonal to whether its name is now known -- unaffected by this fix."""
-    evidence = [{"weight": 1.0, "item": {"source": "semantic_memory"}}]
-    result = _engine().infer(
-        case_id="c1",
-        ranked_evidence=evidence,
-        nexus={},
-        quantum_allowed=False,
-        graph_candidates=[_real_candidate("marfan syndrome")],
-    )
-    assert result["inductive_candidates"][0]["source"] == "semantic_memory"
+def test_the_nexus_alternatives_are_passed_through_and_the_trace_is_short():
+    nexus = {"alternative_hypotheses": [{"label": "x", "kind": "enumerated_mechanism"}]}
+    engine = IntuitionEngine()
+    result = engine.infer("c1", _ranked_evidence(1), nexus)
+    assert result["nexus_alternatives"] == nexus["alternative_hypotheses"]
+    assert engine.summarize_for_trace(result) == {"intuition": "candidate_1", "source": "placeholder",
+                                                   "candidate_count": 1}
 
 
 # --------------------------------------------------------------------------

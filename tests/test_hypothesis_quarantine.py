@@ -1,6 +1,3 @@
-from dataclasses import dataclass, field
-from typing import Any
-
 from melampo.memory.weaviate_adapter import WeaviateEnterpriseMemoryAdapter
 from melampo.memory.weaviate_schema import (
     QUARANTINED_HYPOTHESIS_CLASS,
@@ -9,7 +6,6 @@ from melampo.memory.weaviate_schema import (
 from melampo.training.hypothesis_channel import (
     HypothesisChannel,
     HypothesisEnvelope,
-    IndeterminacyGate,
 )
 
 # --------------------------------------------------------------------------
@@ -144,78 +140,15 @@ def test_quarantine_holds_when_the_candidate_outranks_the_evidence():
 
 
 # --------------------------------------------------------------------------
-# The gate reads the metrics the system computes
+# The gate opens when the caller says the diagnosis is unclear
 # --------------------------------------------------------------------------
 
 
-@dataclass
-class _Context:
-    """Stands in for NexusRuntimeContext, same attribute names."""
-
-    convergence_index: float = 0.3
-    risk: float = 0.6
-    mismatch_score: float = 0.0
-    neuro_metrics: dict[str, Any] = field(default_factory=dict)
-
-
-def test_the_gate_reads_conflict_load_from_the_neuro_metrics():
-    gate = IndeterminacyGate()
-    context = _Context(
-        convergence_index=0.3, risk=0.6, neuro_metrics={"conflict_load": 0.7}
-    )
-    decision = gate.evaluate_context(context)
-    assert decision["open"] is True
-    assert decision["conflict_load"] == 0.7
-
-
-def test_a_converged_differential_closes_the_gate_from_the_real_context():
-    gate = IndeterminacyGate()
-    context = _Context(
-        convergence_index=0.95, risk=0.9, neuro_metrics={"conflict_load": 0.8}
-    )
-    decision = gate.evaluate_context(context)
-    assert decision["open"] is False
-    assert "converged" in decision["blocking_reasons"][0]
-
-
-def test_mismatch_score_is_the_fallback_when_conflict_load_is_absent():
-    gate = IndeterminacyGate()
-    open_context = _Context(
-        convergence_index=0.3, risk=0.6, mismatch_score=0.7, neuro_metrics={}
-    )
-    closed_context = _Context(
-        convergence_index=0.3, risk=0.6, mismatch_score=0.1, neuro_metrics={}
-    )
-    assert gate.evaluate_context(open_context)["open"] is True
-    assert gate.evaluate_context(closed_context)["open"] is False
-
-
-def test_a_context_missing_every_metric_closes_the_gate():
-    """Absent metrics must not read as permission."""
-
-    class _Bare:
-        pass
-
-    assert IndeterminacyGate().evaluate_context(_Bare())["open"] is False
-
-
-def test_the_channel_accepts_a_context_directly():
+def test_the_channel_opens_only_when_the_caller_says_unclear():
     channel = HypothesisChannel(max_hypotheses=2)
-    result = channel.open_for(
-        [HypothesisEnvelope(label="amyloidosis", novelty_score=0.8)],
-        context=_Context(
-            convergence_index=0.3, risk=0.6, neuro_metrics={"conflict_load": 0.7}
-        ),
-    )
-    assert result["channel_open"] is True
-    assert result["hypotheses"][0]["label"] == "amyloidosis"
-
-
-def test_passing_dynamics_directly_still_works():
-    channel = HypothesisChannel()
-    result = channel.open_for(
-        [HypothesisEnvelope(label="x", novelty_score=0.5)],
-        dynamics={"convergence_index": 0.3, "conflict_load": 0.7},
-        risk=0.6,
-    )
-    assert result["channel_open"] is True
+    envelope = [HypothesisEnvelope(label="amyloidosis", novelty_score=0.8)]
+    closed = channel.open_for(envelope, unclear=False)
+    assert closed["channel_open"] is False and closed["hypotheses"] == []
+    opened = channel.open_for(envelope, unclear=True, reasons=["two unexplained findings"])
+    assert opened["channel_open"] is True
+    assert opened["gate"]["reasons"] == ["two unexplained findings"]

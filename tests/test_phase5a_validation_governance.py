@@ -113,12 +113,15 @@ def test_clinical_safety_rails_block_unsafe_retrieval_and_output():
     output_decision = rails.evaluate_output(
         {
             "result_label": "candidate_a",
-            "melampo_metrics": {"mismatch_index": 0.95},
+            "result_label_note": "the discordances escalate, they do not block",
+            "discordances": {"count": 2},
             "policy": {"abstain": False},
             "audit_trace": {
                 "clinical_warning": "Research output; not a validated medical device."
             },
         }
     )
-    assert output_decision.status == "block"
-    assert "mismatch_index_above_safety_threshold" in output_decision.reasons
+    assert output_decision.status == "warn"
+    assert output_decision.reasons == []
+    assert "escalate_for_human_review" in output_decision.actions
+    assert output_decision.metadata == {"discordances": 2}

@@ -1,11 +1,9 @@
 from melampo.areas.language_listening_area import LanguageListeningArea
 from melampo.areas.visual_diagnostic_area import VisualDiagnosticArea
 from melampo.orchestration.specialist_runtime import SpecialistRuntime
-from melampo.reasoning.area_coherence import AreaCoherenceAnalyzer
 from melampo.reasoning.diagnostic_result import (
     DiagnosticResult,
     IntuitionSummary,
-    MelampoMetrics,
     NexusSummary,
 )
 
@@ -84,9 +82,7 @@ def test_diagnostic_result_serializes_enterprise_contract():
         top_hypothesis={"label": "none", "score": 0.0},
         differential=[],
         intuition=IntuitionSummary(),
-        melampo_metrics=MelampoMetrics(
-            pi_score=0.2, mismatch_index=0.9, action_potential_gate=0.1
-        ),
+        discordances={"count": 1, "kinds": {"card": 1}},
         support={},
         policy={"abstain": True, "reasons": ["test"]},
         critique={},
@@ -95,7 +91,9 @@ def test_diagnostic_result_serializes_enterprise_contract():
         audit_trace={},
     ).as_dict()
 
-    assert result["schema_version"] == "diagnostic_result.v1"
+    assert result["schema_version"] == "diagnostic_result.v2"
+    assert result["discordances"]["count"] == 1
+    assert "melampo_metrics" not in result
     assert result["audit_trace"]["final_authority"] == "MelampoDiagnosticOrchestrator"
     assert result["audit_trace"]["external_models_are_not_final_arbiters"] is True
     assert "not a validated medical device" in result["audit_trace"]["clinical_warning"]
@@ -103,27 +101,3 @@ def test_diagnostic_result_serializes_enterprise_contract():
         result["nexus"]["promotion_policy"]["automatic_clinical_promotion_allowed"]
         is False
     )
-
-
-def test_neuro_metrics_include_deep_inference_and_action_potential_gate():
-    dynamics = AreaCoherenceAnalyzer().analyze(
-        {
-            "visual_diagnostic": {
-                "salience_score": 0.8,
-                "signal_count": 3,
-                "claims": [{"normalized_entity": "opacity"}],
-            },
-            "language_listening": {
-                "salience_score": 0.6,
-                "signal_count": 2,
-                "claims": [{"normalized_entity": "opacity"}],
-            },
-            "case_context": {"salience_score": 0.3, "signal_count": 1},
-        }
-    )
-    neuro = dynamics["neuro_dynamic_metrics"]
-
-    assert 0.0 <= neuro["action_potential_gate"] <= 1.0
-    assert 0.0 <= neuro["deep_inference_score"] <= 1.0
-    assert 0.0 <= neuro["noise_suppression_score"] <= 1.0
-    assert dynamics["deep_inference_score"] == neuro["deep_inference_score"]

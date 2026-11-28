@@ -15,29 +15,14 @@ def test_clinical_pipeline_runs_minimal_payload():
         "language_listening",
         "visual_diagnostic",
     ]
-    assert "area_dynamics" in result
-    assert result["area_dynamics"]["coherence_score"] >= 0.0
-    assert result["area_dynamics"]["mismatch_score"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["top_areas"]
-    assert result["intuition"]["deductive_filter"]["convergence_score"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["conflict_score"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["coherence_score"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["mismatch_score"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["area_pair_bonus"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["disagreement_penalty"] >= 0.0
-    assert result["intuition"]["deductive_filter"]["revision_bias"] in [
-        "exploratory",
-        "conservative",
-    ]
-    assert isinstance(
-        result["intuition"]["deductive_filter"]["contradiction_rehearsal"], bool
-    )
-    assert result["intuition"]["deductive_filter"]["reasoning_mode"] in [
-        "rapid_intuition",
-        "rational_revision",
-        "contradiction_revision",
-    ]
-    assert result["intuition"]["rapid_intuition"] == "candidate_1"
+    # the coherence between areas and the three modes were removed (28 November 2026)
+    assert "area_dynamics" not in result
+    # no interpreter on this machine: the note is not read, and that goes to a person
+    assert result["discordances"]["count"] == 1
+    assert result["discordances"]["kinds"]["unread"] == 1
+    assert result["discordances"]["reports"] == ["note"]
+    assert result["intuition"]["intuition"] == "candidate_1"
+    assert result["intuition"]["source"] == "placeholder"
     assert len(result["intuition"]["candidate_scores"]) == 3
     assert "coordinated" in result
     assert result["coordinated"]["differential"]["hypotheses"]
@@ -45,8 +30,6 @@ def test_clinical_pipeline_runs_minimal_payload():
         "hypothesis_type"
     ] in [
         "primary_hypothesis",
-        "revision_hypothesis",
-        "contradiction_revision_hypothesis",
     ]
     assert result["coordinated"]["differential"]["hypotheses"][0][
         "hypothesis_domain"
@@ -55,7 +38,7 @@ def test_clinical_pipeline_runs_minimal_payload():
         "imaging_led",
         "language_led",
         "epidemiology_led",
-        "mismatch_resolution_led",
+        "discordance_resolution_led",
     ]
     assert result["coordinated"]["differential"]["recommended_actions"]
     assert result["coordinated"]["differential"]["recommended_actions"][0][

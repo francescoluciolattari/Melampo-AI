@@ -44,10 +44,13 @@ flowchart TD
   router -.->|"MELAMPO_REPORT_READER=anatomy: il lettore precedente,<br/>tenuto solo per misurare il cambiamento"| narr["linker, lettore Kintsch, finding owner,<br/>interprete d'immagine"]
   prep --> d1["router dei casi: caso nuovo, unione o conferma"]
   d1 -->|confirm_and_train| conf["conferma del caso:<br/>confronto con la proposta fatta prima"]
-  d1 -->|nuovo / unione| ingest["CaseContext → bundle FHIR → aree → coerenza"]
+  d1 -->|nuovo / unione| ingest["CaseContext → bundle FHIR → aree<br/>→ discordanze della lettura"]
   lab --> ingest
   rr --> ingest
-  ingest --> nexus["ramo nexus: candidati dal grafo, meccanismi,<br/>controfattuali"]
+  ingest --> rapid["intuition engine, parte rapida:<br/>i candidati di rank_differential"]
+  rapid --> diff
+  rapid -->|proposte| cg
+  ingest --> nexus["ramo nexus: candidati dal grafo, meccanismi,<br/>controfattuali (chiuso: non promuove nulla)"]
   nexus --> diff["DifferentialEngine"] --> res["DiagnosticResult"]
   graphnode[("grafo dei concetti")] --> nexus
 ```
@@ -82,7 +85,10 @@ etichetta confermata).
 | Grafo dei concetti | `memory/falkordb_graph.py`, `memory/concept_paths.py` | funziona, 636.733 archi verificati |
 | Memory retriever | `memory/retriever.py` | **difetto**: inventa prove quando la memoria è vuota |
 | Aree funzionali | `areas/*` | contano chiavi di dizionario, non il contenuto: da rifare |
-| Ramo nexus, intuizione, differenziale | `training/nexus_*`, `reasoning/*` | funziona |
+| Discordanze del caso | `reasoning/case_discordances.py` | funziona (28 novembre 2026): ciò che la lettura manda a una persona, contato per tipo (scheda, riferimento, immagine, documento, non letto, termine). Decidono il doppio percorso esteso (`model_router.pick_mode`) e fanno escalation nel cancello del risultato e nei freni; non trattengono mai un risultato |
+| Intuition engine, parte rapida | `reasoning/intuition_engine.py` | funziona (28 novembre 2026): i candidati di `rank_differential` (contenuto informativo dei reperti condivisi), nel suo ordine, al differenziale e a `case_diagnosis` come proposte; la parte laterale (salienza, generazione, valutazione sui profili, ipotesi da escludere) è da scrivere |
+| Ramo nexus, differenziale | `training/nexus_*`, `reasoning/differential_engine.py` | funziona; la catena nexus è chiusa: propone e non promuove nulla finché la parte laterale non ha criteri misurati su casi pubblicati |
+| Tolta: coerenza tra aree | erano `reasoning/area_coherence.py`, `reasoning/neuro_dynamics.py`, `models/quantum_belief_layer.py`, `evaluation/quantum_gate.py`, `models/quantum_research.py` | tolte il 28 novembre 2026 con i loro test: una sovrapposizione lessicale tra i riassunti delle aree e venti metriche con pesi scritti a mano, mai misurate, senza fondamento bibliografico per le formule; decidevano il router, il cancello del risultato (pi_score < 0,35, mismatch > 0,7), i freni, i tre modi dell'intuition engine e la promozione nexus. Le sostituiscono i segnali concreti |
 | Grafo del caso | `clinical/case_graph.py`, `clinical/case_graph_builder.py`, `clinical/manifestation_state.py` | funziona: costruito nell'ingestione di ogni caso; quattro stati di una manifestazione |
 | Ramo dei farmaci | `clinical/drug_branch.py`, `scripts/drug_sources.py` | funziona quando la cache locale è configurata (`MELAMPO_DRUG_CACHE`) |
 | Profili delle malattie | `memory/disease_profiles.py`, `memory/profile_library.py`, `scripts/disease_profiles.py`, `scripts/disease_names.py` | funziona: solo fonti certe, nessuna persona conferma; li riempie la revisione sistematica, letti dalla conoscenza versionata (file, cartella, `knowledge.db` o `falkordb[:versione]`) |

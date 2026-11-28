@@ -7,21 +7,8 @@ from melampo.training.promotion_policy import PromotionPolicy
 from melampo.training.rational_control_validator import RationalControlValidator
 
 
-def _favorable_area_dynamics():
-    return {
-        "coherence_pairs": [("language_listening", "visual_diagnostic")],
-        "mismatch_pairs": [],
-        "pi_score": 0.82,
-        "convergence_index": 0.72,
-        "mismatch_index": 0.12,
-        "neuro_dynamic_metrics": {
-            "pi_score": 0.82,
-            "convergence_index": 0.72,
-            "mismatch_index": 0.12,
-            "prediction_error": 0.08,
-            "bias_suppression_score": 0.88,
-        },
-    }
+def _discordances():
+    return {"count": 0, "kinds": {}}
 
 
 def test_learning_status_blocks_unvalidated_promotion():
@@ -41,15 +28,13 @@ def test_learning_status_blocks_unvalidated_promotion():
     assert allowed.allowed is True
 
 
-def test_rational_control_validator_validates_favorable_candidate():
+def test_rational_control_validator_holds_even_a_favorable_candidate():
+    """Closed (28 November 2026): no promotion until the lateral cycle has measured criteria."""
     candidate = {
         "text": "Nexus candidate for multimodal pneumonia-like alignment.",
         "source": "nexus_scheduler",
         "metadata": {
             "case_id": "case-phase3",
-            "pi_score": 0.82,
-            "convergence_index": 0.72,
-            "mismatch_index": 0.12,
             "provenance_quality": 0.9,
             "retrieval_coverage": 0.6,
         },
@@ -64,7 +49,6 @@ def test_rational_control_validator_validates_favorable_candidate():
     }
     validation = RationalControlValidator().evaluate(
         candidate=candidate,
-        area_dynamics=_favorable_area_dynamics(),
         retrieval_context={"retrieval_coverage": 0.6},
         governance_scores={
             "risk": 0.1,
@@ -72,8 +56,9 @@ def test_rational_control_validator_validates_favorable_candidate():
             "retrieval_coverage": 0.6,
         },
     )
-    assert validation["allowed_for_promotion"] is True
-    assert validation["status"] == "validated_for_promotion_review"
+    assert validation["allowed_for_promotion"] is False
+    assert validation["failures"] == ["no_measured_promotion_criteria"]
+    assert validation["status"] == "needs_review"
 
 
 def test_promotion_policy_queues_for_review_by_default():
@@ -112,7 +97,7 @@ def test_nexus_scheduler_runs_only_in_low_activity_window():
             "report_text": "opacity cough",
             "patient_complaints": "fever",
         },
-        area_dynamics=_favorable_area_dynamics(),
+        discordances=_discordances(),
         nexus={
             "auto_evolution_plan": {
                 "candidate_score": 0.78,

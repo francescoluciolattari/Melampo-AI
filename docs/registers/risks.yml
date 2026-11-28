@@ -348,3 +348,23 @@ risks:
           - tests/test_review_mask.py::test_the_mask_shows_the_documents_and_keeps_a_discarded_one_locked
     measured_by: tests only; a document that writes no identifier cannot be checked (most reports); the review mask is not validated
     status: partial
+  - id: R23
+    hazard: A result is decided, withheld or promoted on a measure never validated
+    situation: Scores with hand-set weights (the coherence between areas, pi_score, mismatch, convergence) choose the reasoning path, block the result, pick the intuition's mode or promote a nexus candidate
+    harm: A right result withheld, a discordance missed, or an unchecked hypothesis promoted, with an appearance of measurement
+    severity: 3
+    probability: 3
+    controls:
+      - control: The coherence between areas and its metrics were removed (28 November 2026); the reasoning path and the escalation rest on the case's discordances, what the reading sends to a person, each with its sentence; a discordance escalates and never withholds the result
+        tests:
+          - tests/test_model_router.py::test_discordances_in_the_reading_are_dual_path_extended_budget
+          - tests/test_enterprise_orchestration.py::test_the_discordances_escalate_without_withholding_the_result
+          - tests/test_phase5a_validation_governance.py::test_clinical_safety_rails_block_unsafe_retrieval_and_output
+          - tests/test_support_contradiction.py::test_support_contradiction_analyzer_returns_typed_profiles
+      - control: The intuition engine's rapid part is rank_differential's ranking, with nothing weighted by hand; the nexus chain promotes nothing until criteria are measured on published cases
+        tests:
+          - tests/test_intuition_engine_real_labels.py::test_at_most_max_candidates_and_no_hand_set_modes
+          - tests/test_nexus_trainer.py::test_nexus_trainer_runs
+          - tests/test_phase3_nexus_governance.py::test_rational_control_validator_holds_even_a_favorable_candidate
+    measured_by: tests only; the governance scores still have unmeasured weights (risk, uncertainty), and the lateral part of the intuition engine is not written
+    status: partial
